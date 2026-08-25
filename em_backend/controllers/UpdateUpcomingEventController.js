@@ -3,7 +3,7 @@ const UpcomingEvent = require('../models/UpcomingEvent');
 const EventValidator = require('../validators/EventValidator');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
 const { fromUTCInstant } = require('../utilities/eventCalendar');
-const { notifyInviteesOfScheduleChange } = require('../utilities/notifyInviteesOfUpdate');
+const { notifyInviteesOfScheduleChange, notifyInviteesOfDetailsChange } = require('../utilities/notifyInviteesOfUpdate');
 
 class UpdateUpcomingEventController {
   static async handle(req, res) {
@@ -11,7 +11,7 @@ class UpdateUpcomingEventController {
       const { id } = req.params;
       const updateData = req.body;
 
-      const existingEvent = await withTransaction(async (session) => {
+      const { existingEvent, timeChanged } = await withTransaction(async (session) => {
         // Validate input
         const validation = EventValidator.validateEventData(updateData);
         if (!validation.isValid) {
@@ -38,10 +38,18 @@ class UpdateUpcomingEventController {
           throw new Error('End time must be after start time');
         }
 
-        // Check room availability if room changed (virtual events hold no room)
-        if (sanitizedData.eventRoom && sanitizedData.eventRoom !== 'virtual' && sanitizedData.eventRoom !== existingEvent.eventRoom) {
+        const timeChanged =
+          new Date(startTime).getTime() !== new Date(existingEvent.willStartAt).getTime() ||
+          new Date(endTime).getTime() !== new Date(existingEvent.willEndAt).getTime();
+        const roomChanged = !!(sanitizedData.eventRoom && sanitizedData.eventRoom !== existingEvent.eventRoom);
+        const effectiveRoom = sanitizedData.eventRoom || existingEvent.eventRoom;
+        const isVirtual = (sanitizedData.eventFormat || existingEvent.eventFormat) === 'Virtual' || effectiveRoom === 'virtual';
+
+        // Any room or time change is checked for conflicts in the effective
+        // room, always excluding this event itself (virtual events hold no room)
+        if ((roomChanged || timeChanged) && !isVirtual) {
           const availability = await CheckRoomAvailability.execute(
-            sanitizedData.eventRoom,
+            effectiveRoom,
             startTime,
             endTime,
             existingEvent.eventSpecialId  // exclude self by eventSpecialId string
@@ -56,12 +64,12 @@ class UpdateUpcomingEventController {
         Object.assign(existingEvent, sanitizedData);
         await existingEvent.save({ session, validateModifiedOnly: true });
 
-        return existingEvent;
+        return { existingEvent, timeChanged };
       });
 
-      // Push the change to everyone invited (same UID, bumped SEQUENCE) so
-      // their calendars always carry the latest details. Never blocks the response.
-      notifyInviteesOfScheduleChange(existingEvent.eventSpecialId, {
+      // Announce the change to everyone invited. A time change sends an updated
+      // calendar invitation; any other change sends a plain email only.
+      const eventForEmail = {
         eventName: existingEvent.eventName,
         eventDescription: existingEvent.eventDescription || '',
         eventRoom: existingEvent.eventRoom,
@@ -73,7 +81,11 @@ class UpdateUpcomingEventController {
         end: fromUTCInstant(existingEvent.willEndAt),
         isRecurring: false,
         recurring: null,
-      }).catch((err) => console.error('Failed to notify invitees of upcoming event update:', err.message));
+      };
+      const notifyPromise = timeChanged
+        ? notifyInviteesOfScheduleChange(existingEvent.eventSpecialId, eventForEmail)
+        : notifyInviteesOfDetailsChange(existingEvent.eventSpecialId, eventForEmail);
+      notifyPromise.catch((err) => console.error('Failed to notify invitees of upcoming event update:', err.message));
 
       return res.status(200).json({
         success: true,

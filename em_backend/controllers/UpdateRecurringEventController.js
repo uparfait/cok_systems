@@ -5,7 +5,7 @@ const EventValidator = require('../validators/EventValidator');
 const RecurringValidator = require('../validators/RecurringValidator');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
 const { firstRecurringOccurrence } = require('../utilities/eventCalendar');
-const { notifyInviteesOfScheduleChange } = require('../utilities/notifyInviteesOfUpdate');
+const { notifyInviteesOfScheduleChange, notifyInviteesOfDetailsChange } = require('../utilities/notifyInviteesOfUpdate');
 
 class UpdateRecurringEventController {
   static async handle(req, res) {
@@ -13,7 +13,7 @@ class UpdateRecurringEventController {
       const { id } = req.params;
       const updateData = req.body;
 
-      const existingEvent = await withTransaction(async (session) => {
+      const { existingEvent, timeChanged } = await withTransaction(async (session) => {
         // Validate input
         const validation = EventValidator.validateEventData(updateData);
         if (!validation.isValid) {
@@ -38,54 +38,72 @@ class UpdateRecurringEventController {
           throw new Error('Recurring event not found');
         }
 
-      // Check room availability if room changed (virtual events hold no room)
-      if (sanitizedData.eventRoom && sanitizedData.eventRoom !== 'virtual' && sanitizedData.eventRoom !== existingEvent.eventRoom) {
-        const availability = await CheckRoomAvailability.execute(
-          sanitizedData.eventRoom,
-          sanitizedData.eventStartDate || existingEvent.eventStartDate,
-          sanitizedData.eventEndDate || existingEvent.eventEndDate,
-          existingEvent.eventSpecialId  // exclude self by eventSpecialId string
-        );
+        const roomChanged = !!(sanitizedData.eventRoom && sanitizedData.eventRoom !== existingEvent.eventRoom);
+        const timeChanged = !!sanitizedData.eventRecurring;
+        const effectiveRoom = sanitizedData.eventRoom || existingEvent.eventRoom;
+        const isVirtual = (sanitizedData.eventFormat || existingEvent.eventFormat) === 'Virtual' || effectiveRoom === 'virtual';
 
-        if (!availability.available) {
-          throw new Error('Selected room is already reserved during the requested time');
+        // Any room or schedule change is checked across the WHOLE series with
+        // the effective configuration. The series itself AND all of its
+        // generated occurrence instances are excluded, so the event never
+        // conflicts with its own children.
+        if ((roomChanged || timeChanged) && !isVirtual) {
+          const effectiveConfig = sanitizedData.eventRecurring || existingEvent.eventRecurring;
+          const availability = await CheckRoomAvailability.executeRecurring(
+            effectiveRoom,
+            effectiveConfig,
+            existingEvent.eventSpecialId
+          );
+
+          if (!availability.available) {
+            throw new Error('Selected room is already reserved during the requested time');
+          }
         }
-      }
 
         // Update event
         Object.assign(existingEvent, sanitizedData);
         await existingEvent.save({ session, validateModifiedOnly: true });
 
-        // A series-level edit must also reach the already-generated occurrence
-        // instances, otherwise they keep showing the old details.
         const escaped = existingEvent.eventSpecialId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        await UpcomingEvent.updateMany(
-          { eventSpecialId: { $regex: `^${escaped}_` } },
-          {
-            $set: {
-              eventName: existingEvent.eventName,
-              eventDescription: existingEvent.eventDescription,
-              eventType: existingEvent.eventType,
-              expectedAudience: existingEvent.expectedAudience,
-              eventOrganizer: existingEvent.eventOrganizer,
-              activityAgenda: existingEvent.activityAgenda || [],
-              eventRoom: existingEvent.eventRoom,
-              eventFormat: existingEvent.eventFormat || 'Physical',
-              virtualLink: existingEvent.virtualLink || '',
-              virtualDescription: existingEvent.virtualDescription || '',
+        if (timeChanged) {
+          // The series schedule changed: generated occurrence instances carry
+          // the old times, so delete them and let the monitor regenerate them.
+          await UpcomingEvent.deleteMany(
+            { eventSpecialId: { $regex: `^${escaped}_` } },
+            { session }
+          );
+        } else {
+          // A series-level edit must also reach the already-generated occurrence
+          // instances, otherwise they keep showing the old details.
+          await UpcomingEvent.updateMany(
+            { eventSpecialId: { $regex: `^${escaped}_` } },
+            {
+              $set: {
+                eventName: existingEvent.eventName,
+                eventDescription: existingEvent.eventDescription,
+                eventType: existingEvent.eventType,
+                expectedAudience: existingEvent.expectedAudience,
+                eventOrganizer: existingEvent.eventOrganizer,
+                activityAgenda: existingEvent.activityAgenda || [],
+                eventRoom: existingEvent.eventRoom,
+                eventFormat: existingEvent.eventFormat || 'Physical',
+                virtualLink: existingEvent.virtualLink || '',
+                virtualDescription: existingEvent.virtualDescription || '',
+              },
             },
-          },
-          { session }
-        );
+            { session }
+          );
+        }
 
-        return existingEvent;
+        return { existingEvent, timeChanged };
       });
 
-      // Push the change to everyone invited (same UID, bumped SEQUENCE) so
-      // their calendars always carry the latest details. Never blocks the response.
+      // Announce the change to everyone invited. A schedule change sends an
+      // updated calendar invitation with the recurrence rule; any other change
+      // sends a plain email only, leaving calendars as they are.
       try {
         const occ = firstRecurringOccurrence(existingEvent.eventRecurring);
-        notifyInviteesOfScheduleChange(existingEvent.eventSpecialId, {
+        const eventForEmail = {
           eventName: existingEvent.eventName,
           eventDescription: existingEvent.eventDescription || '',
           eventRoom: existingEvent.eventRoom,
@@ -97,7 +115,11 @@ class UpdateRecurringEventController {
           end: occ.end,
           isRecurring: true,
           recurring: existingEvent.eventRecurring,
-        }).catch((err) => console.error('Failed to notify invitees of recurring event update:', err.message));
+        };
+        const notifyPromise = timeChanged
+          ? notifyInviteesOfScheduleChange(existingEvent.eventSpecialId, eventForEmail)
+          : notifyInviteesOfDetailsChange(existingEvent.eventSpecialId, eventForEmail);
+        notifyPromise.catch((err) => console.error('Failed to notify invitees of recurring event update:', err.message));
       } catch (notifyError) {
         console.error('Failed to build recurring update notification:', notifyError.message);
       }

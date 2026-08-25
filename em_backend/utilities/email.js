@@ -264,6 +264,33 @@ async function sendEventInvitation(email, event, invitationUid, recurrenceId = n
   );
 }
 
+/**
+ * Plain update email (no calendar attachment) for changes that do not touch
+ * the schedule: name, description, organizer, agenda, or location changes.
+ * The invitee's calendar entry stays as it is.
+ */
+function detailsUpdateHtml(event) {
+  const fmt = (d) => d ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+  const start = fmt(event.start);
+  const end = fmt(event.end);
+  return emailShell(`
+      <h2 style="color: ${PRIMARY}; font-family: ${FONT}; margin: 0 0 16px;">Updated: ${escapeHtml(event.eventName)}</h2>
+      <p style="color: ${TEXT_MUTED}; margin: 0 0 12px;">The details of this event have changed. The schedule is not affected.</p>
+      ${event.eventDescription ? `<p style="color: ${TEXT_MUTED}; margin: 0 0 12px;">${escapeHtml(event.eventDescription)}</p>` : ''}
+      ${start ? `<p style="margin: 0 0 12px;"><strong>Time:</strong> ${start}${end ? ` to ${end}` : ''}</p>` : ''}
+      ${locationHtml(event)}`);
+}
+
+/** Send a plain details-update email (no .ics) to a single attendee. */
+async function sendEventDetailsUpdate(email, event) {
+  return sendNotificationEmail(
+    email,
+    `Updated: ${event.eventName}`,
+    detailsUpdateHtml(event),
+    `Updated: ${event.eventName}. The details of this event have changed.`
+  );
+}
+
 /** Send a calendar cancellation (METHOD:CANCEL) to a single attendee. */
 async function sendEventCancellation(email, event, invitationUid, recurrenceId = null) {
   const ics = buildInviteICS(event, invitationUid, 'CANCEL', email, 0, recurrenceId);
@@ -328,6 +355,7 @@ module.exports = {
   sendNotificationEmail,
   sendEventInvitation,
   sendEventUpdate,
+  sendEventDetailsUpdate,
   sendEventCancellation,
   sendTaskAssignmentEmail,
   sendBookingSubmittedEmail,

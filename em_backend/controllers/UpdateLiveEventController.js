@@ -3,7 +3,7 @@ const LiveEvent = require('../models/LiveEvent');
 const EventValidator = require('../validators/EventValidator');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
 const { fromUTCInstant } = require('../utilities/eventCalendar');
-const { notifyInviteesOfScheduleChange } = require('../utilities/notifyInviteesOfUpdate');
+const { notifyInviteesOfScheduleChange, notifyInviteesOfDetailsChange } = require('../utilities/notifyInviteesOfUpdate');
 
 class UpdateLiveEventController {
   static async handle(req, res) {
@@ -11,7 +11,7 @@ class UpdateLiveEventController {
       const { id } = req.params;
       const updateData = req.body;
 
-      const existingEvent = await withTransaction(async (session) => {
+      const { existingEvent, timeChanged } = await withTransaction(async (session) => {
         // Validate input
         const validation = EventValidator.validateEventData(updateData);
         if (!validation.isValid) {
@@ -26,12 +26,22 @@ class UpdateLiveEventController {
           throw new Error('Live event not found');
         }
 
-        // Check room availability if room changed (virtual events hold no room)
-        if (sanitizedData.eventRoom && sanitizedData.eventRoom !== 'virtual' && sanitizedData.eventRoom !== existingEvent.eventRoom) {
+        const effectiveStart = sanitizedData.startedAt || existingEvent.startedAt;
+        const effectiveEnd = sanitizedData.willEndAt || existingEvent.willEndAt;
+        const timeChanged =
+          new Date(effectiveStart).getTime() !== new Date(existingEvent.startedAt).getTime() ||
+          new Date(effectiveEnd).getTime() !== new Date(existingEvent.willEndAt).getTime();
+        const roomChanged = !!(sanitizedData.eventRoom && sanitizedData.eventRoom !== existingEvent.eventRoom);
+        const effectiveRoom = sanitizedData.eventRoom || existingEvent.eventRoom;
+        const isVirtual = (sanitizedData.eventFormat || existingEvent.eventFormat) === 'Virtual' || effectiveRoom === 'virtual';
+
+        // Any room or time change is checked for conflicts in the effective
+        // room, always excluding this event itself (virtual events hold no room)
+        if ((roomChanged || timeChanged) && !isVirtual) {
           const availability = await CheckRoomAvailability.execute(
-            sanitizedData.eventRoom,
-            sanitizedData.startedAt || existingEvent.startedAt,
-            sanitizedData.willEndAt || existingEvent.willEndAt,
+            effectiveRoom,
+            effectiveStart,
+            effectiveEnd,
             existingEvent.eventSpecialId  // exclude self by eventSpecialId string
           );
 
@@ -44,12 +54,12 @@ class UpdateLiveEventController {
         Object.assign(existingEvent, sanitizedData);
         await existingEvent.save({ session, validateModifiedOnly: true });
 
-        return existingEvent;
+        return { existingEvent, timeChanged };
       });
 
-      // Push the change to everyone invited (same UID, bumped SEQUENCE) so
-      // their calendars always carry the latest details. Never blocks the response.
-      notifyInviteesOfScheduleChange(existingEvent.eventSpecialId, {
+      // Announce the change to everyone invited. A time change sends an updated
+      // calendar invitation; any other change sends a plain email only.
+      const eventForEmail = {
         eventName: existingEvent.eventName,
         eventDescription: existingEvent.eventDescription || '',
         eventRoom: existingEvent.eventRoom,
@@ -61,7 +71,11 @@ class UpdateLiveEventController {
         end: fromUTCInstant(existingEvent.willEndAt),
         isRecurring: false,
         recurring: null,
-      }).catch((err) => console.error('Failed to notify invitees of live event update:', err.message));
+      };
+      const notifyPromise = timeChanged
+        ? notifyInviteesOfScheduleChange(existingEvent.eventSpecialId, eventForEmail)
+        : notifyInviteesOfDetailsChange(existingEvent.eventSpecialId, eventForEmail);
+      notifyPromise.catch((err) => console.error('Failed to notify invitees of live event update:', err.message));
 
       return res.status(200).json({
         success: true,

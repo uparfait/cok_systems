@@ -6,6 +6,22 @@ const BookingRequest = require('../models/BookingRequest');
 const recurrenceHelper = require('./recurrenceHelper');
 
 class CheckRoomAvailability {
+  static _escapeRegex(str) {
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * A generated recurring instance carries the id `${parentId}_${timestamp}`.
+   * When such an instance excludes itself, its parent series must also be
+   * skipped, otherwise the instance conflicts with its own series occurrence.
+   */
+  static _isOwnParentSeries(recurringEvent, excludeEventSpecialId) {
+    return !!(
+      excludeEventSpecialId &&
+      String(excludeEventSpecialId).startsWith(`${recurringEvent.eventSpecialId}_`)
+    );
+  }
+
   /**
    * Returns true when two absolute time ranges overlap (touching edges do not overlap).
    */
@@ -32,12 +48,12 @@ class CheckRoomAvailability {
       'eventRecurring.isExpired': false,
     };
     if (excludeRecurringPrefix) {
-      recurringQuery.eventSpecialId = { $not: { $regex: `^${excludeRecurringPrefix}` } };
+      recurringQuery.eventSpecialId = { $not: { $regex: `^${this._escapeRegex(excludeRecurringPrefix)}` } };
     } else if (excludeEventId) {
       recurringQuery.eventSpecialId = { $ne: excludeEventId };
     }
 
-    const [live, upcoming, recurring, booking] = await Promise.all([
+    let [live, upcoming, recurring, booking] = await Promise.all([
       LiveEvent.find({ eventRoom: roomName, ...excludeFilter, $or: [{ startedAt: { $lt: end }, willEndAt: { $gt: start } }] }).lean(),
       UpcomingEvent.find({ eventRoom: roomName, ...excludeFilter, $or: [{ willStartAt: { $lt: end }, willEndAt: { $gt: start } }] }).lean(),
       RecurringEvent.find(recurringQuery).lean(),
@@ -47,6 +63,9 @@ class CheckRoomAvailability {
         $or: [{ startTime: { $lt: end }, endTime: { $gt: start } }],
       }).lean(),
     ]);
+
+    // A generated instance must never conflict with its own parent series
+    recurring = recurring.filter((re) => !this._isOwnParentSeries(re, excludeEventId));
 
     return { live, upcoming, recurring, booking };
   }
@@ -113,7 +132,7 @@ class CheckRoomAvailability {
     // Build the eventSpecialId exclusion filter
     let specialIdExclusion = null;
     if (excludeRecurringPrefix) {
-      specialIdExclusion = { $regex: `^${excludeRecurringPrefix}` };
+      specialIdExclusion = { $regex: `^${this._escapeRegex(excludeRecurringPrefix)}` };
     } else if (excludeEventSpecialId) {
       specialIdExclusion = excludeEventSpecialId;
     }
@@ -161,6 +180,8 @@ class CheckRoomAvailability {
       // Skip self-exclusion for recurring events
       if (excludeEventSpecialId && recurring.eventSpecialId === excludeEventSpecialId) continue;
       if (excludeRecurringPrefix && recurring.eventSpecialId.startsWith(excludeRecurringPrefix)) continue;
+      // A generated instance must never conflict with its own parent series
+      if (this._isOwnParentSeries(recurring, excludeEventSpecialId)) continue;
       if (recurrenceHelper.isRecurringOverlapping(recurring, startTime, endTime)) {
         return { available: false, conflict: 'RecurringEvent', details: recurring };
       }

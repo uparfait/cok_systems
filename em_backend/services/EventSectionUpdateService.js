@@ -6,7 +6,7 @@ const Room = require('../models/Room');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
 const recurrenceHelper = require('../utilities/recurrenceHelper');
 const { fromUTCInstant, firstRecurringOccurrence } = require('../utilities/eventCalendar');
-const { notifyInviteesOfScheduleChange } = require('../utilities/notifyInviteesOfUpdate');
+const { notifyInviteesOfScheduleChange, notifyInviteesOfDetailsChange } = require('../utilities/notifyInviteesOfUpdate');
 
 const MODELS = { live: LiveEvent, upcoming: UpcomingEvent, recurring: RecurringEvent };
 
@@ -43,65 +43,86 @@ class EventSectionUpdateService {
 
       await event.save({ session, validateModifiedOnly: true });
 
-      // A series-level edit must also reach the already-generated occurrence
-      // instances, otherwise they keep showing the old details.
-      if (eventType === 'recurring' && ['basic', 'organizer', 'agenda', 'room'].includes(section)) {
+      // Did this edit touch the schedule? The schedule section reports it
+      // directly; on a recurring series, changing the recurring times or the
+      // end date through the basic section is also a schedule change.
+      const recurringTimesChanged =
+        eventType === 'recurring' &&
+        section === 'basic' &&
+        !!(data.eventRecurring && (data.eventRecurring.eventStartTime || data.eventRecurring.eventEndTime || data.eventRecurring.recurringEndDate));
+      const timeChanged = scheduleChanged || recurringTimesChanged;
+
+      if (eventType === 'recurring') {
         const escaped = event.eventSpecialId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        await UpcomingEvent.updateMany(
-          { eventSpecialId: { $regex: `^${escaped}_` } },
-          {
-            $set: {
-              eventName: event.eventName,
-              eventDescription: event.eventDescription,
-              eventType: event.eventType,
-              expectedAudience: event.expectedAudience,
-              eventOrganizer: event.eventOrganizer,
-              activityAgenda: event.activityAgenda || [],
-              eventRoom: event.eventRoom,
-              eventFormat: event.eventFormat || 'Physical',
-              virtualLink: event.virtualLink || '',
-              virtualDescription: event.virtualDescription || '',
+        if (recurringTimesChanged) {
+          // The series times changed: the generated occurrence instances carry
+          // the old times, so delete them and let the monitor regenerate them.
+          await UpcomingEvent.deleteMany(
+            { eventSpecialId: { $regex: `^${escaped}_` } },
+            { session }
+          );
+        } else if (['basic', 'organizer', 'agenda', 'room'].includes(section)) {
+          // A series-level edit must also reach the already-generated occurrence
+          // instances, otherwise they keep showing the old details.
+          await UpcomingEvent.updateMany(
+            { eventSpecialId: { $regex: `^${escaped}_` } },
+            {
+              $set: {
+                eventName: event.eventName,
+                eventDescription: event.eventDescription,
+                eventType: event.eventType,
+                expectedAudience: event.expectedAudience,
+                eventOrganizer: event.eventOrganizer,
+                activityAgenda: event.activityAgenda || [],
+                eventRoom: event.eventRoom,
+                eventFormat: event.eventFormat || 'Physical',
+                virtualLink: event.virtualLink || '',
+                virtualDescription: event.virtualDescription || '',
+              },
             },
-          },
-          { session }
-        );
+            { session }
+          );
+        }
       }
 
-      // ANY change to the event is pushed to everyone invited as an updated
-      // calendar invitation (same UID, bumped SEQUENCE), so their calendars
-      // always carry the latest details. Recurring series send their RRULE.
-      const skipNotify = section === 'schedule' && !scheduleChanged;
-      if (!skipNotify) {
-        try {
-          let start;
-          let end;
-          let recurring = null;
-          if (eventType === 'recurring') {
-            recurring = event.eventRecurring;
-            const occ = firstRecurringOccurrence(event.eventRecurring);
-            start = occ.start;
-            end = occ.end;
-          } else {
-            const startField = eventType === 'live' ? 'startedAt' : 'willStartAt';
-            start = fromUTCInstant(event[startField]);
-            end = fromUTCInstant(event.willEndAt);
-          }
-          await notifyInviteesOfScheduleChange(event.eventSpecialId, {
-            eventName: event.eventName,
-            eventDescription: event.eventDescription || '',
-            eventRoom: event.eventRoom,
-            eventFormat: event.eventFormat || 'Physical',
-            virtualLink: event.virtualLink || '',
-            virtualDescription: event.virtualDescription || '',
-            eventOrganizer: event.eventOrganizer,
-            start,
-            end,
-            isRecurring: eventType === 'recurring',
-            recurring,
-          });
-        } catch (emailError) {
-          console.error('Failed to send event-change calendar updates:', emailError.message);
+      // Announce every change to the invited people:
+      // - time changes send an updated calendar invitation (same UID, bumped
+      //   SEQUENCE) so their calendars move to the new time
+      // - any other change sends a plain email only, leaving calendars as they are
+      try {
+        let start;
+        let end;
+        let recurring = null;
+        if (eventType === 'recurring') {
+          recurring = event.eventRecurring;
+          const occ = firstRecurringOccurrence(event.eventRecurring);
+          start = occ.start;
+          end = occ.end;
+        } else {
+          const startField = eventType === 'live' ? 'startedAt' : 'willStartAt';
+          start = fromUTCInstant(event[startField]);
+          end = fromUTCInstant(event.willEndAt);
         }
+        const eventForEmail = {
+          eventName: event.eventName,
+          eventDescription: event.eventDescription || '',
+          eventRoom: event.eventRoom,
+          eventFormat: event.eventFormat || 'Physical',
+          virtualLink: event.virtualLink || '',
+          virtualDescription: event.virtualDescription || '',
+          eventOrganizer: event.eventOrganizer,
+          start,
+          end,
+          isRecurring: eventType === 'recurring',
+          recurring,
+        };
+        if (timeChanged) {
+          await notifyInviteesOfScheduleChange(event.eventSpecialId, eventForEmail);
+        } else {
+          await notifyInviteesOfDetailsChange(event.eventSpecialId, eventForEmail);
+        }
+      } catch (emailError) {
+        console.error('Failed to send event-change updates to invitees:', emailError.message);
       }
 
       return { success: true, data: event };
@@ -321,7 +342,9 @@ class EventSectionUpdateService {
 
         if (occStart <= now) continue;
 
-        const avail = await CheckRoomAvailability.execute(newRoom, occStart, occEnd, event.eventSpecialId);
+        // Exclude the series AND its generated instances (ids start with the
+        // series id), otherwise the event conflicts with its own children.
+        const avail = await CheckRoomAvailability.execute(newRoom, occStart, occEnd, null, event.eventSpecialId);
         if (!avail.available) {
           conflicts.push({
             date: occDate.toLocaleDateString(),

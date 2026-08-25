@@ -117,6 +117,8 @@ class GetAvailableRooms {
       ? { eventSpecialId: { $ne: excludeEventId } }
       : {};
 
+    const escapeRegex = (str) => String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
     let recurringQuery = {
       eventRoom: roomName,
       'eventRecurring.recurringEndDate': { $gte: start },
@@ -125,12 +127,12 @@ class GetAvailableRooms {
     // When editing a recurring event, exclude both the parent and all generated instances
     // (generated instances use "<parentId>_<timestamp>" ids).
     if (excludeRecurringPrefix) {
-      recurringQuery.eventSpecialId = { $not: { $regex: `^${excludeRecurringPrefix}` } };
+      recurringQuery.eventSpecialId = { $not: { $regex: `^${escapeRegex(excludeRecurringPrefix)}` } };
     } else if (excludeEventId) {
       recurringQuery.eventSpecialId = { $ne: excludeEventId };
     }
 
-    const [live, upcoming, recurring, booking] = await Promise.all([
+    let [live, upcoming, recurring, booking] = await Promise.all([
       LiveEvent.find({ eventRoom: roomName, ...excludeFilter, $or: [{ startedAt: { $lt: end }, willEndAt: { $gt: start } }] }).lean(),
       UpcomingEvent.find({ eventRoom: roomName, ...excludeFilter, $or: [{ willStartAt: { $lt: end }, willEndAt: { $gt: start } }] }).lean(),
       RecurringEvent.find(recurringQuery).lean(),
@@ -141,6 +143,12 @@ class GetAvailableRooms {
         ...(requestId ? { _id: { $ne: requestId } } : {}),
       }).lean(),
     ]);
+
+    // A generated instance (id "<parentId>_<timestamp>") must never conflict
+    // with its own parent series when it excludes itself.
+    recurring = recurring.filter(
+      (re) => !(excludeEventId && String(excludeEventId).startsWith(`${re.eventSpecialId}_`))
+    );
 
     return { live, upcoming, recurring, booking };
   }

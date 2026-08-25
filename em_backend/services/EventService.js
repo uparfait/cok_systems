@@ -467,6 +467,7 @@ class EventService {
       search,
       searchField,
       excludeVirtual,
+      externalOnly,
     } = query;
 
     const queryObject = {};
@@ -474,6 +475,11 @@ class EventService {
     // Public listings hide virtual events entirely
     if (excludeVirtual === "true" || excludeVirtual === true) {
       queryObject.eventFormat = { $ne: "Virtual" };
+    }
+
+    // Public listings only show External events and meetings
+    if (externalOnly === "true" || externalOnly === true) {
+      queryObject.eventType = "External";
     }
 
     if (search && searchField) {
