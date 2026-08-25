@@ -37,6 +37,7 @@ export default function LiveEvents() {
             search: search || undefined,
             searchField: searchField || undefined,
             excludeVirtual: 'true',
+            externalOnly: 'true',
           }
         });
 

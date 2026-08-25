@@ -40,6 +40,7 @@ export default function UpcomingEvents() {
             search: search || undefined,
             searchField: searchField || undefined,
             excludeVirtual: 'true',
+            externalOnly: 'true',
           }
         });
 

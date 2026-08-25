@@ -48,4 +48,25 @@ async function notifyInviteesOfScheduleChange(originalEventSpecialId, eventForEm
   }
 }
 
-module.exports = { notifyInviteesOfScheduleChange };
+/**
+ * After a non-schedule change (name, description, organizer, agenda, or
+ * location), send every non-cancelled invitee a PLAIN email only. No calendar
+ * attachment is sent and the iCal SEQUENCE is not bumped, so the entry in
+ * their calendar stays untouched.
+ */
+async function notifyInviteesOfDetailsChange(originalEventSpecialId, eventForEmail) {
+  const invites = await InvitedPeople.find({
+    eventSpecialId: originalEventSpecialId,
+    cancelled: { $ne: true },
+  }).lean();
+
+  for (const invite of invites) {
+    try {
+      await emailUtil.sendEventDetailsUpdate(invite.email, eventForEmail);
+    } catch (err) {
+      console.error(`Failed to send details update to ${invite.email}:`, err.message);
+    }
+  }
+}
+
+module.exports = { notifyInviteesOfScheduleChange, notifyInviteesOfDetailsChange };
