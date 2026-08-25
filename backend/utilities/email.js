@@ -24,33 +24,25 @@ transporter.verify((error, success) => {
     }
 });
 
+const EMAIL_FROM = 'City of Kigali <coksystems@kigalicity.gov.rw>';
+
 const PRIMARY_COLOR = '#056daa';
-const PRIMARY_HOVER = '#248fc2';
+const TEXT_MUTED = '#555555';
+const BORDER = '#E0E0E0';
+const FONT = "'Montserrat', Arial, sans-serif";
 
-// Official report banner (Republic of Rwanda · City of Kigali) embedded inline in
-// every email via CID; falls back to the plain blue text banner if the file is missing
-const LOGO_BANNER_PATH = process.env.CLIENT_URL_SET + '/LOGO_COK_report.png';
-const HAS_LOGO_BANNER = require('fs').existsSync(LOGO_BANNER_PATH);
-const LOGO_BANNER_CID = 'cok_header_banner';
+// Official banner (Republic of Rwanda / City of Kigali) served from the frontend
+const LOGO_BASE_URL = (process.env.CLIENT_URL_SET || process.env.FRONTEND_URL || 'https://uat-ikaze.kigalicity.gov.rw').replace(/\/+$/, '');
+const LOGO_URL = `${LOGO_BASE_URL}/LOGO_COK_report.png`;
 
+// Standard shell for every outgoing email: the banner image as the ONLY header
+// content, then the message below it. No footer and no system name text.
 function htmlWrapper(bodyHtml) {
-    const headerHtml = HAS_LOGO_BANNER
-        ? `<div style="background-color: #ffffff; text-align: center; border: 1px solid #E0E0E0; border-bottom: none; border-radius: 4px 4px 0 0;">
-                <img src="${LOGO_BANNER_CID}" alt="Republic of Rwanda - City of Kigali" style="width: 100%; max-width: 600px; display: block;" />
-            </div>`
-        : `<div style="background-color: ${PRIMARY_COLOR}; padding: 20px; text-align: center; border-radius: 4px 4px 0 0;">
-                <h2 style="color: #ffffff; margin: 0; font-family: 'Montserrat', sans-serif; font-weight: 700; letter-spacing: -0.5px;">City of Kigali</h2>
-            </div>`;
     return `
-        <div style="font-family: 'Montserrat', sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-            ${headerHtml}
-            <div style="background-color: #ffffff; padding: 30px; border: 1px solid #E0E0E0; border-top: none; border-radius: 0 0 4px 4px;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; font-family: ${FONT}; color: #333333;">
+            <img src="${LOGO_URL}" alt="City of Kigali" style="width: 100%; max-width: 600px; display: block;" />
+            <div style="padding: 24px; border: 1px solid ${BORDER}; border-top: none;">
                 ${bodyHtml}
-            </div>
-            <div style="margin-top: 20px; padding: 15px; background-color: #F7F9FB; border: 1px solid #E0E0E0; border-radius: 4px; text-align: center;">
-                <p style="font-size: 13px; color: #9E9E9E; margin: 0; font-family: 'Montserrat', serif;">
-                    City of Kigali
-                </p>
             </div>
         </div>
     `;
@@ -61,62 +53,62 @@ async function sendOTPEmail(email, otp, type = 'login') {
     const message = `Your verification code is: ${otp}. This code will expire in 5 minutes.`;
 
     const htmlContent = htmlWrapper(`
-        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif; font-size: 22px; margin-top: 0;">${subject}</h2>
-        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Your verification code is:</p>
-        <div style="background: #f5f5f5; padding: 15px; font-size: 28px; font-weight: bold; letter-spacing: 5px; text-align: center; margin: 20px 0; border: 2px solid ${PRIMARY_COLOR}; border-radius: 4px; color: ${PRIMARY_COLOR};">
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: ${FONT}; font-size: 22px; margin: 0 0 16px;">${subject}</h2>
+        <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">Your verification code is:</p>
+        <div style="background: #F7F9FB; padding: 15px; font-size: 28px; font-weight: bold; letter-spacing: 5px; text-align: center; margin: 20px 0; border: 2px solid ${PRIMARY_COLOR}; color: ${PRIMARY_COLOR};">
             ${otp}
         </div>
-        <p style="color: #666; font-size: 14px; font-family: 'Merriweather', serif;">This code will expire in 5 minutes.</p>
+        <p style="color: ${TEXT_MUTED}; font-size: 14px; margin: 0;">This code will expire in 5 minutes.</p>
     `);
 
     return await sendEmail(email, subject, htmlContent, message);
 }
 
 async function sendWelcomeEmail(email, name) {
-    const subject = 'Welcome to COK Systems';
+    const subject = 'Welcome';
     const htmlContent = htmlWrapper(`
-        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif;">Welcome ${name}!</h2>
-        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Your account has been created successfully.</p>
-        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Welcome to the City of Kigali digital services platform.</p>
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: ${FONT}; margin: 0 0 16px;">Welcome ${name}!</h2>
+        <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">Your account has been created successfully.</p>
+        <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0;">Welcome to the City of Kigali digital services.</p>
     `);
-    return await sendEmail(email, subject, htmlContent, "Welcome to COK Systems!");
+    return await sendEmail(email, subject, htmlContent, 'Welcome! Your account has been created successfully.');
 }
 
 async function sendPasswordChangedEmail(email, name) {
-    const subject = 'Password Changed - COK Systems';
+    const subject = 'Password Changed';
     const htmlContent = htmlWrapper(`
-        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif;">Password Changed</h2>
-        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Hello ${name}, your password was updated successfully.</p>
-        <p style="font-family: 'Merriweather', serif; font-size: 14px; color: #9E9E9E;">If you did not make this change, please contact support immediately.</p>
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: ${FONT}; margin: 0 0 16px;">Password Changed</h2>
+        <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">Hello ${name}, your password was updated successfully.</p>
+        <p style="font-size: 14px; color: ${TEXT_MUTED}; margin: 0;">If you did not make this change, please contact support immediately.</p>
     `);
-    return await sendEmail(email, subject, htmlContent, "Your password has been changed.");
+    return await sendEmail(email, subject, htmlContent, 'Your password has been changed.');
 }
 
 async function sendAccountActivatedEmail(email, name) {
-    const subject = 'Account Activated - COK Systems';
+    const subject = 'Account Activated';
     const htmlContent = htmlWrapper(`
-        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif;">Account Activated!</h2>
-        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Hello ${name}, your account is now active.</p>
-        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">You can now login to the City of Kigali portal with your credentials.</p>
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: ${FONT}; margin: 0 0 16px;">Account Activated</h2>
+        <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">Hello ${name}, your account is now active.</p>
+        <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0;">You can now login to the City of Kigali portal with your credentials.</p>
     `);
-    return await sendEmail(email, subject, htmlContent, "Your account has been activated.");
+    return await sendEmail(email, subject, htmlContent, 'Your account has been activated.');
 }
 
 async function sendNegativeFeedbackAlert(email, leaderName, feedbackData) {
-    const subject = `Negative Feedback Alert - ${feedbackData.department_name}`;
+    const subject = `Negative Feedback Alert: ${feedbackData.department_name}`;
 
     const htmlContent = htmlWrapper(`
-        <h2 style="color: #E53935; font-family: 'Montserrat', sans-serif;">&#9888;&#65039; Negative Feedback Alert</h2>
-        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Dear ${leaderName},</p>
-        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">You have received negative feedback for <strong>${feedbackData.department_name}</strong>.</p>
-        <div style="background: #f5f5f5; padding: 15px; margin: 20px 0; border-left: 4px solid #E53935; border-radius: 4px;">
+        <h2 style="color: #E53935; font-family: ${FONT}; margin: 0 0 16px;">Negative Feedback Alert</h2>
+        <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">Dear ${leaderName},</p>
+        <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">You have received negative feedback for <strong>${feedbackData.department_name}</strong>.</p>
+        <div style="background: #F7F9FB; padding: 15px; margin: 20px 0; border-left: 4px solid #E53935;">
             <p style="margin: 0;"><strong>Rating:</strong> ${feedbackData.rating}/10</p>
             <p style="margin: 5px 0 0 0;"><strong>Visitor:</strong> ${feedbackData.user_name || 'Anonymous'}</p>
-            <p style="margin: 5px 0 0 0;"><strong>Date:</strong> ${new Date(feedbackData.created_date).toLocaleString()}</p>
+            <p style="margin: 5px 0 0 0;"><strong>Date:</strong> ${new Date(feedbackData.created_date).toLocaleString('en-GB', { hour12: false })}</p>
             <p style="margin: 5px 0 0 0;"><strong>Message:</strong></p>
-            <p style="margin: 5px 0 0 0; font-style: italic; color: #555555;">${feedbackData.textmessage || 'No message provided'}</p>
+            <p style="margin: 5px 0 0 0; font-style: italic; color: ${TEXT_MUTED};">${feedbackData.textmessage || 'No message provided'}</p>
         </div>
-        <p style="color: #666; font-size: 14px; font-family: 'Merriweather', serif;">Please take immediate action to address this concern.</p>
+        <p style="color: ${TEXT_MUTED}; font-size: 14px; margin: 0;">Please take immediate action to address this concern.</p>
     `);
 
     const textContent = `Negative Feedback Alert for ${feedbackData.department_name}. Rating: ${feedbackData.rating}/10. Visitor: ${feedbackData.user_name || 'Anonymous'}. Message: ${feedbackData.textmessage || 'No message'}. Please take action.`;
@@ -127,15 +119,15 @@ async function sendNegativeFeedbackAlert(email, leaderName, feedbackData) {
 async function sendLunchInviteEmail(email, name) {
     const subject = 'Invitation: Daily Lunch Reminder';
     const htmlContent = htmlWrapper(`
-        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif;">Hi ${name}!</h2>
-        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Here is your daily recurring automated lunch reminder for 11:40 AM.</p>
-        <p style="font-family: 'Merriweather', serif; font-size: 14px; color: #9E9E9E;">Please find the attached calendar invitation file.</p>
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: ${FONT}; margin: 0 0 16px;">Hi ${name}!</h2>
+        <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">Here is your daily recurring automated lunch reminder for 11:40 AM.</p>
+        <p style="font-size: 14px; color: ${TEXT_MUTED}; margin: 0;">Please find the attached calendar invitation file.</p>
     `);
     const textContent = `Hi ${name}! Please accept this daily calendar invite file attachment.`;
 
     const icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//COK Systems//Lunch Invite//EN
+PRODID:-//City of Kigali//Lunch Invite//EN
 METHOD:REQUEST
 BEGIN:VTIMEZONE
 TZID:Africa/Kigali
@@ -153,7 +145,7 @@ DTSTART;TZID=Africa/Kigali:20260703T120000
 DURATION:PT45M
 RRULE:FREQ=DAILY;UNTIL=20260704T235959Z
 SUMMARY:Time to Eat!
-DESCRIPTION:Automated daily break reminder from COK Systems.
+DESCRIPTION:Automated daily break reminder.
 LOCATION:Kigali, Rwanda
 SEQUENCE:0
 STATUS:CONFIRMED
@@ -184,17 +176,14 @@ END:VCALENDAR`.trim();
 
 async function sendEmail(toEmail, subject, htmlContent, textContent) {
     try {
-        console.log("IKAZE <coksystems@kigalicity.gov.rw>")
        const info =  await transporter.sendMail({
-            from: "IKAZE <coksystems@kigalicity.gov.rw>",
+            from: EMAIL_FROM,
             subject,
             to: toEmail,
             text: textContent,
             html: htmlContent,
-            // Inline header banner referenced by cid: in htmlWrapper
-            attachments: HAS_LOGO_BANNER ? [logoBannerAttachment] : [],
         });
-        console.log('Email sent successfully:', info);
+        console.log('Email sent successfully:', info?.messageId || '');
         return { success: true };
 
     } catch (error) {
@@ -206,13 +195,12 @@ async function sendEmail(toEmail, subject, htmlContent, textContent) {
 async function sendEmailWithFile(toEmail, subject, htmlContent, textContent, fileData) {
     try {
         const mailOptions = {
-            from: "IKAZE <coksystems@kigalicity.gov.rw>",
+            from: EMAIL_FROM,
             subject,
             to: toEmail,
             text: textContent,
             html: htmlContent,
-            // Inline header banner referenced by cid: in htmlWrapper
-            attachments: HAS_LOGO_BANNER ? [logoBannerAttachment] : [],
+            attachments: [],
         };
 
         if (fileData && fileData.content) {

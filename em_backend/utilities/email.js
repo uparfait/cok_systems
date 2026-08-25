@@ -2,6 +2,9 @@
  * Sends transactional emails via SMTP (nodemailer), including calendar (.ics)
  * attachments for event invitations and cancellations.
  * Same transport pattern as backend/utilities/email.js.
+ *
+ * Every email is wrapped in emailShell(): a City of Kigali banner image header
+ * (no text) followed by the message body. No footers or system names.
  */
 
 const nodemailer = require('nodemailer');
@@ -29,6 +32,31 @@ transporter.verify((error) => {
   }
 });
 
+const EMAIL_FROM = 'City of Kigali <coksystems@kigalicity.gov.rw>';
+
+const PRIMARY = '#056daa';
+const TEXT_DARK = '#333333';
+const TEXT_MUTED = '#555555';
+const BORDER = '#E0E0E0';
+const FONT = "'Montserrat', Arial, sans-serif";
+
+const LOGO_BASE_URL = (process.env.CLIENT_URL_SET || process.env.FRONTEND_URL || 'https://uat-ikaze.kigalicity.gov.rw').replace(/\/+$/, '');
+const LOGO_URL = `${LOGO_BASE_URL}/LOGO_COK_report.png`;
+
+/**
+ * Standard shell for every outgoing email: the banner image as the ONLY header
+ * content, then the message below it. No footer and no system name text.
+ */
+function emailShell(bodyHtml) {
+  return `
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; font-family: ${FONT}; color: ${TEXT_DARK};">
+      <img src="${LOGO_URL}" alt="City of Kigali" style="width: 100%; max-width: 600px; display: block;" />
+      <div style="padding: 24px; border: 1px solid ${BORDER}; border-top: none;">
+        ${bodyHtml}
+      </div>
+    </div>`;
+}
+
 /**
  * Send an email with a single .ics calendar attachment.
  * The icalEvent option makes Gmail/Outlook parse it as a real invitation.
@@ -37,7 +65,7 @@ transporter.verify((error) => {
 async function sendCalendarEmail(toEmail, subject, htmlContent, textContent, icsContent, filename, method = 'REQUEST') {
   try {
     await transporter.sendMail({
-      from: "IKAZE <coksystems@kigalicity.gov.rw>",
+      from: EMAIL_FROM,
       to: toEmail,
       subject,
       text: textContent,
@@ -59,7 +87,7 @@ async function sendCalendarEmail(toEmail, subject, htmlContent, textContent, ics
 async function sendNotificationEmail(toEmail, subject, htmlContent, textContent) {
   try {
     await transporter.sendMail({
-      from: "IKAZE <coksystems@kigalicity.gov.rw>",
+      from: EMAIL_FROM,
       to: toEmail,
       subject,
       text: textContent,
@@ -75,49 +103,6 @@ async function sendNotificationEmail(toEmail, subject, htmlContent, textContent)
 // Kept as an alias — some callers use the older name
 const sendPlainEmail = sendNotificationEmail;
 
-function locationHtml(event) {
-  if (event.eventFormat === 'Virtual') {
-    if (event.virtualLink) {
-      return `<p><strong>Virtual:</strong> <a href="${escapeHtml(event.virtualLink)}">${escapeHtml(event.virtualLink)}</a></p>`;
-    }
-    if (event.virtualDescription) {
-      return `<p><strong>Virtual:</strong> ${escapeHtml(event.virtualDescription)}</p>`;
-    }
-    return `<p><strong>Location:</strong> Virtual</p>`;
-  }
-  return `<p><strong>Location:</strong> ${escapeHtml(event.eventRoom || 'Meeting Room')}</p>`;
-}
-
-function inviteHtml(event) {
-  return `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
-      <h2 style="color: #1a5276;">You're invited: ${event.eventName}</h2>
-      <p>${event.eventDescription || ''}</p>
-      ${locationHtml(event)}
-    </div>`;
-}
-
-function cancelHtml(event) {
-  return `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
-      <h2 style="color: #c0392b;">Cancelled: ${event.eventName}</h2>
-      <p>This event has been cancelled.</p>
-    </div>`;
-}
-
-function updateHtml(event) {
-  const fmt = (d) => d ? new Date(d).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '';
-  const start = fmt(event.start);
-  const end = fmt(event.end);
-  return `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
-      <h2 style="color: #1a5276;">Updated: ${event.eventName}</h2>
-      <p>The schedule for this event has changed. Accepting this invitation updates the entry in your calendar automatically.</p>
-      <p><strong>New time:</strong> ${start}${end ? ` &ndash; ${end}` : ''}</p>
-      ${locationHtml(event)}
-    </div>`;
-}
-
 function escapeHtml(str) {
   return String(str == null ? '' : str)
     .replace(/&/g, '&amp;')
@@ -127,14 +112,41 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-function bookingShell(title, bodyHtml) {
-  return `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; color: #1f2937;">
-      <h2 style="color: #1a5276;">${escapeHtml(title)}</h2>
-      ${bodyHtml}
-      <hr style="margin-top: 24px; border: none; border-top: 1px solid #e5e7eb;" />
-      <p style="font-size: 12px; color: #6b7280;">City of Kigali &mdash; Event Management System</p>
-    </div>`;
+function locationHtml(event) {
+  if (event.eventFormat === 'Virtual') {
+    if (event.virtualLink) {
+      return `<p style="margin: 0 0 12px;"><strong>Virtual:</strong> <a href="${escapeHtml(event.virtualLink)}" style="color: ${PRIMARY};">${escapeHtml(event.virtualLink)}</a></p>`;
+    }
+    if (event.virtualDescription) {
+      return `<p style="margin: 0 0 12px;"><strong>Virtual:</strong> ${escapeHtml(event.virtualDescription)}</p>`;
+    }
+    return `<p style="margin: 0 0 12px;"><strong>Location:</strong> Virtual</p>`;
+  }
+  return `<p style="margin: 0 0 12px;"><strong>Location:</strong> ${escapeHtml(event.eventRoom || 'Meeting Room')}</p>`;
+}
+
+function inviteHtml(event) {
+  return emailShell(`
+      <h2 style="color: ${PRIMARY}; font-family: ${FONT}; margin: 0 0 16px;">You are invited: ${escapeHtml(event.eventName)}</h2>
+      <p style="color: ${TEXT_MUTED}; margin: 0 0 12px;">${escapeHtml(event.eventDescription || '')}</p>
+      ${locationHtml(event)}`);
+}
+
+function cancelHtml(event) {
+  return emailShell(`
+      <h2 style="color: ${PRIMARY}; font-family: ${FONT}; margin: 0 0 16px;">Cancelled: ${escapeHtml(event.eventName)}</h2>
+      <p style="color: ${TEXT_MUTED}; margin: 0;">This event has been cancelled.</p>`);
+}
+
+function updateHtml(event) {
+  const fmt = (d) => d ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+  const start = fmt(event.start);
+  const end = fmt(event.end);
+  return emailShell(`
+      <h2 style="color: ${PRIMARY}; font-family: ${FONT}; margin: 0 0 16px;">Updated: ${escapeHtml(event.eventName)}</h2>
+      <p style="color: ${TEXT_MUTED}; margin: 0 0 12px;">The details of this event have changed. Accepting this invitation updates the entry in your calendar automatically.</p>
+      <p style="margin: 0 0 12px;"><strong>Time:</strong> ${start}${end ? ` to ${end}` : ''}</p>
+      ${locationHtml(event)}`);
 }
 
 /**
@@ -143,48 +155,48 @@ function bookingShell(title, bodyHtml) {
  */
 function bookingSubmittedHtml(data) {
   const { trackingCode, trackUrl, eventName, eventRoom, start, end } = data;
-  const body = `
-    <p>Thank you for your room booking request. We have received it and it is now <strong>pending review</strong>.</p>
-    <p><strong>Event:</strong> ${escapeHtml(eventName)}</p>
-    <p><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
-    <p><strong>When:</strong> ${escapeHtml(start)} &ndash; ${escapeHtml(end)}</p>
-    <p style="margin-top: 16px;">Your tracking code is:</p>
-    <p style="font-size: 18px; font-weight: bold; letter-spacing: 1px; color: #1a5276;">${escapeHtml(trackingCode)}</p>
-    <p style="margin-top: 16px;">You can track the status of your request (and edit or cancel it) using the link below:</p>
-    <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb;">${escapeHtml(trackUrl)}</a></p>
-    <p style="font-size: 13px; color: #6b7280;">Keep this code safe &mdash; you will also need it to view your request if you lose this email.</p>`;
-  return bookingShell('Room Booking Request Received', body);
+  return emailShell(`
+    <h2 style="color: ${PRIMARY}; font-family: ${FONT}; margin: 0 0 16px;">Room Booking Request Received</h2>
+    <p style="color: ${TEXT_MUTED}; margin: 0 0 12px;">Thank you for your room booking request. We have received it and it is now <strong>pending review</strong>.</p>
+    <p style="margin: 0 0 8px;"><strong>Event:</strong> ${escapeHtml(eventName)}</p>
+    <p style="margin: 0 0 8px;"><strong>Location:</strong> ${escapeHtml(eventRoom)}</p>
+    <p style="margin: 0 0 8px;"><strong>When:</strong> ${escapeHtml(start)} to ${escapeHtml(end)}</p>
+    <p style="margin: 16px 0 8px;">Your tracking code is:</p>
+    <p style="font-size: 18px; font-weight: bold; letter-spacing: 1px; color: ${PRIMARY}; margin: 0 0 8px;">${escapeHtml(trackingCode)}</p>
+    <p style="margin: 16px 0 8px;">You can track the status of your request (and edit or cancel it) using the link below:</p>
+    <p style="margin: 0 0 8px;"><a href="${escapeHtml(trackUrl)}" style="color: ${PRIMARY};">${escapeHtml(trackUrl)}</a></p>
+    <p style="font-size: 13px; color: ${TEXT_MUTED}; margin: 16px 0 0;">Keep this code safe. You will also need it to view your request if you lose this email.</p>`);
 }
 
 /** Email sent to the organizer when their booking request is accepted. */
 function bookingAcceptedHtml(data) {
   const { trackingCode, trackUrl, eventName, eventRoom, start, end } = data;
-  const body = `
-    <p>Good news! Your room booking request has been <strong style="color: #15803d;">accepted</strong>.</p>
-    <p><strong>Event:</strong> ${escapeHtml(eventName)}</p>
-    <p><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
-    <p><strong>When:</strong> ${escapeHtml(start)} &ndash; ${escapeHtml(end)}</p>
-    <p style="margin-top: 16px;">Tracking code: <strong>${escapeHtml(trackingCode)}</strong></p>
-    <p style="margin-top: 16px;">Track or manage your request here:</p>
-    <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb;">${escapeHtml(trackUrl)}</a></p>`;
-  return bookingShell('Room Booking Request Accepted', body);
+  return emailShell(`
+    <h2 style="color: ${PRIMARY}; font-family: ${FONT}; margin: 0 0 16px;">Room Booking Request Accepted</h2>
+    <p style="color: ${TEXT_MUTED}; margin: 0 0 12px;">Your room booking request has been <strong style="color: #15803d;">accepted</strong>.</p>
+    <p style="margin: 0 0 8px;"><strong>Event:</strong> ${escapeHtml(eventName)}</p>
+    <p style="margin: 0 0 8px;"><strong>Location:</strong> ${escapeHtml(eventRoom)}</p>
+    <p style="margin: 0 0 8px;"><strong>When:</strong> ${escapeHtml(start)} to ${escapeHtml(end)}</p>
+    <p style="margin: 16px 0 8px;">Tracking code: <strong>${escapeHtml(trackingCode)}</strong></p>
+    <p style="margin: 16px 0 8px;">Track or manage your request here:</p>
+    <p style="margin: 0;"><a href="${escapeHtml(trackUrl)}" style="color: ${PRIMARY};">${escapeHtml(trackUrl)}</a></p>`);
 }
 
 /** Email sent to the organizer when their booking request is rejected. */
 function bookingRejectedHtml(data) {
   const { trackingCode, trackUrl, eventName, eventRoom, reason } = data;
   const reasonBlock = reason
-    ? `<p><strong>Reason:</strong> ${escapeHtml(reason)}</p>`
+    ? `<p style="margin: 0 0 8px;"><strong>Reason:</strong> ${escapeHtml(reason)}</p>`
     : '';
-  const body = `
-    <p>We regret to inform you that your room booking request was <strong style="color: #b91c1c;">not approved</strong>.</p>
-    <p><strong>Event:</strong> ${escapeHtml(eventName)}</p>
-    <p><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
+  return emailShell(`
+    <h2 style="color: ${PRIMARY}; font-family: ${FONT}; margin: 0 0 16px;">Room Booking Request Not Approved</h2>
+    <p style="color: ${TEXT_MUTED}; margin: 0 0 12px;">We regret to inform you that your room booking request was <strong style="color: #b91c1c;">not approved</strong>.</p>
+    <p style="margin: 0 0 8px;"><strong>Event:</strong> ${escapeHtml(eventName)}</p>
+    <p style="margin: 0 0 8px;"><strong>Location:</strong> ${escapeHtml(eventRoom)}</p>
     ${reasonBlock}
-    <p style="margin-top: 16px;">Tracking code: <strong>${escapeHtml(trackingCode)}</strong></p>
-    <p style="margin-top: 16px;">You can review your request here:</p>
-    <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb;">${escapeHtml(trackUrl)}</a></p>`;
-  return bookingShell('Room Booking Request Rejected', body);
+    <p style="margin: 16px 0 8px;">Tracking code: <strong>${escapeHtml(trackingCode)}</strong></p>
+    <p style="margin: 16px 0 8px;">You can review your request here:</p>
+    <p style="margin: 0;"><a href="${escapeHtml(trackUrl)}" style="color: ${PRIMARY};">${escapeHtml(trackUrl)}</a></p>`);
 }
 
 /** Send the "booking submitted" email to the organizer (if an email exists). */
@@ -192,7 +204,7 @@ async function sendBookingSubmittedEmail(email, data) {
   if (!email) return { success: false, error: 'No organizer email' };
   return sendNotificationEmail(
     email,
-    `Room Booking Received – ${data.trackingCode}`,
+    `Room Booking Received: ${data.trackingCode}`,
     bookingSubmittedHtml(data),
     `Your room booking request (${data.trackingCode}) is pending review. Track it at ${data.trackUrl}`
   );
@@ -203,7 +215,7 @@ async function sendBookingAcceptedEmail(email, data) {
   if (!email) return { success: false, error: 'No organizer email' };
   return sendNotificationEmail(
     email,
-    `Room Booking Accepted – ${data.trackingCode}`,
+    `Room Booking Accepted: ${data.trackingCode}`,
     bookingAcceptedHtml(data),
     `Your room booking request (${data.trackingCode}) has been accepted. Track it at ${data.trackUrl}`
   );
@@ -214,7 +226,7 @@ async function sendBookingRejectedEmail(email, data) {
   if (!email) return { success: false, error: 'No organizer email' };
   return sendNotificationEmail(
     email,
-    `Room Booking Not Approved – ${data.trackingCode}`,
+    `Room Booking Not Approved: ${data.trackingCode}`,
     bookingRejectedHtml(data),
     `Your room booking request (${data.trackingCode}) was rejected.${data.reason ? ` Reason: ${data.reason}` : ''} Track it at ${data.trackUrl}`
   );
@@ -271,28 +283,25 @@ function taskAssignmentHtml(action, eventName, tasksUrl) {
   const byDetails = [action.createdBy?.role, action.createdBy?.institution].filter(Boolean).join(', ');
   const due = action.dueDate
     ? new Date(action.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    : '—';
+    : 'Not set';
 
-  return `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
-      <h2 style="color: #1a5276;">New responsibility assigned to you</h2>
-      <p>Hello ${action.assignedPerson?.name || ''},</p>
-      <p>
-        You have been assigned the responsibility <strong>"${action.title}"</strong>
-        by <strong>${assignedBy}</strong>${byDetails ? ` (${byDetails})` : ''}${eventName ? ` for the event <strong>${eventName}</strong>` : ''}.
+  return emailShell(`
+      <h2 style="color: ${PRIMARY}; font-family: ${FONT}; margin: 0 0 16px;">New responsibility assigned to you</h2>
+      <p style="color: ${TEXT_MUTED}; margin: 0 0 12px;">Hello ${escapeHtml(action.assignedPerson?.name || '')},</p>
+      <p style="color: ${TEXT_MUTED}; margin: 0 0 12px;">
+        You have been assigned the responsibility <strong>"${escapeHtml(action.title)}"</strong>
+        by <strong>${escapeHtml(assignedBy)}</strong>${byDetails ? ` (${escapeHtml(byDetails)})` : ''}${eventName ? ` for the event <strong>${escapeHtml(eventName)}</strong>` : ''}.
       </p>
-      <p style="background: #f4f6f7; border-left: 4px solid #1a5276; padding: 10px 14px; color: #333;">
-        ${action.actionDescription || ''}
+      <p style="background: #F7F9FB; border-left: 4px solid ${PRIMARY}; padding: 10px 14px; color: ${TEXT_DARK}; margin: 0 0 12px;">
+        ${escapeHtml(action.actionDescription || '')}
       </p>
-      <p><strong>Due date:</strong> ${due}</p>
+      <p style="margin: 0 0 12px;"><strong>Due date:</strong> ${due}</p>
       ${tasksUrl ? `
-      <p style="margin-top: 20px;">
-        <a href="${tasksUrl}" style="display: inline-block; background: #1a5276; color: #ffffff; padding: 10px 18px; text-decoration: none; border-radius: 4px;">
+      <p style="margin: 20px 0 0;">
+        <a href="${escapeHtml(tasksUrl)}" style="display: inline-block; background: ${PRIMARY}; color: #ffffff; padding: 10px 18px; text-decoration: none;">
           Open My Tasks
         </a>
-      </p>` : ''}
-      <p style="color: #7f8c8d; font-size: 12px; margin-top: 24px;">City of Kigali — Event Management System</p>
-    </div>`;
+      </p>` : ''}`);
 }
 
 /** Notify the assigned person that a responsibility (event action) was assigned to them. */
@@ -313,6 +322,7 @@ async function sendTaskAssignmentEmail(action, eventName) {
 }
 
 module.exports = {
+  emailShell,
   sendCalendarEmail,
   sendPlainEmail,
   sendNotificationEmail,
