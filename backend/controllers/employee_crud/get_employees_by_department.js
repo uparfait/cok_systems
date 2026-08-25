@@ -3,19 +3,29 @@ const Department = require('../../models/department.js');
 const mongoose = require('mongoose');
 
 /**
- * Get employees filtered by department
- * Uses the Department document's `employees` array (ObjectId refs) as the primary
- * data source, falling back to the User's `department` field for flexibility.
+ * Get employees filtered by department.
+ *
+ * How membership is stored on the User model:
+ * - `department` (ObjectId ref) always points at the PARENT department
+ * - `department_unit` (plain string id) points at the unit, when the employee
+ *   belongs to one
+ *
+ * The given department_id can therefore be a UNIT id or a PARENT id, and
+ * units are checked FIRST:
+ * 1. employees whose `department_unit` equals the id (the id is a unit):
+ *    when any are found, ONLY those are returned
+ * 2. otherwise employees whose `department` equals the id (the id is a parent)
+ * 3. last resort: users listed in the Department document's `employees` array
  */
 module.exports = async function get_employees_by_department(req, res, next) {
     try {
-        let { 
-            department_id = null, 
+        let {
+            department_id = null,
             department_name = null,
             is_active = null,
             is_account_activated = null,
-            limit = 50, 
-            page = 1 
+            limit = 50,
+            page = 1
         } = req.query || {};
 
         if (!department_id && !department_name) {
@@ -26,151 +36,90 @@ module.exports = async function get_employees_by_department(req, res, next) {
             });
         }
 
-        const limit_val = Math.min(parseInt(limit), 200);
-        const skip_val = (parseInt(page) - 1) * limit_val;
-        let department_ids = [];
+        const limit_val = Math.min(parseInt(limit) || 50, 200);
+        const skip_val = ((parseInt(page) || 1) - 1) * limit_val;
 
-        // ── 1. Resolve the department(s) to query ──
-        if (department_id) {
-            department_ids.push(department_id);
-            // Also include sub-departments (units)
-            const subDepts = await Department.find({ 
-                is_unit: true, 
-                parent_department: department_id 
-            }).select('_id');
-            subDepts.forEach(sd => department_ids.push(sd._id.toString()));
-        } else if (department_name) {
-            const departments = await Department.find({
-                $or: [
-                    { name: department_name },
-                    { name: { $regex: department_name, $options: 'i' } }
-                ]
-            });
-            departments.forEach(d => department_ids.push(d._id.toString()));
-        }
-
-        // ── 2. Debug: check what's actually in the department ──
-        const deptDoc = await Department.findById(department_id).select('employees total_employees name');
-        console.log(`[get_employees_by_department] Dept "${deptDoc?.name}" (${department_id}):`);
-        console.log(`  - total_employees counter: ${deptDoc?.total_employees}`);
-        console.log(`  - employees array length: ${deptDoc?.employees?.length || 0}`);
-        if (deptDoc?.employees?.length > 0) {
-            console.log(`  - employees IDs: ${deptDoc.employees.map(e => e.toString()).join(', ')}`);
-        }
-
-        // ── 3. Build the user query ──
-        const filter = { $or: [] };
-
-        // Strategy A: Users whose `department` field references one of our department IDs
-        // Mongoose will auto-cast strings to ObjectId for Schema.Types.ObjectId fields
-        for (const deptId of department_ids) {
-            if (mongoose.Types.ObjectId.isValid(deptId)) {
-                filter.$or.push({ department: new mongoose.Types.ObjectId(deptId) });
-                filter.$or.push({ department_unit: deptId });
-            }
-        }
-
-        // Strategy B: Users whose _id is in the department's `employees` array
-        const depts = await Department.find({ _id: { $in: department_ids } }).select('employees');
-        const allEmployeeIds = depts.reduce((acc, d) => {
-            if (d.employees && d.employees.length > 0) {
-                acc.push(...d.employees.map(e => e.toString()));
-            }
-            return acc;
-        }, []);
-
-        if (allEmployeeIds.length > 0) {
-            filter.$or.push({ _id: { $in: allEmployeeIds } });
-        }
-
-        // Also check: any User whose department string field happens to contain the ID
-        // (in case the department was stored as plain string rather than ObjectId)
-        for (const deptId of department_ids) {
-            filter.$or.push({ department: deptId }); // plain string match
-        }
-
-        // ── 3b. Fallback: if the department claims to have employees but our queries found no one,
-        // do a broad search — try ANY user who has ANY department reference that matches
-        // This handles data where the department_id was stored differently than expected
-        let needsFallback = false;
-        if (deptDoc && deptDoc.total_employees > 0 && deptDoc.employees?.length === 0) {
-            // The department has a non-zero total_employees counter but an empty employees array
-            // This happens because create_employee increments total_employees without pushing to employees[]
-            needsFallback = true;
-            console.log(`[get_employees_by_department] total_employees=${deptDoc.total_employees} but employees[] empty. Using broad fallback.`);
-        }
-
-        // Apply optional active filters
+        const activeFilters = {};
         if (is_active !== null && is_active !== undefined) {
-            filter.is_active = is_active === 'true' || is_active === true;
+            activeFilters.is_active = is_active === 'true' || is_active === true;
         }
         if (is_account_activated !== null && is_account_activated !== undefined) {
-            filter.is_account_activated = is_account_activated === 'true' || is_account_activated === true;
+            activeFilters.is_account_activated = is_account_activated === 'true' || is_account_activated === true;
         }
 
-        // Debug log the query
-        console.log(`[get_employees_by_department] Query filter (condensed):`, JSON.stringify({
-            $or: filter.$or.map(o => Object.keys(o)),
-            ...(filter.is_active !== undefined ? { is_active: filter.is_active } : {}),
-            ...(filter.is_account_activated !== undefined ? { is_account_activated: filter.is_account_activated } : {})
-        }));
-
-        // ── 4. Execute query ──
-        let employees = await User.find(filter)
-            .select('-twofa_setup -password -auth -twofa_secret')
-            .limit(limit_val)
-            .skip(skip_val)
-            .sort({ created_date: -1 })
-            .populate('department', 'name department_id _id')
-            .populate('roles', 'role_name');
-
-        let total_count = await User.countDocuments(filter);
-        console.log(`[get_employees_by_department] Found ${total_count} users`);
-
-        // ── 4b. Fallback query: if total_employees > 0 but query returned 0, 
-        // search ALL users and filter by populated department
-        if (total_count === 0 && needsFallback) {
-            console.log(`[get_employees_by_department] Trying fallback: fetch ALL users and check their populated department`);
-            
-            // Remove the $or filter entirely and just get all users, then we'll populate and filter
-            const allUsers = await User.find({})
+        const fetchFor = async (baseFilter) => {
+            const filter = { ...baseFilter, ...activeFilters };
+            const total = await User.countDocuments(filter);
+            if (total === 0) return { total: 0, employees: [] };
+            const employees = await User.find(filter)
                 .select('-twofa_setup -password -auth -twofa_secret')
-                .limit(200)
+                .limit(limit_val)
+                .skip(skip_val)
                 .sort({ created_date: -1 })
-                .populate('department', 'name _id')
+                .populate('department', 'department_name department_id _id')
                 .populate('roles', 'role_name');
-            
-            // Filter by department ID or name match
-            const deptName = deptDoc?.name || '';
-            const deptIdStr = department_id?.toString();
-            const matched = allUsers.filter(u => {
-                const d = u.department;
-                if (!d) return false;
-                const dId = typeof d === 'object' ? (d._id?.toString() || '') : d.toString();
-                const dName = typeof d === 'object' ? (d.name || '') : '';
-                return dId === deptIdStr || dName === deptName || dName.toLowerCase().includes(deptName.toLowerCase());
-            });
-            
-            if (matched.length > 0) {
-                console.log(`[get_employees_by_department] Fallback found ${matched.length} users!`);
-                employees = matched.slice(skip_val, skip_val + limit_val);
-                total_count = matched.length;
+            return { total, employees };
+        };
+
+        const resolveById = async (id) => {
+            const idStr = String(id);
+
+            // 1. Units first: the id is a unit when employees carry it in
+            //    their department_unit string field
+            let result = await fetchFor({ department_unit: idStr });
+            if (result.total > 0) return result;
+
+            // 2. Then the parent: employees whose department points at the id
+            if (mongoose.Types.ObjectId.isValid(idStr)) {
+                result = await fetchFor({
+                    $or: [
+                        { department: new mongoose.Types.ObjectId(idStr) },
+                        { department: idStr }
+                    ]
+                });
+                if (result.total > 0) return result;
+            }
+
+            // 3. Last resort: the Department document's employees array
+            const deptDoc = mongoose.Types.ObjectId.isValid(idStr)
+                ? await Department.findById(idStr).select('employees')
+                : null;
+            const employeeIds = (deptDoc?.employees || []).map(e => e.toString());
+            if (employeeIds.length > 0) {
+                result = await fetchFor({ _id: { $in: employeeIds } });
+            }
+            return result;
+        };
+
+        let result = { total: 0, employees: [] };
+
+        if (department_id) {
+            result = await resolveById(department_id);
+        } else {
+            const escaped = department_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const departments = await Department.find({
+                department_name: { $regex: escaped, $options: 'i' }
+            }).select('_id');
+            for (const dept of departments) {
+                result = await resolveById(dept._id);
+                if (result.total > 0) break;
             }
         }
 
-        // ── 5. Return result ──
-        const deptInfo = await Department.findById(department_id)
-            .select('name _id total_employees')
-            .populate('leader', 'full_name email');
+        const deptInfo = department_id && mongoose.Types.ObjectId.isValid(department_id)
+            ? await Department.findById(department_id)
+                .select('department_name _id total_employees is_unit parent_department')
+                .populate('leader', 'full_name email')
+            : null;
 
         return res.status(200).json({
             success: true,
             type: 'success',
             message: 'Employees retrieved successfully',
             department: deptInfo,
-            total: total_count,
-            page: parseInt(page),
-            data: employees
+            total: result.total,
+            page: parseInt(page) || 1,
+            data: result.employees
         });
 
     } catch (error) {
