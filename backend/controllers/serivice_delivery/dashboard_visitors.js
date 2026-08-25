@@ -18,6 +18,12 @@ module.exports = async function dashboard_visitors(req, res, next) {
       filter.is_still_inhouse = true;
     }
 
+    // Receptionists only see visitors who are not yet assigned to any
+    // department, so their list is the queue of people waiting to be routed.
+    if ((user_role_name || "").toLowerCase().includes("receptionist")) {
+      filter["departments_assigned.0"] = { $exists: false };
+    }
+
     if (user_role_name === "Employee") {
       let departmentIds = [];
       if (user_department_id) departmentIds.push(user_department_id);
