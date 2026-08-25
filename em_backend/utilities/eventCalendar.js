@@ -31,7 +31,14 @@ const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
 // Fixed reminder ladder attached to EVERY invitation regardless of how far
 // away the event is (clients simply ignore triggers that are already past).
-// Each trigger is expressed in seconds before the event start.
+//
+// SIGN CONVENTION (verified against ical-generator output): the `trigger`
+// option takes POSITIVE seconds meaning "this long BEFORE the event start"
+// and the library serializes the RFC 5545 negative form itself:
+//   trigger: 1800    -> TRIGGER:-PT30M      (30 minutes before start)
+//   trigger: 2592000 -> TRIGGER:-P30D       (30 days before start)
+// Do NOT negate these values: a negative number makes ical-generator emit
+// TRIGGER;RELATED=END:PT30M, an alarm AFTER the event ends.
 const REMINDER_ALARMS = [
   { seconds: 30 * 24 * 60 * 60, label: '30 days until event' },
   { seconds: 10 * 24 * 60 * 60, label: '10 days until event' },
@@ -40,6 +47,12 @@ const REMINDER_ALARMS = [
   { seconds: 30 * 60, label: '30 minutes until event' },
   { seconds: 5 * 60, label: '5 minutes until event' },
 ];
+
+// Recurring series alarms fire relative to EVERY occurrence, so long-range
+// reminders (30, 10, 5, 2 days) on a daily or weekly series would produce
+// overlapping alerts for occurrences far in the future. Series therefore only
+// carry the short-range reminders; one-off events keep the full ladder.
+const RECURRING_REMINDER_ALARMS = REMINDER_ALARMS.filter((a) => a.seconds <= 30 * 60);
 
 function monthlyMatch(date, pattern, dates) {
   const dayOfMonth = date.getDate();
@@ -221,11 +234,14 @@ function buildInviteICS(event, invitationUid, method = 'REQUEST', attendeeEmail 
     applyRecurrence(calendarEvent, event.recurring);
   }
 
-  // Attach the full reminder ladder to every invitation/update (not cancels):
-  // 30d, 10d, 5d, 2d, 30m and 5m before the event, each naming the event.
+  // Attach the reminder ladder to every invitation/update (not cancels), each
+  // alarm naming the event. One-off events get the full ladder (30d, 10d, 5d,
+  // 2d, 30m, 5m); recurring series only get the short-range reminders because
+  // their alarms repeat relative to every occurrence.
   if (method !== 'CANCEL') {
     const title = event.eventName || 'Event';
-    for (const alarm of REMINDER_ALARMS) {
+    const alarms = event.isRecurring && event.recurring ? RECURRING_REMINDER_ALARMS : REMINDER_ALARMS;
+    for (const alarm of alarms) {
       calendarEvent.createAlarm({
         type: 'display',
         trigger: alarm.seconds,
