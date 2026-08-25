@@ -32,7 +32,7 @@ transporter.verify((error) => {
   }
 });
 
-const EMAIL_FROM = 'City of Kigali <coksystems@kigalicity.gov.rw>';
+const EMAIL_FROM = 'IKAZE <coksystems@kigalicity.gov.rw>';
 
 const PRIMARY = '#056daa';
 const TEXT_DARK = '#333333';
