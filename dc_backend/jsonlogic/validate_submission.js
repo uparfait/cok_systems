@@ -107,6 +107,61 @@ function pick_translated_message(translated_object, language) {
 }
 
 /**
+ * Resolves every computed value and every field's effective (ancestor- and
+ * parent-group-aware) visibility, stripping a field's own stored answer the
+ * instant it is determined hidden or locked. A respondent can answer a
+ * field, then change an earlier answer that hides it (or hides its whole
+ * containing group/section) without the client ever clearing the stale
+ * value first - an offline-queued or hand-crafted submission is never
+ * trusted to have done that cleanup itself. Clearing one field can in turn
+ * change what a field further down the form should be able to see (e.g. a
+ * follow-up question conditioned on the now-cleared answer), so this
+ * repeats until nothing changes rather than resolving only one hop.
+ */
+function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_order, parent_map, submitted_data) {
+  const working_data = Object.assign({}, submitted_data);
+  let own_visible_by_id = new Map();
+  let own_locked_by_id = new Map();
+  let changed = true;
+  let safety_counter = 0;
+
+  while (changed && safety_counter <= flat_fields.length) {
+    changed = false;
+    safety_counter += 1;
+    own_visible_by_id = new Map();
+    own_locked_by_id = new Map();
+
+    evaluation_order.forEach((field_id) => {
+      const field = fields_by_id.get(field_id);
+      if (!field || !field.type) return;
+
+      if (field.computed && field.computed.enabled && field.computed.formula) {
+        const computed_result = evaluate_rule(field.computed.formula, working_data);
+        working_data[field_id] = computed_result.value;
+      }
+
+      const visibility_result = field.visibility_condition
+        ? evaluate_rule(field.visibility_condition, working_data)
+        : { value: true, error: null };
+      own_visible_by_id.set(field_id, visibility_result.error ? true : visibility_result.value !== false);
+      own_locked_by_id.set(field_id, is_locked_by_parent_groups(field, working_data));
+    });
+
+    flat_fields.forEach((field) => {
+      const field_id = field.id;
+      const is_effectively_visible =
+        own_visible_by_id.get(field_id) !== false && is_visible_through_ancestors(field_id, parent_map, own_visible_by_id);
+      if ((!is_effectively_visible || own_locked_by_id.get(field_id)) && working_data[field_id] !== undefined) {
+        delete working_data[field_id];
+        changed = true;
+      }
+    });
+  }
+
+  return { working_data, own_visible_by_id, own_locked_by_id };
+}
+
+/**
  * Re-validates a submission on the server: computes derived (hidden)
  * field values, applies visibility conditions, enforces mandatory
  * responses and every per-field validation rule using the exact same
@@ -119,7 +174,6 @@ function validate_submission_data(schema, submitted_data, language) {
   const dependency_result = build_dependency_graph(schema.fields);
   const parent_map = build_field_parent_map(schema.fields);
 
-  const working_data = Object.assign({}, submitted_data);
   const field_errors = {};
 
   // A cycle only means computed/visibility values among the cyclic fields
@@ -134,33 +188,18 @@ function validate_submission_data(schema, submitted_data, language) {
       ? dependency_result.order.concat(dependency_result.cyclic_fields)
       : [...fields_by_id.keys()];
 
-  // Pass 1: resolve every computed value and each field's OWN visibility
-  // (ignoring its ancestors for now) in dependency order, since a computed
-  // field's formula may itself reference another field's value.
-  const own_visible_by_id = new Map();
-  const own_locked_by_id = new Map();
-  evaluation_order.forEach((field_id) => {
-    const field = fields_by_id.get(field_id);
-    if (!field || !field.type) return;
+  const { working_data, own_visible_by_id, own_locked_by_id } = resolve_effective_form_state(
+    flat_fields,
+    fields_by_id,
+    evaluation_order,
+    parent_map,
+    submitted_data,
+  );
 
-    if (field.computed && field.computed.enabled && field.computed.formula) {
-      const computed_result = evaluate_rule(field.computed.formula, working_data);
-      working_data[field_id] = computed_result.value;
-    }
-
-    const visibility_result = field.visibility_condition
-      ? evaluate_rule(field.visibility_condition, working_data)
-      : { value: true, error: null };
-    own_visible_by_id.set(field_id, visibility_result.error ? true : visibility_result.value !== false);
-    own_locked_by_id.set(field_id, is_locked_by_parent_groups(field, working_data));
-  });
-
-  // Pass 2: a field's own visibility only ever describes itself - a group
-  // or section hidden by its own visibility_condition can contain a
-  // mandatory child field with no visibility_condition of its own at all,
-  // and that child was never actually shown to the respondent either. Order
-  // no longer matters here, since every field's own visibility is already
-  // resolved above.
+  // A field's own visibility only ever describes itself - a group or
+  // section hidden by its own visibility_condition can contain a mandatory
+  // child field with no visibility_condition of its own at all, and that
+  // child was never actually shown to the respondent either.
   flat_fields.forEach((field) => {
     if (!field || !field.type) return;
     const field_id = field.id;
