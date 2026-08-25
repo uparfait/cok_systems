@@ -75,12 +75,25 @@ async function sendNotificationEmail(toEmail, subject, htmlContent, textContent)
 // Kept as an alias — some callers use the older name
 const sendPlainEmail = sendNotificationEmail;
 
+function locationHtml(event) {
+  if (event.eventFormat === 'Virtual') {
+    if (event.virtualLink) {
+      return `<p><strong>Virtual:</strong> <a href="${escapeHtml(event.virtualLink)}">${escapeHtml(event.virtualLink)}</a></p>`;
+    }
+    if (event.virtualDescription) {
+      return `<p><strong>Virtual:</strong> ${escapeHtml(event.virtualDescription)}</p>`;
+    }
+    return `<p><strong>Location:</strong> Virtual</p>`;
+  }
+  return `<p><strong>Location:</strong> ${escapeHtml(event.eventRoom || 'Meeting Room')}</p>`;
+}
+
 function inviteHtml(event) {
   return `
     <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
       <h2 style="color: #1a5276;">You're invited: ${event.eventName}</h2>
       <p>${event.eventDescription || ''}</p>
-      <p><strong>Room:</strong> ${event.eventRoom || 'Meeting Room'}</p>
+      ${locationHtml(event)}
     </div>`;
 }
 
@@ -101,7 +114,7 @@ function updateHtml(event) {
       <h2 style="color: #1a5276;">Updated: ${event.eventName}</h2>
       <p>The schedule for this event has changed. Accepting this invitation updates the entry in your calendar automatically.</p>
       <p><strong>New time:</strong> ${start}${end ? ` &ndash; ${end}` : ''}</p>
-      <p><strong>Room:</strong> ${event.eventRoom || 'Meeting Room'}</p>
+      ${locationHtml(event)}
     </div>`;
 }
 

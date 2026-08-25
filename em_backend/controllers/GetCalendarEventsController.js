@@ -7,17 +7,21 @@ const PostMeeting = require('../models/PostMeeting');
 const recurrenceHelper = require('../utilities/recurrenceHelper');
 
 function transformEvent(event, status, startTime, endTime, isCancelled = false) {
+  // Calendars must never expose the virtual link — they only say "Virtual".
+  const isVirtual = event.eventFormat === 'Virtual';
   return {
     _id: event._id,
     eventSpecialId: event.eventSpecialId,
     eventName: event.eventName,
     eventDescription: event.eventDescription,
     eventType: event.eventType,
-    eventRoom: event.eventRoom,
+    eventRoom: isVirtual ? 'Virtual' : event.eventRoom,
+    eventFormat: event.eventFormat || 'Physical',
     eventOrganizer: event.eventOrganizer,
     coOrganizers: event.coOrganizers || [],
     expectedAudience: event.expectedAudience,
     eventMeetingType: event.eventMeetingType || 'event',
+    activityAgenda: event.activityAgenda || [],
     eventStatus: status,
     startTime,
     endTime,
@@ -218,14 +222,14 @@ class GetCalendarEventsController {
 
   static async handle(req, res) {
     try {
-      const events = await GetCalendarEventsController.buildMonthEvents(req.query.month);
+      let events = await GetCalendarEventsController.buildMonthEvents(req.query.month);
 
       // Optional: annotate whether the given email is invited to each event.
       // Generated recurring instances (id = "<parent>_<ts>") also match invites
       // stored under the parent series id.
       const { email } = req.query;
-      if (email && String(email).trim()) {
-        const normalized = String(email).trim().toLowerCase();
+      const normalized = email && String(email).trim() ? String(email).trim().toLowerCase() : null;
+      if (normalized) {
         const candidates = new Set();
         for (const e of events) {
           const id = String(e.eventSpecialId || '');
@@ -255,6 +259,16 @@ class GetCalendarEventsController {
         }
       }
 
+      // Virtual events are private: only their organizer, a co-organizer, an
+      // invited person, or the designated minutes taker sees them on calendars.
+      events = events.filter((e) => {
+        if (e.eventFormat !== 'Virtual') return true;
+        if (!normalized) return false;
+        if ((e.eventOrganizer?.email || '').toLowerCase() === normalized) return true;
+        if ((e.coOrganizers || []).some((c) => (c.email || '').toLowerCase() === normalized)) return true;
+        return !!(e.isInvited || e.isMinutesTaker);
+      });
+
       return res.status(200).json({
         success: true,
         totalRecords: events.length,
@@ -271,9 +285,11 @@ class GetCalendarEventsController {
 
   // Public availability feed for the booking pages: exposes ONLY the schedule
   // and the room so event details can never be inspected from devtools.
+  // Virtual events occupy no room, so they are excluded entirely.
   static async availability(req, res) {
     try {
-      const events = await GetCalendarEventsController.buildMonthEvents(req.query.month);
+      const events = (await GetCalendarEventsController.buildMonthEvents(req.query.month))
+        .filter((e) => e.eventFormat !== 'Virtual');
       const data = events.map((e, i) => ({
         _id: `slot_${i}`,
         startTime: e.startTime,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { useAuth } from '@/core/contexts/AuthContext';
 import { DASHBOARD_STATS, CALENDAR_EVENTS } from '../constants/api';
 
 const formatDateForInput = (date) => {
@@ -11,6 +12,9 @@ const formatDateForInput = (date) => {
 };
 
 export function useDashboard() {
+  const { user } = useAuth();
+  const userEmail = (user?.email || '').toLowerCase().trim();
+
   const [dateRange, setDateRange] = useState(() => {
     const now = new Date();
     const from = new Date(now.getFullYear(), 0, 1);
@@ -49,7 +53,9 @@ export function useDashboard() {
     setLoadingCalendar(true);
     try {
       const monthStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-      const response = await axios.get(`${CALENDAR_EVENTS}?month=${encodeURIComponent(monthStr)}`);
+      const params = { month: monthStr };
+      if (userEmail) params.email = userEmail;
+      const response = await axios.get(CALENDAR_EVENTS, { params });
       if (response.data?.success) {
         setCalendarEvents(response.data.data);
       }
@@ -58,7 +64,7 @@ export function useDashboard() {
     } finally {
       setLoadingCalendar(false);
     }
-  }, []);
+  }, [userEmail]);
 
   useEffect(() => {
     fetchStats();

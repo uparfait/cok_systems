@@ -2,14 +2,18 @@ class BookingRequestValidator {
   static validateCreate(data) {
     const errors = [];
 
-    // Validate required fields
+    const isVirtual = data.eventFormat === "Virtual";
+
+    // Validate required fields (a room is only required for physical events)
     const requiredFields = [
       "eventName",
       "eventDescription",
       "eventType",
-      "eventRoom",
       "eventMeetingType",
     ];
+    if (!isVirtual) {
+      requiredFields.push("eventRoom");
+    }
     for (const field of requiredFields) {
       if (
         !data[field] ||
@@ -17,6 +21,23 @@ class BookingRequestValidator {
       ) {
         errors.push(`${field} is required`);
       }
+    }
+
+    // Validate event format
+    if (data.eventFormat && !["Physical", "Virtual"].includes(data.eventFormat)) {
+      errors.push("Event format must be either Physical or Virtual");
+    }
+
+    if (data.virtualLink) {
+      if (data.virtualLink.length > 1000) {
+        errors.push("Virtual link cannot exceed 1000 characters");
+      } else if (!/^https?:\/\/\S+$/i.test(data.virtualLink.trim())) {
+        errors.push("Virtual link must be a valid http(s) URL");
+      }
+    }
+
+    if (data.virtualDescription && data.virtualDescription.length > 1000) {
+      errors.push("Virtual description cannot exceed 1000 characters");
     }
 
     // Validate eventMeetingType
@@ -102,6 +123,15 @@ class BookingRequestValidator {
     sanitized.eventDescription = data.eventDescription ? data.eventDescription.trim() : "";
     sanitized.eventType = data.eventType ? data.eventType.trim() : "";
     sanitized.eventRoom = data.eventRoom ? data.eventRoom.trim().toLowerCase() : "";
+    sanitized.eventFormat = data.eventFormat === "Virtual" ? "Virtual" : "Physical";
+    if (sanitized.eventFormat === "Virtual") {
+      sanitized.eventRoom = "virtual";
+      sanitized.virtualLink = data.virtualLink ? data.virtualLink.trim() : "";
+      sanitized.virtualDescription = data.virtualDescription ? data.virtualDescription.trim() : "";
+    } else {
+      sanitized.virtualLink = "";
+      sanitized.virtualDescription = "";
+    }
     sanitized.expectedAudience = data.expectedAudience
       ? Number(data.expectedAudience)
       : undefined;
@@ -160,6 +190,7 @@ class BookingRequestValidator {
     const hasAnyField =
       data.startTime || data.endTime || data.eventName || data.eventDescription ||
       data.eventType || data.eventRoom || data.eventMeetingType ||
+      data.eventFormat || data.virtualLink !== undefined || data.virtualDescription !== undefined ||
       data.expectedAudience !== undefined || data.activityAgenda !== undefined ||
       (data.eventOrganizer && typeof data.eventOrganizer === "object");
     if (!hasAnyField) {

@@ -135,7 +135,6 @@ export default function EventRoomSelector({ eventMode, formData, onChange, recur
       {(loading && !searched) && (
         <div className="flex items-center justify-center py-8">
           <div className="w-6 h-6"><SpiralLoader /></div>
-          <span className="ml-2 text-sm text-gray-500">Checking rooms...</span>
         </div>
       )}
 

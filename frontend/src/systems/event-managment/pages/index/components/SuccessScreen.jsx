@@ -46,7 +46,7 @@ function SuccessScreen({ trackingCode, eventName, room, startTime, endTime }) {
           )}
 
           <div>
-            <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Room</span>
+            <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Location</span>
             <span className="mt-2 block text-2xl" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{room}</span>
           </div>
         </div>

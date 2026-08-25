@@ -35,8 +35,8 @@ class UpdateRecurringEventController {
           throw new Error('Recurring event not found');
         }
 
-      // Check room availability if room changed
-      if (sanitizedData.eventRoom && sanitizedData.eventRoom !== existingEvent.eventRoom) {
+      // Check room availability if room changed (virtual events hold no room)
+      if (sanitizedData.eventRoom && sanitizedData.eventRoom !== 'virtual' && sanitizedData.eventRoom !== existingEvent.eventRoom) {
         const availability = await CheckRoomAvailability.execute(
           sanitizedData.eventRoom,
           sanitizedData.eventStartDate || existingEvent.eventStartDate,

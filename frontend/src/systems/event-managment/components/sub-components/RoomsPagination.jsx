@@ -12,46 +12,43 @@ export default function RoomsPagination({ currentPage, totalPages, totalRecords,
   };
 
   return (
-    <div className="flex-shrink-0 bg-white border-t-2 border-gray-200 p-4">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="text-sm text-gray-600 font-medium">
-          Total Records: <span className="text-gray-900 font-bold">{totalRecords}</span>
-          <span className="mx-2 text-gray-300">|</span>
-          Page <span className="text-gray-900 font-bold">{currentPage}</span> of{' '}
-          <span className="text-gray-900 font-bold">{totalPages}</span>
-        </div>
-        
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage <= 1}
-            className="px-4 py-2 text-sm border-2 border-gray-300 font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-          >
-            ← Back
-          </button>
+    <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="text-sm text-gray-600">
+        Total: <span className="font-medium">{totalRecords}</span> |{' '}
+        Page <span className="font-medium">{currentPage}</span> of{' '}
+        <span className="font-medium">{totalPages}</span>
+      </div>
 
-          {getPageNumbers().map((page) => (
-            <button
-              key={page}
-              onClick={() => onPageChange(page)}
-              className={`min-w-[40px] py-2 text-sm border-2 font-bold transition-all ${
-                page === currentPage
-                  ? 'bg-[#1255e5] text-white border-[#1255e5]'
-                  : 'border-gray-300 hover:bg-gray-50 text-gray-700'
-              }`}
-            >
-              {page}
-            </button>
-          ))}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage <= 1}
+          className="px-3 py-1.5 text-sm border border-gray-300 ppp-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Back
+        </button>
 
+        {getPageNumbers().map((page) => (
           <button
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-            className="px-4 py-2 text-sm border-2 border-gray-300 font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            key={page}
+            onClick={() => onPageChange(page)}
+            className={`px-3 py-1.5 text-sm border ppp-lg transition-colors ${
+              page === currentPage
+                ? 'bg-[#056daa] text-white'
+                : 'border-gray-300 hover:bg-gray-50 text-gray-700'
+            }`}
           >
-            Forward →
+            {page}
           </button>
-        </div>
+        ))}
+
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage >= totalPages}
+          className="px-3 py-1.5 text-sm border border-gray-300 ppp-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Forward
+        </button>
       </div>
     </div>
   );

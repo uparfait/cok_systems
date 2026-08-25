@@ -56,14 +56,19 @@ class MonitorEvents {
       
 
         if (!existingUpcoming) {
-          // Check room availability - exclude this recurring event AND all its generated instances
-          const availability = await CheckRoomAvailability.execute(
-            recurring.eventRoom,
-            start,
-            end,
-            null,                     // no exact eventSpecialId to exclude
-            recurring.eventSpecialId  // exclude ALL events whose ID starts with this prefix
-          );
+          // Check room availability - exclude this recurring event AND all its
+          // generated instances. Virtual events never occupy a room, so they
+          // are always considered available.
+          const isVirtual = recurring.eventFormat === 'Virtual';
+          const availability = isVirtual
+            ? { available: true }
+            : await CheckRoomAvailability.execute(
+                recurring.eventRoom,
+                start,
+                end,
+                null,                     // no exact eventSpecialId to exclude
+                recurring.eventSpecialId  // exclude ALL events whose ID starts with this prefix
+              );
 
           if (availability.available) {
             // Create upcoming event for this occurrence
@@ -73,7 +78,11 @@ class MonitorEvents {
               eventDescription: recurring.eventDescription,
               eventType: recurring.eventType,
               eventRoom: recurring.eventRoom,
+              eventFormat: recurring.eventFormat || "Physical",
+              virtualLink: recurring.virtualLink || "",
+              virtualDescription: recurring.virtualDescription || "",
               eventOrganizer: recurring.eventOrganizer,
+              coOrganizers: recurring.coOrganizers || [],
               eventSpecialId: `${recurring.eventSpecialId}_${start.getTime()}`,
               expectedAudience: recurring.expectedAudience,
               willStartAt: start,

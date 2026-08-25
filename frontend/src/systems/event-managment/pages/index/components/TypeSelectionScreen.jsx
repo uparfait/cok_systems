@@ -56,7 +56,7 @@ function TypeSelectionScreen({ onOpenCalendar, showCalendar, calendarEvents, cal
               style={{ backgroundColor: NEUTRAL_LIGHT, boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)', border: '0', borderRadius: 0, cursor: 'pointer' }}
               onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 12px 48px 0 rgba(0,0,0,0.12)'}
               onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 8px 40px 0 rgba(0,0,0,0.08)'}>
-              <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center mb-4 sm:mb-5 transition-colors duration-200" style={{ backgroundColor: 'rgba(7,142,206,0.08)' }}>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center mb-4 sm:mb-5 transition-colors duration-200" style={{ backgroundColor: 'rgba(5,109,170,0.08)', borderRadius: '50%' }}>
                 <FiCalendar className="w-6 h-6 sm:w-7 sm:h-7 transition-colors duration-200" style={{ color: PRIMARY }} />
               </div>
               <h2 className="text-lg sm:text-xl font-bold mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Event</h2>
@@ -64,9 +64,9 @@ function TypeSelectionScreen({ onOpenCalendar, showCalendar, calendarEvents, cal
                 Book a room for an event with full scheduling capabilities.</p>
               <ul className="space-y-2 mb-6">
                 <li className="flex items-center gap-2 text-sm" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                  <span className="w-1.5 h-1.5 inline-block" style={{ backgroundColor: PRIMARY }} /> Event scheduling &amp; room booking</li>
+                  <span className="w-1.5 h-1.5 inline-block" style={{ backgroundColor: PRIMARY, borderRadius: '50%' }} /> Event scheduling &amp; room booking</li>
                 <li className="flex items-center gap-2 text-sm" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                  <span className="w-1.5 h-1.5 inline-block" style={{ backgroundColor: PRIMARY }} /> QR code attendance tracking</li>
+                  <span className="w-1.5 h-1.5 inline-block" style={{ backgroundColor: PRIMARY, borderRadius: '50%' }} /> QR code attendance tracking</li>
               </ul>
               <div className="flex items-center gap-1 text-sm font-semibold uppercase tracking-wide" style={{ color: PRIMARY, fontFamily: fontHeading }}>
                 Book Event <FiArrowRight className="w-4 h-4" /></div>
@@ -76,7 +76,7 @@ function TypeSelectionScreen({ onOpenCalendar, showCalendar, calendarEvents, cal
               style={{ backgroundColor: NEUTRAL_LIGHT, boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)', border: '0', borderRadius: 0, cursor: 'pointer' }}
               onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 12px 48px 0 rgba(0,0,0,0.12)'}
               onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 8px 40px 0 rgba(0,0,0,0.08)'}>
-              <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center mb-4 sm:mb-5 transition-colors duration-200" style={{ backgroundColor: 'rgba(76,175,80,0.08)' }}>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center mb-4 sm:mb-5 transition-colors duration-200" style={{ backgroundColor: 'rgba(76,175,80,0.08)', borderRadius: '50%' }}>
                 <FiUsers className="w-6 h-6 sm:w-7 sm:h-7 transition-colors duration-200" style={{ color: SUCCESS }} />
               </div>
               <h2 className="text-lg sm:text-xl font-bold mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Meeting</h2>
@@ -84,14 +84,14 @@ function TypeSelectionScreen({ onOpenCalendar, showCalendar, calendarEvents, cal
                 Book a room for a meeting with agenda planning.</p>
               <ul className="space-y-2 mb-6">
                 <li className="flex items-center gap-2 text-sm" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                  <span className="w-1.5 h-1.5 inline-block" style={{ backgroundColor: SUCCESS }} /> Meeting scheduling &amp; room booking</li>
+                  <span className="w-1.5 h-1.5 inline-block" style={{ backgroundColor: SUCCESS, borderRadius: '50%' }} /> Meeting scheduling &amp; room booking</li>
                 <li className="flex items-center gap-2 text-sm" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                  <span className="w-1.5 h-1.5 inline-block" style={{ backgroundColor: SUCCESS }} /> Activity agenda planning</li>
+                  <span className="w-1.5 h-1.5 inline-block" style={{ backgroundColor: SUCCESS, borderRadius: '50%' }} /> Activity agenda planning</li>
                 <li className="flex items-center gap-2 text-sm" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                  <span className="w-1.5 h-1.5 inline-block" style={{ backgroundColor: SUCCESS }} /> Action items &amp; follow-ups</li>
+                  <span className="w-1.5 h-1.5 inline-block" style={{ backgroundColor: SUCCESS, borderRadius: '50%' }} /> Action items &amp; follow-ups</li>
               </ul>
               <div className="flex items-center gap-1 text-sm font-semibold uppercase tracking-wide" style={{ color: SUCCESS, fontFamily: fontHeading }}>
-                Book Meet <FiArrowRight className="w-4 h-4" /></div>
+                Book Meeting <FiArrowRight className="w-4 h-4" /></div>
             </button>
           </div>
         </div>

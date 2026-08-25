@@ -39,6 +39,7 @@ export default function UpcomingEvents() {
             filter: filter || undefined,
             search: search || undefined,
             searchField: searchField || undefined,
+            excludeVirtual: 'true',
           }
         });
 

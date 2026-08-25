@@ -23,16 +23,25 @@ class GenerateQrCodeController {
         });
       }
 
-      const room = await Room.findOne({
-        roomName: liveEvent.eventRoom
-      }).lean();
+      // Virtual events have no physical room — the QR simply says "Virtual"
+      const isVirtual = liveEvent.eventFormat === 'Virtual';
+      let room = null;
 
-      if (!room) {
-        return res.status(404).json({
-          success: false,
-          message: 'Room not found'
-        });
+      if (!isVirtual) {
+        room = await Room.findOne({
+          roomName: liveEvent.eventRoom
+        }).lean();
+
+        if (!room) {
+          return res.status(404).json({
+            success: false,
+            message: 'Room not found'
+          });
+        }
       }
+
+      const displayRoom = isVirtual ? 'Virtual' : liveEvent.eventRoom;
+      const displayLocation = isVirtual ? 'Virtual' : room.roomLocation;
 
       if(!process.env.FRONTEND_URL) {
         return res.status(500).json({
@@ -43,7 +52,7 @@ class GenerateQrCodeController {
       }
 
   
-      const attendanceUrl = `${process.env.FRONTEND_URL}/event/${encodeURIComponent(liveEvent.eventSpecialId)}/attendances/?eventSpecialId=${encodeURIComponent(liveEvent.eventSpecialId)}&eventName=${encodeURIComponent(liveEvent.eventName)}&eventRoom=${encodeURIComponent(liveEvent.eventRoom)}&roomLocation=${encodeURIComponent(room.roomLocation)}&eventType=${encodeURIComponent(liveEvent.eventType)}`;
+      const attendanceUrl = `${process.env.FRONTEND_URL}/event/${encodeURIComponent(liveEvent.eventSpecialId)}/attendances/?eventSpecialId=${encodeURIComponent(liveEvent.eventSpecialId)}&eventName=${encodeURIComponent(liveEvent.eventName)}&eventRoom=${encodeURIComponent(displayRoom)}&roomLocation=${encodeURIComponent(displayLocation)}&eventType=${encodeURIComponent(liveEvent.eventType)}`;
 
       const qrCodeDataUrl = await QRCode.toDataURL(attendanceUrl, {
         width: 400,
@@ -58,8 +67,8 @@ class GenerateQrCodeController {
         success: true,
         data: {
           eventName: liveEvent.eventName,
-          eventRoom: liveEvent.eventRoom,
-          roomLocation: room.roomLocation,
+          eventRoom: displayRoom,
+          roomLocation: displayLocation,
           eventSpecialId: liveEvent.eventSpecialId,
           qrCodeDataUrl,
           attendanceUrl,

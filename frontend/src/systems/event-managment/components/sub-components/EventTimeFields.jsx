@@ -1,4 +1,5 @@
-import { FiCalendar, FiClock } from 'react-icons/fi';
+import { FiCalendar } from 'react-icons/fi';
+import TimeInput24 from './TimeInput24';
 
 const PRIMARY = '#056daa';
 const DANGER = '#E74C3C';
@@ -40,23 +41,14 @@ export default function EventTimeFields({ eventMode, formData, recurringType, mo
             </div>
           </div>
           <div className="space-y-2">
-            <label htmlFor="fromTime" style={labelStyle}>From <span style={{ color: DANGER }}>*</span></label>
-            <div className="relative">
-              <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="time" id="fromTime" value={formData.fromTime}
-                onChange={(e) => onChange('fromTime', e.target.value)} required
-                className={inputClass} />
-            </div>
+            <label htmlFor="fromTime" style={labelStyle}>From (24-hour) <span style={{ color: DANGER }}>*</span></label>
+            <TimeInput24 id="fromTime" value={formData.fromTime}
+              onChange={(value) => onChange('fromTime', value)} />
           </div>
           <div className="space-y-2">
-            <label htmlFor="toTime" style={labelStyle}>To <span style={{ color: DANGER }}>*</span></label>
-            <div className="relative">
-              <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="time" id="toTime" value={formData.toTime}
-                onChange={(e) => onChange('toTime', e.target.value)} required
-                min={formData.fromTime || undefined}
-                className={inputClass} />
-            </div>
+            <label htmlFor="toTime" style={labelStyle}>To (24-hour) <span style={{ color: DANGER }}>*</span></label>
+            <TimeInput24 id="toTime" value={formData.toTime}
+              onChange={(value) => onChange('toTime', value)} />
           </div>
         </div>
       )}
@@ -93,20 +85,14 @@ export default function EventTimeFields({ eventMode, formData, recurringType, mo
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label htmlFor="eventStartTime" style={labelStyle}>Start Time <span style={{ color: DANGER }}>*</span></label>
-              <div className="relative">
-                <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="time" id="eventStartTime" value={formData.eventStartTime}
-                  onChange={(e) => onChange('eventStartTime', e.target.value)} required className={inputClass} />
-              </div>
+              <label htmlFor="eventStartTime" style={labelStyle}>Start Time (24-hour) <span style={{ color: DANGER }}>*</span></label>
+              <TimeInput24 id="eventStartTime" value={formData.eventStartTime}
+                onChange={(value) => onChange('eventStartTime', value)} />
             </div>
             <div className="space-y-2">
-              <label htmlFor="eventEndTime" style={labelStyle}>End Time <span style={{ color: DANGER }}>*</span></label>
-              <div className="relative">
-                <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="time" id="eventEndTime" value={formData.eventEndTime}
-                  onChange={(e) => onChange('eventEndTime', e.target.value)} required className={inputClass} />
-              </div>
+              <label htmlFor="eventEndTime" style={labelStyle}>End Time (24-hour) <span style={{ color: DANGER }}>*</span></label>
+              <TimeInput24 id="eventEndTime" value={formData.eventEndTime}
+                onChange={(value) => onChange('eventEndTime', value)} />
             </div>
           </div>
           {recurringType === 'Weekly' && <WeeklyDaysSelector days={formData.weeklyDays} onChange={onChange} />}

@@ -14,11 +14,12 @@ export default function CreateEventStepper({
   onStepClick,
   completedSteps = [],
 }) {
+  const typeLabel = eventMeetingType === "meet" ? "Meeting" : "Event";
   const STEPS = [
-    { step: 1, label: `${eventMeetingType} Info` },
+    { step: 1, label: `${typeLabel} Info` },
     { step: 2, label: "Organizer" },
     { step: 3, label: "Schedule" },
-    { step: 4, label: "Room" },
+    { step: 4, label: "Location" },
     { step: 5, label: "Agenda" },
   ];
   const showAgenda = eventMeetingType === "meet";
@@ -36,11 +37,11 @@ export default function CreateEventStepper({
               type="button"
               disabled={!canClick}
               onClick={() => canClick && onStepClick(s.step)}
-              className={`flex flex-col items-center gap-1 transition-all ${canClick ? "cursor-pointer" : "cursor-default"}`}
+              className="flex flex-col items-center gap-1 transition-all cursor-pointer"
             >
               <div
                 className="w-8 h-8 flex items-center justify-center text-xs font-bold transition-all duration-300"
-                style={{ backgroundColor: done ? SUCCESS : active ? PRIMARY : BORDER, color: done || active ? WHITE : GRAY_DISABLED, borderRadius: 0 }}
+                style={{ backgroundColor: done ? SUCCESS : active ? PRIMARY : BORDER, color: done || active ? WHITE : GRAY_DISABLED, borderRadius: '50%' }}
               >
                 {done ? <FiCheck className="w-4 h-4" /> : s.step}
               </div>

@@ -14,7 +14,7 @@ const labelStyle = {
 };
 
 export default function EventBasicFields({ eventMeetingType, eventMode, formData, onEventModeChange, onChange }) {
-  const type = eventMeetingType === 'meet' ? 'Meet' : 'Event';
+  const type = eventMeetingType === 'meet' ? 'Meeting' : 'Event';
   const typeLower = type.toLowerCase();
 
   const EVENT_TYPES = [

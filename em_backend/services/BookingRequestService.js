@@ -32,6 +32,13 @@ class BookingRequestService {
     });
   }
 
+  /**
+   * Human-readable location for emails: the room name, or "Virtual".
+   */
+  static _displayRoom(requestLike) {
+    return requestLike.eventFormat === "Virtual" ? "Virtual" : requestLike.eventRoom;
+  }
+
   static async generateTrackingCode() {
     let trackingCode;
     let isUnique = false;
@@ -56,50 +63,54 @@ class BookingRequestService {
 
     const sanitizedData = BookingRequestValidator.sanitizeCreate(data);
 
-    // Verify room exists and is active
-    const room = await Room.findOne({
-      roomName: sanitizedData.eventRoom.toLowerCase(),
-      isActive: true,
-    }).lean();
+    // Virtual events do not occupy a physical room, so room existence,
+    // capacity and double-booking checks only apply to physical requests.
+    if (sanitizedData.eventFormat !== "Virtual") {
+      // Verify room exists and is active
+      const room = await Room.findOne({
+        roomName: sanitizedData.eventRoom.toLowerCase(),
+        isActive: true,
+      }).lean();
 
-    if (!room) {
-      throw new Error("Room not found or is inactive");
-    }
+      if (!room) {
+        throw new Error("Room not found or is inactive");
+      }
 
-    // Check room capacity
-    if (sanitizedData.expectedAudience && sanitizedData.expectedAudience > room.roomCapacity) {
-      throw new Error(
-        `Expected audience (${sanitizedData.expectedAudience}) exceeds room capacity (${room.roomCapacity})`
+      // Check room capacity
+      if (sanitizedData.expectedAudience && sanitizedData.expectedAudience > room.roomCapacity) {
+        throw new Error(
+          `Expected audience (${sanitizedData.expectedAudience}) exceeds room capacity (${room.roomCapacity})`
+        );
+      }
+
+      // Check for double-booking conflicts:
+      // 1. Against Live/Upcoming events
+      const eventConflict = await CheckRoomAvailability.execute(
+        sanitizedData.eventRoom,
+        sanitizedData.startTime,
+        sanitizedData.endTime
       );
-    }
 
-    // Check for double-booking conflicts:
-    // 1. Against Live/Upcoming events
-    const eventConflict = await CheckRoomAvailability.execute(
-      sanitizedData.eventRoom,
-      sanitizedData.startTime,
-      sanitizedData.endTime
-    );
+      if (!eventConflict.available) {
+        throw new Error(
+          "Room is not available during the requested time. There is a conflict with an existing event."
+        );
+      }
 
-    if (!eventConflict.available) {
-      throw new Error(
-        "Room is not available during the requested time. There is a conflict with an existing event."
-      );
-    }
+      // 2. Against existing Pending or Accepted booking requests for the same room/time
+      const requestConflict = await BookingRequest.findOne({
+        eventRoom: sanitizedData.eventRoom,
+        status: { $in: ["Pending", "Accepted"] },
+        $or: [
+          { startTime: { $lt: sanitizedData.endTime }, endTime: { $gt: sanitizedData.startTime } },
+        ],
+      }).lean();
 
-    // 2. Against existing Pending or Accepted booking requests for the same room/time
-    const requestConflict = await BookingRequest.findOne({
-      eventRoom: sanitizedData.eventRoom,
-      status: { $in: ["Pending", "Accepted"] },
-      $or: [
-        { startTime: { $lt: sanitizedData.endTime }, endTime: { $gt: sanitizedData.startTime } },
-      ],
-    }).lean();
-
-    if (requestConflict) {
-      throw new Error(
-        "Room is already requested for the same time period. Another booking request exists."
-      );
+      if (requestConflict) {
+        throw new Error(
+          "Room is already requested for the same time period. Another booking request exists."
+        );
+      }
     }
 
     // Generate tracking code
@@ -122,7 +133,7 @@ class BookingRequestService {
           trackingCode: bookingRequest.trackingCode,
           trackUrl: this._buildTrackUrl(bookingRequest.trackingCode),
           eventName: bookingRequest.eventName,
-          eventRoom: bookingRequest.eventRoom,
+          eventRoom: this._displayRoom(bookingRequest),
           start: this._formatWindow(bookingRequest.startTime),
           end: this._formatWindow(bookingRequest.endTime),
         });
@@ -159,6 +170,9 @@ class BookingRequestService {
         eventDescription: request.eventDescription,
         eventType: request.eventType,
         eventRoom: request.eventRoom,
+        eventFormat: request.eventFormat || "Physical",
+        virtualLink: request.virtualLink || "",
+        virtualDescription: request.virtualDescription || "",
         eventOrganizer: request.eventOrganizer,
         expectedAudience: request.expectedAudience,
         activityAgenda: request.activityAgenda || [],
@@ -192,7 +206,7 @@ class BookingRequestService {
         trackingCode: request.trackingCode,
         trackUrl: this._buildTrackUrl(request.trackingCode),
         eventName: request.eventName,
-        eventRoom: request.eventRoom,
+        eventRoom: this._displayRoom(request),
         start: this._formatWindow(request.startTime),
         end: this._formatWindow(request.endTime),
       };
@@ -248,7 +262,7 @@ class BookingRequestService {
         trackingCode: request.trackingCode,
         trackUrl: this._buildTrackUrl(request.trackingCode),
         eventName: request.eventName,
-        eventRoom: request.eventRoom,
+        eventRoom: this._displayRoom(request),
         reason: reason.trim(),
       };
 
@@ -459,10 +473,21 @@ class BookingRequestService {
       "eventDescription",
       "eventType",
       "eventRoom",
+      "eventFormat",
+      "virtualLink",
+      "virtualDescription",
       "eventMeetingType",
       "expectedAudience",
       "activityAgenda",
     ];
+
+    const effectiveFormat = updateData.eventFormat || request.eventFormat || "Physical";
+    if (effectiveFormat === "Virtual") {
+      updateData.eventRoom = "virtual";
+    } else if (updateData.eventFormat === "Physical") {
+      updateData.virtualLink = "";
+      updateData.virtualDescription = "";
+    }
 
     for (const field of allowedUpdates) {
       if (updateData[field] !== undefined) {
@@ -503,39 +528,41 @@ class BookingRequestService {
         throw new Error("End time must be after start time");
       }
 
-      // Re-check room availability if schedule changed
+      // Re-check room availability if schedule changed (virtual requests hold no room)
       if (updateData.startTime || updateData.endTime) {
-        const roomToCheck = updateData.eventRoom || request.eventRoom;
+        if (effectiveFormat !== "Virtual") {
+          const roomToCheck = updateData.eventRoom || request.eventRoom;
 
-        // Check events
-        const eventConflict = await CheckRoomAvailability.execute(
-          roomToCheck.toLowerCase(),
-          newStart,
-          newEnd,
-          null,
-          null,
-          requestId
-        );
-        if (!eventConflict.available) {
-          throw new Error(
-            "Room is not available during the updated time. There is a conflict with an existing event."
+          // Check events
+          const eventConflict = await CheckRoomAvailability.execute(
+            roomToCheck.toLowerCase(),
+            newStart,
+            newEnd,
+            null,
+            null,
+            requestId
           );
-        }
+          if (!eventConflict.available) {
+            throw new Error(
+              "Room is not available during the updated time. There is a conflict with an existing event."
+            );
+          }
 
-        // Check other booking requests
-        const requestConflict = await BookingRequest.findOne({
-          _id: { $ne: requestId },
-          eventRoom: roomToCheck.toLowerCase(),
-          status: { $in: ["Pending", "Accepted"] },
-          $or: [
-            { startTime: { $lt: newEnd }, endTime: { $gt: newStart } },
-          ],
-        }).lean();
+          // Check other booking requests
+          const requestConflict = await BookingRequest.findOne({
+            _id: { $ne: requestId },
+            eventRoom: roomToCheck.toLowerCase(),
+            status: { $in: ["Pending", "Accepted"] },
+            $or: [
+              { startTime: { $lt: newEnd }, endTime: { $gt: newStart } },
+            ],
+          }).lean();
 
-        if (requestConflict) {
-          throw new Error(
-            "Room is already requested for the updated time period by another booking request."
-          );
+          if (requestConflict) {
+            throw new Error(
+              "Room is already requested for the updated time period by another booking request."
+            );
+          }
         }
 
         request.startTime = newStart;
@@ -543,8 +570,8 @@ class BookingRequestService {
       }
     }
 
-    // Handle room change
-    if (updateData.eventRoom && updateData.eventRoom !== request.eventRoom) {
+    // Handle room change (virtual requests hold no room)
+    if (effectiveFormat !== "Virtual" && updateData.eventRoom && updateData.eventRoom !== request.eventRoom) {
       const newRoom = updateData.eventRoom.toLowerCase();
       const room = await Room.findOne({ roomName: newRoom, isActive: true }).lean();
       if (!room) {

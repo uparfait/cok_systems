@@ -72,7 +72,6 @@ function RoomSelector({ form, rooms, audience, onChange, startTime, endTime, eve
       {loading && (
         <div className="flex items-center justify-center py-6">
           <SpiralLoader />
-          <span className="ml-2 text-sm" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Checking rooms...</span>
         </div>
       )}
 

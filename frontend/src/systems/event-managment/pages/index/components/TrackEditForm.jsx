@@ -160,7 +160,7 @@ export default function TrackEditForm({
                     <label style={labelStyle}>{eventMeetingType === "meet" ? "Meeting" : "Event"} Name <span style={{ color: DANGER }}>*</span></label>
                     <input style={{ ...inputStyle, borderColor: editFieldErrors.eventName ? DANGER : BORDER }}
                       value={editForm.eventName} name="eventName" onChange={handleEditChange}
-                      placeholder={`Enter ${eventMeetingType} name`}
+                      placeholder={`Enter ${eventMeetingType === "meet" ? "meeting" : "event"} name`}
                       onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = FOCUS_SHADOW; }}
                       onBlur={(e) => { e.currentTarget.style.borderColor = editFieldErrors.eventName ? DANGER : BORDER; e.currentTarget.style.boxShadow = BLUR_SHADOW; }} />
                     {editFieldErrors.eventName && <p className="text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{editFieldErrors.eventName}</p>}
@@ -190,7 +190,7 @@ export default function TrackEditForm({
                   <label style={labelStyle}>Description <span style={{ color: DANGER }}>*</span></label>
                   <textarea style={{ ...inputStyle, resize: "vertical", minHeight: "80px", borderColor: editFieldErrors.eventDescription ? DANGER : BORDER }}
                     value={editForm.eventDescription} name="eventDescription" onChange={handleEditChange} rows={3}
-                    placeholder={`Describe your ${eventMeetingType}...`}
+                    placeholder={`Describe your ${eventMeetingType === "meet" ? "meeting" : "event"}...`}
                     onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = FOCUS_SHADOW; }}
                     onBlur={(e) => { e.currentTarget.style.borderColor = editFieldErrors.eventDescription ? DANGER : BORDER; e.currentTarget.style.boxShadow = BLUR_SHADOW; }} />
                   {editFieldErrors.eventDescription && <p className="text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{editFieldErrors.eventDescription}</p>}

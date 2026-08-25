@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
-import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiX } from "react-icons/fi";
 import axios from "axios";
 import { useToast } from "@/core/contexts/ToastContext";
+import EventFormatFields from "../../../components/sub-components/EventFormatFields";
+import TimeInput24 from "../../../components/sub-components/TimeInput24";
+import SpiralLoader from "../../../components/SpiralLoader";
 
 import {
   PRIMARY, DANGER, SUCCESS, SUCCESS_HOVER, NEUTRAL_LIGHT, NEUTRAL_DARK, BORDER, WHITE, GRAY_DISABLED, fontHeading,
@@ -21,14 +24,21 @@ const toLocalInput = (iso) => {
   return d.toISOString().slice(0, 16);
 };
 
-function RoomChangePanel({ request, onClose, saveRequestFields, saving }) {
+function LocationChangeOverlay({ request, onClose, saveRequestFields, saving }) {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [unavailableCount, setUnavailableCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedRoom, setSelectedRoom] = useState("");
   const [error, setError] = useState(null);
+  const [format, setFormat] = useState(request.eventFormat || "Physical");
+  const [virtualLink, setVirtualLink] = useState(request.virtualLink || "");
+  const [virtualDescription, setVirtualDescription] = useState(request.virtualDescription || "");
+  const [linkError, setLinkError] = useState(null);
+
+  const isCurrentlyVirtual = request.eventFormat === "Virtual";
 
   useEffect(() => {
+    if (format === "Virtual") return;
     let alive = true;
     const checkRooms = async () => {
       setLoading(true);
@@ -53,76 +63,127 @@ function RoomChangePanel({ request, onClose, saveRequestFields, saving }) {
     };
     checkRooms();
     return () => { alive = false; };
-  }, [request._id, request.startTime, request.endTime]);
+  }, [request._id, request.startTime, request.endTime, format]);
 
-  const isCurrent = (roomName) => (request.eventRoom || "").toLowerCase() === roomName.toLowerCase();
+  const isCurrent = (roomName) => !isCurrentlyVirtual && (request.eventRoom || "").toLowerCase() === roomName.toLowerCase();
+
+  const handleFormatChange = (name, value) => {
+    if (name === "eventFormat") {
+      setFormat(value);
+      setLinkError(null);
+      if (value === "Virtual") setSelectedRoom("");
+    } else if (name === "virtualLink") {
+      setVirtualLink(value);
+      setLinkError(null);
+    } else if (name === "virtualDescription") {
+      setVirtualDescription(value);
+    }
+  };
 
   const handleSave = async () => {
-    if (!selectedRoom) return;
-    const ok = await saveRequestFields({ eventRoom: selectedRoom });
+    let payload;
+    if (format === "Virtual") {
+      if (virtualLink && !/^https?:\/\/\S+$/i.test(virtualLink.trim())) {
+        setLinkError("Meeting link must be a valid http(s) URL");
+        return;
+      }
+      payload = {
+        eventFormat: "Virtual",
+        virtualLink: virtualLink.trim(),
+        virtualDescription: virtualDescription.trim(),
+      };
+    } else {
+      if (!selectedRoom) return;
+      payload = { eventFormat: "Physical", eventRoom: selectedRoom };
+    }
+    const ok = await saveRequestFields(payload);
     if (ok) onClose();
   };
 
+  const canSave = format === "Virtual" ? !saving : (!saving && !!selectedRoom);
+
   return (
-    <div className="p-3 space-y-3 text-left" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
-      <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
-        Rooms are checked for availability against this request's schedule.
-      </p>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-3 sm:p-4">
+      <div className="bg-white w-full max-w-lg" style={{ border: `1px solid ${BORDER}` }}>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
+          <h2 className="text-base sm:text-lg font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Change Location</h2>
+          <button type="button" onClick={onClose} disabled={saving} className="p-1 cursor-pointer transition-colors disabled:opacity-50" style={{ color: GRAY_DISABLED }}>
+            <FiX className="w-5 h-5" />
+          </button>
+        </div>
 
-      {loading && (
-        <p className="text-xs text-center py-4" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Checking rooms...</p>
-      )}
+        <div className="px-4 sm:px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto text-left">
+          <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+            <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+              Current location: <strong className="capitalize" style={{ color: NEUTRAL_DARK }}>{isCurrentlyVirtual ? "Virtual" : request.eventRoom}</strong>. Choose a format and a new location below.
+            </p>
+          </div>
 
-      {!loading && error && (
-        <p className="p-2 text-xs" style={{ backgroundColor: "#FDECEA", border: "1px solid #F5B7B1", color: DANGER, fontFamily: fontHeading }}>{error}</p>
-      )}
+          <EventFormatFields
+            eventFormat={format}
+            virtualLink={virtualLink}
+            virtualDescription={virtualDescription}
+            linkError={linkError}
+            onChange={handleFormatChange}
+          />
 
-      {!loading && !error && availableRooms.length === 0 && (
-        <p className="p-3 text-xs text-center" style={{ backgroundColor: "#FFF3E0", border: "1px solid #FFCC80", color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-          No other rooms are available for this schedule.
-        </p>
-      )}
+          {format !== "Virtual" && loading && (
+            <div className="flex items-center justify-center py-6">
+              <SpiralLoader />
+            </div>
+          )}
 
-      {!loading && availableRooms.length > 0 && (
-        <div className="space-y-2 max-h-56 overflow-y-auto">
-          {availableRooms.map((item, idx) => {
-            const selected = selectedRoom.toLowerCase() === item.room.roomName.toLowerCase();
-            return (
-              <button key={idx} type="button" onClick={() => setSelectedRoom(item.room.roomName)}
-                className={`w-full text-left p-3 border-2 transition-all duration-200 cursor-pointer ${selected ? "border-green-500 bg-green-50" : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50/50"}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold capitalize truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                      {item.room.roomName}
-                      {isCurrent(item.room.roomName) && <span className="ml-2 text-[10px] font-normal" style={{ color: GRAY_DISABLED }}>(current)</span>}
-                    </p>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs" style={{ color: GRAY_DISABLED }}>
-                      <span className="capitalize">{item.room.roomLocation}</span>
-                      <span>Capacity: {item.room.roomCapacity}</span>
+          {format !== "Virtual" && !loading && error && (
+            <p className="p-2 text-xs" style={{ backgroundColor: "#FDECEA", border: "1px solid #F5B7B1", color: DANGER, fontFamily: fontHeading }}>{error}</p>
+          )}
+
+          {format !== "Virtual" && !loading && !error && availableRooms.length === 0 && (
+            <p className="p-3 text-xs text-center" style={{ backgroundColor: "#FFF3E0", border: "1px solid #FFCC80", color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+              No other rooms are available for this schedule.
+            </p>
+          )}
+
+          {format !== "Virtual" && !loading && availableRooms.length > 0 && (
+            <div className="space-y-2 max-h-56 overflow-y-auto">
+              {availableRooms.map((item, idx) => {
+                const selected = selectedRoom.toLowerCase() === item.room.roomName.toLowerCase();
+                return (
+                  <button key={idx} type="button" onClick={() => setSelectedRoom(item.room.roomName)}
+                    className={`w-full text-left p-3 border-2 transition-all duration-200 cursor-pointer ${selected ? "border-green-500 bg-green-50" : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50/50"}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold capitalize truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                          {item.room.roomName}
+                          {isCurrent(item.room.roomName) && <span className="ml-2 text-[10px] font-normal" style={{ color: GRAY_DISABLED }}>(current)</span>}
+                        </p>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs" style={{ color: GRAY_DISABLED }}>
+                          <span className="capitalize">{item.room.roomLocation}</span>
+                          <span>Capacity: {item.room.roomCapacity}</span>
+                        </div>
+                      </div>
+                      {selected && <span className="text-xs font-bold text-green-700 bg-green-100 border border-green-300 px-2.5 py-0.5 shrink-0">Selected</span>}
                     </div>
-                  </div>
-                  {selected && <span className="text-xs font-bold text-green-700 bg-green-100 border border-green-300 px-2.5 py-0.5 shrink-0">Selected</span>}
-                </div>
-              </button>
-            );
-          })}
-          {unavailableCount > 0 && (
-            <p className="text-[11px]" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>{unavailableCount} other room(s) are occupied during this schedule.</p>
+                  </button>
+                );
+              })}
+              {unavailableCount > 0 && (
+                <p className="text-[11px]" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>{unavailableCount} other room(s) are occupied during this schedule.</p>
+              )}
+            </div>
           )}
         </div>
-      )}
 
-      <div className="flex gap-2 pt-1">
-        <button type="button" onClick={handleSave} disabled={saving || !selectedRoom}
-          className="cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ width: "auto", padding: "0.5rem 1rem", fontSize: "11px" }}>
-          {saving ? "Saving..." : "Save Room"}
-        </button>
-        <button type="button" onClick={onClose} disabled={saving}
-          className="cok-btn-outlined disabled:opacity-50"
-          style={{ padding: "0.5rem 1rem", fontSize: "11px" }}>
-          Cancel
-        </button>
+        <div className="flex gap-3 px-4 sm:px-6 py-4" style={{ borderTop: `1px solid ${BORDER}` }}>
+          <button type="button" onClick={onClose} disabled={saving}
+            className="cok-btn-outlined flex-1 disabled:opacity-50 disabled:cursor-not-allowed">
+            Cancel
+          </button>
+          <button type="button" onClick={handleSave} disabled={!canSave}
+            className="cok-btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ width: "auto" }}>
+            {saving ? "Changing..." : "Change Location"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -272,12 +333,12 @@ function TrackResult({
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>From</p>
-            <input type="time" value={editValues.timeFrom ?? ""} onChange={(e) => setEditValue("timeFrom", e.target.value)} className={inputClassName} style={inputStyle} autoFocus />
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>From (24-hour)</p>
+            <TimeInput24 value={editValues.timeFrom ?? ""} onChange={(value) => setEditValue("timeFrom", value)} />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>To</p>
-            <input type="time" value={editValues.timeTo ?? ""} onChange={(e) => setEditValue("timeTo", e.target.value)} min={editValues.timeFrom || undefined} className={inputClassName} style={inputStyle} />
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>To (24-hour)</p>
+            <TimeInput24 value={editValues.timeTo ?? ""} onChange={(value) => setEditValue("timeTo", value)} />
           </div>
         </div>
       );
@@ -297,9 +358,9 @@ function TrackResult({
 
   const detailRows = [
     { label: "Name", value: request.eventName, raw: request.eventName, field: "eventName", input: "text" },
-    { label: "Type", value: request.eventMeetingType },
+    { label: "Type", value: request.eventMeetingType === "meet" ? "Meeting" : "Event" },
     { label: "Event Type", value: request.eventType },
-    { label: "Room", value: request.eventRoom, roomEdit: true },
+    { label: "Location", value: request.eventFormat === "Virtual" ? "Virtual" : request.eventRoom, roomEdit: true },
     { label: "Date", value: formatDateOnly(request.startTime), field: "scheduleDate" },
     { label: "Time", value: schedule.from && schedule.to ? `${schedule.from} to ${schedule.to}` : "-", field: "scheduleTime" },
     { label: "Organizer", value: request.eventOrganizer?.fullNames, raw: request.eventOrganizer?.fullNames, field: "organizerName", input: "text" },
@@ -355,8 +416,8 @@ function TrackResult({
                       {canEdit && (row.field || row.roomEdit) && (
                         <button
                           type="button"
-                          onClick={() => (row.roomEdit ? (cancelEdit(), setRoomPanelOpen((o) => !o)) : startEdit(row))}
-                          title={`Edit ${row.label}`}
+                          onClick={() => (row.roomEdit ? (cancelEdit(), setRoomPanelOpen(true)) : startEdit(row))}
+                          title={row.roomEdit ? "Change Location" : `Edit ${row.label}`}
                           className="p-1 shrink-0 cursor-pointer transition-colors"
                           style={{ color: GRAY_DISABLED }}
                           onMouseEnter={(e) => (e.currentTarget.style.color = PRIMARY)}
@@ -365,11 +426,6 @@ function TrackResult({
                           <FiEdit2 className="w-3.5 h-3.5" />
                         </button>
                       )}
-                    </div>
-                  )}
-                  {row.roomEdit && roomPanelOpen && (
-                    <div className="mt-2 normal-case">
-                      <RoomChangePanel request={request} onClose={() => setRoomPanelOpen(false)} saveRequestFields={saveRequestFields} saving={saving} />
                     </div>
                   )}
                 </td>
@@ -485,6 +541,14 @@ function TrackResult({
               <p className="mt-2 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{waterError}</p>
             )}
           </div>
+        )}
+        {roomPanelOpen && (
+          <LocationChangeOverlay
+            request={request}
+            onClose={() => setRoomPanelOpen(false)}
+            saveRequestFields={saveRequestFields}
+            saving={saving}
+          />
         )}
         {request.status === "Pending" && (
           <div className="mt-4 pt-3 flex flex-wrap justify-end gap-2" style={{ borderTop: `1px solid ${BORDER}` }}>
