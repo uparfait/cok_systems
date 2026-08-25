@@ -8,6 +8,7 @@ import EventBasicFields from './sub-components/EventBasicFields';
 import EventTimeFields from './sub-components/EventTimeFields';
 import OrganizerFields from './sub-components/OrganizerFields';
 import EventRoomSelector from './sub-components/EventRoomSelector';
+import EventFormatFields from './sub-components/EventFormatFields';
 import ActivityAgenda from './sub-components/ActivityAgenda';
 import SuccessMessage from './sub-components/SuccessMessage';
 import ErrorMessage from './sub-components/ErrorMessage';
@@ -37,7 +38,8 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
 
   const initialFormState = {
     eventName: '', eventDescription: '', eventType: '', expectedAudience: '',
-    eventRoom: '', eventOrganizer: '', organizerEmail: '', organizerPhone: '', organizerInstitution: '',
+    eventRoom: '', eventFormat: 'Physical', virtualLink: '', virtualDescription: '',
+    eventOrganizer: '', organizerEmail: '', organizerPhone: '', organizerInstitution: '',
     eventDate: '', fromTime: '', toTime: '',
     startedAt: '', willEndAt: '', willStartAt: '',
     eventStartTime: '', eventEndTime: '', recurringEndDate: '', eventStartDate: '',
@@ -46,7 +48,7 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
 
   const [formData, setFormData] = useState(initialFormState);
 
-  const type = eventMeetingType === 'meet' ? 'Meet' : 'Event';
+  const type = eventMeetingType === 'meet' ? 'Meeting' : 'Event';
   const typeLower = type.toLowerCase();
 
   useEffect(() => {
@@ -95,7 +97,10 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
           eventDescription: foundEvent.eventDescription || '',
           eventType: foundEvent.eventType || 'Internal',
           expectedAudience: foundEvent.expectedAudience || '',
-          eventRoom: foundEvent.eventRoom || '',
+          eventRoom: foundEvent.eventFormat === 'Virtual' ? '' : (foundEvent.eventRoom || ''),
+          eventFormat: foundEvent.eventFormat || 'Physical',
+          virtualLink: foundEvent.virtualLink || '',
+          virtualDescription: foundEvent.virtualDescription || '',
           eventOrganizer: org.fullNames || '',
           organizerEmail: org.email || '',
           organizerPhone: org.phone || '',
@@ -154,6 +159,15 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
         next.willStartAt = start;
         next.willEndAt = end;
       }
+      // A virtual event holds no room; a physical one carries no virtual details.
+      if (name === 'eventFormat') {
+        if (value === 'Virtual') {
+          next.eventRoom = '';
+        } else {
+          next.virtualLink = '';
+          next.virtualDescription = '';
+        }
+      }
       return next;
     });
     setError(null);
@@ -204,6 +218,13 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
   };
 
   const validateStep4 = () => {
+    if (formData.eventFormat === 'Virtual') {
+      if (formData.virtualLink && !/^https?:\/\/\S+$/i.test(formData.virtualLink.trim())) {
+        setError('Meeting link must be a valid http(s) URL');
+        return false;
+      }
+      return true;
+    }
     if (!formData.eventRoom) { setError('Please select a room'); return false; }
     return true;
   };
@@ -237,12 +258,16 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
   };
 
   const buildEventData = () => {
+    const isVirtual = formData.eventFormat === 'Virtual';
     const data = {
       eventMeetingType: eventMeetingType || 'event',
       eventName: formData.eventName,
       eventDescription: formData.eventDescription,
       eventType: formData.eventType,
-      eventRoom: formData.eventRoom,
+      eventRoom: isVirtual ? 'virtual' : formData.eventRoom,
+      eventFormat: formData.eventFormat || 'Physical',
+      virtualLink: isVirtual ? formData.virtualLink.trim() : '',
+      virtualDescription: isVirtual ? formData.virtualDescription.trim() : '',
       expectedAudience: formData.expectedAudience,
       eventOrganizer: extractOrganizer(formData),
       eventMode: eventMode,
@@ -305,26 +330,12 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
     }
   };
 
-  if (pageLoading) {
+  if (pageLoading || loading) {
     return (
       <div className="p-6">
         <div className="max-w-lg mx-auto">
           <div className="bg-white border border-gray-200 ppp-lg p-12 text-center">
             <div className="ppp-full h-8 w-8 mx-auto"><SpiralLoader /></div>
-            <p className="text-sm text-gray-500 mt-3">Loading event data...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="max-w-lg mx-auto">
-          <div className="bg-white border border-gray-200 ppp-lg p-12 text-center">
-            <div className="ppp-full h-8 w-8 mx-auto"><SpiralLoader /></div>
-            <p className="text-sm text-gray-500 mt-3">{isEditMode ? 'Updating' : 'Creating'} {typeLower}...</p>
           </div>
         </div>
       </div>
@@ -413,14 +424,24 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
             )}
 
             {step === 4 && (
-              <EventRoomSelector
-                eventMode={eventMode}
-                formData={formData}
-                onChange={handleChange}
-                recurringType={recurringType}
-                monthlyPattern={monthlyPattern}
-                excludeEventId={isEditMode ? eventId : null}
-              />
+              <div className="flex flex-col gap-4">
+                <EventFormatFields
+                  eventFormat={formData.eventFormat}
+                  virtualLink={formData.virtualLink}
+                  virtualDescription={formData.virtualDescription}
+                  onChange={handleChange}
+                />
+                {formData.eventFormat !== 'Virtual' && (
+                  <EventRoomSelector
+                    eventMode={eventMode}
+                    formData={formData}
+                    onChange={handleChange}
+                    recurringType={recurringType}
+                    monthlyPattern={monthlyPattern}
+                    excludeEventId={isEditMode ? eventId : null}
+                  />
+                )}
+              </div>
             )}
 
             {step === 5 && eventMeetingType === 'meet' && hasEventTimes() && (

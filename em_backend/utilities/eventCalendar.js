@@ -162,6 +162,12 @@ function buildInviteICS(event, invitationUid, method = 'REQUEST', attendeeEmail 
     },
   });
 
+  // Physical events point attendees at the room; virtual events at the meeting
+  // link (or its description) so calendar clients show how to join.
+  const location = event.eventFormat === 'Virtual'
+    ? (event.virtualLink || event.virtualDescription || 'Virtual')
+    : (event.eventRoom || '');
+
   const calendarEvent = cal.createEvent({
     // NOTE: ical-generator v4 ignores the `uid` option and always mints a random
     // id, so we must set `id` for the stored invitationUid to appear as the ICS UID
@@ -171,7 +177,7 @@ function buildInviteICS(event, invitationUid, method = 'REQUEST', attendeeEmail 
     end: event.end,
     summary: event.eventName || 'Event',
     description: event.eventDescription || '',
-    location: event.eventRoom || '',
+    location,
     status: method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED',
     // Cancels must carry SEQUENCE >= the original invite so clients remove it.
     // When upstream DB state isn't supplied yet, default cancel to 1, invite to 0.

@@ -31,14 +31,20 @@ class EventService {
       sanitizedData.eventSpecialId =
         await GenerateUniqueEventSpecialId.execute();
 
-      // Verify room exists
-      const room = await Room.findOne({
-        roomName: sanitizedData.eventRoom.toLowerCase(),
-        isActive: true,
-      }).session(session);
+      if (!sanitizedData.eventFormat) {
+        sanitizedData.eventFormat = "Physical";
+      }
 
-      if (!room) {
-        throw new Error("Room not found or is inactive");
+      // Verify room exists (virtual events do not occupy a physical room)
+      if (sanitizedData.eventFormat !== "Virtual") {
+        const room = await Room.findOne({
+          roomName: sanitizedData.eventRoom.toLowerCase(),
+          isActive: true,
+        }).session(session);
+
+        if (!room) {
+          throw new Error("Room not found or is inactive");
+        }
       }
 
       let event;
@@ -78,18 +84,33 @@ class EventService {
       throw new Error("End time must be after start time");
     }
 
-    // Check room availability (exclude self by eventSpecialId)
-    const availability = await CheckRoomAvailability.execute(
-      data.eventRoom,
-      new Date(startedAt),
-      new Date(willEndAt),
-      data.eventSpecialId || null,
-    );
-
-    if (!availability.available) {
-      throw new Error(
-        `Selected room is already reserved during the requested time by a ${availability.conflict} event which is ${availability.details.eventName}`,
+    // A "live" event whose start time is still in the future is actually an
+    // upcoming event — respect the dates over the selected mode.
+    if (new Date(startedAt) > now) {
+      return await this.createUpcomingEvent(
+        {
+          ...data,
+          willStartAt: new Date(startedAt),
+          willEndAt: new Date(willEndAt),
+        },
+        session,
       );
+    }
+
+    // Check room availability (exclude self by eventSpecialId)
+    if (data.eventFormat !== "Virtual") {
+      const availability = await CheckRoomAvailability.execute(
+        data.eventRoom,
+        new Date(startedAt),
+        new Date(willEndAt),
+        data.eventSpecialId || null,
+      );
+
+      if (!availability.available) {
+        throw new Error(
+          `Selected room is already reserved during the requested time by a ${availability.conflict} event which is ${availability.details.eventName}`,
+        );
+      }
     }
 
     // If event ends in the past, create as past event
@@ -122,28 +143,26 @@ class EventService {
       throw new Error("Upcoming events require willStartAt and willEndAt");
     }
 
-    if (new Date(willStartAt) <= now) {
-      throw new Error("Start time must be in the future");
-    }
-
     if (new Date(willStartAt) >= new Date(willEndAt)) {
       throw new Error("End time must be after start time");
     }
 
     // Check room availability (exclude self by eventSpecialId)
-    const availability = await CheckRoomAvailability.execute(
-      data.eventRoom,
-      new Date(willStartAt),
-      new Date(willEndAt),
-      data.eventSpecialId || null,
-      null,
-      requestId || null,
-    );
-
-    if (!availability.available) {
-      throw new Error(
-        `Selected room is already reserved during the requested time by a ${availability.conflict} event which is ${availability.details.eventName}`,
+    if (data.eventFormat !== "Virtual") {
+      const availability = await CheckRoomAvailability.execute(
+        data.eventRoom,
+        new Date(willStartAt),
+        new Date(willEndAt),
+        data.eventSpecialId || null,
+        null,
+        requestId || null,
       );
+
+      if (!availability.available) {
+        throw new Error(
+          `Selected room is already reserved during the requested time by a ${availability.conflict} event which is ${availability.details.eventName}`,
+        );
+      }
     }
 
     // If event would have ended in the past, create as past event
@@ -157,6 +176,17 @@ class EventService {
         },
         session,
       );
+    }
+
+    // An "upcoming" event whose start time has already passed (but has not
+    // ended yet) is actually live — respect the dates over the selected mode.
+    if (new Date(willStartAt) <= now) {
+      const liveEvent = new LiveEvent({
+        ...data,
+        startedAt: new Date(willStartAt),
+        willEndAt: new Date(willEndAt),
+      });
+      return await liveEvent.save({ session });
     }
 
     const upcomingEvent = new UpcomingEvent({
@@ -186,21 +216,24 @@ class EventService {
     this.validateRecurringConfiguration(eventRecurring);
 
     // For room availability, we need to check the first occurrence
-    const firstOccurrenceDate = this.calculateFirstOccurrence(eventRecurring);
+    // (virtual events do not occupy a physical room)
+    if (data.eventFormat !== "Virtual") {
+      const firstOccurrenceDate = this.calculateFirstOccurrence(eventRecurring);
 
-    // Check room availability - exclude self by eventSpecialId
-    // The eventSpecialId is already generated in createEvent prior to this call
-    const availability = await CheckRoomAvailability.execute(
-      data.eventRoom,
-      firstOccurrenceDate.startDateTime,
-      firstOccurrenceDate.endDateTime,
-      data.eventSpecialId || null,
-    );
-
-    if (!availability.available) {
-      throw new Error(
-        `Selected room is already reserved during the requested time by a ${availability.conflict} event which is ${availability.details.eventName}`,
+      // Check room availability - exclude self by eventSpecialId
+      // The eventSpecialId is already generated in createEvent prior to this call
+      const availability = await CheckRoomAvailability.execute(
+        data.eventRoom,
+        firstOccurrenceDate.startDateTime,
+        firstOccurrenceDate.endDateTime,
+        data.eventSpecialId || null,
       );
+
+      if (!availability.available) {
+        throw new Error(
+          `Selected room is already reserved during the requested time by a ${availability.conflict} event which is ${availability.details.eventName}`,
+        );
+      }
     }
 
     const recurringEvent = new RecurringEvent(data);
@@ -374,7 +407,11 @@ class EventService {
       eventDescription: upcomingEvent.eventDescription,
       eventType: upcomingEvent.eventType,
       eventRoom: upcomingEvent.eventRoom,
+      eventFormat: upcomingEvent.eventFormat || "Physical",
+      virtualLink: upcomingEvent.virtualLink || "",
+      virtualDescription: upcomingEvent.virtualDescription || "",
       eventOrganizer: upcomingEvent.eventOrganizer,
+      coOrganizers: upcomingEvent.coOrganizers || [],
       eventSpecialId: upcomingEvent.eventSpecialId,
       startedAt: upcomingEvent.willStartAt,
       willEndAt: upcomingEvent.willEndAt,
@@ -401,7 +438,11 @@ class EventService {
       eventDescription: liveEvent.eventDescription,
       eventType: liveEvent.eventType,
       eventRoom: liveEvent.eventRoom,
+      eventFormat: liveEvent.eventFormat || "Physical",
+      virtualLink: liveEvent.virtualLink || "",
+      virtualDescription: liveEvent.virtualDescription || "",
       eventOrganizer: liveEvent.eventOrganizer,
+      coOrganizers: liveEvent.coOrganizers || [],
       eventSpecialId: `${liveEvent.eventSpecialId}__${Date.now()}`,
       startedAt: liveEvent.startedAt,
       expectedToEndAt: liveEvent.willEndAt,
@@ -425,9 +466,15 @@ class EventService {
       filter,
       search,
       searchField,
+      excludeVirtual,
     } = query;
 
     const queryObject = {};
+
+    // Public listings hide virtual events entirely
+    if (excludeVirtual === "true" || excludeVirtual === true) {
+      queryObject.eventFormat = { $ne: "Virtual" };
+    }
 
     if (search && searchField) {
       if (searchField === "eventSpecialId") {

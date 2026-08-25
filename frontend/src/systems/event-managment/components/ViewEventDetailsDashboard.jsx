@@ -355,7 +355,7 @@ export default function ViewEventDetailsDashboard() {
                           <p className="text-[10px] text-gray-400">
                             {new Date(person.invitedAt).toLocaleDateString()}
                             {person.specificDate?.start && (
-                              <> · {new Date(person.specificDate.start).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</>
+                              <> · {new Date(person.specificDate.start).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</>
                             )}
                           </p>
                         </div>

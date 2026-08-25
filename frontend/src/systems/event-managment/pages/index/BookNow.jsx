@@ -5,6 +5,8 @@ import axios from "axios";
 import { FiCheckCircle, FiCalendar, FiX, FiUser, FiMail, FiPhone, FiMapPin } from "react-icons/fi";
 
 import ActivityAgenda from "../../components/sub-components/ActivityAgenda";
+import EventFormatFields from "../../components/sub-components/EventFormatFields";
+import TimeInput24 from "../../components/sub-components/TimeInput24";
 import DashboardCalendar from "../dashboard/components/DashboardCalendar";
 import TypeSelectionScreen from "./components/TypeSelectionScreen";
 import SuccessScreen from "./components/SuccessScreen";
@@ -27,9 +29,9 @@ const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 
-const STEPS = [
-  { step: 1, label: "Event Info" }, { step: 2, label: "Organizer" },
-  { step: 3, label: "Schedule" }, { step: 4, label: "Room" }, { step: 5, label: "Agenda" },
+const buildSteps = (eventMeetingType) => [
+  { step: 1, label: `${eventMeetingType === "meet" ? "Meeting" : "Event"} Info` }, { step: 2, label: "Organizer" },
+  { step: 3, label: "Schedule" }, { step: 4, label: "Location" }, { step: 5, label: "Agenda" },
 ];
 
 const labelStyle = {
@@ -42,7 +44,8 @@ const inputClassName = "w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-
 
 function CreateEventStepper({ currentStep, eventMeetingType, onStepClick, completedSteps }) {
   const showAgenda = eventMeetingType === "meet";
-  const activeSteps = showAgenda ? STEPS : STEPS.filter((s) => s.step < 5);
+  const steps = buildSteps(eventMeetingType);
+  const activeSteps = showAgenda ? steps : steps.filter((s) => s.step < 5);
   const scrollRef = useRef(null);
   const stepRefs = useRef({});
 
@@ -68,9 +71,9 @@ function CreateEventStepper({ currentStep, eventMeetingType, onStepClick, comple
         return (
           <div key={s.step} ref={(el) => (stepRefs.current[s.step] = el)} className="flex items-center shrink-0">
             <button type="button" disabled={!canClick} onClick={() => canClick && onStepClick(s.step)}
-              className={`flex flex-col items-center justify-center gap-1 transition-all ${canClick ? "cursor-pointer" : "cursor-default"}`}>
+              className="flex flex-col items-center justify-center gap-1 transition-all cursor-pointer">
               <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs font-bold transition-all duration-300"
-                style={{ backgroundColor: done ? SUCCESS : active ? PRIMARY : '#E0E0E0', color: done || active ? WHITE : '#9E9E9E', borderRadius: 0 }}>
+                style={{ backgroundColor: done ? SUCCESS : active ? PRIMARY : '#E0E0E0', color: done || active ? WHITE : '#9E9E9E', borderRadius: '50%' }}>
                 {done ? <FiCheckCircle className="w-4 h-4" /> : s.step}
               </div>
               <span className="block text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap mt-1"
@@ -107,11 +110,13 @@ export default function BookNow() {
   const { showError, showSuccess } = useToast();
 
   const eventMeetingType = urlType || "event";
+  const typeWord = eventMeetingType === "meet" ? "meeting" : "event";
   const showAgenda = eventMeetingType === "meet";
   const maxSteps = showAgenda ? 5 : 4;
 
   const [form, setForm] = useState({
     eventName: "", room: "", description: "", eventType: "",
+    eventFormat: "Physical", virtualLink: "", virtualDescription: "",
     organizerNames: "", organizerEmail: "", organizerPhone: "", organizerInstitution: "",
     eventDate: "", fromTime: "", toTime: "", audience: "",
     agenda: [{ fromTime: "", toTime: "", title: "", description: "" }],
@@ -159,7 +164,13 @@ export default function BookNow() {
         }
         return null;
       case 'room':
+        if (f.eventFormat === 'Virtual') return null;
         return value ? null : 'Please select a room';
+      case 'virtualLink':
+        if (f.eventFormat === 'Virtual' && value && !/^https?:\/\/\S+$/i.test(value.trim())) {
+          return 'Meeting link must be a valid http(s) URL';
+        }
+        return null;
       default:
         return null;
     }
@@ -195,8 +206,9 @@ export default function BookNow() {
   const validateStep4 = () => {
     const errs = {};
     errs.room = validateField('room', form.room, form);
+    errs.virtualLink = validateField('virtualLink', form.virtualLink, form);
     setFieldErrors(errs);
-    return !errs.room;
+    return !errs.room && !errs.virtualLink;
   };
 
   function handleChange(e) {
@@ -283,12 +295,16 @@ export default function BookNow() {
     setSubmitting(true);
     try {
       const { start, end } = computeSchedule();
+      const isVirtual = form.eventFormat === "Virtual";
       const payload = {
         eventMeetingType: eventMeetingType || "event",
         eventName: form.eventName,
         eventDescription: form.description,
         eventType: form.eventType,
-        eventRoom: form.room,
+        eventRoom: isVirtual ? "virtual" : form.room,
+        eventFormat: form.eventFormat || "Physical",
+        virtualLink: isVirtual ? form.virtualLink.trim() : "",
+        virtualDescription: isVirtual ? form.virtualDescription.trim() : "",
         eventOrganizer: {
           fullNames: form.organizerNames,
           email: form.organizerEmail,
@@ -324,7 +340,7 @@ export default function BookNow() {
   }
 
   if (submitted) {
-    return <SuccessScreen trackingCode={trackingCode} eventName={form.eventName} room={form.room} startTime={scheduleStart} endTime={scheduleEnd} />;
+    return <SuccessScreen trackingCode={trackingCode} eventName={form.eventName} room={form.eventFormat === "Virtual" ? "Virtual" : form.room} startTime={scheduleStart} endTime={scheduleEnd} />;
   }
 
   const { start, end } = computeSchedule();
@@ -364,7 +380,7 @@ export default function BookNow() {
                       <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5" style={{ color: GRAY_DISABLED }} />
                       <input
                         type="text" name="eventName" value={form.eventName} onChange={handleChange}
-                        placeholder={`Enter ${eventMeetingType} name`}
+                        placeholder={`Enter ${typeWord} name`}
                         className={inputClassName}
                         style={{ borderColor: fieldErrors.eventName ? DANGER : undefined }}
                       />
@@ -402,7 +418,7 @@ export default function BookNow() {
                   <label style={labelStyle}>Description <span style={{ color: DANGER }}>*</span></label>
                   <textarea
                     name="description" value={form.description} onChange={handleChange}
-                    placeholder={`Describe your ${eventMeetingType}...`} rows={3}
+                    placeholder={`Describe your ${typeWord}...`} rows={3}
                     className={inputClassName}
                     style={{ resize: 'vertical', minHeight: '80px', borderColor: fieldErrors.description ? DANGER : undefined }}
                   />
@@ -428,12 +444,12 @@ export default function BookNow() {
                     {fieldErrors.organizerNames && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldErrors.organizerNames}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label style={labelStyle}>Institution <span className="text-xs ml-1" style={{ color: '#9E9E9E' }}>(optional)</span></label>
+                    <label style={labelStyle}>Institution / Unit <span className="text-xs ml-1" style={{ color: '#9E9E9E' }}>(optional)</span></label>
                     <div className="relative">
                       <FiMapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5" style={{ color: GRAY_DISABLED }} />
                       <input
                         type="text" name="organizerInstitution" value={form.organizerInstitution} onChange={handleChange}
-                        placeholder="Your institution" autoComplete="organization"
+                        placeholder="e.g. a department or a unit" autoComplete="organization"
                         className={inputClassName}
                       />
                     </div>
@@ -482,20 +498,20 @@ export default function BookNow() {
                   {fieldErrors.eventDate && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldErrors.eventDate}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <label style={labelStyle}>From <span style={{ color: DANGER }}>*</span></label>
-                  <input
-                    type="time" name="fromTime" value={form.fromTime} onChange={handleChange}
-                    className={inputClassName}
-                    style={{ borderColor: fieldErrors.fromTime ? DANGER : undefined }}
+                  <label style={labelStyle}>From (24-hour) <span style={{ color: DANGER }}>*</span></label>
+                  <TimeInput24
+                    value={form.fromTime}
+                    hasError={!!fieldErrors.fromTime}
+                    onChange={(value) => handleChange({ target: { name: 'fromTime', value } })}
                   />
                   {fieldErrors.fromTime && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldErrors.fromTime}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <label style={labelStyle}>To <span style={{ color: DANGER }}>*</span></label>
-                  <input
-                    type="time" name="toTime" value={form.toTime} onChange={handleChange}
-                    className={inputClassName}
-                    style={{ borderColor: fieldErrors.toTime ? DANGER : undefined }}
+                  <label style={labelStyle}>To (24-hour) <span style={{ color: DANGER }}>*</span></label>
+                  <TimeInput24
+                    value={form.toTime}
+                    hasError={!!fieldErrors.toTime}
+                    onChange={(value) => handleChange({ target: { name: 'toTime', value } })}
                   />
                   {fieldErrors.toTime && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldErrors.toTime}</p>}
                 </div>
@@ -503,19 +519,41 @@ export default function BookNow() {
             )}
 
             {step === 4 && (
-              <RoomSelector
-                form={form}
-                rooms={[]}
-                audience={form.audience}
-                onChange={(name, val) => {
-                  setForm((prev) => ({ ...prev, [name]: val }));
-                  setFieldErrors((prev) => ({ ...prev, [name]: null }));
-                }}
-                startTime={start ? start.toISOString() : null}
-                endTime={end ? end.toISOString() : null}
-                eventMeetingType={eventMeetingType}
-                onBack={handleBack}
-              />
+              <div className="flex flex-col gap-4">
+                <EventFormatFields
+                  eventFormat={form.eventFormat}
+                  virtualLink={form.virtualLink}
+                  virtualDescription={form.virtualDescription}
+                  linkError={fieldErrors.virtualLink}
+                  onChange={(name, val) => {
+                    setForm((prev) => {
+                      const next = { ...prev, [name]: val };
+                      if (name === 'eventFormat') {
+                        if (val === 'Virtual') next.room = '';
+                        else { next.virtualLink = ''; next.virtualDescription = ''; }
+                      }
+                      return next;
+                    });
+                    setFieldErrors((prev) => ({ ...prev, room: null, virtualLink: null }));
+                  }}
+                />
+                {form.eventFormat !== 'Virtual' && (
+                  <RoomSelector
+                    form={form}
+                    rooms={[]}
+                    audience={form.audience}
+                    onChange={(name, val) => {
+                      setForm((prev) => ({ ...prev, [name]: val }));
+                      setFieldErrors((prev) => ({ ...prev, [name]: null }));
+                    }}
+                    startTime={start ? start.toISOString() : null}
+                    endTime={end ? end.toISOString() : null}
+                    eventMeetingType={eventMeetingType}
+                    onBack={handleBack}
+                  />
+                )}
+                {fieldErrors.room && <p className="text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldErrors.room}</p>}
+              </div>
             )}
 
             {step === 5 && showAgenda && (
@@ -529,7 +567,7 @@ export default function BookNow() {
             {step === 5 && !showAgenda && (
               <div className="p-4 text-center" style={{ backgroundColor: '#E3F2FD', border: `1px solid ${BORDER}` }}>
                 <p className="text-sm font-medium" style={{ color: PRIMARY, fontFamily: fontHeading }}>No agenda required</p>
-                <p className="text-xs mt-1" style={{ color: '#9E9E9E', fontFamily: fontHeading }}>External events do not require a meeting agenda.</p>
+                <p className="text-xs mt-1" style={{ color: '#9E9E9E', fontFamily: fontHeading }}>Events do not require a meeting agenda.</p>
               </div>
             )}
 
@@ -550,7 +588,7 @@ export default function BookNow() {
                     style={{ flex: 1 }}
                   >
                     {submitting ? (
-                      <><div style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginRight: '8px' }} />Submitting...</>
+                      <div style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
                     ) : (<><FiCheckCircle style={{ width: 16, height: 16 }} /> Submit Booking Request</>)}
                   </button>
                 )}

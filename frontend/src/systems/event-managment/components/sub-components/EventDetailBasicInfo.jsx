@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FiMapPin, FiBookmark, FiUsers, FiCalendar, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
 import axios from 'axios';
 import ChangeRoomModal from './ChangeRoomModal';
+import TimeInput24 from './TimeInput24';
 import { useToast } from '@/core/contexts/ToastContext';
 
 const BASE_URL = '/cok/api/v1';
@@ -114,28 +115,32 @@ export default function EventDetailBasicInfo({ event, eventMode, onEventUpdated 
     }
   };
 
+  const formatDateTime24 = (d) => new Date(d).toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+
   const getEventTimeInfo = () => {
     switch (eventMode) {
       case 'live':
         return {
-          startLabel: 'Started', startValue: event.startedAt ? new Date(event.startedAt).toLocaleString() : 'N/A',
-          endLabel: 'Ends', endValue: event.willEndAt ? new Date(event.willEndAt).toLocaleString() : 'N/A',
+          startLabel: 'Started', startValue: event.startedAt ? formatDateTime24(event.startedAt) : 'N/A',
+          endLabel: 'Ends', endValue: event.willEndAt ? formatDateTime24(event.willEndAt) : 'N/A',
         };
       case 'upcoming':
         return {
-          startLabel: 'Starts', startValue: event.willStartAt ? new Date(event.willStartAt).toLocaleString() : 'N/A',
-          endLabel: 'Ends', endValue: event.willEndAt ? new Date(event.willEndAt).toLocaleString() : 'N/A',
+          startLabel: 'Starts', startValue: event.willStartAt ? formatDateTime24(event.willStartAt) : 'N/A',
+          endLabel: 'Ends', endValue: event.willEndAt ? formatDateTime24(event.willEndAt) : 'N/A',
         };
       case 'recurring':
         return {
           startLabel: 'Time', startValue: event.eventRecurring?.eventStartTime || 'N/A',
-          endLabel: 'Until', endValue: event.eventRecurring?.recurringEndDate ? new Date(event.eventRecurring.recurringEndDate).toLocaleDateString() : 'N/A',
+          endLabel: 'Until', endValue: event.eventRecurring?.recurringEndDate ? new Date(event.eventRecurring.recurringEndDate).toLocaleDateString('en-GB') : 'N/A',
           extraInfo: event.eventRecurring?.recurringType ? `Type: ${event.eventRecurring.recurringType}` : null,
         };
       case 'past':
         return {
-          startLabel: 'Started', startValue: event.startedAt ? new Date(event.startedAt).toLocaleString() : 'N/A',
-          endLabel: 'Ended', endValue: event.endedAt ? new Date(event.endedAt).toLocaleString() : 'N/A',
+          startLabel: 'Started', startValue: event.startedAt ? formatDateTime24(event.startedAt) : 'N/A',
+          endLabel: 'Ended', endValue: event.endedAt ? formatDateTime24(event.endedAt) : 'N/A',
           extraInfo: event.isCancelled ? `Cancelled: ${event.cancellationReason || 'No reason provided'}` : null,
         };
       default:
@@ -229,18 +234,18 @@ export default function EventDetailBasicInfo({ event, eventMode, onEventUpdated 
           <div className="text-sm break-words" style={{ color: NEUTRAL_DARK }}>{event.eventType || <span className="italic" style={{ color: GRAY_DISABLED }}>Not set</span>}</div>
         </div>
 
-        {/* Room - Show value with Change Room button */}
+        {/* Location - Show value with Change Location button */}
         <div className="bg-white p-4" style={{ border: `1px solid ${BORDER}` }}>
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <FiMapPin className="w-4 h-4" style={{ color: PRIMARY }} />
-              <label style={fieldLabelStyle}>Room</label>
+              <label style={fieldLabelStyle}>Location</label>
             </div>
             {!isPastEvent && (
               <button onClick={() => setChangeRoomOpen(true)}
                 className="cok-btn-primary inline-flex items-center gap-1"
                 style={{ width: 'auto', padding: '0.35rem 0.7rem', fontSize: '10px' }}>
-                <FiEdit2 className="w-3 h-3" /> Change Room
+                <FiEdit2 className="w-3 h-3" /> Change Location
               </button>
             )}
           </div>
@@ -269,18 +274,15 @@ export default function EventDetailBasicInfo({ event, eventMode, onEventUpdated 
                 onChange={(e) => setEditValues(p => ({ ...p, scheduleDate: e.target.value }))}
                 className={inputClassName} autoFocus />
             </EditableDisplay>
-            <EditableDisplay label="From" value={schedule.from} field="scheduleFrom"
+            <EditableDisplay label="From (24-hour)" value={schedule.from} field="scheduleFrom"
               icon={<FiCalendar className="w-4 h-4" style={{ color: PRIMARY }} />} {...scheduleProps}>
-              <input type="time" value={currentValue('scheduleFrom')}
-                onChange={(e) => setEditValues(p => ({ ...p, scheduleFrom: e.target.value }))}
-                className={inputClassName} autoFocus />
+              <TimeInput24 value={currentValue('scheduleFrom')}
+                onChange={(value) => setEditValues(p => ({ ...p, scheduleFrom: value }))} />
             </EditableDisplay>
-            <EditableDisplay label="To" value={schedule.to} field="scheduleTo"
+            <EditableDisplay label="To (24-hour)" value={schedule.to} field="scheduleTo"
               icon={<FiCalendar className="w-4 h-4" style={{ color: PRIMARY }} />} {...scheduleProps}>
-              <input type="time" value={currentValue('scheduleTo')}
-                onChange={(e) => setEditValues(p => ({ ...p, scheduleTo: e.target.value }))}
-                min={schedule.from || undefined}
-                className={inputClassName} autoFocus />
+              <TimeInput24 value={currentValue('scheduleTo')}
+                onChange={(value) => setEditValues(p => ({ ...p, scheduleTo: value }))} />
             </EditableDisplay>
           </div>
         ) : (

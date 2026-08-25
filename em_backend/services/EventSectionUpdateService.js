@@ -52,6 +52,9 @@ class EventSectionUpdateService {
             eventName: event.eventName,
             eventDescription: event.eventDescription || '',
             eventRoom: event.eventRoom,
+            eventFormat: event.eventFormat || 'Physical',
+            virtualLink: event.virtualLink || '',
+            virtualDescription: event.virtualDescription || '',
             eventOrganizer: event.eventOrganizer,
             start: fromUTCInstant(event[startField]),
             end: fromUTCInstant(event.willEndAt),
@@ -150,6 +153,38 @@ class EventSectionUpdateService {
         title: p.title?.trim() || '',
         description: p.description?.trim() || '',
       }));
+
+    // Agenda items must not overlap in time (supports "HH:MM" and legacy "09:00 AM")
+    const toMinutes = (t) => {
+      if (!t) return null;
+      const m = String(t).trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (!m) return null;
+      let h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      const ap = m[3] ? m[3].toUpperCase() : null;
+      if (ap === 'PM' && h < 12) h += 12;
+      if (ap === 'AM' && h === 12) h = 0;
+      if (h > 23 || min > 59) return null;
+      return h * 60 + min;
+    };
+
+    for (let i = 0; i < sanitized.length; i++) {
+      const from = toMinutes(sanitized[i].fromTime);
+      const to = toMinutes(sanitized[i].toTime);
+      if (from === null || to === null) continue;
+      if (to <= from) {
+        throw new Error(`Agenda item ${i + 1}: end time must be after start time`);
+      }
+      for (let j = 0; j < i; j++) {
+        const otherFrom = toMinutes(sanitized[j].fromTime);
+        const otherTo = toMinutes(sanitized[j].toTime);
+        if (otherFrom === null || otherTo === null) continue;
+        if (from < otherTo && to > otherFrom) {
+          throw new Error(`Agenda item ${i + 1} (${sanitized[i].fromTime} - ${sanitized[i].toTime}) overlaps with agenda item ${j + 1} (${sanitized[j].fromTime} - ${sanitized[j].toTime})`);
+        }
+      }
+    }
+
     event.activityAgenda = sanitized;
   }
 
@@ -178,10 +213,13 @@ class EventSectionUpdateService {
     }
 
     // Check the event's room for conflicts on the new window before saving
-    const avail = await CheckRoomAvailability.execute(event.eventRoom, newStart, newEnd, event.eventSpecialId);
-    if (!avail.available) {
-      const conflictName = avail.details?.eventName ? ` (conflicts with "${avail.details.eventName}")` : '';
-      throw new Error(`Room "${event.eventRoom}" is already reserved during the new time${conflictName}`);
+    // (virtual events hold no room)
+    if (event.eventFormat !== 'Virtual') {
+      const avail = await CheckRoomAvailability.execute(event.eventRoom, newStart, newEnd, event.eventSpecialId);
+      if (!avail.available) {
+        const conflictName = avail.details?.eventName ? ` (conflicts with "${avail.details.eventName}")` : '';
+        throw new Error(`Room "${event.eventRoom}" is already reserved during the new time${conflictName}`);
+      }
     }
 
     event[startField] = newStart;
@@ -190,6 +228,15 @@ class EventSectionUpdateService {
   }
 
   static async _updateRoom(event, data, session, eventType) {
+    // Switching the event to virtual releases its room; no availability checks needed.
+    if (data.eventFormat === 'Virtual') {
+      event.eventFormat = 'Virtual';
+      event.eventRoom = 'virtual';
+      if (data.virtualLink !== undefined) event.virtualLink = String(data.virtualLink).trim();
+      if (data.virtualDescription !== undefined) event.virtualDescription = String(data.virtualDescription).trim();
+      return;
+    }
+
     if (!data.eventRoom || !data.eventRoom.trim()) {
       throw new Error('Room name is required');
     }
@@ -263,6 +310,11 @@ class EventSectionUpdateService {
     }
 
     event.eventRoom = newRoom;
+    if (data.eventFormat === 'Physical' || event.eventFormat === 'Virtual') {
+      event.eventFormat = 'Physical';
+      event.virtualLink = '';
+      event.virtualDescription = '';
+    }
   }
 }
 

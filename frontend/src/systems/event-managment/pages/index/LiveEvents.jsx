@@ -36,6 +36,7 @@ export default function LiveEvents() {
             filter: filter || undefined,
             search: search || undefined,
             searchField: searchField || undefined,
+            excludeVirtual: 'true',
           }
         });
 

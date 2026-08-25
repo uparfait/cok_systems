@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import TimeInput24 from './TimeInput24';
 
 const PRIMARY = "#056daa";
 const SUCCESS = "#4CAF50";
@@ -263,31 +264,23 @@ function AgendaItem({ index, item, isSaved, itemErrors, itemTouched, onChange, o
 
       {/* Time Fields */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label style={labelS}>From Time</label>
-          <input
-            type="time"
+        <div className="flex flex-col gap-1.5" onBlur={() => onBlurAction(index, 'fromTime')}>
+          <label style={labelS}>From Time (24-hour)</label>
+          <TimeInput24
             disabled={isSaved}
-            required
-            className={inputClassName}
-            style={{ borderColor: hasFieldError('fromTime') ? DANGER : undefined }}
+            hasError={hasFieldError('fromTime')}
             value={item.fromTime}
-            onBlur={() => onBlurAction(index, 'fromTime')}
-            onChange={(e) => onChange(index, 'fromTime', e.target.value)}
+            onChange={(value) => onChange(index, 'fromTime', value)}
           />
           {fieldError('fromTime') && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldError('fromTime')}</p>}
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label style={labelS}>To Time</label>
-          <input
-            type="time"
+        <div className="flex flex-col gap-1.5" onBlur={() => onBlurAction(index, 'toTime')}>
+          <label style={labelS}>To Time (24-hour)</label>
+          <TimeInput24
             disabled={isSaved}
-            required
-            className={inputClassName}
-            style={{ borderColor: hasFieldError('toTime') ? DANGER : undefined }}
+            hasError={hasFieldError('toTime')}
             value={item.toTime}
-            onBlur={() => onBlurAction(index, 'toTime')}
-            onChange={(e) => onChange(index, 'toTime', e.target.value)}
+            onChange={(value) => onChange(index, 'toTime', value)}
           />
           {fieldError('toTime') && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldError('toTime')}</p>}
         </div>

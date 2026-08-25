@@ -38,6 +38,26 @@ const recurringEventSchema = new mongoose.Schema(
       trim: true,
       set: (value) => value.toLowerCase(),
     },
+    eventFormat: {
+      type: String,
+      enum: {
+        values: ["Physical", "Virtual"],
+        message: "Event format must be either Physical or Virtual",
+      },
+      default: "Physical",
+    },
+    virtualLink: {
+      type: String,
+      trim: true,
+      maxlength: [1000, "Virtual link cannot exceed 1000 characters"],
+      default: "",
+    },
+    virtualDescription: {
+      type: String,
+      trim: true,
+      maxlength: [1000, "Virtual description cannot exceed 1000 characters"],
+      default: "",
+    },
     eventOrganizer: {
       fullNames: {
         type: String,

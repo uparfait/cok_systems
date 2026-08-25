@@ -8,6 +8,7 @@ import EventDetailsRightColumn from "./components/EventDetailsRightColumn";
 import EventDetailsQrModal from "./components/EventDetailsQrModal";
 import EventMinutesView from "./components/EventMinutesView";
 import CoOrganizersPanel from "./components/CoOrganizersPanel";
+import EventAgendaSection from "../../components/sub-components/EventAgendaSection";
 import AttendeesList from "./AttendeesList";
 import DesignateMinutes from "./DesignateMinutes";
 import EventActionsPage from "./EventActionsPage";
@@ -372,6 +373,16 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
         </div>
 
         <div className="relative z-10 w-full">
+          <EventAgendaSection
+            event={activeEvent}
+            isLive={!isUpcoming && !isEnded}
+            canEdit={!isUpcoming && !isEnded}
+            eventType="live"
+            onUpdated={(updated) => {
+              setLocalEvent((prev) => ({ ...(prev || {}), ...updated }));
+              if (setActiveEvent) setActiveEvent((prev) => ({ ...(prev || {}), ...updated }));
+            }}
+          />
           <CoOrganizersPanel eventSpecialId={eventSpecialId} />
           <EventMinutesView
             eventSpecialId={eventSpecialId}

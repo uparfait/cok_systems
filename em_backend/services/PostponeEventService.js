@@ -48,6 +48,9 @@ class PostponeEventService {
         eventName: eventDoc.eventName,
         eventDescription: eventDoc.eventDescription || '',
         eventRoom: eventDoc.eventRoom,
+        eventFormat: eventDoc.eventFormat || 'Physical',
+        virtualLink: eventDoc.virtualLink || '',
+        virtualDescription: eventDoc.virtualDescription || '',
         eventOrganizer: eventDoc.eventOrganizer,
         start,
         end,
@@ -94,15 +97,17 @@ class PostponeEventService {
       throw new Error('Postponed end time must not be in the past.');
     }
 
-    // Check room availability (exclude self by eventSpecialId)
-    const availability = await CheckRoomAvailability.execute(
-      liveEvent.eventRoom,
-      effectiveStart,
-      effectiveEnd,
-      liveEvent.eventSpecialId
-    );
-    if (!availability.available) {
-      throw new Error('Room is already reserved during the postponed time.');
+    // Check room availability (exclude self by eventSpecialId; virtual events hold no room)
+    if (liveEvent.eventFormat !== 'Virtual') {
+      const availability = await CheckRoomAvailability.execute(
+        liveEvent.eventRoom,
+        effectiveStart,
+        effectiveEnd,
+        liveEvent.eventSpecialId
+      );
+      if (!availability.available) {
+        throw new Error('Room is already reserved during the postponed time.');
+      }
     }
 
     // ISSUE 1 FIX: If the new start time is in the future (> 5 min from now),
@@ -115,6 +120,10 @@ class PostponeEventService {
         eventDescription: liveEvent.eventDescription,
         eventType: liveEvent.eventType,
         eventRoom: liveEvent.eventRoom,
+        eventFormat: liveEvent.eventFormat || 'Physical',
+        virtualLink: liveEvent.virtualLink || '',
+        virtualDescription: liveEvent.virtualDescription || '',
+        coOrganizers: liveEvent.coOrganizers || [],
         eventOrganizer: liveEvent.eventOrganizer,
         eventSpecialId: `${liveEvent.eventSpecialId}_postponed_${Date.now()}`,
         expectedAudience: liveEvent.expectedAudience,
@@ -179,15 +188,17 @@ class PostponeEventService {
       throw new Error('Postponed end time must not be in the past.');
     }
 
-    // Check room availability (exclude self by eventSpecialId)
-    const availability = await CheckRoomAvailability.execute(
-      upcomingEvent.eventRoom,
-      effectiveStart,
-      effectiveEnd,
-      upcomingEvent.eventSpecialId
-    );
-    if (!availability.available) {
-      throw new Error('Room is already reserved during the postponed time.');
+    // Check room availability (exclude self by eventSpecialId; virtual events hold no room)
+    if (upcomingEvent.eventFormat !== 'Virtual') {
+      const availability = await CheckRoomAvailability.execute(
+        upcomingEvent.eventRoom,
+        effectiveStart,
+        effectiveEnd,
+        upcomingEvent.eventSpecialId
+      );
+      if (!availability.available) {
+        throw new Error('Room is already reserved during the postponed time.');
+      }
     }
 
     // If the new start time is "now" or in the very recent past (within 5 min tolerance),
@@ -199,6 +210,10 @@ class PostponeEventService {
         eventDescription: upcomingEvent.eventDescription,
         eventType: upcomingEvent.eventType,
         eventRoom: upcomingEvent.eventRoom,
+        eventFormat: upcomingEvent.eventFormat || 'Physical',
+        virtualLink: upcomingEvent.virtualLink || '',
+        virtualDescription: upcomingEvent.virtualDescription || '',
+        coOrganizers: upcomingEvent.coOrganizers || [],
         eventOrganizer: upcomingEvent.eventOrganizer,
         eventSpecialId: upcomingEvent.eventSpecialId,
         expectedAudience: upcomingEvent.expectedAudience,
@@ -282,8 +297,8 @@ class PostponeEventService {
       Object.assign(recurringEvent.eventRecurring, recurringUpdates);
     }
 
-    // Check room availability for the first future occurrence
-    if (Object.keys(recurringUpdates).length > 0) {
+    // Check room availability for the first future occurrence (virtual events hold no room)
+    if (Object.keys(recurringUpdates).length > 0 && recurringEvent.eventFormat !== 'Virtual') {
       const actualStartTime = recurringUpdates.eventStartTime || recurringEvent.eventRecurring.eventStartTime;
       const actualEndTime = recurringUpdates.eventEndTime || recurringEvent.eventRecurring.eventEndTime;
       const [startHour, startMin] = actualStartTime.split(':').map(Number);

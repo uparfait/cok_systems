@@ -212,7 +212,7 @@ export default function Live() {
               onClick={() => handlePageChange(page)}
               className={`px-3 py-1.5 text-sm border ppp-lg transition-colors ${
                 page === pagination.currentPage
-                  ? 'bg-blue-600 text-white '
+                  ? 'bg-[#056daa] text-white'
                   : 'border-gray-300 hover:bg-gray-50 text-gray-700'
               }`}
             >

@@ -2,13 +2,13 @@ class EventValidator {
   static validateEventData(data) {
     const errors = [];
 
-    // Validate required fields
-    const requiredFields = [
-      "eventName",
-      "eventDescription",
-      "eventType",
-      "eventRoom",
-    ];
+    const isVirtual = data.eventFormat === "Virtual";
+
+    // Validate required fields (a room is only required for physical events)
+    const requiredFields = ["eventName", "eventDescription", "eventType"];
+    if (!isVirtual) {
+      requiredFields.push("eventRoom");
+    }
     for (const field of requiredFields) {
       if (
         !data[field] ||
@@ -16,6 +16,23 @@ class EventValidator {
       ) {
         errors.push(`${field} is required`);
       }
+    }
+
+    // Validate event format
+    if (data.eventFormat && !["Physical", "Virtual"].includes(data.eventFormat)) {
+      errors.push("Event format must be either Physical or Virtual");
+    }
+
+    if (data.virtualLink) {
+      if (data.virtualLink.length > 1000) {
+        errors.push("Virtual link cannot exceed 1000 characters");
+      } else if (!/^https?:\/\/\S+$/i.test(data.virtualLink.trim())) {
+        errors.push("Virtual link must be a valid http(s) URL");
+      }
+    }
+
+    if (data.virtualDescription && data.virtualDescription.length > 1000) {
+      errors.push("Virtual description cannot exceed 1000 characters");
     }
 
     // Validate eventMeetingType
@@ -223,6 +240,9 @@ class EventValidator {
       "eventDescription",
       "eventType",
       "eventRoom",
+      "eventFormat",
+      "virtualLink",
+      "virtualDescription",
       "eventOrganizer",
       "startedAt",
       "willEndAt",
@@ -245,6 +265,16 @@ class EventValidator {
           sanitized[field] = data[field];
         }
       }
+    }
+
+    // Virtual events do not occupy a physical room; physical events carry no
+    // virtual details. Only normalize when the caller explicitly sets a format,
+    // so partial updates never flip or wipe an existing event's format fields.
+    if (sanitized.eventFormat === "Virtual") {
+      sanitized.eventRoom = "virtual";
+    } else if (sanitized.eventFormat === "Physical") {
+      sanitized.virtualLink = "";
+      sanitized.virtualDescription = "";
     }
 
     // Sanitize organizer object

@@ -14,7 +14,7 @@ const labelStyle = {
 };
 
 export default function OrganizerFields({ eventMeetingType, formData, onChange }) {
-  const displayType = eventMeetingType === 'meet' ? 'Meet' : 'Event';
+  const displayType = eventMeetingType === 'meet' ? 'Meeting' : 'Event';
   return (
     <div className="flex flex-col gap-4 pt-2">
       <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>{displayType} Organizer</h2>
@@ -39,14 +39,14 @@ export default function OrganizerFields({ eventMeetingType, formData, onChange }
         </div>
         <div className="space-y-2">
           <label htmlFor="organizerInstitution" style={labelStyle}>
-            Institution / Organization
+            Institution / Unit
           </label>
           <input
             type="text"
             id="organizerInstitution"
             value={formData.organizerInstitution}
             onChange={(e) => onChange('organizerInstitution', e.target.value)}
-            placeholder="External workspace title (Optional)"
+            placeholder="e.g. a department or a unit (Optional)"
             className={inputClass}
           />
         </div>

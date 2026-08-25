@@ -21,6 +21,8 @@ import {
 } from "react-icons/fi";
 import ConfirmModal from "../ui-components/ConfirmModal";
 import SpiralLoader from "./SpiralLoader";
+import TimeInput24 from "./sub-components/TimeInput24";
+import EventFormatFields from "./sub-components/EventFormatFields";
 import { useToast } from "@/core/contexts/ToastContext";
 
 const BASE_URL = "/cok/api/v1";
@@ -115,15 +117,23 @@ function EditableDisplay({ label, value, field, icon, children, activeField, edi
   );
 }
 
-// Room picker panel — checks availability for this request's window, excluding itself
+// Location picker panel — Physical/Virtual toggle; physical checks room
+// availability for this request's window, excluding itself
 function RoomChangePanel({ request, onSaved, onClose, saveRequestFields, saving }) {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [unavailableRooms, setUnavailableRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRoom, setSelectedRoom] = useState("");
+  const [format, setFormat] = useState(request.eventFormat || "Physical");
+  const [virtualLink, setVirtualLink] = useState(request.virtualLink || "");
+  const [virtualDescription, setVirtualDescription] = useState(request.virtualDescription || "");
+  const [linkError, setLinkError] = useState(null);
   const { showError } = useToast();
 
+  const isCurrentlyVirtual = request.eventFormat === "Virtual";
+
   useEffect(() => {
+    if (format === "Virtual") return;
     const checkRooms = async () => {
       setLoading(true);
       try {
@@ -145,38 +155,74 @@ function RoomChangePanel({ request, onSaved, onClose, saveRequestFields, saving 
     };
     checkRooms();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [request._id, request.startTime, request.endTime]);
+  }, [request._id, request.startTime, request.endTime, format]);
 
   const isSelected = (roomName) => selectedRoom.toLowerCase() === roomName.toLowerCase();
-  const isCurrent = (roomName) => request.eventRoom?.toLowerCase() === roomName.toLowerCase();
+  const isCurrent = (roomName) => !isCurrentlyVirtual && request.eventRoom?.toLowerCase() === roomName.toLowerCase();
+
+  const handleFormatChange = (name, value) => {
+    if (name === "eventFormat") {
+      setFormat(value);
+      setLinkError(null);
+      if (value === "Virtual") setSelectedRoom("");
+    } else if (name === "virtualLink") {
+      setVirtualLink(value);
+      setLinkError(null);
+    } else if (name === "virtualDescription") {
+      setVirtualDescription(value);
+    }
+  };
 
   const handleSave = async () => {
-    if (!selectedRoom) { showError("Please select a room"); return; }
-    const ok = await saveRequestFields({ eventRoom: selectedRoom });
+    let payload;
+    if (format === "Virtual") {
+      if (virtualLink && !/^https?:\/\/\S+$/i.test(virtualLink.trim())) {
+        setLinkError("Meeting link must be a valid http(s) URL");
+        return;
+      }
+      payload = {
+        eventFormat: "Virtual",
+        virtualLink: virtualLink.trim(),
+        virtualDescription: virtualDescription.trim(),
+      };
+    } else {
+      if (!selectedRoom) { showError("Please select a room"); return; }
+      payload = { eventFormat: "Physical", eventRoom: selectedRoom };
+    }
+    const ok = await saveRequestFields(payload);
     if (ok) { onSaved?.(); onClose(); }
   };
 
   return (
     <div className="p-3 sm:p-4 space-y-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
-      <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
-        Rooms are checked for availability against this request's schedule.
-      </p>
+      <EventFormatFields
+        eventFormat={format}
+        virtualLink={virtualLink}
+        virtualDescription={virtualDescription}
+        linkError={linkError}
+        onChange={handleFormatChange}
+      />
 
-      {loading && (
+      {format !== "Virtual" && (
+        <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+          Rooms are checked for availability against this request's schedule.
+        </p>
+      )}
+
+      {format !== "Virtual" && loading && (
         <div className="flex items-center justify-center py-6">
           <div className="w-6 h-6"><SpiralLoader /></div>
-          <span className="ml-2 text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Checking rooms...</span>
         </div>
       )}
 
-      {!loading && availableRooms.length === 0 && (
+      {format !== "Virtual" && !loading && availableRooms.length === 0 && (
         <div className="p-4 text-center" style={{ backgroundColor: "#FFF3E0", border: "1px solid #FFCC80" }}>
           <FiAlertCircle className="w-8 h-8 mx-auto mb-2" style={{ color: WARNING }} />
           <p className="text-xs font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>No other rooms are available for this schedule.</p>
         </div>
       )}
 
-      {!loading && availableRooms.length > 0 && (
+      {format !== "Virtual" && !loading && availableRooms.length > 0 && (
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {availableRooms.map((item, idx) => {
             const selected = isSelected(item.room.roomName);
@@ -209,10 +255,10 @@ function RoomChangePanel({ request, onSaved, onClose, saveRequestFields, saving 
       )}
 
       <div className="flex gap-2 pt-1">
-        <button onClick={handleSave} disabled={saving || !selectedRoom}
+        <button onClick={handleSave} disabled={saving || (format !== "Virtual" && !selectedRoom)}
           className="cok-btn-primary inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ width: "auto", padding: "0.5rem 1rem", fontSize: "11px" }}>
-          {saving ? "Saving..." : "Save Room"}
+          {saving ? "Saving..." : "Save Location"}
         </button>
         <button onClick={onClose} disabled={saving}
           className="cok-btn-outlined disabled:opacity-50"
@@ -389,7 +435,7 @@ export default function BookingRequestDetails() {
 
   const formatDateTime = (dateStr) => {
     if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return new Date(dateStr).toLocaleDateString("en-GB", { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
   };
 
   if (loading) {
@@ -432,7 +478,7 @@ export default function BookingRequestDetails() {
               </h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs font-mono font-semibold px-2 py-0.5" style={{ color: PRIMARY, backgroundColor: "#FFFFFF" }}>{request.trackingCode}</span>
-                <span className="text-xs capitalize" style={{ color: "rgba(255,255,255,0.85)", fontFamily: fontHeading }}>({request.eventMeetingType})</span>
+                <span className="text-xs capitalize" style={{ color: "rgba(255,255,255,0.85)", fontFamily: fontHeading }}>({request.eventMeetingType === "meet" ? "meeting" : "event"})</span>
               </div>
             </div>
           </div>
@@ -467,17 +513,17 @@ export default function BookingRequestDetails() {
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
                 <FiMapPin className="w-4 h-4" style={{ color: PRIMARY }} />
-                <label style={fieldLabelStyle}>Room</label>
+                <label style={fieldLabelStyle}>Location</label>
               </div>
               {isPending && !roomPanelOpen && (
                 <button onClick={() => setRoomPanelOpen(true)}
                   className="cok-btn-primary inline-flex items-center gap-1"
                   style={{ width: "auto", padding: "0.35rem 0.7rem", fontSize: "10px" }}>
-                  <FiEdit2 className="w-3 h-3" /> Change Room
+                  <FiEdit2 className="w-3 h-3" /> Change Location
                 </button>
               )}
             </div>
-            <div className="text-sm capitalize break-words" style={{ color: NEUTRAL_DARK }}>{request.eventRoom || <span className="italic" style={{ color: GRAY_DISABLED }}>Not set</span>}</div>
+            <div className="text-sm capitalize break-words" style={{ color: NEUTRAL_DARK }}>{request.eventFormat === "Virtual" ? "Virtual" : (request.eventRoom || <span className="italic" style={{ color: GRAY_DISABLED }}>Not set</span>)}</div>
             {roomPanelOpen && (
               <div className="mt-3">
                 <RoomChangePanel request={request} onClose={() => setRoomPanelOpen(false)} saveRequestFields={saveRequestFields} saving={saving} />
@@ -498,13 +544,13 @@ export default function BookingRequestDetails() {
               icon={<FiCalendar className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
               <input type="date" value={currentValue("scheduleDate")} onChange={(e) => setEditValue("scheduleDate", e.target.value)} className={inputClassName} autoFocus />
             </EditableDisplay>
-            <EditableDisplay label="From" value={schedule.from} field="scheduleFrom"
+            <EditableDisplay label="From (24-hour)" value={schedule.from} field="scheduleFrom"
               icon={<FiCalendar className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
-              <input type="time" value={currentValue("scheduleFrom")} onChange={(e) => setEditValue("scheduleFrom", e.target.value)} className={inputClassName} autoFocus />
+              <TimeInput24 value={currentValue("scheduleFrom")} onChange={(value) => setEditValue("scheduleFrom", value)} />
             </EditableDisplay>
-            <EditableDisplay label="To" value={schedule.to} field="scheduleTo"
+            <EditableDisplay label="To (24-hour)" value={schedule.to} field="scheduleTo"
               icon={<FiCalendar className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
-              <input type="time" value={currentValue("scheduleTo")} onChange={(e) => setEditValue("scheduleTo", e.target.value)} min={schedule.from || undefined} className={inputClassName} autoFocus />
+              <TimeInput24 value={currentValue("scheduleTo")} onChange={(value) => setEditValue("scheduleTo", value)} />
             </EditableDisplay>
           </div>
         </div>

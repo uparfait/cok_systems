@@ -4,14 +4,15 @@ import {
   PRIMARY, SUCCESS, BORDER, GRAY_DISABLED, fontHeading,
 } from "./TrackShared";
 
-const STEPS = [
-  { step: 1, label: "Event Info" }, { step: 2, label: "Organizer" },
-  { step: 3, label: "Schedule" }, { step: 4, label: "Room" }, { step: 5, label: "Agenda" },
+const buildSteps = (eventMeetingType) => [
+  { step: 1, label: `${eventMeetingType === "meet" ? "Meeting" : "Event"} Info` }, { step: 2, label: "Organizer" },
+  { step: 3, label: "Schedule" }, { step: 4, label: "Location" }, { step: 5, label: "Agenda" },
 ];
 
 export default function EventStepper({ currentStep, eventMeetingType, onStepClick, completedSteps }) {
   const showAgenda = eventMeetingType === "meet";
-  const activeSteps = showAgenda ? STEPS : STEPS.filter((s) => s.step < 5);
+  const steps = buildSteps(eventMeetingType);
+  const activeSteps = showAgenda ? steps : steps.filter((s) => s.step < 5);
   const scrollRef = useRef(null);
   const stepRefs = useRef({});
 
@@ -37,9 +38,9 @@ export default function EventStepper({ currentStep, eventMeetingType, onStepClic
         return (
           <div key={s.step} ref={(el) => (stepRefs.current[s.step] = el)} className="flex items-center shrink-0">
             <button type="button" disabled={!canClick} onClick={() => canClick && onStepClick(s.step)}
-              className={`flex flex-col items-center justify-center gap-1 transition-all ${canClick ? "cursor-pointer" : "cursor-default"}`}>
+              className="flex flex-col items-center justify-center gap-1 transition-all cursor-pointer">
               <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs font-bold transition-all duration-300"
-                style={{ backgroundColor: done ? SUCCESS : active ? PRIMARY : '#E0E0E0', color: done || active ? '#FFFFFF' : GRAY_DISABLED, borderRadius: 0 }}>
+                style={{ backgroundColor: done ? SUCCESS : active ? PRIMARY : '#E0E0E0', color: done || active ? '#FFFFFF' : GRAY_DISABLED, borderRadius: '50%' }}>
                 {done ? <FiCheckCircle className="w-4 h-4" /> : s.step}
               </div>
               <span className="block text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap mt-1"

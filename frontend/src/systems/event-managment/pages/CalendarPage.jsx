@@ -5,6 +5,7 @@ import { FiSearch, FiX, FiChevronLeft, FiChevronRight, FiClock, FiMapPin, FiCale
 import SpiralLoader from "../components/SpiralLoader";
 import { useAuth } from "@/core/contexts/AuthContext";
 import EventDetails from "./index/EventDetails";
+import EventAgendaSection from "../components/sub-components/EventAgendaSection";
 
 const BASE_URL = "/cok/api/v1";
 
@@ -558,6 +559,14 @@ export default function CalendarPage() {
                 </div>
               </div>
 
+              <EventAgendaSection
+                event={selectedEvent}
+                isLive={selectedEvent.eventStatus === "live"}
+                canEdit={selectedEvent.eventStatus === "live" && isOrganizerLike(selectedEvent)}
+                eventType="live"
+                onUpdated={(updated) => setSelectedEvent((prev) => ({ ...prev, activityAgenda: updated?.activityAgenda || [] }))}
+              />
+
               {(isOrganizerLike(selectedEvent) || selectedEvent.isMinutesTaker) && (
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: PRIMARY, fontFamily: fontHeading }}>Meeting Minutes</p>
@@ -593,7 +602,7 @@ export default function CalendarPage() {
               )}
 
               <div className="flex flex-wrap gap-2 text-xs text-gray-500" style={{ fontFamily: fontHeading }}>
-                <span>Type: <strong className="capitalize text-gray-800">{selectedEvent.eventMeetingType}</strong></span>
+                <span>Type: <strong className="capitalize text-gray-800">{selectedEvent.eventMeetingType === 'meet' ? 'meeting' : 'event'}</strong></span>
                 <span>·</span>
                 <span>Mode: <strong className="text-gray-800">{selectedEvent.eventType}</strong></span>
               </div>
