@@ -181,14 +181,21 @@ function PublicFormPageContent() {
       const validation_result = validate_submission_client_side(form.schema, resolved_values, language, translate);
       setFieldErrors(validation_result.field_errors);
       setFieldValidMessages(validation_result.field_valid_messages);
-      return resolved_values;
+      // A field that was visible (and answered) a moment ago can go
+      // invisible the instant an earlier answer changes - its stale answer
+      // must never linger in state to be autosaved, counted toward
+      // progress, or submitted alongside the questions actually asked.
+      // resolved_data is the same working data validated above, with every
+      // now-hidden/locked field's own value already stripped.
+      return validation_result.resolved_data;
     });
   };
 
   const handle_save_draft_click = async () => {
     if (reviewing_queue_id_ref.current) return;
-    const resolved_values = compute_derived_values(form.schema, values);
-    await save_form_draft(form_group_id, form.version, resolved_values);
+    const derived_values = compute_derived_values(form.schema, values);
+    const validation_result = validate_submission_client_side(form.schema, derived_values, language, translate);
+    await save_form_draft(form_group_id, form.version, validation_result.resolved_data);
     await refresh_draft();
     showSuccess(translate("DCS_TOAST_DRAFT_SAVED"));
   };
@@ -196,7 +203,10 @@ function PublicFormPageContent() {
   const load_values_for_review = (data) => {
     const resolved_values = compute_derived_values(form.schema, data || {});
     const validation_result = validate_submission_client_side(form.schema, resolved_values, language, translate);
-    setValues(resolved_values);
+    // resolved_data has every field the current data no longer makes
+    // visible already stripped - a queued/draft record can predate a later
+    // schema or answer change that hides a field it had answered.
+    setValues(validation_result.resolved_data);
     setFieldErrors(validation_result.field_errors);
     setFieldValidMessages(validation_result.field_valid_messages);
     setRevealAllErrors(true);
@@ -303,8 +313,13 @@ function PublicFormPageContent() {
   const handle_submit = async () => {
     setSubmitting(true);
     try {
-      const resolved_values = compute_derived_values(form.schema, values);
-      const validation_result = validate_submission_client_side(form.schema, resolved_values, language, translate);
+      const derived_values = compute_derived_values(form.schema, values);
+      const validation_result = validate_submission_client_side(form.schema, derived_values, language, translate);
+      // resolved_data is derived_values with every hidden/locked field's own
+      // stale answer already stripped - never queue or draft-save a stray
+      // answer left behind from before the respondent changed an earlier
+      // question and hid it.
+      const resolved_values = validation_result.resolved_data;
       setFieldErrors(validation_result.field_errors);
       setFieldValidMessages(validation_result.field_valid_messages);
       if (!validation_result.valid) {

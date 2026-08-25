@@ -1,7 +1,7 @@
 const { ALL_FIELD_TYPES, CONTENT_FIELD_TYPES, SUPPORTED_LANGUAGES } = require("../constants/field_types.js");
 const config = require("../configurations/config.js");
 
-const LABEL_NOT_REQUIRED_TYPES = CONTENT_FIELD_TYPES.concat(["hidden", "geolocation"]);
+const LABEL_NOT_REQUIRED_TYPES = CONTENT_FIELD_TYPES.concat(["hidden", "geolocation", "group"]);
 const { is_valid_rule_structure } = require("./engine.js");
 const { build_dependency_graph } = require("./dependency_graph.js");
 
