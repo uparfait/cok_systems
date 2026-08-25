@@ -2,6 +2,8 @@ const withTransaction = require('../utilities/withTransaction');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const EventValidator = require('../validators/EventValidator');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
+const { fromUTCInstant } = require('../utilities/eventCalendar');
+const { notifyInviteesOfScheduleChange } = require('../utilities/notifyInviteesOfUpdate');
 
 class UpdateUpcomingEventController {
   static async handle(req, res) {
@@ -56,6 +58,22 @@ class UpdateUpcomingEventController {
 
         return existingEvent;
       });
+
+      // Push the change to everyone invited (same UID, bumped SEQUENCE) so
+      // their calendars always carry the latest details. Never blocks the response.
+      notifyInviteesOfScheduleChange(existingEvent.eventSpecialId, {
+        eventName: existingEvent.eventName,
+        eventDescription: existingEvent.eventDescription || '',
+        eventRoom: existingEvent.eventRoom,
+        eventFormat: existingEvent.eventFormat || 'Physical',
+        virtualLink: existingEvent.virtualLink || '',
+        virtualDescription: existingEvent.virtualDescription || '',
+        eventOrganizer: existingEvent.eventOrganizer,
+        start: fromUTCInstant(existingEvent.willStartAt),
+        end: fromUTCInstant(existingEvent.willEndAt),
+        isRecurring: false,
+        recurring: null,
+      }).catch((err) => console.error('Failed to notify invitees of upcoming event update:', err.message));
 
       return res.status(200).json({
         success: true,

@@ -3,7 +3,7 @@ const UpcomingEvent = require('../models/UpcomingEvent');
 const RecurringEvent = require('../models/RecurringEvent');
 const PastEvent = require('../models/PastEvent');
 const crypto = require('crypto');
-const { sendNotificationEmail } = require('../utilities/email');
+const { sendNotificationEmail, emailShell } = require('../utilities/email');
 const config = require('../configurations/config');
 
 const accessTokens = new Map();
@@ -50,18 +50,14 @@ class EventAccessController {
       const frontendUrl = config.frontendUrl || 'http://localhost:5173';
       const verifyUrl = `${frontendUrl}/event/${encodeURIComponent(eventSpecialId)}/details`;
 
-      const htmlContent = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; color: #1f2937;">
-          <h2 style="color: #056daa;">Event Access Token</h2>
-          <p>Use the token below to access event details:</p>
-          <p style="font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #056daa; background: #f3f4f6; padding: 12px; text-align: center; border-radius: 8px;">${token}</p>
-          <p style="margin-top: 16px;">This token is valid for <strong>15 minutes</strong>.</p>
-          <p style="margin-top: 16px;">Verify your token here: <a href="${verifyUrl}" style="color: #056daa;">${verifyUrl}</a></p>
-          <hr style="margin-top: 24px; border: none; border-top: 1px solid #e5e7eb;" />
-          <p style="font-size: 12px; color: #6b7280;">City of Kigali  Event Management System</p>
-        </div>`;
+      const htmlContent = emailShell(`
+          <h2 style="color: #056daa; font-family: 'Montserrat', Arial, sans-serif; margin: 0 0 16px;">Event Access Token</h2>
+          <p style="margin: 0 0 12px;">Use the token below to access event details:</p>
+          <p style="font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #056daa; background: #F7F9FB; padding: 12px; text-align: center; margin: 0 0 12px;">${token}</p>
+          <p style="margin: 16px 0 12px;">This token is valid for <strong>15 minutes</strong>.</p>
+          <p style="margin: 0;">Verify your token here: <a href="${verifyUrl}" style="color: #056daa;">${verifyUrl}</a></p>`);
 
-      const textContent = `Your event access token is: ${token}\n\nThis token is valid for 15 minutes.\n\nVerify it at: ${verifyUrl}\n\nCity of Kigali - Event Management System`;
+      const textContent = `Your event access token is: ${token}\n\nThis token is valid for 15 minutes.\n\nVerify it at: ${verifyUrl}`;
 
       sendNotificationEmail(normalizedEmail, 'Event Access Token', htmlContent, textContent).catch(err => {
         console.error('Failed to send event access token email:', err);

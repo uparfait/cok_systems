@@ -29,6 +29,18 @@ function fromUTCInstant(date) {
 
 const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
+// Fixed reminder ladder attached to EVERY invitation regardless of how far
+// away the event is (clients simply ignore triggers that are already past).
+// Each trigger is expressed in seconds before the event start.
+const REMINDER_ALARMS = [
+  { seconds: 30 * 24 * 60 * 60, label: '30 days until event' },
+  { seconds: 10 * 24 * 60 * 60, label: '10 days until event' },
+  { seconds: 5 * 24 * 60 * 60, label: '5 days until event' },
+  { seconds: 2 * 24 * 60 * 60, label: '2 days until event' },
+  { seconds: 30 * 60, label: '30 minutes until event' },
+  { seconds: 5 * 60, label: '5 minutes until event' },
+];
+
 function monthlyMatch(date, pattern, dates) {
   const dayOfMonth = date.getDate();
   const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -153,7 +165,7 @@ function applyRecurrence(event, recurring) {
 function buildInviteICS(event, invitationUid, method = 'REQUEST', attendeeEmail = null, sequence = 0, recurrenceId = null) {
   const cal = ical({
     method,
-    prodid: '-//COK Systems//Event Management//EN',
+    prodId: { company: 'City of Kigali', product: 'Events', language: 'EN' },
     // ical-generator automatically emits TIMEZONE-ID + X-WR-TIMEZONE from the
     // timezone name below, so a manual `x` block would duplicate the property.
     timezone: {
@@ -207,6 +219,19 @@ function buildInviteICS(event, invitationUid, method = 'REQUEST', attendeeEmail 
 
   if (event.isRecurring && event.recurring) {
     applyRecurrence(calendarEvent, event.recurring);
+  }
+
+  // Attach the full reminder ladder to every invitation/update (not cancels):
+  // 30d, 10d, 5d, 2d, 30m and 5m before the event, each naming the event.
+  if (method !== 'CANCEL') {
+    const title = event.eventName || 'Event';
+    for (const alarm of REMINDER_ALARMS) {
+      calendarEvent.createAlarm({
+        type: 'display',
+        trigger: alarm.seconds,
+        description: `Reminder: ${title} - ${alarm.label}`,
+      });
+    }
   }
 
   let ics = cal.toString();

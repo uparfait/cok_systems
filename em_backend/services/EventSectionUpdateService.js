@@ -5,7 +5,7 @@ const RecurringEvent = require('../models/RecurringEvent');
 const Room = require('../models/Room');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
 const recurrenceHelper = require('../utilities/recurrenceHelper');
-const { fromUTCInstant } = require('../utilities/eventCalendar');
+const { fromUTCInstant, firstRecurringOccurrence } = require('../utilities/eventCalendar');
 const { notifyInviteesOfScheduleChange } = require('../utilities/notifyInviteesOfUpdate');
 
 const MODELS = { live: LiveEvent, upcoming: UpcomingEvent, recurring: RecurringEvent };
@@ -43,11 +43,49 @@ class EventSectionUpdateService {
 
       await event.save({ session, validateModifiedOnly: true });
 
-      // The schedule changed: push updated calendar invitations (same UID,
-      // bumped SEQUENCE) to everyone invited so their calendars follow.
-      if (scheduleChanged) {
+      // A series-level edit must also reach the already-generated occurrence
+      // instances, otherwise they keep showing the old details.
+      if (eventType === 'recurring' && ['basic', 'organizer', 'agenda', 'room'].includes(section)) {
+        const escaped = event.eventSpecialId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        await UpcomingEvent.updateMany(
+          { eventSpecialId: { $regex: `^${escaped}_` } },
+          {
+            $set: {
+              eventName: event.eventName,
+              eventDescription: event.eventDescription,
+              eventType: event.eventType,
+              expectedAudience: event.expectedAudience,
+              eventOrganizer: event.eventOrganizer,
+              activityAgenda: event.activityAgenda || [],
+              eventRoom: event.eventRoom,
+              eventFormat: event.eventFormat || 'Physical',
+              virtualLink: event.virtualLink || '',
+              virtualDescription: event.virtualDescription || '',
+            },
+          },
+          { session }
+        );
+      }
+
+      // ANY change to the event is pushed to everyone invited as an updated
+      // calendar invitation (same UID, bumped SEQUENCE), so their calendars
+      // always carry the latest details. Recurring series send their RRULE.
+      const skipNotify = section === 'schedule' && !scheduleChanged;
+      if (!skipNotify) {
         try {
-          const startField = eventType === 'live' ? 'startedAt' : 'willStartAt';
+          let start;
+          let end;
+          let recurring = null;
+          if (eventType === 'recurring') {
+            recurring = event.eventRecurring;
+            const occ = firstRecurringOccurrence(event.eventRecurring);
+            start = occ.start;
+            end = occ.end;
+          } else {
+            const startField = eventType === 'live' ? 'startedAt' : 'willStartAt';
+            start = fromUTCInstant(event[startField]);
+            end = fromUTCInstant(event.willEndAt);
+          }
           await notifyInviteesOfScheduleChange(event.eventSpecialId, {
             eventName: event.eventName,
             eventDescription: event.eventDescription || '',
@@ -56,13 +94,13 @@ class EventSectionUpdateService {
             virtualLink: event.virtualLink || '',
             virtualDescription: event.virtualDescription || '',
             eventOrganizer: event.eventOrganizer,
-            start: fromUTCInstant(event[startField]),
-            end: fromUTCInstant(event.willEndAt),
-            isRecurring: false,
-            recurring: null,
+            start,
+            end,
+            isRecurring: eventType === 'recurring',
+            recurring,
           });
         } catch (emailError) {
-          console.error('Failed to send schedule-change calendar updates:', emailError.message);
+          console.error('Failed to send event-change calendar updates:', emailError.message);
         }
       }
 

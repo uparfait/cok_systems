@@ -2,6 +2,7 @@ const withTransaction = require('./withTransaction');
 const RecurringEvent = require('../models/RecurringEvent');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const LiveEvent = require('../models/LiveEvent');
+const PastEvent = require('../models/PastEvent');
 const InvitedPeople = require('../models/InvitedPeople');
 const EventService = require('../services/EventService');
 const InviteService = require('../services/InviteService');
@@ -15,6 +16,10 @@ class MonitorEvents {
         await this.processUpcomingEvents(session);
         await this.processLiveEvents(session);
         await this.processRecurringExpirations(session);
+        // Safety net: series invites added after an instance was generated
+        // still get their per-occurrence copies, so cancelling or updating a
+        // single occurrence reaches every invited person.
+        await this.reconcileRecurringInvites(session);
       });
       console.log('Event monitoring completed successfully');
     } catch (error) {
@@ -47,13 +52,22 @@ class MonitorEvents {
         // so we must match the exact generated id — not the parent id — or the
         // monitor would re-insert it every cycle and hit a duplicate-key error.
         const generatedEventSpecialId = `${recurring.eventSpecialId}_${start.getTime()}`;
-        const existingUpcoming = await UpcomingEvent.findOne({
-          eventSpecialId: generatedEventSpecialId
-        }).session(session);
+        const escapedGeneratedId = generatedEventSpecialId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const [existingUpcoming, cancelledOccurrence] = await Promise.all([
+          UpcomingEvent.findOne({
+            eventSpecialId: generatedEventSpecialId
+          }).session(session),
+          // A cancelled occurrence leaves a PastEvent stamped
+          // `${generatedId}_cancelled_<ts>` — never resurrect it.
+          PastEvent.findOne({
+            eventSpecialId: { $regex: `^${escapedGeneratedId}_cancelled_` },
+            isCancelled: true,
+          }).session(session),
+        ]);
 
-        
-
-      
+        if (cancelledOccurrence) {
+          continue;
+        }
 
         if (!existingUpcoming) {
           // Check room availability - exclude this recurring event AND all its

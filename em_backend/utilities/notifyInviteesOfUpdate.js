@@ -23,17 +23,20 @@ async function notifyInviteesOfScheduleChange(originalEventSpecialId, eventForEm
   });
 
   for (const invite of invites) {
-    // Occurrence-specific copies carry their own dates - skip them here; the
-    // monitor regenerates instances (and their invites) from the parent series.
-    if (invite.specificDate && invite.specificDate.start) continue;
-
     try {
       const sequence = (invite.sequence || 0) + 1;
+      // Occurrence-specific copies (a single date of a recurring series) are
+      // updated per-occurrence: same series UID plus RECURRENCE-ID, so the
+      // calendar client replaces just that instance, not the whole series.
+      const recurrenceId = invite.specificDate && invite.specificDate.start
+        ? invite.specificDate.start
+        : null;
       const result = await emailUtil.sendEventUpdate(
         invite.email,
         eventForEmail,
         invite.invitationUid,
-        sequence
+        sequence,
+        recurrenceId
       );
       if (result.success) {
         invite.sequence = sequence;
