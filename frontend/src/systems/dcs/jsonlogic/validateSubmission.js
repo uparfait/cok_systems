@@ -1,5 +1,5 @@
 import { evaluate_rule } from "./engine.js";
-import { flatten_fields, build_dependency_graph } from "./dependencyGraph.js";
+import { flatten_fields, build_dependency_graph, build_field_parent_map, is_visible_through_ancestors } from "./dependencyGraph.js";
 import { get_field_text, get_field_options_state } from "../fields/fieldText.js";
 
 const PARENT_GROUP_CAPABLE_TYPES = ["single_select", "multi_select", "select_group"];
@@ -27,6 +27,7 @@ export function validate_submission_client_side(schema, submitted_data, language
   const flat_fields = flatten_fields(schema.fields);
   const fields_by_id = new Map(flat_fields.map((field) => [field.id, field]));
   const dependency_result = build_dependency_graph(schema.fields);
+  const parent_map = build_field_parent_map(schema.fields);
 
   const working_data = Object.assign({}, submitted_data);
   const field_errors = {};
@@ -44,6 +45,11 @@ export function validate_submission_client_side(schema, submitted_data, language
       ? dependency_result.order.concat(dependency_result.cyclic_fields)
       : [...fields_by_id.keys()];
 
+  // Pass 1: resolve every computed value and each field's OWN visibility
+  // (ignoring its ancestors for now) in dependency order, since a computed
+  // field's formula may itself reference another field's value.
+  const own_visible_by_id = new Map();
+  const own_locked_by_id = new Map();
   evaluation_order.forEach((field_id) => {
     const field = fields_by_id.get(field_id);
     if (!field || !field.type) return;
@@ -56,7 +62,7 @@ export function validate_submission_client_side(schema, submitted_data, language
     const visibility_result = field.visibility_condition
       ? evaluate_rule(field.visibility_condition, working_data)
       : { value: true, error: null };
-    const is_visible = visibility_result.error ? true : visibility_result.value !== false;
+    own_visible_by_id.set(field_id, visibility_result.error ? true : visibility_result.value !== false);
 
     // A select-family field split into parent-driven condition groups
     // (field.parent_dependency_enabled) renders nothing at all once no
@@ -64,12 +70,28 @@ export function validate_submission_client_side(schema, submitted_data, language
     // fields/fieldText.js) - it must be skipped here exactly like an
     // invisible field, or a mandatory check would block submission over a
     // question the respondent was never even shown.
-    const is_locked_by_parent_groups =
+    own_locked_by_id.set(
+      field_id,
       PARENT_GROUP_CAPABLE_TYPES.includes(field.type) && field.parent_dependency_enabled
         ? get_field_options_state(field, working_data, false).is_locked
-        : false;
+        : false,
+    );
+  });
 
-    if (!is_visible || is_locked_by_parent_groups) return;
+  // Pass 2: a field's own visibility only ever describes itself - a group
+  // or section hidden by its own visibility_condition can contain a
+  // mandatory child field with no visibility_condition of its own at all,
+  // and that child was never actually shown to the respondent either. Order
+  // no longer matters here, since every field's own visibility is already
+  // resolved above.
+  flat_fields.forEach((field) => {
+    if (!field || !field.type) return;
+    const field_id = field.id;
+
+    const is_effectively_visible =
+      own_visible_by_id.get(field_id) !== false && is_visible_through_ancestors(field_id, parent_map, own_visible_by_id);
+
+    if (!is_effectively_visible || own_locked_by_id.get(field_id)) return;
 
     if (field.mandatory && is_empty_value(working_data[field_id])) {
       field_errors[field_id] = (field_errors[field_id] || []).concat([

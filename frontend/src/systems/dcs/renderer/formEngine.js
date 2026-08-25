@@ -1,5 +1,5 @@
 import { evaluate_rule } from "../jsonlogic/engine.js";
-import { build_dependency_graph, flatten_fields } from "../jsonlogic/dependencyGraph.js";
+import { build_dependency_graph, flatten_fields, build_field_parent_map, is_visible_through_ancestors } from "../jsonlogic/dependencyGraph.js";
 import { get_field_options_state } from "../fields/fieldText.js";
 
 const PARENT_GROUP_CAPABLE_TYPES = ["single_select", "multi_select", "select_group"];
@@ -60,8 +60,18 @@ function is_value_filled(value) {
  * something they needed to fill in.
  */
 export function compute_form_progress_percent(fields, values) {
-  const answerable_fields = flatten_fields(fields || []).filter((field) => {
-    if (PROGRESS_EXCLUDED_TYPES.has(field.type) || !evaluate_field_visibility(field, values)) return false;
+  const flat_fields = flatten_fields(fields || []);
+  const parent_map = build_field_parent_map(fields || []);
+  // A field's own visibility only ever describes itself - a group or
+  // section hidden by its own visibility_condition can contain a child
+  // field with no visibility_condition of its own at all, and that child
+  // was never something the respondent could see (or needed to fill in)
+  // either.
+  const own_visible_by_id = new Map(flat_fields.map((field) => [field.id, evaluate_field_visibility(field, values)]));
+
+  const answerable_fields = flat_fields.filter((field) => {
+    if (PROGRESS_EXCLUDED_TYPES.has(field.type)) return false;
+    if (!own_visible_by_id.get(field.id) || !is_visible_through_ancestors(field.id, parent_map, own_visible_by_id)) return false;
     // A select-family field split into parent-driven condition groups
     // renders nothing at all once no group currently matches - it was
     // never something the respondent needed (or could) fill in either.
