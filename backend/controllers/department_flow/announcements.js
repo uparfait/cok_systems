@@ -4,6 +4,7 @@ const Department = require('../../models/department.js');
 const Notification = require('../../models/notification.js');
 const User = require('../../models/user.js');
 const { getDepartmentIdsForHead } = require('./visitors_by_status');
+const { notifyUsers } = require('../../utilities/notify.js');
 
 const ALL_DEPARTMENTS = 'all';
 
@@ -72,7 +73,7 @@ const createAnnouncement = async (req, res, next) => {
             return res.status(403).json({
                 success: false,
                 type: 'error',
-                message: 'Your account is not registered as head of any department — ask the administrator to assign you as your department\'s leader.'
+                message: 'Your account is not registered as head of any department. Ask the administrator to assign you as your department\'s leader.'
             });
         }
 
@@ -121,7 +122,7 @@ const createAnnouncement = async (req, res, next) => {
                 return res.status(400).json({
                     success: false,
                     type: 'warning',
-                    message: 'No other department heads are assigned in the system yet — there is nobody to receive this publication.'
+                    message: 'No other department heads are assigned in the system yet, so there is nobody to receive this publication.'
                 });
             }
         } else {
@@ -152,7 +153,7 @@ const createAnnouncement = async (req, res, next) => {
                 return res.status(400).json({
                     success: false,
                     type: 'warning',
-                    message: `"${targetDepartment.department_name}" has no head of department assigned — publication not sent. Ask the administrator to assign a leader first.`
+                    message: `"${targetDepartment.department_name}" has no head of department assigned, so the publication was not sent. Ask the administrator to assign a leader first.`
                 });
             }
         }
@@ -189,26 +190,33 @@ const createAnnouncement = async (req, res, next) => {
             console.error('Announcement notification fan-out failed:', notifyError.message);
         }
 
-        // Real-time: push the announcement into each recipient head's private socket room
-        // so their announcements page updates without a refresh
+        // Real-time: one targeted event listing every recipient id in `to`.
+        // Heads who are online get the socket message right away; heads who
+        // are offline get a web push notification instead, when they have one.
         try {
-            const io = global.WebsocketIO;
-            if (io) {
-                Array.from(leaderIds).forEach(userId => {
-                    io.to(`PRIVATE_ROOM_${userId}`).emit('new_announcement', {
-                        type: 'info',
-                        message: `${announcement.a_type}: ${announcement.title}`,
-                        data: announcement
-                    });
-                });
-            }
+            await notifyUsers({
+                event: 'new_announcement',
+                to: Array.from(leaderIds),
+                type: 'info',
+                title: `${announcement.a_type}: ${announcement.title}`,
+                message: announcement.message,
+                data: {
+                    announcement_id: String(announcement._id),
+                    a_type: announcement.a_type,
+                    title: announcement.title,
+                    department_id: announcement.department_id,
+                    department_name: announcement.department_name,
+                    published_by: announcement.created_by?.name || '',
+                },
+                url: '/department-manager/announcements',
+            });
         } catch (socketError) {
-            console.error('Announcement socket push failed:', socketError.message);
+            console.error('Announcement notification push failed:', socketError.message);
         }
 
         let successMessage = notifiedCount === 0 && senderIsTargetLeader
             ? 'Published to your own department'
-            : `Published — ${notifiedCount} department head${notifiedCount === 1 ? '' : 's'} notified`;
+            : `Published. ${notifiedCount} department head${notifiedCount === 1 ? '' : 's'} notified.`;
         if (isForAll && departmentsWithoutLeader.length > 0) {
             successMessage += `. Note: ${departmentsWithoutLeader.length} department${departmentsWithoutLeader.length === 1 ? ' has' : 's have'} no head assigned and could not be notified.`;
         }
@@ -252,7 +260,7 @@ const listAnnouncements = async (req, res, next) => {
             return res.status(403).json({
                 success: false,
                 type: 'error',
-                message: 'Your account is not registered as head of any department — ask the administrator to assign you as your department\'s leader.'
+                message: 'Your account is not registered as head of any department. Ask the administrator to assign you as your department\'s leader.'
             });
         }
 

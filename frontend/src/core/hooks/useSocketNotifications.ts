@@ -2,6 +2,8 @@
 
 import { useEffect, useCallback, useState } from 'react';
 import { useSocket } from '../contexts/SocketContext';
+import { useAuth } from '../contexts/AuthContext';
+import { isNotificationForUser } from '../contexts/NotificationContext';
 
 export interface Notification {
   title?: string;
@@ -31,10 +33,13 @@ export const useSocketNotifications = (
   onNotification?: (notification: Notification) => void
 ): UseSocketNotificationsReturn => {
   const { socket, isConnected } = useSocket();
+  const { user } = useAuth();
+  const userId = user?.userId || null;
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // Handle incoming notifications
   const handleNotification = useCallback((data: Notification) => {
+    if (!isNotificationForUser(data, userId)) return;
     const notification: Notification = {
       ...data,
       timestamp: new Date(),
@@ -47,12 +52,13 @@ export const useSocketNotifications = (
     if (onNotification) {
       onNotification(notification);
     }
-  }, [onNotification]);
+  }, [onNotification, userId]);
 
   // Handle parking alerts
   const handleParkingAlert = useCallback((data: any) => {
+    if (!isNotificationForUser(data, userId)) return;
     const notification: Notification = {
-      title: 'Parking Alert',
+      title: data.title || 'Parking Alert',
       message: data.message || 'Parking alert received',
     };
 
@@ -61,7 +67,7 @@ export const useSocketNotifications = (
     if (onNotification) {
       onNotification(notification);
     }
-  }, [onNotification]);
+  }, [onNotification, userId]);
 
   // Set up socket listeners
   useEffect(() => {

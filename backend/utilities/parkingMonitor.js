@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const ParkingRecord = require('../models/parking_record');
 const ServiceDelivery = require('../models/service_delivery');
+const { notifyUsers, getGateRegistrarIds } = require('./notify');
 
 // Define the limits (in milliseconds)
 // Example: 2 hours for visitors, 12 hours for staff
@@ -25,6 +26,9 @@ const startParkingMonitor = () => {
 
            // console.log(activeRecords.length + ' active parking records found for monitoring.');
 
+            // Overstay alerts are targeted at all gate registrars
+            let gateRegistrarIds = null;
+
             // 2. Loop through each car currently parked
             for (let record of activeRecords) {
                 // Ensure check_in exists to prevent errors
@@ -34,6 +38,7 @@ const startParkingMonitor = () => {
                 const durationMs = now - checkInTime;
 
                 let isOverstaying = false;
+                let overstayReason = '';
 
                 // 3. Apply the specific rules for Staff vs Visitors
                 if (record.driver_type === 'regular' && durationMs > VISITOR_LIMIT_MS) {
@@ -87,26 +92,43 @@ const startParkingMonitor = () => {
                 // 4. Flag the vehicle and send the alert
                 if (isOverstaying) {
                     record.is_flagged = true;
-                    
+
                     // Calculate human-readable duration to save in DB (e.g., "2.5 hours")
                     const hours = (durationMs / (1000 * 60 * 60)).toFixed(1);
                     record.duration = `${hours} hours`;
-                    
+
                     await record.save();
 
-                    console.log(`ALERT: Vehicle ${record.plate_number} (${record.driver_type}) has overstayed!`);
+                    console.log(`ALERT: Vehicle ${record.plate_number} (${record.driver_type}) has overstayed.`);
 
-                    // 5. Send real-time alert to Super Admin and Security (if Socket.io is passed in)
-                    if (global.WebsocketIO) {
-                        global.WebsocketIO.emit('parking_alert', {
-                            type: 'OVERSTAY_WARNING',
-                            message: `Vehicle ${record.plate_number} has overstayed its limit (${hours} hours).`,
-                            record: record
-                        });
-                        console.log("📡 Real-time alert broadcasted to frontend!");
-                    }else {
-                        console.log("⚠️ WebSocket not initialized yet, skipping real-time alert.");
-                }
+                    // 5. Alert every gate registrar. Registrars who are online
+                    // get the socket message; offline ones get a web push.
+                    try {
+                        if (gateRegistrarIds === null) {
+                            gateRegistrarIds = await getGateRegistrarIds();
+                        }
+                        if (gateRegistrarIds.length > 0) {
+                            await notifyUsers({
+                                event: 'parking_alert',
+                                to: gateRegistrarIds,
+                                type: 'warning',
+                                title: 'Vehicle overstay alert',
+                                message: overstayReason
+                                    ? `Vehicle ${record.plate_number} ${overstayReason}. Please follow up.`
+                                    : `Vehicle ${record.plate_number} has stayed in the parking for ${hours} hours and passed its allowed time. Please follow up.`,
+                                data: {
+                                    alert_type: 'OVERSTAY_WARNING',
+                                    plate_number: record.plate_number,
+                                    driver_type: record.driver_type,
+                                    duration_hours: hours,
+                                    record_id: String(record._id),
+                                },
+                                url: '/gate-officer/dashboard',
+                            });
+                        }
+                    } catch (alertError) {
+                        console.error('Failed to alert gate registrars:', alertError.message);
+                    }
               }
             }
         } catch (error) {

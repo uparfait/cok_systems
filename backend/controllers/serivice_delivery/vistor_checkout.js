@@ -2,6 +2,7 @@ const ServiceDelivery = require('../../models/service_delivery.js');
 const ParkingRecord = require('../../models/parking_record.js');
 const ServiceTracking = require('../../models/service_tracking.js');
 const mongoose = require('mongoose');
+const { notifyUsers } = require('../../utilities/notify.js');
 
 module.exports = async function visitor_checkout(req, res, next) {
     try {
@@ -77,15 +78,14 @@ module.exports = async function visitor_checkout(req, res, next) {
             // check if provider id exists and announce to him/her that forgot too stop service but stopped
 
             if (active_service.provider_id) {
-
-                global.WebsocketIO?.emit('you_forgot_to_stop_service', {
-                    show_notif: true,
+                notifyUsers({
+                    event: 'you_forgot_to_stop_service',
+                    to: [active_service.provider_id],
                     type: 'warning',
-                    to: active_service.provider_id,
-                    visitor_id: visitor._id,
-                    message: `You forgot to stop the service for visitor ${visitor.full_name} in department ${active_service.department_name}. We stopped it for you but please be careful next time.`
-                })
-
+                    title: 'Service was not stopped',
+                    message: `You forgot to stop the service for visitor ${visitor.full_name} in department ${active_service.department_name}. We stopped it for you. Please be careful next time.`,
+                    data: { visitor_id: String(visitor._id), department_name: active_service.department_name },
+                }).catch((err) => console.error('Failed to notify provider:', err.message));
             }
 
             // Update the service status to 'Completed'

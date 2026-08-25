@@ -1,0 +1,190 @@
+{
+  "_rules": {
+    "targeting": "Every targeted notification payload carries `to`: an ARRAY of user id strings. The frontend shows the notification only when the authenticated user id is inside `to`. A payload without `to` is a broadcast and every connected client shows it.",
+    "delivery": "Recipients who are online (User.is_active) get the socket event. Recipients who are offline get a web push notification instead, when they have an active push subscription. This logic lives in backend/utilities/notify.js.",
+    "messages": "All messages use simple English with correct grammar and no special symbols or icons.",
+    "frontend_mirror": "This file is mirrored at frontend/src/core/constants/events.socket.json. Update both together."
+  },
+  "events": {
+    "visitor_assigned": {
+      "targeted": true,
+      "sent_to": "The specific employee when a provider is chosen; otherwise the users of the target unit; otherwise all users of the target department and its units",
+      "why": "Tells staff a visitor was assigned to them. Carries assigned_total, waiting_total, and the live queue of the department.",
+      "emitted_from": ["controllers/serivice_delivery/assign_vistor_to_department.js"],
+      "shown_in_notification_panel": true
+    },
+    "you_forgot_to_stop_service": {
+      "targeted": true,
+      "sent_to": "The provider who was serving the visitor",
+      "why": "Warns a provider that their service was stopped automatically because the visitor left.",
+      "emitted_from": [
+        "controllers/smart_parking/check_out.js",
+        "controllers/serivice_delivery/partial_exit.js",
+        "controllers/serivice_delivery/vistor_checkout.js"
+      ],
+      "shown_in_notification_panel": true
+    },
+    "parking_alert": {
+      "targeted": true,
+      "sent_to": "All gate registrars (roles matching gate, vehicle, or entrance)",
+      "why": "Alerts the gates that a vehicle has overstayed its allowed parking time.",
+      "emitted_from": ["utilities/parkingMonitor.js"],
+      "shown_in_notification_panel": true
+    },
+    "new_announcement": {
+      "targeted": true,
+      "sent_to": "The heads of the target department, or all department heads when published to all departments",
+      "why": "Delivers a published announcement, notice, or directive to the department heads it belongs to.",
+      "emitted_from": ["controllers/department_flow/announcements.js"],
+      "shown_in_notification_panel": true
+    },
+    "notifications": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "General staff activity messages, such as a user marking themselves active or inactive.",
+      "emitted_from": ["services/reatime_service/service_delivery/service_delivery.js"],
+      "shown_in_notification_panel": true
+    },
+    "global_notification": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "A manual broadcast sent by an authenticated user to everyone.",
+      "emitted_from": ["services/reatime_service/service_delivery/service_delivery.js"],
+      "shown_in_notification_panel": true
+    },
+    "visitor_checkedin": {
+      "targeted": false,
+      "sent_to": "Everyone connected (reception and dashboards react to it)",
+      "why": "A visitor checked in. Pages refresh their visitor lists and show a toast.",
+      "emitted_from": ["controllers/serivice_delivery/vistor_checkin.js"],
+      "shown_in_notification_panel": true
+    },
+    "visitor_checkedout": {
+      "targeted": false,
+      "sent_to": "Everyone connected (reception and dashboards react to it)",
+      "why": "A visitor checked out. Pages refresh their visitor lists and show a toast.",
+      "emitted_from": [
+        "controllers/serivice_delivery/vistor_checkout.js",
+        "controllers/serivice_delivery/partial_exit.js"
+      ],
+      "shown_in_notification_panel": true
+    },
+    "car_checkedin": {
+      "targeted": false,
+      "sent_to": "Everyone connected (gate pages react to it)",
+      "why": "A car checked in at the gate. Pages refresh parking data and show a toast.",
+      "emitted_from": [
+        "controllers/smart_parking/check_in.js",
+        "controllers/serivice_delivery/vistor_checkin.js"
+      ],
+      "shown_in_notification_panel": true
+    },
+    "car_checkedout": {
+      "targeted": false,
+      "sent_to": "Everyone connected (gate pages react to it)",
+      "why": "A car checked out at the gate. Pages refresh parking data and show a toast.",
+      "emitted_from": ["controllers/smart_parking/check_out.js"],
+      "shown_in_notification_panel": true
+    },
+    "service_status_updated": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "A visitor service started or ended. Dashboards refresh their queues.",
+      "emitted_from": ["controllers/serivice_delivery/toggle_service_status.js"],
+      "shown_in_notification_panel": false
+    },
+    "leave_return": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "A visitor stepped outside or returned. Dashboards refresh their lists.",
+      "emitted_from": ["controllers/serivice_delivery/toggle_leave_out_side_and_return.js"],
+      "shown_in_notification_panel": false
+    },
+    "feedback_submitted": {
+      "targeted": false,
+      "sent_to": "Everyone connected (dashboards react to it)",
+      "why": "A visitor submitted feedback. Dashboards refresh their statistics.",
+      "emitted_from": [
+        "controllers/feedback/submit_feedback.js",
+        "controllers/feedback/submit_unserviced_feedback.js"
+      ],
+      "shown_in_notification_panel": false
+    },
+    "parking_update": {
+      "targeted": false,
+      "sent_to": "Everyone connected (parking pages react to it)",
+      "why": "Live refresh signal for parking slots and reservations. Not a user notification.",
+      "emitted_from": ["controllers/reservationsController.js", "controllers/reservationController.js"],
+      "shown_in_notification_panel": false
+    },
+    "active_user": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "Presence signal that a user came online.",
+      "emitted_from": ["services/reatime_service/initialise_realtime_services.js"],
+      "shown_in_notification_panel": false
+    },
+    "inactive_user": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "Presence signal that a user went offline.",
+      "emitted_from": ["services/reatime_service/initialise_realtime_services.js"],
+      "shown_in_notification_panel": false
+    },
+    "user_online": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "Chat presence signal.",
+      "emitted_from": ["services/reatime_service/chatting/chat.js"],
+      "shown_in_notification_panel": false
+    },
+    "user_offline": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "Chat presence signal.",
+      "emitted_from": ["services/reatime_service/chatting/chat.js"],
+      "shown_in_notification_panel": false
+    },
+    "connected_users": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "Chat list of connected users.",
+      "emitted_from": ["services/reatime_service/chatting/chat.js"],
+      "shown_in_notification_panel": false
+    },
+    "message_edited": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "Chat message edit signal.",
+      "emitted_from": ["services/reatime_service/chatting/chat.js"],
+      "shown_in_notification_panel": false
+    },
+    "message_deleted": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "Chat message delete signal.",
+      "emitted_from": ["services/reatime_service/chatting/chat.js"],
+      "shown_in_notification_panel": false
+    },
+    "smartparking_test": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "Diagnostic test event for the smart parking realtime channel.",
+      "emitted_from": ["services/reatime_service/smartparking/smartpark.js"],
+      "shown_in_notification_panel": false
+    },
+    "service_delivery_test": {
+      "targeted": false,
+      "sent_to": "Everyone connected",
+      "why": "Diagnostic test event for the service delivery realtime channel.",
+      "emitted_from": ["services/reatime_service/service_delivery/service_delivery.js"],
+      "shown_in_notification_panel": false
+    }
+  },
+  "deprecated_events": {
+    "new_visitor_assigned": "Replaced by visitor_assigned, which is targeted with a `to` array.",
+    "new_visitor_assigned_to_your_department": "Replaced by visitor_assigned, which is targeted with a `to` array.",
+    "car_checkout": "Never emitted by the backend. The real event name is car_checkedout.",
+    "visitor_checkout": "Never emitted by the backend. The real event name is visitor_checkedout."
+  }
+}

@@ -93,6 +93,86 @@ const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const formatTimestamp = (timestamp: Date) =>
+    new Date(timestamp).toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+
+  const DETAIL_LABELS: Record<string, string> = {
+    department_name: "Department",
+    visitor_name: "Visitor",
+    assigned_total: "Assigned visitors",
+    waiting_total: "Visitors waiting now",
+    plate_number: "Plate number",
+    driver_type: "Driver type",
+    duration_hours: "Hours parked",
+    a_type: "Type",
+    published_by: "Published by",
+    alert_type: "Alert",
+  };
+
+  const renderNotificationDetails = (data: Record<string, any> | null | undefined) => {
+    if (!data || typeof data !== "object") return null;
+
+    const scalarEntries = Object.entries(data).filter(
+      ([key, value]) =>
+        DETAIL_LABELS[key] !== undefined &&
+        (typeof value === "string" || typeof value === "number") &&
+        String(value).length > 0
+    );
+    const queue = Array.isArray(data.queue) ? data.queue : null;
+
+    if (scalarEntries.length === 0 && !queue) return null;
+
+    return (
+      <div className="mt-2 border border-gray-200 bg-gray-50 p-3 space-y-2">
+        {scalarEntries.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+            {scalarEntries.map(([key, value]) => (
+              <p key={key} className="text-xs text-gray-600 break-words">
+                <span className="font-semibold text-gray-800">{DETAIL_LABELS[key]}:</span>{" "}
+                <span className="capitalize">{String(value)}</span>
+              </p>
+            ))}
+          </div>
+        )}
+        {queue && queue.length > 0 && (
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-700 mb-1">
+              Current queue
+            </p>
+            <div className="max-h-40 overflow-y-auto space-y-1">
+              {queue.map((item: any, index: number) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between gap-2 text-xs bg-white border border-gray-200 px-2 py-1.5"
+                >
+                  <span className="text-gray-800 truncate">
+                    {item.position}. {item.visitor_name}
+                  </span>
+                  <span
+                    className={`shrink-0 px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+                      item.status === "Being served"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       <header className="h-16 select-none cok-primary-bg px-4 lg:px-6 flex items-center justify-between sticky top-0 z-30 text-white">
@@ -195,32 +275,35 @@ const Header: React.FC<HeaderProps> = ({
       </header>
 
       {showNotifications && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-            <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary" style={{ borderRadius: 0 }}>
-              <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                Notifications
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
+          <div
+            className="bg-white w-full h-full sm:h-auto sm:max-h-[85vh] sm:max-w-2xl flex flex-col"
+            style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
+          >
+            <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-4 cok-bg-primary" style={{ borderRadius: 0 }}>
+              <h2 className="text-base sm:text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                Notifications{unreadCount > 0 ? ` (${unreadCount} unread)` : ''}
               </h2>
               <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="cok-btn-outlined-reverse text-xs flex items-center gap-1"
+                    className="cok-btn-outlined-reverse text-xs flex items-center gap-1 cursor-pointer"
                     style={{ padding: '0.4rem 0.8rem' }}
                   >
                     <FiCheck className="w-3 h-3" /> Mark all read
                   </button>
                 )}
-                <button onClick={() => setShowNotifications(false)} className="cok-btn-outlined-reverse" style={{ padding: '0.4rem 0.8rem' }}>
+                <button onClick={() => setShowNotifications(false)} className="cok-btn-outlined-reverse cursor-pointer" style={{ padding: '0.4rem 0.8rem' }}>
                   <FiX className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            <div className="p-4 sm:p-6">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6">
               {notifications.length === 0 ? (
                 <div className="py-12 text-center text-gray-500">
-                  No notifications
+                  You have no notifications
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -228,7 +311,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div
                       key={notification.id}
                       onClick={() => markAsRead(notification.id)}
-                      className={`p-4 border cursor-pointer transition-colors ${
+                      className={`p-3 sm:p-4 border cursor-pointer transition-colors ${
                         !notification.read ? "border-blue-200 bg-blue-50" : "border-gray-200 bg-white"
                       }`}
                       style={{ borderRadius: 0 }}
@@ -238,16 +321,22 @@ const Header: React.FC<HeaderProps> = ({
                           className={`w-2.5 h-2.5 mt-1.5 rounded-full flex-shrink-0 ${getNotificationColor(notification.type)}`}
                         />
                         <div className="flex-1 min-w-0">
-                          {notification.title && (
-                            <p className="text-sm font-semibold text-gray-900 mb-1">
-                              {notification.title}
+                          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-1">
+                            <p className="text-sm font-semibold text-gray-900 break-words">
+                              {notification.title || 'Notification'}
                             </p>
-                          )}
-                          <p className="text-sm text-gray-700 break-words">
+                            {!notification.read && (
+                              <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white cok-primary-bg">
+                                New
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-700 break-words whitespace-pre-wrap">
                             {notification.message}
                           </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {notification.timestamp.toLocaleTimeString()}
+                          {renderNotificationDetails(notification.data)}
+                          <p className="text-xs text-gray-400 mt-2">
+                            {formatTimestamp(notification.timestamp)}
                           </p>
                         </div>
                       </div>
@@ -257,12 +346,12 @@ const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            <div className="p-4 sm:p-6 pt-2 border-t" style={{ borderColor: '#E0E0E0' }}>
+            <div className="shrink-0 p-3 sm:p-6 pt-2 border-t" style={{ borderColor: '#E0E0E0' }}>
               <button
                 type="button"
                 onClick={clearNotifications}
                 disabled={notifications.length === 0}
-                className="w-full cok-btn-outlined"
+                className="w-full cok-btn-outlined disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ padding: '0.9rem 1.2rem' }}
               >
                 Clear All

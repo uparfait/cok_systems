@@ -1,8 +1,15 @@
 // NotificationContext - Global notification state management
-// Components can subscribe to receive real-time notifications via socket
+// Components can subscribe to receive real-time notifications via socket.
+//
+// Targeting rule (see src/core/constants/events.socket.json):
+// - A payload with a `to` array is shown ONLY when the authenticated user id
+//   is inside that array.
+// - A payload without `to` is a broadcast and is shown to everyone.
 
 import React, { createContext, useContext, useEffect, useCallback, useState } from 'react';
 import { useSocket } from './SocketContext';
+import { useAuth } from './AuthContext';
+import socketEventsRegistry from '../constants/events.socket.json';
 
 export interface AppNotification {
   id: string;
@@ -11,6 +18,8 @@ export interface AppNotification {
   message: string;
   timestamp: Date;
   read: boolean;
+  event?: string;
+  data?: Record<string, any> | null;
 }
 
 interface NotificationContextType {
@@ -28,8 +37,40 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 // Generate unique ID
 const generateId = () => Math.random().toString(36).substring(2, 15);
 
+// A payload with a `to` array is only for the users listed in it.
+// A payload without `to` is a broadcast for everyone.
+export const isNotificationForUser = (payload: any, userId?: string | null): boolean => {
+  const to = payload?.to;
+  if (!Array.isArray(to) || to.length === 0) return true;
+  if (!userId) return false;
+  return to.map(String).includes(String(userId));
+};
+
+const VALID_TYPES = ['info', 'success', 'warning', 'error'];
+
+const prettyEventTitle = (event: string) =>
+  event
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+// Every event flagged for the notification panel in the shared registry
+const PANEL_EVENTS: string[] = Object.entries((socketEventsRegistry as any).events || {})
+  .filter(([, meta]: [string, any]) => meta.shown_in_notification_panel)
+  .map(([name]) => name);
+
+// Events that pages also react to through window CustomEvents (toasters, refreshes)
+const CUSTOM_EVENT_BRIDGE: Record<string, string> = {
+  car_checkedin: 'car:checkin',
+  car_checkedout: 'car:checkout',
+  visitor_checkedin: 'visitor:checkin',
+  visitor_checkedout: 'visitor:checkout',
+};
+
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { socket, isConnected: isSocketConnected } = useSocket();
+  const { user } = useAuth();
+  const userId = user?.userId || null;
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   // Calculate unread count
@@ -43,13 +84,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       timestamp: new Date(),
       read: false,
     };
-    
+
     setNotifications(prev => [newNotification, ...prev]);
   }, []);
 
   // Mark single notification as read
   const markAsRead = useCallback((id: string) => {
-    setNotifications(prev => 
+    setNotifications(prev =>
       prev.map(n => n.id === id ? { ...n, read: true } : n)
     );
   }, []);
@@ -64,122 +105,44 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications([]);
   }, []);
 
-  // Handle incoming socket notifications
+  // Handle incoming socket notifications for every registered panel event
   useEffect(() => {
     if (!socket) return;
 
-    // Listen for general notifications
-    socket.on('notifications', (data: any) => {
-      addNotification({
-        type: 'info',
-        title: data.title || 'Notification',
-        message: data.message || 'You have a new notification',
-      });
-    });
+    const handlers: Record<string, (data: any) => void> = {};
 
-    // Listen for parking alerts
-    socket.on('parking_alert', (data: any) => {
-      addNotification({
-        type: 'warning',
-        title: data.type === 'OVERSTAY_WARNING' ? 'Parking Warning' : 'Parking Alert',
-        message: data.message || 'Parking alert received',
-      });
-    });
+    PANEL_EVENTS.forEach((eventName) => {
+      const handler = (data: any) => {
+        // Pages listen for these window events to refresh data and show toasts,
+        // so the bridge fires for everyone, before the targeting filter.
+        const bridged = CUSTOM_EVENT_BRIDGE[eventName];
+        if (bridged) {
+          window.dispatchEvent(new CustomEvent(bridged, { detail: data }));
+        }
 
-    // Listen for smart parking updates
-    socket.on('smartparking_test', (data: any) => {
-      addNotification({
-        type: 'info',
-        title: 'Smart Parking',
-        message: data.message || 'Parking update',
-      });
-    });
+        if (!isNotificationForUser(data, userId)) return;
+        if (data && data.show_notif === false) return;
 
-    // Listen for car check-in events from backend
-    socket.on('car_checkedin', (data: any) => {
-      // Dispatch custom event for toaster (pages will handle showing toast on smart parking routes)
-      const toastEvent = new CustomEvent('car:checkin', { detail: data });
-      window.dispatchEvent(toastEvent);
-      
-      // If show_notif is true, add to notification list
-      if (data.show_notif) {
+        const type = VALID_TYPES.includes(data?.type) ? data.type : 'info';
         addNotification({
-          type: data.type || 'info',
-          title: 'Car Check-in',
-          message: data.message || 'A new car has checked in',
+          type,
+          title: data?.title || prettyEventTitle(eventName),
+          message: data?.message || 'You have a new notification',
+          event: eventName,
+          data: data?.data || null,
         });
-      }
-    });
-
-    // Listen for car check-out events from backend
-    socket.on('car_checkout', (data: any) => {
-      // Dispatch custom event for toaster
-      const toastEvent = new CustomEvent('car:checkout', { detail: data });
-      window.dispatchEvent(toastEvent);
-      
-      // If show_notif is true, add to notification list
-      if (data.show_notif) {
-        addNotification({
-          type: data.type || 'info',
-          title: 'Car Check-out',
-          message: data.message || 'A car has checked out',
-        });
-      }
-    });
-
-    // Listen for visitor check-in events from backend
-    socket.on('visitor_checkedin', (data: any) => {
-      // Dispatch custom event for toaster
-      const toastEvent = new CustomEvent('visitor:checkin', { detail: data });
-      window.dispatchEvent(toastEvent);
-      
-      // If show_notif is true, add to notification list
-      if (data.show_notif) {
-        addNotification({
-          type: data.type || 'info',
-          title: 'Visitor Check-in',
-          message: data.message || 'A new visitor has checked in',
-        });
-      }
-    });
-
-    // Listen for visitor check-out events from backend
-    socket.on('visitor_checkout', (data: any) => {
-      // Dispatch custom event for toaster
-      const toastEvent = new CustomEvent('visitor:checkout', { detail: data });
-      window.dispatchEvent(toastEvent);
-      
-      // If show_notif is true, add to notification list
-      if (data.show_notif) {
-        addNotification({
-          type: data.type || 'info',
-          title: 'Visitor Check-out',
-          message: data.message || 'A visitor has checked out',
-        });
-      }
-    });
-
-    // Listen for service delivery updates
-    socket.on('service_delivery_test', (data: any) => {
-      addNotification({
-        type: 'info',
-        title: 'Service Delivery',
-        message: data.message || 'Service delivery update',
-      });
+      };
+      handlers[eventName] = handler;
+      socket.on(eventName, handler);
     });
 
     // Cleanup listeners
     return () => {
-      socket.off('notifications');
-      socket.off('parking_alert');
-      socket.off('smartparking_test');
-      socket.off('service_delivery_test');
-      socket.off('car_checkedin');
-      socket.off('car_checkout');
-      socket.off('visitor_checkedin');
-      socket.off('visitor_checkout');
+      Object.entries(handlers).forEach(([eventName, handler]) => {
+        socket.off(eventName, handler);
+      });
     };
-  }, [socket, addNotification]);
+  }, [socket, userId, addNotification]);
 
   const value: NotificationContextType = {
     notifications,

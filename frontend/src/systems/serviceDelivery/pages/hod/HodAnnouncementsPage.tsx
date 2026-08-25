@@ -4,6 +4,7 @@ import { departmentManagerService, departmentService, normalizeDepartments } fro
 import { useAuth } from '@/core/contexts/AuthContext';
 import { useToast } from '@/core/contexts/ToastContext';
 import { useSocket } from '@/core/contexts/SocketContext';
+import { isNotificationForUser } from '@/core/contexts/NotificationContext';
 import {
   COK, FONT, formatDateTime,
   HodPageHeader, HodCard, HodTabBar, HodPagination, HodModal, HodLabel, HodEmpty, HodChip,
@@ -73,12 +74,13 @@ const HodAnnouncementsPage: React.FC = () => {
   useEffect(() => {
     if (!socket) return;
     const onNewAnnouncement = (payload: any) => {
-      showSuccess(payload?.message || 'New announcement received');
+      if (!isNotificationForUser(payload, user?.userId)) return;
+      showSuccess(payload?.title || payload?.message || 'New announcement received');
       load();
     };
     socket.on('new_announcement', onNewAnnouncement);
     return () => { socket.off('new_announcement', onNewAnnouncement); };
-  }, [socket, load, showSuccess]);
+  }, [socket, load, showSuccess, user?.userId]);
 
   const openCreate = async () => {
     setShowCreate(true);
