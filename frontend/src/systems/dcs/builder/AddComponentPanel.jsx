@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
 import { get_templates, get_template } from "../services/templatesService.js";
-import { clone_resolved_field } from "../jsonlogic/resolveTemplates.js";
+import { clone_selected_fields } from "../jsonlogic/resolveTemplates.js";
 import DcsFieldIcon from "../components/DcsFieldIcon.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import TemplateFieldPickerOverlay from "./TemplateFieldPickerOverlay.jsx";
@@ -82,7 +82,7 @@ export default function AddComponentPanel({ onSelect, onInsertTemplate, renderTr
   };
 
   const handle_confirm_template_fields = (selected_fields, mode) => {
-    const cloned_fields = selected_fields.map((field) => clone_resolved_field(field, picker_template._id));
+    const cloned_fields = clone_selected_fields(picker_template.fields, selected_fields, picker_template._id);
     setPickerTemplate(null);
     setIsOpen(false);
     onInsertTemplate(cloned_fields, mode);
