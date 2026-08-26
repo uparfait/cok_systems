@@ -32,7 +32,7 @@ module.exports = {
   FORM_ID_REQUIRED: "Nomero y'ifishi irasabwa",
   FORM_VERSIONS_FETCHED: "Verisiyo z'ifishi zabonetse neza",
   FORM_ACTIVE_VERSION_SET: "Verisiyo ikoreshwa yahinduwe neza",
-  FORM_VERSION_ACTIVE_CANNOT_DELETE: "Verisiyo ikoreshwa ntishobora gusibwa - banza ukoreshe indi verisiyo",
+  FORM_VERSION_ACTIVE_CANNOT_DELETE: "Verisiyo ikoreshwa ishobora gusibwa gusa niba ari yo yonyine kandi nta makuru yakusanyirijwe muri iyi fishi",
   FORM_VERSION_DELETED: "Verisiyo y'ifishi yasibwe neza",
   FORM_FETCHED: "Ifishi yabonetse neza",
   FORMS_SEARCHED: "Gushakisha amafishi byagenze neza",

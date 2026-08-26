@@ -32,7 +32,7 @@ module.exports = {
   FORM_ID_REQUIRED: "Form identifier is required",
   FORM_VERSIONS_FETCHED: "Form versions fetched successfully",
   FORM_ACTIVE_VERSION_SET: "Active version updated successfully",
-  FORM_VERSION_ACTIVE_CANNOT_DELETE: "The active version cannot be deleted - activate a different version first",
+  FORM_VERSION_ACTIVE_CANNOT_DELETE: "The active version can only be deleted when it is the form's only version and no data has been collected for it yet",
   FORM_VERSION_DELETED: "Form version deleted successfully",
   FORM_FETCHED: "Form fetched successfully",
   FORMS_SEARCHED: "Forms searched successfully",

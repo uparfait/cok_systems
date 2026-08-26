@@ -32,7 +32,7 @@ module.exports = {
   FORM_ID_REQUIRED: "L'identifiant du formulaire est requis",
   FORM_VERSIONS_FETCHED: "Versions du formulaire récupérées avec succès",
   FORM_ACTIVE_VERSION_SET: "Version active mise à jour avec succès",
-  FORM_VERSION_ACTIVE_CANNOT_DELETE: "La version active ne peut pas être supprimée - activez d'abord une autre version",
+  FORM_VERSION_ACTIVE_CANNOT_DELETE: "La version active ne peut être supprimée que si c'est la seule version du formulaire et qu'aucune donnée n'a encore été collectée",
   FORM_VERSION_DELETED: "Version du formulaire supprimée avec succès",
   FORM_FETCHED: "Formulaire récupéré avec succès",
   FORMS_SEARCHED: "Recherche de formulaires effectuée avec succès",
