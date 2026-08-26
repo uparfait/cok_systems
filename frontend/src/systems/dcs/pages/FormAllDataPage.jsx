@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { dcs_translate } from "../i18n/index.js";
+import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { useSilentPolling } from "../hooks/useSilentPolling.js";
 import { useSubmissionsTable } from "../hooks/useSubmissionsTable.js";
 import { get_form_versions } from "../services/formsService.js";
+import { delete_submission } from "../services/submissionsService.js";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 import DcsDataTable from "../components/DcsDataTable.jsx";
@@ -13,6 +15,35 @@ import DcsDataTableGeoCell, { GEO_CELL_TABLE_MIN_WIDTH_PX } from "../components/
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
+import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
+
+const ACTIONS_COLUMN_WIDTH_PX = 56;
+
+/**
+ * Icon-only delete trigger for one row - a text button would be the odd
+ * one out among plain data cells, and every row already reads its own
+ * record's meaning from the columns beside it, so the icon alone (with an
+ * aria-label for anyone not just visually scanning it) is enough.
+ */
+function DeleteSubmissionButton({ onClick, disabled }) {
+  const { translate } = useDcsLanguage();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={translate("DCS_BTN_DELETE")}
+      title={translate("DCS_BTN_DELETE")}
+      className="cursor-pointer flex items-center justify-center"
+      style={{ width: 28, height: 28, opacity: disabled ? 0.4 : 1 }}
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E74C3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="3 6 5 6 21 6" />
+        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+      </svg>
+    </button>
+  );
+}
 
 const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group"];
 const MEDIA_ANSWER_TYPES = ["image", "video", "audio", "file_upload", "signature"];
@@ -103,7 +134,7 @@ function build_diffed_columns(versions, language) {
   return { columns, field_type_by_id, has_diff };
 }
 
-function build_rows(submissions, field_type_by_id) {
+function build_rows(submissions, field_type_by_id, on_delete_click, deleting_id) {
   return (submissions || []).map((submission) => {
     const row = { dcs_row_key: submission._id };
     field_type_by_id.forEach((field_type, field_id) => {
@@ -118,6 +149,9 @@ function build_rows(submissions, field_type_by_id) {
     });
     row.version = submission.version;
     row.submitted_at = submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "";
+    row.actions = (
+      <DeleteSubmissionButton onClick={() => on_delete_click(submission._id)} disabled={deleting_id === submission._id} />
+    );
     return row;
   });
 }
@@ -132,8 +166,11 @@ function build_rows(submissions, field_type_by_id) {
  */
 export default function FormAllDataPage() {
   const { form_group_id } = useParams();
-  const { language } = useDcsLanguage();
+  const { language, translate } = useDcsLanguage();
+  const { showSuccess, showError } = useToast();
   const table = useSubmissionsTable(form_group_id, undefined);
+  const [confirming_delete_id, setConfirmingDeleteId] = useState(null);
+  const [deleting_id, setDeletingId] = useState(null);
 
   const { data: versions, loading: loading_versions } = useSilentPolling(
     () => get_form_versions(form_group_id).then((res) => res.data || []),
@@ -143,8 +180,23 @@ export default function FormAllDataPage() {
 
   if (loading_versions || !versions || versions.length === 0) return <DcsLoadingState />;
 
-  const { columns, field_type_by_id, has_diff } = build_diffed_columns(versions, language);
-  const rows = build_rows(table.submissions, field_type_by_id);
+  const { columns: data_columns, field_type_by_id, has_diff } = build_diffed_columns(versions, language);
+  const columns = data_columns.concat([{ key: "actions", label: "", minWidthPx: ACTIONS_COLUMN_WIDTH_PX }]);
+  const rows = build_rows(table.submissions, field_type_by_id, setConfirmingDeleteId, deleting_id);
+
+  const handle_delete = async () => {
+    setDeletingId(confirming_delete_id);
+    try {
+      await delete_submission(confirming_delete_id);
+      showSuccess(translate("DCS_TOAST_SUBMISSION_DELETED"));
+      setConfirmingDeleteId(null);
+      table.refresh();
+    } catch (error) {
+      showError(error.message || translate("DCS_ERROR_GENERIC"));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const legend_items = has_diff
     ? [
@@ -174,6 +226,16 @@ export default function FormAllDataPage() {
           totalCount={table.total}
         />
       </div>
+
+      {confirming_delete_id && (
+        <DcsConfirmDialog
+          titleKey="DCS_SUBMISSION_DELETE_TITLE"
+          messageKey="DCS_SUBMISSION_DELETE_WARNING"
+          confirming={!!deleting_id}
+          onConfirm={handle_delete}
+          onCancel={() => setConfirmingDeleteId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -31,3 +31,10 @@ export function get_submissions(form_group_id, version, page, limit, options) {
 export function submit_response(form_group_id, payload) {
   return dcs_request(`/public/forms/${form_group_id}/submit`, "POST", payload);
 }
+
+/**
+ * Permanently deletes one specific collected response. Irreversible.
+ */
+export function delete_submission(submission_id) {
+  return dcs_request(`/submissions/record/${submission_id}`, "DELETE");
+}

@@ -58,6 +58,8 @@ module.exports = {
   FILE_TYPE_NOT_ALLOWED: "Ce type de fichier n'est pas autorisé pour ce champ",
   FILE_TOO_LARGE: "Ce fichier dépasse la taille maximale autorisée pour ce champ",
   SUBMISSION_FILE_EMBEDDED_NOT_ALLOWED: "Les fichiers doivent d'abord être téléversés puis référencés par leur URL, jamais intégrés directement",
+  SUBMISSION_NOT_FOUND: "Cette soumission est introuvable",
+  SUBMISSION_DELETED: "Soumission supprimée avec succès",
   JSONLOGIC_RULE_INVALID: "L'une des règles logiques définies n'est pas valide",
   JSONLOGIC_CIRCULAR_DEPENDENCY: "Dépendance circulaire détectée entre les champs calculés",
   FIELD_TYPE_INVALID: "L'un des types de champ utilisés n'est pas pris en charge",

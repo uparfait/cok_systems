@@ -58,6 +58,8 @@ module.exports = {
   FILE_TYPE_NOT_ALLOWED: "Ubu bwoko bw'idosiye ntibwemewe kuri iki kibazo",
   FILE_TOO_LARGE: "Iyi dosiye irenze ingano ntarengwa yemewe kuri iki kibazo",
   SUBMISSION_FILE_EMBEDDED_NOT_ALLOWED: "Idosiye igomba kubanza gushyirwaho hanyuma igakoreshwa hifashishijwe URL yayo, ntabwo yinjizwa itaziguye",
+  SUBMISSION_NOT_FOUND: "Iyi raporo ntibashije kuboneka",
+  SUBMISSION_DELETED: "Raporo yasibwe neza",
   JSONLOGIC_RULE_INVALID: "Imwe mu mategeko yashyizweho ntabwo ari meza",
   JSONLOGIC_CIRCULAR_DEPENDENCY: "Habonetse ibibazo by'imizunguruko hagati y'ibibazo bibarwa",
   FIELD_TYPE_INVALID: "Ubwoko bumwe bw'ikibazo ntibwo bushigikiwe",

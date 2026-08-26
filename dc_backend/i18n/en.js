@@ -58,6 +58,8 @@ module.exports = {
   FILE_TYPE_NOT_ALLOWED: "This file type is not allowed for this field",
   FILE_TOO_LARGE: "This file is larger than the allowed maximum size for this field",
   SUBMISSION_FILE_EMBEDDED_NOT_ALLOWED: "Files must be uploaded first and referenced by their URL, not embedded directly",
+  SUBMISSION_NOT_FOUND: "This submission was not found",
+  SUBMISSION_DELETED: "Submission deleted successfully",
   JSONLOGIC_RULE_INVALID: "One of the logic rules defined is not valid",
   JSONLOGIC_CIRCULAR_DEPENDENCY: "Circular dependency detected between computed fields",
   FIELD_TYPE_INVALID: "One of the field types used is not supported",

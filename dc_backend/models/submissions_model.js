@@ -1,4 +1,5 @@
 const { get_db } = require("../db_connection/db.js");
+const { to_object_id } = require("../utilities/object_id.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 
@@ -203,6 +204,29 @@ async function delete_by_form_group_ids(form_group_ids) {
 }
 
 /**
+ * One specific submission by its own id, or null if it doesn't exist -
+ * looked up first so a delete can check which form (and therefore which
+ * project's permissions) it actually belongs to before removing it.
+ */
+async function find_submission_by_id(submission_id) {
+  const object_id = to_object_id(submission_id);
+  if (!object_id) return null;
+  return get_db().collection(COLLECTION_NAME).findOne({ _id: object_id });
+}
+
+/**
+ * Permanently removes one specific submission. Irreversible - the caller
+ * has already confirmed which form it belongs to and that the requesting
+ * user may manage that form's data.
+ */
+async function delete_submission_by_id(submission_id) {
+  const object_id = to_object_id(submission_id);
+  if (!object_id) return false;
+  const result = await get_db().collection(COLLECTION_NAME).deleteOne({ _id: object_id });
+  return result.deletedCount > 0;
+}
+
+/**
  * Number of submissions collected against one specific form version - used
  * to warn an author how much data a version delete would also remove.
  */
@@ -226,10 +250,12 @@ module.exports = {
   ensure_submission_indexes,
   create_submission,
   find_by_client_submission_id,
+  find_submission_by_id,
   list_submissions,
   count_by_form_group_id,
   list_submitted_at_within,
   delete_by_form_group_ids,
   count_submissions_for_version,
   delete_by_form_group_and_version,
+  delete_submission_by_id,
 };

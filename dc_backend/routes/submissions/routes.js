@@ -1,6 +1,7 @@
 const Router = require("express").Router();
 
 const get_submissions = require("../../controllers/submissions/get_submissions.js");
+const delete_submission = require("../../controllers/submissions/delete_submission.js");
 
 /**
  * @swagger
@@ -30,5 +31,19 @@ const get_submissions = require("../../controllers/submissions/get_submissions.j
  *         description: Submissions fetched successfully
  */
 Router.get("/:form_group_id", get_submissions);
+
+/**
+ * @swagger
+ * /dcs/api/submissions/record/{submission_id}:
+ *   delete:
+ *     summary: Permanently delete one specific collected response
+ *     tags: [Submissions]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Submission deleted successfully
+ */
+Router.delete("/record/:submission_id", delete_submission);
 
 module.exports = Router;
