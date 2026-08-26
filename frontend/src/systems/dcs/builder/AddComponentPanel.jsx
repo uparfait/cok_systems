@@ -48,13 +48,23 @@ export default function AddComponentPanel({ onSelect, onInsertTemplate, renderTr
       });
   };
 
+  const supports_templates = !!onInsertTemplate;
+
+  // Deliberately keyed only on is_open/supports_templates, NOT on
+  // onInsertTemplate itself - a caller (e.g. FormBuilderCanvas) that
+  // defines that callback inline gets a brand new function reference on
+  // every one of its own re-renders (every keystroke anywhere on the
+  // canvas), and depending on it here would tear down and rebuild this
+  // effect just as often - refetching non-silently every time instead of
+  // only on open and every 10s. handle_confirm_template_fields below still
+  // always calls whatever onInsertTemplate the latest render passed in.
   useEffect(() => {
-    if (!is_open || !onInsertTemplate) return;
+    if (!is_open || !supports_templates) return;
     load_templates();
     const interval_id = window.setInterval(() => load_templates({ silent: true }), 10000);
     return () => window.clearInterval(interval_id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [is_open, onInsertTemplate]);
+  }, [is_open, supports_templates]);
 
   const handle_select = (field_type) => {
     setIsOpen(false);
