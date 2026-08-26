@@ -85,18 +85,23 @@ export default function FormDetailPage() {
           {!is_panel_open && (
             <div className="dcs-project-slide-in-left space-y-6">
               <div>
-                <div className="flex items-center flex-wrap gap-3 mb-3">
+                <div className="flex items-center justify-between flex-wrap gap-3 mb-3 pr-16 min-[760px]:pr-0">
                   <span className="dcs-home-badge inline-flex items-center text-xs font-semibold uppercase tracking-wide px-3" style={{ height: 28 }}>
                     {translate("DCS_FORM_OVERVIEW_EYEBROW")}
                   </span>
-                  <DcsButtonOutline onClick={() => navigate(`${base_path}/data`)} className="flex items-center gap-2" style={{ width: "auto", height: 28, padding: "0 1rem" }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="4" width="18" height="16" rx="1" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                      <line x1="9" y1="10" x2="9" y2="20" />
-                    </svg>
-                    {translate("DCS_DATA_COLLECTED_CARD_TITLE")}
-                  </DcsButtonOutline>
+                  <div className="flex items-center flex-wrap gap-3">
+                    <DcsButtonOutline onClick={() => navigate(`${base_path}/data`)} className="flex items-center gap-2" style={{ width: "auto", height: 28, padding: "0 1rem" }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="16" rx="1" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                        <line x1="9" y1="10" x2="9" y2="20" />
+                      </svg>
+                      {translate("DCS_DATA_COLLECTED_CARD_TITLE")}
+                    </DcsButtonOutline>
+                    <DcsButtonOutline onClick={() => navigate(`${base_path}/details`)} style={{ width: "auto", height: 28, padding: "0 1rem" }}>
+                      {translate("DCS_BTN_GOTO_FORM_SETTINGS")}
+                    </DcsButtonOutline>
+                  </div>
                 </div>
                 <h1 className="font-bold wrap-break-word truncate" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif", fontSize: "clamp(1.5rem, 3.2vw, 2.2rem)", textTransform: "uppercase" }} title={title}>
                   {title}

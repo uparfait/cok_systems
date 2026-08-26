@@ -1,4 +1,4 @@
-import { evaluate_rule } from "./engine.js";
+import { evaluate_rule, build_trimmed_evaluation_data } from "./engine.js";
 import { flatten_fields, build_dependency_graph, build_field_parent_map, is_visible_through_ancestors } from "./dependencyGraph.js";
 import { get_field_text, get_field_options_state } from "../fields/fieldText.js";
 
@@ -45,12 +45,17 @@ function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_orde
       if (!field || !field.type) return;
 
       if (field.computed && field.computed.enabled && field.computed.formula) {
-        const computed_result = evaluate_rule(field.computed.formula, working_data);
+        const computed_result = evaluate_rule(field.computed.formula, build_trimmed_evaluation_data(working_data));
         working_data[field_id] = computed_result.value;
       }
 
+      // Evaluated against a trimmed snapshot so a respondent's accidental
+      // leading/trailing whitespace on an earlier answer never flips a
+      // later field's visibility - the stored/returned working_data itself
+      // (and therefore the live value the respondent sees) is untouched.
+      const trimmed_data = build_trimmed_evaluation_data(working_data);
       const visibility_result = field.visibility_condition
-        ? evaluate_rule(field.visibility_condition, working_data)
+        ? evaluate_rule(field.visibility_condition, trimmed_data)
         : { value: true, error: null };
       own_visible_by_id.set(field_id, visibility_result.error ? true : visibility_result.value !== false);
 
@@ -62,7 +67,7 @@ function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_orde
       own_locked_by_id.set(
         field_id,
         PARENT_GROUP_CAPABLE_TYPES.includes(field.type) && field.parent_dependency_enabled
-          ? get_field_options_state(field, working_data, false).is_locked
+          ? get_field_options_state(field, trimmed_data, false).is_locked
           : false,
       );
     });
@@ -123,6 +128,7 @@ export function validate_submission_client_side(schema, submitted_data, language
   // section hidden by its own visibility_condition can contain a mandatory
   // child field with no visibility_condition of its own at all, and that
   // child was never actually shown to the respondent either.
+  const trimmed_data = build_trimmed_evaluation_data(working_data);
   flat_fields.forEach((field) => {
     if (!field || !field.type) return;
     const field_id = field.id;
@@ -140,7 +146,7 @@ export function validate_submission_client_side(schema, submitted_data, language
 
     (field.validation_rules || []).forEach((validation_rule) => {
       if (!validation_rule.condition) return;
-      const rule_result = evaluate_rule(validation_rule.condition, working_data);
+      const rule_result = evaluate_rule(validation_rule.condition, trimmed_data);
       const satisfied = rule_result.error ? false : rule_result.value !== false;
 
       if (!satisfied) {
@@ -154,9 +160,13 @@ export function validate_submission_client_side(schema, submitted_data, language
         return;
       }
 
+      // Every rule that currently passes and has its own valid_message gets
+      // to show it - a field with 3 rules only fully confirmed once all 3
+      // pass must show all 3 confirmations, not silently drop 2 of them
+      // just because an earlier rule already had one.
       const rule_valid_message = get_field_text(validation_rule.valid_message, language);
-      if (rule_valid_message && !field_valid_messages[field_id]) {
-        field_valid_messages[field_id] = rule_valid_message;
+      if (rule_valid_message) {
+        field_valid_messages[field_id] = (field_valid_messages[field_id] || []).concat([rule_valid_message]);
       }
     });
   });

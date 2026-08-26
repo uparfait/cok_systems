@@ -82,7 +82,7 @@ export default function SingleSelectField({ field, language, mode, value, onChan
         </p>
       )}
       {!error && value && valid_message && (
-        <p className="mt-1 text-xs" style={{ color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
+        <p className="mt-1 text-xs" style={{ color: "#4CAF50", fontFamily: "'Montserrat', sans-serif", whiteSpace: "pre-line" }}>
           {valid_message}
         </p>
       )}

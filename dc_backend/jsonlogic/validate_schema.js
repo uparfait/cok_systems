@@ -23,7 +23,7 @@ const LARGE_TEXT_TYPES = ["large_text"];
 const EMAIL_TYPES = ["email"];
 const URL_TYPES = ["url"];
 const PHONE_TYPES = ["phone"];
-const NUMBER_LIKE_TYPES = ["number", "duration"];
+const NUMBER_LIKE_TYPES = ["number"];
 const LIKERT_TYPES = ["likert_scale"];
 const RANKING_TYPES = ["ranking"];
 const DATE_LIKE_TYPES = ["date", "date_time"];
@@ -56,6 +56,13 @@ const NUMBER_OPERATOR_IDS = [
   "length_is", "min_length", "max_length", "starts_with", "ends_with",
   "depends_on_parent",
 ];
+// duration is stored as {hours, minutes}, never a plain number, so it
+// never gets the length/prefix operators above - only pure numeric
+// comparisons, evaluated against a computed total number of minutes.
+const DURATION_OPERATOR_IDS = [
+  "equals", "not_equals", "greater_than", "less_than", "min_value", "max_value",
+  "multiple_of", "is_integer", "is_positive", "is_negative", "depends_on_parent",
+];
 const LIKERT_OPERATOR_IDS = ["min_value", "max_value", "not_equals", "depends_on_parent"];
 const RANKING_OPERATOR_IDS = ["min_selections", "max_selections", "exact_selections", "depends_on_parent"];
 const DATE_OPERATOR_IDS = ["min_date", "max_date", "depends_on_parent"];
@@ -67,7 +74,7 @@ const DEFAULT_OPERATOR_IDS = ["equals", "not_equals", "depends_on_parent"];
 
 const ALL_OPERATOR_IDS = new Set([
   ...TEXT_OPERATOR_IDS, ...LARGE_TEXT_OPERATOR_IDS, ...EMAIL_OPERATOR_IDS, ...URL_OPERATOR_IDS, ...PHONE_OPERATOR_IDS,
-  ...NUMBER_OPERATOR_IDS, ...LIKERT_OPERATOR_IDS, ...RANKING_OPERATOR_IDS, ...DATE_OPERATOR_IDS,
+  ...NUMBER_OPERATOR_IDS, ...DURATION_OPERATOR_IDS, ...LIKERT_OPERATOR_IDS, ...RANKING_OPERATOR_IDS, ...DATE_OPERATOR_IDS,
   ...TIME_OPERATOR_IDS, ...MEDIA_OPERATOR_IDS, ...SINGLE_CHOICE_OPERATOR_IDS, ...MULTI_CHOICE_OPERATOR_IDS,
   ...DEFAULT_OPERATOR_IDS, "greater_than", "less_than",
 ]);
@@ -86,6 +93,7 @@ function get_applicable_operator_ids(field_type) {
   if (URL_TYPES.includes(field_type)) return URL_OPERATOR_IDS;
   if (PHONE_TYPES.includes(field_type)) return PHONE_OPERATOR_IDS;
   if (NUMBER_LIKE_TYPES.includes(field_type)) return NUMBER_OPERATOR_IDS;
+  if (field_type === "duration") return DURATION_OPERATOR_IDS;
   if (LIKERT_TYPES.includes(field_type)) return LIKERT_OPERATOR_IDS;
   if (RANKING_TYPES.includes(field_type)) return RANKING_OPERATOR_IDS;
   if (DATE_LIKE_TYPES.includes(field_type)) return DATE_OPERATOR_IDS;

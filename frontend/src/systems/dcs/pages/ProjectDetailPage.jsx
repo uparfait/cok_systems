@@ -6,11 +6,24 @@ import { useScrollReveal } from "../home/useScrollReveal.js";
 import { useCountUp } from "../home/useCountUp.js";
 import { useAgeBreakdown } from "../hooks/useAgeBreakdown.js";
 import { get_project } from "../services/projectsService.js";
+import { get_forms_by_project } from "../services/formsService.js";
 import { AGE_UNITS } from "../constants/ageUnits.js";
 import DcsProjectDetailSkeleton from "../components/DcsProjectDetailSkeleton.jsx";
 import DcsAgeChip from "../components/DcsAgeChip.jsx";
 import DcsPanelToggleButton from "../components/DcsPanelToggleButton.jsx";
+import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import DcsEmptyState from "../components/DcsEmptyState.jsx";
 import ProjectsIllustration from "../home/illustrations/ProjectsIllustration.jsx";
+
+function DcsListSkeleton() {
+  return (
+    <ol className="space-y-3 pl-6" aria-hidden="true">
+      {[0, 1, 2, 3].map((index) => (
+        <li key={index} className="animate-pulse h-4" style={{ width: `${72 - index * 10}%`, backgroundColor: "rgba(5,109,170,0.08)" }} />
+      ))}
+    </ol>
+  );
+}
 
 function ProjectStatCard({ rawValue, labelKey, isActive, translate }) {
   const { text } = useCountUp(String(rawValue), isActive);
@@ -65,6 +78,12 @@ export default function ProjectDetailPage() {
 
   const age = useAgeBreakdown(project ? project.created_at : new Date(0).toISOString(), isVisible && !!project && !is_showing_wrong_project);
 
+  const { data: forms, loading: forms_loading } = useSilentPolling(
+    () => get_forms_by_project(project_id).then((res) => res.data || []),
+    10000,
+    [project_id],
+  );
+
   const base_path = `/dcs-system/project/${project_id}`;
   const is_panel_open = location.pathname !== base_path;
 
@@ -111,9 +130,14 @@ export default function ProjectDetailPage() {
             <div className="dcs-project-slide-in-left">
               <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-6 lg:gap-10 items-center mb-8">
                 <div className="flex flex-col gap-3">
-                  <span className="dcs-home-badge self-start text-xs font-semibold uppercase tracking-wide px-3 py-1">
-                    {translate("DCS_PROJECT_OVERVIEW_EYEBROW")}
-                  </span>
+                  <div className="flex items-center justify-between gap-3 flex-wrap pr-16 lg:pr-0">
+                    <span className="dcs-home-badge self-start text-xs font-semibold uppercase tracking-wide px-3 py-1">
+                      {translate("DCS_PROJECT_OVERVIEW_EYEBROW")}
+                    </span>
+                    <DcsButtonOutline className="w-full sm:w-auto" onClick={() => navigate(`${base_path}/settings`)}>
+                      {translate("DCS_BTN_GOTO_PROJECT_SETTINGS")}
+                    </DcsButtonOutline>
+                  </div>
                   <h1 className="font-bold wrap-break-word" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif", fontSize: "clamp(1.5rem, 3.2vw, 2.2rem)" }}>
                     {project.name}
                   </h1>
@@ -152,6 +176,36 @@ export default function ProjectDetailPage() {
                 </div>
                 <ProjectStatCard rawValue={project.forms_count || 0} labelKey="DCS_PROJECT_STAT_FORMS" isActive={isVisible} translate={translate} />
                 <ProjectStatCard rawValue={project.total_submissions || 0} labelKey="DCS_PROJECT_STAT_SUBMISSIONS" isActive={isVisible} translate={translate} />
+              </div>
+
+              <div className="mt-8">
+                <h2 className="mb-3" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 16, color: "#333333" }}>
+                  {translate("DCS_PROJECT_NAV_FORMS")}
+                </h2>
+                {forms_loading && <DcsListSkeleton />}
+                {!forms_loading && (!forms || forms.length === 0) && <DcsEmptyState messageKey="DCS_FORMS_LIST_EMPTY" />}
+                {!forms_loading && forms && forms.length > 0 && (
+                  <ol className="space-y-2 pl-6 list-decimal">
+                    {forms.map((form) => {
+                      const form_path = `${base_path}/forms/${form.form_group_id}`;
+                      return (
+                        <li key={form.form_group_id}>
+                          <a
+                            href={form_path}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              navigate(form_path);
+                            }}
+                            className="hover:underline"
+                            style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}
+                          >
+                            {form.form_name || form.form_group_id}
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
               </div>
             </div>
           )}

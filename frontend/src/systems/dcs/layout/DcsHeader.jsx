@@ -17,7 +17,12 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, p
   const navigate = useNavigate();
   const location = useLocation();
   const { translate } = useDcsLanguage();
-  const breadcrumb_path = build_dcs_breadcrumb_path(location.pathname);
+  const is_home_active = location.pathname === "/dcs-system";
+  const is_templates_active = location.pathname.startsWith("/dcs-system/templates");
+  // The breadcrumb exists to show where you are within a project/form -
+  // on Home or Templates themselves there is nothing more specific than
+  // the tab already being shown (and underlined) for it to say.
+  const breadcrumb_path = is_home_active || is_templates_active ? "" : build_dcs_breadcrumb_path(location.pathname);
   const total_projects = projects ? projects.length : 0;
   const total_forms = projects ? projects.reduce((sum, project) => sum + (project.forms_count || 0), 0) : 0;
 
@@ -53,9 +58,26 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, p
               type="button"
               onClick={() => navigate("/dcs-system")}
               className="dcs-sub-header-home-link text-sm font-semibold cursor-pointer flex-shrink-0"
-              style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}
+              style={{
+                color: "#056daa",
+                fontFamily: "'Montserrat', sans-serif",
+                textDecoration: is_home_active ? "underline" : "none",
+              }}
             >
               {translate("DCS_BTN_HOME")}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/dcs-system/templates")}
+              className="text-sm font-semibold cursor-pointer flex-shrink-0"
+              style={{
+                color: "#056daa",
+                fontFamily: "'Montserrat', sans-serif",
+                textDecoration: is_templates_active ? "underline" : "none",
+              }}
+            >
+              {translate("DCS_BTN_TEMPLATES")}
             </button>
 
             {breadcrumb_path && (

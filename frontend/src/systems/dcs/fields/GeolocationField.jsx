@@ -426,7 +426,7 @@ export default function GeolocationField({ field, language, mode, value, onChang
         </p>
       )}
       {!error && has_value && ruleValidMessage && (
-        <p className="mt-1 text-xs" style={{ color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
+        <p className="mt-1 text-xs" style={{ color: "#4CAF50", fontFamily: "'Montserrat', sans-serif", whiteSpace: "pre-line" }}>
           {ruleValidMessage}
         </p>
       )}

@@ -1,6 +1,6 @@
 import React from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { get_applicable_operators, build_validation_condition } from "./validationOperators.js";
+import { get_applicable_operators, build_validation_condition, get_value_input_type } from "./validationOperators.js";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import { get_field_text } from "../fields/fieldText.js";
 import { DCS_SELECT_LIKE_TYPES } from "../fields/fieldTypes.js";
@@ -29,6 +29,7 @@ export default function ValidationRuleEditor({ field, allFields, onChange, ruleE
         next_rule.value,
         next_rule.parent_field_id,
         next_rule.parent_value,
+        field.type,
       );
       return next_rule;
     });
@@ -107,6 +108,7 @@ export default function ValidationRuleEditor({ field, allFields, onChange, ruleE
                 </select>
               ) : (
                 <input
+                  type={get_value_input_type(field.type, rule.operator)}
                   className="cok-auth-input w-full py-3"
                   value={rule.value}
                   onChange={(event) => update_rule(rule.id, { value: event.target.value })}
@@ -159,6 +161,7 @@ export default function ValidationRuleEditor({ field, allFields, onChange, ruleE
                   <div>
                     <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_VALUE")}</label>
                     <input
+                      type={get_value_input_type(parent_field ? parent_field.type : "text", "equals")}
                       className="cok-auth-input w-full py-3"
                       value={rule.parent_value}
                       onChange={(event) => update_rule(rule.id, { parent_value: event.target.value })}

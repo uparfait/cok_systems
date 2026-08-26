@@ -20,9 +20,12 @@ import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
  * Publish are the only additions, kept as minimal, unobtrusive controls
  * layered on top of - never a different design around - the same page.
  * Submitting here only ever runs the validation: it never calls the
- * backend and never saves anything, it is a rehearsal.
+ * backend and never saves anything, it is a rehearsal. onPublish is
+ * optional - omit it (e.g. reviewing a saved template, which has nothing
+ * of its own to publish) and only the rehearsal itself and a Close button
+ * show, with no publish action at all.
  */
-export default function ReviewOverlay({ schema, onClose, onPublish, publishing, uploadingFiles, uploadPercent }) {
+export default function ReviewOverlay({ schema, onClose, onPublish, publishing, uploadingFiles, uploadPercent, publishLabelKey }) {
   const { translate, language } = useDcsLanguage();
   const { showSuccess } = useToast();
   const [values, setValues] = useState({});
@@ -91,15 +94,17 @@ export default function ReviewOverlay({ schema, onClose, onPublish, publishing, 
           onIdle={() => setSubmitState("idle")}
         />
 
-        <div className="w-full mt-3">
-          {publishing ? (
-            <SpiralLoader />
-          ) : (
-            <DcsButtonPrimary className="w-full" onClick={onPublish} disabled={publishing || uploadingFiles}>
-              {uploadingFiles ? translate("DCS_DESIGN_UPLOADING_PERCENT", { percent: uploadPercent }) : translate("DCS_BTN_PUBLISH")}
-            </DcsButtonPrimary>
-          )}
-        </div>
+        {onPublish && (
+          <div className="w-full mt-3">
+            {publishing ? (
+              <SpiralLoader />
+            ) : (
+              <DcsButtonPrimary className="w-full" onClick={onPublish} disabled={publishing || uploadingFiles}>
+                {uploadingFiles ? translate("DCS_DESIGN_UPLOADING_PERCENT", { percent: uploadPercent }) : translate(publishLabelKey || "DCS_BTN_PUBLISH")}
+              </DcsButtonPrimary>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

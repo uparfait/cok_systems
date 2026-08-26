@@ -21,7 +21,7 @@ export default function DcFormBuilderSection(props) {
   );
 }
 
-function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishing, schemaErrors }) {
+function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishing, schemaErrors, publishLabelKey }) {
   const { translate } = useDcsLanguage();
   const { is_uploading, average_percent } = useDesignUpload();
   const [selected_field, setSelectedField] = useState(null);
@@ -112,6 +112,7 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
           publishing={publishing}
           uploadingFiles={is_uploading}
           uploadPercent={average_percent}
+          publishLabelKey={publishLabelKey}
           onClose={() => setIsReviewing(false)}
           onPublish={async () => {
             const did_succeed = await onPublish(schema);
@@ -124,7 +125,7 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
         <DcsFormCodeOverlay
           fields={fields}
           allFields={all_flat_fields}
-          onCreateForm={(next_fields) => onFieldsChange(next_fields)}
+          onCreateForm={(next_fields, mode) => onFieldsChange(mode === "add" ? fields.concat(next_fields) : next_fields)}
           onClose={() => setIsCodeOverlayOpen(false)}
         />
       )}

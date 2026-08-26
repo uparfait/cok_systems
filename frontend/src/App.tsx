@@ -88,6 +88,9 @@ import FormSettingsPage from "./systems/dcs/pages/FormSettingsPage.jsx";
 import FormVersionsPage from "./systems/dcs/pages/FormVersionsPage.jsx";
 import FormDataPage from "./systems/dcs/pages/FormDataPage.jsx";
 import FormAllDataPage from "./systems/dcs/pages/FormAllDataPage.jsx";
+import TemplatesListPage from "./systems/dcs/pages/TemplatesListPage.jsx";
+import NewTemplatePage from "./systems/dcs/pages/NewTemplatePage.jsx";
+import TemplateSettingsPage from "./systems/dcs/pages/TemplateSettingsPage.jsx";
 import PublicFormPage from "./systems/dcs/pages/PublicFormPage.jsx";
 // Head of Department pages
 import HodEmployeesPage from "./systems/serviceDelivery/pages/hod/HodEmployeesPage";
@@ -856,6 +859,9 @@ const App: React.FC = () => {
                 >
                   <Route index element={<DcsHomePage />} />
                   <Route path="new-project" element={<NewProjectPage />} />
+                  <Route path="templates" element={<TemplatesListPage />} />
+                  <Route path="templates/new" element={<NewTemplatePage />} />
+                  <Route path="templates/:template_id/edit" element={<TemplateSettingsPage />} />
                   <Route path="project/:project_id" element={<ProjectDetailPage />}>
                     <Route index element={<ProjectSettingsPage />} />
                     <Route path="settings" element={<ProjectSettingsPage />} />

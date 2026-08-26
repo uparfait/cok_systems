@@ -89,7 +89,7 @@ const LARGE_TEXT_TYPES = ["large_text"];
 const EMAIL_TYPES = ["email"];
 const URL_TYPES = ["url"];
 const PHONE_TYPES = ["phone"];
-const NUMBER_LIKE_TYPES = ["number", "duration"];
+const NUMBER_LIKE_TYPES = ["number"];
 const LIKERT_TYPES = ["likert_scale"];
 const RANKING_TYPES = ["ranking"];
 const DATE_LIKE_TYPES = ["date", "date_time"];
@@ -122,6 +122,14 @@ const NUMBER_OPERATOR_IDS = [
   "length_is", "min_length", "max_length", "starts_with", "ends_with",
   "depends_on_parent",
 ];
+// duration is stored as {hours, minutes} - never a plain number - so it
+// never gets the length/prefix operators above (they would only ever see
+// "[object Object]"). Its comparisons are all against a computed total
+// number of minutes instead (see build_validation_condition).
+const DURATION_OPERATOR_IDS = [
+  "equals", "not_equals", "greater_than", "less_than", "min_value", "max_value",
+  "multiple_of", "is_integer", "is_positive", "is_negative", "depends_on_parent",
+];
 const LIKERT_OPERATOR_IDS = ["min_value", "max_value", "not_equals", "depends_on_parent"];
 const RANKING_OPERATOR_IDS = ["min_selections", "max_selections", "exact_selections", "depends_on_parent"];
 const DATE_OPERATOR_IDS = ["min_date", "max_date", "depends_on_parent"];
@@ -146,6 +154,7 @@ function get_applicable_operator_ids(field_type) {
   if (URL_TYPES.includes(field_type)) return URL_OPERATOR_IDS;
   if (PHONE_TYPES.includes(field_type)) return PHONE_OPERATOR_IDS;
   if (NUMBER_LIKE_TYPES.includes(field_type)) return NUMBER_OPERATOR_IDS;
+  if (field_type === "duration") return DURATION_OPERATOR_IDS;
   if (LIKERT_TYPES.includes(field_type)) return LIKERT_OPERATOR_IDS;
   if (RANKING_TYPES.includes(field_type)) return RANKING_OPERATOR_IDS;
   if (DATE_LIKE_TYPES.includes(field_type)) return DATE_OPERATOR_IDS;
@@ -168,12 +177,75 @@ export function get_applicable_operators(field_type) {
 
 const FILE_SIZE_MULTIPLIERS = { max_file_size_kb: 1024, max_file_size_mb: 1024 * 1024, max_file_size_gb: 1024 * 1024 * 1024 };
 
+const NUMERIC_VALUE_OPERATOR_IDS = [
+  "length_is", "min_length", "max_length", "words_is", "min_words", "max_words",
+  "greater_than", "less_than", "min_value", "max_value", "multiple_of",
+  "min_selections", "max_selections", "exact_selections",
+  "max_file_size_mb", "max_file_size_kb", "max_file_size_gb",
+];
+const DATE_VALUE_OPERATOR_IDS = ["min_date", "max_date"];
+// A prefix/suffix, a regex pattern, or a comma-separated domain list is
+// never shaped like the field's own answer, whatever the field's type -
+// always plain text, never a number/date/time input.
+const FREE_TEXT_VALUE_OPERATOR_IDS = [
+  "starts_with", "ends_with", "matches_pattern", "not_matches_pattern",
+  "email_domain_in", "email_domain_not_in", "url_domain_in", "url_domain_not_in",
+  "includes", "not_includes",
+];
+
+/**
+ * The HTML input type ("number", "date", "time" or "text") a validation
+ * rule's own value input should use, so entering "must start with 5" on a
+ * number field offers a number input instead of a free-text box that would
+ * happily accept letters a numeric comparison could never match against.
+ * Some operators need a value shaped a specific way regardless of the
+ * field's own type (a length/count is always a number, a date bound is
+ * always a date, a pattern/domain list is always text); everything else
+ * (equals/not_equals/depends_on_parent's own value) compares directly
+ * against the field's own answer, so it takes on that field's shape.
+ */
+export function get_value_input_type(field_type, operator_id) {
+  // Time is stored as a zero-padded 24h "HH:MM" string, compared
+  // lexicographically - min_value/max_value's usual number input would let
+  // an author type something Number() turns into NaN, silently breaking
+  // the comparison.
+  if (field_type === "time" && (operator_id === "min_value" || operator_id === "max_value")) return "time";
+  if (NUMERIC_VALUE_OPERATOR_IDS.includes(operator_id)) return "number";
+  if (DATE_VALUE_OPERATOR_IDS.includes(operator_id)) return "date";
+  if (FREE_TEXT_VALUE_OPERATOR_IDS.includes(operator_id)) return "text";
+  if (["number", "duration"].includes(field_type)) return "number";
+  if (["date", "date_time"].includes(field_type)) return "date";
+  if (field_type === "time") return "time";
+  return "text";
+}
+
+/**
+ * A duration answer is stored as {hours, minutes}, never a plain number -
+ * every numeric comparison against it must go through this computed total
+ * number of minutes instead of the raw {var: field_id}, or it would only
+ * ever compare against "[object Object]".
+ */
+function duration_total_minutes_var(field_id) {
+  return { "+": [{ "*": [{ var: `${field_id}.hours` }, 60] }, { var: `${field_id}.minutes` }] };
+}
+
 /**
  * Builds the JSONLogic condition for one authored validation rule.
+ * field_type is the type of the field this condition's own value/var
+ * actually reads (the field itself for a validation rule, or the parent
+ * field for a visibility_condition/parent_option_group) - needed to
+ * special-case duration's {hours,minutes} shape and time's "HH:MM" string
+ * shape, both of which the plain {var: field_id} + Number(value) below
+ * would silently mis-evaluate.
  */
-export function build_validation_condition(field_id, operator_id, value, parent_field_id, parent_value) {
-  const field_var = { var: field_id };
-  const numeric_value = Number(value);
+export function build_validation_condition(field_id, operator_id, value, parent_field_id, parent_value, field_type) {
+  const field_var = field_type === "duration" ? duration_total_minutes_var(field_id) : { var: field_id };
+  // "09:00" -> Number() is NaN, which would make every min_value/max_value
+  // comparison against a time answer silently false - keep it a string and
+  // let >=/<= compare it lexicographically, exactly like min_date/max_date
+  // already does for a date answer.
+  const is_time_bound = field_type === "time" && (operator_id === "min_value" || operator_id === "max_value");
+  const numeric_value = is_time_bound ? value : Number(value);
 
   switch (operator_id) {
     case "equals":

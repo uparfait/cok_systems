@@ -3,6 +3,7 @@ const projects_model = require("../../models/projects_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { has_data_field_set_changed } = require("../../jsonlogic/schema_diff.js");
+const { resolve_template_placeholders } = require("../../jsonlogic/resolve_templates.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -39,7 +40,13 @@ async function update_form(req, res) {
       return res.status(400).json(warning_response(req, "FORM_NAME_REQUIRED"));
     }
 
-    const validation_result = validate_form_schema(schema);
+    // A safety net, not the primary path - the builder already expands any
+    // __is__template__ placeholder itself before ever calling this
+    // endpoint, but a hand-crafted or offline-stale payload must never be
+    // allowed to persist an unresolved reference.
+    const resolved_schema = { fields: await resolve_template_placeholders((schema && schema.fields) || []) };
+
+    const validation_result = validate_form_schema(resolved_schema);
     if (!validation_result.valid) {
       return res.status(400).json(warning_response(req, "FORM_SCHEMA_INVALID", null, { errors: validation_result.errors }));
     }
@@ -49,21 +56,21 @@ async function update_form(req, res) {
       return res.status(409).json(warning_response(req, "FORM_NAME_TAKEN"));
     }
 
-    const should_bump_version = has_data_field_set_changed(active_version.schema, schema);
+    const should_bump_version = has_data_field_set_changed(active_version.schema, resolved_schema);
 
     const form = should_bump_version
       ? await forms_model.create_next_form_version(form_group_id, {
           project_id: active_version.project_id,
           form_name: next_form_name,
           form_name_normalized: next_form_name.toLowerCase(),
-          schema,
+          schema: resolved_schema,
           created_by: req.user.user_id.toString(),
           created_by_name: req.user.full_name,
         })
       : await forms_model.update_version_in_place(form_group_id, active_version.version, {
           form_name: next_form_name,
           form_name_normalized: next_form_name.toLowerCase(),
-          schema,
+          schema: resolved_schema,
           updated_by: req.user.user_id.toString(),
           updated_by_name: req.user.full_name,
         });
