@@ -16,7 +16,7 @@ import DcsDeleteVersionDialog from "../components/DcsDeleteVersionDialog.jsx";
  * collected data.
  */
 export default function FormVersionsPage() {
-  const { project_id, form_group_id } = useOutletContext();
+  const { project_id, form_group_id, form } = useOutletContext();
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
@@ -44,12 +44,22 @@ export default function FormVersionsPage() {
   };
 
   const handle_confirm_delete = async (delete_data) => {
+    const was_only_version = (versions || []).length === 1;
     setDeleting(true);
     try {
       const response = await delete_form_version(form_group_id, version_pending_delete, delete_data);
       showSuccess(response.message || translate("DCS_TOAST_VERSION_DELETED"));
       setVersionPendingDelete(null);
-      refresh();
+      // Deleting a form's only (active) version leaves nothing behind for
+      // this form_group at all - staying on its own now-nonexistent
+      // versions/details page would just spin forever re-fetching a form
+      // that's gone, so leave for the project's forms list instead of
+      // refreshing in place.
+      if (was_only_version) {
+        navigate(`/dcs-system/project/${project_id}/forms`);
+      } else {
+        refresh();
+      }
     } catch (error) {
       showError(error.message || translate("DCS_ERROR_GENERIC"));
     } finally {
@@ -58,6 +68,12 @@ export default function FormVersionsPage() {
   };
 
   if (loading) return <DcsLoadingState />;
+
+  // Mirrors the backend's own guard exactly: the active version can only
+  // ever be deleted when it is the form's only version (deleting it is
+  // then really deleting the whole form) and the form has never collected
+  // any data - never offer a button here that the server would just reject.
+  const can_delete_active_version = (versions || []).length <= 1 && form && (form.total_submissions || 0) === 0;
 
   return (
     <div className="space-y-3 pb-16">
@@ -86,6 +102,11 @@ export default function FormVersionsPage() {
                 >
                   {translate("DCS_FORM_ACTIVE_BADGE")}
                 </span>
+              )}
+              {version_doc.is_active && can_delete_active_version && (
+                <DcsButtonOutlineDanger onClick={() => setVersionPendingDelete(version_doc.version)}>
+                  {translate("DCS_BTN_DELETE")}
+                </DcsButtonOutlineDanger>
               )}
               {!version_doc.is_active && activating_version === version_doc.version && (
                 <div
