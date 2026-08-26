@@ -23,14 +23,32 @@ function starts_with(value, prefix) {
 }
 
 /**
+ * An author pasting a pattern from anywhere else (a regex tester site, an
+ * editor, documentation) almost always copies the full JS literal form -
+ * "/^\d{10}$/i" - not just its bare body. Passed straight to `new RegExp`,
+ * that literal's own leading/trailing slashes become part of the pattern
+ * itself (now requiring an actual "/" character in the answer) and any
+ * flags after the closing slash are silently dropped instead of applied -
+ * so the rule always failed to match anything real. Splitting the literal
+ * back into its body and flags here means both the JS-literal form and a
+ * bare body ("^\d{10}$") work identically, wherever the pattern came from.
+ * Mirrors frontend/src/systems/dcs/jsonlogic/customOperations.js - keep
+ * both in sync.
+ */
+function parse_regex_literal(raw_pattern) {
+  const literal_match = /^\/(.*)\/([a-z]*)$/i.exec(raw_pattern);
+  return literal_match ? { body: literal_match[1], flags: literal_match[2] } : { body: raw_pattern, flags: "" };
+}
+
+/**
  * Tests a value against a bounded-length regex pattern. Overlong patterns
  * are rejected outright to keep evaluation cost predictable.
  */
 function regex_match(value, pattern, flags) {
-  const safe_pattern = String(pattern ?? "");
-  if (safe_pattern.length > MAX_PATTERN_LENGTH) return false;
+  const { body, flags: literal_flags } = parse_regex_literal(String(pattern ?? ""));
+  if (body.length > MAX_PATTERN_LENGTH) return false;
   try {
-    const regex = new RegExp(safe_pattern, flags || "");
+    const regex = new RegExp(body, flags || literal_flags || "");
     return regex.test(String(value ?? ""));
   } catch (error) {
     return false;

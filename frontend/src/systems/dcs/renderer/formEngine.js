@@ -1,4 +1,4 @@
-import { evaluate_rule } from "../jsonlogic/engine.js";
+import { evaluate_rule, build_trimmed_evaluation_data } from "../jsonlogic/engine.js";
 import { build_dependency_graph, flatten_fields, build_field_parent_map, is_visible_through_ancestors } from "../jsonlogic/dependencyGraph.js";
 import { get_field_options_state } from "../fields/fieldText.js";
 
@@ -8,10 +8,14 @@ const PARENT_GROUP_CAPABLE_TYPES = ["single_select", "multi_select", "select_gro
  * True when a field should currently be shown, given the rest of the
  * answers so far. Fields without a visibility_condition are always shown.
  * A rule evaluation error fails open (visible), mirroring the server.
+ * Evaluated against a trimmed snapshot of the answers so an earlier
+ * answer's accidental leading/trailing whitespace never flips this field's
+ * visibility live while the respondent is still typing - values itself is
+ * never touched.
  */
 export function evaluate_field_visibility(field, values) {
   if (!field.visibility_condition) return true;
-  const result = evaluate_rule(field.visibility_condition, values || {});
+  const result = evaluate_rule(field.visibility_condition, build_trimmed_evaluation_data(values || {}));
   return result.error ? true : result.value !== false;
 }
 
@@ -31,7 +35,7 @@ export function compute_derived_values(schema, values) {
   evaluation_order.forEach((field_id) => {
     const field = fields_by_id.get(field_id);
     if (!field || !field.computed || !field.computed.enabled || !field.computed.formula) return;
-    const result = evaluate_rule(field.computed.formula, working_values);
+    const result = evaluate_rule(field.computed.formula, build_trimmed_evaluation_data(working_values));
     working_values[field_id] = result.value;
   });
 
@@ -76,7 +80,7 @@ export function compute_form_progress_percent(fields, values) {
     // renders nothing at all once no group currently matches - it was
     // never something the respondent needed (or could) fill in either.
     if (PARENT_GROUP_CAPABLE_TYPES.includes(field.type) && field.parent_dependency_enabled) {
-      return !get_field_options_state(field, values, false).is_locked;
+      return !get_field_options_state(field, build_trimmed_evaluation_data(values), false).is_locked;
     }
     return true;
   });

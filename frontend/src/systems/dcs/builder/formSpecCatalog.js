@@ -322,9 +322,11 @@ const FIELD_TYPE_DOCS = {
  * language description of the desired form, so the AI can reply with a
  * ready-to-paste form JSON.
  */
-export function build_form_creation_guide() {
+export function build_form_creation_guide(selected_types) {
+  const type_filter = selected_types && selected_types.length > 0 ? new Set(selected_types) : null;
   const field_types = {};
   DCS_FIELD_TYPE_REGISTRY.forEach((entry) => {
+    if (type_filter && !type_filter.has(entry.type)) return;
     const docs = FIELD_TYPE_DOCS[entry.type] || {};
     field_types[entry.type] = {
       category: entry.category,
@@ -344,10 +346,18 @@ export function build_form_creation_guide() {
       "Copy that JSON reply, paste it into the 'Paste form JSON here' box in this same overlay, then click 'Create form'.",
       "Every field id must be a unique string across the whole form, including inside group/section children. Recommended pattern: '<type>_<6 random lowercase letters/digits>', e.g. 'text_a1b2c3'.",
       "Every translated text value (label, help_text, placeholder, required_message, valid_message, option labels, low_label/high_label, paragraph content) is an object with 'en', 'kn' and 'fr' string keys. A blank string for a language is fine.",
-      "Clicking 'Create form' REPLACES every component currently on the canvas with the pasted fields - it does not merge.",
+      "After pasting, choose 'Add pasted fields' to append them after whatever is already on the canvas, or 'Overwrite with pasted fields' to replace the canvas entirely.",
+      "Instead of writing every field of a saved template out by hand, one entry in 'fields' can be a template placeholder (see template_placeholder_shape) referencing it by id - it is expanded into real fields automatically.",
     ],
     top_level_form_shape: {
       fields: "Array of field objects, in the order they should render top to bottom. This is the entire schema - there is no other top-level key.",
+    },
+    template_placeholder_shape: {
+      description: "One entry in 'fields' (or in a group/section's 'children') can be this shape instead of a real field, to import a previously saved template's fields in place.",
+      __is__template__: "Required string - the target template's id.",
+      fields: "Optional array. Leave empty ([]) to have the template's fields fetched and expanded automatically. Or pre-fill it with the template's own already-known field objects to skip the fetch.",
+      note: "Every field produced by expanding a placeholder is tagged with its own __is__template__ property (the source template's id) - this is separate from the placeholder itself and is just provenance, not something to set by hand.",
+      example: { __is__template__: "648f1c2b9a1e4d0012ab34cd", fields: [] },
     },
     common_field_properties: {
       id: "Required, unique string across the whole form.",

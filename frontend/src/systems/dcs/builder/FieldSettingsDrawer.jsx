@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { dcs_translate } from "../i18n/index.js";
 import { generate_field_id, DCS_FIELD_TYPE_REGISTRY, DCS_SELECT_LIKE_TYPES } from "../fields/fieldTypes.js";
-import { build_validation_condition, DCS_VALIDATION_OPERATORS } from "./validationOperators.js";
+import { build_validation_condition, DCS_VALIDATION_OPERATORS, get_value_input_type } from "./validationOperators.js";
 import { DCS_FILE_TYPE_GROUPS } from "../fields/fileTypeGroups.js";
 import { DCS_FILE_SIZE_UNITS } from "../fields/fileSizeLimit.js";
 import { get_field_text, has_field_label, DCS_PARENT_GROUP_OPERATORS } from "../fields/fieldText.js";
@@ -550,7 +550,10 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
 
   const update_visibility = (patch) => {
     const next_ui = Object.assign({}, visibility_ui, patch);
-    const next_condition = next_ui.parent_field_id ? build_validation_condition(next_ui.parent_field_id, next_ui.operator, next_ui.value) : null;
+    const next_parent_field = other_fields.find((candidate_field) => candidate_field.id === next_ui.parent_field_id);
+    const next_condition = next_ui.parent_field_id
+      ? build_validation_condition(next_ui.parent_field_id, next_ui.operator, next_ui.value, null, null, next_parent_field ? next_parent_field.type : undefined)
+      : null;
     update({ visibility_condition_ui: next_ui, visibility_condition: next_condition });
   };
 
@@ -965,6 +968,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                             </select>
                           ) : (
                             <input
+                              type={get_value_input_type(group_parent_field ? group_parent_field.type : "text", group.operator || "equals")}
                               className="cok-auth-input w-full py-2"
                               value={group.value}
                               onChange={(event) => update_parent_option_group(group.id, { value: event.target.value })}
@@ -1139,6 +1143,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                             </select>
                           ) : (
                             <input
+                              type={get_value_input_type(cascading_parent_field ? cascading_parent_field.type : "text", "equals")}
                               className="cok-auth-input w-full py-3"
                               placeholder="parent value"
                               value={option.parent_value || ""}
@@ -1315,7 +1320,12 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                     ))}
                   </select>
                 ) : (
-                  <input className="cok-auth-input w-full py-3" value={visibility_ui.value} onChange={(event) => update_visibility({ value: event.target.value })} />
+                  <input
+                    type={get_value_input_type(visibility_parent_field ? visibility_parent_field.type : "text", visibility_ui.operator)}
+                    className="cok-auth-input w-full py-3"
+                    value={visibility_ui.value}
+                    onChange={(event) => update_visibility({ value: event.target.value })}
+                  />
                 )}
               </div>
               {visibility_tab_errors.map((entry, index) => (

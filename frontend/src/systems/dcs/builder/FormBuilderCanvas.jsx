@@ -34,6 +34,14 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
     onFieldsChange(insert_field_at(fields, fields.length - 1, new_field));
   };
 
+  // "add" keeps every field already on the canvas and appends the
+  // template's (checked) fields after them; "overwrite" replaces the whole
+  // canvas with just those fields, mirroring the JSON overlay's own
+  // replace-the-canvas behavior but scoped to only what was checked.
+  const handle_insert_template = (inserted_fields, mode) => {
+    onFieldsChange(mode === "overwrite" ? inserted_fields : fields.concat(inserted_fields));
+  };
+
   const handle_delete_field = (field_id) => {
     const removed_field = find_field_by_id(fields, field_id);
     onFieldsChange(delete_field_by_id(fields, field_id));
@@ -85,7 +93,7 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
         </SortableContext>
       </DndContext>
 
-      <AddComponentPanel onSelect={handle_add_component} />
+      <AddComponentPanel onSelect={handle_add_component} onInsertTemplate={handle_insert_template} />
     </div>
   );
 }

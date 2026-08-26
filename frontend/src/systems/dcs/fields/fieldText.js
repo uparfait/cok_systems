@@ -1,4 +1,17 @@
 /**
+ * A parent field's answer, trimmed when it is text - a respondent's
+ * accidental leading/trailing whitespace on that answer must never be the
+ * reason a cascading_select/parent-option-group comparison here fails to
+ * match, even though the parent field's own live value is never touched.
+ */
+function trimmed_lookup(all_values, field_id) {
+  const value = all_values ? all_values[field_id] : undefined;
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) return value.map((item) => (typeof item === "string" ? item.trim() : item));
+  return value;
+}
+
+/**
  * Reads a field-authored translated object (label, placeholder, help text,
  * messages) in the active language, falling back across the other
  * supported languages before returning an empty string.
@@ -31,7 +44,7 @@ export function get_parent_linked_options_state(field, all_values, is_builder) {
   if (!field.parent_field_id || is_builder) {
     return { visible_options: options, parent_unanswered: false };
   }
-  const parent_value = all_values ? all_values[field.parent_field_id] : undefined;
+  const parent_value = trimmed_lookup(all_values, field.parent_field_id);
   return {
     visible_options: options.filter((option) => option.parent_value === parent_value),
     parent_unanswered: parent_value === undefined || parent_value === null || parent_value === "",
@@ -116,7 +129,7 @@ export function get_field_options_state(field, all_values, is_builder) {
   const visible_options = [];
   groups.forEach((group) => {
     if (!group.parent_field_id) return;
-    const actual_value = all_values ? all_values[group.parent_field_id] : undefined;
+    const actual_value = trimmed_lookup(all_values, group.parent_field_id);
     if (!has_real_answer(actual_value)) return;
     if (evaluate_parent_group_condition(group.operator || "equals", actual_value, group.value)) {
       visible_options.push(...(group.options || []));

@@ -44,7 +44,12 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
 
   const format_valid_message = (field_id) => {
     if (!is_shown(field_id)) return undefined;
-    return fieldValidMessages ? fieldValidMessages[field_id] : undefined;
+    const entries = fieldValidMessages ? fieldValidMessages[field_id] : undefined;
+    if (!entries) return undefined;
+    // Every one of this field's rules that currently passes and has its
+    // own valid_message shows its own confirmation line, not just the
+    // first rule that happened to have one.
+    return Array.isArray(entries) ? entries.join("\n") : entries;
   };
 
   const render_field = (field) => {

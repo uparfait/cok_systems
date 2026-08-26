@@ -73,7 +73,7 @@ export default function RankingField({ field, language, mode, value, onChange, e
         </p>
       )}
       {!error && Array.isArray(value) && value.length > 0 && valid_message && (
-        <p className="mt-1 text-xs" style={{ color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
+        <p className="mt-1 text-xs" style={{ color: "#4CAF50", fontFamily: "'Montserrat', sans-serif", whiteSpace: "pre-line" }}>
           {valid_message}
         </p>
       )}

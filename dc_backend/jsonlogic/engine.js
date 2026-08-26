@@ -77,6 +77,33 @@ function evaluate_rule(rule, data) {
 }
 
 /**
+ * A trimmed clone of a data context, used only for evaluating conditions
+ * (visibility, computed formulas, mandatory, validation rules) - never for
+ * what actually gets stored or displayed. A respondent's stray leading or
+ * trailing whitespace (an accidental space, a mobile keyboard's auto-space,
+ * a copy-paste) must never be the reason a correct answer fails "equals",
+ * "starts_with"/"ends_with", a length check, or a regex pattern - but the
+ * live value must stay exactly as typed so a space the respondent is still
+ * in the middle of typing (e.g. between two words) is never silently eaten
+ * out from under them. Mirrors
+ * frontend/src/systems/dcs/jsonlogic/engine.js - keep both in sync.
+ */
+function build_trimmed_evaluation_data(data) {
+  const trimmed = {};
+  Object.keys(data || {}).forEach((key) => {
+    const value = data[key];
+    if (typeof value === "string") {
+      trimmed[key] = value.trim();
+    } else if (Array.isArray(value)) {
+      trimmed[key] = value.map((item) => (typeof item === "string" ? item.trim() : item));
+    } else {
+      trimmed[key] = value;
+    }
+  });
+  return trimmed;
+}
+
+/**
  * Collects every "var" path referenced anywhere inside a JSONLogic rule,
  * used to build the field dependency graph.
  */
@@ -106,5 +133,6 @@ module.exports = {
   evaluate_rule,
   is_valid_rule_structure,
   extract_variable_references,
+  build_trimmed_evaluation_data,
   MAX_RULE_DEPTH,
 };

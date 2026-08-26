@@ -1,4 +1,4 @@
-const { evaluate_rule } = require("./engine.js");
+const { evaluate_rule, build_trimmed_evaluation_data } = require("./engine.js");
 const { flatten_fields, build_dependency_graph, build_field_parent_map, is_visible_through_ancestors } = require("./dependency_graph.js");
 const { translate } = require("../i18n/index.js");
 const { file_extension_allowed } = require("../constants/file_type_groups.js");
@@ -136,15 +136,20 @@ function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_orde
       if (!field || !field.type) return;
 
       if (field.computed && field.computed.enabled && field.computed.formula) {
-        const computed_result = evaluate_rule(field.computed.formula, working_data);
+        const computed_result = evaluate_rule(field.computed.formula, build_trimmed_evaluation_data(working_data));
         working_data[field_id] = computed_result.value;
       }
 
+      // Evaluated against a trimmed snapshot so a respondent's accidental
+      // leading/trailing whitespace on an earlier answer never flips a
+      // later field's visibility - the stored/returned working_data itself
+      // is untouched.
+      const trimmed_data = build_trimmed_evaluation_data(working_data);
       const visibility_result = field.visibility_condition
-        ? evaluate_rule(field.visibility_condition, working_data)
+        ? evaluate_rule(field.visibility_condition, trimmed_data)
         : { value: true, error: null };
       own_visible_by_id.set(field_id, visibility_result.error ? true : visibility_result.value !== false);
-      own_locked_by_id.set(field_id, is_locked_by_parent_groups(field, working_data));
+      own_locked_by_id.set(field_id, is_locked_by_parent_groups(field, trimmed_data));
     });
 
     flat_fields.forEach((field) => {
@@ -200,6 +205,7 @@ function validate_submission_data(schema, submitted_data, language) {
   // section hidden by its own visibility_condition can contain a mandatory
   // child field with no visibility_condition of its own at all, and that
   // child was never actually shown to the respondent either.
+  const trimmed_data = build_trimmed_evaluation_data(working_data);
   flat_fields.forEach((field) => {
     if (!field || !field.type) return;
     const field_id = field.id;
@@ -224,7 +230,7 @@ function validate_submission_data(schema, submitted_data, language) {
 
     (field.validation_rules || []).forEach((validation_rule) => {
       if (!validation_rule.condition) return;
-      const rule_result = evaluate_rule(validation_rule.condition, working_data);
+      const rule_result = evaluate_rule(validation_rule.condition, trimmed_data);
       const satisfied = rule_result.error ? false : rule_result.value !== false;
       if (satisfied) return;
 
