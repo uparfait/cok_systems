@@ -53,6 +53,13 @@ export function useSubmissionsTable(form_group_id, version) {
     fetch_submissions({ page: 1, period, from, to, search, sort }, false);
   };
 
+  // Re-fetches the current page with whatever params were last applied -
+  // used after a row is deleted, so the table reflects it immediately
+  // instead of waiting for the next 10-second silent refresh.
+  const refresh = () => {
+    fetch_submissions(applied_params_ref.current, false);
+  };
+
   // Period/sort/version changes fetch immediately (custom range still needs
   // its own explicit Apply, same as the chart).
   useEffect(() => {
@@ -106,5 +113,6 @@ export function useSubmissionsTable(form_group_id, version) {
     loading,
     handle_page_change,
     handle_apply,
+    refresh,
   };
 }
