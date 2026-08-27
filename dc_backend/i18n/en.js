@@ -76,4 +76,12 @@ module.exports = {
   USER_EMAIL_REQUIRED: "An email address is required",
   USER_EMAIL_NOT_FOUND: "No account with this email exists in the system",
   USER_EMAIL_FOUND: "A matching account was found",
+  APPROVAL_CONFIG_INVALID: "The approval flow settings are not valid",
+  APPROVAL_NOT_FOUND: "This approval link does not exist",
+  APPROVAL_FETCHED: "Approval fetched successfully",
+  APPROVAL_DECISION_INVALID: "The decision must be approve or reject",
+  APPROVAL_ALREADY_DECIDED: "This approval has already been decided",
+  APPROVAL_NOT_YOUR_TURN: "It is not this approver's turn to act yet",
+  APPROVAL_SIGNATURE_REQUIRED: "A signature or digital certificate is required to approve",
+  APPROVAL_DECISION_RECORDED: "Your decision was recorded successfully",
 };
