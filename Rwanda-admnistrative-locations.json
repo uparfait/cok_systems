@@ -1,0 +1,34 @@
+ {
+    "Rwanda": {
+            "Provinces": [
+        {
+            "Name": "name",
+            "totalDistricts": 0,
+            "Districts": [
+                {
+                    "Name": "name",
+                    "totalSectors": 0,
+                    "Sectors": [
+                        {
+                            "Name": "name",
+                            "totalCells": 0,
+                            "Cells": [
+                                {
+                                    "Name": "name",
+                                    "totalVillages": 0,
+                                    "Villages": [
+                                        {
+                                            "Name": "name"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "totalProvinces": 0
+    }
+ }

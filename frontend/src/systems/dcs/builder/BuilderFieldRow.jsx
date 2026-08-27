@@ -12,7 +12,7 @@ import { build_design_styles } from "../renderer/designStyles.js";
  * without being individually draggable, and - unlike a Section's own
  * children - are never individually resizable or repositionable here.
  */
-export default function BuilderFieldRow({ field, language, onOpenSettings, onOpenChildSettings, onDelete, onFieldChange, renderChildField, getFieldError, autoOpenAddMenu }) {
+export default function BuilderFieldRow({ field, language, onOpenSettings, onOpenChildSettings, onDelete, onFieldChange, renderChildField, getFieldError, onRequestAddMenu }) {
   const { translate } = useDcsLanguage();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
   const FieldComponent = DCS_FIELD_RENDERER_MAP[field.type];
@@ -32,7 +32,7 @@ export default function BuilderFieldRow({ field, language, onOpenSettings, onOpe
       renderChildField={renderChildField}
       onOpenSettings={onOpenChildSettings}
       getFieldError={getFieldError}
-      autoOpenAddMenu={autoOpenAddMenu}
+      onRequestAddMenu={onRequestAddMenu}
     />
   );
 
