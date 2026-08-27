@@ -21,7 +21,7 @@ export default function DcFormBuilderSection(props) {
   );
 }
 
-function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishing, schemaErrors, publishLabelKey }) {
+function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishing, schemaErrors, publishLabelKey, resolveFieldOptions, resolveFullFieldOptions }) {
   const { translate } = useDcsLanguage();
   const { is_uploading, average_percent } = useDesignUpload();
   const [selected_field, setSelectedField] = useState(null);
@@ -103,6 +103,7 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
           onSave={handle_settings_save}
           onClose={handle_close_settings}
           fieldErrorInfo={selected_field_error}
+          resolveFullFieldOptions={resolveFullFieldOptions}
         />
       )}
 
@@ -113,6 +114,7 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
           uploadingFiles={is_uploading}
           uploadPercent={average_percent}
           publishLabelKey={publishLabelKey}
+          resolveFieldOptions={resolveFieldOptions}
           onClose={() => setIsReviewing(false)}
           onPublish={async () => {
             const did_succeed = await onPublish(schema);

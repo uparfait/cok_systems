@@ -11,19 +11,18 @@ import TemplateFieldPickerOverlay from "./TemplateFieldPickerOverlay.jsx";
  * The "Choose a component to add" picker: a scrollable list of every
  * form-design and data-collection component, opened as a fixed panel
  * anchored to the top of the viewport so it is always fully visible
- * without scrolling the page. Defaults to its own "+" trigger button, but
- * any caller needing a differently-styled (or multiple) trigger - e.g. a
- * group's own "Add field" button - can pass renderTrigger instead and get
- * the exact same overlay/picker behavior. initialOpen lets a caller start
- * it already open (e.g. a just-created, still-empty group). When
- * onInsertTemplate is provided, a Fields/Templates toggle appears at the
- * top: Fields is this same content/data list, Templates lists every saved
- * template - picking one opens TemplateFieldPickerOverlay to choose which
- * of its fields to bring in and whether to add or overwrite.
+ * without scrolling the page. A single controlled instance (isOpen/onClose)
+ * is shared by the whole builder - the top-level canvas and every group,
+ * however deeply nested, all open this exact same panel (targeting
+ * wherever the caller wants the result inserted) instead of each mounting
+ * its own separate copy with its own separate templates list/polling.
+ * When onInsertTemplate is provided, a Fields/Templates toggle appears at
+ * the top: Fields is this same content/data list, Templates lists every
+ * saved template - picking one opens TemplateFieldPickerOverlay to choose
+ * which of its fields to bring in and whether to add or overwrite.
  */
-export default function AddComponentPanel({ onSelect, onInsertTemplate, renderTrigger, initialOpen }) {
+export default function AddComponentPanel({ isOpen, onClose, onSelect, onInsertTemplate }) {
   const { translate } = useDcsLanguage();
-  const [is_open, setIsOpen] = useState(!!initialOpen);
   const [active_tab, setActiveTab] = useState("fields");
   const [templates, setTemplates] = useState([]);
   const [templates_loading, setTemplatesLoading] = useState(false);
@@ -50,7 +49,7 @@ export default function AddComponentPanel({ onSelect, onInsertTemplate, renderTr
 
   const supports_templates = !!onInsertTemplate;
 
-  // Deliberately keyed only on is_open/supports_templates, NOT on
+  // Deliberately keyed only on isOpen/supports_templates, NOT on
   // onInsertTemplate itself - a caller (e.g. FormBuilderCanvas) that
   // defines that callback inline gets a brand new function reference on
   // every one of its own re-renders (every keystroke anywhere on the
@@ -59,22 +58,22 @@ export default function AddComponentPanel({ onSelect, onInsertTemplate, renderTr
   // only on open and every 10s. handle_confirm_template_fields below still
   // always calls whatever onInsertTemplate the latest render passed in.
   useEffect(() => {
-    if (!is_open || !supports_templates) return;
+    if (!isOpen || !supports_templates) return;
     load_templates();
     const interval_id = window.setInterval(() => load_templates({ silent: true }), 10000);
     return () => window.clearInterval(interval_id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [is_open, supports_templates]);
+  }, [isOpen, supports_templates]);
 
   const handle_select = (field_type) => {
-    setIsOpen(false);
+    onClose();
     onSelect(field_type);
   };
 
   const handle_pick_template = async (template_summary) => {
     setOpeningTemplate(template_summary._id);
     try {
-      const response = await get_template(template_summary._id);
+      const response = await get_template(template_summary._id, { full: true });
       setPickerTemplate(response.data);
     } finally {
       setOpeningTemplate(null);
@@ -84,7 +83,7 @@ export default function AddComponentPanel({ onSelect, onInsertTemplate, renderTr
   const handle_confirm_template_fields = (selected_fields, mode) => {
     const cloned_fields = clone_selected_fields(picker_template.fields, selected_fields, picker_template._id);
     setPickerTemplate(null);
-    setIsOpen(false);
+    onClose();
     onInsertTemplate(cloned_fields, mode);
   };
 
@@ -119,28 +118,9 @@ export default function AddComponentPanel({ onSelect, onInsertTemplate, renderTr
 
   return (
     <>
-      {renderTrigger ? (
-        renderTrigger(() => setIsOpen(true))
-      ) : (
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => setIsOpen(true)}
-            className="cok-btn-outlined flex items-center justify-center"
-            style={{ width: 100, height: 40 }}
-            aria-label={translate("DCS_BTN_ADD_COMPONENT")}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        </div>
-      )}
-
-      {is_open && (
+      {isOpen && (
         <div className="fixed inset-0 z-[10000] flex items-start justify-center pt-10 px-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setIsOpen(false)} />
+          <div className="absolute inset-0 bg-black/40" onClick={onClose} />
           <div
             className="relative bg-white border-2 w-full flex flex-col"
             style={{ borderColor: "#E0E0E0", minWidth: "50vw", maxWidth: 900, maxHeight: "80vh" }}
@@ -149,7 +129,7 @@ export default function AddComponentPanel({ onSelect, onInsertTemplate, renderTr
               <p className="text-sm font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
                 {translate("DCS_PICKER_TITLE")}
               </p>
-              <DcsButtonOutline onClick={() => setIsOpen(false)}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutline>
+              <DcsButtonOutline onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutline>
             </div>
 
             {onInsertTemplate && (

@@ -25,7 +25,7 @@ import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
  * of its own to publish) and only the rehearsal itself and a Close button
  * show, with no publish action at all.
  */
-export default function ReviewOverlay({ schema, onClose, onPublish, publishing, uploadingFiles, uploadPercent, publishLabelKey }) {
+export default function ReviewOverlay({ schema, onClose, onPublish, publishing, uploadingFiles, uploadPercent, publishLabelKey, resolveFieldOptions }) {
   const { translate, language } = useDcsLanguage();
   const { showSuccess } = useToast();
   const [values, setValues] = useState({});
@@ -85,6 +85,7 @@ export default function ReviewOverlay({ schema, onClose, onPublish, publishing, 
           fieldErrors={field_errors}
           fieldValidMessages={field_valid_messages}
           revealAllErrors={reveal_all_errors}
+          resolveFieldOptions={resolveFieldOptions}
         />
 
         <DcsSubmitControl

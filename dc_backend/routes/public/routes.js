@@ -1,6 +1,7 @@
 const Router = require("express").Router();
 
 const get_public_form = require("../../controllers/forms/get_public_form.js");
+const get_public_form_field_options = require("../../controllers/forms/get_public_form_field_options.js");
 const submit_response = require("../../controllers/submissions/submit_response.js");
 const upload_file = require("../../controllers/public/upload_file.js");
 const delete_uploaded_file = require("../../controllers/public/delete_uploaded_file.js");
@@ -24,6 +25,18 @@ const { upload_submission_file, upload_approval_file } = require("../../utilitie
  *         description: Form link does not exist
  */
 Router.get("/forms/:form_group_id", get_public_form);
+
+/**
+ * @swagger
+ * /dcs/api/public/forms/{form_group_id}/field-options/{field_id}:
+ *   get:
+ *     summary: Resolve the real option content for one lazily-loaded select_group/cascading_select field (optionally filtered by a parent answer), no auth
+ *     tags: [Public]
+ *     responses:
+ *       200:
+ *         description: Form fetched successfully
+ */
+Router.get("/forms/:form_group_id/field-options/:field_id", get_public_form_field_options);
 
 /**
  * @swagger

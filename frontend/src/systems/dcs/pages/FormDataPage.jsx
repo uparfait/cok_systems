@@ -13,8 +13,18 @@ import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 
-const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group"];
+const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group", "image_block", "horizontal_line"];
 const MEDIA_ANSWER_TYPES = ["image", "video", "audio", "file_upload", "signature"];
+
+/**
+ * A field with no label authored in any language has nothing meaningful to
+ * head its own column with - rather than show a blank header, that column
+ * is left out of the table entirely, in every language, not only the one
+ * currently active.
+ */
+function has_any_label(field) {
+  return field.type === "geolocation" || ["en", "kn", "fr"].some((language_code) => !!get_field_text(field.label, language_code));
+}
 
 function build_rows(submissions, data_fields) {
   return (submissions || []).map((submission) => {
@@ -59,6 +69,7 @@ export default function FormDataPage() {
   const data_fields = flatten_fields(version_doc.schema.fields).filter((field) => !NON_DATA_TYPES.includes(field.type));
 
   const columns = data_fields
+    .filter(has_any_label)
     .map((field) =>
       Object.assign(
         // GeoLocation carries no question label of its own (see
