@@ -3,6 +3,7 @@ const projects_model = require("../../models/projects_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { resolve_template_placeholders } = require("../../jsonlogic/resolve_templates.js");
+const { validate_approval_config, normalize_approval_config } = require("../../utilities/approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 
@@ -15,7 +16,7 @@ const { is_valid_object_id } = require("../../utilities/object_id.js");
 async function create_form(req, res) {
   try {
     const { project_id } = req.params;
-    const { schema, form_name } = req.body || {};
+    const { schema, form_name, approval_config } = req.body || {};
 
     if (!is_valid_object_id(project_id)) {
       return res.status(400).json(warning_response(req, "INVALID_ID"));
@@ -51,11 +52,17 @@ async function create_form(req, res) {
       return res.status(409).json(warning_response(req, "FORM_NAME_TAKEN"));
     }
 
+    const approval_validation = validate_approval_config(approval_config);
+    if (!approval_validation.valid) {
+      return res.status(400).json(warning_response(req, "APPROVAL_CONFIG_INVALID", null, { errors: approval_validation.errors }));
+    }
+
     const form = await forms_model.create_form_version_one({
       project_id,
       form_name: form_name.toString().trim(),
       form_name_normalized: form_name.toString().trim().toLowerCase(),
       schema: resolved_schema,
+      approval_config: normalize_approval_config(approval_config),
       created_by: req.user.user_id.toString(),
       created_by_name: req.user.full_name,
     });

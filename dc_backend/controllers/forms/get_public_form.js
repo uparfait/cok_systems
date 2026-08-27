@@ -23,7 +23,13 @@ async function get_public_form(req, res) {
       return res.status(409).json(warning_response(req, "FORM_PUBLIC_NO_ACTIVE_VERSION"));
     }
 
-    return res.status(200).json(success_response(req, "FORM_FETCHED", active_form));
+    // Respondents only ever learn that approval exists - never the approvers' own details.
+    const { approval_config, ...public_form } = active_form;
+    if (approval_config && approval_config.enabled) {
+      public_form.approval_summary = { enabled: true, mode: approval_config.mode, approver_count: approval_config.approvers.length };
+    }
+
+    return res.status(200).json(success_response(req, "FORM_FETCHED", public_form));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }
