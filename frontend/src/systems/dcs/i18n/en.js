@@ -667,7 +667,8 @@ const en = {
   DCS_APPROVAL_CONFIG_INCOMPLETE: "Every approver needs a name, a role and a valid email",
 
   DCS_APPROVAL_LINK_PANEL_TITLE: "This response requires approval",
-  DCS_APPROVAL_LINK_SEND: "Send this approval link to {{name}} ({{role}}):",
+  DCS_APPROVAL_LINK_EMAILED: "The approval link was sent by email to {{name}} ({{role}})",
+  DCS_APPROVAL_EMAIL_FAILED: "The email to {{name}} ({{role}}) could not be sent - share this link manually:",
 
   DCS_APPROVAL_PAGE_TITLE: "Approval request",
   DCS_APPROVAL_NOT_FOUND: "This approval link does not exist",
@@ -691,7 +692,7 @@ const en = {
   DCS_APPROVAL_DECISION_DONE: "Your decision was recorded",
   DCS_APPROVAL_DONE_APPROVED: "You approved this request",
   DCS_APPROVAL_DONE_REJECTED: "You rejected this request",
-  DCS_APPROVAL_NEXT_LINK: "Send this link to the next approver, {{name}} ({{role}}):",
+  DCS_APPROVAL_NEXT_EMAILED: "The next approver, {{name}} ({{role}}), has been notified by email",
   DCS_APPROVAL_FINALIZED_APPROVED: "All approvers approved - this request is finalized",
   DCS_APPROVAL_FINALIZED_REJECTED: "This request was rejected",
   DCS_APPROVAL_NOT_TURN: "It is not your turn yet - a previous approver has not acted",

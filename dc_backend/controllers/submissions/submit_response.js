@@ -2,18 +2,21 @@ const forms_model = require("../../models/forms_model.js");
 const submissions_model = require("../../models/submissions_model.js");
 const { validate_submission_data } = require("../../jsonlogic/validate_submission.js");
 const { build_approval_state, get_active_steps } = require("../../utilities/approval.js");
+const { notify_approval_steps } = require("../../utilities/approval_email.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
-/** Strips every step token from a submission and exposes only the currently actionable approver links. */
-function to_submitter_view(submission) {
+/** Strips every step token; a link token is only handed back as a manual fallback when its email failed to send. */
+function to_submitter_view(submission, notified_steps) {
   if (!submission.approval) return submission;
-  const active_links = get_active_steps(submission.approval).map((step) => ({
-    level: step.level,
-    name: step.name,
-    role: step.role,
-    email: step.email,
-    token: step.token,
-  }));
+  const active_links = (notified_steps || get_active_steps(submission.approval).map((step) => Object.assign({ email_sent: true }, step))).map(
+    (step) => ({
+      level: step.level,
+      name: step.name,
+      role: step.role,
+      email_sent: step.email_sent,
+      token: step.email_sent ? undefined : step.token,
+    }),
+  );
   const approval = {
     status: submission.approval.status,
     mode: submission.approval.mode,
@@ -66,7 +69,13 @@ async function submit_response(req, res) {
       approval: build_approval_state(form_version.approval_config),
     });
 
-    return res.status(201).json(success_response(req, "SUBMISSION_CREATED", to_submitter_view(submission)));
+    // The system itself emails the approval link to whoever must act first (sequential: level 1; parallel: everyone).
+    let notified_steps = null;
+    if (submission.approval) {
+      notified_steps = await notify_approval_steps(req, form_version.form_name, get_active_steps(submission.approval));
+    }
+
+    return res.status(201).json(success_response(req, "SUBMISSION_CREATED", to_submitter_view(submission, notified_steps)));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }
