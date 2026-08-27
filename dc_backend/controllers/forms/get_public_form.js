@@ -1,4 +1,5 @@
 const forms_model = require("../../models/forms_model.js");
+const { strip_lazy_options_from_fields } = require("../../jsonlogic/lazy_options.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -23,7 +24,11 @@ async function get_public_form(req, res) {
       return res.status(409).json(warning_response(req, "FORM_PUBLIC_NO_ACTIVE_VERSION"));
     }
 
-    return res.status(200).json(success_response(req, "FORM_FETCHED", active_form));
+    const stripped_form = Object.assign({}, active_form, {
+      schema: Object.assign({}, active_form.schema, { fields: strip_lazy_options_from_fields(active_form.schema.fields) }),
+    });
+
+    return res.status(200).json(success_response(req, "FORM_FETCHED", stripped_form));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

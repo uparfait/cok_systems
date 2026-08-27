@@ -45,7 +45,7 @@ function DeleteSubmissionButton({ onClick, disabled }) {
   );
 }
 
-const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group"];
+const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group", "image_block", "horizontal_line"];
 const MEDIA_ANSWER_TYPES = ["image", "video", "audio", "file_upload", "signature"];
 
 /**
@@ -79,6 +79,16 @@ function build_column_entry(field, language, extra) {
   );
 }
 
+/**
+ * A field with no label authored in any language has nothing meaningful to
+ * head its own column with - rather than show a blank header, that column
+ * is left out of the table entirely, in every language, not only the one
+ * currently active.
+ */
+function has_any_label(field) {
+  return field.type === "geolocation" || ["en", "kn", "fr"].some((language_code) => !!get_field_text(field.label, language_code));
+}
+
 function build_diffed_columns(versions, language) {
   const active_version_doc = versions.find((entry) => entry.is_active) || versions[0];
   if (!active_version_doc) return { columns: [], field_type_by_id: new Map(), has_diff: false };
@@ -89,7 +99,7 @@ function build_diffed_columns(versions, language) {
   if (versions.length <= 1) {
     return {
       columns: [
-        ...active_fields.map((field) => build_column_entry(field, language)),
+        ...active_fields.filter(has_any_label).map((field) => build_column_entry(field, language)),
         { key: "version", labelKey: "DCS_TABLE_VERSION" },
         { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" },
       ],
@@ -117,10 +127,10 @@ function build_diffed_columns(versions, language) {
   active_fields.forEach((field) => field_type_by_id.set(field.id, field.type));
   removed_field_defs.forEach((field) => field_type_by_id.set(field.id, field.type));
 
-  const active_columns = active_fields.map((field) =>
-    build_column_entry(field, language, { tint: field_ids_in_other_versions.has(field.id) ? undefined : "green" }),
-  );
-  const removed_columns = removed_field_defs.map((field) => build_column_entry(field, language, { tint: "red" }));
+  const active_columns = active_fields
+    .filter(has_any_label)
+    .map((field) => build_column_entry(field, language, { tint: field_ids_in_other_versions.has(field.id) ? undefined : "green" }));
+  const removed_columns = removed_field_defs.filter(has_any_label).map((field) => build_column_entry(field, language, { tint: "red" }));
 
   const has_diff = active_columns.some((column) => column.tint) || removed_columns.length > 0;
 

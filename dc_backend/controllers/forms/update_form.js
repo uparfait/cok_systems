@@ -4,6 +4,7 @@ const project_access = require("../../utilities/project_access.js");
 const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { has_data_field_set_changed } = require("../../jsonlogic/schema_diff.js");
 const { resolve_template_placeholders } = require("../../jsonlogic/resolve_templates.js");
+const { merge_lazy_fields } = require("../../jsonlogic/lazy_options.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -40,11 +41,18 @@ async function update_form(req, res) {
       return res.status(400).json(warning_response(req, "FORM_NAME_REQUIRED"));
     }
 
+    // The builder only ever loads a huge select_group/cascading_select
+    // field's real options once its own settings are opened (see
+    // jsonlogic/lazy_options.js) - an edit that never touched one still
+    // carries it as an empty placeholder, so its real, already-stored
+    // content is restored here before anything is validated or saved.
+    const merged_fields = merge_lazy_fields((schema && schema.fields) || [], active_version.schema.fields || []);
+
     // A safety net, not the primary path - the builder already expands any
     // __is__template__ placeholder itself before ever calling this
     // endpoint, but a hand-crafted or offline-stale payload must never be
     // allowed to persist an unresolved reference.
-    const resolved_schema = { fields: await resolve_template_placeholders((schema && schema.fields) || []) };
+    const resolved_schema = { fields: await resolve_template_placeholders(merged_fields) };
 
     const validation_result = validate_form_schema(resolved_schema);
     if (!validation_result.valid) {

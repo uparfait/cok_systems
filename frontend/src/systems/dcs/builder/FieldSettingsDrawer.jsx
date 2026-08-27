@@ -20,7 +20,7 @@ const PARENT_GROUP_OPERATOR_LABEL_KEYS = {
   less_than: "OP_LESS_THAN",
   greater_than: "OP_GREATER_THAN",
 };
-const NON_LABEL_TYPES = ["paragraph", "file", "geolocation"];
+const NON_LABEL_TYPES = ["paragraph", "file", "geolocation", "group"];
 const NON_INPUT_TYPES = ["paragraph", "header", "file", "group", "section"];
 const OPTION_TYPES = ["single_select", "multi_select", "ranking", "select_group"];
 const VISIBILITY_OPERATORS = DCS_VALIDATION_OPERATORS.filter((operator) => !operator.needsParent);
@@ -236,9 +236,10 @@ function compute_initial_position(anchorRect) {
  * horizontal line) only ever show Designs and Conditional Visibility,
  * since their own content is authored inline in the canvas.
  */
-export default function FieldSettingsDrawer({ field, allFields, onSave, onClose, anchorRect, fieldErrorInfo }) {
+export default function FieldSettingsDrawer({ field, allFields, onSave, onClose, anchorRect, fieldErrorInfo, resolveFullFieldOptions }) {
   const { translate } = useDcsLanguage();
   const [draft, setDraft] = useState(field);
+  const [loading_full_options, setLoadingFullOptions] = useState(false);
   const [entered_data, setEnteredData] = useState(() => build_entered_data_from_options(field.options));
   // Same Entered Data convenience as the flat options editor, but one per
   // parent-option-group (keyed by the group's own id) - a group not yet
@@ -285,6 +286,24 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
     setActiveTab(first_error_tab || tabs[0]);
     setPosition(compute_initial_position(anchorRect));
     setPanelHeight(DEFAULT_PANEL_HEIGHT);
+
+    // This exact field's real options were never sent down at all (see
+    // dc_backend/jsonlogic/lazy_options.js) - opening its own settings is
+    // the "click" that finally loads them, merged into the draft (and the
+    // quick-entry text derived from them) once they arrive, never
+    // overwriting whatever else the author may have already changed here.
+    if (field.lazy_options && resolveFullFieldOptions) {
+      setLoadingFullOptions(true);
+      resolveFullFieldOptions(field.id)
+        .then((data) => {
+          if (!data) return;
+          setDraft((previous) => (previous.id === field.id ? Object.assign({}, previous, data, { lazy_options: undefined, options_count: undefined }) : previous));
+          if (data.options) setEnteredData(build_entered_data_from_options(data.options));
+        })
+        .finally(() => setLoadingFullOptions(false));
+    } else {
+      setLoadingFullOptions(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [field.id]);
 
@@ -593,6 +612,15 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
         </span>
         <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
       </div>
+
+      {loading_full_options && (
+        <div className="px-4 py-2 flex-shrink-0 flex items-center gap-2" style={{ backgroundColor: "rgba(5,109,170,0.08)" }}>
+          <span className="dcs-inline-spinner" style={{ color: "#056daa", flexShrink: 0 }} />
+          <p className="text-xs" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
+            {translate("DCS_FIELD_OPTIONS_LOADING")}
+          </p>
+        </div>
+      )}
 
       {has_field_errors && (
         <div className="px-4 py-2 flex-shrink-0" style={{ backgroundColor: "rgba(231,76,60,0.1)" }}>
