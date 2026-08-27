@@ -76,4 +76,12 @@ module.exports = {
   USER_EMAIL_REQUIRED: "Aderesi ya imeyili irasabwa",
   USER_EMAIL_NOT_FOUND: "Nta konti ifite iyi imeyili ibaho muri sisitemu",
   USER_EMAIL_FOUND: "Konti ihuye yabonetse",
+  APPROVAL_CONFIG_INVALID: "Igenamiterere ry'uburyo bwo kwemeza ntabwo ari ryo",
+  APPROVAL_NOT_FOUND: "Iri huza ryo kwemeza ntiribaho",
+  APPROVAL_FETCHED: "Icyemezo cyabonetse neza",
+  APPROVAL_DECISION_INVALID: "Icyemezo kigomba kuba kwemera cyangwa kwanga",
+  APPROVAL_ALREADY_DECIDED: "Iki cyemezo cyamaze gufatwa",
+  APPROVAL_NOT_YOUR_TURN: "Ntabwo ari igihe cy'uyu wemeza ngo akore",
+  APPROVAL_SIGNATURE_REQUIRED: "Umukono cyangwa icyemezo cya digitale birasabwa kugira ngo wemeze",
+  APPROVAL_DECISION_RECORDED: "Icyemezo cyawe cyanditswe neza",
 };

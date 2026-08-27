@@ -1,7 +1,27 @@
 const forms_model = require("../../models/forms_model.js");
 const submissions_model = require("../../models/submissions_model.js");
 const { validate_submission_data } = require("../../jsonlogic/validate_submission.js");
+const { build_approval_state, get_active_steps } = require("../../utilities/approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
+
+/** Strips every step token from a submission and exposes only the currently actionable approver links. */
+function to_submitter_view(submission) {
+  if (!submission.approval) return submission;
+  const active_links = get_active_steps(submission.approval).map((step) => ({
+    level: step.level,
+    name: step.name,
+    role: step.role,
+    email: step.email,
+    token: step.token,
+  }));
+  const approval = {
+    status: submission.approval.status,
+    mode: submission.approval.mode,
+    approver_count: submission.approval.steps.length,
+    active_links,
+  };
+  return Object.assign({}, submission, { approval });
+}
 
 /**
  * Public, no-auth submission endpoint. Re-validates the payload against the
@@ -21,7 +41,7 @@ async function submit_response(req, res) {
     if (client_submission_id) {
       const existing_submission = await submissions_model.find_by_client_submission_id(client_submission_id);
       if (existing_submission) {
-        return res.status(200).json(success_response(req, "SUBMISSION_CREATED", existing_submission));
+        return res.status(200).json(success_response(req, "SUBMISSION_CREATED", to_submitter_view(existing_submission)));
       }
     }
 
@@ -43,9 +63,10 @@ async function submit_response(req, res) {
       project_id: form_version.project_id,
       data: validation_result.resolved_data,
       client_submission_id: client_submission_id || null,
+      approval: build_approval_state(form_version.approval_config),
     });
 
-    return res.status(201).json(success_response(req, "SUBMISSION_CREATED", submission));
+    return res.status(201).json(success_response(req, "SUBMISSION_CREATED", to_submitter_view(submission)));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

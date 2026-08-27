@@ -92,6 +92,7 @@ import TemplatesListPage from "./systems/dcs/pages/TemplatesListPage.jsx";
 import NewTemplatePage from "./systems/dcs/pages/NewTemplatePage.jsx";
 import TemplateSettingsPage from "./systems/dcs/pages/TemplateSettingsPage.jsx";
 import PublicFormPage from "./systems/dcs/pages/PublicFormPage.jsx";
+import ApprovalPage from "./systems/dcs/pages/ApprovalPage.jsx";
 // Head of Department pages
 import HodEmployeesPage from "./systems/serviceDelivery/pages/hod/HodEmployeesPage";
 import HodTasksPage from "./systems/serviceDelivery/pages/hod/HodTasksPage";
@@ -880,6 +881,7 @@ const App: React.FC = () => {
                 </Route>
 
                 <Route path="/dcs-form/:id" element={<PublicFormPage />} />
+                <Route path="/dcs-approval/:token" element={<ApprovalPage />} />
 
                 {/* route for unknown route move to under development */}
                 <Route

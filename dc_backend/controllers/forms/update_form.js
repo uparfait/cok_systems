@@ -5,6 +5,7 @@ const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { has_data_field_set_changed } = require("../../jsonlogic/schema_diff.js");
 const { resolve_template_placeholders } = require("../../jsonlogic/resolve_templates.js");
 const { merge_lazy_fields } = require("../../jsonlogic/lazy_options.js");
+const { validate_approval_config, normalize_approval_config } = require("../../utilities/approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -19,7 +20,7 @@ const { success_response, warning_response, error_response } = require("../../ut
 async function update_form(req, res) {
   try {
     const { form_group_id } = req.params;
-    const { schema, form_name } = req.body || {};
+    const { schema, form_name, approval_config } = req.body || {};
 
     if (!form_group_id) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
@@ -64,6 +65,14 @@ async function update_form(req, res) {
       return res.status(409).json(warning_response(req, "FORM_NAME_TAKEN"));
     }
 
+    const approval_validation = validate_approval_config(approval_config);
+    if (!approval_validation.valid) {
+      return res.status(400).json(warning_response(req, "APPROVAL_CONFIG_INVALID", null, { errors: approval_validation.errors }));
+    }
+    // An omitted approval_config keeps whatever the active version already had.
+    const next_approval_config =
+      approval_config === undefined ? active_version.approval_config || null : normalize_approval_config(approval_config);
+
     const should_bump_version = has_data_field_set_changed(active_version.schema, resolved_schema);
 
     const form = should_bump_version
@@ -72,6 +81,7 @@ async function update_form(req, res) {
           form_name: next_form_name,
           form_name_normalized: next_form_name.toLowerCase(),
           schema: resolved_schema,
+          approval_config: next_approval_config,
           created_by: req.user.user_id.toString(),
           created_by_name: req.user.full_name,
         })
@@ -79,6 +89,7 @@ async function update_form(req, res) {
           form_name: next_form_name,
           form_name_normalized: next_form_name.toLowerCase(),
           schema: resolved_schema,
+          approval_config: next_approval_config,
           updated_by: req.user.user_id.toString(),
           updated_by_name: req.user.full_name,
         });

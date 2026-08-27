@@ -42,6 +42,17 @@ async function create_submission(submission_data) {
   return Object.assign({ _id: result.insertedId }, document);
 }
 
+/** Finds the submission owning an approval step token - the token is the approver's whole credential. */
+async function find_by_approval_token(token) {
+  if (!token) return null;
+  return get_db().collection(COLLECTION_NAME).findOne({ "approval.steps.token": token });
+}
+
+/** Persists a submission's whole updated approval state after a decision. */
+async function update_submission_approval(submission_id, approval) {
+  await get_db().collection(COLLECTION_NAME).updateOne({ _id: submission_id }, { $set: { approval } });
+}
+
 /**
  * True when a submission with this client-generated idempotency key has
  * already been stored, so the offline sync retry loop never double-submits.
@@ -249,6 +260,8 @@ async function delete_by_form_group_and_version(form_group_id, version) {
 module.exports = {
   ensure_submission_indexes,
   create_submission,
+  find_by_approval_token,
+  update_submission_approval,
   find_by_client_submission_id,
   find_submission_by_id,
   list_submissions,
