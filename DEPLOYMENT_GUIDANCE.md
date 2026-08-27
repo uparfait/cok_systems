@@ -447,12 +447,9 @@ No advanced monitoring dashboard is installed by default. You can add one later 
 
 ### Contacts
 
-- **System Owner**: City of Kigali Information Technology Department
-- **Email**: cokservicedelivery@gmail.com
+
 - **Production Domain**: uat-ikaze.kigalicity.gov.rw
 
 ### Version History
 
-| Version | Date | Author | Changes |
-|---|---|---|---|
-| 1.0 | 2026-07-24 | IKAZE Team | Initial deployment guide based on current production setup |
+
