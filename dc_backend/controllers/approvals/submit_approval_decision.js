@@ -1,5 +1,7 @@
 const submissions_model = require("../../models/submissions_model.js");
+const forms_model = require("../../models/forms_model.js");
 const { can_step_act, apply_approval_decision, get_active_steps, public_approval_trail } = require("../../utilities/approval.js");
+const { notify_approval_steps } = require("../../utilities/approval_email.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 const SIGNATURE_KINDS = ["drawn", "certificate"];
@@ -60,20 +62,25 @@ async function submit_approval_decision(req, res) {
     apply_approval_decision(approval, step, decision, comment ? comment.toString().trim() : null, clean_signature);
     await submissions_model.update_submission_approval(submission._id, approval);
 
-    // Sequential flows hand the next approver's link back so whoever just acted can pass it on.
-    const next_steps = get_active_steps(approval).map((entry) => ({
-      level: entry.level,
-      name: entry.name,
-      role: entry.role,
-      email: entry.email,
-      token: entry.token,
-    }));
+    // Sequential flows: the system itself emails the next approver; a link token only comes back as a manual fallback when the email failed.
+    let next_approvers = [];
+    if (approval.mode === "sequential" && approval.status === "pending") {
+      const form_version = await forms_model.get_version_document(submission.form_group_id, submission.version);
+      const notified = await notify_approval_steps(req, (form_version && form_version.form_name) || "Form", get_active_steps(approval));
+      next_approvers = notified.map((entry) => ({
+        level: entry.level,
+        name: entry.name,
+        role: entry.role,
+        email_sent: entry.email_sent,
+        token: entry.email_sent ? undefined : entry.token,
+      }));
+    }
 
     return res.status(200).json(
       success_response(req, "APPROVAL_DECISION_RECORDED", {
         overall_status: approval.status,
         decision: step.status,
-        next_links: approval.mode === "sequential" ? next_steps : [],
+        next_approvers,
         trail: public_approval_trail(approval),
       }),
     );

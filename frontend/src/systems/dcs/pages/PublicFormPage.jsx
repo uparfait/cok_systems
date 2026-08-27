@@ -503,13 +503,20 @@ function PublicFormPageContent() {
             </button>
           </div>
           {approval_notices.map((notice, notice_index) =>
-            notice.links.map((link_info) => {
+            notice.links.map((link_info, link_index) => {
+              if (link_info.email_sent) {
+                return (
+                  <p key={`${notice_index}_${link_index}`} className="mt-3 text-sm px-3 py-2" style={{ backgroundColor: "rgba(76,175,80,0.12)", color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
+                    {translate("DCS_APPROVAL_LINK_EMAILED", { name: link_info.name, role: link_info.role })}
+                  </p>
+                );
+              }
               const approval_link = build_approval_link(link_info.token);
               return (
-                <div key={`${notice_index}_${link_info.token}`} className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+                <div key={`${notice_index}_${link_index}`} className="mt-3 flex items-center justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-                      {translate("DCS_APPROVAL_LINK_SEND", { name: link_info.name, role: link_info.role })}
+                    <p className="text-xs font-semibold" style={{ color: "#F39C12", fontFamily: "'Montserrat', sans-serif" }}>
+                      {translate("DCS_APPROVAL_EMAIL_FAILED", { name: link_info.name, role: link_info.role })}
                     </p>
                     <p className="truncate text-sm" style={{ color: "#056daa" }} title={approval_link}>
                       {approval_link}

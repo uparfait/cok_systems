@@ -667,7 +667,8 @@ const fr = {
   DCS_APPROVAL_CONFIG_INCOMPLETE: "Chaque approbateur doit avoir un nom, un rôle et un e-mail valide",
 
   DCS_APPROVAL_LINK_PANEL_TITLE: "Cette réponse nécessite une approbation",
-  DCS_APPROVAL_LINK_SEND: "Envoyez ce lien d'approbation à {{name}} ({{role}}) :",
+  DCS_APPROVAL_LINK_EMAILED: "Le lien d'approbation a été envoyé par e-mail à {{name}} ({{role}})",
+  DCS_APPROVAL_EMAIL_FAILED: "L'e-mail à {{name}} ({{role}}) n'a pas pu être envoyé - partagez ce lien manuellement :",
 
   DCS_APPROVAL_PAGE_TITLE: "Demande d'approbation",
   DCS_APPROVAL_NOT_FOUND: "Ce lien d'approbation n'existe pas",
@@ -691,7 +692,7 @@ const fr = {
   DCS_APPROVAL_DECISION_DONE: "Votre décision a été enregistrée",
   DCS_APPROVAL_DONE_APPROVED: "Vous avez approuvé cette demande",
   DCS_APPROVAL_DONE_REJECTED: "Vous avez rejeté cette demande",
-  DCS_APPROVAL_NEXT_LINK: "Envoyez ce lien au prochain approbateur, {{name}} ({{role}}) :",
+  DCS_APPROVAL_NEXT_EMAILED: "Le prochain approbateur, {{name}} ({{role}}), a été notifié par e-mail",
   DCS_APPROVAL_FINALIZED_APPROVED: "Tous les approbateurs ont approuvé - cette demande est finalisée",
   DCS_APPROVAL_FINALIZED_REJECTED: "Cette demande a été rejetée",
   DCS_APPROVAL_NOT_TURN: "Ce n'est pas encore votre tour - un approbateur précédent n'a pas encore agi",

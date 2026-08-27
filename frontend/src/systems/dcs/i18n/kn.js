@@ -667,7 +667,8 @@ const kn = {
   DCS_APPROVAL_CONFIG_INCOMPLETE: "Buri mwemezi agomba kugira izina, umwanya n'imeyili yemewe",
 
   DCS_APPROVAL_LINK_PANEL_TITLE: "Iki gisubizo gisaba kwemezwa",
-  DCS_APPROVAL_LINK_SEND: "Ohereza iri huza ryo kwemeza kuri {{name}} ({{role}}):",
+  DCS_APPROVAL_LINK_EMAILED: "Ihuza ryo kwemeza ryoherejwe kuri imeyili ya {{name}} ({{role}})",
+  DCS_APPROVAL_EMAIL_FAILED: "Imeyili kuri {{name}} ({{role}}) ntiyagiye - sangiza iri huza wenyine:",
 
   DCS_APPROVAL_PAGE_TITLE: "Gusaba kwemezwa",
   DCS_APPROVAL_NOT_FOUND: "Iri huza ryo kwemeza ntiribaho",
@@ -691,7 +692,7 @@ const kn = {
   DCS_APPROVAL_DECISION_DONE: "Icyemezo cyawe cyanditswe",
   DCS_APPROVAL_DONE_APPROVED: "Wemeje iki cyifuzo",
   DCS_APPROVAL_DONE_REJECTED: "Wanze iki cyifuzo",
-  DCS_APPROVAL_NEXT_LINK: "Ohereza iri huza ku mwemezi ukurikira, {{name}} ({{role}}):",
+  DCS_APPROVAL_NEXT_EMAILED: "Umwemezi ukurikira, {{name}} ({{role}}), yamenyeshejwe kuri imeyili",
   DCS_APPROVAL_FINALIZED_APPROVED: "Abemeza bose bemeje - iki cyifuzo cyemejwe burundu",
   DCS_APPROVAL_FINALIZED_REJECTED: "Iki cyifuzo cyanzwe",
   DCS_APPROVAL_NOT_TURN: "Ntabwo ari igihe cyawe - umwemezi wa mbere ntarakora",
