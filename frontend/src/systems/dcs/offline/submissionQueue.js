@@ -138,17 +138,23 @@ export async function process_queue_once(on_item_result, on_file_progress) {
   const queue = await read_queue();
   let sent_count = 0;
   let blocked_item = null;
+  const approval_notices = [];
 
   for (const item of queue) {
     if (item.status !== "pending") continue;
 
     try {
       const uploaded_data = await upload_pending_files(item, on_file_progress);
-      await submit_response(item.form_group_id, {
+      const response = await submit_response(item.form_group_id, {
         version: item.version,
         data: uploaded_data,
         client_submission_id: item.client_submission_id,
       });
+      // A response to an approval-gated form hands back the first actionable approver link(s) to pass on.
+      const approval = response && response.data && response.data.approval;
+      if (approval && Array.isArray(approval.active_links) && approval.active_links.length > 0) {
+        approval_notices.push({ form_group_id: item.form_group_id, mode: approval.mode, links: approval.active_links });
+      }
       await remove_from_queue(item.id);
       sent_count += 1;
       if (on_item_result) await on_item_result({ item, sent: true });
@@ -167,7 +173,7 @@ export async function process_queue_once(on_item_result, on_file_progress) {
     }
   }
 
-  return { sent_count, blocked_item };
+  return { sent_count, blocked_item, approval_notices };
 }
 
 /**

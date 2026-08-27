@@ -76,4 +76,12 @@ module.exports = {
   USER_EMAIL_REQUIRED: "Une adresse e-mail est requise",
   USER_EMAIL_NOT_FOUND: "Aucun compte avec cet e-mail n'existe dans le système",
   USER_EMAIL_FOUND: "Un compte correspondant a été trouvé",
+  APPROVAL_CONFIG_INVALID: "Les paramètres du flux d'approbation ne sont pas valides",
+  APPROVAL_NOT_FOUND: "Ce lien d'approbation n'existe pas",
+  APPROVAL_FETCHED: "Approbation récupérée avec succès",
+  APPROVAL_DECISION_INVALID: "La décision doit être approuver ou rejeter",
+  APPROVAL_ALREADY_DECIDED: "Cette approbation a déjà été décidée",
+  APPROVAL_NOT_YOUR_TURN: "Ce n'est pas encore le tour de cet approbateur",
+  APPROVAL_SIGNATURE_REQUIRED: "Une signature ou un certificat numérique est requis pour approuver",
+  APPROVAL_DECISION_RECORDED: "Votre décision a été enregistrée avec succès",
 };

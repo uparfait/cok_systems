@@ -4,6 +4,7 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { create_form } from "../services/formsService.js";
 import DcFormBuilderSection from "../builder/DcFormBuilderSection.jsx";
+import ApprovalFlowSection, { is_approval_config_complete } from "../builder/ApprovalFlowSection.jsx";
 import DcsFormNameField from "../components/DcsFormNameField.jsx";
 
 /**
@@ -19,6 +20,7 @@ export default function NewFormPage() {
 
   const [fields, setFields] = useState([]);
   const [form_name, setFormName] = useState("");
+  const [approval_config, setApprovalConfig] = useState(null);
   const [publishing, setPublishing] = useState(false);
   const [schema_errors, setSchemaErrors] = useState([]);
 
@@ -28,9 +30,13 @@ export default function NewFormPage() {
   };
 
   const handle_publish = async (schema) => {
+    if (!is_approval_config_complete(approval_config)) {
+      showError(translate("DCS_APPROVAL_CONFIG_INCOMPLETE"));
+      return false;
+    }
     setPublishing(true);
     try {
-      const response = await create_form(project_id, form_name, schema);
+      const response = await create_form(project_id, form_name, schema, approval_config);
       showSuccess(translate("DCS_TOAST_FORM_PUBLISHED"));
       navigate(`/dcs-system/project/${project_id}/forms/${response.data.form_group_id}/details`);
       return true;
@@ -57,6 +63,7 @@ export default function NewFormPage() {
           publishing={publishing}
           schemaErrors={schema_errors}
         />
+        <ApprovalFlowSection value={approval_config} onChange={setApprovalConfig} />
       </div>
     </div>
   );
