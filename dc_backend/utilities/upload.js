@@ -6,8 +6,10 @@ const config = require("../configurations/config.js");
 
 const SUBMISSION_UPLOAD_DIR = path.join(__dirname, "..", config.upload_dir, "submissions");
 const DESIGN_UPLOAD_DIR = path.join(__dirname, "..", config.upload_dir, "design");
+const APPROVAL_UPLOAD_DIR = path.join(__dirname, "..", config.upload_dir, "approvals");
 fs.mkdirSync(SUBMISSION_UPLOAD_DIR, { recursive: true });
 fs.mkdirSync(DESIGN_UPLOAD_DIR, { recursive: true });
+fs.mkdirSync(APPROVAL_UPLOAD_DIR, { recursive: true });
 
 function make_disk_storage(destination) {
   return multer.diskStorage({
@@ -48,4 +50,9 @@ const upload_design_file = multer({
   storage: make_disk_storage(DESIGN_UPLOAD_DIR),
 });
 
-module.exports = { upload_submission_file, upload_design_file };
+/** Disk storage for an approver's drawn signature PNG or uploaded digital certificate - same "URL only, never bytes in Mongo" rule. */
+const upload_approval_file = multer({
+  storage: make_disk_storage(APPROVAL_UPLOAD_DIR),
+});
+
+module.exports = { upload_submission_file, upload_design_file, upload_approval_file };

@@ -4,6 +4,7 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { update_form } from "../services/formsService.js";
 import DcFormBuilderSection from "../builder/DcFormBuilderSection.jsx";
+import ApprovalFlowSection, { is_approval_config_complete } from "../builder/ApprovalFlowSection.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsFormNameField from "../components/DcsFormNameField.jsx";
 
@@ -19,6 +20,7 @@ export default function FormSettingsPage() {
   const { showSuccess, showError } = useToast();
   const [fields, setFields] = useState(form.schema.fields);
   const [form_name, setFormName] = useState(form.form_name || "");
+  const [approval_config, setApprovalConfig] = useState(form.approval_config || null);
   const [publishing, setPublishing] = useState(false);
   const [schema_errors, setSchemaErrors] = useState([]);
   const loaded_form_id_ref = useRef(form._id);
@@ -45,6 +47,7 @@ export default function FormSettingsPage() {
     loaded_form_id_ref.current = form._id;
     setFields(form.schema.fields);
     setFormName(form.form_name || "");
+    setApprovalConfig(form.approval_config || null);
   }, [form]);
 
   const public_link = `${window.location.origin}/dcs-form/${form_group_id}`;
@@ -55,9 +58,13 @@ export default function FormSettingsPage() {
   };
 
   const handle_publish = async (schema) => {
+    if (!is_approval_config_complete(approval_config)) {
+      showError(translate("DCS_APPROVAL_CONFIG_INCOMPLETE"));
+      return false;
+    }
     setPublishing(true);
     try {
-      const response = await update_form(form_group_id, form_name, schema);
+      const response = await update_form(form_group_id, form_name, schema, approval_config);
       setSchemaErrors([]);
       showSuccess(response.message || translate("DCS_TOAST_FORM_PUBLISHED"));
       refreshForm();
@@ -94,6 +101,7 @@ export default function FormSettingsPage() {
           publishing={publishing}
           schemaErrors={schema_errors}
         />
+        <ApprovalFlowSection value={approval_config} onChange={setApprovalConfig} />
       </div>
     </div>
   );
