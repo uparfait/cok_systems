@@ -15,31 +15,62 @@ import DcsEmptyState from "../components/DcsEmptyState.jsx";
 /**
  * The drag-and-drop form builder canvas: every question shows an "add
  * below" trigger, a settings gear and a delete button, and can be
- * reordered by dragging its handle.
+ * reordered by dragging its handle. Exactly one AddComponentPanel exists
+ * for the whole canvas - the top-level "+" trigger and every group's own
+ * "Add field" button (however deeply nested) all open this same shared
+ * instance rather than each mounting a separate copy with its own
+ * separate templates list/polling; add_panel_group_id tracks which one
+ * (null for the top-level canvas itself) the next pick actually goes into.
  */
 export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettings, getFieldError }) {
-  const { language } = useDcsLanguage();
-  // A brand new group starts with zero children - popping its own "Add
-  // field" menu open the instant it lands saves the extra click of finding
-  // and pressing that button on an otherwise-empty box. Keyed by the new
-  // field's own id, so only that exact group (never an older one reusing
-  // the UI) ever auto-opens; GroupField only reads this once, as its
-  // initial state on first mount, so a stale id lingering here afterward
-  // is harmless.
-  const [auto_open_group_id, setAutoOpenGroupId] = useState(null);
+  const { language, translate } = useDcsLanguage();
+  const [is_add_panel_open, setIsAddPanelOpen] = useState(false);
+  const [add_panel_group_id, setAddPanelGroupId] = useState(null);
+
+  const open_add_panel = (group_id) => {
+    setAddPanelGroupId(group_id || null);
+    setIsAddPanelOpen(true);
+  };
 
   const handle_add_component = (field_type) => {
     const new_field = create_blank_field(field_type);
-    if (field_type === "group") setAutoOpenGroupId(new_field.id);
-    onFieldsChange(insert_field_at(fields, fields.length - 1, new_field));
+    if (add_panel_group_id) {
+      onFieldsChange(
+        update_field_by_id(fields, add_panel_group_id, (group) =>
+          Object.assign({}, group, { children: (group.children || []).concat([new_field]) }),
+        ),
+      );
+    } else {
+      onFieldsChange(insert_field_at(fields, fields.length - 1, new_field));
+    }
+    // A brand new group starts with zero children - keeping the panel open,
+    // now targeting straight at it, saves the extra click of finding and
+    // pressing its own "Add field" trigger on an otherwise-empty box.
+    if (field_type === "group") {
+      setAddPanelGroupId(new_field.id);
+    } else {
+      setIsAddPanelOpen(false);
+    }
   };
 
-  // "add" keeps every field already on the canvas and appends the
-  // template's (checked) fields after them; "overwrite" replaces the whole
-  // canvas with just those fields, mirroring the JSON overlay's own
-  // replace-the-canvas behavior but scoped to only what was checked.
+  // "add" keeps every field already in the target (the canvas, or one
+  // group's own children) and appends the template's (checked) fields
+  // after them; "overwrite" replaces the whole target with just those
+  // fields, mirroring the JSON overlay's own replace behavior but scoped
+  // to only what was checked.
   const handle_insert_template = (inserted_fields, mode) => {
-    onFieldsChange(mode === "overwrite" ? inserted_fields : fields.concat(inserted_fields));
+    if (add_panel_group_id) {
+      onFieldsChange(
+        update_field_by_id(fields, add_panel_group_id, (group) =>
+          Object.assign({}, group, {
+            children: mode === "overwrite" ? inserted_fields : (group.children || []).concat(inserted_fields),
+          }),
+        ),
+      );
+    } else {
+      onFieldsChange(mode === "overwrite" ? inserted_fields : fields.concat(inserted_fields));
+    }
+    setIsAddPanelOpen(false);
   };
 
   const handle_delete_field = (field_id) => {
@@ -86,14 +117,34 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
                 onFieldChange={handle_field_inline_change}
                 renderChildField={render_child_field}
                 getFieldError={getFieldError}
-                autoOpenAddMenu={field.id === auto_open_group_id}
+                onRequestAddMenu={open_add_panel}
               />
             </div>
           ))}
         </SortableContext>
       </DndContext>
 
-      <AddComponentPanel onSelect={handle_add_component} onInsertTemplate={handle_insert_template} />
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={() => open_add_panel(null)}
+          className="cok-btn-outlined flex items-center justify-center"
+          style={{ width: 100, height: 40 }}
+          aria-label={translate("DCS_BTN_ADD_COMPONENT")}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+      </div>
+
+      <AddComponentPanel
+        isOpen={is_add_panel_open}
+        onClose={() => setIsAddPanelOpen(false)}
+        onSelect={handle_add_component}
+        onInsertTemplate={handle_insert_template}
+      />
     </div>
   );
 }

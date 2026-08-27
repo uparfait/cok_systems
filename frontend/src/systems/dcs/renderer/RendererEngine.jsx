@@ -14,7 +14,7 @@ const LANGUAGE_LABEL_KEYS = { en: "DCS_LANGUAGE_EN", kn: "DCS_LANGUAGE_KN", fr: 
  * form. Width always fills its container up to 700px and down to 100% on
  * any smaller device; text wraps normally rather than being scaled.
  */
-export default function RendererEngine({ schema, mode, values, onValueChange, fieldErrors, fieldValidMessages, onFieldChange, wrapField, revealAllErrors }) {
+export default function RendererEngine({ schema, mode, values, onValueChange, fieldErrors, fieldValidMessages, onFieldChange, wrapField, revealAllErrors, resolveFieldOptions }) {
   const render_mode = mode || "renderer";
   // The language dropdown below drives the whole page, not just the form
   // fields - it is the same language DcsQueuePanel, toasts, and every
@@ -76,6 +76,7 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
         onFieldChange={onFieldChange}
         allValues={values}
         renderChildField={render_field}
+        resolveFieldOptions={resolveFieldOptions}
       />
     );
 
