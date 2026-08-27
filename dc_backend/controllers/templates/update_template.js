@@ -1,6 +1,7 @@
 const templates_model = require("../../models/templates_model.js");
 const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { resolve_template_placeholders } = require("../../jsonlogic/resolve_templates.js");
+const { merge_lazy_fields } = require("../../jsonlogic/lazy_options.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 
@@ -27,7 +28,14 @@ async function update_template(req, res) {
       return res.status(400).json(warning_response(req, "TEMPLATE_NAME_REQUIRED"));
     }
 
-    const resolved_fields = await resolve_template_placeholders(Array.isArray(fields) ? fields : []);
+    // The builder only ever loads a huge select_group/cascading_select
+    // field's real options once its own settings are opened (see
+    // jsonlogic/lazy_options.js) - an edit that never touched one still
+    // carries it as an empty placeholder, so its real, already-stored
+    // content is restored here before anything is validated or saved.
+    const merged_fields = merge_lazy_fields(Array.isArray(fields) ? fields : [], existing_template.fields || []);
+
+    const resolved_fields = await resolve_template_placeholders(merged_fields);
 
     const validation_result = validate_form_schema({ fields: resolved_fields });
     if (!validation_result.valid) {

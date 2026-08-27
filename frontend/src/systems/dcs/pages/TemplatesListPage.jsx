@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_templates, get_template } from "../services/templatesService.js";
+import { get_templates, get_template, get_template_field_options } from "../services/templatesService.js";
+import { useLazyFieldResolvers } from "../hooks/useLazyFieldResolvers.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
@@ -25,6 +26,8 @@ export default function TemplatesListPage() {
   const [loading, setLoading] = useState(true);
   const [opening_id, setOpeningId] = useState(null);
   const [reviewing_schema, setReviewingSchema] = useState(null);
+  const [reviewing_template_id, setReviewingTemplateId] = useState(null);
+  const { resolveFieldOptions } = useLazyFieldResolvers("template", reviewing_template_id, get_template_field_options);
 
   const refresh = () => {
     setLoading(true);
@@ -42,6 +45,7 @@ export default function TemplatesListPage() {
     setOpeningId(template_summary._id);
     try {
       const response = await get_template(template_summary._id);
+      setReviewingTemplateId(template_summary._id);
       setReviewingSchema({ fields: response.data.fields || [] });
     } catch (error) {
       showError(error.message || translate("DCS_ERROR_GENERIC"));
@@ -101,7 +105,16 @@ export default function TemplatesListPage() {
         ))}
       </div>
 
-      {reviewing_schema && <ReviewOverlay schema={reviewing_schema} onClose={() => setReviewingSchema(null)} />}
+      {reviewing_schema && (
+        <ReviewOverlay
+          schema={reviewing_schema}
+          resolveFieldOptions={resolveFieldOptions}
+          onClose={() => {
+            setReviewingSchema(null);
+            setReviewingTemplateId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

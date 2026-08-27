@@ -304,12 +304,23 @@ function validate_field(field, path, depth, errors, seen_ids, all_ids) {
 
   const uses_parent_groups = PARENT_GROUP_CAPABLE_TYPES.includes(field.type) && field.parent_dependency_enabled;
 
-  if (OPTION_BASED_TYPES.includes(field.type) && !uses_parent_groups) {
-    validate_options(field, path, errors);
-  }
+  // A lazy_options field (see jsonlogic/lazy_options.js) never carries its
+  // real options/parent_option_groups in a save request unless an author
+  // actually opened and edited it this session - update_form.js/
+  // update_template.js already reconcile that against the field's real,
+  // previously-stored content (merge_lazy_fields) before this validator
+  // ever runs, so by the time a field still says lazy_options here, that
+  // reconciliation genuinely found nothing to restore (a state that should
+  // never occur for an existing field) rather than a save that would
+  // otherwise wrongly get rejected as empty.
+  if (!field.lazy_options) {
+    if (OPTION_BASED_TYPES.includes(field.type) && !uses_parent_groups) {
+      validate_options(field, path, errors);
+    }
 
-  if (uses_parent_groups) {
-    validate_parent_option_groups(field, path, all_ids, errors);
+    if (uses_parent_groups) {
+      validate_parent_option_groups(field, path, all_ids, errors);
+    }
   }
 
   if (field.type === "cascading_select" && field.parent_field_id) {

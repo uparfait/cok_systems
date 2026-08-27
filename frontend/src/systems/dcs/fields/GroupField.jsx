@@ -2,23 +2,23 @@ import React from "react";
 import { get_field_text } from "./fieldText.js";
 import { get_spacing_below_px } from "../renderer/designStyles.js";
 import { DCS_FIELD_RENDERER_MAP } from "../renderer/fieldRendererMap.js";
-import { create_blank_field } from "./fieldTypes.js";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
-import AddComponentPanel from "../builder/AddComponentPanel.jsx";
 import { collect_uploaded_file_urls } from "../builder/collectUploadedFileUrls.js";
 import { delete_design_file } from "../services/designUploadService.js";
 
 /**
  * Organizes related fields visually together. In the builder, each child
  * gets its own live preview plus settings/delete controls, and an "Add
- * field" trigger below the list opens the very same "Choose a component to
- * add" picker the main canvas uses - previously the only way to populate a
- * group's children was the JSON import overlay. The live renderer (and the
- * read-only review) instead delegates each child to renderChildField,
- * exactly as before.
+ * field" trigger below the list opens the exact same, single, shared
+ * "Choose a component to add" panel the main canvas (and every other
+ * group, however deeply nested) opens - never a separate instance of its
+ * own - via onRequestAddMenu(field.id), previously the only way to
+ * populate a group's children was the JSON import overlay. The live
+ * renderer (and the read-only review) instead delegates each child to
+ * renderChildField, exactly as before.
  */
-export default function GroupField({ field, language, mode, onFieldChange, onOpenSettings, renderChildField, getFieldError, autoOpenAddMenu }) {
+export default function GroupField({ field, language, mode, onFieldChange, onOpenSettings, renderChildField, getFieldError, onRequestAddMenu }) {
   const { translate } = useDcsLanguage();
   const is_builder = mode === "builder";
   const label = get_field_text(field.label, language);
@@ -45,10 +45,6 @@ export default function GroupField({ field, language, mode, onFieldChange, onOpe
 
   const update_children = (next_children) => {
     onFieldChange && onFieldChange(Object.assign({}, field, { children: next_children }));
-  };
-
-  const handle_add_child = (field_type) => {
-    update_children(children.concat([create_blank_field(field_type)]));
   };
 
   const handle_child_field_change = (child_id, updated_child) => {
@@ -91,6 +87,9 @@ export default function GroupField({ field, language, mode, onFieldChange, onOpe
                   language={language}
                   mode="builder"
                   onFieldChange={(updated_child) => handle_child_field_change(child.id, updated_child)}
+                  onOpenSettings={onOpenSettings}
+                  getFieldError={getFieldError}
+                  onRequestAddMenu={onRequestAddMenu}
                 />
               </div>
               {child_has_error && (
@@ -133,27 +132,19 @@ export default function GroupField({ field, language, mode, onFieldChange, onOpe
         })}
       </div>
 
-      <AddComponentPanel
-        onSelect={handle_add_child}
-        initialOpen={autoOpenAddMenu}
-        renderTrigger={(open) => (
-          <>
-            {children.length === 0 && (
-              <button
-                type="button"
-                onClick={open}
-                className="w-full cursor-pointer text-xs text-center px-4 py-6"
-                style={{ color: "#9E9E9E", background: "none", border: "none" }}
-              >
-                {translate("DCS_GROUP_EMPTY_HINT")}
-              </button>
-            )}
-            <DcsButtonOutline className="w-full mt-2" onClick={open}>
-              {translate("DCS_GROUP_ADD_FIELD")}
-            </DcsButtonOutline>
-          </>
-        )}
-      />
+      {children.length === 0 && (
+        <button
+          type="button"
+          onClick={() => onRequestAddMenu && onRequestAddMenu(field.id)}
+          className="w-full cursor-pointer text-xs text-center px-4 py-6"
+          style={{ color: "#9E9E9E", background: "none", border: "none" }}
+        >
+          {translate("DCS_GROUP_EMPTY_HINT")}
+        </button>
+      )}
+      <DcsButtonOutline className="w-full mt-2" onClick={() => onRequestAddMenu && onRequestAddMenu(field.id)}>
+        {translate("DCS_GROUP_ADD_FIELD")}
+      </DcsButtonOutline>
     </div>
   );
 }

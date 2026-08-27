@@ -2,7 +2,7 @@ import React from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_applicable_operators, build_validation_condition, get_value_input_type } from "./validationOperators.js";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
-import { get_field_text } from "../fields/fieldText.js";
+import { get_field_text, has_field_label } from "../fields/fieldText.js";
 import { DCS_SELECT_LIKE_TYPES } from "../fields/fieldTypes.js";
 
 const LANGUAGES = ["en", "kn", "fr"];
@@ -55,7 +55,7 @@ export default function ValidationRuleEditor({ field, allFields, onChange, ruleE
     onChange(rules.filter((rule) => rule.id !== rule_id));
   };
 
-  const other_fields = (allFields || []).filter((candidate_field) => candidate_field.id !== field.id);
+  const other_fields = (allFields || []).filter((candidate_field) => candidate_field.id !== field.id && has_field_label(candidate_field));
 
   return (
     <div className="space-y-4">

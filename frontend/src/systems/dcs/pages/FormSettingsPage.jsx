@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { update_form } from "../services/formsService.js";
+import { update_form, get_form_field_options } from "../services/formsService.js";
+import { useLazyFieldResolvers } from "../hooks/useLazyFieldResolvers.js";
 import DcFormBuilderSection from "../builder/DcFormBuilderSection.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsFormNameField from "../components/DcsFormNameField.jsx";
@@ -22,6 +23,7 @@ export default function FormSettingsPage() {
   const [publishing, setPublishing] = useState(false);
   const [schema_errors, setSchemaErrors] = useState([]);
   const loaded_form_id_ref = useRef(form._id);
+  const { resolveFieldOptions, resolveFullFieldOptions } = useLazyFieldResolvers("form", form_group_id, get_form_field_options);
 
   // A field's position in the backend's error paths (fields[2], etc.) is
   // positional, not id-based - any edit (reorder, add, delete, or a drawer
@@ -93,6 +95,8 @@ export default function FormSettingsPage() {
           onPublish={handle_publish}
           publishing={publishing}
           schemaErrors={schema_errors}
+          resolveFieldOptions={resolveFieldOptions}
+          resolveFullFieldOptions={resolveFullFieldOptions}
         />
       </div>
     </div>

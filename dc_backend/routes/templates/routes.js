@@ -3,6 +3,7 @@ const Router = require("express").Router();
 const create_template = require("../../controllers/templates/create_template.js");
 const get_templates = require("../../controllers/templates/get_templates.js");
 const get_template_by_id = require("../../controllers/templates/get_template_by_id.js");
+const get_template_field_options = require("../../controllers/templates/get_template_field_options.js");
 const update_template = require("../../controllers/templates/update_template.js");
 const delete_template = require("../../controllers/templates/delete_template.js");
 
@@ -47,6 +48,20 @@ Router.post("/", create_template);
  *         description: Template fetched successfully
  */
 Router.get("/:template_id", get_template_by_id);
+
+/**
+ * @swagger
+ * /dcs/api/templates/{template_id}/field-options/{field_id}:
+ *   get:
+ *     summary: Resolve the real option content for one lazily-loaded select_group/cascading_select field (optionally filtered by a parent answer)
+ *     tags: [Templates]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Template fetched successfully
+ */
+Router.get("/:template_id/field-options/:field_id", get_template_field_options);
 
 /**
  * @swagger
