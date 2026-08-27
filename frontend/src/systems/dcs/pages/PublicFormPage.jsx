@@ -20,6 +20,7 @@ import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import DcsQueuePanel from "../components/DcsQueuePanel.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
+import { build_approval_link } from "../services/approvalsService.js";
 
 /**
  * Strips any "__v<version>" suffix from a shared link - the public link
@@ -60,6 +61,7 @@ function PublicFormPageContent() {
   const [file_upload_percent, setFileUploadPercent] = useState(null);
   const [is_online, setIsOnline] = useState(window.navigator.onLine);
   const [is_queue_open, setIsQueueOpen] = useState(false);
+  const [approval_notices, setApprovalNotices] = useState([]);
   // Set only while reviewing/fixing an already-queued (pending/error)
   // record - submitting then updates that same record instead of both
   // creating a duplicate AND clobbering the separate, single draft slot.
@@ -141,6 +143,10 @@ function PublicFormPageContent() {
         await refresh_queue();
         setIsSyncing(false);
         setFileUploadPercent(null);
+        // A record queued offline can land during a background sync - its approval link must still surface.
+        if (result.approval_notices && result.approval_notices.length > 0) {
+          setApprovalNotices((previous) => previous.concat(result.approval_notices));
+        }
         // A silent, empty tick (nothing queued) happens every single
         // minute the page is left open - toasting that would just be
         // background noise. Only something that actually happened (a
@@ -237,6 +243,9 @@ function PublicFormPageContent() {
     try {
       const result = await process_queue_once(async () => refresh_queue(), ({ percent }) => setFileUploadPercent(percent));
       await refresh_queue();
+      if (result.approval_notices && result.approval_notices.length > 0) {
+        setApprovalNotices((previous) => previous.concat(result.approval_notices));
+      }
       if (result.blocked_item) {
         showError(result.blocked_item.message || translate("DCS_ERROR_GENERIC"));
       } else if (result.sent_count > 0) {
@@ -360,6 +369,10 @@ function PublicFormPageContent() {
         setIsSyncing(false);
         setFileUploadPercent(null);
 
+        if (result.approval_notices && result.approval_notices.length > 0) {
+          setApprovalNotices((previous) => previous.concat(result.approval_notices));
+        }
+
         if (result.blocked_item) {
           reviewing_queue_id_ref.current = result.blocked_item.id;
           setValues(result.blocked_item.data || {});
@@ -473,6 +486,49 @@ function PublicFormPageContent() {
           </span>
         </span>
       </div>
+
+      {approval_notices.length > 0 && (
+        <div className="dcs-no-print w-full min-[700px]:max-w-[700px] bg-white border-2 p-4 mb-3" style={{ borderColor: "#056daa" }}>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-bold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
+              {translate("DCS_APPROVAL_LINK_PANEL_TITLE")}
+            </p>
+            <button
+              type="button"
+              onClick={() => setApprovalNotices([])}
+              className="cursor-pointer text-xs font-semibold"
+              style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif", background: "none", border: "none" }}
+            >
+              {translate("DCS_BTN_CLOSE")}
+            </button>
+          </div>
+          {approval_notices.map((notice, notice_index) =>
+            notice.links.map((link_info) => {
+              const approval_link = build_approval_link(link_info.token);
+              return (
+                <div key={`${notice_index}_${link_info.token}`} className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
+                      {translate("DCS_APPROVAL_LINK_SEND", { name: link_info.name, role: link_info.role })}
+                    </p>
+                    <p className="truncate text-sm" style={{ color: "#056daa" }} title={approval_link}>
+                      {approval_link}
+                    </p>
+                  </div>
+                  <DcsButtonOutline
+                    onClick={() => {
+                      window.navigator.clipboard.writeText(approval_link);
+                      showSuccess(translate("DCS_TOAST_LINK_COPIED"));
+                    }}
+                  >
+                    {translate("DCS_FORM_COPY_LINK")}
+                  </DcsButtonOutline>
+                </div>
+              );
+            }),
+          )}
+        </div>
+      )}
 
       {resume_prompt_visible && draft && (
         <div className="dcs-no-print w-full min-[700px]:max-w-[700px] bg-white border-2 p-3 mb-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: "#056daa" }}>
