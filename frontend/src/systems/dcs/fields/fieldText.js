@@ -4,7 +4,7 @@
  * reason a cascading_select/parent-option-group comparison here fails to
  * match, even though the parent field's own live value is never touched.
  */
-function trimmed_lookup(all_values, field_id) {
+export function trimmed_lookup(all_values, field_id) {
   const value = all_values ? all_values[field_id] : undefined;
   if (typeof value === "string") return value.trim();
   if (Array.isArray(value)) return value.map((item) => (typeof item === "string" ? item.trim() : item));
@@ -64,7 +64,7 @@ export const DCS_PARENT_GROUP_OPERATORS = ["equals", "not_equals", "includes", "
  * array-valued parent answer (a multi_select parent) as "does it contain
  * this value", since a plain === would otherwise never match one.
  */
-function evaluate_parent_group_condition(operator, actual_value, expected_value) {
+export function evaluate_parent_group_condition(operator, actual_value, expected_value) {
   switch (operator) {
     case "not_equals":
       return Array.isArray(actual_value) ? !actual_value.includes(expected_value) : actual_value !== expected_value;
@@ -84,10 +84,28 @@ function evaluate_parent_group_condition(operator, actual_value, expected_value)
   }
 }
 
-function has_real_answer(value) {
+export function has_real_answer(value) {
   if (value === undefined || value === null || value === "") return false;
   if (Array.isArray(value)) return value.length > 0;
   return true;
+}
+
+/**
+ * For a lazy_options select_group (see dc_backend/jsonlogic/lazy_options.js)
+ * - whose parent_option_groups still carry their own parent_field_id/
+ * operator/value even once stripped, only each group's own options emptied
+ * out - finds which group(s) currently match the parent's live answer, the
+ * same matching get_field_options_state does, but without needing any
+ * group's (possibly not-yet-fetched) options content to do it.
+ */
+export function find_matching_parent_option_groups(field, all_values) {
+  const groups = field.parent_option_groups || [];
+  return groups.filter((group) => {
+    if (!group.parent_field_id) return false;
+    const actual_value = trimmed_lookup(all_values, group.parent_field_id);
+    if (!has_real_answer(actual_value)) return false;
+    return evaluate_parent_group_condition(group.operator || "equals", actual_value, group.value);
+  });
 }
 
 /**
@@ -127,14 +145,25 @@ export function get_field_options_state(field, all_values, is_builder) {
   }
 
   const visible_options = [];
+  // Locked means "no condition currently matches" - never "the matching
+  // group's options haven't loaded yet". A validly published, non-lazy
+  // field is guaranteed at least one real option per group (the schema
+  // validator refuses to save an empty one), so for it these two things
+  // are always the same thing anyway; a lazy_options field's matching
+  // group can legitimately still be empty for a moment while its real
+  // options are being fetched (see SelectGroupField.jsx/
+  // useLazyFieldOptions.js) - that field must still count as "currently
+  // answerable" (e.g. for compute_form_progress_percent), not disappear.
+  let any_group_matched = false;
   groups.forEach((group) => {
     if (!group.parent_field_id) return;
     const actual_value = trimmed_lookup(all_values, group.parent_field_id);
     if (!has_real_answer(actual_value)) return;
     if (evaluate_parent_group_condition(group.operator || "equals", actual_value, group.value)) {
+      any_group_matched = true;
       visible_options.push(...(group.options || []));
     }
   });
 
-  return { visible_options, is_locked: visible_options.length === 0 };
+  return { visible_options, is_locked: !any_group_matched };
 }

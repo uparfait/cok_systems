@@ -5,6 +5,7 @@ const update_form = require("../../controllers/forms/update_form.js");
 const get_forms_by_project = require("../../controllers/forms/get_forms_by_project.js");
 const get_form_versions = require("../../controllers/forms/get_form_versions.js");
 const get_form_by_id = require("../../controllers/forms/get_form_by_id.js");
+const get_form_field_options = require("../../controllers/forms/get_form_field_options.js");
 const set_active_version = require("../../controllers/forms/set_active_version.js");
 const delete_form_version = require("../../controllers/forms/delete_form_version.js");
 const upload_design_file = require("../../controllers/forms/upload_design_file.js");
@@ -124,6 +125,20 @@ Router.put("/:form_group_id", update_form);
  *         description: Form versions fetched successfully
  */
 Router.get("/:form_group_id/versions", get_form_versions);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/field-options/{field_id}:
+ *   get:
+ *     summary: Resolve the real option content for one lazily-loaded select_group/cascading_select field (optionally filtered by a parent answer)
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Form fetched successfully
+ */
+Router.get("/:form_group_id/field-options/:field_id", get_form_field_options);
 
 /**
  * @swagger

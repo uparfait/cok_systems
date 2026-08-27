@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_template, update_template, delete_template } from "../services/templatesService.js";
+import { get_template, get_template_field_options, update_template, delete_template } from "../services/templatesService.js";
+import { useLazyFieldResolvers } from "../hooks/useLazyFieldResolvers.js";
 import DcFormBuilderSection from "../builder/DcFormBuilderSection.jsx";
 import DcsTemplateNameField from "../components/DcsTemplateNameField.jsx";
 import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
@@ -29,6 +30,7 @@ export default function TemplateSettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [is_confirming_delete, setIsConfirmingDelete] = useState(false);
   const [schema_errors, setSchemaErrors] = useState([]);
+  const { resolveFieldOptions, resolveFullFieldOptions } = useLazyFieldResolvers("template", template_id, get_template_field_options);
 
   useEffect(() => {
     let is_mounted = true;
@@ -109,6 +111,8 @@ export default function TemplateSettingsPage() {
           publishing={publishing}
           schemaErrors={schema_errors}
           publishLabelKey="DCS_BTN_SAVE_TEMPLATE"
+          resolveFieldOptions={resolveFieldOptions}
+          resolveFullFieldOptions={resolveFullFieldOptions}
         />
       </div>
 

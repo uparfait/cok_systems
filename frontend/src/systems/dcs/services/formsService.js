@@ -80,3 +80,25 @@ export function search_forms(query) {
 export function get_public_form(form_group_id) {
   return dcs_request(`/public/forms/${form_group_id}`, "GET");
 }
+
+/**
+ * Resolves the real option content for one lazily-loaded select_group/
+ * cascading_select field of a form's active version (see
+ * dc_backend/jsonlogic/lazy_options.js) - omit parent_value to fetch the
+ * field's complete data (used when an author opens its settings), or pass
+ * the currently selected parent answer to fetch only the options that
+ * actually belong to it.
+ */
+export function get_form_field_options(form_group_id, field_id, parent_value) {
+  const query = parent_value === undefined ? "" : `?parent_value=${encodeURIComponent(parent_value)}`;
+  return dcs_request(`/forms/${form_group_id}/field-options/${field_id}${query}`, "GET");
+}
+
+/**
+ * Public, no-auth counterpart of get_form_field_options, used by the live
+ * respondent-facing renderer.
+ */
+export function get_public_form_field_options(form_group_id, field_id, parent_value) {
+  const query = parent_value === undefined ? "" : `?parent_value=${encodeURIComponent(parent_value)}`;
+  return dcs_request(`/public/forms/${form_group_id}/field-options/${field_id}${query}`, "GET");
+}
