@@ -3,9 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import * as Progress from "@radix-ui/react-progress";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "@/core/contexts/ToastContext";
-import { export_submissions } from "../services/submissionsService.js";
-import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
-import { get_field_text } from "../fields/fieldText.js";
+import { export_submissions_excel } from "../services/submissionsService.js";
 
 const EXPORT_PERIOD_OPTIONS = [
   { value: "today", labelKey: "DCS_STATS_PERIOD_TODAY" },
@@ -14,8 +12,6 @@ const EXPORT_PERIOD_OPTIONS = [
   { value: "this_year", labelKey: "DCS_STATS_PERIOD_THIS_YEAR" },
   { value: "custom", labelKey: "DCS_STATS_PERIOD_CUSTOM" },
 ];
-
-const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group", "image_block", "horizontal_line"];
 
 function resolve_date_bounds(period, from, to) {
   if (!period || period === "custom") {
@@ -53,13 +49,9 @@ function resolve_date_bounds(period, from, to) {
   return { from: "", to: "" };
 }
 
-function sanitize_filename(name) {
-  return name.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim().replace(/\s+/g, "_");
-}
-
-export default function DcsExportDialog({ open, onOpenChange, form_group_id, versions }) {
+export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
   const { language, translate } = useDcsLanguage();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const [period, setPeriod] = useState("this_month");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -68,7 +60,6 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
   const [progress_label, setProgressLabel] = useState("");
   const [is_exporting, setIsExporting] = useState(false);
   const [is_complete, setIsComplete] = useState(false);
-  const [record_count, setRecordCount] = useState(0);
   const cancel_ref = useRef(false);
 
   const reset_state = () => {
@@ -80,7 +71,6 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
     setProgressLabel("");
     setIsExporting(false);
     setIsComplete(false);
-    setRecordCount(0);
     cancel_ref.current = false;
   };
 
@@ -90,79 +80,6 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
     }
     reset_state();
     onOpenChange(false);
-  };
-
-  const build_excel_and_download = async (submissions) => {
-    const ExcelJS = (await import("exceljs")).default;
-    const { saveAs } = await import("file-saver");
-
-    const active_version_doc = versions.find((entry) => entry.is_active) || versions[0];
-    const all_field_defs = new Map();
-    (versions || []).forEach((version_doc) => {
-      flatten_fields(version_doc.schema.fields).forEach((field) => {
-        if (!NON_DATA_TYPES.includes(field.type) && !all_field_defs.has(field.id)) {
-          all_field_defs.set(field.id, field);
-        }
-      });
-    });
-
-    const data_fields = [...all_field_defs.values()];
-
-    setProgressLabel(translate("DCS_EXPORT_BUILDING"));
-    setProgress(60);
-
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Data");
-
-    const headers = [
-      ...data_fields.map((field) => get_field_text(field.label, language) || field.id),
-      "Version",
-      "Submitted At",
-    ];
-
-    sheet.columns = headers.map((header) => ({ header: String(header), key: header, width: 20 }));
-    sheet.getRow(1).font = { bold: true };
-
-    const total_rows = submissions.length;
-    const batch_size = 100;
-
-    for (let i = 0; i < submissions.length; i += batch_size) {
-      if (cancel_ref.current) return;
-      const batch = submissions.slice(i, i + batch_size);
-      batch.forEach((submission) => {
-        const row_data = {};
-        data_fields.forEach((field) => {
-          const raw_value = submission.data ? submission.data[field.id] : undefined;
-          if (Array.isArray(raw_value)) {
-            row_data[get_field_text(field.label, language) || field.id] = raw_value.join(", ");
-          } else if (raw_value != null && typeof raw_value === "object") {
-            row_data[get_field_text(field.label, language) || field.id] = JSON.stringify(raw_value);
-          } else {
-            row_data[get_field_text(field.label, language) || field.id] = raw_value != null ? String(raw_value) : "";
-          }
-        });
-        row_data["Version"] = submission.version || "";
-        row_data["Submitted At"] = submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "";
-        sheet.addRow(row_data);
-      });
-      const build_progress = 60 + Math.round((i / total_rows) * 30);
-      setProgress(build_progress);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-
-    if (cancel_ref.current) return;
-
-    setProgressLabel(translate("DCS_EXPORT_DOWNLOADING"));
-    setProgress(95);
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const filename = sanitize_filename(title || "export") + ".xlsx";
-    saveAs(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), filename);
-
-    setProgress(100);
-    setProgressLabel(translate("DCS_EXPORT_COMPLETE"));
-    setIsComplete(true);
-    showSuccess(translate("DCS_EXPORT_COMPLETE"));
   };
 
   const handle_export = async () => {
@@ -175,32 +92,48 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
 
     try {
       setProgressLabel(translate("DCS_EXPORT_FETCHING"));
-      setProgress(10);
+      setProgress(5);
 
       const bounds = resolve_date_bounds(period, from, to);
-      const response = await export_submissions(form_group_id, period === "custom" ? "custom" : period, bounds.from, bounds.to);
+
+      const result = await export_submissions_excel(
+        form_group_id,
+        period === "custom" ? "custom" : period,
+        bounds.from,
+        bounds.to,
+        title,
+        language,
+        (percent) => {
+          setProgress(percent);
+        },
+      );
 
       if (cancel_ref.current) return;
 
-      const submissions = response.data || [];
-      setRecordCount(submissions.length);
+      setProgressLabel(translate("DCS_EXPORT_DOWNLOADING"));
 
-      if (submissions.length === 0) {
-        setProgress(100);
-        setProgressLabel(translate("DCS_EXPORT_ERROR_NO_DATA"));
-        showError(translate("DCS_EXPORT_ERROR_NO_DATA"));
-        setIsComplete(true);
-        return;
-      }
+      const url = URL.createObjectURL(result.blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
-      setProgress(30);
-
-      await build_excel_and_download(submissions);
+      setProgress(100);
+      setProgressLabel(translate("DCS_EXPORT_COMPLETE"));
+      setIsComplete(true);
+      showSuccess(translate("DCS_EXPORT_COMPLETE"));
     } catch (error) {
       if (!cancel_ref.current) {
         setProgress(0);
         setProgressLabel("");
-        showError(error.message || translate("DCS_EXPORT_ERROR_FAILED"));
+        if (error.is_info) {
+          showInfo(error.message || translate("DCS_EXPORT_ERROR_FAILED"));
+        } else {
+          showError(error.message || translate("DCS_EXPORT_ERROR_FAILED"));
+        }
       }
     } finally {
       setIsExporting(false);
@@ -228,7 +161,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                   value={period}
                   onChange={(event) => setPeriod(event.target.value)}
                   disabled={is_exporting}
-                  className="w-full border border-gray-300 rounded-none px-3 py-2 text-sm disabled:opacity-50"
+                  className="w-full border border-gray-300 rounded-none px-3 py-2 text-sm disabled:opacity-50 cursor-pointer"
                   style={{ fontFamily: "'Montserrat', sans-serif", height: 40 }}
                 >
                   {EXPORT_PERIOD_OPTIONS.map((option) => (
@@ -244,7 +177,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                       value={from}
                       onChange={(event) => setFrom(event.target.value)}
                       disabled={is_exporting}
-                      className="flex-1 border border-gray-300 rounded-none px-3 py-2 text-sm disabled:opacity-50"
+                      className="flex-1 border border-gray-300 rounded-none px-3 py-2 text-sm disabled:opacity-50 cursor-pointer"
                       style={{ height: 40 }}
                     />
                     <input
@@ -252,7 +185,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                       value={to}
                       onChange={(event) => setTo(event.target.value)}
                       disabled={is_exporting}
-                      className="flex-1 border border-gray-300 rounded-none px-3 py-2 text-sm disabled:opacity-50"
+                      className="flex-1 border border-gray-300 rounded-none px-3 py-2 text-sm disabled:opacity-50 cursor-pointer"
                       style={{ height: 40 }}
                     />
                   </div>
@@ -295,11 +228,6 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                   style={{ width: `${progress}%` }}
                 />
               </Progress.Root>
-              {record_count > 0 && is_complete && (
-                <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                  {translate("DCS_EXPORT_RECORDS_COUNT", { count: record_count })}
-                </p>
-              )}
             </div>
           )}
 
@@ -309,7 +237,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                 <button
                   type="button"
                   onClick={handle_close}
-                  className="px-4 py-2 text-sm border border-gray-300 rounded-none hover:bg-gray-50"
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-none hover:bg-gray-50 cursor-pointer"
                   style={{ fontFamily: "'Montserrat', sans-serif" }}
                 >
                   {translate("DCS_EXPORT_BTN_CANCEL")}
@@ -318,7 +246,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                   type="button"
                   onClick={handle_export}
                   disabled={!can_export}
-                  className="px-4 py-2 text-sm text-white bg-[#056daa] rounded-none hover:bg-[#045a8c] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-4 py-2 text-sm text-white bg-[#056daa] rounded-none hover:bg-[#045a8c] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
                   style={{ fontFamily: "'Montserrat', sans-serif" }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -334,7 +262,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
               <button
                 type="button"
                 onClick={handle_close}
-                className="px-4 py-2 text-sm text-white bg-[#056daa] rounded-none hover:bg-[#045a8c]"
+                className="px-4 py-2 text-sm text-white bg-[#056daa] rounded-none hover:bg-[#045a8c] cursor-pointer"
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
               >
                 {translate("DCS_EXPORT_BTN_CLOSE")}
