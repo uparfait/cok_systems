@@ -225,7 +225,7 @@ export default function FormAllDataPage() {
         <button
           type="button"
           onClick={() => setIsExportOpen(true)}
-          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-none hover:bg-green-700 transition-colors"
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-none hover:bg-green-700 transition-colors cursor-pointer"
           style={{ fontFamily: "'Montserrat', sans-serif", height: 40 }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -266,7 +266,6 @@ export default function FormAllDataPage() {
         open={is_export_open}
         onOpenChange={setIsExportOpen}
         form_group_id={form_group_id}
-        versions={versions}
       />
     </div>
   );

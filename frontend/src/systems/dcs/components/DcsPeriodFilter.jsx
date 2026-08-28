@@ -15,20 +15,13 @@ const PERIOD_OPTIONS = [
   { value: "custom", labelKey: "DCS_STATS_PERIOD_CUSTOM" },
 ];
 
-const CUSTOM_PRESETS = [
-  { value: "today", labelKey: "DCS_STATS_PERIOD_TODAY" },
-  { value: "this_month", labelKey: "DCS_STATS_PERIOD_THIS_MONTH" },
-  { value: "last_month", labelKey: "DCS_STATS_PERIOD_LAST_MONTH" },
-  { value: "this_year", labelKey: "DCS_STATS_PERIOD_THIS_YEAR" },
-];
-
 function format_date(date_string) {
   if (!date_string) return "";
   const date = new Date(date_string + "T00:00:00");
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChange, onApply, onSelectPreset, translate }) {
+function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChange, onApply, translate }) {
   const [local_from, setLocalFrom] = useState(from || "");
   const [local_to, setLocalTo] = useState(to || "");
 
@@ -36,11 +29,6 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
     onFromChange(local_from);
     onToChange(local_to);
     onApply();
-    onOpenChange(false);
-  };
-
-  const handle_preset = (preset_value) => {
-    onSelectPreset(preset_value);
     onOpenChange(false);
   };
 
@@ -62,28 +50,6 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
           </Dialog.Title>
 
           <div className="mb-3">
-            <p className="text-xs text-gray-500 mb-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-              Quick presets
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {CUSTOM_PRESETS.map((preset) => (
-                <button
-                  key={preset.value}
-                  type="button"
-                  onClick={() => handle_preset(preset.value)}
-                  className="px-2.5 py-1 text-xs rounded-none border border-gray-300 hover:bg-gray-50 hover:border-[#056daa] transition-colors"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
-                >
-                  {translate(preset.labelKey)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="border-t border-gray-200 pt-3 mb-3">
-            <p className="text-xs text-gray-500 mb-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-              Or pick a range
-            </p>
             <div className="flex flex-col gap-2">
               <div>
                 <label className="block text-xs text-gray-500 mb-0.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>From</label>
@@ -91,7 +57,7 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
                   type="date"
                   value={local_from}
                   onChange={(event) => setLocalFrom(event.target.value)}
-                  className="w-full border border-gray-300 rounded-none px-2 py-1.5 text-sm"
+                  className="w-full border border-gray-300 rounded-none px-2 py-1.5 text-sm cursor-pointer"
                   style={{ fontFamily: "'Montserrat', sans-serif", height: 36 }}
                 />
               </div>
@@ -101,7 +67,7 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
                   type="date"
                   value={local_to}
                   onChange={(event) => setLocalTo(event.target.value)}
-                  className="w-full border border-gray-300 rounded-none px-2 py-1.5 text-sm"
+                  className="w-full border border-gray-300 rounded-none px-2 py-1.5 text-sm cursor-pointer"
                   style={{ fontFamily: "'Montserrat', sans-serif", height: 36 }}
                 />
               </div>
@@ -112,7 +78,7 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="px-3 py-1.5 text-xs border border-gray-300 rounded-none hover:bg-gray-50"
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded-none hover:bg-gray-50 cursor-pointer"
               style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
               {translate("DCS_BTN_CANCEL")}
@@ -121,7 +87,7 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
               type="button"
               onClick={handle_apply}
               disabled={!local_from}
-              className="px-3 py-1.5 text-xs text-white bg-[#056daa] rounded-none hover:bg-[#045a8c] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-xs text-white bg-[#056daa] rounded-none hover:bg-[#045a8c] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
               {translate("DCS_BTN_APPLY")}
@@ -170,7 +136,7 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
       <select
         value={period}
         onChange={handle_period_change}
-        className="cok-auth-input text-sm flex-shrink-0"
+        className="cok-auth-input text-sm flex-shrink-0 cursor-pointer"
         style={{ fontFamily: "'Montserrat', sans-serif", height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX }}
       >
         {options.map((option) => (
