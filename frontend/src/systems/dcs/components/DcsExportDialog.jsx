@@ -213,7 +213,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
     <Dialog.Root open={open} onOpenChange={handle_close}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-xl">
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-none bg-white p-6 shadow-xl">
           <Dialog.Title className="text-lg font-semibold mb-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>
             {translate("DCS_EXPORT_DIALOG_TITLE")}
           </Dialog.Title>
@@ -228,7 +228,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                   value={period}
                   onChange={(event) => setPeriod(event.target.value)}
                   disabled={is_exporting}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm disabled:opacity-50"
+                  className="w-full border border-gray-300 rounded-none px-3 py-2 text-sm disabled:opacity-50"
                   style={{ fontFamily: "'Montserrat', sans-serif", height: 40 }}
                 >
                   {EXPORT_PERIOD_OPTIONS.map((option) => (
@@ -244,7 +244,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                       value={from}
                       onChange={(event) => setFrom(event.target.value)}
                       disabled={is_exporting}
-                      className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm disabled:opacity-50"
+                      className="flex-1 border border-gray-300 rounded-none px-3 py-2 text-sm disabled:opacity-50"
                       style={{ height: 40 }}
                     />
                     <input
@@ -252,7 +252,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                       value={to}
                       onChange={(event) => setTo(event.target.value)}
                       disabled={is_exporting}
-                      className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm disabled:opacity-50"
+                      className="flex-1 border border-gray-300 rounded-none px-3 py-2 text-sm disabled:opacity-50"
                       style={{ height: 40 }}
                     />
                   </div>
@@ -269,7 +269,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                   onChange={(event) => setTitle(event.target.value)}
                   placeholder={translate("DCS_EXPORT_TITLE_PLACEHOLDER")}
                   disabled={is_exporting}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm disabled:opacity-50"
+                  className="w-full border border-gray-300 rounded-none px-3 py-2 text-sm disabled:opacity-50"
                   style={{ fontFamily: "'Montserrat', sans-serif", height: 40 }}
                 />
               </div>
@@ -287,7 +287,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                 </span>
               </div>
               <Progress.Root
-                className="relative w-full h-3 bg-gray-200 rounded-full overflow-hidden"
+                className="relative w-full h-3 bg-gray-200 rounded-none overflow-hidden"
                 value={progress}
               >
                 <Progress.Indicator
@@ -309,7 +309,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                 <button
                   type="button"
                   onClick={handle_close}
-                  className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-none hover:bg-gray-50"
                   style={{ fontFamily: "'Montserrat', sans-serif" }}
                 >
                   {translate("DCS_EXPORT_BTN_CANCEL")}
@@ -318,7 +318,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
                   type="button"
                   onClick={handle_export}
                   disabled={!can_export}
-                  className="px-4 py-2 text-sm text-white bg-[#056daa] rounded hover:bg-[#045a8c] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-4 py-2 text-sm text-white bg-[#056daa] rounded-none hover:bg-[#045a8c] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   style={{ fontFamily: "'Montserrat', sans-serif" }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -334,7 +334,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, ver
               <button
                 type="button"
                 onClick={handle_close}
-                className="px-4 py-2 text-sm text-white bg-[#056daa] rounded hover:bg-[#045a8c]"
+                className="px-4 py-2 text-sm text-white bg-[#056daa] rounded-none hover:bg-[#045a8c]"
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
               >
                 {translate("DCS_EXPORT_BTN_CLOSE")}
