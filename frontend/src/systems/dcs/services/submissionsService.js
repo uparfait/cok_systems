@@ -1,6 +1,24 @@
 import { dcs_request } from "./dcsApiClient.js";
 
 /**
+ * Fetches ALL collected submissions for a form (no pagination) within an
+ * optional date range - backs the Excel export feature. Returns the raw
+ * submission records so the caller can build the spreadsheet.
+ */
+export function export_submissions(form_group_id, period, from, to) {
+  const params = new URLSearchParams();
+  if (period && period !== "all") {
+    params.append("period", period);
+    if (period === "custom") {
+      if (from) params.append("from", from);
+      if (to) params.append("to", to);
+    }
+  }
+  const query = params.toString();
+  return dcs_request(`/submissions/export/${form_group_id}${query ? "?" + query : ""}`, "GET");
+}
+
+/**
  * Paginated, authenticated list of collected submissions for a form,
  * optionally scoped to a single version, a date range, a free-text search
  * (matched against every string/number field value within that range) and

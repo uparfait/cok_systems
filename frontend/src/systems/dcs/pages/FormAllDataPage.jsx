@@ -16,6 +16,7 @@ import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
+import DcsExportDialog from "../components/DcsExportDialog.jsx";
 
 const ACTIONS_COLUMN_WIDTH_PX = 56;
 
@@ -181,6 +182,7 @@ export default function FormAllDataPage() {
   const table = useSubmissionsTable(form_group_id, undefined);
   const [confirming_delete_id, setConfirmingDeleteId] = useState(null);
   const [deleting_id, setDeletingId] = useState(null);
+  const [is_export_open, setIsExportOpen] = useState(false);
 
   const { data: versions, loading: loading_versions } = useSilentPolling(
     () => get_form_versions(form_group_id).then((res) => res.data || []),
@@ -220,6 +222,19 @@ export default function FormAllDataPage() {
       <div className="flex-shrink-0 mb-3 pl-14 pr-3 sm:pl-16 sm:pr-4 flex flex-row items-center gap-2 overflow-x-auto">
         <DcsPeriodFilter period={table.period} onPeriodChange={table.setPeriod} from={table.from} onFromChange={table.setFrom} to={table.to} onToChange={table.setTo} onApply={table.handle_apply} includeAll />
         <DcsTableSearchSort search={table.search} onSearchChange={table.setSearch} onSearchSubmit={table.handle_apply} sort={table.sort} onSortChange={table.setSort} />
+        <button
+          type="button"
+          onClick={() => setIsExportOpen(true)}
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded hover:bg-green-700 transition-colors"
+          style={{ fontFamily: "'Montserrat', sans-serif", height: 40 }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          {translate("DCS_BTN_EXPORT_EXCEL")}
+        </button>
       </div>
 
       <div className="flex-1 min-h-0">
@@ -246,6 +261,13 @@ export default function FormAllDataPage() {
           onCancel={() => setConfirmingDeleteId(null)}
         />
       )}
+
+      <DcsExportDialog
+        open={is_export_open}
+        onOpenChange={setIsExportOpen}
+        form_group_id={form_group_id}
+        versions={versions}
+      />
     </div>
   );
 }
