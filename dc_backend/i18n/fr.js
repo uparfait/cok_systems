@@ -84,4 +84,10 @@ module.exports = {
   APPROVAL_NOT_YOUR_TURN: "Ce n'est pas encore le tour de cet approbateur",
   APPROVAL_SIGNATURE_REQUIRED: "Une signature ou un certificat numérique est requis pour approuver",
   APPROVAL_DECISION_RECORDED: "Votre décision a été enregistrée avec succès",
+  NO_DATA_TO_EXPORT: "Aucune donnée à exporter pour la période sélectionnée",
+  TABLE_VERSION: "Version",
+  TABLE_SUBMITTED_AT: "Soumis le",
+  TABLE_TOTAL: "Total",
+  NO_DATA_TO_EXPORT: "Aucune donnée à exporter pour la période sélectionnée",
+  DCS_GEO_TABLE_HEADER_LABEL: "Données de localisation",
 };
