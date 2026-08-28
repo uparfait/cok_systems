@@ -171,32 +171,39 @@ function PublicFormPageContent() {
     let is_mounted = true;
 
     async function load_form() {
-      try {
-        const response = await get_public_form(form_group_id);
-        if (!is_mounted) return;
-        setForm(response.data);
-        await cache_form(form_group_id, response.data);
-        setLoadState("ready");
-        // The lazy/online path only ever needs one branch of a huge cascade
-        // at a time - fine while there is a connection, but going offline
-        // must never leave a respondent stuck with fields this device has
-        // never actually seen the real options for. In the background,
-        // fully resolve every lazy field once and re-cache the whole form
-        // with its real content, so an offline session started later on
-        // this same device (or one that drops mid-fill after this
-        // finishes) still has everything available locally.
-        warm_offline_cache(form_group_id, response.data);
-      } catch (error) {
-        if (error.is_network_error) {
-          const cached_form = await get_cached_form(form_group_id);
-          if (cached_form && is_mounted) {
-            setForm(cached_form);
-            setLoadState("ready");
-            return;
+      const max_retries = 5;
+      let last_error = null;
+
+      for (let attempt = 1; attempt <= max_retries; attempt++) {
+        try {
+          const response = await get_public_form(form_group_id);
+          if (!is_mounted) return;
+          setForm(response.data);
+          await cache_form(form_group_id, response.data);
+          setLoadState("ready");
+          warm_offline_cache(form_group_id, response.data);
+          return;
+        } catch (error) {
+          last_error = error;
+          if (!is_mounted) return;
+          if (attempt < max_retries) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
         }
-        if (is_mounted) setLoadState(error.status_code === 409 ? "no_active_version" : "not_found");
       }
+
+      if (!is_mounted) return;
+
+      if (last_error && last_error.is_network_error && !window.navigator.onLine) {
+        const cached_form = await get_cached_form(form_group_id);
+        if (cached_form && is_mounted) {
+          setForm(cached_form);
+          setLoadState("ready");
+          return;
+        }
+      }
+
+      if (is_mounted) setLoadState(last_error && last_error.status_code === 409 ? "no_active_version" : "not_found");
     }
 
     load_form();
