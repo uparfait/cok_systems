@@ -664,14 +664,7 @@ const App: React.FC = () => {
           <Route path="/dcs-approval/:token" element={<ApprovalPage />} />
 
           {/* Authenticated Routes - With Auth/Socket */}
-          <Route
-            path="*"
-            element={
-              <ProtectedRoute>
-                <AuthenticatedRoutes />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="*" element={<AuthenticatedRoutes />} />
         </Routes>
       </Router>
     </ToastProvider>
