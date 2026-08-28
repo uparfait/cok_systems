@@ -4,7 +4,7 @@ const DCS_API_BASE_URL = "/dcs/api";
 const LANGUAGE_STORAGE_KEY = "dcs_language";
 const ACCESS_TOKEN_KEY = "accessToken";
 
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 9544535000;
 
 const dcs_api_client = axios.create({
   baseURL: DCS_API_BASE_URL,

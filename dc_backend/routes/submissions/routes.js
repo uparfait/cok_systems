@@ -2,6 +2,9 @@ const Router = require("express").Router();
 
 const get_submissions = require("../../controllers/submissions/get_submissions.js");
 const delete_submission = require("../../controllers/submissions/delete_submission.js");
+const export_submissions = require("../../controllers/submissions/export_submissions.js");
+
+Router.get("/export/:form_group_id", export_submissions);
 
 /**
  * @swagger

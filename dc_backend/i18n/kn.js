@@ -84,4 +84,10 @@ module.exports = {
   APPROVAL_NOT_YOUR_TURN: "Ntabwo ari igihe cy'uyu wemeza ngo akore",
   APPROVAL_SIGNATURE_REQUIRED: "Umukono cyangwa icyemezo cya digitale birasabwa kugira ngo wemeze",
   APPROVAL_DECISION_RECORDED: "Icyemezo cyawe cyanditswe neza",
+  NO_DATA_TO_EXPORT: "Nta makuru yo shyira hanze ku gihe cyatoranyijwe",
+  TABLE_VERSION: "Verisiyo",
+  TABLE_SUBMITTED_AT: "Yoherejwe ku",
+  TABLE_TOTAL: "Igiteranyo",
+  NO_DATA_TO_EXPORT: "Nta makuru yo shyira hanze ku gihe cyatoranyijwe",
+  DCS_GEO_TABLE_HEADER_LABEL: "Amakuru y'Aho Biherereye",
 };
