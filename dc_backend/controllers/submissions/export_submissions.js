@@ -4,6 +4,7 @@ const forms_model = require("../../models/forms_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
 const { warning_response, error_response } = require("../../utilities/response.js");
+const { translate } = require("../../i18n/index.js");
 
 const EXPORT_PAGE_SIZE = 500;
 
@@ -13,37 +14,102 @@ function sanitize_filename(name) {
   return (name || "export").replace(/[^a-zA-Z0-9_\-\s]/g, "").trim().replace(/\s+/g, "_");
 }
 
-function get_field_text_localized(label, language) {
+function get_field_text(label, language) {
   if (!label) return "";
   if (typeof label === "string") return label;
-  return label[language] || label.en || label.kn || label.fr || Object.values(label)[0] || "";
+  return label[language] || label.kn || label.en || label.fr || Object.values(label)[0] || "";
 }
 
-function flatten_fields(fields, depth) {
-  if (depth === undefined) depth = 0;
-  if (depth > 50) return [];
-  const result = [];
-  for (const field of fields || []) {
-    if (!field || typeof field !== "object") continue;
-    result.push(field);
-    if (field.type === "group" && Array.isArray(field.fields)) {
-      result.push(...flatten_fields(field.fields, depth + 1));
+function has_any_label(field) {
+  return field.type === "geolocation" || ["en", "kn", "fr"].some((lang) => !!get_field_text(field.label, lang));
+}
+
+function flatten_fields(fields, accumulator) {
+  const flat = accumulator || [];
+  (fields || []).forEach((field) => {
+    flat.push(field);
+    if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
+      flatten_fields(field.children, flat);
     }
+  });
+  return flat;
+}
+
+function collect_data_fields(version_doc) {
+  return flatten_fields(version_doc.schema.fields).filter((field) => !NON_DATA_TYPES.includes(field.type));
+}
+
+function build_column_entry(field, language) {
+  const label = get_field_text(field.label, language) || (field.type === "geolocation" ? translate("DCS_GEO_TABLE_HEADER_LABEL", language) : "");
+  return { key: field.id, label };
+}
+
+function build_diffed_columns(versions, language) {
+  const active_version_doc = versions.find((entry) => entry.is_active) || versions[0];
+  if (!active_version_doc) return { columns: [], field_type_by_id: new Map() };
+
+  const active_fields = collect_data_fields(active_version_doc);
+  const active_field_ids = new Set(active_fields.map((field) => field.id));
+
+  if (versions.length <= 1) {
+    return {
+      columns: [
+        ...active_fields.filter(has_any_label).map((field) => build_column_entry(field, language)),
+        { key: "version", label: translate("TABLE_VERSION", language) },
+        { key: "submitted_at", label: translate("TABLE_SUBMITTED_AT", language) },
+      ],
+      field_type_by_id: new Map(active_fields.map((field) => [field.id, field.type])),
+    };
   }
-  return result;
+
+  const other_versions = versions.filter((entry) => entry.version !== active_version_doc.version);
+  const field_ids_in_other_versions = new Set();
+  const removed_field_defs = [];
+  const seen_removed_ids = new Set();
+
+  other_versions.forEach((version_doc) => {
+    collect_data_fields(version_doc).forEach((field) => {
+      field_ids_in_other_versions.add(field.id);
+      if (!active_field_ids.has(field.id) && !seen_removed_ids.has(field.id)) {
+        seen_removed_ids.add(field.id);
+        removed_field_defs.push(field);
+      }
+    });
+  });
+
+  const field_type_by_id = new Map();
+  active_fields.forEach((field) => field_type_by_id.set(field.id, field.type));
+  removed_field_defs.forEach((field) => field_type_by_id.set(field.id, field.type));
+
+  const active_columns = active_fields
+    .filter(has_any_label)
+    .map((field) => build_column_entry(field, language));
+  const removed_columns = removed_field_defs.filter(has_any_label).map((field) => build_column_entry(field, language));
+
+  const columns = [
+    ...active_columns,
+    ...removed_columns,
+    { key: "version", label: translate("TABLE_VERSION", language) },
+    { key: "submitted_at", label: translate("TABLE_SUBMITTED_AT", language) },
+  ];
+
+  return { columns, field_type_by_id };
 }
 
 /**
  * Generates and streams an Excel file of all submissions for a form within
  * an optional date range. The entire export runs server-side: data is
  * fetched in batches, the workbook is built, and the .xlsx binary is sent
- * as a download attachment.
+ * as a download attachment. Column headers mirror the table on the form
+ * data page exactly - the active version's fields followed by fields that
+ * existed in other versions but not the active one, then Version and
+ * Submitted At. Headers are always included even when there is no data.
  */
 async function export_submissions(req, res) {
   try {
     const { form_group_id } = req.params;
     const { period = "all", from, to, title, language } = req.query || {};
-    const lang = language || "en";
+    const lang = language || req.language || "kn";
 
     if (!form_group_id) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
@@ -64,15 +130,7 @@ async function export_submissions(req, res) {
       return res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
     }
 
-    const all_field_defs = new Map();
-    versions.forEach((version_doc) => {
-      flatten_fields(version_doc.schema.fields).forEach((field) => {
-        if (!NON_DATA_TYPES.includes(field.type) && !all_field_defs.has(field.id)) {
-          all_field_defs.set(field.id, field);
-        }
-      });
-    });
-    const data_fields = [...all_field_defs.values()];
+    const { columns: data_columns, field_type_by_id } = build_diffed_columns(versions, lang);
 
     const all_items = [];
     let page = 1;
@@ -87,39 +145,54 @@ async function export_submissions(req, res) {
       page += 1;
     }
 
-    if (all_items.length === 0) {
-      return res.status(404).json(warning_response(req, "NO_DATA_TO_EXPORT"));
-    }
-
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Data");
 
-    const headers = [
-      ...data_fields.map((field) => get_field_text_localized(field.label, lang) || field.id),
-      "Version",
-      "Submitted At",
-    ];
-
-    sheet.columns = headers.map((header) => ({ header: String(header), key: String(header), width: 20 }));
-    sheet.getRow(1).font = { bold: true };
-
-    for (const submission of all_items) {
-      const row_data = {};
-      data_fields.forEach((field) => {
-        const raw_value = submission.data ? submission.data[field.id] : undefined;
-        const col_name = get_field_text_localized(field.label, lang) || field.id;
-        if (Array.isArray(raw_value)) {
-          row_data[col_name] = raw_value.join(", ");
-        } else if (raw_value != null && typeof raw_value === "object") {
-          row_data[col_name] = JSON.stringify(raw_value);
-        } else {
-          row_data[col_name] = raw_value != null ? String(raw_value) : "";
-        }
-      });
-      row_data["Version"] = submission.version || "";
-      row_data["Submitted At"] = submission.submitted_at ? new Date(submission.submitted_at).toISOString() : "";
-      sheet.addRow(row_data);
+    if (title) {
+      const title_row = sheet.addRow([title]);
+      title_row.font = { bold: true, size: 14, color: { argb: "FF056DAA" } };
+      title_row.alignment = { horizontal: "left" };
+      sheet.addRow([]);
     }
+
+    const headers = data_columns.map((column) => column.label);
+    const header_row = sheet.addRow(headers);
+    header_row.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    header_row.alignment = { horizontal: "center", vertical: "middle" };
+    header_row.eachCell((cell) => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF056DAA" } };
+      cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    });
+
+    sheet.columns = data_columns.map((column) => ({ key: column.key, width: 22 }));
+
+    if (all_items.length === 0) {
+      const no_data_row = sheet.addRow([translate("NO_DATA_TO_EXPORT", lang)]);
+      no_data_row.font = { italic: true, color: { argb: "FF999999" } };
+    } else {
+      for (const submission of all_items) {
+        const row_data = {};
+        field_type_by_id.forEach((field_type, field_id) => {
+          const raw_value = submission.data ? submission.data[field_id] : undefined;
+          if (Array.isArray(raw_value)) {
+            row_data[field_id] = raw_value.join(", ");
+          } else if (raw_value != null && typeof raw_value === "object") {
+            row_data[field_id] = JSON.stringify(raw_value);
+          } else {
+            row_data[field_id] = raw_value != null ? String(raw_value) : "";
+          }
+        });
+        row_data["version"] = submission.version || "";
+        row_data["submitted_at"] = submission.submitted_at ? new Date(submission.submitted_at).toISOString() : "";
+        sheet.addRow(row_data);
+      }
+    }
+
+    const total_row = sheet.addRow([]);
+    const total_label = translate("TABLE_TOTAL", lang);
+    const total_row_data = { [data_columns[0].key]: `${total_label}: ${all_items.length}` };
+    const total_excel_row = sheet.addRow(total_row_data);
+    total_excel_row.font = { bold: true, size: 10, color: { argb: "FF056DAA" } };
 
     const buffer = await workbook.xlsx.writeBuffer();
 

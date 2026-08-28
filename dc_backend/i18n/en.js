@@ -84,4 +84,10 @@ module.exports = {
   APPROVAL_NOT_YOUR_TURN: "It is not this approver's turn to act yet",
   APPROVAL_SIGNATURE_REQUIRED: "A signature or digital certificate is required to approve",
   APPROVAL_DECISION_RECORDED: "Your decision was recorded successfully",
+  NO_DATA_TO_EXPORT: "No data to export for the selected period",
+  TABLE_VERSION: "Version",
+  TABLE_SUBMITTED_AT: "Submitted at",
+  TABLE_TOTAL: "Total",
+  NO_DATA_TO_EXPORT: "No data to export for the selected period",
+  DCS_GEO_TABLE_HEADER_LABEL: "Map Location Data",
 };
