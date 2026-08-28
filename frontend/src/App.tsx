@@ -184,6 +184,9 @@ const AuthenticatedRoutes: React.FC = () => {
       <SocketProvider>
         <NotificationProvider>
           <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route
               path="/mayor/dashboard"
               element={
@@ -655,9 +658,7 @@ const App: React.FC = () => {
             <Route path="feedback/general" element={<FeedbackGeneralPage />} />
           </Route>
 
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
+
 
           <Route path="/dcs-form/:id" element={<PublicFormPage />} />
           <Route path="/dcs-approval/:token" element={<ApprovalPage />} />
