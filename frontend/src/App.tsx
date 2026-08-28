@@ -4,8 +4,6 @@ import {
   Routes,
   Route,
   Navigate,
-  useParams,
-  useNavigate,
 } from "react-router-dom";
 import LoginPage from "./pages/auth/LoginPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
@@ -16,16 +14,12 @@ import FeedbackGeneralPage from "./pages/feedback/FeedbackGeneralPage";
 import UnderDevelopment from "./pages/dashboard/UnderDevelopment";
 import ProtectedRoute from "./core/components/ProtectedRoute";
 import MainLayout from "./core/components/Layout/MainLayout";
-// import ChatWidget from './core/components/ChatWidget';
-import { AuthProvider } from "./core/contexts/AuthContext";
+import { AuthProvider, useAuth } from "./core/contexts/AuthContext";
 import { SocketProvider } from "./core/contexts/SocketContext";
 import { NotificationProvider } from "./core/contexts/NotificationContext";
 import { ToastProvider } from "./core/contexts/ToastContext";
 import PWAInstallPrompt from "./core/components/PWAInstallPrompt";
-import { useAuth } from "./core/contexts/AuthContext";
-import { getRoleSlug } from "./core/components/Layout/layoutUtils";
 
-// Admin system imports
 import {
   AdminDashboard,
   DepartmentsPage,
@@ -47,7 +41,6 @@ import {
 } from "./systems/admin";
 import MayorDashboardPage from "./systems/admin/pages/mayor/MayorDashboardPage";
 
-// Smart Parking imports
 import {
   SmartParkingDashboard,
   CheckInVehiclePage,
@@ -56,7 +49,6 @@ import {
   CheckOutPersonPage,
 } from "./systems/smartParking";
 
-// Service Delivery imports
 import {
   ServiceDashboard,
   ReceptionistDashboard,
@@ -69,11 +61,9 @@ import {
 import AssignedVisitorsList from "./systems/serviceDelivery/components/departmentFlow/AssignedVisitorsList";
 
 import RequestsPage from "./pages/dashboard/RequestsPage";
-// Task Management
 import TaskManager from "./systems/taskManagement/TaskManager";
 import FollowUpManager from "./systems/taskManagement/FollowUpManager";
 
-// Data Collection System (DCS)
 import DcsShell from "./systems/dcs/layout/DcsShell.jsx";
 import DcsHomePage from "./systems/dcs/pages/DcsHomePage.jsx";
 import NewProjectPage from "./systems/dcs/pages/NewProjectPage.jsx";
@@ -93,15 +83,13 @@ import NewTemplatePage from "./systems/dcs/pages/NewTemplatePage.jsx";
 import TemplateSettingsPage from "./systems/dcs/pages/TemplateSettingsPage.jsx";
 import PublicFormPage from "./systems/dcs/pages/PublicFormPage.jsx";
 import ApprovalPage from "./systems/dcs/pages/ApprovalPage.jsx";
-// Head of Department pages
+
 import HodEmployeesPage from "./systems/serviceDelivery/pages/hod/HodEmployeesPage";
 import HodTasksPage from "./systems/serviceDelivery/pages/hod/HodTasksPage";
 import HodAnnouncementsPage from "./systems/serviceDelivery/pages/hod/HodAnnouncementsPage";
 import HodFeedbackPage from "./systems/serviceDelivery/pages/hod/HodFeedbackPage";
 
-// event-managment
 import Layout from "./systems/event-managment/pages/index/Layout.jsx";
-import Request from "./systems/event-managment/pages/index/Request.jsx";
 import BookingOptions from "./systems/event-managment/pages/index/BookingOptions.jsx";
 import BookingRequestTrack from "./systems/event-managment/pages/index/BookingRequestTrack.jsx";
 import BookNow from "./systems/event-managment/pages/index/BookNow.jsx";
@@ -134,13 +122,11 @@ import EventActions from "./systems/event-managment/components/EventActions.jsx"
 import BookingRequestsList from "./systems/event-managment/components/BookingRequestsList.jsx";
 import BookingRequestDetails from "./systems/event-managment/components/BookingRequestDetails.jsx";
 
-// RoleDashboardPage: renders the correct dashboard component based on the logged-in user's role
 const RoleDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const role = (user?.role || "").toLowerCase().trim();
 
   if (role.includes("event-manager")) return <DashboardLayout />;
-
   if (role.includes("receptionist")) return <ReceptionistDashboard />;
   if (role.includes("employee") || role.includes("staff"))
     return <EmployeeDashboard />;
@@ -161,11 +147,9 @@ const RoleDashboardPage: React.FC = () => {
   if (role.includes("admin") || role.includes("system"))
     return <AdminDashboard />;
 
-  // Default: try admin
   return <AdminDashboard />;
 };
 
-// PWA Install Prompt Wrapper
 const PWAInstallPromptWrapper: React.FC = () => {
   const [showPrompt, setShowPrompt] = useState(true);
 
@@ -189,717 +173,506 @@ const PWAInstallPromptWrapper: React.FC = () => {
     };
   }, []);
 
-  console.log("PWAInstallPromptWrapper: showPrompt =", showPrompt);
-
   return showPrompt ? (
     <PWAInstallPrompt onClose={() => setShowPrompt(false)} />
   ) : null;
 };
 
-// Main App Component
+const AuthenticatedRoutes: React.FC = () => {
+  return (
+    <AuthProvider>
+      <SocketProvider>
+        <NotificationProvider>
+          <Routes>
+            <Route
+              path="/mayor/dashboard"
+              element={
+                <ProtectedRoute>
+                  <MayorDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mayor/events"
+              element={
+                <ProtectedRoute>
+                  <MayorEventsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mayor/actions"
+              element={
+                <ProtectedRoute>
+                  <MayorActionsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mayor/feedback-analysis"
+              element={
+                <ProtectedRoute>
+                  <MayorFeedbackPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route path="/event-manager" element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<DashboardPage />} />
+              <Route path="rooms/all" element={<RoomsList />} />
+              <Route path="rooms/stats" element={<RoomStatistics />} />
+              <Route path="rooms/new" element={<CreateRoomForm />} />
+              <Route path="rooms/availability" element={<CheckAvailability />} />
+              <Route path="rooms/date-check" element={<DateCheck />} />
+              <Route path="events/live" element={<Live />} />
+              <Route path="events/upcoming" element={<Upcoming />} />
+              <Route path="events/recurring" element={<Recurring />} />
+              <Route path="events/past" element={<Past />} />
+              <Route path="events/new" element={<NewTypeSelector />} />
+              <Route path="events/new/event" element={<CreateEvent eventMeetingType="event" />} />
+              <Route path="events/new/meet" element={<CreateEvent eventMeetingType="meet" />} />
+              <Route path="events/:eventId/edit" element={<CreateEvent eventMeetingType={undefined} />} />
+              <Route path="events/:eventId/details" element={<ViewEventDetailsDashboard />} />
+              <Route path="events/:eventId/designate" element={<DesignateMinutes />} />
+              <Route path="events/actions" element={<EventActions />} />
+              <Route path="events/:eventId/invite" element={<InvitePage />} />
+              <Route path="booking-requests/all" element={<BookingRequestsList />} />
+              <Route path="booking-requests/water" element={<BookingRequestsList waterOnly />} />
+              <Route path="booking-requests/:id" element={<BookingRequestDetails />} />
+            </Route>
+
+            <Route
+              path="/:roleSlug/dashboard"
+              element={
+                <ProtectedRoute>
+                  <RoleDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/:roleSlug/tasks"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <TaskManager />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/followups"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <FollowUpManager />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/:roleSlug/overview"
+              element={
+                <ProtectedRoute>
+                  <MayorDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/departments"
+              element={
+                <ProtectedRoute>
+                  <DepartmentsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/employees"
+              element={
+                <ProtectedRoute>
+                  <EmployeesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/user-management"
+              element={
+                <ProtectedRoute>
+                  <UserManagementPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/roles-management"
+              element={
+                <ProtectedRoute>
+                  <RolesManagementPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/system-audit"
+              element={
+                <ProtectedRoute>
+                  <SystemAuditPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/storage-management"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <StorageManagement />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/feedback"
+              element={
+                <ProtectedRoute>
+                  <FeedbackPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/:roleSlug/smart-parking"
+              element={
+                <ProtectedRoute>
+                  <AdminSmartParkingDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/smart-parking/reservation"
+              element={
+                <ProtectedRoute>
+                  <ReservationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/checkin-vehicle"
+              element={
+                <ProtectedRoute>
+                  <CheckInVehiclePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/checkin-person"
+              element={
+                <ProtectedRoute>
+                  <CheckInPersonPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/checkout-vehicle"
+              element={
+                <ProtectedRoute>
+                  <CheckOutVehiclePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/checkout-person"
+              element={
+                <ProtectedRoute>
+                  <CheckOutPersonPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/:roleSlug/service-delivery/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AdminServiceDeliveryDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/service-delivery/checkin-checkout"
+              element={
+                <ProtectedRoute>
+                  <AdminCheckInCheckOut />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/service-delivery/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/service-delivery/feedback"
+              element={
+                <ProtectedRoute>
+                  <FeedbackPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/calender"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <CalendarPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/:roleSlug/events/:eventId/invite"
+              element={
+                <ProtectedRoute>
+                  <InvitePage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/:roleSlug/visitors/:visitorId"
+              element={
+                <ProtectedRoute>
+                  <VisitorDetailsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/:roleSlug/requests"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <RequestsPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/:roleSlug/all-visitors"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <EmployeeVisitorsTab />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/:roleSlug/hod/employees"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <HodEmployeesPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/hod/tasks"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <HodTasksPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/hod/announcements"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <HodAnnouncementsPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/hod/feedback"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <HodFeedbackPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Legacy redirects */}
+            <Route path="/admin/overview" element={<Navigate to="/system-admin/overview" replace />} />
+            <Route path="/admin/dashboard" element={<Navigate to="/system-admin/dashboard" replace />} />
+            <Route path="/admin/departments" element={<Navigate to="/system-admin/departments" replace />} />
+            <Route path="/admin/employees" element={<Navigate to="/system-admin/employees" replace />} />
+            <Route path="/admin/user-managment" element={<Navigate to="/system-admin/user-managment" replace />} />
+            <Route path="/admin/roles-managment" element={<Navigate to="/system-admin/roles-managment" replace />} />
+            <Route path="/admin/system-audit" element={<Navigate to="/system-admin/system-audit" replace />} />
+            <Route path="/admin/smart-parking" element={<Navigate to="/system-admin/smart-parking" replace />} />
+            <Route path="/admin/smart-parking/reservation" element={<Navigate to="/system-admin/smart-parking/reservation" replace />} />
+            <Route path="/admin/service-delivery/dashboard" element={<Navigate to="/system-admin/service-delivery/dashboard" replace />} />
+            <Route path="/admin/service-delivery/checkin-checkout" element={<Navigate to="/system-admin/service-delivery/checkin-checkout" replace />} />
+            <Route path="/admin/analytics" element={<Navigate to="/system-admin/analytics" replace />} />
+            <Route path="/admin/feedback" element={<Navigate to="/system-admin/feedback" replace />} />
+            <Route path="/admin/service-delivery/analytics" element={<Navigate to="/system-admin/service-delivery/analytics" replace />} />
+            <Route path="/admin/service-delivery/feedback" element={<Navigate to="/system-admin/service-delivery/feedback" replace />} />
+            <Route path="/smart-parking/dashboard" element={<Navigate to="/gate-officer/dashboard" replace />} />
+            <Route path="/smart-parking/checkin-vehicle" element={<Navigate to="/gate-officer/checkin-vehicle" replace />} />
+            <Route path="/smart-parking/checkin-person" element={<Navigate to="/gate-officer/checkin-person" replace />} />
+            <Route path="/smart-parking/checkout-vehicle" element={<Navigate to="/gate-officer/checkout-vehicle" replace />} />
+            <Route path="/smart-parking/checkout-person" element={<Navigate to="/gate-officer/checkout-person" replace />} />
+            <Route path="/service-delivery/receptionist" element={<Navigate to="/receptionist/dashboard" replace />} />
+
+            <Route
+              path="/receptionist/visitors"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <ReceptionistVisitors />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/receptionist/assigned"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <AssignedVisitorsList />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/service-delivery/department-manager"
+              element={<Navigate to="/department-manager/dashboard" replace />}
+            />
+            <Route
+              path="/service-delivery/employee"
+              element={<Navigate to="/employee/dashboard" replace />}
+            />
+            <Route
+              path="/service-delivery/dashboard"
+              element={
+                <Navigate
+                  to="/system-admin/service-delivery/dashboard"
+                  replace
+                />
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={<Navigate to="/system-admin/dashboard" replace />}
+            />
+
+            {/* Data Collection System (DCS) */}
+            <Route
+              path="/dcs-system"
+              element={
+                <ProtectedRoute>
+                  <DcsShell />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<DcsHomePage />} />
+              <Route path="new-project" element={<NewProjectPage />} />
+              <Route path="templates" element={<TemplatesListPage />} />
+              <Route path="templates/new" element={<NewTemplatePage />} />
+              <Route path="templates/:template_id/edit" element={<TemplateSettingsPage />} />
+              <Route path="project/:project_id" element={<ProjectDetailPage />}>
+                <Route index element={<ProjectSettingsPage />} />
+                <Route path="settings" element={<ProjectSettingsPage />} />
+                <Route path="forms" element={<ProjectFormsListPage />} />
+                <Route path="access-control" element={<ProjectAccessControlPage />} />
+                <Route path="dashboard" element={<ProjectDashboardPage />} />
+              </Route>
+              <Route path="project/:project_id/forms/new" element={<NewFormPage />} />
+              <Route path="project/:project_id/forms/:form_group_id" element={<FormDetailPage />}>
+                <Route index element={<FormSettingsPage />} />
+                <Route path="details" element={<FormSettingsPage />} />
+                <Route path="versions" element={<FormVersionsPage />} />
+              </Route>
+              <Route path="project/:project_id/forms/:form_group_id/data" element={<FormAllDataPage />} />
+              <Route path="project/:project_id/forms/:form_group_id/:version/data" element={<FormDataPage />} />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </NotificationProvider>
+      </SocketProvider>
+    </AuthProvider>
+  );
+};
+
 const App: React.FC = () => {
   return (
     <ToastProvider>
-      <AuthProvider>
-        <SocketProvider>
-          <NotificationProvider>
-            <Router>
-              <Routes>
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<LiveEvents />} />
+      <Router>
+        <Routes>
+          {/* Public Routes - No Auth/Socket needed */}
+          <Route path="/" element={<Layout />}>
+            <Route index element={<LiveEvents />} />
+            <Route path="upcoming" element={<UpcomingEvents />} />
+            <Route path="book-a-room" element={<BookingOptions />} />
+            <Route path="book-a-room/options" element={<BookingOptions />} />
+            <Route path="book-a-room/new" element={<BookNow />} />
+            <Route path="book-a-room/new/:eventMeetingType" element={<BookNow />} />
+            <Route path="book-a-room/track" element={<BookingRequestTrack />} />
+            <Route path="live/:id" element={<>Live Event Details</>} />
+            <Route path="event/:id/attendances" element={<AttendanceForm />} />
+            <Route path="event/:id/details" element={<EventDetails />} />
+            <Route path="event/:id/attendees" element={<AttendeesList />} />
+            <Route path="event/:id/designate" element={<DesignateMinutes />} />
+            <Route path="event/:id/actions" element={<EventActionsPage />} />
+            <Route path="event/:id/editor" element={<ShowEditor />} />
+            <Route path="event/:id/invite" element={<InvitePage />} />
+            <Route path="feedback" element={<FeedbackLandingPage />} />
+            <Route path="feedback/service" element={<FeedbackServicePage />} />
+            <Route path="feedback/general" element={<FeedbackGeneralPage />} />
+          </Route>
 
-                  <Route path="upcoming" element={<UpcomingEvents />} />
-                  <Route path="book-a-room" element={<BookingOptions />} />
-                  <Route
-                    path="book-a-room/options"
-                    element={<BookingOptions />}
-                  />
-                  <Route path="book-a-room/new" element={<BookNow />} />
-                  <Route
-                    path="book-a-room/new/:eventMeetingType"
-                    element={<BookNow />}
-                  />
-                  <Route
-                    path="book-a-room/track"
-                    element={<BookingRequestTrack />}
-                  />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-                  <Route path="live/:id" element={<>Live Event Details</>} />
-                  <Route
-                    path="event/:id/attendances"
-                    element={<AttendanceForm />}
-                  />
-                  <Route path="event/:id/details" element={<EventDetails />} />
-                  <Route
-                    path="event/:id/attendees"
-                    element={<AttendeesList />}
-                  />
-                  <Route
-                    path="event/:id/designate"
-                    element={<DesignateMinutes />}
-                  />
-                  <Route
-                    path="event/:id/actions"
-                    element={<EventActionsPage />}
-                  />
-                  <Route path="event/:id/editor" element={<ShowEditor />} />
-                  <Route path="event/:id/invite" element={<InvitePage />} />
+          <Route path="/dcs-form/:id" element={<PublicFormPage />} />
+          <Route path="/dcs-approval/:token" element={<ApprovalPage />} />
 
-                  <Route path="feedback" element={<FeedbackLandingPage />} />
-                  <Route
-                    path="feedback/service"
-                    element={<FeedbackServicePage />}
-                  />
-                  <Route
-                    path="feedback/general"
-                    element={<FeedbackGeneralPage />}
-                  />
-                </Route>
-
-                {/* Public Routes */}
-                <Route path="/login" element={<LoginPage />} />
-
-                <Route
-                  path="/forgot-password"
-                  element={<ForgotPasswordPage />}
-                />
-                <Route path="/reset-password" element={<ResetPasswordPage />} />
-
-                <Route
-                  path="/mayor/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <MayorDashboardPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/mayor/events"
-                  element={
-                    <ProtectedRoute>
-                      <MayorEventsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/mayor/actions"
-                  element={
-                    <ProtectedRoute>
-                      <MayorActionsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/mayor/feedback-analysis"
-                  element={
-                    <ProtectedRoute>
-                      <MayorFeedbackPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* ==================== ROLE-BASED ROUTES ==================== */}
-                {/* Dashboard - role-specific component chosen at runtime */}
-                
-
-                {/* Separated Private/Authenticated Route View Wrapper */}
-                <Route path="/event-manager" element={
-                  <ProtectedRoute>
-                  <DashboardLayout />
-                  </ProtectedRoute>
-                  }>
-                
-                  <Route index element={<DashboardPage />} />
-
-                  {/* Rooms Management Routes */}
-                  <Route
-                    path="/event-manager/rooms/all"
-                    element={<RoomsList />}
-                  />
-                  <Route
-                    path="/event-manager/rooms/stats"
-                    element={<RoomStatistics />}
-                  />
-                  <Route
-                    path="/event-manager/rooms/new"
-                    element={<CreateRoomForm />}
-                  />
-                  <Route
-                    path="/event-manager/rooms/availability"
-                    element={<CheckAvailability />}
-                  />
-                  <Route
-                    path="/event-manager/rooms/date-check"
-                    element={<DateCheck />}
-                  />
-
-                  {/* Events Management Routes */}
-                  <Route path="/event-manager/events/live" element={<Live />} />
-                  <Route
-                    path="/event-manager/events/upcoming"
-                    element={<Upcoming />}
-                  />
-                  <Route
-                    path="/event-manager/events/recurring"
-                    element={<Recurring />}
-                  />
-                  <Route path="/event-manager/events/past" element={<Past />} />
-                  <Route
-                    path="/event-manager/events/new"
-                    element={<NewTypeSelector />}
-                  />
-                  <Route
-                    path="/event-manager/events/new/event"
-                    element={<CreateEvent eventMeetingType="event" />}
-                  />
-                  <Route
-                    path="/event-manager/events/new/meet"
-                    element={<CreateEvent eventMeetingType="meet" />}
-                  />
-                  <Route
-                    path="/event-manager/events/:eventId/edit"
-                    element={<CreateEvent eventMeetingType={undefined} />}
-                  />
-                  <Route
-                    path="/event-manager/events/:eventId/details"
-                    element={<ViewEventDetailsDashboard />}
-                  />
-                  <Route
-                    path="/event-manager/events/:eventId/designate"
-                    element={<DesignateMinutes />}
-                  />
-                  <Route
-                    path="/event-manager/events/actions"
-                    element={<EventActions />}
-                  />
-                  <Route
-                    path="/event-manager/events/:eventId/invite"
-                    element={<InvitePage />}
-                  />
-
-                  {/* Booking Requests Routes */}
-                  <Route
-                    path="/event-manager/booking-requests/all"
-                    element={<BookingRequestsList />}
-                  />
-                  <Route
-                    path="/event-manager/booking-requests/water"
-                    element={<BookingRequestsList waterOnly />}
-                  />
-                  <Route
-                    path="/event-manager/booking-requests/:id"
-                    element={<BookingRequestDetails />}
-                  />
-                </Route>
-
-                <Route
-                  path="/:roleSlug/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <RoleDashboardPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Task Management */}
-                <Route
-                  path="/:roleSlug/tasks"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <TaskManager />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/followups"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <FollowUpManager />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Admin system pages */}
-                <Route
-                  path="/:roleSlug/overview"
-                  element={
-                    <ProtectedRoute>
-                      <MayorDashboardPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/departments"
-                  element={
-                    <ProtectedRoute>
-                      <DepartmentsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/employees"
-                  element={
-                    <ProtectedRoute>
-                      <EmployeesPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/user-management"
-                  element={
-                    <ProtectedRoute>
-                      <UserManagementPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/roles-management"
-                  element={
-                    <ProtectedRoute>
-                      <RolesManagementPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/system-audit"
-                  element={
-                    <ProtectedRoute>
-                      <SystemAuditPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/analytics"
-                  element={
-                    <ProtectedRoute>
-                      <Analytics />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/storage-management"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <StorageManagement />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/feedback"
-                  element={
-                    <ProtectedRoute>
-                      <FeedbackPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Smart Parking pages */}
-                <Route
-                  path="/:roleSlug/smart-parking"
-                  element={
-                    <ProtectedRoute>
-                      <AdminSmartParkingDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/smart-parking/reservation"
-                  element={
-                    <ProtectedRoute>
-                      <ReservationsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/checkin-vehicle"
-                  element={
-                    <ProtectedRoute>
-                      <CheckInVehiclePage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/checkin-person"
-                  element={
-                    <ProtectedRoute>
-                      <CheckInPersonPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/checkout-vehicle"
-                  element={
-                    <ProtectedRoute>
-                      <CheckOutVehiclePage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/checkout-person"
-                  element={
-                    <ProtectedRoute>
-                      <CheckOutPersonPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Service Delivery pages */}
-                <Route
-                  path="/:roleSlug/service-delivery/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <AdminServiceDeliveryDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/service-delivery/checkin-checkout"
-                  element={
-                    <ProtectedRoute>
-                      <AdminCheckInCheckOut />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/service-delivery/analytics"
-                  element={
-                    <ProtectedRoute>
-                      <Analytics />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/service-delivery/feedback"
-                  element={
-                    <ProtectedRoute>
-                      <FeedbackPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Shared events calendar — available to every authenticated role */}
-                <Route
-                  path="/calender"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <CalendarPage />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Event Management Invite Page */}
-                <Route
-                  path="/:roleSlug/events/:eventId/invite"
-                  element={
-                    <ProtectedRoute>
-                      <InvitePage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Visitor details (for employee/receptionist) */}
-                <Route
-                  path="/:roleSlug/visitors/:visitorId"
-                  element={
-                    <ProtectedRoute>
-                      <VisitorDetailsPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/:roleSlug/requests"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <RequestsPage />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/:roleSlug/all-visitors"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <EmployeeVisitorsTab />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Head of Department pages */}
-                <Route
-                  path="/:roleSlug/hod/employees"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <HodEmployeesPage />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/hod/tasks"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <HodTasksPage />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/hod/announcements"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <HodAnnouncementsPage />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/:roleSlug/hod/feedback"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <HodFeedbackPage />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Shared pages */}
-
-                {/* ==================== LEGACY ROUTE REDIRECTS ==================== */}
-                <Route
-                  path="/admin/overview"
-                  element={<Navigate to="/system-admin/overview" replace />}
-                />
-                <Route
-                  path="/admin/dashboard"
-                  element={<Navigate to="/system-admin/dashboard" replace />}
-                />
-                <Route
-                  path="/admin/departments"
-                  element={<Navigate to="/system-admin/departments" replace />}
-                />
-                <Route
-                  path="/admin/employees"
-                  element={<Navigate to="/system-admin/employees" replace />}
-                />
-                <Route
-                  path="/admin/user-managment"
-                  element={
-                    <Navigate to="/system-admin/user-managment" replace />
-                  }
-                />
-                <Route
-                  path="/admin/roles-managment"
-                  element={
-                    <Navigate to="/system-admin/roles-managment" replace />
-                  }
-                />
-                <Route
-                  path="/admin/system-audit"
-                  element={<Navigate to="/system-admin/system-audit" replace />}
-                />
-                <Route
-                  path="/admin/smart-parking"
-                  element={
-                    <Navigate to="/system-admin/smart-parking" replace />
-                  }
-                />
-                <Route
-                  path="/admin/smart-parking/reservation"
-                  element={
-                    <Navigate
-                      to="/system-admin/smart-parking/reservation"
-                      replace
-                    />
-                  }
-                />
-                <Route
-                  path="/admin/service-delivery/dashboard"
-                  element={
-                    <Navigate
-                      to="/system-admin/service-delivery/dashboard"
-                      replace
-                    />
-                  }
-                />
-                <Route
-                  path="/admin/service-delivery/checkin-checkout"
-                  element={
-                    <Navigate
-                      to="/system-admin/service-delivery/checkin-checkout"
-                      replace
-                    />
-                  }
-                />
-                <Route
-                  path="/admin/analytics"
-                  element={<Navigate to="/system-admin/analytics" replace />}
-                />
-                <Route
-                  path="/admin/feedback"
-                  element={<Navigate to="/system-admin/feedback" replace />}
-                />
-                <Route
-                  path="/admin/service-delivery/analytics"
-                  element={
-                    <Navigate
-                      to="/system-admin/service-delivery/analytics"
-                      replace
-                    />
-                  }
-                />
-                <Route
-                  path="/admin/service-delivery/feedback"
-                  element={
-                    <Navigate
-                      to="/system-admin/service-delivery/feedback"
-                      replace
-                    />
-                  }
-                />
-                <Route
-                  path="/smart-parking/dashboard"
-                  element={<Navigate to="/gate-officer/dashboard" replace />}
-                />
-                <Route
-                  path="/smart-parking/checkin-vehicle"
-                  element={
-                    <Navigate to="/gate-officer/checkin-vehicle" replace />
-                  }
-                />
-                <Route
-                  path="/smart-parking/checkin-person"
-                  element={
-                    <Navigate to="/gate-officer/checkin-person" replace />
-                  }
-                />
-                <Route
-                  path="/smart-parking/checkout-vehicle"
-                  element={
-                    <Navigate to="/gate-officer/checkout-vehicle" replace />
-                  }
-                />
-                <Route
-                  path="/smart-parking/checkout-person"
-                  element={
-                    <Navigate to="/gate-officer/checkout-person" replace />
-                  }
-                />
-                <Route
-                  path="/service-delivery/receptionist"
-                  element={<Navigate to="/receptionist/dashboard" replace />}
-                />
-                <Route
-                  path="/receptionist/visitors"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <ReceptionistVisitors />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/receptionist/assigned"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <AssignedVisitorsList />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/service-delivery/department-manager"
-                  element={
-                    <Navigate to="/department-manager/dashboard" replace />
-                  }
-                />
-                <Route
-                  path="/service-delivery/employee"
-                  element={<Navigate to="/employee/dashboard" replace />}
-                />
-                <Route
-                  path="/service-delivery/dashboard"
-                  element={
-                    <Navigate
-                      to="/system-admin/service-delivery/dashboard"
-                      replace
-                    />
-                  }
-                />
-                <Route
-                  path="/dashboard"
-                  element={<Navigate to="/system-admin/dashboard" replace />}
-                />
-
-                {/* Data Collection System (DCS) */}
-                <Route
-                  path="/dcs-system"
-                  element={
-                    <ProtectedRoute>
-                      <DcsShell />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<DcsHomePage />} />
-                  <Route path="new-project" element={<NewProjectPage />} />
-                  <Route path="templates" element={<TemplatesListPage />} />
-                  <Route path="templates/new" element={<NewTemplatePage />} />
-                  <Route path="templates/:template_id/edit" element={<TemplateSettingsPage />} />
-                  <Route path="project/:project_id" element={<ProjectDetailPage />}>
-                    <Route index element={<ProjectSettingsPage />} />
-                    <Route path="settings" element={<ProjectSettingsPage />} />
-                    <Route path="forms" element={<ProjectFormsListPage />} />
-                    <Route path="access-control" element={<ProjectAccessControlPage />} />
-                    <Route path="dashboard" element={<ProjectDashboardPage />} />
-                  </Route>
-                  <Route path="project/:project_id/forms/new" element={<NewFormPage />} />
-                  <Route path="project/:project_id/forms/:form_group_id" element={<FormDetailPage />}>
-                    <Route index element={<FormSettingsPage />} />
-                    <Route path="details" element={<FormSettingsPage />} />
-                    <Route path="versions" element={<FormVersionsPage />} />
-                  </Route>
-                  <Route path="project/:project_id/forms/:form_group_id/data" element={<FormAllDataPage />} />
-                  <Route path="project/:project_id/forms/:form_group_id/:version/data" element={<FormDataPage />} />
-                </Route>
-
-                <Route path="/dcs-form/:id" element={<PublicFormPage />} />
-                <Route path="/dcs-approval/:token" element={<ApprovalPage />} />
-
-                {/* route for unknown route move to under development */}
-                <Route
-                  path=":roleSlug/Unknown-user"
-                  element={
-                    <ProtectedRoute>
-                      <UnderDevelopment />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-              {/* <ChatWidget /> */}
-            </Router>
-          </NotificationProvider>
-        </SocketProvider>
-      </AuthProvider>
+          {/* Authenticated Routes - With Auth/Socket */}
+          <Route
+            path="*"
+            element={
+              <ProtectedRoute>
+                <AuthenticatedRoutes />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Router>
     </ToastProvider>
   );
 };
@@ -927,116 +700,6 @@ function AppWithPWA() {
     <>
       <App />
       {/* <PWAInstallPromptWrapper /> */}
-
-      {/* <SystemAlert
-        isOpen={alerts.error}
-        type="error"
-        message="This is an error alert."
-        onClose={() => closeAlert("error")}
-      />
-      <SystemAlert
-        isOpen={alerts.systemError}
-        type="systemError"
-        message="This is a system error alert (500)."
-        onClose={() => closeAlert("systemError")}
-      />
-      <SystemAlert
-        isOpen={alerts.warning}
-        type="warning"
-        message="This is a warning alert."
-        onClose={() => closeAlert("warning")}
-      />
-      <SystemAlert
-        isOpen={alerts.success}
-        type="success"
-        message="This is a success alert."
-        onClose={() => closeAlert("success")}
-      />
-
-      <div
-        style={{
-          position: "fixed",
-          bottom: 20,
-          right: 20,
-          zIndex: 10000,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
-        <button
-          onClick={() => openAlert("error")}
-          style={{
-            padding: "8px 14px",
-            fontFamily: "'Montserrat', sans-serif",
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: 1,
-            textTransform: "uppercase",
-            border: "none",
-            borderRadius: 0,
-            cursor: "pointer",
-            color: "#fff",
-            backgroundColor: "#E53935",
-          }}
-        >
-          Test Error
-        </button>
-        <button
-          onClick={() => openAlert("systemError")}
-          style={{
-            padding: "8px 14px",
-            fontFamily: "'Montserrat', sans-serif",
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: 1,
-            textTransform: "uppercase",
-            border: "none",
-            borderRadius: 0,
-            cursor: "pointer",
-            color: "#fff",
-            backgroundColor: "#E74C3C",
-          }}
-        >
-          Test System Error
-        </button>
-        <button
-          onClick={() => openAlert("warning")}
-          style={{
-            padding: "8px 14px",
-            fontFamily: "'Montserrat', sans-serif",
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: 1,
-            textTransform: "uppercase",
-            border: "none",
-            borderRadius: 0,
-            cursor: "pointer",
-            color: "#fff",
-            backgroundColor: "#FF9800",
-          }}
-        >
-          Test Warning
-        </button>
-        <button
-          onClick={() => openAlert("success")}
-          style={{
-            padding: "8px 14px",
-            fontFamily: "'Montserrat', sans-serif",
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: 1,
-            textTransform: "uppercase",
-            border: "none",
-            borderRadius: 0,
-            cursor: "pointer",
-            color: "#fff",
-            backgroundColor: "#4CAF50",
-          }}
-        >
-          Test Success
-        </button>
-      </div> */}
     </>
   );
 }
