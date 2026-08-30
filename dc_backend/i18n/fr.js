@@ -84,6 +84,8 @@ module.exports = {
   APPROVAL_NOT_YOUR_TURN: "Ce n'est pas encore le tour de cet approbateur",
   APPROVAL_SIGNATURE_REQUIRED: "Une signature ou un certificat numérique est requis pour approuver",
   APPROVAL_DECISION_RECORDED: "Votre décision a été enregistrée avec succès",
+  LOCATIONS_FETCHED: "Emplacements récupérés avec succès",
+  LOCATION_TYPE_INVALID: "Le type d'emplacement ou le parent n'est pas valide",
   NO_DATA_TO_EXPORT: "Aucune donnée à exporter pour la période sélectionnée",
   TABLE_VERSION: "Version",
   TABLE_SUBMITTED_AT: "Soumis le",

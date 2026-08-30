@@ -259,7 +259,9 @@ function ApprovalPageContent() {
               <div className="min-w-0">
                 <p className="text-sm font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
                   {translate("DCS_APPROVAL_LEVEL_LABEL", { number: step.level + 1 })} - {step.name}
-                  <span className="font-normal" style={{ color: "#9E9E9E" }}> ({step.role})</span>
+                  <span className="font-normal" style={{ color: "#9E9E9E" }}>
+                    {" "}({step.role}{step.location && step.location.name ? ` - ${step.location.name}` : ""})
+                  </span>
                 </p>
                 {step.comment && (
                   <p className="text-sm mt-1" style={{ color: "#555555" }}>&ldquo;{step.comment}&rdquo;</p>
