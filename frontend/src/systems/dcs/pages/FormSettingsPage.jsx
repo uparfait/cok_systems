@@ -105,7 +105,7 @@ export default function FormSettingsPage() {
           resolveFieldOptions={resolveFieldOptions}
           resolveFullFieldOptions={resolveFullFieldOptions}
         />
-        <ApprovalFlowSection value={approval_config} onChange={setApprovalConfig} />
+        <ApprovalFlowSection value={approval_config} onChange={setApprovalConfig} fields={fields} />
       </div>
     </div>
   );

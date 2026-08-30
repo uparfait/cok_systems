@@ -73,10 +73,12 @@ async function notify_approval_steps(req, form_name, steps) {
   const notified = [];
   for (const step of steps) {
     const link = `${origin}/dcs-approval/${step.token}`;
+    // Location-routed approvers see which place they are signing for, e.g. "Village leader - Gihanga".
+    const role_label = step.location && step.location.name ? `${step.role} - ${step.location.name}` : step.role;
     const result = await send_approval_request_email({
       to: step.email,
       approver_name: step.name,
-      approver_role: step.role,
+      approver_role: role_label,
       form_name,
       link,
       origin,

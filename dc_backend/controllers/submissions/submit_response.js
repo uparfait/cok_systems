@@ -2,6 +2,7 @@ const forms_model = require("../../models/forms_model.js");
 const submissions_model = require("../../models/submissions_model.js");
 const { validate_submission_data } = require("../../jsonlogic/validate_submission.js");
 const { build_approval_state, get_active_steps } = require("../../utilities/approval.js");
+const { resolve_location_chain } = require("../../utilities/approval_routing.js");
 const { notify_approval_steps } = require("../../utilities/approval_email.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -60,19 +61,32 @@ async function submit_response(req, res) {
       );
     }
 
+    // The submission's answered location names resolve to its location_id chain, which picks the approvers responsible for it.
+    const location_chain = form_version.approval_config ? await resolve_location_chain(validation_result.resolved_data) : [];
+
     const submission = await submissions_model.create_submission({
       form_group_id,
       version: Number(version),
       project_id: form_version.project_id,
       data: validation_result.resolved_data,
       client_submission_id: client_submission_id || null,
-      approval: build_approval_state(form_version.approval_config),
+      approval: build_approval_state(form_version.approval_config, location_chain, validation_result.resolved_data),
     });
 
-    // The system itself emails the approval link to whoever must act first (sequential: level 1; parallel: everyone).
+    // The system itself emails every approver allowed to act right away - the first one,
+    // plus each one after any force-OFF approver (they are notified at the same time).
     let notified_steps = null;
     if (submission.approval) {
-      notified_steps = await notify_approval_steps(req, form_version.form_name, get_active_steps(submission.approval));
+      const steps_to_notify = get_active_steps(submission.approval).filter((step) => !step.notified_at);
+      notified_steps = await notify_approval_steps(req, form_version.form_name, steps_to_notify);
+      const sent_by_token = new Map(notified_steps.map((entry) => [entry.token, entry.email_sent]));
+      submission.approval.steps.forEach((step) => {
+        if (sent_by_token.has(step.token)) {
+          step.notified_at = new Date();
+          step.email_sent = sent_by_token.get(step.token);
+        }
+      });
+      await submissions_model.update_submission_approval(submission._id, submission.approval);
     }
 
     return res.status(201).json(success_response(req, "SUBMISSION_CREATED", to_submitter_view(submission, notified_steps)));

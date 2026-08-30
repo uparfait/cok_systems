@@ -60,21 +60,33 @@ async function submit_approval_decision(req, res) {
         : null;
 
     apply_approval_decision(approval, step, decision, comment ? comment.toString().trim() : null, clean_signature);
-    await submissions_model.update_submission_approval(submission._id, approval);
 
-    // Sequential flows: the system itself emails the next approver; a link token only comes back as a manual fallback when the email failed.
+    // The system itself emails whoever just became able to act (never re-emailing anyone);
+    // a link token only comes back as a manual fallback when the email failed. Legacy
+    // parallel flows were fully notified at submit time, so nothing new is ever sent here.
     let next_approvers = [];
-    if (approval.mode === "sequential" && approval.status === "pending") {
-      const form_version = await forms_model.get_version_document(submission.form_group_id, submission.version);
-      const notified = await notify_approval_steps(req, (form_version && form_version.form_name) || "Form", get_active_steps(approval));
-      next_approvers = notified.map((entry) => ({
-        level: entry.level,
-        name: entry.name,
-        role: entry.role,
-        email_sent: entry.email_sent,
-        token: entry.email_sent ? undefined : entry.token,
-      }));
+    if (approval.mode !== "parallel" && approval.status === "pending") {
+      const steps_to_notify = get_active_steps(approval).filter((entry) => !entry.notified_at);
+      if (steps_to_notify.length > 0) {
+        const form_version = await forms_model.get_version_document(submission.form_group_id, submission.version);
+        const notified = await notify_approval_steps(req, (form_version && form_version.form_name) || "Form", steps_to_notify);
+        const sent_by_token = new Map(notified.map((entry) => [entry.token, entry.email_sent]));
+        approval.steps.forEach((entry) => {
+          if (sent_by_token.has(entry.token)) {
+            entry.notified_at = new Date();
+            entry.email_sent = sent_by_token.get(entry.token);
+          }
+        });
+        next_approvers = notified.map((entry) => ({
+          level: entry.level,
+          name: entry.name,
+          role: entry.role,
+          email_sent: entry.email_sent,
+          token: entry.email_sent ? undefined : entry.token,
+        }));
+      }
     }
+    await submissions_model.update_submission_approval(submission._id, approval);
 
     return res.status(200).json(
       success_response(req, "APPROVAL_DECISION_RECORDED", {
