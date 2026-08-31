@@ -1,24 +1,31 @@
 /*
  * =========================================================
- * IKAZE OFFLINE SERVICE WORKER  (v2.1.0)
+ * IKAZE OFFLINE SERVICE WORKER  (v2.2.0)
  * =========================================================
  *
  * Main behavior:
  *
- * 1. Network First.
- * 2. Network is attempted up to MAX_NETWORK_ATTEMPTS times
- *    when the request fails at the network level.
- * 3. HTTP errors (404, 401, 403, 500...) are NOT retried.
- * 4. Every successful GET response is cached:
+ * 1. Network First — ALWAYS.
+ *    Every request goes to the network exactly ONCE.
+ *    No retries.
+ *
+ * 2. The cache is ONLY consulted when the network request
+ *    actually fails (user is offline / server unreachable).
+ *    While online, the cache is never used to answer a
+ *    request.
+ *
+ * 3. Every successful GET response REPLACES its previous
+ *    cache entry (cache.put overwrites by request URL):
  *        - same-origin: always
  *        - cross-origin: when CACHE_CROSS_ORIGIN is true
- * 5. A successful network response is always returned first.
- * 6. The successful response replaces its previous cache entry.
- * 7. INSTALL now PRECACHES the app shell AND every asset it
- *    references (JS, CSS, images, fonts, manifest, icons),
- *    so all build files are captured immediately — not only
- *    after the user happens to request them.
- * 8. When offline:
+ *
+ * 4. HTTP errors (404, 401, 403, 500...) are real server
+ *    responses — they are returned as-is and never cached.
+ *
+ * 5. INSTALL precaches the app shell AND every asset it
+ *    references (JS, CSS, images, fonts, manifest, icons).
+ *
+ * 6. When offline:
  *
  *      Normal application route
  *          -> return cached React application
@@ -27,30 +34,12 @@
  *          -> return cached API response if one exists
  *          -> otherwise let the real network error propagate
  *
- * 9. /sw.js is never cached by this service worker.
- * 10. Web Push notifications are supported.
+ * 7. /sw.js is never cached by this service worker.
+ * 8. Web Push notifications are supported.
  *
  * Cache:
  *
  *      IKAZE_OFFLINE_V2
- *
- * FIXES vs previous version:
- *
- *  A. response.clone() is now called SYNCHRONOUSLY before
- *     the response is returned to the page. Previously the
- *     clone happened after an `await`, so the browser had
- *     often already started consuming the body and clone()
- *     threw "body already used" — meaning many files were
- *     silently never cached. This was the main reason "not
- *     all files were captured".
- *
- *  B. Install-time asset discovery: index.html is parsed and
- *     every referenced asset is precached, plus everything in
- *     EXTRA_PRECACHE_URLS.
- *
- *  C. Cross-origin GET resources (CDN fonts, images, ...) can
- *     now be intercepted and cached, including opaque
- *     responses.
  */
 
 
@@ -61,10 +50,6 @@
  */
 
 const CACHE_NAME = "IKAZE_OFFLINE_V2";
-
-const MAX_NETWORK_ATTEMPTS = 1;
-
-const RETRY_DELAY = 500;
 
 /*
  * Cache resources from other origins (CDNs, Google Fonts...).
@@ -280,63 +265,13 @@ self.addEventListener("activate", event => {
 
 /*
  * =========================================================
- * WAIT
- * =========================================================
- */
-
-function wait(milliseconds) {
-
-    return new Promise(resolve => {
-        setTimeout(resolve, milliseconds);
-    });
-
-}
-
-
-/*
- * =========================================================
- * NETWORK REQUEST WITH RETRIES
- * =========================================================
- *
- * Only actual network failures are retried.
- * HTTP responses (including 404/500) are returned as-is.
- */
-
-async function fetchWithRetries(request) {
-
-    let lastError = null;
-
-    for (
-        let attempt = 1;
-        attempt <= MAX_NETWORK_ATTEMPTS;
-        attempt++
-    ) {
-
-        try {
-
-            return await fetch(request);
-
-        } catch (error) {
-
-            lastError = error;
-
-            if (attempt < MAX_NETWORK_ATTEMPTS) {
-                await wait(RETRY_DELAY * attempt);
-            }
-
-        }
-
-    }
-
-    throw lastError;
-
-}
-
-
-/*
- * =========================================================
  * CACHE A SUCCESSFUL RESPONSE
  * =========================================================
+ *
+ * cache.put(request, response) OVERWRITES any existing entry
+ * stored under the same request URL — so every successful
+ * network response automatically REPLACES the old cached
+ * copy.
  *
  * IMPORTANT: this function receives a response that was
  * ALREADY CLONED synchronously in the fetch handler, before
@@ -391,6 +326,9 @@ async function updateCache(request, responseClone) {
 
         const cache = await caches.open(CACHE_NAME);
 
+        /*
+         * Replaces the previous entry for this URL.
+         */
         await cache.put(request, responseClone);
 
     } catch (error) {
@@ -459,7 +397,7 @@ function isNavigationRequest(request) {
 
 /*
  * =========================================================
- * GET REACT APPLICATION SHELL
+ * GET REACT APPLICATION SHELL  (offline only)
  * =========================================================
  */
 
@@ -495,22 +433,37 @@ async function getOfflineApplication(request) {
 
 /*
  * =========================================================
- * NORMAL RESOURCE REQUEST  (Network First)
+ * NORMAL RESOURCE REQUEST  (Network First — NO RETRY)
  * =========================================================
+ *
+ * Online:
+ *
+ *      fetch once
+ *          ↓
+ *      return network response
+ *          ↓
+ *      cache clone replaces old entry
+ *
+ * Offline (fetch rejects):
+ *
+ *      look in cache — ONLY here
+ *          ↓
+ *      cached response, or the real network error
  */
 
 async function networkFirstResource(request) {
 
     try {
 
-        const response = await fetchWithRetries(request);
+        /*
+         * ONE network attempt. No retries.
+         */
+        const response = await fetch(request);
 
         /*
-         * FIX: clone SYNCHRONOUSLY, before returning.
-         *
-         * Once the page starts reading the body, clone()
-         * throws and the file would never be cached — this
-         * was why many JS/image files were not captured.
+         * Clone SYNCHRONOUSLY, before returning, then let
+         * the cache update happen in the background. The
+         * new response replaces the old cache entry.
          */
         updateCacheInBackground(request, response.clone());
 
@@ -519,7 +472,9 @@ async function networkFirstResource(request) {
     } catch (networkError) {
 
         /*
-         * Network completely failed — try the cache.
+         * The network failed — the user is offline (or the
+         * server is unreachable). ONLY NOW do we look in
+         * the cache.
          */
         const cachedResponse = await caches.match(request);
 
@@ -540,7 +495,7 @@ async function networkFirstResource(request) {
 
 /*
  * =========================================================
- * NAVIGATION REQUEST
+ * NAVIGATION REQUEST  (Network First — NO RETRY)
  * =========================================================
  */
 
@@ -548,10 +503,13 @@ async function navigationFirst(request) {
 
     try {
 
-        const response = await fetchWithRetries(request);
+        /*
+         * ONE network attempt. No retries.
+         */
+        const response = await fetch(request);
 
         /*
-         * FIX: clone synchronously here too.
+         * Newest HTML replaces the old cached copy.
          */
         updateCacheInBackground(request, response.clone());
 
@@ -559,6 +517,9 @@ async function navigationFirst(request) {
 
     } catch (networkError) {
 
+        /*
+         * Offline — ONLY NOW consult the cache.
+         */
         try {
 
             return await getOfflineApplication(request);
@@ -608,9 +569,7 @@ self.addEventListener("fetch", event => {
 
     /*
      * Cross-origin resources (CDN images, fonts, ...) are
-     * now handled too when CACHE_CROSS_ORIGIN is enabled.
-     * Previously they were skipped entirely, so they were
-     * never captured.
+     * handled when CACHE_CROSS_ORIGIN is enabled.
      */
     if (!isSameOrigin && !CACHE_CROSS_ORIGIN) {
         return;
@@ -640,7 +599,8 @@ self.addEventListener("fetch", event => {
     /*
      * API REQUESTS and ALL OTHER GET RESOURCES
      * (JS, CSS, images, fonts, ...) — Network First with
-     * cache fallback. Every successful response is cached.
+     * cache fallback ONLY when offline. Every successful
+     * response replaces its old cache entry.
      */
     event.respondWith(networkFirstResource(request));
 
@@ -814,7 +774,7 @@ self.addEventListener("message", event => {
         if (event.ports && event.ports[0]) {
 
             event.ports[0].postMessage({
-                version: "2.1.0"
+                version: "2.2.0"
             });
 
         }
