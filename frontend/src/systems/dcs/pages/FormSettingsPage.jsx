@@ -59,6 +59,18 @@ export default function FormSettingsPage() {
     showSuccess(translate("DCS_TOAST_LINK_COPIED"));
   };
 
+  // Saves just the approval flow, without going through the builder's publish review.
+  // The current fields are sent unchanged, so no new form version is minted.
+  const handle_save_approvers = async (config) => {
+    try {
+      const response = await update_form(form_group_id, form_name, { fields }, config);
+      showSuccess(response.message || translate("DCS_APPROVAL_SAVED"));
+      refreshForm();
+    } catch (error) {
+      showError(error.message || translate("DCS_ERROR_GENERIC"));
+    }
+  };
+
   const handle_publish = async (schema) => {
     if (!is_approval_config_complete(approval_config)) {
       showError(translate("DCS_APPROVAL_CONFIG_INCOMPLETE"));
@@ -105,7 +117,7 @@ export default function FormSettingsPage() {
           resolveFieldOptions={resolveFieldOptions}
           resolveFullFieldOptions={resolveFullFieldOptions}
         />
-        <ApprovalFlowSection value={approval_config} onChange={setApprovalConfig} fields={fields} />
+        <ApprovalFlowSection value={approval_config} onChange={setApprovalConfig} fields={fields} onSave={handle_save_approvers} />
       </div>
     </div>
   );

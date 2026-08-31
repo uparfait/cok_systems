@@ -83,8 +83,6 @@ import NewTemplatePage from "./systems/dcs/pages/NewTemplatePage.jsx";
 import TemplateSettingsPage from "./systems/dcs/pages/TemplateSettingsPage.jsx";
 import PublicFormPage from "./systems/dcs/pages/PublicFormPage.jsx";
 import ApprovalPage from "./systems/dcs/pages/ApprovalPage.jsx";
-// TEMP: dev-only preview for styling the approval wizard - remove before release
-import ApprovalWizardPreview from "./systems/dcs/pages/ApprovalWizardPreview.jsx";
 
 import HodEmployeesPage from "./systems/serviceDelivery/pages/hod/HodEmployeesPage";
 import HodTasksPage from "./systems/serviceDelivery/pages/hod/HodTasksPage";
@@ -664,8 +662,6 @@ const App: React.FC = () => {
 
           <Route path="/dcs-form/:id" element={<PublicFormPage />} />
           <Route path="/dcs-approval/:token" element={<ApprovalPage />} />
-          {/* TEMP: dev-only preview for styling the approval wizard - remove before release */}
-          <Route path="/dcs-approval-preview" element={<ApprovalWizardPreview />} />
 
           {/* Authenticated Routes - With Auth/Socket */}
           <Route path="*" element={<AuthenticatedRoutes />} />
