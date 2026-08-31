@@ -708,6 +708,8 @@ const en = {
   DCS_APPROVAL_STEP_INCOMPLETE: "Complete this part before continuing",
   DCS_APPROVAL_WIZARD_READY: "Approval flow is ready - publish the form to apply it",
   DCS_APPROVAL_SAVE: "Save approvers",
+  DCS_APPROVAL_NO_LOCATION_FIELDS_WARNING:
+    "This form has no Location fields (Province to Village), so approvers with a location will never receive any submission. Add the Location template to the form, or remove the locations from the approvers.",
   DCS_APPROVAL_SAVED: "Approvers saved successfully",
   DCS_APPROVAL_REQUIRED_HINT: "Fields marked with * are required",
   DCS_APPROVAL_FIELD_LEVEL: "Administrative level",
