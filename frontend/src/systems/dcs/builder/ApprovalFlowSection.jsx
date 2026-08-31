@@ -183,6 +183,8 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave })
   const [max_visited, set_max_visited] = useState(1);
   const [show_step_error, set_show_step_error] = useState(false);
   const [saving, set_saving] = useState(false);
+  // Flips on after a successful save; any later edit turns it back off.
+  const [saved, set_saved] = useState(false);
   // Transient cascade picks (per approver index) that don't yet amount to a final location.
   const [draft_paths, set_draft_paths] = useState({});
   const [drag_index, set_drag_index] = useState(null);
@@ -195,7 +197,10 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave })
   ];
 
   const emit = (next) => onChange(next);
-  const emit_approvers = (next_approvers) => emit({ enabled: true, approvers: next_approvers });
+  const emit_approvers = (next_approvers) => {
+    set_saved(false);
+    emit({ enabled: true, approvers: next_approvers });
+  };
 
   const handle_toggle = () => {
     if (enabled) {
@@ -217,6 +222,8 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave })
   };
 
   // Persists the approvers through the page's onSave (which updates the form on the server).
+  // On the new-form page there is no onSave yet - saving just confirms the flow, which is
+  // then stored together with the form when it is published.
   const handle_save = async () => {
     if (!is_approval_config_complete({ enabled: true, approvers })) {
       set_show_step_error(true);
@@ -225,7 +232,8 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave })
     set_show_step_error(false);
     set_saving(true);
     try {
-      await onSave({ enabled: true, approvers });
+      if (onSave) await onSave({ enabled: true, approvers });
+      set_saved(true);
     } finally {
       set_saving(false);
     }
@@ -661,7 +669,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave })
                   <button type="button" onClick={go_next} className="cok-btn-primary" style={{ flex: 1, fontFamily: fontHeading }}>
                     {translate("DCS_APPROVAL_NEXT")}
                   </button>
-                ) : onSave ? (
+                ) : (
                   <button type="button" onClick={handle_save} disabled={saving}
                     className="cok-btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
                     style={{ flex: 1, fontFamily: fontHeading }}>
@@ -671,14 +679,15 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave })
                       <><FiCheckCircle style={{ width: 16, height: 16 }} /> {translate("DCS_APPROVAL_SAVE")}</>
                     )}
                   </button>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold"
-                    style={{ color: is_approval_config_complete({ enabled: true, approvers }) ? SUCCESS : GRAY, fontFamily: fontHeading }}>
-                    <FiCheckCircle className="w-4 h-4" />
-                    {translate(is_approval_config_complete({ enabled: true, approvers }) ? "DCS_APPROVAL_WIZARD_READY" : "DCS_APPROVAL_CONFIG_INCOMPLETE")}
-                  </div>
                 )}
               </div>
+              {wizard_step === 4 && saved && (
+                <div className="flex items-center justify-center gap-2 py-2 mt-3 text-sm font-semibold"
+                  style={{ color: SUCCESS, fontFamily: fontHeading }}>
+                  <FiCheckCircle className="w-4 h-4" />
+                  {translate(onSave ? "DCS_APPROVAL_SAVED" : "DCS_APPROVAL_WIZARD_READY")}
+                </div>
+              )}
             </div>
           </div>
         </>
