@@ -1,31 +1,43 @@
 /*
  * =========================================================
- * IKAZE OFFLINE SERVICE WORKER  (v2.2.0)
+ * IKAZE OFFLINE SERVICE WORKER  (v2.3.0)
  * =========================================================
  *
  * Main behavior:
  *
  * 1. Network First — ALWAYS.
- *    Every request goes to the network exactly ONCE.
- *    No retries.
  *
- * 2. The cache is ONLY consulted when the network request
- *    actually fails (user is offline / server unreachable).
- *    While online, the cache is never used to answer a
- *    request.
+ * 2. Each request is attempted up to 5 times when it fails
+ *    at the NETWORK level (fetch rejects: offline, DNS,
+ *    connection dropped...). A short growing delay is used
+ *    between attempts.
  *
- * 3. Every successful GET response REPLACES its previous
- *    cache entry (cache.put overwrites by request URL):
- *        - same-origin: always
- *        - cross-origin: when CACHE_CROSS_ORIGIN is true
+ * 3. HTTP errors (404, 401, 403, 500...) are real server
+ *    responses — they are returned as-is, NOT retried, and
+ *    never cached.
  *
- * 4. HTTP errors (404, 401, 403, 500...) are real server
- *    responses — they are returned as-is and never cached.
+ * 4. ONLINE:
+ *        take the incoming network response
+ *            ↓
+ *        return it to the page
+ *            ↓
+ *        UPDATE the cache with this new result
+ *        (cache.put overwrites the old entry for that URL)
  *
- * 5. INSTALL precaches the app shell AND every asset it
+ * 5. OFFLINE (all 5 attempts failed):
+ *        return the saved cached response
+ *            ↓
+ *        if nothing is cached, propagate the real
+ *        network error
+ *
+ * 6. Caching scope:
+ *        - same-origin GET: always
+ *        - cross-origin GET: when CACHE_CROSS_ORIGIN is true
+ *
+ * 7. INSTALL precaches the app shell AND every asset it
  *    references (JS, CSS, images, fonts, manifest, icons).
  *
- * 6. When offline:
+ * 8. When offline:
  *
  *      Normal application route
  *          -> return cached React application
@@ -34,8 +46,8 @@
  *          -> return cached API response if one exists
  *          -> otherwise let the real network error propagate
  *
- * 7. /sw.js is never cached by this service worker.
- * 8. Web Push notifications are supported.
+ * 9. /sw.js is never cached by this service worker.
+ * 10. Web Push notifications are supported.
  *
  * Cache:
  *
@@ -50,6 +62,24 @@
  */
 
 const CACHE_NAME = "IKAZE_OFFLINE_V2";
+
+/*
+ * Network attempts per request.
+ *
+ * Only actual network failures are retried.
+ */
+const MAX_NETWORK_ATTEMPTS = 5;
+
+/*
+ * Base delay between attempts, in milliseconds.
+ *
+ * Attempt 1 fails -> wait 500ms
+ * Attempt 2 fails -> wait 1000ms
+ * Attempt 3 fails -> wait 1500ms
+ * Attempt 4 fails -> wait 2000ms
+ * Attempt 5 fails -> give up, use cache
+ */
+const RETRY_DELAY = 500;
 
 /*
  * Cache resources from other origins (CDNs, Google Fonts...).
@@ -265,13 +295,91 @@ self.addEventListener("activate", event => {
 
 /*
  * =========================================================
+ * WAIT
+ * =========================================================
+ */
+
+function wait(milliseconds) {
+
+    return new Promise(resolve => {
+        setTimeout(resolve, milliseconds);
+    });
+
+}
+
+
+/*
+ * =========================================================
+ * NETWORK REQUEST WITH RETRIES  (5 attempts)
+ * =========================================================
+ *
+ * Only actual network failures are retried.
+ *
+ * Network failure:
+ *
+ *      fetch() rejects
+ *      -> retry (up to MAX_NETWORK_ATTEMPTS)
+ *
+ * HTTP 404 / 500 / any status:
+ *
+ *      fetch() resolves with a Response
+ *      -> return it, do NOT retry
+ *
+ * NOTE: a Request body can only be sent once, so each retry
+ * uses a fresh clone of the original request.
+ */
+
+async function fetchWithRetries(request) {
+
+    let lastError = null;
+
+    for (
+        let attempt = 1;
+        attempt <= MAX_NETWORK_ATTEMPTS;
+        attempt++
+    ) {
+
+        try {
+
+            /*
+             * clone() so the request stays usable if this
+             * attempt fails and another one is needed.
+             */
+            return await fetch(request.clone());
+
+        } catch (error) {
+
+            lastError = error;
+
+            /*
+             * Wait before the next attempt, a bit longer
+             * each time.
+             */
+            if (attempt < MAX_NETWORK_ATTEMPTS) {
+                await wait(RETRY_DELAY * attempt);
+            }
+
+        }
+
+    }
+
+    /*
+     * All attempts failed — return the original error.
+     */
+    throw lastError;
+
+}
+
+
+/*
+ * =========================================================
  * CACHE A SUCCESSFUL RESPONSE
  * =========================================================
  *
  * cache.put(request, response) OVERWRITES any existing entry
  * stored under the same request URL — so every successful
  * network response automatically REPLACES the old cached
- * copy.
+ * copy with the new result.
  *
  * IMPORTANT: this function receives a response that was
  * ALREADY CLONED synchronously in the fetch handler, before
@@ -327,7 +435,8 @@ async function updateCache(request, responseClone) {
         const cache = await caches.open(CACHE_NAME);
 
         /*
-         * Replaces the previous entry for this URL.
+         * Replaces the previous entry for this URL with the
+         * new result.
          */
         await cache.put(request, responseClone);
 
@@ -433,32 +542,30 @@ async function getOfflineApplication(request) {
 
 /*
  * =========================================================
- * NORMAL RESOURCE REQUEST  (Network First — NO RETRY)
+ * NORMAL RESOURCE REQUEST  (Network First + 5 retries)
  * =========================================================
  *
  * Online:
  *
- *      fetch once
+ *      fetch (up to 5 attempts on network failure)
  *          ↓
- *      return network response
+ *      return the incoming network response
  *          ↓
- *      cache clone replaces old entry
+ *      cache clone REPLACES the old entry with new result
  *
- * Offline (fetch rejects):
+ * Offline (all attempts failed):
  *
  *      look in cache — ONLY here
  *          ↓
- *      cached response, or the real network error
+ *      return saved cached response,
+ *      or the real network error if nothing is cached
  */
 
 async function networkFirstResource(request) {
 
     try {
 
-        /*
-         * ONE network attempt. No retries.
-         */
-        const response = await fetch(request);
+        const response = await fetchWithRetries(request);
 
         /*
          * Clone SYNCHRONOUSLY, before returning, then let
@@ -472,9 +579,9 @@ async function networkFirstResource(request) {
     } catch (networkError) {
 
         /*
-         * The network failed — the user is offline (or the
-         * server is unreachable). ONLY NOW do we look in
-         * the cache.
+         * All network attempts failed — the user is offline
+         * (or the server is unreachable). ONLY NOW do we
+         * look in the cache.
          */
         const cachedResponse = await caches.match(request);
 
@@ -495,7 +602,7 @@ async function networkFirstResource(request) {
 
 /*
  * =========================================================
- * NAVIGATION REQUEST  (Network First — NO RETRY)
+ * NAVIGATION REQUEST  (Network First + 5 retries)
  * =========================================================
  */
 
@@ -503,10 +610,7 @@ async function navigationFirst(request) {
 
     try {
 
-        /*
-         * ONE network attempt. No retries.
-         */
-        const response = await fetch(request);
+        const response = await fetchWithRetries(request);
 
         /*
          * Newest HTML replaces the old cached copy.
@@ -599,8 +703,8 @@ self.addEventListener("fetch", event => {
     /*
      * API REQUESTS and ALL OTHER GET RESOURCES
      * (JS, CSS, images, fonts, ...) — Network First with
-     * cache fallback ONLY when offline. Every successful
-     * response replaces its old cache entry.
+     * 5 retries, cache fallback ONLY when offline. Every
+     * successful response replaces its old cache entry.
      */
     event.respondWith(networkFirstResource(request));
 
@@ -774,7 +878,7 @@ self.addEventListener("message", event => {
         if (event.ports && event.ports[0]) {
 
             event.ports[0].postMessage({
-                version: "2.2.0"
+                version: "2.3.0"
             });
 
         }
