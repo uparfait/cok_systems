@@ -63,7 +63,7 @@ export default function NewFormPage() {
           publishing={publishing}
           schemaErrors={schema_errors}
         />
-        <ApprovalFlowSection value={approval_config} onChange={setApprovalConfig} />
+        <ApprovalFlowSection value={approval_config} onChange={setApprovalConfig} fields={fields} />
       </div>
     </div>
   );

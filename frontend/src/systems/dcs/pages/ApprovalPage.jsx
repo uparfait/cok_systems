@@ -191,7 +191,7 @@ function ApprovalPageContent() {
   const answered_fields = flatten_fields(approval.schema.fields).filter(
     (field) => approval.data && Object.prototype.hasOwnProperty.call(approval.data, field.id),
   );
-  const next_links = (decision_result && decision_result.next_links) || [];
+  const next_approvers = (decision_result && decision_result.next_approvers) || [];
 
   const waiting_reason = () => {
     if (approval.approver.status !== "pending") return translate("DCS_APPROVAL_ALREADY_ACTED");
@@ -259,7 +259,9 @@ function ApprovalPageContent() {
               <div className="min-w-0">
                 <p className="text-sm font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
                   {translate("DCS_APPROVAL_LEVEL_LABEL", { number: step.level + 1 })} - {step.name}
-                  <span className="font-normal" style={{ color: "#9E9E9E" }}> ({step.role})</span>
+                  <span className="font-normal" style={{ color: "#9E9E9E" }}>
+                    {" "}({step.role}{step.location && step.location.name ? ` - ${step.location.name}` : ""})
+                  </span>
                 </p>
                 {step.comment && (
                   <p className="text-sm mt-1" style={{ color: "#555555" }}>&ldquo;{step.comment}&rdquo;</p>
@@ -282,15 +284,22 @@ function ApprovalPageContent() {
           ))}
         </div>
 
-        {next_links.length > 0 && (
-          <div className="mt-4 border-2 p-3" style={{ borderColor: "#056daa" }}>
-            {next_links.map((link_info) => {
-              const approval_link = build_approval_link(link_info.token);
+        {next_approvers.length > 0 && (
+          <div className="mt-4 border-2 p-3 space-y-2" style={{ borderColor: "#056daa" }}>
+            {next_approvers.map((next_info, next_index) => {
+              if (next_info.email_sent) {
+                return (
+                  <p key={next_index} className="text-sm px-3 py-2" style={{ backgroundColor: "rgba(76,175,80,0.12)", color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
+                    {translate("DCS_APPROVAL_NEXT_EMAILED", { name: next_info.name, role: next_info.role })}
+                  </p>
+                );
+              }
+              const approval_link = build_approval_link(next_info.token);
               return (
-                <div key={link_info.token} className="flex items-center justify-between gap-3 flex-wrap">
+                <div key={next_index} className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-                      {translate("DCS_APPROVAL_NEXT_LINK", { name: link_info.name, role: link_info.role })}
+                    <p className="text-xs font-semibold" style={{ color: "#F39C12", fontFamily: "'Montserrat', sans-serif" }}>
+                      {translate("DCS_APPROVAL_EMAIL_FAILED", { name: next_info.name, role: next_info.role })}
                     </p>
                     <p className="truncate text-sm" style={{ color: "#056daa" }} title={approval_link}>{approval_link}</p>
                   </div>
