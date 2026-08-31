@@ -88,7 +88,10 @@ async function update_version_in_place(form_group_id, version, form_data) {
  * Excludes fields to reduce payload size for list views.
  */
 async function get_versions_by_group(form_group_id) {
-  return get_db().collection(COLLECTION_NAME).find({ form_group_id }, { projection: { "schema.fields": 0 } }).sort({ version: -1 }).toArray();
+  return get_db().collection(COLLECTION_NAME).find({ form_group_id }, 
+    // { projection: { "schema.fields": 0 } }
+
+  ).sort({ version: -1 }).toArray();
 }
 
 /**
@@ -172,7 +175,7 @@ async function get_latest_forms_by_project(project_id) {
       { $sort: { version: -1 } },
       { $group: { _id: "$form_group_id", latest: { $first: "$$ROOT" } } },
       { $replaceRoot: { newRoot: "$latest" } },
-      { $project: { "schema.fields": 0 } },
+      // { $project: { "schema.fields": 0 } },
       { $sort: { updated_at: -1 } },
     ])
     .toArray();
