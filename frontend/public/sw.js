@@ -1,53 +1,56 @@
 /*
  * =========================================================
- * IKAZE OFFLINE SERVICE WORKER  (v2.3.0)
+ * IKAZE OFFLINE SERVICE WORKER  (v2.5.0)
  * =========================================================
  *
- * Main behavior:
+ * Strategy: Network First, single attempt, fast fallback.
  *
- * 1. Network First — ALWAYS.
+ * 1. Every request goes to the network exactly ONCE.
+ *    No retries — retries multiply through the page's
+ *    loading waterfall (HTML -> JS -> API -> images) and
+ *    make the user wait.
  *
- * 2. Each request is attempted up to 5 times when it fails
- *    at the NETWORK level (fetch rejects: offline, DNS,
- *    connection dropped...). A short growing delay is used
- *    between attempts.
+ * 2. Each network attempt times out after REQUEST_TIMEOUT
+ *    (25 seconds). A hanging connection can never stall a
+ *    request beyond that.
  *
- * 3. HTTP errors (404, 401, 403, 500...) are real server
- *    responses — they are returned as-is, NOT retried, and
- *    never cached.
+ * 3. FAST OFFLINE PATH:
+ *    When the browser reports offline
+ *    (navigator.onLine === false), the network is skipped
+ *    entirely and the cache answers immediately. Offline
+ *    users never wait for a timeout.
  *
  * 4. ONLINE:
- *        take the incoming network response
- *            ↓
- *        return it to the page
- *            ↓
- *        UPDATE the cache with this new result
- *        (cache.put overwrites the old entry for that URL)
+ *        incoming network response
+ *            -> returned to the page immediately
+ *            -> cache updated with the new result in the
+ *               background (cache.put overwrites the old
+ *               entry for that URL)
  *
- * 5. OFFLINE (all 5 attempts failed):
- *        return the saved cached response
- *            ↓
- *        if nothing is cached, propagate the real
- *        network error
+ * 5. OFFLINE / network failed / timed out:
+ *        -> return the saved cached response
+ *        -> if nothing is cached, propagate the real
+ *           network error (no artificial "Offline" page)
  *
- * 6. Caching scope:
+ * 6. HTTP errors (404, 401, 403, 500...) are real server
+ *    responses — returned as-is and never cached.
+ *
+ * 7. Caching scope:
  *        - same-origin GET: always
  *        - cross-origin GET: when CACHE_CROSS_ORIGIN is true
  *
- * 7. INSTALL precaches the app shell AND every asset it
+ * 8. INSTALL precaches the app shell and every asset it
  *    references (JS, CSS, images, fonts, manifest, icons).
  *
- * 8. When offline:
+ * 9. Offline routing:
  *
- *      Normal application route
- *          -> return cached React application
+ *        Application route -> cached React application,
+ *                             React Router resolves the URL
+ *        API route         -> cached API response if any,
+ *                             otherwise the real error
  *
- *      API route
- *          -> return cached API response if one exists
- *          -> otherwise let the real network error propagate
- *
- * 9. /sw.js is never cached by this service worker.
- * 10. Web Push notifications are supported.
+ * 10. /sw.js is never cached by this service worker.
+ * 11. Web Push notifications are supported.
  *
  * Cache:
  *
@@ -61,25 +64,13 @@
  * =========================================================
  */
 
-const CACHE_NAME = "IKAZE_OFFLINE_V2";
+const CACHE_NAME = "IKAZE_OFFLINE_V3";
 
 /*
- * Network attempts per request.
- *
- * Only actual network failures are retried.
+ * Maximum time a network request may take before it is
+ * aborted and the cache takes over. 25 seconds.
  */
-const MAX_NETWORK_ATTEMPTS = 5;
-
-/*
- * Base delay between attempts, in milliseconds.
- *
- * Attempt 1 fails -> wait 500ms
- * Attempt 2 fails -> wait 1000ms
- * Attempt 3 fails -> wait 1500ms
- * Attempt 4 fails -> wait 2000ms
- * Attempt 5 fails -> give up, use cache
- */
-const RETRY_DELAY = 500;
+const REQUEST_TIMEOUT = 25000;
 
 /*
  * Cache resources from other origins (CDNs, Google Fonts...).
@@ -105,6 +96,96 @@ const EXTRA_PRECACHE_URLS = [
     "/LOGO_COK.png",
     "/manifest.json"
 ];
+
+
+/*
+ * =========================================================
+ * OFFLINE DETECTION
+ * =========================================================
+ *
+ * navigator.onLine === false is reliable: there is
+ * definitely no connection, so the cache should answer at
+ * once instead of making the user wait for a timeout.
+ *
+ * navigator.onLine === true only means "maybe online" —
+ * that case is covered by REQUEST_TIMEOUT.
+ */
+
+function isBrowserOffline() {
+
+    return (
+        typeof navigator !== "undefined" &&
+        navigator.onLine === false
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * SINGLE NETWORK REQUEST WITH TIMEOUT
+ * =========================================================
+ *
+ * - Offline: fail immediately, no network attempt.
+ * - Online: one attempt, aborted after REQUEST_TIMEOUT.
+ * - Any HTTP response (including 404/500) resolves normally.
+ */
+
+function fetchWithTimeout(request) {
+
+    if (isBrowserOffline()) {
+        return Promise.reject(
+            new TypeError("Browser is offline")
+        );
+    }
+
+    if (
+        typeof AbortSignal !== "undefined" &&
+        typeof AbortSignal.timeout === "function"
+    ) {
+
+        return fetch(request, {
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT)
+        });
+
+    }
+
+    /*
+     * Fallback for older browsers without AbortSignal.timeout.
+     */
+    return new Promise((resolve, reject) => {
+
+        const controller =
+            typeof AbortController !== "undefined"
+                ? new AbortController()
+                : null;
+
+        const timer = setTimeout(() => {
+
+            if (controller) {
+                controller.abort();
+            }
+
+            reject(new Error("Request timed out"));
+
+        }, REQUEST_TIMEOUT);
+
+        fetch(
+            request,
+            controller ? { signal: controller.signal } : undefined
+        )
+            .then(response => {
+                clearTimeout(timer);
+                resolve(response);
+            })
+            .catch(error => {
+                clearTimeout(timer);
+                reject(error);
+            });
+
+    });
+
+}
 
 
 /*
@@ -295,89 +376,11 @@ self.addEventListener("activate", event => {
 
 /*
  * =========================================================
- * WAIT
- * =========================================================
- */
-
-function wait(milliseconds) {
-
-    return new Promise(resolve => {
-        setTimeout(resolve, milliseconds);
-    });
-
-}
-
-
-/*
- * =========================================================
- * NETWORK REQUEST WITH RETRIES  (5 attempts)
- * =========================================================
- *
- * Only actual network failures are retried.
- *
- * Network failure:
- *
- *      fetch() rejects
- *      -> retry (up to MAX_NETWORK_ATTEMPTS)
- *
- * HTTP 404 / 500 / any status:
- *
- *      fetch() resolves with a Response
- *      -> return it, do NOT retry
- *
- * NOTE: a Request body can only be sent once, so each retry
- * uses a fresh clone of the original request.
- */
-
-async function fetchWithRetries(request) {
-
-    let lastError = null;
-
-    for (
-        let attempt = 1;
-        attempt <= MAX_NETWORK_ATTEMPTS;
-        attempt++
-    ) {
-
-        try {
-
-            /*
-             * clone() so the request stays usable if this
-             * attempt fails and another one is needed.
-             */
-            return await fetch(request.clone());
-
-        } catch (error) {
-
-            lastError = error;
-
-            /*
-             * Wait before the next attempt, a bit longer
-             * each time.
-             */
-            if (attempt < MAX_NETWORK_ATTEMPTS) {
-                await wait(RETRY_DELAY * attempt);
-            }
-
-        }
-
-    }
-
-    /*
-     * All attempts failed — return the original error.
-     */
-    throw lastError;
-
-}
-
-
-/*
- * =========================================================
  * CACHE A SUCCESSFUL RESPONSE
  * =========================================================
  *
  * cache.put(request, response) OVERWRITES any existing entry
- * stored under the same request URL — so every successful
+ * stored under the same request URL — every successful
  * network response automatically REPLACES the old cached
  * copy with the new result.
  *
@@ -457,6 +460,8 @@ async function updateCache(request, responseClone) {
  * =========================================================
  * BACKGROUND CACHE UPDATE
  * =========================================================
+ *
+ * Cache writing never blocks the response to the page.
  */
 
 function updateCacheInBackground(request, responseClone) {
@@ -542,35 +547,35 @@ async function getOfflineApplication(request) {
 
 /*
  * =========================================================
- * NORMAL RESOURCE REQUEST  (Network First + 5 retries)
+ * NORMAL RESOURCE REQUEST  (Network First)
  * =========================================================
  *
  * Online:
  *
- *      fetch (up to 5 attempts on network failure)
- *          ↓
- *      return the incoming network response
- *          ↓
- *      cache clone REPLACES the old entry with new result
+ *      one fetch (max 25s)
+ *          -> return the incoming network response
+ *          -> cache clone replaces the old entry
  *
- * Offline (all attempts failed):
+ * Offline:
  *
- *      look in cache — ONLY here
- *          ↓
- *      return saved cached response,
- *      or the real network error if nothing is cached
+ *      no network attempt
+ *          -> saved cached response IMMEDIATELY
+ *
+ * Failed / timed out:
+ *
+ *      -> saved cached response,
+ *         or the real network error if nothing is cached
  */
 
 async function networkFirstResource(request) {
 
     try {
 
-        const response = await fetchWithRetries(request);
+        const response = await fetchWithTimeout(request);
 
         /*
          * Clone SYNCHRONOUSLY, before returning, then let
-         * the cache update happen in the background. The
-         * new response replaces the old cache entry.
+         * the cache update happen in the background.
          */
         updateCacheInBackground(request, response.clone());
 
@@ -579,8 +584,7 @@ async function networkFirstResource(request) {
     } catch (networkError) {
 
         /*
-         * All network attempts failed — the user is offline
-         * (or the server is unreachable). ONLY NOW do we
+         * Offline, failed, or timed out — ONLY NOW do we
          * look in the cache.
          */
         const cachedResponse = await caches.match(request);
@@ -591,7 +595,6 @@ async function networkFirstResource(request) {
 
         /*
          * Nothing cached: propagate the REAL network error.
-         * No artificial "Offline" response is manufactured.
          */
         throw networkError;
 
@@ -602,7 +605,7 @@ async function networkFirstResource(request) {
 
 /*
  * =========================================================
- * NAVIGATION REQUEST  (Network First + 5 retries)
+ * NAVIGATION REQUEST  (Network First)
  * =========================================================
  */
 
@@ -610,7 +613,7 @@ async function navigationFirst(request) {
 
     try {
 
-        const response = await fetchWithRetries(request);
+        const response = await fetchWithTimeout(request);
 
         /*
          * Newest HTML replaces the old cached copy.
@@ -702,9 +705,10 @@ self.addEventListener("fetch", event => {
 
     /*
      * API REQUESTS and ALL OTHER GET RESOURCES
-     * (JS, CSS, images, fonts, ...) — Network First with
-     * 5 retries, cache fallback ONLY when offline. Every
-     * successful response replaces its old cache entry.
+     * (JS, CSS, images, fonts, ...) — Network First,
+     * single attempt, cache fallback when offline or
+     * failed. Every successful response replaces its old
+     * cache entry.
      */
     event.respondWith(networkFirstResource(request));
 
@@ -878,7 +882,7 @@ self.addEventListener("message", event => {
         if (event.ports && event.ports[0]) {
 
             event.ports[0].postMessage({
-                version: "2.3.0"
+                version: "2.5.0"
             });
 
         }
