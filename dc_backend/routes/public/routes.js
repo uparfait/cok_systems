@@ -8,6 +8,7 @@ const delete_uploaded_file = require("../../controllers/public/delete_uploaded_f
 const get_approval_by_token = require("../../controllers/approvals/get_approval_by_token.js");
 const submit_approval_decision = require("../../controllers/approvals/submit_approval_decision.js");
 const upload_approval_file_controller = require("../../controllers/approvals/upload_approval_file.js");
+const { get_locations, get_all_locations } = require("../../controllers/locations/get_locations.js");
 const { upload_submission_file, upload_approval_file } = require("../../utilities/upload.js");
 
 /**

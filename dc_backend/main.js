@@ -445,7 +445,7 @@ app.get("/dcs/api/administrative", compressionMiddleware, (req, res) => {
 // LOCATIONS API (No auth required, for public forms)
 // ============================================================
 
-app.use("/dcs/api/locations", locations_routes);
+app.use("/dcs/api/locations", compressionMiddleware, locations_routes);
 
 
 // ============================================================
