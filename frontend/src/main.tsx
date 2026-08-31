@@ -3,8 +3,6 @@ import { createRoot } from 'react-dom/client'
 import './assets/styles/globals.css'
 import App from './App.tsx'
 
-const APP_VERSION = '2.0.0';
-
 const registerServiceWorker = async () => {
   if (!('serviceWorker' in navigator)) {
     console.log('[IKAZE] Service workers not supported in this browser');
