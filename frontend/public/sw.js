@@ -1,33 +1,25 @@
+
 /*
  * IKAZE OFFLINE SERVICE WORKER
  *
- * Main behavior:
+ * Features:
  *
  * 1. Network First
- * 2. Try the network up to 5 times
- * 3. If network succeeds:
- *      - Return the new response
- *      - Replace the old cached response
- * 4. If network completely fails:
- *      - Return the cached response
- * 5. If there is no cached response:
- *      - Return a 503 Offline response
- *
- * Cache name:
- *      IKAZE_OFFLINE
+ * 2. Up to 5 network attempts when the network itself fails
+ * 3. Successful network responses replace cached responses
+ * 4. Cached responses are used only after the network completely fails
+ * 5. Supports offline navigation for the React application
+ * 6. Supports Web Push notifications
+ * 7. Does not intentionally reload pages
+ * 8. Does not cache the service-worker script itself
  */
 
 const CACHE_NAME = "IKAZE_OFFLINE";
 
-/*
- * Maximum number of network attempts.
- */
-const MAX_NETWORK_ATTEMPTS = 5;
+const MAX_NETWORK_ATTEMPTS = 1;
 
 /*
- * Delay between retry attempts.
- *
- * The delay increases slightly after every failure:
+ * Delay between failed network attempts.
  *
  * Attempt 1 -> immediate
  * Attempt 2 -> 500ms
@@ -39,77 +31,108 @@ const RETRY_DELAY = 500;
 
 
 /*
+ * ---------------------------------------------------------
  * INSTALL
+ * ---------------------------------------------------------
  *
- * This event happens when the browser installs this service worker.
+ * Install the new service worker immediately.
+ *
+ * IMPORTANT:
+ * skipWaiting() does NOT reload the page.
  */
 self.addEventListener("install", event => {
 
-    /*
-     * skipWaiting() tells the browser that this new service worker
-     * should move toward activation immediately instead of waiting
-     * for old controlled pages to close.
-     */
     event.waitUntil(
         self.skipWaiting()
     );
+
 });
 
 
 /*
+ * ---------------------------------------------------------
  * ACTIVATE
+ * ---------------------------------------------------------
  *
- * This happens after installation.
+ * The new service worker becomes active.
+ *
+ * We intentionally DO NOT delete IKAZE_OFFLINE.
+ *
+ * Keeping the same cache means previously cached offline
+ * content remains available after a service-worker update.
+ *
+ * Old cache names are removed, but IKAZE_OFFLINE remains.
  */
 self.addEventListener("activate", event => {
 
     event.waitUntil(
+
         (async () => {
 
-            /*
-             * Get all Cache Storage cache names belonging to this origin.
-             */
             const cacheNames = await caches.keys();
 
-            /*
-             * Delete every cache except IKAZE_OFFLINE.
-             *
-             * This is useful when migrating from an old service worker
-             * that used another cache name.
-             */
             await Promise.all(
+
                 cacheNames
+
                     .filter(name => name !== CACHE_NAME)
+
                     .map(name => caches.delete(name))
+
             );
 
             /*
-             * Tell existing pages that this service worker should
-             * immediately start controlling them.
+             * Allow this service worker to control already-open
+             * pages immediately.
+             *
+             * This does NOT reload the page.
              */
             await self.clients.claim();
 
         })()
+
     );
+
 });
 
 
 /*
- * Wait before another network attempt.
+ * ---------------------------------------------------------
+ * WAIT
+ * ---------------------------------------------------------
+ *
+ * Creates a delay before another network attempt.
  */
 function wait(milliseconds) {
 
     return new Promise(resolve => {
+
         setTimeout(resolve, milliseconds);
+
     });
 
 }
 
 
 /*
- * NETWORK REQUEST WITH RETRIES
+ * ---------------------------------------------------------
+ * NETWORK FETCH WITH RETRIES
+ * ---------------------------------------------------------
  *
- * This function attempts to contact the server several times.
+ * IMPORTANT:
+ *
+ * fetch() rejects only when the request itself fails at the
+ * network level.
+ *
+ * HTTP responses such as:
+ *
+ * 404
+ * 500
+ * 403
+ *
+ * are still successful network communication.
+ *
+ * Therefore they are returned immediately and are NOT retried.
  */
 async function fetchWithRetries(request) {
 
@@ -123,27 +146,17 @@ async function fetchWithRetries(request) {
 
         try {
 
-            /*
-             * Try to contact the server.
-             */
             const response = await fetch(request);
 
             /*
-             * IMPORTANT:
+             * The network successfully responded.
              *
-             * A response such as 404 or 500 still means that the
-             * network successfully reached the server.
-             *
-             * Therefore we return it instead of treating it as
-             * an offline/network failure.
+             * Return the response immediately.
              */
             return response;
 
         } catch (error) {
 
-            /*
-             * Store the error in case all attempts fail.
-             */
             lastError = error;
 
             /*
@@ -151,140 +164,254 @@ async function fetchWithRetries(request) {
              */
             if (attempt < MAX_NETWORK_ATTEMPTS) {
 
-                /*
-                 * Increase the delay after each failed attempt.
-                 */
                 await wait(RETRY_DELAY * attempt);
+
             }
+
         }
+
     }
 
     /*
-     * All network attempts failed.
+     * Every network attempt failed.
      */
     throw lastError;
+
 }
 
 
 /*
- * NETWORK FIRST
+ * ---------------------------------------------------------
+ * CACHE SUCCESSFUL RESPONSE
+ * ---------------------------------------------------------
  *
- * This is the main caching strategy.
+ * Cache errors are deliberately separated from network errors.
+ *
+ * This is important.
+ *
+ * If the network returns 200 but cache.put() fails, we still
+ * want to return the successful network response.
+ */
+async function updateCache(request, response) {
+
+    /*
+     * Only cache normal successful responses.
+     */
+    if (!response || response.status !== 200) {
+        return;
+    }
+
+    /*
+     * Do not cache opaque responses.
+     */
+    if (response.type === "opaque") {
+        return;
+    }
+
+    try {
+
+        const cache = await caches.open(CACHE_NAME);
+
+        await cache.put(
+            request,
+            response.clone()
+        );
+
+    } catch (error) {
+
+        /*
+         * Cache failure must NOT turn a successful network
+         * request into an offline request.
+         */
+        console.error(
+            "[IKAZE] Cache update failed:",
+            request.url,
+            error
+        );
+
+    }
+
+}
+
+
+/*
+ * ---------------------------------------------------------
+ * NETWORK FIRST
+ * ---------------------------------------------------------
+ *
+ * Order:
+ *
+ * 1. Network
+ * 2. Retry network failures
+ * 3. Cache successful network response
+ * 4. If network completely fails, use cache
+ * 5. If cache does not exist, return 503
  */
 async function networkFirst(request) {
 
     try {
 
         /*
-         * First priority is ALWAYS the network.
+         * NETWORK ALWAYS COMES FIRST.
          */
         const response = await fetchWithRetries(request);
 
         /*
-         * Only cache successful responses (status 200).
+         * Update the cache in the background.
+         *
+         * We do NOT wait for cache.put() before returning the
+         * network response to the browser.
          */
-        if (response && response.status === 200) {
-
-            /*
-             * Open our single application cache.
-             */
-            const cache = await caches.open(CACHE_NAME);
-
-            /*
-             * Store the new response.
-             *
-             * response.clone() is necessary because a Response body can
-             * normally only be consumed once.
-             *
-             * The original response is returned to the browser.
-             * The clone is stored in the cache.
-             */
-            await cache.put(
-                request,
-                response.clone()
-            );
-        }
+        eventCacheUpdate(request, response);
 
         /*
-         * Return the newest network response.
+         * Return the newest network response immediately.
          */
         return response;
 
     } catch (networkError) {
 
         /*
-         * Network failed after all retry attempts.
+         * Network completely failed.
          *
-         * Now, and ONLY now, look in the cache.
+         * ONLY NOW do we look in the cache.
          */
-        const cachedResponse = await caches.match(request);
+        try {
 
-        /*
-         * Cached response exists.
-         */
-        if (cachedResponse) {
+            const cachedResponse =
+                await caches.match(request);
 
-            return cachedResponse;
+            if (cachedResponse) {
+
+                return cachedResponse;
+
+            }
+
+        } catch (cacheError) {
+
+            console.error(
+                "[IKAZE] Cache lookup failed:",
+                cacheError
+            );
+
         }
 
         /*
-         * Network failed and there is no cached response.
+         * Nothing exists in the cache.
          */
         return new Response(
-            `
-            Offline.
-
-            The requested resource is not available in
-            the IKAZE_OFFLINE cache.
-            `,
+            "Offline. The requested resource is not available.",
             {
                 status: 503,
-
+                statusText: "Service Unavailable",
                 headers: {
-                    "Content-Type": "text/plain; charset=utf-8"
+                    "Content-Type":
+                        "text/plain; charset=utf-8"
                 }
             }
         );
+
     }
+
 }
 
 
 /*
- * FETCH EVENT
+ * ---------------------------------------------------------
+ * CACHE UPDATE HELPER
+ * ---------------------------------------------------------
  *
- * Every request made by a controlled page reaches this event.
+ * Updating the cache must never interfere with the response
+ * being returned to the browser.
+ */
+function eventCacheUpdate(request, response) {
+
+    updateCache(request, response).catch(error => {
+
+        console.error(
+            "[IKAZE] Unexpected cache update error:",
+            error
+        );
+
+    });
+
+}
+
+
+/*
+ * ---------------------------------------------------------
+ * FETCH EVENT
+ * ---------------------------------------------------------
+ *
+ * Only same-origin HTTP/HTTPS GET requests are handled.
  */
 self.addEventListener("fetch", event => {
 
     const request = event.request;
 
     /*
-     * Only handle GET requests.
-     *
-     * POST, PUT, DELETE, PATCH, etc. should normally be handled
-     * directly by the server/application rather than cached this way.
+     * Only GET requests.
      */
     if (request.method !== "GET") {
         return;
     }
 
-    /*
-     * Only handle requests from this origin.
-     */
     const requestUrl = new URL(request.url);
+
+    /*
+     * Only HTTP and HTTPS.
+     */
+    if (
+        requestUrl.protocol !== "http:" &&
+        requestUrl.protocol !== "https:"
+    ) {
+        return;
+    }
+
+    /*
+     * Only this website's origin.
+     */
     if (requestUrl.origin !== self.location.origin) {
         return;
     }
 
     /*
-     * Skip chrome-extension and other non-http(s) requests.
+     * NEVER intercept the service-worker script.
+     *
+     * This is important because the browser must always be
+     * able to check the real /sw.js for updates.
      */
-    if (!requestUrl.protocol.startsWith("http")) {
+    if (requestUrl.pathname === "/sw.js") {
         return;
     }
 
     /*
-     * Use our Network First strategy.
+     * Navigation requests are normal browser page navigations.
+     *
+     * For a React SPA, Network First is appropriate:
+     *
+     * Online  -> get the newest document
+     * Offline -> use previously cached document
+     */
+    if (request.mode === "navigate") {
+
+        event.respondWith(
+            networkFirst(request)
+        );
+
+        return;
+    }
+
+    /*
+     * Handle other same-origin GET resources:
+     *
+     * JavaScript
+     * CSS
+     * images
+     * fonts
+     * API GET requests
+     *
+     * They also use Network First.
      */
     event.respondWith(
         networkFirst(request)
@@ -294,103 +421,263 @@ self.addEventListener("fetch", event => {
 
 
 /*
+ * ---------------------------------------------------------
  * PUSH NOTIFICATIONS
- *
- * Handle push messages from the server.
+ * ---------------------------------------------------------
  */
 self.addEventListener("push", event => {
 
     let data = {
+
         title: "IKAZE Notification",
+
         body: "You have a new notification",
+
         icon: "/LOGO_COK.png",
+
         badge: "/favicon.png",
+
         tag: "default",
+
         url: "/"
+
     };
+
 
     if (event.data) {
+
         try {
-            data = { ...data, ...event.data.json() };
-        } catch (e) {
-            data.body = event.data.text ? event.data.text() : data.body;
+
+            data = {
+                ...data,
+                ...event.data.json()
+            };
+
+        } catch (error) {
+
+            try {
+
+                data.body = event.data.text();
+
+            } catch (textError) {
+
+                /*
+                 * Keep the default body.
+                 */
+
+            }
+
         }
+
     }
 
+
     const options = {
+
         body: data.body,
+
         icon: data.icon || "/LOGO_COK.png",
+
         badge: data.badge || "/favicon.png",
+
         tag: data.tag || "default",
-        data: { url: data.url || "/" },
+
+        data: {
+            url: data.url || "/"
+        },
+
         requireInteraction: false,
+
         actions: [
-            { action: "open", title: "Open IKAZE" },
-            { action: "close", title: "Dismiss" }
+
+            {
+                action: "open",
+                title: "Open IKAZE"
+            },
+
+            {
+                action: "close",
+                title: "Dismiss"
+            }
+
         ]
+
     };
 
+
     event.waitUntil(
-        self.registration.showNotification(data.title, options)
+
+        self.registration.showNotification(
+            data.title,
+            options
+        )
+
     );
+
 });
 
 
 /*
+ * ---------------------------------------------------------
  * NOTIFICATION CLICK
- *
- * Handle when user clicks on a notification.
+ * ---------------------------------------------------------
  */
 self.addEventListener("notificationclick", event => {
 
     event.notification.close();
 
-    if (event.action === "close") return;
 
-    const targetUrl = event.notification.data?.url || "/";
+    if (event.action === "close") {
+        return;
+    }
+
+
+    const targetUrl =
+        event.notification.data?.url || "/";
+
 
     event.waitUntil(
+
         self.clients.matchAll({
+
             type: "window",
+
             includeUncontrolled: true
+
         }).then(clientList => {
+
+
+            /*
+             * Try to reuse an existing IKAZE window.
+             */
             for (const client of clientList) {
+
                 if (
-                    client.url.includes(self.location.origin) &&
+                    client.url.startsWith(
+                        self.location.origin
+                    ) &&
                     "focus" in client
                 ) {
-                    client.navigate(targetUrl);
-                    return client.focus();
+
+                    /*
+                     * Navigation here happens ONLY because
+                     * the user clicked a notification.
+                     */
+                    return client
+                        .navigate(targetUrl)
+                        .then(() => client.focus());
+
                 }
+
             }
+
+
+            /*
+             * No existing window.
+             *
+             * Open a new one.
+             */
             if (self.clients.openWindow) {
-                return self.clients.openWindow(targetUrl);
+
+                return self.clients.openWindow(
+                    targetUrl
+                );
+
             }
+
         })
+
     );
+
 });
 
 
 /*
+ * ---------------------------------------------------------
  * MESSAGE HANDLING
- *
- * Handle messages from the webpage.
+ * ---------------------------------------------------------
  */
 self.addEventListener("message", event => {
 
-    if (event.data && event.data.type === "GET_VERSION") {
-        event.ports[0].postMessage({ version: "2.0.0" });
+    if (!event.data) {
+        return;
     }
 
-    if (event.data && event.data.type === "CLEAR_CACHES") {
-        caches.keys()
-            .then(keys => Promise.all(keys.map(key => caches.delete(key))))
-            .then(() => {
-                event.ports[0].postMessage({ type: "CACHE_CLEARED" });
+
+    /*
+     * GET VERSION
+     */
+    if (event.data.type === "GET_VERSION") {
+
+        if (event.ports && event.ports[0]) {
+
+            event.ports[0].postMessage({
+
+                version: "2.0.0"
+
             });
+
+        }
+
     }
 
-    if (event.data && event.data.type === "SKIP_WAITING") {
-        self.skipWaiting();
+
+    /*
+     * CLEAR CACHES
+     *
+     * This is intentionally explicit.
+     *
+     * The application must request this operation.
+     */
+    if (event.data.type === "CLEAR_CACHES") {
+
+        event.waitUntil(
+
+            caches.keys()
+
+                .then(cacheNames =>
+
+                    Promise.all(
+
+                        cacheNames.map(
+                            cacheName =>
+                                caches.delete(cacheName)
+                        )
+
+                    )
+
+                )
+
+                .then(() => {
+
+                    if (
+                        event.ports &&
+                        event.ports[0]
+                    ) {
+
+                        event.ports[0].postMessage({
+
+                            type: "CACHE_CLEARED"
+
+                        });
+
+                    }
+
+                })
+
+        );
+
     }
+
+
+    /*
+     * SKIP WAITING
+     */
+    if (event.data.type === "SKIP_WAITING") {
+
+        self.skipWaiting();
+
+    }
+
 });
+
