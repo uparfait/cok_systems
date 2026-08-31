@@ -173,7 +173,7 @@ function ApproverBadge({ index, name, translate }) {
 // Optional pre-publish step: the form owner defines who must approve each submitted response.
 // Laid out as a booking-form-style wizard: People -> Location -> Conditions -> Order & rules,
 // with a stepper showing where you are. Approvers sign in the order arranged on the last part.
-export default function ApprovalFlowSection({ value, onChange, fields }) {
+export default function ApprovalFlowSection({ value, onChange, fields, onSave }) {
   const { translate, language } = useDcsLanguage();
   const enabled = !!value && value.enabled === true;
   const approvers = (value && value.approvers) || [];
@@ -182,6 +182,7 @@ export default function ApprovalFlowSection({ value, onChange, fields }) {
   const [wizard_step, set_wizard_step] = useState(1);
   const [max_visited, set_max_visited] = useState(1);
   const [show_step_error, set_show_step_error] = useState(false);
+  const [saving, set_saving] = useState(false);
   // Transient cascade picks (per approver index) that don't yet amount to a final location.
   const [draft_paths, set_draft_paths] = useState({});
   const [drag_index, set_drag_index] = useState(null);
@@ -213,6 +214,21 @@ export default function ApprovalFlowSection({ value, onChange, fields }) {
     if (step === 2) return approvers.every(location_ok);
     if (step === 3) return approvers.every(conditions_ok);
     return true;
+  };
+
+  // Persists the approvers through the page's onSave (which updates the form on the server).
+  const handle_save = async () => {
+    if (!is_approval_config_complete({ enabled: true, approvers })) {
+      set_show_step_error(true);
+      return;
+    }
+    set_show_step_error(false);
+    set_saving(true);
+    try {
+      await onSave({ enabled: true, approvers });
+    } finally {
+      set_saving(false);
+    }
   };
 
   const go_next = () => {
@@ -344,7 +360,14 @@ export default function ApprovalFlowSection({ value, onChange, fields }) {
           {/* Required-fields strip, same as the booking form */}
           <div className="px-6 py-3 text-center" style={{ backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}` }}>
             <p className="text-xs font-medium" style={{ color: GRAY, fontFamily: fontHeading }}>
-              {translate("DCS_APPROVAL_REQUIRED_HINT")} <span style={{ color: DANGER }}>*</span>
+              {translate("DCS_APPROVAL_REQUIRED_HINT")
+                .split("*")
+                .map((part, i, parts) => (
+                  <React.Fragment key={i}>
+                    {part}
+                    {i < parts.length - 1 && <span style={{ color: DANGER }}>*</span>}
+                  </React.Fragment>
+                ))}
             </p>
           </div>
           {/* Stepper - same look as the booking form's CreateEventStepper */}
@@ -618,9 +641,11 @@ export default function ApprovalFlowSection({ value, onChange, fields }) {
               </>
             )}
 
-            {show_step_error && !step_valid(wizard_step) && (
+            {show_step_error && (!step_valid(wizard_step) || (wizard_step === 4 && !is_approval_config_complete({ enabled: true, approvers }))) && (
               <div className="p-3" style={{ backgroundColor: "#FDECEA", border: `1px solid ${DANGER}` }}>
-                <p className="text-sm" style={{ color: DANGER, fontFamily: fontHeading }}>{translate("DCS_APPROVAL_STEP_INCOMPLETE")}</p>
+                <p className="text-sm" style={{ color: DANGER, fontFamily: fontHeading }}>
+                  {translate(wizard_step === 4 ? "DCS_APPROVAL_CONFIG_INCOMPLETE" : "DCS_APPROVAL_STEP_INCOMPLETE")}
+                </p>
               </div>
             )}
 
@@ -635,6 +660,16 @@ export default function ApprovalFlowSection({ value, onChange, fields }) {
                 {wizard_step < 4 ? (
                   <button type="button" onClick={go_next} className="cok-btn-primary" style={{ flex: 1, fontFamily: fontHeading }}>
                     {translate("DCS_APPROVAL_NEXT")}
+                  </button>
+                ) : onSave ? (
+                  <button type="button" onClick={handle_save} disabled={saving}
+                    className="cok-btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
+                    style={{ flex: 1, fontFamily: fontHeading }}>
+                    {saving ? (
+                      <div className="animate-spin" style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: "transparent", borderRadius: "50%" }} />
+                    ) : (
+                      <><FiCheckCircle style={{ width: 16, height: 16 }} /> {translate("DCS_APPROVAL_SAVE")}</>
+                    )}
                   </button>
                 ) : (
                   <div className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold"
