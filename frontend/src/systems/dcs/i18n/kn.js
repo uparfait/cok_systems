@@ -708,6 +708,8 @@ const kn = {
   DCS_APPROVAL_STEP_INCOMPLETE: "Uzuza iki gice mbere yo gukomeza",
   DCS_APPROVAL_WIZARD_READY: "Uburyo bwo kwemeza bwiteguye - tangaza ifishi kugira ngo bukoreshwe",
   DCS_APPROVAL_SAVE: "Bika abemezi",
+  DCS_APPROVAL_NO_LOCATION_FIELDS_WARNING:
+    "Iyi fishi nta myanya y'aho biherereye ifite (Intara kugera ku Mudugudu): abemezi bafite aho bakorera ntibazigera bakira igisubizo na kimwe. Ongeraho urugero rw'aho biherereye ku ifishi, cyangwa ukureho aho bakorera ku bemezi.",
   DCS_APPROVAL_SAVED: "Abemezi babitswe neza",
   DCS_APPROVAL_REQUIRED_HINT: "Imyanya iriho akamenyetso * irakenewe",
   DCS_APPROVAL_FIELD_LEVEL: "Urwego rw'ubuyobozi",

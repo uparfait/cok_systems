@@ -708,6 +708,8 @@ const fr = {
   DCS_APPROVAL_STEP_INCOMPLETE: "Complétez cette partie avant de continuer",
   DCS_APPROVAL_WIZARD_READY: "Le flux d'approbation est prêt - publiez le formulaire pour l'appliquer",
   DCS_APPROVAL_SAVE: "Enregistrer les approbateurs",
+  DCS_APPROVAL_NO_LOCATION_FIELDS_WARNING:
+    "Ce formulaire n'a pas de champs Emplacement (Province à Village) : les approbateurs avec un emplacement ne recevront jamais aucune soumission. Ajoutez le modèle Emplacement au formulaire, ou retirez les emplacements des approbateurs.",
   DCS_APPROVAL_SAVED: "Approbateurs enregistrés avec succès",
   DCS_APPROVAL_REQUIRED_HINT: "Les champs marqués de * sont obligatoires",
   DCS_APPROVAL_FIELD_LEVEL: "Niveau administratif",
