@@ -10,6 +10,7 @@ const config = require("./configurations/config.js");
 const swagger_spec = require("./configurations/swaggerConfig.js");
 const connect_databases = require("./db_connection/main.js");
 const { ensure_submission_indexes } = require("./models/submissions_model.js");
+const { ensure_location_indexes } = require("./models/locations_model.js");
 const language_middleware = require("./middlewares/language.js");
 const { not_found_handler, global_error_handler } = require("./middlewares/error_handler.js");
 const dcs_routes = require("./routes/main.js");
@@ -45,6 +46,7 @@ connect_databases()
       return;
     }
     await ensure_submission_indexes();
+    await ensure_location_indexes();
     app.listen(PORT, () => {
       console.log("Server is running on port " + PORT);
     });

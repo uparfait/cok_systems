@@ -9,6 +9,13 @@ const DC_CONFIG = {
     "http://localhost:3000",
   ],
   upload_dir: "uploads",
+  email: {
+    host: process.env.EMAIL_HOST || "mail.kigalicity.gov.rw",
+    port: Number(process.env.EMAIL_PORT) || 25,
+    user: process.env.EMAIL_USER || "",
+    pass: process.env.EMAIL_PASS || "",
+    from: process.env.EMAIL_FROM || "IKAZE <coksystems@kigalicity.gov.rw>",
+  },
   max_upload_size_mb: 9999999999999999999999999999999999999999999999,
   max_request_body_size: "40tb",
   // Generous ceilings for legitimate large forms - NOT meant to be truly

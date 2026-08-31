@@ -84,6 +84,8 @@ module.exports = {
   APPROVAL_NOT_YOUR_TURN: "Ntabwo ari igihe cy'uyu wemeza ngo akore",
   APPROVAL_SIGNATURE_REQUIRED: "Umukono cyangwa icyemezo cya digitale birasabwa kugira ngo wemeze",
   APPROVAL_DECISION_RECORDED: "Icyemezo cyawe cyanditswe neza",
+  LOCATIONS_FETCHED: "Aho biherereye habonetse neza",
+  LOCATION_TYPE_INVALID: "Ubwoko bw'aho biherereye cyangwa se ikirenga ntabwo ari byo",
   NO_DATA_TO_EXPORT: "Nta makuru yo shyira hanze ku gihe cyatoranyijwe",
   TABLE_VERSION: "Verisiyo",
   TABLE_SUBMITTED_AT: "Yoherejwe ku",
