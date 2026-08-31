@@ -313,29 +313,40 @@ export default function ApprovalFlowSection({ value, onChange, fields }) {
 
   return (
     <div className="mt-4" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}` }}>
-      <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
+      {/* Header banner - same treatment as the booking form's blue title block */}
+      <div className="px-6 py-5 flex items-center gap-3"
+        style={{ backgroundColor: enabled ? PRIMARY : WHITE, borderBottom: enabled ? "none" : `1px solid ${BORDER}` }}>
         <input
           type="checkbox"
           id="approval-flow-toggle"
           checked={enabled}
           onChange={handle_toggle}
-          className="w-4 h-4 cursor-pointer"
-          style={{ accentColor: PRIMARY }}
+          className="w-4 h-4 cursor-pointer shrink-0"
+          style={{ accentColor: enabled ? WHITE : PRIMARY }}
         />
-        <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ backgroundColor: enabled ? PRIMARY : "#E0E0E0" }}>
+        <div className="w-8 h-8 flex items-center justify-center shrink-0"
+          style={{ backgroundColor: enabled ? "rgba(255,255,255,0.2)" : "#E0E0E0" }}>
           <FiShield className="w-4 h-4" style={{ color: WHITE }} />
         </div>
         <div className="min-w-0">
-          <label htmlFor="approval-flow-toggle" className="block text-base font-extrabold cursor-pointer select-none leading-tight"
-            style={{ color: NEUTRAL_DARK, fontFamily: fontHeading, letterSpacing: "-0.3px" }}>
+          <label htmlFor="approval-flow-toggle" className="block text-lg font-extrabold cursor-pointer select-none leading-tight"
+            style={{ color: enabled ? WHITE : NEUTRAL_DARK, fontFamily: fontHeading, letterSpacing: "-0.5px" }}>
             {translate("DCS_APPROVAL_ENABLE_LABEL")}
           </label>
-          <p className="text-xs mt-0.5" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_APPROVAL_ENABLE_HINT")}</p>
+          <p className="text-xs mt-0.5" style={{ color: enabled ? "rgba(255,255,255,0.85)" : GRAY, fontFamily: fontHeading }}>
+            {translate("DCS_APPROVAL_ENABLE_HINT")}
+          </p>
         </div>
       </div>
 
       {enabled && (
         <>
+          {/* Required-fields strip, same as the booking form */}
+          <div className="px-6 py-3 text-center" style={{ backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}` }}>
+            <p className="text-xs font-medium" style={{ color: GRAY, fontFamily: fontHeading }}>
+              {translate("DCS_APPROVAL_REQUIRED_HINT")} <span style={{ color: DANGER }}>*</span>
+            </p>
+          </div>
           {/* Stepper - same look as the booking form's CreateEventStepper */}
           <div
             className="flex items-center justify-start sm:justify-center gap-1 sm:gap-0 overflow-x-auto touch-pan-x px-3 sm:px-6 py-3"
