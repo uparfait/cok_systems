@@ -1,5 +1,4 @@
 const path = require("path");
-
 require("dotenv").config({
     path: path.resolve(__dirname, ".env"),
     quiet: true
@@ -32,6 +31,7 @@ const {
 } = require("./middlewares/error_handler.js");
 
 const dcs_routes = require("./routes/main.js");
+const locations_routes = require("./routes/locations/routes.js");
 
 
 // ============================================================
@@ -299,526 +299,102 @@ function getCompressionEncoding(acceptEncoding) {
 // ============================================================
 
 function compressionMiddleware(req, res, next) {
+    const acceptEncoding = req.headers["accept-encoding"] || "";
+    const compressionEncoding = getCompressionEncoding(acceptEncoding);
 
-    const acceptEncoding =
-        req.headers["accept-encoding"] || "";
-
-
-    // --------------------------------------------------------
-    // Determine browser support
-    // --------------------------------------------------------
-
-    const compressionEncoding =
-        getCompressionEncoding(acceptEncoding);
-
-
-    // Browser supports neither Brotli nor Gzip
-    if (!compressionEncoding) {
+    if (!compressionEncoding || req.method === "HEAD" || req.headers.range)
         return next();
-    }
-
-
-    // --------------------------------------------------------
-    // HEAD has no response body
-    // --------------------------------------------------------
-
-    if (req.method === "HEAD") {
-        return next();
-    }
-
-
-    // --------------------------------------------------------
-    // Range requests
-    //
-    // Important for files, video, audio, etc.
-    // --------------------------------------------------------
-
-    if (req.headers.range) {
-        return next();
-    }
-
-
-    // --------------------------------------------------------
-    // Save original methods
-    // --------------------------------------------------------
 
     const originalWrite = res.write.bind(res);
     const originalEnd = res.end.bind(res);
-
-    const originalSetHeader =
-        res.setHeader.bind(res);
-
-    const originalRemoveHeader =
-        res.removeHeader.bind(res);
-
-
-    // --------------------------------------------------------
-    // Store response chunks
-    // --------------------------------------------------------
-
+    const originalSetHeader = res.setHeader.bind(res);
+    const originalRemoveHeader = res.removeHeader.bind(res);
     const chunks = [];
 
-
-    // ========================================================
-    // res.write()
-    // ========================================================
-
-    res.write = function (
-        chunk,
-        chunkEncoding,
-        callback
-    ) {
-
-        if (chunk) {
-
-            const buffer = Buffer.isBuffer(chunk)
-                ? chunk
-                : Buffer.from(
-                    chunk,
-                    chunkEncoding
-                );
-
-            chunks.push(buffer);
-        }
-
-
-        // Do not send anything yet.
-        // We need the complete response before compressing.
+    res.write = function (chunk, enc, cb) {
+        if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, enc));
         return true;
     };
 
+    res.end = function (chunk, enc, cb) {
+        if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, enc));
 
-    // ========================================================
-    // res.end()
-    // ========================================================
+        let body = Buffer.concat(chunks);
+        const originalSize = body.length;
+        const contentType = getContentType(res);
+        const type = String(contentType).split(";")[0].trim().toLowerCase();
 
-    res.end = function (
-        chunk,
-        chunkEncoding,
-        callback
-    ) {
+        if (res.statusCode === 204 || res.statusCode === 304 || !isCompressible(contentType))
+            return (res.write = originalWrite, res.end = originalEnd, originalEnd(body, undefined, cb));
 
-        if (chunk) {
-
-            const buffer = Buffer.isBuffer(chunk)
-                ? chunk
-                : Buffer.from(
-                    chunk,
-                    chunkEncoding
-                );
-
-            chunks.push(buffer);
+        // Minify ONLY JSON responses before compression
+        if (type === "application/json" || type === "application/ld+json") {
+            try {
+                body = Buffer.from(JSON.stringify(JSON.parse(body.toString("utf8"))));
+            } catch (error) {
+                console.warn("[JSON MINIFY] Skipped:", error.message);
+            }
         }
-
-
-        // ----------------------------------------------------
-        // Build complete original response
-        // ----------------------------------------------------
-
-        const body = Buffer.concat(chunks);
 
         const beforeSize = body.length;
 
-
-        // ----------------------------------------------------
-        // Get response Content-Type
-        // ----------------------------------------------------
-
-        const contentType =
-            getContentType(res);
-
-
-        // ----------------------------------------------------
-        // Status codes that should not have compressed body
-        // ----------------------------------------------------
-
-        if (
-            res.statusCode === 204 ||
-            res.statusCode === 304
-        ) {
-
-            res.write = originalWrite;
-            res.end = originalEnd;
-
-            return originalEnd(
-                body,
-                undefined,
-                callback
-            );
-        }
-
-
-        // ====================================================
-        // NOT COMPRESSIBLE
-        // ====================================================
-
-        if (!isCompressible(contentType)) {
-
-            console.log(
-                "\n========== COMPRESSION =========="
-            );
-
-            console.log(
-                `Method:       ${req.method}`
-            );
-
-            console.log(
-                `URL:          ${req.originalUrl}`
-            );
-
-            console.log(
-                `Type:         ${contentType || "unknown"}`
-            );
-
-            console.log(
-                `Encoding:     NONE`
-            );
-
-            console.log(
-                `Before:       ${formatBytes(beforeSize)}`
-            );
-
-            console.log(
-                `After:        NOT COMPRESSED`
-            );
-
-            console.log(
-                "Reason:       Content type is not compressible"
-            );
-
-            console.log(
-                "=================================\n"
-            );
-
-
-            res.write = originalWrite;
-            res.end = originalEnd;
-
-
-            return originalEnd(
-                body,
-                undefined,
-                callback
-            );
-        }
-
-
-        // ====================================================
-        // VERY SMALL RESPONSE
-        // ====================================================
-
-        // Compression can make very small responses larger.
-        if (beforeSize < 1024) {
-
-            console.log(
-                "\n========== COMPRESSION =========="
-            );
-
-            console.log(
-                `Method:       ${req.method}`
-            );
-
-            console.log(
-                `URL:          ${req.originalUrl}`
-            );
-
-            console.log(
-                `Type:         ${contentType}`
-            );
-
-            console.log(
-                `Encoding:     NONE`
-            );
-
-            console.log(
-                `Before:       ${formatBytes(beforeSize)}`
-            );
-
-            console.log(
-                `After:        NOT COMPRESSED`
-            );
-
-            console.log(
-                "Reason:       Response smaller than 1 KB"
-            );
-
-            console.log(
-                "=================================\n"
-            );
-
-
-            res.write = originalWrite;
-            res.end = originalEnd;
-
-
-            return originalEnd(
-                body,
-                undefined,
-                callback
-            );
-        }
-
-
-        // ====================================================
-        // COMPRESSION OPTIONS
-        // ====================================================
-
-        let compressionOptions;
-
-
-        if (compressionEncoding === "br") {
-
-            compressionOptions = {
-
-                params: {
-
-                    // 0-11
-                    //
-                    // 5 is a good balance between:
-                    // compression ratio
-                    // CPU usage
-                    //
-                    [zlib.constants.BROTLI_PARAM_QUALITY]: 5
-                }
-            };
-
-        } else {
-
-            compressionOptions = {
-
-                // Fast gzip compression
-                level: zlib.constants.Z_BEST_SPEED
-            };
-        }
-
-
-        // ====================================================
-        // COMPRESSION COMPLETE
-        // ====================================================
-
-        const compressionComplete =
-            (error, compressed) => {
-
-                // --------------------------------------------
-                // Compression error
-                // --------------------------------------------
-
-                if (error) {
-
-                    console.error(
-                        "\n[COMPRESSION ERROR]",
-                        error
-                    );
-
-
-                    res.write = originalWrite;
-                    res.end = originalEnd;
-
-
-                    return originalEnd(
-                        body,
-                        undefined,
-                        callback
-                    );
-                }
-
-
-                const afterSize =
-                    compressed.length;
-
-
-                const saved =
-                    beforeSize - afterSize;
-
-
-                const percentage =
-                    beforeSize > 0
-                        ? (saved / beforeSize) * 100
-                        : 0;
-
-
-                // =================================================
-                // Compression actually made response larger
-                // =================================================
-
-                if (afterSize >= beforeSize) {
-
-                    console.log(
-                        "\n========== COMPRESSION =========="
-                    );
-
-                    console.log(
-                        `Method:       ${req.method}`
-                    );
-
-                    console.log(
-                        `URL:          ${req.originalUrl}`
-                    );
-
-                    console.log(
-                        `Type:         ${contentType}`
-                    );
-
-                    console.log(
-                        `Encoding:     NONE`
-                    );
-
-                    console.log(
-                        `Before:       ${formatBytes(beforeSize)}`
-                    );
-
-                    console.log(
-                        `After:        ${formatBytes(afterSize)}`
-                    );
-
-                    console.log(
-                        "Saved:        0 B"
-                    );
-
-                    console.log(
-                        "Compression:  0.00%"
-                    );
-
-                    console.log(
-                        "Reason:       Compressed result was not smaller"
-                    );
-
-                    console.log(
-                        "=================================\n"
-                    );
-
-
-                    res.write = originalWrite;
-                    res.end = originalEnd;
-
-
-                    return originalEnd(
-                        body,
-                        undefined,
-                        callback
-                    );
-                }
-
-
-                // =================================================
-                // SUCCESS
-                // =================================================
-
-                console.log(
-                    "\n========== COMPRESSION =========="
-                );
-
-                console.log(
-                    `Method:       ${req.method}`
-                );
-
-                console.log(
-                    `URL:          ${req.originalUrl}`
-                );
-
-                console.log(
-                    `Type:         ${contentType}`
-                );
-
-                console.log(
-                    `Encoding:     ${compressionEncoding}`
-                );
-
-                console.log(
-                    `Before:       ${formatBytes(beforeSize)}`
-                );
-
-                console.log(
-                    `After:        ${formatBytes(afterSize)}`
-                );
-
-                console.log(
-                    `Saved:        ${formatBytes(saved)}`
-                );
-
-                console.log(
-                    `Compression:  ${percentage.toFixed(2)}%`
-                );
-
-                console.log(
-                    "=================================\n"
-                );
-
-
-                // =================================================
-                // Remove old Content-Length
-                // =================================================
-
-                try {
-                    originalRemoveHeader("Content-Length");
-                } catch (_) {}
-
-
-                // =================================================
-                // Set compression headers
-                // =================================================
-
-                originalSetHeader(
-                    "Content-Encoding",
-                    compressionEncoding
-                );
-
-                originalSetHeader(
-                    "Content-Length",
-                    afterSize
-                );
-
-                originalSetHeader(
-                    "Vary",
-                    "Accept-Encoding"
-                );
-
-
-                // =================================================
-                // Restore original methods
-                // =================================================
-
+        if (beforeSize < 1024)
+            return (res.write = originalWrite, res.end = originalEnd, originalEnd(body, undefined, cb));
+
+        const options = compressionEncoding === "br"
+            ? { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 } }
+            : { level: zlib.constants.Z_BEST_SPEED };
+
+        const done = (error, compressed) => {
+            if (error) {
+                console.error("[COMPRESSION ERROR]", error);
                 res.write = originalWrite;
                 res.end = originalEnd;
+                return originalEnd(body, undefined, cb);
+            }
 
+            const afterSize = compressed.length;
+            const saved = beforeSize - afterSize;
+            const percent = (saved / beforeSize) * 100;
 
-                // =================================================
-                // Send compressed response
-                // =================================================
+            console.log("\n========== COMPRESSION ==========");
+            console.log(`Method:       ${req.method}`);
+            console.log(`URL:          ${req.originalUrl}`);
+            console.log(`Type:         ${contentType}`);
+            console.log(`Encoding:     ${compressionEncoding}`);
+            console.log(`Original:     ${formatBytes(originalSize)}`);
+            if (type === "application/json" || type === "application/ld+json")
+                console.log(`JSON minified:${formatBytes(beforeSize)}`);
+            console.log(`Compressed:   ${formatBytes(afterSize)}`);
+            console.log(`Saved:        ${formatBytes(Math.max(0, saved))}`);
+            console.log(`Compression:  ${Math.max(0, percent).toFixed(2)}%`);
+            console.log("=================================\n");
 
-                return originalEnd(
-                    compressed,
-                    undefined,
-                    callback
-                );
-            };
+            res.write = originalWrite;
+            res.end = originalEnd;
 
+            if (afterSize >= beforeSize)
+                return originalEnd(body, undefined, cb);
 
-        // ====================================================
-        // COMPRESS
-        // ====================================================
+            try {
+                originalRemoveHeader("Content-Length");
+                originalRemoveHeader("Content-Encoding");
+            } catch (_) {}
 
-        if (compressionEncoding === "br") {
+            originalSetHeader("Content-Encoding", compressionEncoding);
+            originalSetHeader("Content-Length", afterSize);
+            originalSetHeader("Vary", "Accept-Encoding");
 
-            zlib.brotliCompress(
-                body,
-                compressionOptions,
-                compressionComplete
-            );
+            return originalEnd(compressed, undefined, cb);
+        };
 
-        } else {
-
-            zlib.gzip(
-                body,
-                compressionOptions,
-                compressionComplete
-            );
-        }
-
+        if (compressionEncoding === "br")
+            zlib.brotliCompress(body, options, done);
+        else
+            zlib.gzip(body, options, done);
 
         return res;
     };
-
 
     next();
 }
@@ -852,6 +428,24 @@ app.use(
     swaggerUi.serve,
     swaggerUi.setup(swagger_spec)
 );
+
+
+// ============================================================
+/// ADMINISTRATIVE LOCATIONS API (No auth required)
+// ============================================================
+
+const locationsData = require("../location.min.json");
+
+app.get("/dcs/api/administrative", compressionMiddleware, (req, res) => {
+    res.json(locationsData);
+});
+
+
+// ============================================================
+// LOCATIONS API (No auth required, for public forms)
+// ============================================================
+
+app.use("/dcs/api/locations", locations_routes);
 
 
 // ============================================================
@@ -908,11 +502,11 @@ connect_databases()
 
         app.listen(PORT, () => {
 
-            console.log(
-                "Server is running on port " + PORT
-            );
+        console.log(
+            "Server is running on port " + PORT
+        );
 
-        });
+    });
 
     })
 
