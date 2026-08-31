@@ -11,6 +11,17 @@ const LEVELS_TOP_DOWN = ["PROVINCE", "DISTRICT", "SECTOR", "CELL", "VILLAGE"];
 // location_id encodes the hierarchy by digit width, so every ancestor is a prefix of the id.
 const ID_DIGITS = { PROVINCE: 1, DISTRICT: 2, SECTOR: 4, CELL: 6, VILLAGE: 8 };
 
+// The five ids the Location template's fields always carry - submissions are routed
+// to location-scoped approvers only through answers in these fields.
+const LOCATION_TEMPLATE_FIELD_IDS = ["select_group_prvnce", "select_group_dstrct", "select_group_sctr", "select_group_cell", "select_group_vllge"];
+
+/** True when the form collects a location at all (has any Location template field, groups included). */
+function form_collects_location(fields) {
+  return (fields || []).some(
+    (field) => LOCATION_TEMPLATE_FIELD_IDS.includes(field.id) || (field.type === "group" && form_collects_location(field.children)),
+  );
+}
+
 // Form field types an approver condition ("field equals value") can target.
 const CONDITION_FIELD_TYPES = [
   "text", "large_text", "number", "email", "url", "phone",
@@ -465,6 +476,13 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave })
             {wizard_step === 2 && (
               <>
                 <p className="text-xs" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_APPROVAL_LOCATION_HINT")}</p>
+                {!form_collects_location(fields) && approvers.some((approver) => approver.level) && (
+                  <div className="p-3" style={{ backgroundColor: "#FFF8E1", border: "1px solid #F39C12" }}>
+                    <p className="text-sm" style={{ color: "#B26A00", fontFamily: fontHeading }}>
+                      {translate("DCS_APPROVAL_NO_LOCATION_FIELDS_WARNING")}
+                    </p>
+                  </div>
+                )}
                 {approvers.map((approver, index) => {
                   const level = APPROVER_LEVELS.includes(approver.level) ? approver.level : "";
                   const path = draft_paths[index] || path_from_location_id(approver.location_id, level);
