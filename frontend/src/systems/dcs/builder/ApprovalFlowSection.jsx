@@ -556,7 +556,6 @@ export default function ApprovalFlowSection({ value, onChange, fields }) {
                       style={{
                         backgroundColor: drag_index === index ? "#E3F2FD" : NEUTRAL_LIGHT,
                         border: `1px solid ${drag_index === index ? PRIMARY : BORDER}`,
-                        borderLeft: `4px solid ${PRIMARY}`,
                       }}
                     >
                       <div className="flex items-center justify-between gap-2 flex-wrap">
