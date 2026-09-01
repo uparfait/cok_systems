@@ -603,6 +603,7 @@ export const reservationService = {
   bulkUploadStaff: (formData: FormData) => post('/smartparking/bulk-staff-upload', formData),
   cancelReservation: (id: string, type?: 'visitor' | 'staff') => put(`/smartparking/reservations/${id}/cancel`, { type }),
   reactivateReservation: (id: string) => put(`/smartparking/reservations/${id}/reactivate`, {}),
+  rescheduleReservation: (id: string, type: 'visitor' | 'staff', start_date: string, end_date: string) => put(`/smartparking/reservations/${id}/reschedule`, { type, start_date, end_date }),
   bulkCancelReservations: (items: Array<{ id: string; type: 'visitor' | 'staff' }>) => post('/smartparking/reservations/bulk-cancel', { items }),
   bulkDeleteReservations: (items: Array<{ id: string; type: 'visitor' | 'staff' }>) => post('/smartparking/reservations/bulk-delete', { items }),
   getBatches: () => get('/smartparking/reservation-batches'),
