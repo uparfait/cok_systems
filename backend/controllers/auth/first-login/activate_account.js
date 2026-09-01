@@ -138,25 +138,11 @@ async function activateAccount(req, res, next) {
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
-    // Update user with password and mark as activated
-    // Keep twofa_secret intact so user can login with 2FA
-    // Clear twofa_setup temp data
+  
     await User.findByIdAndUpdate(userId, {
       $set: {
         password: hashedPassword,
         is_account_activated: true,
-        is_2FA_disabled: false,
-        twofa_setup: {
-          secret: null,
-          qr_code: null,
-          otpauth_url: null,
-          created_at: null,
-          expires_at: null,
-          verified: true
-        },
-        "twofa_verification.attempts": 0,
-        "twofa_verification.last_attempt": null,
-        "twofa_verification.locked_until": null,
         auth: {
           access_token: {
             token: null,
