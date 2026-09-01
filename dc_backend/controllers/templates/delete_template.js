@@ -5,6 +5,7 @@ const { is_valid_object_id } = require("../../utilities/object_id.js");
 /**
  * Permanently deletes a template. Never affects a form that already
  * inserted it earlier, since that form kept its own copy of the fields.
+ * System templates cannot be deleted.
  */
 async function delete_template(req, res) {
   try {
@@ -15,6 +16,9 @@ async function delete_template(req, res) {
     }
 
     const deleted = await templates_model.delete_template(template_id);
+    if (deleted === null) {
+      return res.status(403).json(warning_response(req, "TEMPLATE_SYSTEM_NOT_DELETABLE"));
+    }
     if (!deleted) {
       return res.status(404).json(warning_response(req, "TEMPLATE_NOT_FOUND"));
     }

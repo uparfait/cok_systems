@@ -12,7 +12,7 @@ const { success_response, warning_response, error_response } = require("../../ut
  */
 async function create_template(req, res) {
   try {
-    const { name, description, fields } = req.body || {};
+    const { name, description, fields, is_system_template } = req.body || {};
 
     if (!name || !name.toString().trim()) {
       return res.status(400).json(warning_response(req, "TEMPLATE_NAME_REQUIRED"));
@@ -35,6 +35,7 @@ async function create_template(req, res) {
       name_normalized: name.toString().trim().toLowerCase(),
       description: (description || "").toString().trim(),
       fields: resolved_fields,
+      is_system_template: !!is_system_template,
       created_by: req.user.user_id.toString(),
       created_by_name: req.user.full_name,
     });

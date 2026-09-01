@@ -25,7 +25,7 @@ async function create_template(template_data) {
 async function list_templates() {
   return get_db()
     .collection(COLLECTION_NAME)
-    .find({}, { projection: { name: 1, description: 1, created_at: 1, updated_at: 1 } })
+    .find({}, { projection: { name: 1, description: 1, created_at: 1, updated_at: 1, is_system_template: 1 } })
     .sort({ updated_at: -1 })
     .toArray();
 }
@@ -69,10 +69,19 @@ async function update_template(template_id, template_data) {
 /**
  * Permanently deletes a template. Never affects any form that already
  * inserted it, since that form's copy of the fields is fully its own.
+ * System templates (is_system_template: true) cannot be deleted.
  */
 async function delete_template(template_id) {
   const object_id = to_object_id(template_id);
   if (!object_id) return false;
+
+  const template = await get_db().collection(COLLECTION_NAME).findOne({ _id: object_id });
+  if (!template) return false;
+
+  if (template.is_system_template) {
+    return null;
+  }
+
   const result = await get_db().collection(COLLECTION_NAME).deleteOne({ _id: object_id });
   return result.deletedCount > 0;
 }

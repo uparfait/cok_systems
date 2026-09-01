@@ -1,39 +1,128 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { dcs_supported_languages } from "../i18n/index.js";
 import { DCS_FIELD_RENDERER_MAP } from "./fieldRendererMap.js";
 import { evaluate_field_visibility } from "./formEngine.js";
 import { build_design_styles, get_spacing_below_px } from "./designStyles.js";
+import { LocationDataProvider } from "../fields/CascadingSelectField.jsx";
 
 const LANGUAGE_LABEL_KEYS = { en: "DCS_LANGUAGE_EN", kn: "DCS_LANGUAGE_KN", fr: "DCS_LANGUAGE_FR" };
 
-/**
- * Universal, schema-driven form renderer. Reads the JSON schema field by
- * field, maps each type to its component, applies visibility conditions,
- * and recurses into groups - it never hardcodes knowledge of any specific
- * form. Width always fills its container up to 700px and down to 100% on
- * any smaller device; text wraps normally rather than being scaled.
- */
+function has_location_sourced_fields(fields) {
+  if (!Array.isArray(fields)) return false;
+  return fields.some(field => {
+    if (field.data_source?.type === "api") return true;
+    if (field.children?.length) return has_location_sourced_fields(field.children);
+    return false;
+  });
+}
+
+function flatten_fields(fields) {
+  if (!Array.isArray(fields)) return [];
+  const result = [];
+  for (const field of fields) {
+    result.push(field);
+    if (field.children?.length) {
+      result.push(...flatten_fields(field.children));
+    }
+  }
+  return result;
+}
+
+function useInViewFields() {
+  const [visibleFields, setVisibleFields] = useState(() => new Set());
+  const observerRef = useRef(null);
+  const fieldElementsRef = useRef(new Map());
+
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        setVisibleFields((prev) => {
+          const next = new Set(prev);
+          entries.forEach((entry) => {
+            const fieldId = entry.target.dataset.fieldId;
+            if (fieldId) {
+              if (entry.isIntersecting) {
+                next.add(fieldId);
+              } else {
+                next.delete(fieldId);
+              }
+            }
+          });
+          return next;
+        });
+      },
+      {
+        root: null,
+        rootMargin: "100px",
+        threshold: 0.1
+      }
+    );
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  const registerField = useCallback((fieldId, element) => {
+    if (element && observerRef.current) {
+      fieldElementsRef.current.set(fieldId, element);
+      observerRef.current.observe(element);
+    }
+  }, []);
+
+  const unregisterField = useCallback((fieldId) => {
+    const element = fieldElementsRef.current.get(fieldId);
+    if (element && observerRef.current) {
+      observerRef.current.unobserve(element);
+      fieldElementsRef.current.delete(fieldId);
+    }
+  }, []);
+
+  return { visibleFields, registerField, unregisterField };
+}
+
 export default function RendererEngine({ schema, mode, values, onValueChange, fieldErrors, fieldValidMessages, onFieldChange, wrapField, revealAllErrors, resolveFieldOptions }) {
   const render_mode = mode || "renderer";
-  // The language dropdown below drives the whole page, not just the form
-  // fields - it is the same language DcsQueuePanel, toasts, and every
-  // other piece of chrome around the form read from, so switching it here
-  // must never diverge into a second, form-only language.
   const { language: form_language, setLanguage: setFormLanguage, translate } = useDcsLanguage();
   const [touched_fields, setTouchedFields] = useState(() => new Set());
+  const { visibleFields, registerField, unregisterField } = useInViewFields();
 
   const mark_touched = (field_id) => {
     setTouchedFields((previous) => (previous.has(field_id) ? previous : new Set(previous).add(field_id)));
   };
 
-  // A field only ever shows its error (or its rule's success message) once
-  // the respondent has actually edited it, or after a submit attempt has
-  // revealed everything - never for a field further down the form the
-  // respondent hasn't reached yet just because typing elsewhere happened
-  // to re-run validation across the whole schema. Landing focus on a field
-  // without editing it does not count as touching it.
-  const is_shown = (field_id) => revealAllErrors || touched_fields.has(field_id);
+  const find_child_field_ids = (parent_field_id, fields = schema?.fields) => {
+    const children = [];
+    if (!fields) return children;
+    for (const field of fields) {
+      if (field.parent_field_id === parent_field_id) {
+        children.push(field.id);
+      }
+      if (field.children) {
+        children.push(...find_child_field_ids(parent_field_id, field.children));
+      }
+    }
+    return children;
+  };
+
+  const handle_cascading_change = (field_id, next_value) => {
+    mark_touched(field_id);
+    onValueChange && onValueChange(field_id, next_value);
+
+    const child_ids = find_child_field_ids(field_id);
+    for (const child_id of child_ids) {
+      onValueChange && onValueChange(child_id, undefined);
+    }
+  };
+
+  const is_shown = (field_id) => {
+    if (revealAllErrors) return true;
+    if (!visibleFields.has(field_id)) return false;
+    return touched_fields.has(field_id);
+  };
 
   const format_error = (field_id) => {
     if (!is_shown(field_id)) return null;
@@ -46,9 +135,6 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
     if (!is_shown(field_id)) return undefined;
     const entries = fieldValidMessages ? fieldValidMessages[field_id] : undefined;
     if (!entries) return undefined;
-    // Every one of this field's rules that currently passes and has its
-    // own valid_message shows its own confirmation line, not just the
-    // first rule that happened to have one.
     return Array.isArray(entries) ? entries.join("\n") : entries;
   };
 
@@ -60,6 +146,8 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
       return null;
     }
 
+    const is_cascading_location = field.type === "cascading_select" && field.data_source?.type === "api";
+
     const element = (
       <FieldComponent
         key={field.id}
@@ -68,8 +156,12 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
         mode={render_mode}
         value={values ? values[field.id] : undefined}
         onChange={(next_value) => {
-          mark_touched(field.id);
-          onValueChange && onValueChange(field.id, next_value);
+          if (is_cascading_location) {
+            handle_cascading_change(field.id, next_value);
+          } else {
+            mark_touched(field.id);
+            onValueChange && onValueChange(field.id, next_value);
+          }
         }}
         error={format_error(field.id)}
         ruleValidMessage={format_valid_message(field.id)}
@@ -77,24 +169,35 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
         allValues={values}
         renderChildField={render_field}
         resolveFieldOptions={resolveFieldOptions}
+        allFields={flatten_fields(schema?.fields)}
       />
     );
 
-    // A field that currently fails validation (and is actually being shown
-    // per is_shown above) gets a visible red outline around itself - input
-    // and its own error text together - so the respondent's eye lands on
-    // exactly which field needs fixing without having to re-read every
-    // label on the page.
     const has_error_highlight = render_mode === "renderer" && !!format_error(field.id);
     const error_highlight_class = has_error_highlight ? "dcs-field-error-highlight" : undefined;
 
     const { outer_style, inner_style } = build_design_styles(field);
     const designed_element = outer_style ? (
-      <div key={field.id} style={outer_style}>
+      <div
+        key={field.id}
+        style={outer_style}
+        ref={(el) => {
+          if (el) registerField(field.id, el);
+        }}
+        data-field-id={field.id}
+      >
         <div style={inner_style} className={error_highlight_class}>{element}</div>
       </div>
     ) : (
-      <div key={field.id} style={inner_style} className={error_highlight_class}>
+      <div
+        key={field.id}
+        style={inner_style}
+        className={error_highlight_class}
+        ref={(el) => {
+          if (el) registerField(field.id, el);
+        }}
+        data-field-id={field.id}
+      >
         {element}
       </div>
     );
@@ -102,19 +205,6 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
     return wrapField ? wrapField(designed_element, field) : designed_element;
   };
 
-  // The gap after a top-level field is whatever the author set for it
-  // (Designs tab), not a single hardcoded value shared by every component.
-  // This only applies to the form's own top-to-bottom field list: a
-  // component placed inside a Section canvas is positioned by the
-  // author's chosen x/y/width/height percentages, not by a between-
-  // components margin, so render_field (reused as renderChildField for
-  // Section/Group children) must never carry this spacing itself - it
-  // would silently inflate every nested component's box on top of the
-  // position the author actually designed.
-  // dcs-print-avoid-break: a question split across a page boundary when
-  // printed is unreadable - letting the browser's own pagination fall
-  // wherever it likes between fields (never inside one) is what "pages"
-  // for print actually means here, not any manual page-break authoring.
   const render_top_level_field = (field) => {
     const element = render_field(field);
     if (element === null) return null;
@@ -125,7 +215,9 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
     );
   };
 
-  return (
+  const needs_location_provider = has_location_sourced_fields(schema?.fields);
+
+  const form_content = (
     <div className="w-full mx-auto" style={{ maxWidth: 700 }}>
       <div className="flex items-center justify-end mb-3 dcs-no-print">
         <select
@@ -152,4 +244,14 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
       <div className="w-full">{(schema && schema.fields ? schema.fields : []).map((field) => render_top_level_field(field))}</div>
     </div>
   );
+
+  if (needs_location_provider) {
+    return (
+      <LocationDataProvider language={form_language}>
+        {form_content}
+      </LocationDataProvider>
+    );
+  }
+
+  return form_content;
 }
