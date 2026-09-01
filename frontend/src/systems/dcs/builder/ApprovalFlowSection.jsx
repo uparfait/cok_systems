@@ -441,16 +441,6 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
     emit_approvers(approvers.filter((_, i) => i !== index));
   };
 
-  const handle_condition_change = (index, condition_index, key, condition_value) => {
-    const next_conditions = (approvers[index].conditions || []).map((condition, i) => {
-      if (i !== condition_index) return condition;
-      // Switching the field resets the value, since values belong to one field's options.
-      if (key === "field_id") return { field_id: condition_value, value: "" };
-      return Object.assign({}, condition, { [key]: condition_value });
-    });
-    handle_approver_change(index, "conditions", next_conditions);
-  };
-
   // The api-sourced location fields above this one on the form, keyed by their level.
   const ancestor_location_fields = (target_field) => {
     const by_id = new Map(condition_fields.map((entry) => [entry.id, entry]));
@@ -464,8 +454,50 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
     return by_level;
   };
 
-  // Picking a located entry also pins every ancestor level as its own condition - a
-  // namesake village or cell somewhere else can then never match this approver.
+  const is_api_location_field = (field) => !!field && !!field.data_source && field.data_source.type === "api";
+  const find_condition_field = (field_id) => condition_fields.find((entry) => entry.id === field_id);
+  const ancestor_ids_of = (field) =>
+    is_api_location_field(field) ? new Set(Object.values(ancestor_location_fields(field)).map((entry) => entry.id)) : new Set();
+
+  // Ancestor conditions pinned by a location pick stay in the data (routing matches the
+  // whole trail) but never render as their own rows - the trail row already shows them.
+  const hidden_condition_field_ids = (conditions) => {
+    const hidden = new Set();
+    conditions.forEach((condition) => {
+      const field = find_condition_field(condition.field_id);
+      if (!is_api_location_field(field)) return;
+      ancestor_ids_of(field).forEach((ancestor_id) => {
+        if (conditions.some((entry) => entry.field_id === ancestor_id)) hidden.add(ancestor_id);
+      });
+    });
+    return hidden;
+  };
+
+  const handle_condition_change = (index, condition_index, key, condition_value) => {
+    const conditions = approvers[index].conditions || [];
+    // Switching a location condition to another field also drops the hidden ancestor
+    // conditions its old trail pinned, so nothing keeps filtering invisibly.
+    if (key === "field_id") {
+      const previous = conditions[condition_index];
+      const orphaned = ancestor_ids_of(previous && find_condition_field(previous.field_id));
+      handle_approver_change(
+        index,
+        "conditions",
+        conditions
+          .map((condition, i) => (i === condition_index ? { field_id: condition_value, value: "" } : condition))
+          .filter((condition, i) => i === condition_index || !orphaned.has(condition.field_id)),
+      );
+      return;
+    }
+    handle_approver_change(
+      index,
+      "conditions",
+      conditions.map((condition, i) => (i === condition_index ? Object.assign({}, condition, { [key]: condition_value }) : condition)),
+    );
+  };
+
+  // Picking a located entry also pins every ancestor level as its own (hidden) condition -
+  // a namesake village or cell somewhere else can then never match this approver.
   const handle_location_condition_pick = (index, condition_index, target_field, picked_value, picked) => {
     const next = [...(approvers[index].conditions || [])];
     next[condition_index] = { field_id: target_field.id, value: picked_value };
@@ -484,8 +516,12 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
     handle_approver_change(index, "conditions", [...(approvers[index].conditions || []), { field_id: "", value: "" }]);
   };
 
+  // Removing a location condition also removes the hidden ancestors its trail pinned.
   const remove_condition = (index, condition_index) => {
-    handle_approver_change(index, "conditions", (approvers[index].conditions || []).filter((_, i) => i !== condition_index));
+    const conditions = approvers[index].conditions || [];
+    const removed = conditions[condition_index];
+    const orphaned = ancestor_ids_of(removed && find_condition_field(removed.field_id));
+    handle_approver_change(index, "conditions", conditions.filter((condition, i) => i !== condition_index && !orphaned.has(condition.field_id)));
   };
 
   const handle_drop = (target_index) => {
@@ -630,10 +666,13 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                 <p className="text-xs" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_APPROVAL_CONDITIONS_HINT")}</p>
                 {approvers.map((approver, index) => {
                   const conditions = approver.conditions || [];
+                  const hidden_ids = hidden_condition_field_ids(conditions);
                   return (
                     <div key={index} className="p-4 space-y-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
                       <ApproverBadge index={index} name={approver.name} translate={translate} />
                       {conditions.map((condition, condition_index) => {
+                        // Ancestor conditions pinned by a trail pick stay data-only.
+                        if (hidden_ids.has(condition.field_id)) return null;
                         const target_field = condition_fields.find((entry) => entry.id === condition.field_id);
                         const is_choice_field = !!target_field && CHOICE_FIELD_TYPES.includes(target_field.type);
                         // This approver's conditions on the levels above, so the control can
@@ -764,7 +803,8 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                           {conditions.length > 0 && (
                             <span className="text-xs font-semibold px-2 py-0.5 inline-flex items-center gap-1"
                               style={{ color: "#795548", backgroundColor: "#FFF3E0", fontFamily: fontHeading }}>
-                              <FiFilter className="w-3 h-3" /> {conditions.length}
+                              {/* Hidden trail-pinned ancestors don't inflate the count */}
+                              <FiFilter className="w-3 h-3" /> {conditions.filter((condition) => !hidden_condition_field_ids(conditions).has(condition.field_id)).length}
                             </span>
                           )}
                         </div>
