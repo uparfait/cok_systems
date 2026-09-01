@@ -7,42 +7,10 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-let hasClearedStaleCaches = false;
-
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    if (hasClearedStaleCaches || !('caches' in window)) return;
-    hasClearedStaleCaches = true;
-
-    caches.keys().then(async (cacheNames) => {
-      let clearedAnyFile = false;
-
-      for (const cacheName of cacheNames) {
-        const cache = await caches.open(cacheName);
-        const requests = await cache.keys();
-
-        const requestsToDelete = requests.filter((request) => {
-          const requestPath = new URL(request.url).pathname;
-          return requestPath !== '/' && !requestPath.includes('/dcs-form/');
-        });
-
-        if (requestsToDelete.length > 0) {
-          await Promise.all(
-            requestsToDelete.map((request) => cache.delete(request))
-          );
-          clearedAnyFile = true;
-        }
-      }
-
-      if (clearedAnyFile) {
-        window.location.reload();
-      }
-    });
-  }, []);
 
   // Wait for auth to be ready before making any decisions
   useEffect(() => {
@@ -53,14 +21,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Debug logging
-  console.log('[ProtectedRoute] isLoading:', isLoading, 'isAuthenticated:', isAuthenticated, 'isReady:', isReady);
-
   // Show loading spinner while auth is initializing or not ready
   if (isLoading || !isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoadingSpinner 
+        <LoadingSpinner
           message="Connecting..."
           longLoadingMessage="This is taking longer than usual. Please check your connection."
           longLoadingDelay={3000}
@@ -70,11 +35,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    console.log('[ProtectedRoute] Not authenticated, redirecting to home from:', location.pathname);
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
-  console.log('[ProtectedRoute] User is authenticated, rendering children');
   return <>{children}</>;
 };
 

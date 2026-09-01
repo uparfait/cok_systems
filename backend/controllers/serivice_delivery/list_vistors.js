@@ -61,7 +61,7 @@ module.exports = async function list_visitors(req, res, next) {
       let user_department_id = req.user?.department?._id?.toString() || null;
       let user_department_unit_id = req.user?.department_unit?.toString() || null;
    
-      const limit_val = Math.min(parseInt(limit), 1000);
+      const limit_val = Math.min(parseInt(limit), 50);
       const skip_val = (parseInt(page) - 1) * limit_val;
   
       let filter = {};

@@ -85,9 +85,13 @@ async function update_version_in_place(form_group_id, version, form_data) {
 
 /**
  * Returns every version of a form, newest first.
+ * Excludes fields to reduce payload size for list views.
  */
 async function get_versions_by_group(form_group_id) {
-  return get_db().collection(COLLECTION_NAME).find({ form_group_id }).sort({ version: -1 }).toArray();
+  return get_db().collection(COLLECTION_NAME).find({ form_group_id }, 
+    // { projection: { "schema.fields": 0 } }
+
+  ).sort({ version: -1 }).toArray();
 }
 
 /**
@@ -161,6 +165,7 @@ async function get_form_by_document_id(document_id) {
  * Returns one document per form group inside a project, using the latest
  * version of each group so titles stay current - forms are displayed as
  * links using form_group_id, never a table.
+ * Excludes fields to reduce payload size for list views.
  */
 async function get_latest_forms_by_project(project_id) {
   const latest_forms = await get_db()
@@ -170,6 +175,7 @@ async function get_latest_forms_by_project(project_id) {
       { $sort: { version: -1 } },
       { $group: { _id: "$form_group_id", latest: { $first: "$$ROOT" } } },
       { $replaceRoot: { newRoot: "$latest" } },
+      // { $project: { "schema.fields": 0 } },
       { $sort: { updated_at: -1 } },
     ])
     .toArray();

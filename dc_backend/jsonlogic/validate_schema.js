@@ -313,7 +313,12 @@ function validate_field(field, path, depth, errors, seen_ids, all_ids) {
   // reconciliation genuinely found nothing to restore (a state that should
   // never occur for an existing field) rather than a save that would
   // otherwise wrongly get rejected as empty.
-  if (!field.lazy_options) {
+  //
+  // A field with data_source (API-sourced options) also doesn't carry
+  // real options in the schema - options are fetched from the API at render time.
+  const has_api_data_source = field.data_source && field.data_source.type === "api";
+
+  if (!field.lazy_options && !has_api_data_source) {
     if (OPTION_BASED_TYPES.includes(field.type) && !uses_parent_groups) {
       validate_options(field, path, errors);
     }

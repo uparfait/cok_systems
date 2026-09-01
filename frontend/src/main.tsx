@@ -3,15 +3,9 @@ import { createRoot } from 'react-dom/client'
 import './assets/styles/globals.css'
 import App from './App.tsx'
 
-const APP_VERSION = '1.0.0';
-
-interface ServiceWorkerVersionMessage extends MessageEvent {
-  data: { version: string };
-}
-
-const registerWebPushServiceWorker = async () => {
+const registerServiceWorker = async () => {
   if (!('serviceWorker' in navigator)) {
-    console.log('[WebPush] Service workers not supported in this browser');
+    console.log('[IKAZE] Service workers not supported in this browser');
     return;
   }
 
@@ -19,21 +13,22 @@ const registerWebPushServiceWorker = async () => {
     const registration = await navigator.serviceWorker.register('/sw.js', {
       scope: '/'
     });
-    console.log(`[WebPush] Service worker registered successfully:`, registration.scope);
+    console.log('[IKAZE] Service worker registered:', registration.scope);
 
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
       if (newWorker) {
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('[PWA] New content available, please refresh.');
+            console.log('[IKAZE] New content available, please refresh.');
             window.dispatchEvent(new CustomEvent('sw-update-available'));
           }
         });
       }
     });
+
   } catch (error) {
-    console.error('[WebPush] Service worker registration failed:', error);
+    console.error('[IKAZE] Service worker registration failed:', error);
   }
 };
 
@@ -54,7 +49,7 @@ const setupInstallPrompt = () => {
   });
 };
 
-registerWebPushServiceWorker();
+registerServiceWorker();
 setupInstallPrompt();
 
 createRoot(document.getElementById('root')!).render(
