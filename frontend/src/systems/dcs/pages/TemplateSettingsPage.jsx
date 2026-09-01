@@ -9,14 +9,8 @@ import DcsTemplateNameField from "../components/DcsTemplateNameField.jsx";
 import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
+import { validate_form_schema } from "../builder/validateSchema.js";
 
-/**
- * Editing an existing template - the exact same builder used for a form,
- * pre-filled with the template's current name, description and fields.
- * Deleting it here never touches any form that already inserted it
- * earlier, since that form kept its own copy of the fields.
- * System templates cannot be deleted.
- */
 export default function TemplateSettingsPage() {
   const { template_id } = useParams();
   const { translate } = useDcsLanguage();
@@ -59,9 +53,16 @@ export default function TemplateSettingsPage() {
   };
 
   const handle_publish = async (schema) => {
+    const frontend_check = validate_form_schema(schema);
+    if (!frontend_check.valid) {
+      setSchemaErrors(frontend_check.errors);
+      showError(translate("DCS_SCHEMA_ERROR_BANNER"));
+      return false;
+    }
     setPublishing(true);
     try {
       await update_template(template_id, name, description, schema.fields);
+      setSchemaErrors([]);
       showSuccess(translate("DCS_TOAST_TEMPLATE_SAVED"));
       return true;
     } catch (error) {

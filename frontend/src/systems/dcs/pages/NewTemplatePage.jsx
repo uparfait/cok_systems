@@ -5,12 +5,8 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { create_template } from "../services/templatesService.js";
 import DcFormBuilderSection from "../builder/DcFormBuilderSection.jsx";
 import DcsTemplateNameField from "../components/DcsTemplateNameField.jsx";
+import { validate_form_schema } from "../builder/validateSchema.js";
 
-/**
- * Building a brand new template - the exact same builder used for a form
- * (add/settings/delete/reorder fields, review, Ctrl+6 JSON overlay), just
- * saved as a reusable template instead of a form version.
- */
 export default function NewTemplatePage() {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
@@ -28,6 +24,12 @@ export default function NewTemplatePage() {
   };
 
   const handle_publish = async (schema) => {
+    const frontend_check = validate_form_schema(schema);
+    if (!frontend_check.valid) {
+      setSchemaErrors(frontend_check.errors);
+      showError(translate("DCS_SCHEMA_ERROR_BANNER"));
+      return false;
+    }
     setPublishing(true);
     try {
       const response = await create_template(name, description, schema.fields);

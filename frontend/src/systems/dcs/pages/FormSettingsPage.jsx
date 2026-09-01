@@ -8,13 +8,8 @@ import DcFormBuilderSection from "../builder/DcFormBuilderSection.jsx";
 import ApprovalFlowSection, { is_approval_config_complete } from "../builder/ApprovalFlowSection.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsFormNameField from "../components/DcsFormNameField.jsx";
+import { validate_form_schema } from "../builder/validateSchema.js";
 
-/**
- * Editing a form always starts from its currently active version - a
- * change only mints a brand new, immutable version when a data-collection
- * field was added or removed; any other edit (condition, design, content
- * component, label) updates that same active version in place.
- */
 export default function FormSettingsPage() {
   const { form_group_id, form, refreshForm } = useOutletContext();
   const { translate } = useDcsLanguage();
@@ -27,23 +22,11 @@ export default function FormSettingsPage() {
   const loaded_form_id_ref = useRef(form._id);
   const { resolveFieldOptions, resolveFullFieldOptions } = useLazyFieldResolvers("form", form_group_id, get_form_field_options);
 
-  // A field's position in the backend's error paths (fields[2], etc.) is
-  // positional, not id-based - any edit (reorder, add, delete, or a drawer
-  // save) can shift what those indices point to, so stale errors are
-  // cleared on every change rather than risk highlighting the wrong field.
-  // They come back, freshly resolved, on the next failed publish attempt.
   const handle_fields_change = (next_fields) => {
     setSchemaErrors([]);
     setFields(next_fields);
   };
 
-  // The shell's own `form` can change underneath this page - after
-  // clicking the Settings tab forces a fresh reload, or after a different
-  // version was activated elsewhere - and must actually be picked up, not
-  // just used once at first mount. Only resyncs when the loaded document
-  // itself changed (a different _id), never on every background poll of
-  // the same still-active version, so it never stomps on an edit in
-  // progress.
   useEffect(() => {
     if (form._id === loaded_form_id_ref.current) return;
     loaded_form_id_ref.current = form._id;
@@ -59,9 +42,13 @@ export default function FormSettingsPage() {
     showSuccess(translate("DCS_TOAST_LINK_COPIED"));
   };
 
-  // Saves just the approval flow, without going through the builder's publish review.
-  // The current fields are sent unchanged, so no new form version is minted.
   const handle_save_approvers = async (config) => {
+    const frontend_check = validate_form_schema({ fields });
+    if (!frontend_check.valid) {
+      setSchemaErrors(frontend_check.errors);
+      showError(translate("DCS_SCHEMA_ERROR_BANNER"));
+      return;
+    }
     try {
       const response = await update_form(form_group_id, form_name, { fields }, config);
       showSuccess(response.message || translate("DCS_APPROVAL_SAVED"));
@@ -72,6 +59,13 @@ export default function FormSettingsPage() {
   };
 
   const handle_publish = async (schema) => {
+    const frontend_check = validate_form_schema(schema);
+    if (!frontend_check.valid) {
+      setSchemaErrors(frontend_check.errors);
+      showError(translate("DCS_SCHEMA_ERROR_BANNER"));
+      return false;
+    }
+
     if (!is_approval_config_complete(approval_config)) {
       showError(translate("DCS_APPROVAL_CONFIG_INCOMPLETE"));
       return false;

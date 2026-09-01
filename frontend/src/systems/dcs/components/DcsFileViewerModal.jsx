@@ -7,6 +7,53 @@ import DcsButtonOutlineReverse from "./DcsButtonOutlineReverse.jsx";
 import DcsVideoPlayer from "./DcsVideoPlayer.jsx";
 import DcsAudioPlayer from "./DcsAudioPlayer.jsx";
 
+const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico", ".tiff", ".avif"];
+const VIDEO_EXTENSIONS = [".mp4", ".webm", ".ogg", ".mov", ".avi", ".mkv", ".m4v", ".flv"];
+const AUDIO_EXTENSIONS = [".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac", ".wma", ".opus"];
+
+const IMAGE_HOST_PATTERNS = [
+  /encrypted-tbn0\.gstatic\.com/,
+  /googleusercontent\.com/,
+  /gstatic\.com/,
+  /imgur\.com/,
+  /i\.ibb\.co/,
+  /cloudinary\.com/,
+  /res\.cloudinary\.com/,
+  /images\.unsplash\.com/,
+  /unsplash\.com/,
+  /pexels\.com/,
+  /pixabay\.com/,
+  /flickr\.com/,
+  /staticflickr\.com/,
+  /pinimg\.com/,
+  /media\.gycat\.com/,
+  /media\d+\.giphy\.com/,
+  /giphy\.com/,
+  /tenor\.com/,
+  /media\.tenor\.com/,
+];
+
+function detect_kind_from_url(url) {
+  const lower = url.toLowerCase();
+
+  for (const ext of IMAGE_EXTENSIONS) {
+    if (lower.includes(ext)) return "image";
+  }
+  for (const ext of VIDEO_EXTENSIONS) {
+    if (lower.includes(ext)) return "video";
+  }
+  for (const ext of AUDIO_EXTENSIONS) {
+    if (lower.includes(ext)) return "audio";
+  }
+  if (lower.includes(".pdf")) return "pdf";
+
+  for (const pattern of IMAGE_HOST_PATTERNS) {
+    if (pattern.test(lower)) return "image";
+  }
+
+  return null;
+}
+
 const DOC_PREVIEW_STYLE = `
   .cok-doc-preview { font-family: Calibri, 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #333333; line-height: 1.5; }
   .cok-doc-preview h1, .cok-doc-preview h2, .cok-doc-preview h3 { color: #056daa; font-family: 'Montserrat', sans-serif; }
@@ -153,7 +200,16 @@ function GenericPreview({ fileUrl, fileName }) {
 
 export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClose }) {
   const { translate } = useDcsLanguage();
-  const kind = get_file_kind(fileType, fileName);
+
+  const is_link = !fileType || fileType === "link";
+
+  const kind = is_link
+    ? (() => {
+        const url_hint = detect_kind_from_url(fileUrl);
+        if (url_hint) return url_hint;
+        return "image";
+      })()
+    : get_file_kind(fileType, fileName);
 
   useEffect(() => {
     const handle_key = (event) => {
@@ -176,9 +232,15 @@ export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClos
             {fileName}
           </span>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <a href={fileUrl} download={fileName} className="cok-btn-outlined-reverse" style={{ padding: "0.4rem 0.8rem" }}>
-              {translate("DCS_BTN_DOWNLOAD")}
-            </a>
+            {is_link ? (
+              <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="cok-btn-outlined-reverse" style={{ padding: "0.4rem 0.8rem" }}>
+                {translate("DCS_BTN_OPEN_NEW_TAB")}
+              </a>
+            ) : (
+              <a href={fileUrl} download={fileName} className="cok-btn-outlined-reverse" style={{ padding: "0.4rem 0.8rem" }}>
+                {translate("DCS_BTN_DOWNLOAD")}
+              </a>
+            )}
             <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
           </div>
         </div>
