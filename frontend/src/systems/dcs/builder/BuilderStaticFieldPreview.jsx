@@ -59,7 +59,7 @@ export default function BuilderStaticFieldPreview({ field, language, onOpenSetti
         <div
           title={field_error.messages.join(" ")}
           className="absolute flex items-center justify-center"
-          style={{ top: -6, left: -6, width: 15, height: 15, borderRadius: "50%", backgroundColor: "#E74C3C", color: "#FFFFFF", fontSize: 10, fontWeight: 700, zIndex: 2 }}
+          style={{ top: -6, left: -6, width: 15, height: 15, borderRadius: "00%", backgroundColor: "#E74C3C", color: "#FFFFFF", fontSize: 10, fontWeight: 700, zIndex: 2 }}
         >
           !
         </div>
