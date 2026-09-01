@@ -257,7 +257,7 @@ async function activateAccount(req, res, next) {
         // Validate OTP (compare hashed values)
         const hashMatch = await tokenUtil.compareToken(inputOTP.toString(), storedOTP);
 
-        console.log(hashMatch)
+        
 
         if (!hashMatch) {
             return res.status(400).json({

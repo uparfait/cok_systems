@@ -4,8 +4,12 @@
  */
 
 const User = require("../../../models/user");
+const tokenUtil = require("../../../utilities/token");
 // Lock message
 const LOCK_MESSAGE = "Account is locked. Please contact administrator.";
+
+// Token type for OTP verification signature
+const OTP_VERIFICATION_TYPE = 'otp_verification';
 
 async function checkEmail(req, res, next) {
   try {
@@ -57,6 +61,16 @@ async function checkEmail(req, res, next) {
       });
     }
 
+    // Check if 2FA is disabled - generate signature for direct activation
+    let signature = null;
+    if (user.is_2FA_disabled) {
+      signature = tokenUtil.generateToken(
+        { userId: user._id.toString() },
+        '30m',
+        OTP_VERIFICATION_TYPE
+      );
+    }
+
     return res.status(200).json({
       status: true,
       error: null,
@@ -64,7 +78,9 @@ async function checkEmail(req, res, next) {
       data: {
         userId: user._id,
         email: normalizedEmail,
-        canActivate: true
+        canActivate: true,
+        is2FADisabled: !!user.is_2FA_disabled,
+        signature,
       },
     });
 
