@@ -196,10 +196,6 @@ function TrackResult({
 }) {
   const { showSuccess, showError } = useToast();
 
-  const [waterRequested, setWaterRequested] = useState(!!request?.waterRequest?.requested);
-  const [waterBusy, setWaterBusy] = useState(false);
-  const [waterError, setWaterError] = useState("");
-
   const [activeField, setActiveField] = useState(null);
   const [editValues, setEditValues] = useState({});
   const [saving, setSaving] = useState(false);
@@ -219,19 +215,6 @@ function TrackResult({
   const formatDateOnly = (dateStr) => {
     if (!dateStr) return "-";
     return new Date(dateStr).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric" });
-  };
-
-  const handleRequestWater = async () => {
-    setWaterBusy(true);
-    setWaterError("");
-    try {
-      await axios.put(`${BASE_URL}/booking-requests/tracking/${request.trackingCode}/request-water`);
-      setWaterRequested(true);
-    } catch (err) {
-      setWaterError(err.response?.data?.message || "Failed to request water. Try again.");
-    } finally {
-      setWaterBusy(false);
-    }
   };
 
   const cancelEdit = () => {
@@ -360,7 +343,7 @@ function TrackResult({
     { label: "Name", value: request.eventName, raw: request.eventName, field: "eventName", input: "text" },
     { label: "Type", value: request.eventMeetingType === "meet" ? "Meeting" : "Event" },
     { label: "Event Type", value: request.eventType },
-    { label: "Location", value: request.eventFormat === "Virtual" ? "Virtual" : request.eventRoom, roomEdit: true },
+    { label: "Location", value: request.eventFormat === "Virtual" ? "Virtual" : request.eventRoom, roomEdit: true, isVirtual: request.eventFormat === "Virtual", virtualLink: request.virtualLink, virtualDescription: request.virtualDescription },
     { label: "Date", value: formatDateOnly(request.startTime), field: "scheduleDate" },
     { label: "Time", value: schedule.from && schedule.to ? `${schedule.from} to ${schedule.to}` : "-", field: "scheduleTime" },
     { label: "Organizer", value: request.eventOrganizer?.fullNames, raw: request.eventOrganizer?.fullNames, field: "organizerName", input: "text" },
@@ -411,20 +394,38 @@ function TrackResult({
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-start justify-between gap-2">
-                      <span className={row.label === 'Email' ? 'break-all' : 'break-words'}>{row.value || "-"}</span>
-                      {canEdit && (row.field || row.roomEdit) && (
-                        <button
-                          type="button"
-                          onClick={() => (row.roomEdit ? (cancelEdit(), setRoomPanelOpen(true)) : startEdit(row))}
-                          title={row.roomEdit ? "Change Location" : `Edit ${row.label}`}
-                          className="p-1 shrink-0 cursor-pointer transition-colors"
-                          style={{ color: GRAY_DISABLED }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = PRIMARY)}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = GRAY_DISABLED)}
-                        >
-                          <FiEdit2 className="w-3.5 h-3.5" />
-                        </button>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className={row.label === 'Email' ? 'break-all' : 'break-words'}>{row.value || "-"}</span>
+                        {canEdit && (row.field || row.roomEdit) && (
+                          <button
+                            type="button"
+                            onClick={() => (row.roomEdit ? (cancelEdit(), setRoomPanelOpen(true)) : startEdit(row))}
+                            title={row.roomEdit ? "Change Location" : `Edit ${row.label}`}
+                            className="p-1 shrink-0 cursor-pointer transition-colors"
+                            style={{ color: GRAY_DISABLED }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = PRIMARY)}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = GRAY_DISABLED)}
+                          >
+                            <FiEdit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      {row.isVirtual && row.virtualLink && (
+                        <div className="mt-1 p-2" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                          <a
+                            href={row.virtualLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium hover:underline break-all"
+                            style={{ color: PRIMARY, fontFamily: fontHeading }}
+                          >
+                            {row.virtualLink}
+                          </a>
+                          {row.virtualDescription && (
+                            <p className="text-xs mt-1 text-gray-600">{row.virtualDescription}</p>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
@@ -508,38 +509,6 @@ function TrackResult({
             >
               Invite People
             </button>
-
-            {request.eventType === "Internal" && (
-              waterRequested ? (
-                <div
-                  className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium"
-                  style={{ border: `1px solid ${SUCCESS}`, color: SUCCESS_HOVER, backgroundColor: '#E8F5E9', fontFamily: fontHeading }}
-                >
-                  {request.expectedAudience
-                    ? `Requested water for ${request.expectedAudience} people`
-                    : "Water Requested"}
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleRequestWater}
-                  disabled={waterBusy}
-                  className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all"
-                  style={{ border: `1px solid ${PRIMARY}`, color: PRIMARY, backgroundColor: WHITE, fontFamily: fontHeading, opacity: waterBusy ? 0.7 : 1 }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WHITE; e.currentTarget.style.color = PRIMARY; }}
-                >
-                  {waterBusy
-                    ? "Requesting..."
-                    : request.expectedAudience
-                      ? `Request Water (${request.expectedAudience} people)`
-                      : "Request Water"}
-                </button>
-              )
-            )}
-            {waterError && (
-              <p className="mt-2 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{waterError}</p>
-            )}
           </div>
         )}
         {roomPanelOpen && (

@@ -244,7 +244,6 @@ const AuthenticatedRoutes: React.FC = () => {
               <Route path="events/actions" element={<EventActions />} />
               <Route path="events/:eventId/invite" element={<InvitePage />} />
               <Route path="booking-requests/all" element={<BookingRequestsList />} />
-              <Route path="booking-requests/water" element={<BookingRequestsList waterOnly />} />
               <Route path="booking-requests/:id" element={<BookingRequestDetails />} />
             </Route>
 

@@ -211,6 +211,11 @@ class EventSectionUpdateService {
         toTime: p.toTime?.trim() || '',
         title: p.title?.trim() || '',
         description: p.description?.trim() || '',
+        presenter: p.presenter ? {
+          name: p.presenter.name?.trim() || '',
+          email: p.presenter.email?.trim() || '',
+          role: p.presenter.role?.trim() || '',
+        } : null,
       }));
 
     // Agenda items must not overlap in time (supports "HH:MM" and legacy "09:00 AM")

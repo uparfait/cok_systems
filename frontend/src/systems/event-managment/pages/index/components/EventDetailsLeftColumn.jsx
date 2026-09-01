@@ -3,9 +3,12 @@ const PRIMARY = "#056daa";
 export default function EventDetailsLeftColumn({ activeEvent, eventSpecialId, navigate, onOpenSection }) {
   if (!activeEvent) return null;
 
-  const go = (section, path) => {
-    if (onOpenSection) onOpenSection(section);
-    else navigate(path);
+  const go = (section, hash) => {
+    if (onOpenSection) {
+      onOpenSection(section);
+      window.history.pushState(null, "", hash);
+    }
+    else navigate(hash);
   };
 
   const navBtnProps = {
@@ -55,7 +58,7 @@ export default function EventDetailsLeftColumn({ activeEvent, eventSpecialId, na
       <div className="flex flex-col gap-2 rounded-none">
         <button
           type="button"
-          onClick={() => go("attendees", `/event/${activeEvent.eventSpecialId}/attendees`)}
+          onClick={() => go("attendees", `/calendar/#view-attendance`)}
           {...navBtnProps}
           className={`w-full ${navBtnProps.className}`}
         >
@@ -66,7 +69,7 @@ export default function EventDetailsLeftColumn({ activeEvent, eventSpecialId, na
         <div className="flex flex-row gap-2">
           <button
             type="button"
-            onClick={() => go("editor", `/event/${activeEvent.eventSpecialId}/editor`)}
+            onClick={() => go("editor", `/calendar/#minutes`)}
             {...navBtnProps}
             className={`flex-1 ${navBtnProps.className}`}
           >
@@ -76,7 +79,7 @@ export default function EventDetailsLeftColumn({ activeEvent, eventSpecialId, na
 
           <button
             type="button"
-            onClick={() => go("designate", `/event/${activeEvent.eventSpecialId}/designate`)}
+            onClick={() => go("designate", `/calendar/#designate`)}
             {...navBtnProps}
             className={`flex-1 ${navBtnProps.className}`}
           >
@@ -87,7 +90,7 @@ export default function EventDetailsLeftColumn({ activeEvent, eventSpecialId, na
 
         <button
           type="button"
-          onClick={() => go("actions", `/event/${eventSpecialId}/actions`)}
+          onClick={() => go("actions", `/calendar/#event-actions-follow-ups`)}
           {...navBtnProps}
           className={`w-full ${navBtnProps.className}`}
         >
