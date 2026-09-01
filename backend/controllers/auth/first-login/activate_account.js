@@ -78,12 +78,14 @@ async function activateAccount(req, res, next) {
       return res.status(400).json({
         status: false,
         error: passwordValidation.errors.join(", "),
-        message: null,
+        message: "Fix these errors.",
       });
     }
 
     // Get user from database
     const user = await User.findById(userId);
+
+ 
 
     if (!user) {
       return res.status(404).json({

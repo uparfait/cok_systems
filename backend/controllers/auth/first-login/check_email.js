@@ -9,7 +9,7 @@ const tokenUtil = require("../../../utilities/token");
 const LOCK_MESSAGE = "Account is locked. Please contact administrator.";
 
 // Token type for OTP verification signature
-const OTP_VERIFICATION_TYPE = 'otp_verification';
+const OTP_VERIFICATION_TYPE = "otp_verification";
 
 async function checkEmail(req, res, next) {
   try {
@@ -32,7 +32,8 @@ async function checkEmail(req, res, next) {
       return res.status(404).json({
         status: false,
         error: "Account not found",
-        message: "No account found with this email. Please contact your administrator.",
+        message:
+          "No account found with this email. Please contact your administrator.",
       });
     }
 
@@ -44,8 +45,8 @@ async function checkEmail(req, res, next) {
         message: LOCK_MESSAGE,
         data: {
           isLocked: true,
-          reason: user.access_control?.reason
-        }
+          reason: user.access_control?.reason,
+        },
       });
     }
 
@@ -54,36 +55,39 @@ async function checkEmail(req, res, next) {
       return res.status(400).json({
         status: false,
         error: "Account already activated",
-        message: "This account is already active. Please use the regular login.",
+        message:
+          "This account is already active. Please use the regular login.",
         data: {
-          alreadyActivated: true
-        }
+          alreadyActivated: true,
+        },
       });
     }
 
-    // Check if 2FA is disabled - generate signature for direct activation
+    // Check if 2FA is disabled - generate signature for direct activation or is alread-set
     let signature = null;
-    if (user.is_2FA_disabled) {
+
+    const isAlreadySet2FA = !!user.twofa_secret;
+
+    if (!!user.is_2FA_disabled || isAlreadySet2FA) {
       signature = tokenUtil.generateToken(
         { userId: user._id.toString() },
-        '30m',
-        OTP_VERIFICATION_TYPE
+        "30m",
+        OTP_VERIFICATION_TYPE,
       );
     }
 
     return res.status(200).json({
       status: true,
       error: null,
-      message: "Account found. You can proceed with activation.",
+      message: "Account found. You can proceed with activation!",
       data: {
         userId: user._id,
         email: normalizedEmail,
         canActivate: true,
-        is2FADisabled: !!user.is_2FA_disabled,
+        is2FADisabled: !!user.is_2FA_disabled || isAlreadySet2FA,
         signature,
       },
     });
-
   } catch (error) {
     next(error);
   }
