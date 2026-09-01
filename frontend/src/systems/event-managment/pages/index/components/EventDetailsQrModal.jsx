@@ -16,7 +16,7 @@ export default function EventDetailsQrModal({
     <AnimatePresence>
       {isQrMaximized && !isUpcoming && qrCodeUrl && (
         <motion.div
-          className="fixed inset-0 z-[99999] bg-white flex flex-col rounded-none select-none overflow-hidden"
+          className="fixed inset-0 z-[999999999] bg-white flex flex-col rounded-none select-none overflow-hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -24,7 +24,10 @@ export default function EventDetailsQrModal({
         >
           <div className="flex-1 w-full relative flex items-center justify-center p-6 md:p-12">
             <button
-              onClick={() => setIsQrMaximized(false)}
+              onClick={() => {
+                setIsQrMaximized(false);
+                window.history.pushState(null, "", "/calendar");
+              }}
               className="absolute top-4 right-4 md:top-8 md:right-8 transition-colors rounded-none focus:outline-none"
               style={{ color: PRIMARY }}
               onMouseEnter={(e) => { e.currentTarget.style.color = "#033b5c"; }}

@@ -83,7 +83,10 @@ export default function EventDetailsRightColumn({
             <motion.div
               key="qr-interactive"
               className="w-full cursor-zoom-in rounded-none"
-              onClick={() => setIsQrMaximized(true)}
+              onClick={() => {
+                setIsQrMaximized(true);
+                window.history.pushState(null, "", `/calendar/#qrcode-full`);
+              }}
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}

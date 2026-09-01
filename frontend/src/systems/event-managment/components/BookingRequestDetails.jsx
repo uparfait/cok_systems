@@ -18,6 +18,7 @@ import {
   FiX,
   FiBookmark,
   FiUsers,
+  FiLink,
 } from "react-icons/fi";
 import ConfirmModal from "../ui-components/ConfirmModal";
 import SpiralLoader from "./SpiralLoader";
@@ -524,6 +525,26 @@ export default function BookingRequestDetails() {
               )}
             </div>
             <div className="text-sm capitalize break-words" style={{ color: NEUTRAL_DARK }}>{request.eventFormat === "Virtual" ? "Virtual" : (request.eventRoom || <span className="italic" style={{ color: GRAY_DISABLED }}>Not set</span>)}</div>
+            {request.eventFormat === "Virtual" && request.virtualLink && (
+              <div className="mt-2 p-2" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                <div className="flex items-center gap-1 mb-1">
+                  <FiLink className="w-3 h-3" style={{ color: PRIMARY }} />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: PRIMARY, fontFamily: fontHeading }}>Virtual Link</span>
+                </div>
+                <a
+                  href={request.virtualLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium hover:underline break-all"
+                  style={{ color: PRIMARY, fontFamily: fontHeading }}
+                >
+                  {request.virtualLink}
+                </a>
+                {request.virtualDescription && (
+                  <p className="text-xs mt-1 text-gray-600">{request.virtualDescription}</p>
+                )}
+              </div>
+            )}
             {roomPanelOpen && (
               <div className="mt-3">
                 <RoomChangePanel request={request} onClose={() => setRoomPanelOpen(false)} saveRequestFields={saveRequestFields} saving={saving} />

@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { FiSearch } from 'react-icons/fi';
 import TimeInput24 from './TimeInput24';
+import { employeeService } from '../../../../core/services/employeeService';
 
 const PRIMARY = "#056daa";
 const SUCCESS = "#4CAF50";
 const DANGER = "#E74C3C";
 const NEUTRAL_DARK = "#333333";
+const NEUTRAL_LIGHT = "#F7F9FB";
 const BORDER = "#E0E0E0";
 const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
@@ -12,6 +15,7 @@ const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 
 const inputClassName = "w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base";
+const inputStyle = { paddingLeft: "12px" };
 
 const labelS = {
   fontFamily: fontHeading, fontSize: '11px', fontWeight: 600,
@@ -26,6 +30,44 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
   const [savedItems, setSavedItems] = useState({});
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [showPresenterPicker, setShowPresenterPicker] = useState(null);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [employees, setEmployees] = useState([]);
+  const [searchingEmployees, setSearchingEmployees] = useState(false);
+  const searchTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (showPresenterPicker === null) return;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!employeeSearch.trim()) { setEmployees([]); return; }
+    searchTimerRef.current = setTimeout(async () => {
+      setSearchingEmployees(true);
+      try {
+        const res = await employeeService.search(employeeSearch.trim(), 1, 20);
+        setEmployees(res?.data || []);
+      } catch {
+        setEmployees([]);
+      } finally {
+        setSearchingEmployees(false);
+      }
+    }, 350);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [employeeSearch, showPresenterPicker]);
+
+  const pickPresenter = (index, emp) => {
+    const updated = [...agenda];
+    updated[index] = { ...updated[index], presenter: { name: emp.full_name || '', email: emp.email || '', role: emp.title || '' } };
+    onChange(updated);
+    setShowPresenterPicker(null);
+    setEmployeeSearch('');
+    setEmployees([]);
+  };
+
+  const removePresenter = (index) => {
+    const updated = [...agenda];
+    updated[index] = { ...updated[index], presenter: null };
+    onChange(updated);
+  };
 
   const getSavedTimeRanges = (excludeIndex) => {
     const ranges = [];
@@ -208,6 +250,14 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
             eventStartTime={eventStartTime}
             eventEndTime={eventEndTime}
             overMidnight={overMidnight}
+            showPresenterPicker={showPresenterPicker}
+            setShowPresenterPicker={setShowPresenterPicker}
+            employeeSearch={employeeSearch}
+            setEmployeeSearch={setEmployeeSearch}
+            employees={employees}
+            searchingEmployees={searchingEmployees}
+            pickPresenter={pickPresenter}
+            removePresenter={removePresenter}
           />
         ))}
         <button
@@ -223,7 +273,7 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
   );
 }
 
-function AgendaItem({ index, item, isSaved, itemErrors, itemTouched, onChange, onBlurAction, onSave, onClear, onEdit, onRemove, eventStartTime, eventEndTime, overMidnight }) {
+function AgendaItem({ index, item, isSaved, itemErrors, itemTouched, onChange, onBlurAction, onSave, onClear, onEdit, onRemove, eventStartTime, eventEndTime, overMidnight, showPresenterPicker, setShowPresenterPicker, employeeSearch, setEmployeeSearch, employees, searchingEmployees, pickPresenter, removePresenter }) {
   const isComplete = item.fromTime && item.toTime && item.title && item.description;
   const cardBorder = isSaved ? SUCCESS : BORDER;
 
@@ -318,6 +368,105 @@ function AgendaItem({ index, item, isSaved, itemErrors, itemTouched, onChange, o
           onChange={(e) => onChange(index, 'description', e.target.value)}
         />
         {fieldError('description') && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldError('description')}</p>}
+      </div>
+
+      {/* Presenter */}
+      <div className="flex flex-col gap-1.5">
+        <label style={labelS}>Presenter</label>
+        {item.presenter && item.presenter.name ? (
+          <div className="flex items-center justify-between gap-2 p-2 border border-gray-200" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800 truncate">{item.presenter.name}</p>
+              {item.presenter.role && <p className="text-xs text-gray-500 truncate">{item.presenter.role}</p>}
+            </div>
+            {!isSaved && (
+              <button
+                type="button"
+                onClick={() => removePresenter(index)}
+                className="cursor-pointer text-xs font-semibold text-red-500 hover:text-red-700 shrink-0"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {showPresenterPicker === index ? (
+              <div className="flex flex-col gap-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search employee by name or email..."
+                    className={inputClassName}
+                    style={{ ...inputStyle, paddingRight: '2.5rem' }}
+                    value={employeeSearch}
+                    onChange={(e) => setEmployeeSearch(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!employeeSearch.trim()) return;
+                      setSearchingEmployees(true);
+                      try {
+                        const res = await employeeService.search(employeeSearch.trim(), 1, 20);
+                        setEmployees(res?.data || []);
+                      } catch {
+                        setEmployees([]);
+                      } finally {
+                        setSearchingEmployees(false);
+                      }
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 cursor-pointer rounded-none transition-colors hover:bg-blue-50"
+                    style={{ color: PRIMARY }}
+                    title="Search"
+                  >
+                    {searchingEmployees ? (
+                      <div
+                        className="animate-spin rounded-full"
+                        style={{ width: 14, height: 14, border: '2px solid #056daa', borderTopColor: 'transparent' }}
+                      />
+                    ) : (
+                      <FiSearch className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                {searchingEmployees && <p className="text-xs text-gray-500">Searching...</p>}
+                {employees.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto border border-gray-200">
+                    {employees.map((emp) => (
+                      <button
+                        key={emp._id || emp.employee_id}
+                        type="button"
+                        onClick={() => pickPresenter(index, emp)}
+                        className="w-full text-left px-3 py-2 cursor-pointer hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                      >
+                        <p className="text-sm font-medium text-gray-800">{emp.full_name}</p>
+                        <p className="text-xs text-gray-500">{emp.email} {emp.title ? `• ${emp.title}` : ''}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setShowPresenterPicker(null); setEmployeeSearch(''); }}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowPresenterPicker(index)}
+                disabled={isSaved}
+                className="text-xs font-semibold text-[#056daa] hover:underline disabled:opacity-50 text-left"
+                style={{ fontFamily: fontHeading }}
+              >
+                + Add presenter
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       {/* Action Buttons */}
