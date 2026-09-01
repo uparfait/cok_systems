@@ -126,13 +126,18 @@ function LocationSelect({ level, parent_id, value, onChange, label, placeholder 
       return undefined;
     }
     let cancelled = false;
+    
     get_locations(level, needs_parent ? parent_id : null)
       .then((response) => {
+        console.log(response)
         const list = (response && response.data) || [];
         options_cache.set(cache_key, list);
         if (!cancelled) set_options(list);
       })
-      .catch(() => {});
+      .catch((e) => {
+        console.log(e.message)
+
+      });
     return () => {
       cancelled = true;
     };

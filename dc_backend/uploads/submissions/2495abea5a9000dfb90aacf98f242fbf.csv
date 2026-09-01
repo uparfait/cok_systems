@@ -1,0 +1,29 @@
+﻿Name,Plate Number,ID Number,Telephone,Type,Status
+"AMZA","RAA123W","12345677880","0780040455",visitor,cancelled
+"Amza B","RAA123E","32ER450P","0780922345",visitor,cancelled
+"Amza D","RAA123T","345N67P","0790955657",visitor,cancelled
+"WWW","WWW","2121","222",visitor,cancelled
+"32323","32323","32323","32323",visitor,cancelled
+"MUGABE HONORABLE","RMT123SD","3333333333333333333333333","49494",visitor,cancelled
+"Emmanuel HAKIZIMANA","RAD133M","1199780116633155","",visitor,used
+"Amos NDAYIZEYE","RAD134M","1199780116633156","",visitor,cancelled
+"Aline MUGISHA","RAD135M","1199780116633157","",visitor,cancelled
+"Samuel KWIZERA","RAD136M","1199780116633158","",visitor,cancelled
+"Simon NZIGA","RAD138M","1199780116633159","",visitor,cancelled
+"NDAYIZEYE Amos","RAL434P","1200280895489022","0730322743",visitor,cancelled
+"MUGABO Jean","RAL434P","1200280895482121","0780322743",visitor,cancelled
+"Mwiza ","RAL434P","1200280895000022","0720322743",visitor,cancelled
+"Mugisha","RAL434P","1199980895489022","0733032273",visitor,cancelled
+"Rusine","RAL434P","1198780895489022","0790322743",visitor,cancelled
+"Amos","RAF233I","122222222","0790911427",visitor,active
+"Emmanuel HAKIZIMANA","RAD354A","1316792736947525","250791000072",visitor,cancelled
+"Alice NIYONZIMA","RAY787B","1025209666199119","250788678382",visitor,cancelled
+"Sandrine HAKIZIMANA","RAR932W","1201295528043206","250734540038",visitor,cancelled
+"Emmanuel MANZI","RAZ767W","1525325389881601","250794124835",visitor,cancelled
+"Olivier MUTONI","RAH514H","1931111105063344","250730996959",visitor,cancelled
+"Jean HABIMANA","RAK804R","1126437730925345","250729562036",visitor,cancelled
+"Divine NDAYIZEYE","RAL455V","1000032428745862","250732214272",visitor,cancelled
+"Divine INGABIRE","RAG125J","1663520901221522","250787051894",visitor,cancelled
+"Eric HABIMANA","RAK275Q","1467265066986947","250722256324",visitor,cancelled
+"Beatrice INGABIRE","RAB727B","1346081735142625","250797735767",visitor,cancelled
+"Ashraff","RW123B","1111111111111110","0790911427",staff,active
