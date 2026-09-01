@@ -78,58 +78,69 @@ export function useLocationData() {
   return useContext(LocationDataContext);
 }
 
-function filterLocations(tree, level, parentValue, grandparentValue) {
+function filterLocations(tree, level, path) {
   if (!tree || !tree.Rwanda) return [];
 
   const country = tree.Rwanda;
+  const pathArray = path || [];
+
+  const normalize = (str) => String(str || "").toLowerCase().trim();
+
+  const findMatch = (items, value) => {
+    if (!value) return null;
+    const searchValue = normalize(value);
+    return items.find(item => {
+      if (normalize(item.name) === searchValue) return true;
+      if (normalize(item.key) === searchValue) return true;
+      if (item.translations) {
+        return Object.values(item.translations).some(t => normalize(t) === searchValue);
+      }
+      return false;
+    });
+  };
 
   switch (level) {
     case "provinces":
       return country.provinces || [];
 
     case "districts": {
-      if (!parentValue) return [];
-      const prov = (country.provinces || []).find(p =>
-        p.name === parentValue ||
-        p.key === parentValue ||
-        p.translations?.en === parentValue ||
-        p.translations?.kn === parentValue ||
-        p.translations?.fr === parentValue
-      );
+      const provinceValue = pathArray[0];
+      if (!provinceValue) return [];
+      const prov = findMatch(country.provinces || [], provinceValue);
       return prov?.districts || [];
     }
 
     case "sectors": {
-      if (!parentValue) return [];
-      for (const prov of (country.provinces || [])) {
-        const dist = (prov.districts || []).find(d => d.name === parentValue || d.key === parentValue);
-        if (dist) return dist.sectors || [];
-      }
-      return [];
+      const [provinceValue, districtValue] = pathArray;
+      if (!provinceValue || !districtValue) return [];
+      const prov = findMatch(country.provinces || [], provinceValue);
+      if (!prov) return [];
+      const dist = findMatch(prov.districts || [], districtValue);
+      return dist?.sectors || [];
     }
 
     case "cells": {
-      if (!parentValue) return [];
-      for (const prov of (country.provinces || [])) {
-        for (const dist of (prov.districts || [])) {
-          const sec = (dist.sectors || []).find(s => s.name === parentValue || s.key === parentValue);
-          if (sec) return sec.cells || [];
-        }
-      }
-      return [];
+      const [provinceValue, districtValue, sectorValue] = pathArray;
+      if (!provinceValue || !districtValue || !sectorValue) return [];
+      const prov = findMatch(country.provinces || [], provinceValue);
+      if (!prov) return [];
+      const dist = findMatch(prov.districts || [], districtValue);
+      if (!dist) return [];
+      const sec = findMatch(dist.sectors || [], sectorValue);
+      return sec?.cells || [];
     }
 
     case "villages": {
-      if (!parentValue) return [];
-      for (const prov of (country.provinces || [])) {
-        for (const dist of (prov.districts || [])) {
-          for (const sec of (dist.sectors || [])) {
-            const cell = (sec.cells || []).find(c => c.name === parentValue || c.key === parentValue);
-            if (cell) return cell.villages || [];
-          }
-        }
-      }
-      return [];
+      const [provinceValue, districtValue, sectorValue, cellValue] = pathArray;
+      if (!provinceValue || !districtValue || !sectorValue || !cellValue) return [];
+      const prov = findMatch(country.provinces || [], provinceValue);
+      if (!prov) return [];
+      const dist = findMatch(prov.districts || [], districtValue);
+      if (!dist) return [];
+      const sec = findMatch(dist.sectors || [], sectorValue);
+      if (!sec) return [];
+      const cell = findMatch(sec.cells || [], cellValue);
+      return cell?.villages || [];
     }
 
     default:
@@ -244,7 +255,7 @@ function CascadingSelectControl({ label, helpText, mandatory, value, onChange, d
   );
 }
 
-export default function CascadingSelectField({ field, language, mode, value, onChange, error, allValues, ruleValidMessage, resolveFieldOptions }) {
+export default function CascadingSelectField({ field, language, mode, value, onChange, error, allValues, ruleValidMessage, resolveFieldOptions, allFields }) {
   const is_builder = mode === "builder";
   const { translate } = useDcsLanguage();
   const label = get_field_text(field.label, language);
@@ -260,8 +271,29 @@ export default function CascadingSelectField({ field, language, mode, value, onC
   const parent_field_id = field.parent_field_id;
   const parent_value = parent_field_id ? trimmed_lookup(allValues, parent_field_id) : undefined;
 
+  const buildPath = () => {
+    if (!allFields || !parent_field_id) return [];
+    const path = [];
+    let currentFieldId = parent_field_id;
+    const fieldMap = new Map(allFields.map(f => [f.id, f]));
+
+    while (currentFieldId) {
+      const parentField = fieldMap.get(currentFieldId);
+      if (!parentField) break;
+      const parentVal = trimmed_lookup(allValues, currentFieldId);
+      if (parentVal) {
+        path.unshift(parentVal);
+      }
+      currentFieldId = parentField.parent_field_id;
+    }
+
+    return path;
+  };
+
+  const path = is_api_sourced ? buildPath() : [];
+
   const filteredOptions = is_api_sourced && locationTree
-    ? filterLocations(locationTree, api_level, parent_value)
+    ? filterLocations(locationTree, api_level, path)
     : [];
 
   const isLoading = is_api_sourced && treeLoading;

@@ -17,6 +17,18 @@ function has_location_sourced_fields(fields) {
   });
 }
 
+function flatten_fields(fields) {
+  if (!Array.isArray(fields)) return [];
+  const result = [];
+  for (const field of fields) {
+    result.push(field);
+    if (field.children?.length) {
+      result.push(...flatten_fields(field.children));
+    }
+  }
+  return result;
+}
+
 function useInViewFields() {
   const [visibleFields, setVisibleFields] = useState(() => new Set());
   const observerRef = useRef(null);
@@ -157,6 +169,7 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
         allValues={values}
         renderChildField={render_field}
         resolveFieldOptions={resolveFieldOptions}
+        allFields={flatten_fields(schema?.fields)}
       />
     );
 
