@@ -875,11 +875,84 @@ const deleteReservationBatch = async (req, res) => {
     }
 };
 
+/**
+ * Reschedule ONE reservation: the given Start/End dates replace its current window.
+ * A cancelled/expired entry is revived for the new window; a used one is refused.
+ * Params: :id — Body: { type: 'visitor' | 'staff', start_date, end_date }
+ */
+const rescheduleReservation = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { type, start_date, end_date } = req.body || {};
+
+        const newFrom = parseTemplateDate(start_date, false);
+        const newUntil = parseTemplateDate(end_date, true);
+        if (start_date && !newFrom) return res.status(400).json({ success: false, message: 'Start date is not a valid date' });
+        if (end_date && !newUntil) return res.status(400).json({ success: false, message: 'End date is not a valid date' });
+        if (newUntil && newUntil < new Date()) return res.status(400).json({ success: false, message: 'The new End Date has already passed' });
+        if (newFrom && newUntil && newFrom > newUntil) return res.status(400).json({ success: false, message: 'Start Date must be before End Date' });
+
+        // Same type resolution as cancelReservation (id-shape heuristic kept as legacy fallback)
+        const isStaffReservation = type ? type === 'staff' : (id.length === 24 && !id.includes('_'));
+        let revived = false;
+
+        if (isStaffReservation) {
+            const car = await StaffCar.findById(id);
+            if (!car) return res.status(404).json({ success: false, message: 'Staff reservation not found' });
+            car.valid_from = newFrom;
+            car.valid_until = newUntil;
+            if (!car.is_active) { car.is_active = true; revived = true; }
+            await car.save();
+
+            if (revived) {
+                const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+                if (parkingSlot) {
+                    parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + 1;
+                    await parkingSlot.save();
+                }
+            }
+        } else {
+            // Visitor entry id is its own subdocument ObjectId (plate number as legacy fallback)
+            const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+            let doc = null;
+            if (isObjectId) doc = await EmergencyCar.findOne({ 'visitor_info._id': id });
+            if (!doc) doc = await EmergencyCar.findOne({ 'visitor_info.plate_number': id });
+            if (!doc) return res.status(404).json({ success: false, message: 'Reservation not found' });
+
+            const entry = (isObjectId && doc.visitor_info.id(id))
+                || doc.visitor_info.find(v => v.plate_number === id);
+            if (!entry) return res.status(404).json({ success: false, message: 'Reservation not found' });
+            if (entry.is_used) return res.status(400).json({ success: false, message: 'The vehicle already arrived — nothing to reschedule' });
+
+            entry.valid_from = newFrom;
+            entry.valid_until = newUntil;
+            if (entry.is_cancelled) { entry.is_cancelled = false; revived = true; }
+            doc.is_active = true;
+            await doc.save();
+
+            if (revived) {
+                const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+                if (parkingSlot) {
+                    parkingSlot.visitorReservationCount = (parkingSlot.visitorReservationCount || 0) + 1;
+                    await parkingSlot.save();
+                }
+            }
+        }
+
+        global.WebsocketIO?.emit('parking_update', { type: 'info', message: 'Reservation rescheduled' });
+        return res.status(200).json({ success: true, message: `Reservation rescheduled${revived ? ' (reactivated)' : ''}`, revived });
+    } catch (error) {
+        console.error('Error rescheduling reservation:', error);
+        return res.status(500).json({ success: false, message: 'Error rescheduling reservation', error: error.message });
+    }
+};
+
 module.exports = {
     getAllReservations,
     createStaffBooking,
     cancelReservation,
     reactivateReservation,
+    rescheduleReservation,
     bulkUploadStaff,
     bulkCancelReservations,
     bulkDeleteReservations,

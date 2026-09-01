@@ -6,7 +6,7 @@ import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import { reservationService } from '../../../core/services/adminService';
-import { FiInfo, FiSearch, FiEdit2, FiTrash2, FiClock, FiCheck, FiDownload, FiLoader, FiXCircle } from 'react-icons/fi';
+import { FiInfo, FiSearch, FiEdit2, FiTrash2, FiClock, FiCheck, FiDownload, FiLoader, FiXCircle, FiCalendar, FiArrowLeft } from 'react-icons/fi';
 import { VisitorReservationForm, StaffBookingForm } from './sub/ReservationForms';
 
 interface Reservation { id: string; visitor_name: string; plate_number: string; telephone: string; id_type?: string; id_number?: string; expected_arrival: string; type: 'visitor' | 'staff'; status: 'active' | 'expired' | 'cancelled' | 'checked_in' | 'used'; valid_from?: string | null; valid_until?: string | null; created_at?: string; }
@@ -59,8 +59,13 @@ const ReservationsPage: React.FC = () => {
   // Search box draft — applied on Enter or the Search button (clearing applies immediately)
   const [draftSearch, setDraftSearch] = useState('');
 
-  // Page shows one view at a time: forms (default), the reservation list, or uploaded batches
-  const [view, setView] = useState<'management' | 'list' | 'batches'>('management');
+  // Page shows one view at a time: forms (default), the reservation list, uploaded batches, or history
+  const [view, setView] = useState<'management' | 'list' | 'batches' | 'history'>('management');
+
+  // Reservation history: search + pagination (all statuses, download as CSV)
+  const [historySearch, setHistorySearch] = useState('');
+  const [draftHistorySearch, setDraftHistorySearch] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
 
   // Uploaded-file batches: list + search + pagination + action modals
   const [batches, setBatches] = useState<ReservationBatch[]>([]);
@@ -82,6 +87,8 @@ const ReservationsPage: React.FC = () => {
   const [staffBulkFile, setStaffBulkFile] = useState<File | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
+  const [reservationToReschedule, setReservationToReschedule] = useState<Reservation | null>(null);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
   const [reservationToDelete, setReservationToDelete] = useState<Reservation | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -141,6 +148,18 @@ const ReservationsPage: React.FC = () => {
       if (d.success) { showSuccess(d.message || 'Batch rescheduled'); fetchBatches(); fetchReservations(); setBatchToReschedule(null); setResStart(''); setResEnd(''); }
       else showError(d.message || 'Failed');
     } catch (error) { showError(error.message); } finally { setBatchLoading(false); }
+  };
+
+  // Same rules as the batch version, applied to one reservation (cancelled/expired ones are revived)
+  const confirmReservationReschedule = async () => {
+    if (!reservationToReschedule) return;
+    if (!resStart && !resEnd) { showError('Set a start date, an end date, or both'); return; }
+    setRescheduleLoading(true);
+    try {
+      const d: any = await reservationService.rescheduleReservation(reservationToReschedule.id, reservationToReschedule.type, resStart, resEnd);
+      if (d.success) { showSuccess(d.message || 'Reservation rescheduled'); fetchReservations(); setReservationToReschedule(null); setResStart(''); setResEnd(''); }
+      else showError(d.message || 'Failed');
+    } catch (error) { showError(error.message); } finally { setRescheduleLoading(false); }
   };
 
   const handleVisitorSubmit = async (e: React.FormEvent) => {
@@ -236,11 +255,18 @@ const ReservationsPage: React.FC = () => {
     );
   };
 
+  // Exports what the history view currently shows (search filter applied, all statuses)
   const downloadHistoryCSV = () => {
-    const h = ['Name', 'Plate Number', 'ID Number', 'Telephone', 'Type', 'Status'];
-    const rows = reservations.map(r => [`"${r.visitor_name}"`, `"${r.plate_number}"`, `"${r.id_number || ''}"`, `"${r.telephone || ''}"`, r.type, r.status].join(','));
+    const h = ['Name', 'Plate Number', 'ID Number', 'Telephone', 'Type', 'Status', 'Start Date', 'End Date', 'Created'];
+    const rows = filteredHistory.map(r => [
+      `"${r.visitor_name}"`, `"${r.plate_number}"`, `"${r.id_number || ''}"`, `"${r.telephone || ''}"`, r.type, r.status,
+      `"${r.valid_from ? new Date(r.valid_from).toLocaleDateString() : ''}"`,
+      `"${r.valid_until ? new Date(r.valid_until).toLocaleDateString() : ''}"`,
+      `"${r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}"`
+    ].join(','));
     const blob = new Blob(['\ufeff' + [h.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `reservations_${new Date().toISOString().split('T')[0]}.csv`; link.click();
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `reservation_history_${new Date().toISOString().split('T')[0]}.csv`; link.click();
+    showSuccess('History downloaded');
   };
 
   const handleCancelClick = (r: Reservation) => { setReservationToCancel(r); setShowCancelModal(true); };
@@ -289,6 +315,18 @@ const ReservationsPage: React.FC = () => {
   const totalPages = Math.ceil(filteredReservations.length / itemsPerPage);
   const paginated = filteredReservations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  // History keeps every status (cancelled/expired/used included) — the list view hides cancelled
+  const filteredHistory = useMemo(() => {
+    const q = historySearch.toLowerCase();
+    return reservations.filter(r =>
+      (r.visitor_name || '').toLowerCase().includes(q)
+      || (r.plate_number || '').toLowerCase().includes(q)
+      || (r.telephone || '').toLowerCase().includes(q)
+    );
+  }, [reservations, historySearch]);
+  const historyTotalPages = Math.ceil(filteredHistory.length / itemsPerPage);
+  const paginatedHistory = filteredHistory.slice((historyPage - 1) * itemsPerPage, historyPage * itemsPerPage);
+
   const filteredBatches = useMemo(
     () => batches.filter(b => (b.batch_name || '').toLowerCase().includes(batchSearch.toLowerCase())),
     [batches, batchSearch]
@@ -305,11 +343,12 @@ const ReservationsPage: React.FC = () => {
           <div>
             <h1 className="text-lg font-bold flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
               <FiInfo className="w-4 h-4" style={{ color: PRIMARY }} />
-              {view === 'management' ? 'Parking Reservation Management' : view === 'list' ? 'Reservation List' : 'Uploaded Files'}
+              {view === 'management' ? 'Parking Reservation Management' : view === 'list' ? 'Reservation List' : view === 'history' ? 'Reservation History' : 'Uploaded Files'}
             </h1>
             <p className="text-xs mt-0.5 text-[#555555]">
               {view === 'management' ? 'Manage visitor and staff parking slot allocations'
               : view === 'list' ? 'View and manage all parking reservations'
+              : view === 'history' ? 'Full record of every reservation — including cancelled and used'
               : 'Cancel or reschedule a whole uploaded file at once'}
             </p>
           </div>
@@ -372,7 +411,7 @@ const ReservationsPage: React.FC = () => {
               Search
             </button>
             <button
-              onClick={downloadHistoryCSV}
+              onClick={() => { setView('history'); setDraftHistorySearch(''); setHistorySearch(''); setHistoryPage(1); }}
               className="flex items-center gap-2 h-11 px-4 bg-transparent text-[13px] font-semibold uppercase transition-colors hover:bg-[rgba(5,109,170,0.08)] flex-shrink-0"
               style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
             >
@@ -462,6 +501,10 @@ const ReservationsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         {r.status === 'cancelled' && (
                           <button onClick={async () => { const d = await reservationService.reactivateReservation(r.id); if (d.success) { showSuccess('Reactivated'); fetchReservations(); } }} title="Reactivate" className="p-1.5 transition-colors hover:bg-[rgba(76,175,80,0.1)]" style={{ color: '#388E3C', borderRadius: 0 }}><FiCheck className="w-4 h-4" /></button>
+                        )}
+                        {/* Reschedule replaces this reservation's dates — hidden once the vehicle arrived */}
+                        {r.status !== 'used' && r.status !== 'checked_in' && (
+                          <button onClick={() => { setReservationToReschedule(r); setResStart(''); setResEnd(''); }} title="Reschedule reservation" className="p-1.5 transition-colors hover:bg-[rgba(5,109,170,0.1)]" style={{ color: PRIMARY, borderRadius: 0 }}><FiCalendar className="w-4 h-4" /></button>
                         )}
                         {r.status !== 'cancelled' && isCancellable(r) && (
                           <button onClick={() => handleCancelClick(r)} title="Cancel reservation" className="p-1.5 transition-colors hover:bg-[rgba(243,156,18,0.12)]" style={{ color: WARNING, borderRadius: 0 }}><FiXCircle className="w-4 h-4" /></button>
@@ -587,6 +630,103 @@ const ReservationsPage: React.FC = () => {
         </div>
         )}
 
+        {view === 'history' && (
+        <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+          {/* Back to the manageable list + search + CSV download of what is shown */}
+          <div className="px-6 pt-5 pb-3 flex items-center gap-3">
+            <button
+              onClick={() => setView('list')}
+              className="flex items-center gap-2 h-11 px-4 bg-transparent text-[13px] font-semibold uppercase transition-colors hover:bg-[rgba(5,109,170,0.08)] flex-shrink-0"
+              style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
+            >
+              <FiArrowLeft className="w-4 h-4" /> Back
+            </button>
+            <div className="relative flex-1">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search Plate, Name, Phone..."
+                value={draftHistorySearch}
+                onChange={e => { setDraftHistorySearch(e.target.value); if (e.target.value === '') { setHistorySearch(''); setHistoryPage(1); } }}
+                onKeyDown={e => { if (e.key === 'Enter') { setHistorySearch(draftHistorySearch); setHistoryPage(1); } }}
+                className="cok-auth-input w-full text-sm"
+                style={{ fontFamily: fontHeading }}
+              />
+            </div>
+            <button
+              onClick={() => { setHistorySearch(draftHistorySearch); setHistoryPage(1); }}
+              className="h-11 px-6 text-white text-[13px] font-semibold uppercase transition-colors flex-shrink-0"
+              style={{ fontFamily: fontHeading, backgroundColor: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+            >
+              Search
+            </button>
+            <button
+              onClick={downloadHistoryCSV}
+              className="flex items-center gap-2 h-11 px-4 bg-transparent text-[13px] font-semibold uppercase transition-colors hover:bg-[rgba(5,109,170,0.08)] flex-shrink-0"
+              style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
+            >
+              <FiDownload className="w-4 h-4" /> Download CSV
+            </button>
+          </div>
+          <div className="overflow-x-auto px-6">
+            <table className="w-full min-w-[760px]">
+              <thead className="cok-bg-primary sticky top-0 z-10 shadow-sm">
+                <tr>
+                  {['Visitor Name', 'Plate Number', 'Telephone', 'Period', 'Type', 'Status', 'Created'].map(h => (
+                    <th key={h} className="text-left py-3 px-3 text-xs uppercase tracking-wider font-semibold text-white" style={{ fontFamily: fontHeading, letterSpacing: '0.5px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedHistory.length > 0 ? paginatedHistory.map(r => (
+                  <tr key={keyOf(r)} className="h-14" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: r.type === 'staff' ? ACCENT_DARK_BLUE : PRIMARY, fontFamily: fontHeading }}>
+                          {initialsOf(r.visitor_name)}
+                        </div>
+                        <span className="text-[#333] text-[13px] font-medium">{r.visitor_name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 text-[#333] text-[13px] font-mono font-semibold">{r.plate_number}</td>
+                    <td className="py-3 px-3 text-[#555555] text-[13px]">{r.telephone || '—'}</td>
+                    <td className="py-3 px-3 text-[#555555] text-[13px] font-medium whitespace-nowrap">
+                      {(r.valid_from || r.valid_until)
+                        ? `${r.valid_from ? new Date(r.valid_from).toLocaleDateString() : 'Any'} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString() : 'No expiry'}`
+                        : '—'}
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide" style={{ backgroundColor: r.type === 'staff' ? 'rgba(41,128,185,0.12)' : 'rgba(76,175,80,0.12)', color: r.type === 'staff' ? ACCENT_DARK_BLUE : '#388E3C' }}>
+                        {r.type}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide" style={{ backgroundColor: STATUS_CHIP[r.status]?.bg, color: STATUS_CHIP[r.status]?.text }}>
+                        {STATUS_CHIP[r.status]?.label || r.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td>
+                  </tr>
+                )) : <tr><td colSpan={7} className="py-10 text-center text-[13px] text-[#9E9E9E]">No reservation history found</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          {historyTotalPages > 1 && (
+            <div className="px-6 py-3 flex items-center justify-between" style={{ borderTop: `1px solid ${BORDER}` }}>
+              <span className="text-[12px] text-[#555555]" style={{ fontFamily: fontHeading }}>
+                Page {historyPage} of {historyTotalPages} · {filteredHistory.length} reservations
+              </span>
+              <div className="flex gap-2">
+                <button onClick={() => setHistoryPage(p => Math.max(1, p - 1))} disabled={historyPage <= 1} className="px-3 py-1.5 text-[12px] font-semibold uppercase disabled:opacity-40 hover:bg-[rgba(5,109,170,0.08)]" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Prev</button>
+                <button onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))} disabled={historyPage >= historyTotalPages} className="px-3 py-1.5 text-[12px] font-semibold uppercase disabled:opacity-40 hover:bg-[rgba(5,109,170,0.08)]" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Next</button>
+              </div>
+            </div>
+          )}
+        </div>
+        )}
+
         <ConfirmModal
           isOpen={!!batchToCancel}
           title="Cancel Whole Upload"
@@ -632,6 +772,34 @@ const ReservationsPage: React.FC = () => {
                 <button onClick={() => { setBatchToReschedule(null); setResStart(''); setResEnd(''); }} disabled={batchLoading} className="flex-1 px-3 py-2 text-sm font-semibold uppercase hover:bg-[rgba(5,109,170,0.08)] disabled:opacity-50" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Close</button>
                 <button onClick={confirmBatchReschedule} disabled={batchLoading} className="flex-1 px-3 py-2 text-white text-sm font-semibold uppercase disabled:opacity-50" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>
                   {batchLoading ? 'Working…' : 'Apply New Dates'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Same modal as the batch reschedule, scoped to one reservation */}
+        {reservationToReschedule && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white w-full max-w-md p-6" style={{ boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+              <h3 className="text-[16px] font-bold mb-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Reschedule Reservation</h3>
+              <p className="text-sm text-[#555555] mb-4">
+                Set a new reservation window for <strong>{reservationToReschedule.visitor_name}</strong> ({reservationToReschedule.plate_number}). The current dates are replaced; a cancelled or expired reservation becomes active again.
+              </p>
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <div>
+                  <label className="cok-auth-label">Start Date</label>
+                  <input type="date" value={resStart} onChange={e => setResStart(e.target.value)} className="cok-auth-input w-full text-sm" style={{ fontFamily: fontHeading, paddingLeft: '12px' }} />
+                </div>
+                <div>
+                  <label className="cok-auth-label">End Date</label>
+                  <input type="date" value={resEnd} onChange={e => setResEnd(e.target.value)} className="cok-auth-input w-full text-sm" style={{ fontFamily: fontHeading, paddingLeft: '12px' }} />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setReservationToReschedule(null); setResStart(''); setResEnd(''); }} disabled={rescheduleLoading} className="flex-1 px-3 py-2 text-sm font-semibold uppercase hover:bg-[rgba(5,109,170,0.08)] disabled:opacity-50" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Close</button>
+                <button onClick={confirmReservationReschedule} disabled={rescheduleLoading} className="flex-1 px-3 py-2 text-white text-sm font-semibold uppercase disabled:opacity-50" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>
+                  {rescheduleLoading ? 'Working…' : 'Apply New Dates'}
                 </button>
               </div>
             </div>

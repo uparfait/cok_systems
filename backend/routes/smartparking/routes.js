@@ -9,7 +9,7 @@ const multer = require('multer');
 const { auditSuccess, auditError, auditUserActions } = require('../../middlewares/audit');
 
 const { bulkUploadReservations, registerSingleReservation } = require('../../controllers/reservationController');
-const { getAllReservations, createStaffBooking, cancelReservation, reactivateReservation, bulkUploadStaff, bulkCancelReservations, bulkDeleteReservations, getReservationBatches, cancelReservationBatch, rescheduleReservationBatch, deleteReservationBatch } = require('../../controllers/reservationsController');
+const { getAllReservations, createStaffBooking, cancelReservation, reactivateReservation, rescheduleReservation, bulkUploadStaff, bulkCancelReservations, bulkDeleteReservations, getReservationBatches, cancelReservationBatch, rescheduleReservationBatch, deleteReservationBatch } = require('../../controllers/reservationsController');
 
 // parfait's controllers
 const check_in = require('../../controllers/smart_parking/check_in.js')
@@ -275,6 +275,32 @@ Router.put('/reservations/:id/cancel',
 Router.put('/reservations/:id/reactivate',
   auditSuccess('UPDATE', 'reservations', (req, res, data) => `Reactivated reservation ${req.params.id}`),
   reactivateReservation
+);
+
+/**
+ * @swagger
+ * /smartparking/reservations/{id}/reschedule:
+ *   put:
+ *     summary: "Reschedule a single reservation"
+ *     description: "Replace one reservation's validity window. Body: { type: 'visitor' | 'staff', start_date, end_date }"
+ *     tags: [Smart Parking]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Reservation rescheduled
+ *       404:
+ *         description: Reservation not found
+ *       500:
+ *         description: Internal server error
+ */
+Router.put('/reservations/:id/reschedule',
+  auditSuccess('UPDATE', 'reservations', (req, res, data) => `Rescheduled reservation ${req.params.id}`),
+  rescheduleReservation
 );
 
 /**
