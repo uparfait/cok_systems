@@ -9,6 +9,7 @@ export const FILTER_CONTROL_HEIGHT_PX = 40;
 const PERIOD_OPTIONS = [
   { value: "all", labelKey: "DCS_STATS_PERIOD_ALL" },
   { value: "today", labelKey: "DCS_STATS_PERIOD_TODAY" },
+  { value: "this_week", labelKey: "DCS_STATS_PERIOD_THIS_WEEK" },
   { value: "this_month", labelKey: "DCS_STATS_PERIOD_THIS_MONTH" },
   { value: "last_month", labelKey: "DCS_STATS_PERIOD_LAST_MONTH" },
   { value: "this_year", labelKey: "DCS_STATS_PERIOD_THIS_YEAR" },
@@ -112,6 +113,7 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
   const handle_period_change = (event) => {
     const value = event.target.value;
     if (value === "custom") {
+      onPeriodChange(value);
       setIsCustomOpen(true);
     } else {
       onPeriodChange(value);

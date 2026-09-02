@@ -492,6 +492,7 @@ const kn = {
 
   DCS_STATS_PERIOD_ALL: "Byose",
   DCS_STATS_PERIOD_TODAY: "Uyu munsi",
+  DCS_STATS_PERIOD_THIS_WEEK: "Iyi cyumweru",
   DCS_STATS_PERIOD_THIS_MONTH: "Uku kwezi",
   DCS_STATS_PERIOD_LAST_MONTH: "Ukwezi gushize",
   DCS_STATS_PERIOD_THIS_YEAR: "Uyu mwaka",
