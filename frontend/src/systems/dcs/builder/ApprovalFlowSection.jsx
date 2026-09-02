@@ -53,7 +53,7 @@ const CONDITION_FIELD_TYPES = [
   "date", "time", "date_time",
 ];
 
-const EMPTY_APPROVER = { name: "", role: "", email: "", level: "", location_id: null, location_name: "", conditions: [], force: true, on_reject: "stop" };
+const EMPTY_APPROVER = { name: "", role: "", email: "", message: "", level: "", location_id: null, location_name: "", conditions: [], force: true, on_reject: "stop" };
 
 // Same palette and type scale as the booking form (BookNow.jsx).
 const PRIMARY = "#056daa";
@@ -647,6 +647,18 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                             className={inputClassName}
                             style={email_invalid ? { borderColor: DANGER } : undefined} />
                         </div>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>{translate("DCS_APPROVAL_FIELD_MESSAGE")}</label>
+                        <textarea
+                          value={approver.message || ""}
+                          rows={2}
+                          maxLength={500}
+                          placeholder={translate("DCS_APPROVAL_FIELD_MESSAGE_PLACEHOLDER")}
+                          onChange={(event) => handle_approver_change(index, "message", event.target.value)}
+                          className={inputClassName}
+                          style={{ resize: "vertical" }}
+                        />
                       </div>
                     </div>
                   );

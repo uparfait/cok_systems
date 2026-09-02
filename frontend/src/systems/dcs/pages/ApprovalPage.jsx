@@ -220,6 +220,17 @@ function ApprovalPageContent() {
           </p>
         )}
 
+        {approval.approver.message && (
+          <div className="mt-3 px-3 py-2" style={{ backgroundColor: "rgba(5,109,170,0.06)", borderLeft: "3px solid #056daa" }}>
+            <p className="text-xs font-semibold uppercase" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif", letterSpacing: 0.5 }}>
+              {translate("DCS_APPROVAL_MESSAGE_FOR_YOU")}
+            </p>
+            <p className="text-sm mt-1" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
+              {approval.approver.message}
+            </p>
+          </div>
+        )}
+
         {approval.overall_status === "approved" && (
           <p className="mt-3 text-sm px-3 py-2" style={{ backgroundColor: "rgba(76,175,80,0.12)", color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
             {translate("DCS_APPROVAL_FINALIZED_APPROVED")}
