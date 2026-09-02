@@ -427,15 +427,6 @@ function MyApprovalsPageContent() {
                 <StatePill record={form_record} translate={translate} />
               </div>
 
-              {form_record.step.message && (
-                <div className="mt-3 px-3 py-2" style={{ backgroundColor: "rgba(5,109,170,0.06)", borderLeft: `3px solid ${PRIMARY}` }}>
-                  <p className="text-xs font-semibold uppercase" style={{ color: PRIMARY, fontFamily: fontHeading, letterSpacing: 0.5 }}>
-                    {translate("DCS_APPROVAL_MESSAGE_FOR_YOU")}
-                  </p>
-                  <p className="text-sm mt-1" style={{ color: NEUTRAL_DARK }}>{form_record.step.message}</p>
-                </div>
-              )}
-
               <div className="border mt-4" style={{ borderColor: BORDER }}>
                 {form_view_fields.length === 0 && <p className="p-3 text-sm" style={{ color: GRAY }}>-</p>}
                 {form_view_fields.map((field, index) => (
