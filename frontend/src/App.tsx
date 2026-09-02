@@ -84,6 +84,7 @@ import NewTemplatePage from "./systems/dcs/pages/NewTemplatePage.jsx";
 import TemplateSettingsPage from "./systems/dcs/pages/TemplateSettingsPage.jsx";
 import PublicFormPage from "./systems/dcs/pages/PublicFormPage.jsx";
 import ApprovalPage from "./systems/dcs/pages/ApprovalPage.jsx";
+import MyApprovalsPage from "./systems/dcs/pages/MyApprovalsPage.jsx";
 
 import HodEmployeesPage from "./systems/serviceDelivery/pages/hod/HodEmployeesPage";
 import HodTasksPage from "./systems/serviceDelivery/pages/hod/HodTasksPage";
@@ -623,6 +624,16 @@ const AuthenticatedRoutes: React.FC = () => {
               <Route path="project/:project_id/forms/:form_group_id/data" element={<FormAllDataPage />} />
               <Route path="project/:project_id/forms/:form_group_id/:version/data" element={<FormDataPage />} />
             </Route>
+
+            {/* Approver dashboard - opened from the approval notification */}
+            <Route
+              path="/dcs-my-approvals"
+              element={
+                <ProtectedRoute>
+                  <MyApprovalsPage />
+                </ProtectedRoute>
+              }
+            />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -126,8 +126,9 @@ const Header: React.FC<HeaderProps> = ({
         String(value).length > 0
     );
     const queue = Array.isArray(data.queue) ? data.queue : null;
+    const link = typeof data.link === "string" && data.link.length > 0 ? data.link : null;
 
-    if (scalarEntries.length === 0 && !queue) return null;
+    if (scalarEntries.length === 0 && !queue && !link) return null;
 
     return (
       <div className="mt-2 border border-gray-200 bg-gray-50 p-3 space-y-2">
@@ -168,6 +169,17 @@ const Header: React.FC<HeaderProps> = ({
               ))}
             </div>
           </div>
+        )}
+        {link && (
+          <a
+            href={link}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(event) => event.stopPropagation()}
+            className="inline-block text-xs font-semibold uppercase tracking-wide px-3 py-1.5 text-white cok-primary-bg"
+          >
+            {typeof data.link_label === "string" && data.link_label ? data.link_label : "Open"}
+          </a>
         )}
       </div>
     );

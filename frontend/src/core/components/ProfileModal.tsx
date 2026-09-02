@@ -11,7 +11,7 @@ import {
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { useAuth } from "../../core/contexts/AuthContext";
 import { useToast } from "../../core/contexts/ToastContext";
-import { getUserProfile, changePassword } from "../../core/services/authService";
+import { getUserProfile, changePassword, getNotificationSettings, updateNotificationSettings } from "../../core/services/authService";
 import { getSubscriptionStatus, subscribeToPush, unsubscribeFromPush } from "../../core/services/webPushService";
 
 const PRIMARY = "#056daa";
@@ -79,6 +79,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [notificationSubscribed, setNotificationSubscribed] = useState(false);
   const [notificationLoading, setNotificationLoading] = useState(false);
   const [notificationChecking, setNotificationChecking] = useState(false);
+  const [accountNotifEnabled, setAccountNotifEnabled] = useState(true);
+  const [accountNotifLoading, setAccountNotifLoading] = useState(false);
 
   // Role display name mapping
   const roleNames: { [key: string]: string } = {
@@ -153,8 +155,38 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     if (isOpen) {
       fetchProfile();
       checkNotificationStatus();
+      fetchAccountNotificationSetting();
     }
   }, [isOpen, fetchProfile]);
+
+  const fetchAccountNotificationSetting = async () => {
+    try {
+      const response = await getNotificationSettings();
+      if ((response.success || response.status) && response.data) {
+        setAccountNotifEnabled(response.data.notifications_enabled !== false);
+      }
+    } catch (err) {
+      console.error('Error loading notification settings:', err);
+    }
+  };
+
+  const handleToggleAccountNotifications = async () => {
+    setAccountNotifLoading(true);
+    try {
+      const next = !accountNotifEnabled;
+      const response = await updateNotificationSettings(next);
+      if (response.success || response.status) {
+        setAccountNotifEnabled(next);
+        showSuccess(next ? 'Account notifications enabled' : 'Account notifications disabled');
+      } else {
+        showError(response?.message || 'Failed to update notification settings');
+      }
+    } catch (err: any) {
+      showError(err?.message || 'Failed to update notification settings');
+    } finally {
+      setAccountNotifLoading(false);
+    }
+  };
 
   const checkNotificationStatus = useCallback(async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -600,7 +632,64 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                  {activeTab === 'notifications' && (
                    <div className="space-y-4">
                      <h3 className="text-lg font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Notification Settings</h3>
- 
+
+                     {/* Account-level switch: gates every notification sent to this account (approval requests included) */}
+                     <div className="border" style={{ borderColor: BORDER, backgroundColor: 'rgba(5,109,170,0.02)', borderRadius: 0 }}>
+                       <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center">
+                         <div className="flex items-center gap-3">
+                           <div className="p-2" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
+                             <FiBell className="w-5 h-5" style={{ color: PRIMARY }} />
+                           </div>
+                           <div>
+                             <p className="font-medium" style={{ color: NEUTRAL_DARK }}>Account Notifications</p>
+                             <p className="text-xs" style={{ color: GRAY_DISABLED }}>
+                               {accountNotifEnabled
+                                 ? 'You receive in-app notifications, including data waiting for your approval'
+                                 : 'Notifications to this account are off - you will not be alerted about approval requests'}
+                             </p>
+                           </div>
+                         </div>
+                         <div className="flex items-center gap-3">
+                           <span className="text-xs font-semibold uppercase" style={{ color: PRIMARY, fontFamily: fontHeading, letterSpacing: '1px' }}>
+                             {accountNotifEnabled ? 'Enabled' : 'Disabled'}
+                           </span>
+                            <button
+                              type="button"
+                              onClick={handleToggleAccountNotifications}
+                              disabled={accountNotifLoading}
+                              className="relative cursor-pointer inline-flex h-6 w-11 items-center transition-colors"
+                              style={{ borderRadius: 0 }}
+                              aria-pressed={accountNotifEnabled}
+                            >
+                              {accountNotifLoading ? (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="w-4 h-4 border-2 border-[#056daa] border-t-transparent rounded-full animate-spin" />
+                                </div>
+                              ) : (
+                                <>
+                                  <span
+                                    className="inline-block z-5 h-5 w-5 transition-transform duration-200"
+                                    style={{
+                                      transform: accountNotifEnabled ? 'translateX(20px)' : 'translateX(2px)',
+                                      borderRadius: 990,
+                                      backgroundColor: accountNotifEnabled ? PRIMARY : '#9E9E9E',
+                                    }}
+                                  />
+                                  <span
+                                    className="absolute inset-0 transition-colors duration-200"
+                                    style={{
+                                      borderRadius: 200,
+                                      backgroundColor: '#FFFFFF',
+                                      border: '1px solid #E0E0E0',
+                                    }}
+                                  />
+                                </>
+                              )}
+                            </button>
+                         </div>
+                       </div>
+                     </div>
+
                      <div className="border" style={{ borderColor: BORDER, backgroundColor: 'rgba(5,109,170,0.02)', borderRadius: 0 }}>
                        <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center">
                          <div className="flex items-center gap-3">
