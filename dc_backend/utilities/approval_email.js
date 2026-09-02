@@ -95,11 +95,12 @@ async function notify_approval_steps(req, form_name, steps) {
       origin,
       message: step.message || "",
     });
+    // Registered users land on their own approvals dashboard, not the single-record token page.
     const in_app = await send_in_app_approval_notification({
       email: step.email,
       approver_name: step.name,
       form_name,
-      link,
+      link: `${origin}/dcs-my-approvals`,
       message: step.message || "",
     });
     notified.push({

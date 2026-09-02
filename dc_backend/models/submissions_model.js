@@ -30,6 +30,8 @@ function escape_regex(value) {
  */
 async function ensure_submission_indexes() {
   await get_db().collection(COLLECTION_NAME).createIndex({ form_group_id: 1, submitted_at: -1 }, { name: "form_group_submitted_at" });
+  // The approver dashboard lists every submission routed to one email across all forms.
+  await get_db().collection(COLLECTION_NAME).createIndex({ "approval.steps.email": 1, submitted_at: -1 }, { name: "approval_steps_email" });
 }
 
 /**
@@ -46,6 +48,21 @@ async function create_submission(submission_data) {
 async function find_by_approval_token(token) {
   if (!token) return null;
   return get_db().collection(COLLECTION_NAME).findOne({ "approval.steps.token": token });
+}
+
+/**
+ * Every submission routed to one approver email (newest first), backing the
+ * authenticated "my approvals" dashboard. Capped so one very busy approver
+ * can never pull the whole collection into memory at once.
+ */
+async function list_by_approver_email(email, limit) {
+  if (!email) return [];
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .find({ "approval.steps.email": email.toString().trim().toLowerCase() })
+    .sort({ submitted_at: -1 })
+    .limit(limit || 300)
+    .toArray();
 }
 
 /** Persists a submission's whole updated approval state after a decision. */
@@ -261,6 +278,7 @@ module.exports = {
   ensure_submission_indexes,
   create_submission,
   find_by_approval_token,
+  list_by_approver_email,
   update_submission_approval,
   find_by_client_submission_id,
   find_submission_by_id,
