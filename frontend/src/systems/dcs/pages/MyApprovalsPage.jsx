@@ -21,7 +21,6 @@ const NEUTRAL_LIGHT = "#F7F9FB";
 const BORDER = "#E0E0E0";
 const fontHeading = "'Montserrat', sans-serif";
 const PAGE_SIZE = 10;
-const MAX_TABLE_FIELD_COLUMNS = 4;
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 160;
 const CERTIFICATE_ACCEPT = ".pdf,.p12,.pfx,.cer,.crt,.pem,.der,.sig,.png,.jpg,.jpeg";
@@ -81,7 +80,7 @@ function MyApprovalsPageContent() {
   const [records, setRecords] = useState([]);
   const [forms, setForms] = useState({});
   const [view, setView] = useState("table");
-  const [form_filter, setFormFilter] = useState("all");
+  const [form_filter, setFormFilter] = useState("");
   const [page, setPage] = useState(1);
   const [form_index, setFormIndex] = useState(0);
   const [viewed, setViewed] = useState(() => new Set());
@@ -111,9 +110,12 @@ function MyApprovalsPageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, []);
 
+  // One form at a time: the picked form, defaulting to the first that has records.
+  const form_keys = useMemo(() => [...new Set(records.map((record) => record.form_key))], [records]);
+  const active_form_key = form_keys.includes(form_filter) ? form_filter : form_keys[0] || null;
   const filtered = useMemo(
-    () => (form_filter === "all" ? records : records.filter((record) => record.form_key === form_filter)),
-    [records, form_filter],
+    () => records.filter((record) => record.form_key === active_form_key),
+    [records, active_form_key],
   );
   const total_pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current_page = Math.min(page, total_pages);
@@ -136,16 +138,11 @@ function MyApprovalsPageContent() {
 
   const approvable = filtered.filter((record) => record.state === "ready" && viewed.has(record.id));
 
-  // Table columns come from the form's own fields when all shown records share one form.
-  const single_form_key = form_filter !== "all" ? form_filter : filtered.length > 0 && filtered.every((record) => record.form_key === filtered[0].form_key) ? filtered[0].form_key : null;
+  // Table columns: every field of the shown form, so the whole record is reviewable in place.
   const field_columns = useMemo(() => {
-    if (!single_form_key || !forms[single_form_key]) return [];
-    return flatten_fields(forms[single_form_key].schema.fields || [])
-      .filter((field) => field.type !== "group")
-      .slice(0, MAX_TABLE_FIELD_COLUMNS);
-  }, [single_form_key, forms]);
-
-  const form_keys = useMemo(() => [...new Set(records.map((record) => record.form_key))], [records]);
+    if (!active_form_key || !forms[active_form_key]) return [];
+    return flatten_fields(forms[active_form_key].schema.fields || []).filter((field) => field.type !== "group");
+  }, [active_form_key, forms]);
 
   // The sidebar mirrors the reference record: the one on screen in form view,
   // otherwise the first record still waiting for this approver.
@@ -332,7 +329,7 @@ function MyApprovalsPageContent() {
             <div className="flex items-center gap-2 flex-wrap">
               {form_keys.length > 1 && (
                 <select
-                  value={form_filter}
+                  value={active_form_key || ""}
                   onChange={(event) => {
                     setFormFilter(event.target.value);
                     setPage(1);
@@ -341,7 +338,6 @@ function MyApprovalsPageContent() {
                   className="cok-auth-input pr-3 py-2 text-sm"
                   style={{ backgroundColor: "#FFFFFF" }}
                 >
-                  <option value="all">{translate("DCS_MYAPPROVALS_ALL_FORMS")}</option>
                   {form_keys.map((key) => (
                     <option key={key} value={key}>{(forms[key] && forms[key].form_name) || key}</option>
                   ))}
@@ -370,25 +366,16 @@ function MyApprovalsPageContent() {
                 <table className="w-full text-left" style={{ borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ backgroundColor: PRIMARY }}>
-                      {!single_form_key && (
-                        <th className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap" style={{ fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_COL_FORM")}</th>
-                      )}
                       {field_columns.map((field) => (
                         <th key={field.id} className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap" style={{ fontFamily: fontHeading }}>{label_of(field)}</th>
                       ))}
                       <th className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap" style={{ fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_COL_SUBMITTED")}</th>
                       <th className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap" style={{ fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_COL_STATUS")}</th>
-                      <th className="px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody>
                     {page_records.map((record) => (
                       <tr key={record.id} className="border-t" style={{ borderColor: BORDER }}>
-                        {!single_form_key && (
-                          <td className="px-4 py-3 text-sm font-semibold whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>
-                            {(forms[record.form_key] && forms[record.form_key].form_name) || "-"}
-                          </td>
-                        )}
                         {field_columns.map((field) => (
                           <td key={field.id} className="px-4 py-3 text-sm" style={{ color: NEUTRAL_DARK }}>
                             <AnswerValue value={record.data[field.id]} />
@@ -397,11 +384,14 @@ function MyApprovalsPageContent() {
                         <td className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: "#555555" }}>
                           {record.submitted_at ? new Date(record.submitted_at).toLocaleDateString() : "-"}
                         </td>
-                        <td className="px-4 py-3"><StatePill record={record} translate={translate} /></td>
                         <td className="px-4 py-3">
-                          <a href={build_approval_link(record.step.token)} className="text-sm font-semibold underline whitespace-nowrap" style={{ color: PRIMARY, fontFamily: fontHeading }}>
-                            {translate("DCS_MYAPPROVALS_OPEN")}
-                          </a>
+                          {record.state === "ready" ? (
+                            <a href={build_approval_link(record.step.token)} className="no-underline">
+                              <StatePill record={record} translate={translate} />
+                            </a>
+                          ) : (
+                            <StatePill record={record} translate={translate} />
+                          )}
                         </td>
                       </tr>
                     ))}
