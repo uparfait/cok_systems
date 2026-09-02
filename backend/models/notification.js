@@ -6,11 +6,13 @@ const notificationSchema = new mongoose.Schema({
     task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
     type: {
         type: String,
-        enum: ['deadline_reminder', 'task_completed', 'subtask_completed', 'negative_feedback', 'announcement', 'task_assigned', 'task_stuck'],
+        enum: ['deadline_reminder', 'task_completed', 'subtask_completed', 'negative_feedback', 'announcement', 'task_assigned', 'task_stuck', 'approval_request'],
         required: true
     },
     title: { type: String, required: true },
     message: { type: String, required: true },
+    // Frontend path or URL the notification points at (e.g. a DCS approval page).
+    link: { type: String },
     isRead: { type: Boolean, default: false },
     isEmailSent: { type: Boolean, default: false },
     scheduledFor: { type: Date }, // When to send the notification

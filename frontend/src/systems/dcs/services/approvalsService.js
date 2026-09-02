@@ -17,6 +17,11 @@ export function build_approval_link(token) {
   return `${window.location.origin}/dcs-approval/${token}`;
 }
 
+/** Authenticated: every submission routed to the logged-in user's email, across all forms. */
+export function get_my_approvals() {
+  return dcs_request("/approvals/my", "GET");
+}
+
 /** Uploads the approver's drawn signature PNG or certificate file; raw XHR for upload progress, like uploadService.js. */
 export function upload_approval_file(token, file, onProgress) {
   return new Promise((resolve, reject) => {

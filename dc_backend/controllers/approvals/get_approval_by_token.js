@@ -31,7 +31,7 @@ async function get_approval_by_token(req, res) {
         data: submission.data,
         overall_status: approval.status,
         mode: approval.mode,
-        approver: { level: step.level, name: step.name, role: step.role, email: step.email, status: step.status },
+        approver: { level: step.level, name: step.name, role: step.role, email: step.email, message: step.message || null, status: step.status },
         can_act: can_step_act(approval, step),
         trail: public_approval_trail(approval),
       }),

@@ -33,13 +33,21 @@ function escape_html(value) {
 }
 
 // Sends one approver their approval request link; never throws - returns {success}.
-async function send_approval_request_email({ to, approver_name, approver_role, form_name, link, origin }) {
+async function send_approval_request_email({ to, approver_name, approver_role, form_name, link, origin, message }) {
   const subject = `Approval requested: ${form_name}`;
+  // The form author's note to this approver, when one was written while adding them.
+  const message_block = message
+    ? `<div style="border-left: 3px solid ${PRIMARY_COLOR}; background-color: #F7F9FB; padding: 12px 16px; margin: 0 0 12px;">
+        <p style="font-size: 13px; color: ${TEXT_MUTED}; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.5px;"><strong>Message for you</strong></p>
+        <p style="font-size: 15px; color: #333333; margin: 0;">${escape_html(message)}</p>
+      </div>`
+    : "";
   const html = html_wrapper(
     `
     <h2 style="color: ${PRIMARY_COLOR}; font-family: ${FONT}; font-size: 22px; margin: 0 0 16px;">Approval requested</h2>
     <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">Dear ${escape_html(approver_name)} (${escape_html(approver_role)}),</p>
     <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">A response submitted to <strong>${escape_html(form_name)}</strong> is waiting for your approval.</p>
+    ${message_block}
     <div style="text-align: center; margin: 24px 0;">
       <a href="${link}" style="display: inline-block; background-color: ${PRIMARY_COLOR}; color: #FFFFFF; font-family: ${FONT}; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; text-decoration: none; padding: 14px 28px;">Review and decide</a>
     </div>
@@ -48,7 +56,7 @@ async function send_approval_request_email({ to, approver_name, approver_role, f
   `,
     origin,
   );
-  const text = `Dear ${approver_name} (${approver_role}), a response submitted to ${form_name} is waiting for your approval. Open: ${link}`;
+  const text = `Dear ${approver_name} (${approver_role}), a response submitted to ${form_name} is waiting for your approval.${message ? ` Message for you: ${message}.` : ""} Open: ${link}`;
 
   try {
     await transporter.sendMail({ from: config.email.from, to, subject, text, html });
@@ -68,7 +76,10 @@ function resolve_client_origin(req) {
 }
 
 // Emails every given step its approval link; returns the steps annotated with email_sent.
+// Approvers whose email belongs to a registered account also get an in-app notification
+// (bell + push) through the main backend, when their account has notifications on.
 async function notify_approval_steps(req, form_name, steps) {
+  const { send_in_app_approval_notification } = require("./approval_notify.js");
   const origin = resolve_client_origin(req);
   const notified = [];
   for (const step of steps) {
@@ -82,8 +93,25 @@ async function notify_approval_steps(req, form_name, steps) {
       form_name,
       link,
       origin,
+      message: step.message || "",
     });
-    notified.push({ level: step.level, name: step.name, role: step.role, email: step.email, email_sent: result.success, token: step.token });
+    // Registered users land on their own approvals dashboard, not the single-record token page.
+    const in_app = await send_in_app_approval_notification({
+      email: step.email,
+      approver_name: step.name,
+      form_name,
+      link: `${origin}/dcs-my-approvals`,
+      message: step.message || "",
+    });
+    notified.push({
+      level: step.level,
+      name: step.name,
+      role: step.role,
+      email: step.email,
+      email_sent: result.success,
+      in_app_sent: in_app.delivered,
+      token: step.token,
+    });
   }
   return notified;
 }
