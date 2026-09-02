@@ -61,6 +61,8 @@ const user_schema = new mongoose.Schema({
     }
     ,
     is_active: { type: Boolean, default: true },
+    // Account-level switch for in-app/push notifications (e.g. DCS approval requests).
+    notifications_enabled: { type: Boolean, default: true },
     created_date: { type: Date, default: Date.now },
     is_account_activated: {type: Boolean},
     registered_by: { type: String },

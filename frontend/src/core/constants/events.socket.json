@@ -179,6 +179,13 @@
       "why": "Diagnostic test event for the service delivery realtime channel.",
       "emitted_from": ["services/reatime_service/service_delivery/service_delivery.js"],
       "shown_in_notification_panel": false
+    },
+    "dcs_approval_requested": {
+      "targeted": true,
+      "sent_to": "The registered user whose email is the approver of a DCS submission that is now waiting for their decision",
+      "why": "Tells an approver with an account that data is waiting for their approval. Carries data.link, the approval page URL, and data.link_label for the panel's action link.",
+      "emitted_from": ["controllers/internal/dcs_approval_notification.js"],
+      "shown_in_notification_panel": true
     }
   },
   "deprecated_events": {

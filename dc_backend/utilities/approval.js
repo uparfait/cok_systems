@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const ON_REJECT_OPTIONS = ["stop", "continue"];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_APPROVERS = 20;
+const MAX_APPROVER_MESSAGE_LENGTH = 500;
 const APPROVER_LEVELS = ["VILLAGE", "CELL", "SECTOR", "DISTRICT", "PROVINCE"];
 
 /** Case-insensitive trimmed equality, the same rule the simulation project used for category matching. */
@@ -49,6 +50,9 @@ function validate_approval_config(config) {
       if (approver.on_reject !== undefined && !ON_REJECT_OPTIONS.includes(approver.on_reject)) {
         errors.push(`approver ${index + 1} has an invalid on_reject value`);
       }
+      if (approver.message !== undefined && approver.message !== null && approver.message.toString().trim().length > MAX_APPROVER_MESSAGE_LENGTH) {
+        errors.push(`approver ${index + 1} message cannot exceed ${MAX_APPROVER_MESSAGE_LENGTH} characters`);
+      }
       if (!is_legacy_config(config)) {
         // Location is optional, but a half-set one (level without a place, or vice versa) is a mistake.
         const level_set = approver.level !== undefined && approver.level !== null && `${approver.level}` !== "";
@@ -86,6 +90,7 @@ function normalize_approval_config(config) {
         name: approver.name.toString().trim(),
         role: approver.role.toString().trim(),
         email: approver.email.toString().trim().toLowerCase(),
+        message: (approver.message || "").toString().trim(),
         on_reject: ON_REJECT_OPTIONS.includes(approver.on_reject) ? approver.on_reject : "stop",
       })),
     };
@@ -98,6 +103,7 @@ function normalize_approval_config(config) {
         name: approver.name.toString().trim(),
         role: approver.role.toString().trim(),
         email: approver.email.toString().trim().toLowerCase(),
+        message: (approver.message || "").toString().trim(),
         level: located ? approver.level : null,
         location_id: located ? Number(approver.location_id) : null,
         location_name: located ? (approver.location_name || "").toString().trim() : "",
@@ -144,6 +150,7 @@ function build_approval_state(config, location_chain, submission_data) {
       name: approver.name,
       role: approver.role,
       email: approver.email,
+      message: approver.message || null,
       level_type: approver.level || null,
       location: has_location(approver) ? { id: Number(approver.location_id), name: approver.location_name || "" } : null,
       conditions: Array.isArray(approver.conditions) ? approver.conditions : [],

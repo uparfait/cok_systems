@@ -60,4 +60,9 @@ const authenticate = require('../../middlewares/authenticate');
  */
 Router.post('/change-password', changePasswordController);
 
+// Account-level notification switch, honored by every notification sender.
+const { getNotificationSettings, updateNotificationSettings } = require('../../controllers/profile/notification_settings');
+Router.get('/notification-settings', getNotificationSettings);
+Router.put('/notification-settings', updateNotificationSettings);
+
 module.exports = Router;
