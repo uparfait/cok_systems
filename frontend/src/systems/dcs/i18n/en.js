@@ -525,6 +525,7 @@ const en = {
   DCS_FORM_NAV_SETTINGS: "Settings",
   DCS_BTN_GOTO_FORM_SETTINGS: "Click to form setting",
   DCS_FORM_NAV_VERSIONS: "Versions",
+  DCS_FORM_NAV_APPROVAL: "Approval",
   DCS_FORM_VERSIONS_TITLE: "Form versions",
   DCS_FORM_VERSION_LABEL: "Version {{version}}",
   DCS_FORM_ACTIVE_BADGE: "Active",
