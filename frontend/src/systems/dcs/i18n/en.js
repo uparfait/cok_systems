@@ -492,6 +492,7 @@ const en = {
 
   DCS_STATS_PERIOD_ALL: "All",
   DCS_STATS_PERIOD_TODAY: "Today",
+  DCS_STATS_PERIOD_THIS_WEEK: "This week",
   DCS_STATS_PERIOD_THIS_MONTH: "This month",
   DCS_STATS_PERIOD_LAST_MONTH: "Last month",
   DCS_STATS_PERIOD_THIS_YEAR: "This year",

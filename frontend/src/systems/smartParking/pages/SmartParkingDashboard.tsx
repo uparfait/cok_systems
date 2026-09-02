@@ -959,14 +959,18 @@ const SmartParkingDashboard: React.FC = () => {
                           <span className="text-xs text-[#9E9E9E]">-</span>
                         )}
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           )}
         </div>
       </div>
+
+      {showExportModal && (
+        <ExportVisitorsModal onClose={() => setShowExportModal(false)} />
+      )}
     </MainLayout>
   );
 };
