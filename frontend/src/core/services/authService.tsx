@@ -20,6 +20,12 @@
    newPassword: string;
    confirmPassword: string;
  }) => post('/profile/change-password', data);
+
+ // Account-level notification switch (in-app + push, e.g. DCS approval requests)
+ export const getNotificationSettings = () => get('/profile/notification-settings');
+
+ export const updateNotificationSettings = (enabled: boolean) =>
+   put('/profile/notification-settings', { notifications_enabled: enabled });
  
  // ==================== LOGIN APIs ====================
  

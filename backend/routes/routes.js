@@ -75,6 +75,8 @@ Router.use('/requests', requests)
 Router.use('/v1/event-actions', event_management)
 Router.use('/data-management', authenticate, data_management)
 Router.use('/webpush', require('./webpush/routes.js'))
+// Server-to-server calls (each route verifies its own service JWT)
+Router.use('/internal', require('./internal/routes.js'))
 
 // Serve uploaded files
 const path = require('path')

@@ -3,6 +3,8 @@ const DC_CONFIG = {
   jwt_secret: process.env.JWT_SECRET || "cok-jwt-secret-2026",
   connection_string: process.env.conne_string || "mongodb://localhost:27017/data_collection_system",
   cok_database_name: process.env.COK_DB_NAME || "cok",
+  // Base URL of the main backend, used for server-to-server calls (in-app approval notifications).
+  cok_api_url: process.env.COK_API_URL || "http://localhost:2026/cok/api",
   client_url_set: process.env.CLIENT_URL_SET || [
     "https://cok-fr.vercel.app",
     "http://localhost:5173",
