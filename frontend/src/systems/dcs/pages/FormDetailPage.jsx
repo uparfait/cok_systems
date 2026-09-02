@@ -51,6 +51,7 @@ export default function FormDetailPage() {
   const base_path = `/dcs-system/project/${project_id}/forms/${form_group_id}`;
   const is_panel_open = location.pathname !== base_path;
   const is_versions_tab = location.pathname.startsWith(`${base_path}/versions`);
+  const is_approval_tab = location.pathname.startsWith(`${base_path}/approval`);
   const title = form ? form.form_name || form_group_id : "";
 
   // Belt-and-braces: resetting here too means the flying icon can never get
@@ -139,13 +140,16 @@ export default function FormDetailPage() {
               <div className="flex border-b mb-4" style={{ borderColor: "#E0E0E0" }}>
                 <button
                   type="button"
-                  style={tab_style(!is_versions_tab)}
+                  style={tab_style(!is_versions_tab && !is_approval_tab)}
                   onClick={() => {
                     refresh();
                     navigate(`${base_path}/details`);
                   }}
                 >
                   {translate("DCS_FORM_NAV_SETTINGS")}
+                </button>
+                <button type="button" style={tab_style(is_approval_tab)} onClick={() => navigate(`${base_path}/approval`)}>
+                  {translate("DCS_FORM_NAV_APPROVAL")}
                 </button>
                 <button type="button" style={tab_style(is_versions_tab)} onClick={() => navigate(`${base_path}/versions`)}>
                   {translate("DCS_FORM_NAV_VERSIONS")}

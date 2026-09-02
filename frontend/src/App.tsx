@@ -76,6 +76,7 @@ import NewFormPage from "./systems/dcs/pages/NewFormPage.jsx";
 import FormDetailPage from "./systems/dcs/pages/FormDetailPage.jsx";
 import FormSettingsPage from "./systems/dcs/pages/FormSettingsPage.jsx";
 import FormVersionsPage from "./systems/dcs/pages/FormVersionsPage.jsx";
+import FormApprovalPage from "./systems/dcs/pages/FormApprovalPage.jsx";
 import FormDataPage from "./systems/dcs/pages/FormDataPage.jsx";
 import FormAllDataPage from "./systems/dcs/pages/FormAllDataPage.jsx";
 import TemplatesListPage from "./systems/dcs/pages/TemplatesListPage.jsx";
@@ -616,6 +617,7 @@ const AuthenticatedRoutes: React.FC = () => {
               <Route path="project/:project_id/forms/:form_group_id" element={<FormDetailPage />}>
                 <Route index element={<FormSettingsPage />} />
                 <Route path="details" element={<FormSettingsPage />} />
+                <Route path="approval" element={<FormApprovalPage />} />
                 <Route path="versions" element={<FormVersionsPage />} />
               </Route>
               <Route path="project/:project_id/forms/:form_group_id/data" element={<FormAllDataPage />} />

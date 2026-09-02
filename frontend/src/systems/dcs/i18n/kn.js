@@ -525,6 +525,7 @@ const kn = {
   DCS_FORM_NAV_SETTINGS: "Igenamiterere",
   DCS_BTN_GOTO_FORM_SETTINGS: "Kanda kubona igenamiterere ry'ifishi",
   DCS_FORM_NAV_VERSIONS: "Verisiyo",
+  DCS_FORM_NAV_APPROVAL: "Kwemera",
   DCS_FORM_VERSIONS_TITLE: "Verisiyo z'ifishi",
   DCS_FORM_VERSION_LABEL: "Verisiyo {{version}}",
   DCS_FORM_ACTIVE_BADGE: "Ikoreshwa",

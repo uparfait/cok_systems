@@ -5,7 +5,7 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { update_form, get_form_field_options } from "../services/formsService.js";
 import { useLazyFieldResolvers } from "../hooks/useLazyFieldResolvers.js";
 import DcFormBuilderSection from "../builder/DcFormBuilderSection.jsx";
-import ApprovalFlowSection, { is_approval_config_complete } from "../builder/ApprovalFlowSection.jsx";
+import { is_approval_config_complete } from "../builder/ApprovalFlowSection.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsFormNameField from "../components/DcsFormNameField.jsx";
 import { validate_form_schema } from "../builder/validateSchema.js";
@@ -40,22 +40,6 @@ export default function FormSettingsPage() {
   const copy_link = () => {
     window.navigator.clipboard.writeText(public_link);
     showSuccess(translate("DCS_TOAST_LINK_COPIED"));
-  };
-
-  const handle_save_approvers = async (config) => {
-    const frontend_check = validate_form_schema({ fields });
-    if (!frontend_check.valid) {
-      setSchemaErrors(frontend_check.errors);
-      showError(translate("DCS_SCHEMA_ERROR_BANNER"));
-      return;
-    }
-    try {
-      const response = await update_form(form_group_id, form_name, { fields }, config);
-      showSuccess(response.message || translate("DCS_APPROVAL_SAVED"));
-      refreshForm();
-    } catch (error) {
-      showError(error.message || translate("DCS_ERROR_GENERIC"));
-    }
   };
 
   const handle_publish = async (schema) => {
@@ -111,7 +95,6 @@ export default function FormSettingsPage() {
           resolveFieldOptions={resolveFieldOptions}
           resolveFullFieldOptions={resolveFullFieldOptions}
         />
-        <ApprovalFlowSection value={approval_config} onChange={setApprovalConfig} fields={fields} onSave={handle_save_approvers} resolveFullFieldOptions={resolveFullFieldOptions} />
       </div>
     </div>
   );

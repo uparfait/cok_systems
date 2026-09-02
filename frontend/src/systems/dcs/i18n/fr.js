@@ -525,6 +525,7 @@ const fr = {
   DCS_FORM_NAV_SETTINGS: "Paramètres",
   DCS_BTN_GOTO_FORM_SETTINGS: "Cliquez pour les paramètres du formulaire",
   DCS_FORM_NAV_VERSIONS: "Versions",
+  DCS_FORM_NAV_APPROVAL: "Approbation",
   DCS_FORM_VERSIONS_TITLE: "Versions du formulaire",
   DCS_FORM_VERSION_LABEL: "Version {{version}}",
   DCS_FORM_ACTIVE_BADGE: "Active",
