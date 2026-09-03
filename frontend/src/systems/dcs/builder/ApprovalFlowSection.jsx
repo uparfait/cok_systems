@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FiCheckCircle, FiUser, FiFilter, FiMove, FiTrash2, FiPlus, FiShield } from "react-icons/fi";
+import { FiCheckCircle, FiUser, FiFilter, FiMove, FiTrash2, FiPlus, FiShield, FiEye } from "react-icons/fi";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -155,6 +155,128 @@ function build_cascading_chains(condition_fields) {
 // shown as a group and never ordered - they always run with on_reject "continue" (they
 // can't block anything) and are appended after every cascade group in the saved array.
 const NON_CASCADING = "__non_cascading__";
+
+// ---- Hierarchy drawing (the "view hierarchy" overlay) --------------------------------
+// Works for ANY cascade: the tree is rebuilt from the approvers' own condition trails,
+// so only values that actually have an approval ever appear.
+
+const HIER_CHAR_W = 7; // approx px per character at 12px
+const HIER_PAD = 10;
+const HIER_LINE_H = 16;
+const HIER_H_GAP = 24;
+const HIER_V_GAP = 56;
+const HIER_MIN_W = 130;
+
+/**
+ * One chain's tree, parent to child, built purely from what the approvers selected:
+ * every approver contributes their trail(s) of pinned values (province -> district ->
+ * ... , or category -> subcategory -> ...); a level the approver didn't pin is simply
+ * skipped, so the node attaches to its nearest pinned ancestor (or the chain root).
+ * An approver with several picks at one level (South AND North) contributes one trail
+ * per pick and appears in every matching node. Values nobody selected never exist here.
+ */
+function build_chain_tree(chain, approvers, language) {
+  const level_ids = chain.levels.map((level_field) => level_field.id);
+  const root = { label: field_label(chain.levels[0], language), level: null, value: null, approvers: [], children: [], child_map: new Map() };
+  approvers.forEach((approver) => {
+    const per_level = level_ids.map((field_id) =>
+      (approver.conditions || [])
+        .filter((condition) => condition.field_id === field_id && `${condition.value === undefined || condition.value === null ? "" : condition.value}`.trim())
+        .map((condition) => String(condition.value)),
+    );
+    const deepest = per_level.reduce((acc, values, i) => (values.length > 0 ? i : acc), -1);
+    if (deepest < 0) return; // this approver is not in this cascade
+    let trails = [[]];
+    for (let i = 0; i <= deepest; i++) {
+      if (per_level[i].length === 0) continue;
+      const grown = [];
+      trails.forEach((trail) => per_level[i].forEach((value) => grown.push([...trail, { level: i, value }])));
+      trails = grown;
+    }
+    trails.forEach((trail) => {
+      let node = root;
+      trail.forEach((step) => {
+        const child_key = `${step.level}::${step.value}`;
+        if (!node.child_map.has(child_key)) {
+          const child = {
+            label: field_label(chain.levels[step.level], language),
+            level: step.level,
+            value: step.value,
+            approvers: [],
+            children: [],
+            child_map: new Map(),
+          };
+          node.child_map.set(child_key, child);
+          node.children.push(child);
+        }
+        node = node.child_map.get(child_key);
+      });
+      node.approvers.push(approver);
+    });
+  });
+  return root.children.length > 0 ? root : null;
+}
+
+/**
+ * Tidy top-down layout: leaves sit side by side, every parent centers over its
+ * children, each depth is one row as tall as its tallest node. Mutates the nodes
+ * with x/y/w/h and returns the drawing's total size.
+ */
+function layout_chain_tree(root) {
+  const measure = (node) => {
+    // Full text, never trimmed - the rectangle grows to fit its longest line.
+    node.header_lines = node.value === null ? [node.label] : [node.label, node.value];
+    node.approver_lines = node.approvers.map((approver) =>
+      approver.role && approver.role.trim() ? `${approver.name.trim()} (${approver.role.trim()})` : approver.name.trim(),
+    );
+    const texts = [...node.header_lines, ...node.approver_lines];
+    node.w = Math.max(HIER_MIN_W, Math.max(...texts.map((text) => text.length)) * HIER_CHAR_W + HIER_PAD * 2);
+    node.h = HIER_PAD * 2 + (node.header_lines.length + node.approver_lines.length) * HIER_LINE_H;
+    node.children.forEach(measure);
+  };
+  measure(root);
+
+  const span = (node) => {
+    node.span = node.children.length > 0
+      ? Math.max(node.w, node.children.reduce((sum, child) => sum + span(child), 0) + HIER_H_GAP * (node.children.length - 1))
+      : node.w;
+    return node.span;
+  };
+  span(root);
+
+  const row_heights = [];
+  const set_depths = (node, depth) => {
+    row_heights[depth] = Math.max(row_heights[depth] || 0, node.h);
+    node.depth = depth;
+    node.children.forEach((child) => set_depths(child, depth + 1));
+  };
+  set_depths(root, 0);
+  const row_tops = [];
+  let running_y = 0;
+  row_heights.forEach((height, depth) => {
+    row_tops[depth] = running_y;
+    running_y += height + HIER_V_GAP;
+  });
+
+  const place = (node, left) => {
+    node.y = row_tops[node.depth];
+    if (node.children.length === 0) {
+      node.x = left + (node.span - node.w) / 2;
+      return;
+    }
+    const children_width = node.children.reduce((sum, child) => sum + child.span, 0) + HIER_H_GAP * (node.children.length - 1);
+    let cursor = left + (node.span - children_width) / 2;
+    node.children.forEach((child) => {
+      place(child, cursor);
+      cursor += child.span + HIER_H_GAP;
+    });
+    const first = node.children[0];
+    const last = node.children[node.children.length - 1];
+    node.x = (first.x + first.w / 2 + last.x + last.w / 2) / 2 - node.w / 2;
+  };
+  place(root, 0);
+  return { width: root.span, height: running_y - HIER_V_GAP };
+}
 
 /**
  * Value picker for a condition on a choice field: one dropdown listing every value the
@@ -409,6 +531,8 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
   const [popup_group, set_popup_group] = useState(null);
   // Clicking a card's order number turns it into an input: { key, value } while typing.
   const [position_edit, set_position_edit] = useState(null);
+  // The full-screen "view hierarchy" overlay.
+  const [show_hierarchy, set_show_hierarchy] = useState(false);
 
   const STEPS = [
     { step: 1, label: translate("DCS_APPROVAL_STEP_PEOPLE"), icon: FiUser },
@@ -1262,6 +1386,134 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                       </div>
                     );
                   })}
+
+                  {/* Below all the groups: open the drawn approval map */}
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => set_show_hierarchy(true)}
+                      className="cok-btn-outlined text-sm inline-flex items-center justify-center gap-2"
+                      style={{ fontFamily: fontHeading, cursor: "pointer" }}
+                    >
+                      <FiEye className="w-4 h-4" /> {translate("DCS_APPROVAL_VIEW_HIERARCHY")}
+                    </button>
+                  </div>
+
+                  {/* Full-screen white overlay: every cascade drawn as a parent-to-child
+                      tree of rectangles and connector lines (SVG). Only selected values
+                      appear; each rectangle shows its level, its value, and the approvers
+                      in it as "name (role)". Scrolls both ways; close at the right. */}
+                  {show_hierarchy && (() => {
+                    const MARGIN = 24;
+                    const CHAIN_GAP = 90;
+                    let stack_y = 0;
+                    const drawn = cascading_chains
+                      .map((chain) => ({ chain, root: build_chain_tree(chain, approvers, language) }))
+                      .filter((entry) => entry.root)
+                      .map((entry) => {
+                        const size = layout_chain_tree(entry.root);
+                        const placed = { ...entry, size, top: stack_y };
+                        stack_y += size.height + CHAIN_GAP;
+                        return placed;
+                      });
+                    const svg_width = drawn.length > 0 ? Math.max(...drawn.map((entry) => entry.size.width)) + MARGIN * 2 : 0;
+                    const svg_height = drawn.length > 0 ? stack_y - CHAIN_GAP + MARGIN * 2 : 0;
+                    const rendered = [];
+                    drawn.forEach((entry, chain_index) => {
+                      // Each chain's tree centered within the drawing's full width
+                      const ox = MARGIN + (svg_width - MARGIN * 2 - entry.size.width) / 2;
+                      const oy = MARGIN + entry.top;
+                      const walk = (node, path) => {
+                        const is_root = node.value === null;
+                        rendered.push(
+                          <g key={`${chain_index}-${path}`}>
+                            <rect
+                              x={ox + node.x}
+                              y={oy + node.y}
+                              width={node.w}
+                              height={node.h}
+                              fill={is_root ? PRIMARY : WHITE}
+                              stroke={is_root ? PRIMARY : BORDER}
+                              strokeWidth="1.5"
+                            />
+                            {node.header_lines.map((line, line_index) => (
+                              <text
+                                key={`h${line_index}`}
+                                x={ox + node.x + HIER_PAD}
+                                y={oy + node.y + HIER_PAD + HIER_LINE_H * line_index + 12}
+                                fontSize="12"
+                                fontFamily={fontHeading}
+                                fontWeight={is_root || line_index === 1 ? "700" : "400"}
+                                fill={is_root ? WHITE : line_index === 0 && node.header_lines.length > 1 ? GRAY : NEUTRAL_DARK}
+                              >
+                                {line}
+                              </text>
+                            ))}
+                            {node.approver_lines.map((line, line_index) => (
+                              <text
+                                key={`a${line_index}`}
+                                x={ox + node.x + HIER_PAD}
+                                y={oy + node.y + HIER_PAD + HIER_LINE_H * (node.header_lines.length + line_index) + 12}
+                                fontSize="12"
+                                fontFamily={fontHeading}
+                                fill={PRIMARY}
+                              >
+                                {line}
+                              </text>
+                            ))}
+                          </g>,
+                        );
+                        node.children.forEach((child, child_index) => {
+                          const fx = ox + node.x + node.w / 2;
+                          const fy = oy + node.y + node.h;
+                          const tx = ox + child.x + child.w / 2;
+                          const ty = oy + child.y;
+                          const mid_y = (fy + ty) / 2;
+                          rendered.unshift(
+                            <path
+                              key={`${chain_index}-${path}-e${child_index}`}
+                              d={`M ${fx} ${fy} V ${mid_y} H ${tx} V ${ty}`}
+                              fill="none"
+                              stroke={GRAY}
+                              strokeWidth="1.5"
+                            />,
+                          );
+                          walk(child, `${path}.${child_index}`);
+                        });
+                      };
+                      walk(entry.root, "r");
+                    });
+                    return (
+                      <div className="fixed inset-0" style={{ backgroundColor: WHITE, zIndex: 9999999, overflow: "auto" }}>
+                        {/* Header stays put while the drawing scrolls; close at the right */}
+                        <div
+                          className="flex items-center justify-between gap-2 px-4 py-3 sticky top-0"
+                          style={{ backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}`, zIndex: 1 }}
+                        >
+                          <p className="text-sm font-bold uppercase" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                            {translate("DCS_APPROVAL_VIEW_HIERARCHY")}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => set_show_hierarchy(false)}
+                            className="p-1 text-2xl leading-none"
+                            style={{ color: NEUTRAL_DARK, cursor: "pointer" }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                        {drawn.length > 0 ? (
+                          <svg width={svg_width} height={svg_height} style={{ display: "block", margin: "0 auto" }}>
+                            {rendered}
+                          </svg>
+                        ) : (
+                          <p className="p-6 text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>
+                            {translate("DCS_APPROVAL_GROUP_EMPTY")}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Pop-up: everyone in the clicked set with ALL their picks - "name
                       (South, North)". 80% wide, at most 70% tall; only the LIST scrolls,
