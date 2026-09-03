@@ -14,10 +14,12 @@ export default function FormApprovalPage() {
   const [approval_config, setApprovalConfig] = useState(form.approval_config || null);
   const [schema_errors, setSchemaErrors] = useState([]);
   const { resolveFullFieldOptions } = useLazyFieldResolvers("form", form_group_id, get_form_field_options);
+  const [is_dirty, setIsDirty] = useState(false);
 
   useEffect(() => {
+    if (is_dirty) return;
     setApprovalConfig(form.approval_config || null);
-  }, [form]);
+  }, [form, is_dirty]);
 
   const handle_save_approvers = async (config) => {
     const frontend_check = validate_form_schema({ fields: form.schema.fields });
@@ -44,6 +46,7 @@ export default function FormApprovalPage() {
           fields={form.schema.fields}
           onSave={handle_save_approvers}
           resolveFullFieldOptions={resolveFullFieldOptions}
+          onDirtyChange={setIsDirty}
         />
       </div>
     </div>

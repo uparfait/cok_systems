@@ -36,7 +36,7 @@ export default function FormDetailPage() {
   const { ref, isVisible } = useScrollReveal();
   const [is_panel_busy, setIsPanelBusy] = useState(false);
 
-  const { data: form, loading, refresh } = useSilentPolling(() => get_form(form_group_id).then((res) => res.data), 10000, [form_group_id]);
+  const { data: form, loading, refresh } = useSilentPolling(() => get_form(form_group_id).then((res) => res.data), 999999999, [form_group_id]);
 
   // Same guard as ProjectDetailPage: useSilentPolling only flips `loading`
   // on its very first-ever fetch, so switching from one form to a
