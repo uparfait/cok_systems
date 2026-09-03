@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import { FiSearch, FiX, FiChevronLeft, FiChevronRight, FiClock, FiMapPin, FiCalendar, FiUser, FiMail, FiPhone, FiUsers } from "react-icons/fi";
 import SpiralLoader from "../components/SpiralLoader";
@@ -43,6 +43,7 @@ const monthParam = (y, m) => `${y}-${String(m + 1).padStart(2, "0")}-01`;
 export default function CalendarPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const userEmail = (user?.email || "").toLowerCase().trim();
 
   const now = new Date();
@@ -56,14 +57,7 @@ export default function CalendarPage() {
   const [eventMinutes, setEventMinutes] = useState([]);
   const [minutesLoading, setMinutesLoading] = useState(false);
   const [detailsEventId, setDetailsEventId] = useState(null);
-
-  // Search
-  const [search, setSearch] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
-  const [poolLoading, setPoolLoading] = useState(false);
-  const [poolVersion, setPoolVersion] = useState(0);
-  const [searchForced, setSearchForced] = useState(false);
-  const poolRef = useRef(null);
+  const [activeHash, setActiveHash] = useState(window.location.hash || "");
 
   const isOrganizer = useCallback(
     (e) => !!userEmail && (e.eventOrganizer?.email || "").toLowerCase().trim() === userEmail,
@@ -79,13 +73,78 @@ export default function CalendarPage() {
   );
   const canOpen = useCallback((e) => e.isInvited || e.isMinutesTaker || isOrganizerLike(e), [isOrganizerLike]);
 
+  // Handle hash on page load/refresh - restore event from URL
+  useEffect(() => {
+    const hash = window.location.hash;
+    const pathname = window.location.pathname;
+    if (!hash) return;
+
+    // Check if we're on the calendar page
+    if (!pathname.includes('/calendar')) return;
+
+    // Remove the # prefix
+    const hashValue = hash.replace(/^#\//, '').replace(/^#/, '');
+
+    // Check if it's an event ID (UUID format or similar)
+    if (hashValue && !hashValue.startsWith('minutes') && !hashValue.startsWith('agendafull') && !hashValue.startsWith('agendaedit') && !hashValue.startsWith('add-co-organizer') && !hashValue.startsWith('qrcode-full') && !hashValue.startsWith('event-actions-follow-ups') && !hashValue.startsWith('view-attendance') && !hashValue.startsWith('designate')) {
+      // It's an event ID - find and open the event
+      const timer = setTimeout(() => {
+        const allEvents = events.flat();
+        const foundEvent = allEvents.find(ev => ev.eventSpecialId === hashValue);
+        if (foundEvent) {
+          if (isOrganizerLike(foundEvent)) {
+            setDetailsEventId(foundEvent.eventSpecialId);
+          } else {
+            setSelectedEvent(foundEvent);
+          }
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [events, isOrganizerLike]);
+
+  // Handle browser back/forward navigation via hash
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (!hash) {
+        setSelectedEvent(null);
+        setDetailsEventId(null);
+        setActiveHash("");
+      }
+      setActiveHash(hash);
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  // Search
+  const [search, setSearch] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [poolLoading, setPoolLoading] = useState(false);
+  const [poolVersion, setPoolVersion] = useState(0);
+  const [searchForced, setSearchForced] = useState(false);
+  const poolRef = useRef(null);
+
   const openEvent = useCallback((e) => {
     if (isOrganizerLike(e)) {
       setDetailsEventId(e.eventSpecialId);
+      window.history.pushState(null, "", `/calendar/#${e.eventSpecialId}`);
     } else {
       setSelectedEvent(e);
+      window.history.pushState(null, "", `/calendar/#${e.eventSpecialId}`);
     }
   }, [isOrganizerLike]);
+
+  const closeEvent = useCallback(() => {
+    setSelectedEvent(null);
+    setDetailsEventId(null);
+    window.history.pushState(null, "", "/calendar");
+  }, []);
+
+  const updateHash = useCallback((hash) => {
+    window.history.pushState(null, "", hash);
+  }, []);
 
   useEffect(() => {
     if (!selectedEvent || !(isOrganizerLike(selectedEvent) || selectedEvent.isMinutesTaker)) {
@@ -135,6 +194,20 @@ export default function CalendarPage() {
     const interval = setInterval(() => fetchMonth(year, month, true), 10000);
     return () => clearInterval(interval);
   }, [year, month, fetchMonth]);
+
+  // Handle browser back/forward navigation via hash
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (!hash) {
+        setSelectedEvent(null);
+        setDetailsEventId(null);
+        setActiveHash("");
+      }
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   // ±6-month pool, loaded once, used only for the search suggestions
   const loadSearchPool = useCallback(async () => {
@@ -510,7 +583,7 @@ export default function CalendarPage() {
                   )}
                 </div>
               </div>
-              <button onClick={() => setSelectedEvent(null)} className="p-1 cursor-pointer shrink-0 text-white border border-white hover:bg-white hover:text-[#056daa] transition-colors">
+              <button onClick={() => { setSelectedEvent(null); setActiveHash(""); window.history.pushState(null, "", "/calendar"); }} className="p-1 cursor-pointer shrink-0 text-white border border-white hover:bg-white hover:text-[#056daa] transition-colors">
                 <FiX className="w-4 h-4" />
               </button>
             </div>
@@ -586,14 +659,17 @@ export default function CalendarPage() {
                           <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#555555", fontFamily: fontHeading }}>
                             {m.meetingDate ? new Date(m.meetingDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Minutes"}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => openMinutes(m)}
-                            className="cok-btn-outlined shrink-0"
-                            style={{ padding: "0.35rem 0.9rem" }}
-                          >
-                            {(isTakerOfMinutes(m) || selectedEvent.isMinutesTaker) ? "Edit" : "View"}
-                          </button>
+                           <button
+                              type="button"
+                              onClick={() => {
+                                updateHash(`/calendar/#minutes`);
+                                openMinutes(m);
+                              }}
+                              className="cok-btn-outlined shrink-0"
+                              style={{ padding: "0.35rem 0.9rem" }}
+                            >
+                              {(isTakerOfMinutes(m) || selectedEvent.isMinutesTaker) ? "Edit" : "View"}
+                            </button>
                         </div>
                       ))}
                     </div>
@@ -624,7 +700,7 @@ export default function CalendarPage() {
             <p className="text-sm font-bold text-white truncate" style={{ fontFamily: fontHeading }}>Event Details</p>
             <button
               type="button"
-              onClick={() => setDetailsEventId(null)}
+              onClick={() => { setDetailsEventId(null); setActiveHash(""); window.history.pushState(null, "", "/calendar"); }}
               className="cok-btn-outlined-reverse"
               style={{ padding: "0.4rem 0.8rem" }}
             >

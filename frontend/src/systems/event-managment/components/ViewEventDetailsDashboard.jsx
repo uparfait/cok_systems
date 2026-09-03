@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiXCircle, FiUsers, FiMail, FiX, FiRefreshCw } from 'react-icons/fi';
+import { FiXCircle, FiUsers, FiMail, FiX, FiRefreshCw, FiLink, FiCopy } from 'react-icons/fi';
 import axios from 'axios';
 import SpiralLoader from './SpiralLoader';
 import EventDetailHeader from './sub-components/EventDetailHeader';
@@ -206,6 +206,50 @@ export default function ViewEventDetailsDashboard() {
           setEvent(updatedEvent);
           if (updatedEvent.isCancelled) setEventMode('past');
         }} />
+
+        {/* Virtual Link */}
+        {event.virtualLink && (
+          <div className="bg-white overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+            <div className="px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
+              <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2" style={sectionTitleStyle}>
+                <FiLink className="w-4 h-4" />
+                Virtual Link
+                {event.eventFormat === 'Virtual' && (
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-blue-50 text-blue-700">Virtual Event</span>
+                )}
+              </h3>
+            </div>
+            <div className="px-4 sm:px-6 py-4">
+              <div className="flex items-center justify-between gap-3 p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                <div className="min-w-0 flex-1">
+                  <a
+                    href={event.virtualLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium hover:underline break-all"
+                    style={{ color: PRIMARY, fontFamily: fontHeading }}
+                  >
+                    {event.virtualLink}
+                  </a>
+                  {event.virtualDescription && (
+                    <p className="text-xs mt-1 text-gray-600">{event.virtualDescription}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(event.virtualLink);
+                    showSuccess('Link copied to clipboard');
+                  }}
+                  className="shrink-0 p-2 border border-gray-300 hover:bg-gray-100 transition-colors cursor-pointer"
+                  style={{ color: PRIMARY }}
+                  title="Copy link"
+                >
+                  <FiCopy className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Invited People */}
         <div className="bg-white overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>

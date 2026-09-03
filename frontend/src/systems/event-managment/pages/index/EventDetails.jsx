@@ -88,6 +88,41 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [activeSection, setActiveSection] = useState(null);
 
+  // Hash-based navigation: map hash to section
+  const SECTION_HASH_MAP = {
+    "view-attendance": "attendees",
+    "minutes": "editor",
+    "designate": "designate",
+    "event-actions-follow-ups": "actions",
+  };
+
+  // Handle hash changes to show appropriate section
+  useEffect(() => {
+    const hash = window.location.hash.replace(/^#\//, '').replace(/^#/, '');
+    if (hash && SECTION_HASH_MAP[hash]) {
+      setActiveSection(SECTION_HASH_MAP[hash]);
+    }
+  }, []);
+
+  // Handle browser back/forward
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace(/^#\//, '').replace(/^#/, '');
+      if (!hash) {
+        setActiveSection(null);
+        setIsQrMaximized(false);
+      } else if (SECTION_HASH_MAP[hash]) {
+        setActiveSection(SECTION_HASH_MAP[hash]);
+        setIsQrMaximized(false);
+      } else if (hash === "qrcode-full") {
+        setIsQrMaximized(true);
+        setActiveSection(null);
+      }
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
   const activeEvent = contextActiveEvent || localEvent;
   const now = new Date();
   const isEnded = !!activeEvent && (
@@ -420,12 +455,18 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
 
       {overlayEventId && activeSection === "editor" && (
         <div className="fixed inset-0" style={{ zIndex: 100000000 }}>
-          <ShowEditor overlayEventId={eventSpecialId} onCloseOverride={() => setActiveSection(null)} />
+          <ShowEditor overlayEventId={eventSpecialId} onCloseOverride={() => {
+            setActiveSection(null);
+            window.history.pushState(null, "", "/calendar");
+          }} />
         </div>
       )}
 
       {overlayEventId && activeSection && activeSection !== "editor" && (
-        <SectionOverlay title={SECTION_TITLES[activeSection] || ""} onClose={() => setActiveSection(null)}>
+        <SectionOverlay title={SECTION_TITLES[activeSection] || ""} onClose={() => {
+          setActiveSection(null);
+          window.history.pushState(null, "", "/calendar");
+        }}>
           {activeSection === "attendees" && <AttendeesList overlayEventId={eventSpecialId} embedded />}
           {activeSection === "designate" && <DesignateMinutes overlayEventId={eventSpecialId} />}
           {activeSection === "actions" && <EventActionsPage overlayEventId={eventSpecialId} />}

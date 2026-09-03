@@ -157,6 +157,11 @@ const pastEventSchema = new mongoose.Schema(
             message: "Description cannot be empty if provided",
           },
         },
+        presenter: {
+          name: { type: String, trim: true, default: "" },
+          email: { type: String, trim: true, default: "" },
+          role: { type: String, trim: true, default: "" },
+        },
       },
     ],
     expectedAudience: {

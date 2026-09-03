@@ -4,7 +4,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FiCheckCircle, FiCalendar, FiX, FiUser, FiMail, FiPhone, FiMapPin } from "react-icons/fi";
 
-import ActivityAgenda from "../../components/sub-components/ActivityAgenda";
 import EventFormatFields from "../../components/sub-components/EventFormatFields";
 import TimeInput24 from "../../components/sub-components/TimeInput24";
 import DashboardCalendar from "../dashboard/components/DashboardCalendar";
@@ -31,7 +30,7 @@ const fontHeading = "'Montserrat', sans-serif";
 
 const buildSteps = (eventMeetingType) => [
   { step: 1, label: `${eventMeetingType === "meet" ? "Meeting" : "Event"} Info` }, { step: 2, label: "Organizer" },
-  { step: 3, label: "Schedule" }, { step: 4, label: "Location" }, { step: 5, label: "Agenda" },
+  { step: 3, label: "Schedule" }, { step: 4, label: "Location" },
 ];
 
 const labelStyle = {
@@ -43,9 +42,7 @@ const labelStyle = {
 const inputClassName = "w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base";
 
 function CreateEventStepper({ currentStep, eventMeetingType, onStepClick, completedSteps }) {
-  const showAgenda = eventMeetingType === "meet";
   const steps = buildSteps(eventMeetingType);
-  const activeSteps = showAgenda ? steps : steps.filter((s) => s.step < 5);
   const scrollRef = useRef(null);
   const stepRefs = useRef({});
 
@@ -56,7 +53,7 @@ function CreateEventStepper({ currentStep, eventMeetingType, onStepClick, comple
       const scrollLeft = el.offsetLeft - (container.clientWidth - el.clientWidth) / 2;
       container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
     }
-  }, [currentStep, activeSteps.length]);
+  }, [currentStep, steps.length]);
 
   return (
     <div
@@ -64,7 +61,7 @@ function CreateEventStepper({ currentStep, eventMeetingType, onStepClick, comple
       className="cok-stepper-scroll flex items-center justify-start sm:justify-center gap-1 sm:gap-0 overflow-x-auto touch-pan-x px-3 sm:px-6 py-3"
       style={{ backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}`, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}
     >
-      {activeSteps.map((s, idx) => {
+      {steps.map((s, idx) => {
         const done = currentStep > s.step;
         const active = currentStep === s.step;
         const canClick = completedSteps.includes(s.step) || done;
@@ -79,7 +76,7 @@ function CreateEventStepper({ currentStep, eventMeetingType, onStepClick, comple
               <span className="block text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap mt-1"
                 style={{ color: done ? SUCCESS : active ? PRIMARY : '#9E9E9E', fontFamily: fontHeading }}>{s.label}</span>
             </button>
-            {idx < activeSteps.length - 1 && (
+            {idx < steps.length - 1 && (
               <div className="h-0.5 w-4 sm:w-12 mx-1 mb-4 transition-all duration-300"
                 style={{ backgroundColor: currentStep > s.step ? SUCCESS : BORDER }} />
             )}
@@ -111,15 +108,13 @@ export default function BookNow() {
 
   const eventMeetingType = urlType || "event";
   const typeWord = eventMeetingType === "meet" ? "meeting" : "event";
-  const showAgenda = eventMeetingType === "meet";
-  const maxSteps = showAgenda ? 5 : 4;
+  const maxSteps = 4;
 
   const [form, setForm] = useState({
     eventName: "", room: "", description: "", eventType: "",
     eventFormat: "Physical", virtualLink: "", virtualDescription: "",
     organizerNames: "", organizerEmail: "", organizerPhone: "", organizerInstitution: "",
     eventDate: "", fromTime: "", toTime: "", audience: "",
-    agenda: [{ fromTime: "", toTime: "", title: "", description: "" }],
   });
 
   const computeSchedule = (snapshot = form) => {
@@ -314,9 +309,6 @@ export default function BookNow() {
         startTime: start ? start.toISOString() : null,
         endTime: end ? end.toISOString() : null,
         expectedAudience: Number(form.audience),
-        activityAgenda: showAgenda
-          ? form.agenda.filter((a) => a.title?.trim() || a.description?.trim() || a.fromTime?.trim() || a.toTime?.trim())
-          : [],
       };
       const res = await axios.post(`${BASE_URL}/booking-requests`, payload);
       if (res.data.success) {
@@ -553,22 +545,7 @@ export default function BookNow() {
                   />
                 )}
                 {fieldErrors.room && <p className="text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldErrors.room}</p>}
-              </div>
-            )}
-
-            {step === 5 && showAgenda && (
-              <ActivityAgenda
-                agenda={form.agenda}
-                onChange={(agenda) => setForm((prev) => ({ ...prev, agenda }))}
-                eventStartTime={form.fromTime || null}
-                eventEndTime={form.toTime || null}
-              />
-            )}
-            {step === 5 && !showAgenda && (
-              <div className="p-4 text-center" style={{ backgroundColor: '#E3F2FD', border: `1px solid ${BORDER}` }}>
-                <p className="text-sm font-medium" style={{ color: PRIMARY, fontFamily: fontHeading }}>No agenda required</p>
-                <p className="text-xs mt-1" style={{ color: '#9E9E9E', fontFamily: fontHeading }}>Events do not require a meeting agenda.</p>
-              </div>
+               </div>
             )}
 
             <div className="mt-2" style={{ borderTop: `1px solid ${BORDER}`, paddingTop: '20px' }}>

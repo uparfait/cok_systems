@@ -187,8 +187,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
         path: `/${slug}/booking-requests`,
         icon: 'FiClipboard',
         children: [
-          { id: 'all-requests', label: 'All Requests', path: `/${slug}/booking-requests/all`, icon: 'FiList' },
-          { id: 'other-requests', label: 'Other Requests', path: `/${slug}/booking-requests/water`, icon: 'FiDroplet' }
+          { id: 'all-requests', label: 'All Requests', path: `/${slug}/booking-requests/all`, icon: 'FiList' }
         ]
       },
       { id: 'dcs', label: 'DCS', path: `/dcs-system`, icon: 'FiDatabase' },

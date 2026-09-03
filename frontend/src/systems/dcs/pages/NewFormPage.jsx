@@ -6,12 +6,8 @@ import { create_form } from "../services/formsService.js";
 import DcFormBuilderSection from "../builder/DcFormBuilderSection.jsx";
 import ApprovalFlowSection, { is_approval_config_complete } from "../builder/ApprovalFlowSection.jsx";
 import DcsFormNameField from "../components/DcsFormNameField.jsx";
+import { validate_form_schema } from "../builder/validateSchema.js";
 
-/**
- * Dedicated page for building a brand new form inside an existing project,
- * kept separate from the forms list so the list itself only ever shows
- * links.
- */
 export default function NewFormPage() {
   const { project_id } = useParams();
   const { translate } = useDcsLanguage();
@@ -23,13 +19,25 @@ export default function NewFormPage() {
   const [approval_config, setApprovalConfig] = useState(null);
   const [publishing, setPublishing] = useState(false);
   const [schema_errors, setSchemaErrors] = useState([]);
+  const [validation_result, setValidationResult] = useState({ valid: true, errors: [] });
 
   const handle_fields_change = (next_fields) => {
     setSchemaErrors([]);
     setFields(next_fields);
   };
 
+  const handle_validation_change = (result) => {
+    setValidationResult(result);
+  };
+
   const handle_publish = async (schema) => {
+    const frontend_check = validate_form_schema(schema);
+    if (!frontend_check.valid) {
+      setSchemaErrors(frontend_check.errors);
+      showError(translate("DCS_SCHEMA_ERROR_BANNER"));
+      return false;
+    }
+
     if (!is_approval_config_complete(approval_config)) {
       showError(translate("DCS_APPROVAL_CONFIG_INCOMPLETE"));
       return false;
@@ -62,6 +70,7 @@ export default function NewFormPage() {
           onPublish={handle_publish}
           publishing={publishing}
           schemaErrors={schema_errors}
+          onValidationChange={handle_validation_change}
         />
         <ApprovalFlowSection value={approval_config} onChange={setApprovalConfig} fields={fields} />
       </div>

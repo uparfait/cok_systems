@@ -148,7 +148,9 @@ async function verifyOTP(req, res, next) {
 
       return res.status(400).json({
         status: false,
-        error: "Invalid TOTP",
+        error: attempts >= MAX_TOTP_ATTEMPTS 
+          ? `Account locked for ${TOTP_LOCKOUT_MINUTES} minutes due to too many failed attempts.`
+          : `TOTP verification failed. You have ${MAX_TOTP_ATTEMPTS - attempts} attempts remaining.`,
         message: attempts >= MAX_TOTP_ATTEMPTS 
           ? `Account locked for ${TOTP_LOCKOUT_MINUTES} minutes due to too many failed attempts.`
           : `TOTP verification failed. You have ${MAX_TOTP_ATTEMPTS - attempts} attempts remaining.`,
