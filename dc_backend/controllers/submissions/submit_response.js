@@ -62,7 +62,9 @@ async function submit_response(req, res) {
     }
 
     // The submission's answered location names resolve to its location_id chain, which picks the approvers responsible for it.
-    const location_chain = form_version.approval_config ? await resolve_location_chain(validation_result.resolved_data) : [];
+    const location_chain = form_version.approval_config && form_version.approval_config.enabled === true
+      ? await resolve_location_chain(validation_result.resolved_data)
+      : [];
 
     const submission = await submissions_model.create_submission({
       form_group_id,

@@ -81,7 +81,14 @@ function validate_approval_config(config) {
 
 /** Reduces a raw approval_config to its exact storage shape, or null when the feature is off. */
 function normalize_approval_config(config) {
-  if (!config || config.enabled !== true) return null;
+  if (!config) return null;
+  if (config.enabled !== true) {
+    // Feature is off but preserve approvers so they aren't lost when re-enabling.
+    return {
+      enabled: false,
+      approvers: Array.isArray(config.approvers) ? config.approvers : [],
+    };
+  }
   if (is_legacy_config(config)) {
     return {
       enabled: true,

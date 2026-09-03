@@ -73,7 +73,14 @@ const labelStyle = {
 };
 const inputClassName = "w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm";
 
-// Client-side mirror of the backend's approval_config validation.
+// Optional callback fired when the user starts or stops editing the approval config.
+// Called with true when the user begins making changes (adds/removes approvers,
+// changes conditions, toggles enabled, etc.), and called with false when the config
+// is successfully saved. This is used by the parent FormApprovalPage to prevent
+// auto-refresh from overwriting unsaved edits.
+function onDirtyChange(isDirty) {}
+
+/** Client-side mirror of the backend's approval_config validation. */
 export function is_approval_config_complete(config) {
   if (!config || config.enabled !== true) return true;
   if (!Array.isArray(config.approvers) || config.approvers.length === 0) return false;
@@ -326,7 +333,9 @@ function LocationTrailPicker({ field_key, api_level, value, onChange, language, 
 }
 
 /** Circular avatar-style identity chip reused on every wizard part so rows stay recognizable. */
-function ApproverBadge({ index, name, translate }) {
+function ApproverBadge({ index, name, role, translate }) {
+  const display = name.trim() || translate("DCS_APPROVAL_APPROVER_TITLE", { number: index + 1 });
+  const full = role && role.trim() ? `${display} (${role.trim()})` : display;
   return (
     <div className="flex items-center gap-2 min-w-0">
       <span
@@ -335,8 +344,8 @@ function ApproverBadge({ index, name, translate }) {
       >
         {index + 1}
       </span>
-      <span className="text-sm font-bold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-        {name.trim() || translate("DCS_APPROVAL_APPROVER_TITLE", { number: index + 1 })}
+      <span className="text-sm font-bold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }} title={full}>
+        {full}
       </span>
     </div>
   );
@@ -365,7 +374,11 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
     { step: 3, label: translate("DCS_APPROVAL_STEP_ORDER"), icon: FiMove },
   ];
 
-  const emit = (next) => onChange(next);
+  const emit = (next) => {
+    set_saved(false);
+    onDirtyChange(true);
+    onChange(next);
+  };
   const emit_approvers = (next_approvers) => {
     set_saved(false);
     emit({ enabled: true, approvers: next_approvers });
@@ -373,9 +386,10 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
 
   const handle_toggle = () => {
     if (enabled) {
-      emit(null);
+      emit({ enabled: false, approvers });
     } else {
-      emit({ enabled: true, approvers: [Object.assign({}, EMPTY_APPROVER)] });
+      const next_approvers = approvers.length > 0 ? approvers : [Object.assign({}, EMPTY_APPROVER)];
+      emit({ enabled: true, approvers: next_approvers });
       set_wizard_step(1);
       set_max_visited(1);
       set_show_step_error(false);
@@ -388,26 +402,34 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
     return true;
   };
 
+  const can_go_back = () => wizard_step > 1;
+  const can_go_next = (step) => {
+    if (step === 1) return approvers.length > 0 && approvers.every(people_ok);
+    if (step === 2) return approvers.every(conditions_ok);
+    return true;
+  };
+
   // Persists the approvers through the page's onSave (which updates the form on the server).
   // On the new-form page there is no onSave yet - saving just confirms the flow, which is
   // then stored together with the form when it is published.
   const handle_save = async () => {
-    if (!is_approval_config_complete({ enabled: true, approvers })) {
+    if (enabled && !is_approval_config_complete({ enabled: true, approvers })) {
       set_show_step_error(true);
       return;
     }
     set_show_step_error(false);
     set_saving(true);
     try {
-      if (onSave) await onSave({ enabled: true, approvers });
+      if (onSave) await onSave({ enabled, approvers });
       set_saved(true);
+      onDirtyChange(false);
     } finally {
       set_saving(false);
     }
   };
 
   const go_next = () => {
-    if (!step_valid(wizard_step)) {
+    if (!can_go_next(wizard_step)) {
       set_show_step_error(true);
       return;
     }
@@ -418,6 +440,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
   };
 
   const go_back = () => {
+    if (!can_go_back()) return;
     set_show_step_error(false);
     set_wizard_step((previous) => Math.max(1, previous - 1));
   };
@@ -439,7 +462,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
   };
 
   const remove_approver = (index) => {
-    if (approvers.length <= 1) return;
+    // if (approvers.length <= 1) return;
     emit_approvers(approvers.filter((_, i) => i !== index));
   };
 
@@ -623,11 +646,14 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                   return (
                     <div key={index} className="p-4 space-y-4" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
                       <div className="flex items-center justify-between gap-2">
-                        <ApproverBadge index={index} name={approver.name} translate={translate} />
-                        {approvers.length > 1 && (
+                        <ApproverBadge index={index} name={approver.name} role={approver.role} translate={translate} />
+                        {true && (
                           <button type="button" onClick={() => remove_approver(index)}
                             className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide"
-                            style={{ color: DANGER, fontFamily: fontHeading }}>
+                            style={{ color: DANGER, fontFamily: fontHeading, cursor: "pointer" }}
+                            onMouseOver={(e) => e.target.style.textDecoration = "underline"}
+                            onMouseOut={(e) => e.target.style.textDecoration = "none"}
+                          >
                             <FiTrash2 className="w-3.5 h-3.5" /> {translate("DCS_APPROVAL_REMOVE_APPROVER")}
                           </button>
                         )}
@@ -688,7 +714,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                   const hidden_ids = hidden_condition_field_ids(conditions);
                   return (
                     <div key={index} className="p-4 space-y-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
-                      <ApproverBadge index={index} name={approver.name} translate={translate} />
+                      <ApproverBadge index={index} name={approver.name} role={approver.role} translate={translate} />
                       {conditions.map((condition, condition_index) => {
                         // Ancestor conditions pinned by a trail pick stay data-only.
                         if (hidden_ids.has(condition.field_id)) return null;
@@ -811,7 +837,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2 min-w-0">
                           <FiMove className="w-4 h-4 shrink-0" style={{ color: GRAY }} />
-                          <ApproverBadge index={index} name={approver.name} translate={translate} />
+                          <ApproverBadge index={index} name={approver.name} role={approver.role} translate={translate} />
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                           {level && approver.location_name ? (
@@ -858,7 +884,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
               </>
             )}
 
-            {show_step_error && (!step_valid(wizard_step) || (wizard_step === 3 && !is_approval_config_complete({ enabled: true, approvers }))) && (
+{show_step_error && (!step_valid(wizard_step) || (wizard_step === 3 && !is_approval_config_complete({ enabled: true, approvers }))) && (
               <div className="p-3" style={{ backgroundColor: "#FDECEA", border: `1px solid ${DANGER}` }}>
                 <p className="text-sm" style={{ color: DANGER, fontFamily: fontHeading }}>
                   {translate(wizard_step === 3 ? "DCS_APPROVAL_CONFIG_INCOMPLETE" : "DCS_APPROVAL_STEP_INCOMPLETE")}
@@ -866,40 +892,68 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
               </div>
             )}
 
-            {/* Navigation - same button treatment as the booking form */}
-            <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: "16px" }}>
-              <div className="flex items-stretch gap-3">
-                {wizard_step > 1 && (
-                  <button type="button" onClick={go_back} className="cok-btn-outlined shrink-0" style={{ fontFamily: fontHeading }}>
-                    {translate("DCS_APPROVAL_BACK")}
-                  </button>
-                )}
-                {wizard_step < 3 ? (
-                  <button type="button" onClick={go_next} className="cok-btn-primary" style={{ flex: 1, fontFamily: fontHeading }}>
-                    {translate("DCS_APPROVAL_NEXT")}
-                  </button>
-                ) : (
-                  <button type="button" onClick={handle_save} disabled={saving}
-                    className="cok-btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
-                    style={{ flex: 1, fontFamily: fontHeading }}>
-                    {saving ? (
-                      <div className="animate-spin" style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: "transparent", borderRadius: "50%" }} />
-                    ) : (
-                      <><FiCheckCircle style={{ width: 16, height: 16 }} /> {translate("DCS_APPROVAL_SAVE")}</>
-                    )}
-                  </button>
-                )}
+            {/* Navigation - back and next always shown, equal width; save below centered */}
+            <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: "16px", textAlign: "center" }}>
+              <div className="flex items-stretch gap-3 justify-center">
+                <button
+                  type="button"
+                  onClick={go_back}
+                  className="cok-btn-outlined"
+                  style={{ flex: 1, fontFamily: fontHeading, cursor: can_go_back() ? "pointer" : "not-allowed", minWidth: "120px" }}
+                  disabled={!can_go_back()}
+                >
+                  {translate("DCS_APPROVAL_BACK")}
+                </button>
+                <button
+                  type="button"
+                  onClick={wizard_step < 3 ? go_next : undefined}
+                  className="cok-btn-primary"
+                  style={{
+                    flex: 1, fontFamily: fontHeading,
+                    cursor: wizard_step < 3 ? (can_go_next(wizard_step) ? "pointer" : "not-allowed") : "default",
+                    minWidth: "120px",
+                  }}
+                  disabled={wizard_step >= 3 || !can_go_next(wizard_step)}
+                >
+                  {wizard_step < 3 ? translate("DCS_APPROVAL_NEXT") : translate("DCS_APPROVAL_NEXT")}
+                </button>
               </div>
-              {wizard_step === 3 && saved && (
-                <div className="flex items-center justify-center gap-2 py-2 mt-3 text-sm font-semibold"
-                  style={{ color: SUCCESS, fontFamily: fontHeading }}>
-                  <FiCheckCircle className="w-4 h-4" />
-                  {translate(onSave ? "DCS_APPROVAL_SAVED" : "DCS_APPROVAL_WIZARD_READY")}
-                </div>
-              )}
-            </div>
+              {/* Save progress button centered below */}
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={handle_save}
+                  disabled={saving}
+                  className="cok-btn-primary text-sm inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                  style={{ fontFamily: fontHeading, cursor: saving ? "not-allowed" : "pointer" }}
+                >
+                  {saving ? (
+                    <div className="animate-spin" style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: "transparent", borderRadius: "50%" }} />
+                  ) : (
+                    <><FiCheckCircle style={{ width: 16, height: 16 }} /> {translate("DCS_APPROVAL_SAVE")}</>
+                  )}
+                </button>
+              </div>
           </div>
-        </>
+             </div>
+          </>
+      )}
+      {!enabled && onSave && (
+        <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: "16px", paddingBottom: "16px", textAlign: "center" }}>
+          <button
+            type="button"
+            onClick={handle_save}
+            disabled={saving}
+            className="cok-btn-primary text-sm inline-flex items-center justify-center gap-2 disabled:opacity-50"
+            style={{ fontFamily: fontHeading, cursor: saving ? "not-allowed" : "pointer" }}
+          >
+            {saving ? (
+              <div className="animate-spin" style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: "transparent", borderRadius: "50%" }} />
+            ) : (
+              <><FiCheckCircle style={{ width: 16, height: 16 }} /> {translate("DCS_APPROVAL_SAVE")}</>
+            )}
+          </button>
+        </div>
       )}
     </div>
   );
