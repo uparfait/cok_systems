@@ -451,6 +451,7 @@ const en = {
   DCS_ACCESS_EMAIL_LABEL: "Account email",
   DCS_ACCESS_EMAIL_PLACEHOLDER: "Enter an account email",
   DCS_ACCESS_EMAIL_ADDED: "{{name}} was added",
+  DCS_ACCESS_SUGGESTIONS_LABEL: "Matching accounts in the system",
   DCS_ACCESS_CHECKING_EMAIL: "Checking",
   DCS_BTN_ADD: "Add",
   DCS_ACCESS_EMAIL_DUPLICATE: "This person has already been added",

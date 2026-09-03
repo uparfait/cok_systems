@@ -451,6 +451,7 @@ const kn = {
   DCS_ACCESS_EMAIL_LABEL: "Imeyili ya konti",
   DCS_ACCESS_EMAIL_PLACEHOLDER: "Andika imeyili ya konti",
   DCS_ACCESS_EMAIL_ADDED: "{{name}} yongewemo",
+  DCS_ACCESS_SUGGESTIONS_LABEL: "Konti zihuye ziri muri sisitemu",
   DCS_ACCESS_CHECKING_EMAIL: "Kugenzura",
   DCS_BTN_ADD: "Ongeraho",
   DCS_ACCESS_EMAIL_DUPLICATE: "Uyu muntu yamaze kongerwaho",

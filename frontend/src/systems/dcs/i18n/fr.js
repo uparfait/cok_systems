@@ -451,6 +451,7 @@ const fr = {
   DCS_ACCESS_EMAIL_LABEL: "E-mail du compte",
   DCS_ACCESS_EMAIL_PLACEHOLDER: "Saisir l'e-mail d'un compte",
   DCS_ACCESS_EMAIL_ADDED: "{{name}} a été ajouté(e)",
+  DCS_ACCESS_SUGGESTIONS_LABEL: "Comptes correspondants dans le système",
   DCS_ACCESS_CHECKING_EMAIL: "Vérification",
   DCS_BTN_ADD: "Ajouter",
   DCS_ACCESS_EMAIL_DUPLICATE: "Cette personne a déjà été ajoutée",

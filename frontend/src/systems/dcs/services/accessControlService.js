@@ -21,3 +21,11 @@ export function save_project_access(project_id, rules) {
 export function check_access_email(email) {
   return dcs_request("/access-control/check-email", "POST", { email });
 }
+
+/**
+ * Suggests existing accounts whose email or name contains the typed text -
+ * resolves with a list of { user_id, email, full_name }.
+ */
+export function suggest_access_users(query) {
+  return dcs_request("/access-control/suggest-users", "GET", null, { params: { query } });
+}

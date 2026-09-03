@@ -3,7 +3,7 @@ import { useOutletContext } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_forms_by_project } from "../services/formsService.js";
-import { get_project_access, save_project_access, check_access_email } from "../services/accessControlService.js";
+import { get_project_access, save_project_access, check_access_email, suggest_access_users } from "../services/accessControlService.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
@@ -63,6 +63,7 @@ export default function ProjectAccessControlPage() {
   const [email, setEmail] = useState("");
   const [checking_email, setCheckingEmail] = useState(false);
   const [email_error, setEmailError] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
 
   const [saving, setSaving] = useState(false);
   const [is_confirming_empty, setIsConfirmingEmpty] = useState(false);
@@ -95,6 +96,48 @@ export default function ProjectAccessControlPage() {
     };
   }, [project._id]);
 
+  // Suggests existing accounts matching the typed name or email, debounced so we don't query on every keystroke.
+  useEffect(() => {
+    const typed = email.trim();
+    if (typed.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    let is_current = true;
+    const timer = setTimeout(() => {
+      suggest_access_users(typed)
+        .then((response) => {
+          if (!is_current) return;
+          const already_added = new Set(individuals.map((individual) => individual.email.toLowerCase()));
+          setSuggestions((response.data || []).filter((user) => !already_added.has(user.email.toLowerCase())));
+        })
+        .catch(() => is_current && setSuggestions([]));
+    }, 300);
+    return () => {
+      is_current = false;
+      clearTimeout(timer);
+    };
+  }, [email, individuals]);
+
+  const add_individual_grant = (user) => {
+    setIndividuals((current) => [
+      ...current,
+      { user_id: user.user_id, email: user.email, full_name: user.full_name, manage: { ...EMPTY_MANAGE }, all_forms: true, form_group_ids: [] },
+    ]);
+    setEmail("");
+    setSuggestions([]);
+    setEmailError("");
+    showSuccess(translate("DCS_ACCESS_EMAIL_ADDED", { name: user.full_name || user.email }));
+  };
+
+  const handle_pick_suggestion = (user) => {
+    if (individuals.some((individual) => individual.email.toLowerCase() === user.email.toLowerCase())) {
+      setEmailError(translate("DCS_ACCESS_EMAIL_DUPLICATE"));
+      return;
+    }
+    add_individual_grant(user);
+  };
+
   const handle_add_individual = async (event) => {
     event.preventDefault();
     const cleaned_email = email.trim().toLowerCase();
@@ -107,13 +150,7 @@ export default function ProjectAccessControlPage() {
     setCheckingEmail(true);
     try {
       const response = await check_access_email(cleaned_email);
-      const user = response.data;
-      setIndividuals([
-        ...individuals,
-        { user_id: user.user_id, email: user.email, full_name: user.full_name, manage: { ...EMPTY_MANAGE }, all_forms: true, form_group_ids: [] },
-      ]);
-      setEmail("");
-      showSuccess(translate("DCS_ACCESS_EMAIL_ADDED", { name: user.full_name || user.email }));
+      add_individual_grant(response.data);
     } catch (error) {
       setEmailError(error.message || translate("DCS_ERROR_GENERIC"));
     } finally {
@@ -209,18 +246,50 @@ export default function ProjectAccessControlPage() {
             <form onSubmit={handle_add_individual} className="mb-4">
               <label className="cok-auth-label">{translate("DCS_ACCESS_EMAIL_LABEL")}</label>
               <div className="flex flex-col sm:flex-row gap-3 sm:items-stretch">
-                <input
-                  type="email"
-                  className="cok-auth-input w-full sm:flex-1 py-3"
-                  placeholder={translate("DCS_ACCESS_EMAIL_PLACEHOLDER")}
-                  value={email}
-                  onChange={(event) => {
-                    setEmail(event.target.value);
-                    setEmailError("");
-                  }}
-                  disabled={checking_email}
-                  required
-                />
+                <div className="relative w-full sm:flex-1">
+                  <input
+                    type="email"
+                    className="cok-auth-input w-full py-3"
+                    placeholder={translate("DCS_ACCESS_EMAIL_PLACEHOLDER")}
+                    value={email}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      setEmailError("");
+                    }}
+                    onBlur={() => setSuggestions([])}
+                    disabled={checking_email}
+                    required
+                  />
+                  {suggestions.length > 0 && (
+                    <div
+                      className="absolute left-0 right-0 z-10 bg-white border-2 shadow-lg"
+                      style={{ borderColor: "#E0E0E0", top: "100%" }}
+                    >
+                      <p className="px-3 pt-2 pb-1 text-xs font-semibold uppercase" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.5px" }}>
+                        {translate("DCS_ACCESS_SUGGESTIONS_LABEL")}
+                      </p>
+                      {suggestions.map((user) => (
+                        <button
+                          key={user.user_id}
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                          // onMouseDown so the pick lands before the input's blur clears the list
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            handle_pick_suggestion(user);
+                          }}
+                        >
+                          <span className="block text-sm font-semibold truncate" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
+                            {user.full_name || user.email}
+                          </span>
+                          <span className="block text-xs truncate" style={{ color: "#9E9E9E" }}>
+                            {user.email}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {/* cok-btn-primary is width:100% outside Tailwind's layers, so the button is sized by this wrapper */}
                 <div className="w-full sm:w-44 sm:flex-shrink-0">
                   <DcsButtonPrimary type="submit" disabled={checking_email || !email.trim()} style={{ height: "100%" }}>
