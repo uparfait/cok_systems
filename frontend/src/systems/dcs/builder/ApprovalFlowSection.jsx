@@ -3,9 +3,6 @@ import { FiCheckCircle, FiUser, FiFilter, FiMove, FiTrash2, FiPlus, FiShield } f
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_APPROVERS = 20;
-
-const APPROVER_LEVELS = ["VILLAGE", "CELL", "SECTOR", "DISTRICT", "PROVINCE"];
 
 // Choice fields whose condition value comes from a dropdown of the field's own options
 // (a location field's provinces/districts/... included) instead of free text.
@@ -123,6 +120,41 @@ function option_label(option, language) {
   if (label && typeof label === "object") return label[language] || label.en || label.kn || label.fr || String(option.value);
   return label || String(option.value);
 }
+
+/**
+ * The cascading chains among the condition fields - ANY cascade, not just location:
+ * every run of fields linked by parent_field_id (province -> district -> ... as much as
+ * category -> subcategory -> item) becomes one chain, root first, deepest level last.
+ * These chains are what part 3 groups and orders approvers by.
+ */
+function build_cascading_chains(condition_fields) {
+  const by_id = new Map(condition_fields.map((field) => [field.id, field]));
+  // First child wins - a chain is a single linear path, matching how cascades are authored.
+  const child_of = new Map();
+  condition_fields.forEach((field) => {
+    if (field.parent_field_id && by_id.has(field.parent_field_id) && !child_of.has(field.parent_field_id)) {
+      child_of.set(field.parent_field_id, field);
+    }
+  });
+  const chains = [];
+  condition_fields.forEach((field) => {
+    const has_parent = !!(field.parent_field_id && by_id.has(field.parent_field_id));
+    if (has_parent || !child_of.has(field.id)) return; // only the root of a real chain starts one
+    const levels = [field];
+    let current = field;
+    while (child_of.has(current.id)) {
+      current = child_of.get(current.id);
+      levels.push(current);
+    }
+    chains.push({ id: field.id, levels });
+  });
+  return chains;
+}
+
+// Internal key for approvers whose conditions touch no cascading chain. They are NEVER
+// shown as a group and never ordered - they always run with on_reject "continue" (they
+// can't block anything) and are appended after every cascade group in the saved array.
+const NON_CASCADING = "__non_cascading__";
 
 /**
  * Value picker for a condition on a choice field: one dropdown listing every value the
@@ -352,7 +384,7 @@ function ApproverBadge({ index, name, role, translate }) {
 }
 
 // Optional pre-publish step: the form owner defines who must approve each submitted response.
-// Laid out as a booking-form-style wizard: People -> Location -> Conditions -> Order & rules,
+// Laid out as a booking-form-style wizard: People -> Conditions -> Order & rules,
 // with a stepper showing where you are. Approvers sign in the order arranged on the last part.
 export default function ApprovalFlowSection({ value, onChange, fields, onSave, resolveFullFieldOptions }) {
   const { translate, language } = useDcsLanguage();
@@ -366,7 +398,17 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
   const [saving, set_saving] = useState(false);
   // Flips on after a successful save; any later edit turns it back off.
   const [saved, set_saved] = useState(false);
-  const [drag_index, set_drag_index] = useState(null);
+  // Part 3 drags whole level groups - this holds the dragged group's key. A card moves
+  // left/right only among the cards of its OWN cascade.
+  const [drag_group, set_drag_group] = useState(null);
+  // The arranged order of the group cards. Starts as null = the automatic default
+  // (each chain from its LAST CHILD up to the parent, then the general group);
+  // every drag replaces it with the user's own arrangement.
+  const [group_order, set_group_order] = useState(null);
+  // The group whose members pop-up is open (its level-field id), or null.
+  const [popup_group, set_popup_group] = useState(null);
+  // Clicking a card's order number turns it into an input: { key, value } while typing.
+  const [position_edit, set_position_edit] = useState(null);
 
   const STEPS = [
     { step: 1, label: translate("DCS_APPROVAL_STEP_PEOPLE"), icon: FiUser },
@@ -409,6 +451,241 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
     return true;
   };
 
+  // ---------- Part 3: groups by cascading level (any cascade), ordered as cards ----------
+
+  // Every cascading chain among this form's fields (location and non-location alike).
+  const cascading_chains = React.useMemo(() => build_cascading_chains(condition_fields), [condition_fields]);
+
+  const level_field_by_id = React.useMemo(
+    () => new Map(cascading_chains.flatMap((chain) => chain.levels.map((level_field) => [level_field.id, level_field]))),
+    [cascading_chains],
+  );
+  const chain_of_level = React.useMemo(() => {
+    const map = new Map();
+    cascading_chains.forEach((chain) => chain.levels.forEach((level_field) => map.set(level_field.id, chain)));
+    return map;
+  }, [cascading_chains]);
+
+  // The level an approver belongs to: the DEEPEST cascading field their conditions pin
+  // (a village pick beats its hidden ancestor conditions). No cascading condition at
+  // all -> not grouped at all (see NON_CASCADING).
+  const group_key_of = (approver) => {
+    let best = NON_CASCADING;
+    let best_depth = -1;
+    cascading_chains.forEach((chain) => {
+      chain.levels.forEach((level_field, depth) => {
+        const pinned = (approver.conditions || []).some(
+          (condition) => condition.field_id === level_field.id && `${condition.value === undefined || condition.value === null ? "" : condition.value}`.trim(),
+        );
+        if (pinned && depth > best_depth) {
+          best = level_field.id;
+          best_depth = depth;
+        }
+      });
+    });
+    return best;
+  };
+
+  // The automatic default arrangement: each chain from its last child UP to the parent
+  // (village -> cell -> sector -> district -> province), chains in form order. Empty
+  // levels are part of it - they render and sort too. Non-cascading approvers are not
+  // in the map at all.
+  const default_group_order = () => {
+    const keys = [];
+    cascading_chains.forEach((chain) => {
+      [...chain.levels].reverse().forEach((level_field) => keys.push(level_field.id));
+    });
+    return keys;
+  };
+
+  // The displayed order: the user's arrangement where one exists, the default otherwise.
+  // Keys that stopped existing (a field removed) drop out; new ones append.
+  const effective_group_order = () => {
+    const defaults = default_group_order();
+    if (!group_order) return defaults;
+    const order = group_order.filter((key) => defaults.includes(key));
+    defaults.forEach((key) => {
+      if (!order.includes(key)) order.push(key);
+    });
+    return order;
+  };
+
+  // Which approvers (by their global index - the badge numbers of parts 1-2) sit in each group.
+  const group_members = () => {
+    const members = new Map();
+    approvers.forEach((approver, index) => {
+      const key = group_key_of(approver);
+      if (!members.has(key)) members.set(key, []);
+      members.get(key).push(index);
+    });
+    return members;
+  };
+
+  // The approvers array rebuilt to the displayed arrangement, with EVERY member of a
+  // group carrying that group's rules (the first member is the group's reference) -
+  // this is what gets emitted on drag and what gets saved, so a rule set on a card is
+  // guaranteed to be the rule of every person inside it. Non-cascading approvers are
+  // appended after every cascade group with on_reject ALWAYS forced to "continue":
+  // having no cascading condition, they can never stop the flow for the others.
+  const ordered_approvers = (order, members) => {
+    const list = [];
+    order.forEach((key) => {
+      const indices = members.get(key) || [];
+      if (indices.length === 0) return;
+      const lead = approvers[indices[0]];
+      indices.forEach((index) => {
+        const approver = approvers[index];
+        list.push(
+          approver.force === lead.force && approver.on_reject === lead.on_reject
+            ? approver
+            : Object.assign({}, approver, { force: lead.force, on_reject: lead.on_reject }),
+        );
+      });
+    });
+    (members.get(NON_CASCADING) || []).forEach((index) => {
+      const approver = approvers[index];
+      list.push(approver.on_reject === "continue" ? approver : Object.assign({}, approver, { on_reject: "continue" }));
+    });
+    return list;
+  };
+
+  const sync_approvers_to_order = (order) => {
+    const next = ordered_approvers(order, group_members());
+    const changed = next.length !== approvers.length || next.some((approver, i) => approver !== approvers[i]);
+    if (changed) emit_approvers(next);
+  };
+
+  // How many DIFFERENT picks of this level the set covers - e.g. how many distinct
+  // districts the district-level approvers watch between them. This is the number
+  // shown at the top of each card.
+  const unique_group_values = (key, member_indices) => {
+    const values = new Set();
+    member_indices.forEach((index) => {
+      (approvers[index].conditions || []).forEach((condition) => {
+        if (condition.field_id === key && `${condition.value === undefined || condition.value === null ? "" : condition.value}`.trim()) {
+          values.add(String(condition.value));
+        }
+      });
+    });
+    return values;
+  };
+
+  // "name (their picks)" entries for the pop-up - names live ONLY there, never on the
+  // card. ALL of a member's picks at this level are collected (one chose South, another
+  // chose North, one chose both - every value counts and every value shows).
+  const group_member_entries = (key, member_indices) =>
+    member_indices.map((index) => {
+      const approver = approvers[index];
+      const name = approver.name.trim() || translate("DCS_APPROVAL_APPROVER_TITLE", { number: index + 1 });
+      const values = (approver.conditions || [])
+        .filter((entry) => entry.field_id === key && `${entry.value === undefined || entry.value === null ? "" : entry.value}`.trim())
+        .map((entry) => String(entry.value));
+      return { index, name, values };
+    });
+
+  // A rule chosen on a level card is written straight onto every approver in that level.
+  const set_group_rule = (member_indices, key, rule_value) => {
+    emit_approvers(approvers.map((approver, i) => (member_indices.includes(i) ? Object.assign({}, approver, { [key]: rule_value }) : approver)));
+  };
+
+  // Live reordering while dragging, WITHIN one cascade only - with two guards that kill
+  // the swap-back jitter: (1) a card only takes its neighbour's place once the pointer
+  // has crossed that neighbour's MIDPOINT in the travel direction, and (2) a card that
+  // is still gliding (FLIP) is ignored, so sliding under the pointer can't re-trigger
+  // the reverse swap. One drag = one clean swap per crossing.
+  const handle_card_drag_over = (event, target_key) => {
+    event.preventDefault();
+    if (!drag_group || drag_group === target_key) return;
+    if (chain_of_level.get(drag_group) !== chain_of_level.get(target_key)) return; // stay inside the cascade
+    if (animating_keys.current.has(target_key)) return;
+    const order = effective_group_order();
+    const from = order.indexOf(drag_group);
+    const to = order.indexOf(target_key);
+    if (from < 0 || to < 0 || from === to) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const past_midpoint = event.clientX > rect.left + rect.width / 2;
+    if (from < to && !past_midpoint) return; // moving right: cross the middle first
+    if (from > to && past_midpoint) return; // moving left: same, the other way
+    const next = [...order];
+    next.splice(from, 1);
+    next.splice(to, 0, drag_group);
+    set_group_order(next);
+  };
+
+  // Dragging near a row's edge scrolls the row, so cards outside the viewport stay
+  // reachable mid-drag.
+  const handle_row_drag_over = (event) => {
+    event.preventDefault();
+    const container = event.currentTarget;
+    const rect = container.getBoundingClientRect();
+    const EDGE = 56;
+    if (event.clientX < rect.left + EDGE) container.scrollLeft -= 14;
+    else if (event.clientX > rect.right - EDGE) container.scrollLeft += 14;
+  };
+
+  // Typing a number on a card's order badge sends the card straight to that position
+  // WITHIN ITS OWN cascade (clamped to the row), no dragging across a long row needed.
+  const move_group_to_position = (key, desired_one_based) => {
+    const chain = chain_of_level.get(key);
+    if (!chain || !Number.isFinite(desired_one_based)) return;
+    const order = effective_group_order();
+    const chain_ids = new Set(chain.levels.map((level_field) => level_field.id));
+    const row_keys = order.filter((entry) => chain_ids.has(entry));
+    const target_index = Math.max(0, Math.min(row_keys.length - 1, Math.round(desired_one_based) - 1));
+    const rearranged = row_keys.filter((entry) => entry !== key);
+    rearranged.splice(target_index, 0, key);
+    let cursor = 0;
+    const next = order.map((entry) => (chain_ids.has(entry) ? rearranged[cursor++] : entry));
+    set_group_order(next);
+    sync_approvers_to_order(next);
+  };
+
+  const commit_position_edit = () => {
+    if (!position_edit) return;
+    const parsed = parseInt(position_edit.value, 10);
+    if (!Number.isNaN(parsed)) move_group_to_position(position_edit.key, parsed);
+    set_position_edit(null);
+  };
+
+  // Releasing commits whatever arrangement the drag previewed into the approvers array.
+  const handle_drag_end = () => {
+    if (drag_group) sync_approvers_to_order(effective_group_order());
+    set_drag_group(null);
+  };
+
+  // FLIP animation: after every re-render, each card that changed place starts at its
+  // old position (inverted transform, no transition) and glides to the new one. The
+  // dragged card itself snaps (its drag ghost is already the moving visual), and every
+  // gliding card is flagged in animating_keys so drag-over leaves it alone until it
+  // settles - the second half of the anti-jitter fix.
+  const card_refs = React.useRef(new Map());
+  const previous_card_rects = React.useRef(new Map());
+  const animating_keys = React.useRef(new Set());
+  React.useLayoutEffect(() => {
+    const current = new Map();
+    card_refs.current.forEach((element, key) => {
+      if (element) current.set(key, element.getBoundingClientRect());
+    });
+    current.forEach((rect, key) => {
+      const previous = previous_card_rects.current.get(key);
+      const element = card_refs.current.get(key);
+      if (!previous || !element) return;
+      const dx = previous.left - rect.left;
+      const dy = previous.top - rect.top;
+      if (!dx && !dy) return;
+      if (key === drag_group) return;
+      animating_keys.current.add(key);
+      element.style.transition = "none";
+      element.style.transform = `translate(${dx}px, ${dy}px)`;
+      requestAnimationFrame(() => {
+        element.style.transition = "transform 220ms cubic-bezier(0.2, 0, 0, 1)";
+        element.style.transform = "";
+      });
+      window.setTimeout(() => animating_keys.current.delete(key), 240);
+    });
+    previous_card_rects.current = current;
+  });
+
   // Persists the approvers through the page's onSave (which updates the form on the server).
   // On the new-form page there is no onSave yet - saving just confirms the flow, which is
   // then stored together with the form when it is published.
@@ -418,9 +695,16 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
       return;
     }
     set_show_step_error(false);
+    // What is saved always matches the arranged map: groups in the displayed order
+    // (last-child-first by default, even when part 3 was never opened) and every
+    // member carrying its group's rules.
+    const final_approvers = enabled ? ordered_approvers(effective_group_order(), group_members()) : approvers;
+    if (enabled && (final_approvers.length !== approvers.length || final_approvers.some((approver, i) => approver !== approvers[i]))) {
+      onChange({ enabled: true, approvers: final_approvers });
+    }
     set_saving(true);
     try {
-      if (onSave) await onSave({ enabled, approvers });
+      if (onSave) await onSave({ enabled, approvers: final_approvers });
       set_saved(true);
       onDirtyChange(false);
     } finally {
@@ -457,7 +741,6 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
   };
 
   const add_approver = () => {
-    if (approvers.length >= MAX_APPROVERS) return;
     emit_approvers([...approvers, Object.assign({}, EMPTY_APPROVER)]);
   };
 
@@ -549,13 +832,135 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
     handle_approver_change(index, "conditions", conditions.filter((condition, i) => i !== condition_index && !orphaned.has(condition.field_id)));
   };
 
-  const handle_drop = (target_index) => {
-    if (drag_index === null || drag_index === target_index) return;
-    const next = [...approvers];
-    const [moved] = next.splice(drag_index, 1);
-    next.splice(target_index, 0, moved);
-    set_drag_index(null);
-    emit_approvers(next);
+  /**
+   * One group card. Compact, no names, NO inner vertical scrolling ever - and the row
+   * stretches every card to the row's height, so an empty card stands as tall as its
+   * occupied neighbours. The circle is the card's position WITHIN ITS OWN cascade:
+   * click it, type a number, Enter - the card jumps straight to that position. The pill
+   * at the top is how many DIFFERENT picks of this level the set covers; the "total"
+   * line (underlined on hover) opens the pop-up listing everyone with all their picks.
+   */
+  const render_group_card = (key, position, member_indices, draggable) => {
+    const level_field = level_field_by_id.get(key) || null;
+    const empty = member_indices.length === 0;
+    const lead = empty ? null : approvers[member_indices[0]];
+    const unique_count = unique_group_values(key, member_indices).size;
+    const dragging = drag_group === key;
+    const editing_position = !!position_edit && position_edit.key === key;
+    return (
+      <div
+        ref={(element) => {
+          if (element) card_refs.current.set(key, element);
+          else card_refs.current.delete(key);
+        }}
+        draggable={draggable && !editing_position}
+        onDragStart={() => set_drag_group(key)}
+        onDragOver={(event) => handle_card_drag_over(event, key)}
+        onDrop={(event) => event.preventDefault()}
+        onDragEnd={handle_drag_end}
+        className="p-3 space-y-3 shrink-0 w-60 sm:w-64"
+        style={{
+          backgroundColor: dragging ? "#E3F2FD" : empty ? WHITE : NEUTRAL_LIGHT,
+          border: `1px ${empty ? "dashed" : "solid"} ${dragging ? PRIMARY : BORDER}`,
+          opacity: dragging ? 0.6 : 1,
+          cursor: draggable && !editing_position ? "move" : "default",
+          willChange: "transform",
+        }}
+      >
+        {/* Header: position in this cascade (click to type a new one) + level name +
+            unique-picks count */}
+        <div className="flex items-start gap-2 min-w-0">
+          {editing_position ? (
+            <input
+              autoFocus
+              type="number"
+              min={1}
+              value={position_edit.value}
+              onChange={(event) => set_position_edit({ key, value: event.target.value })}
+              onBlur={commit_position_edit}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") commit_position_edit();
+                if (event.key === "Escape") set_position_edit(null);
+              }}
+              className="w-12 shrink-0 cok-auth-input px-1 py-0.5 text-xs text-center"
+              style={{ fontFamily: fontHeading }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => draggable && set_position_edit({ key, value: String(position + 1) })}
+              className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold shrink-0"
+              style={{
+                backgroundColor: empty ? "#E0E0E0" : PRIMARY,
+                color: empty ? GRAY : WHITE,
+                borderRadius: "50%",
+                fontFamily: fontHeading,
+                cursor: draggable ? "pointer" : "default",
+              }}
+            >
+              {position + 1}
+            </button>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold truncate" style={{ color: empty ? GRAY : NEUTRAL_DARK, fontFamily: fontHeading }}>
+              {level_field ? field_label(level_field, language) : ""}
+            </p>
+          </div>
+          <span
+            className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 text-[11px] font-bold shrink-0"
+            style={{ backgroundColor: empty ? "#EEEEEE" : "#E3F2FD", color: empty ? GRAY : PRIMARY, borderRadius: "10px", fontFamily: fontHeading }}
+          >
+            {unique_count}
+          </span>
+          {draggable && <FiMove className="w-4 h-4 shrink-0" style={{ color: GRAY }} />}
+        </div>
+
+        {empty ? (
+          /* No one routed at this level yet - said out loud, never hidden */
+          <p className="text-[11px]" style={{ color: GRAY, fontFamily: fontHeading }}>
+            {translate("DCS_APPROVAL_GROUP_EMPTY")}
+          </p>
+        ) : (
+          <>
+            {/* No names on the card - only the set's total; hover underlines, click opens
+                the pop-up that lists everyone as "name (their pick)". */}
+            <button
+              type="button"
+              onClick={() => set_popup_group(key)}
+              className="text-xs font-semibold hover:underline"
+              style={{ color: PRIMARY, fontFamily: fontHeading, cursor: "pointer" }}
+            >
+              {translate("DCS_APPROVAL_GROUP_TOTAL", { number: member_indices.length })}
+            </button>
+            {/* Rules for the whole level - written onto every approver above */}
+            <div className="space-y-2 pt-2" style={{ borderTop: `1px solid ${BORDER}` }}>
+              <div>
+                <label style={Object.assign({}, labelStyle, { fontSize: "10px", marginBottom: "4px" })}>{translate("DCS_APPROVAL_FORCE_LABEL")}</label>
+                <select
+                  value={lead && lead.force === false ? "off" : "on"}
+                  onChange={(event) => set_group_rule(member_indices, "force", event.target.value === "on")}
+                  className="w-full cok-auth-input pr-3 py-1.5 text-xs"
+                >
+                  <option value="on">{translate("DCS_APPROVAL_FORCE_ON")}</option>
+                  <option value="off">{translate("DCS_APPROVAL_FORCE_OFF")}</option>
+                </select>
+              </div>
+              <div>
+                <label style={Object.assign({}, labelStyle, { fontSize: "10px", marginBottom: "4px" })}>{translate("DCS_APPROVAL_ON_REJECT_LABEL")}</label>
+                <select
+                  value={(lead && lead.on_reject) || "stop"}
+                  onChange={(event) => set_group_rule(member_indices, "on_reject", event.target.value)}
+                  className="w-full cok-auth-input pr-3 py-1.5 text-xs"
+                >
+                  <option value="stop">{translate("DCS_APPROVAL_ON_REJECT_STOP")}</option>
+                  <option value="continue">{translate("DCS_APPROVAL_ON_REJECT_CONTINUE")}</option>
+                </select>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -694,13 +1099,11 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                     </div>
                   );
                 })}
-                {approvers.length < MAX_APPROVERS && (
-                  <button type="button" onClick={add_approver}
-                    className="w-full py-3 text-sm font-semibold uppercase tracking-wide inline-flex items-center justify-center gap-2"
-                    style={{ color: PRIMARY, border: `1px dashed ${PRIMARY}`, fontFamily: fontHeading, backgroundColor: WHITE }}>
-                    <FiPlus className="w-4 h-4" /> {translate("DCS_APPROVAL_ADD_APPROVER")}
-                  </button>
-                )}
+                <button type="button" onClick={add_approver}
+                  className="w-full py-3 text-sm font-semibold uppercase tracking-wide inline-flex items-center justify-center gap-2"
+                  style={{ color: PRIMARY, border: `1px dashed ${PRIMARY}`, fontFamily: fontHeading, backgroundColor: WHITE }}>
+                  <FiPlus className="w-4 h-4" /> {translate("DCS_APPROVAL_ADD_APPROVER")}
+                </button>
               </>
             )}
 
@@ -813,76 +1216,99 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
               </>
             )}
 
-            {/* Part 3 - drag to order, force and on-reject rules */}
-            {wizard_step === 3 && (
-              <>
-                <p className="text-xs" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_APPROVAL_DRAG_HINT")}</p>
-                {approvers.map((approver, index) => {
-                  const level = APPROVER_LEVELS.includes(approver.level) ? approver.level : "";
-                  const conditions = approver.conditions || [];
-                  return (
-                    <div
-                      key={index}
-                      draggable
-                      onDragStart={() => set_drag_index(index)}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={() => handle_drop(index)}
-                      onDragEnd={() => set_drag_index(null)}
-                      className="p-4 space-y-3 cursor-move"
-                      style={{
-                        backgroundColor: drag_index === index ? "#E3F2FD" : NEUTRAL_LIGHT,
-                        border: `1px solid ${drag_index === index ? PRIMARY : BORDER}`,
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <FiMove className="w-4 h-4 shrink-0" style={{ color: GRAY }} />
-                          <ApproverBadge index={index} name={approver.name} role={approver.role} translate={translate} />
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {level && approver.location_name ? (
-                            <span className="text-xs font-semibold px-2 py-0.5" style={{ color: PRIMARY, backgroundColor: "#E3F2FD", fontFamily: fontHeading }}>
-                              {translate(`DCS_APPROVAL_LEVEL_${level}`)} - {approver.location_name}
-                            </span>
-                          ) : null}
-                          {conditions.length > 0 && (
-                            <span className="text-xs font-semibold px-2 py-0.5 inline-flex items-center gap-1"
-                              style={{ color: "#795548", backgroundColor: "#FFF3E0", fontFamily: fontHeading }}>
-                              {/* Hidden trail-pinned ancestors don't inflate the count */}
-                              <FiFilter className="w-3 h-3" /> {conditions.filter((condition) => !hidden_condition_field_ids(conditions).has(condition.field_id)).length}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label style={labelStyle}>{translate("DCS_APPROVAL_FORCE_LABEL")}</label>
-                          <select
-                            value={approver.force === false ? "off" : "on"}
-                            onChange={(event) => handle_approver_change(index, "force", event.target.value === "on")}
-                            className={inputClassName}
-                          >
-                            <option value="on">{translate("DCS_APPROVAL_FORCE_ON")}</option>
-                            <option value="off">{translate("DCS_APPROVAL_FORCE_OFF")}</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label style={labelStyle}>{translate("DCS_APPROVAL_ON_REJECT_LABEL")}</label>
-                          <select
-                            value={approver.on_reject}
-                            onChange={(event) => handle_approver_change(index, "on_reject", event.target.value)}
-                            className={inputClassName}
-                          >
-                            <option value="stop">{translate("DCS_APPROVAL_ON_REJECT_STOP")}</option>
-                            <option value="continue">{translate("DCS_APPROVAL_ON_REJECT_CONTINUE")}</option>
-                          </select>
+            {/* Part 3 - the approval map: one horizontal row per cascade, already arranged
+                last-child-first (village -> ... -> province). Rows never wrap - they
+                scroll sideways. Cards (empty levels included, with their headers) drag
+                left and right INSIDE their own cascade only, live-reordering with a
+                glide as the hovered card slides aside. Approvers with no cascading
+                condition never appear here: they always run with on_reject "continue"
+                and are appended after the cascade groups automatically. The order and
+                the per-card rules write straight back onto every approver. */}
+            {wizard_step === 3 && (() => {
+              const order = effective_group_order();
+              const members = group_members();
+              return (
+                <div className="space-y-4 max-h-full">
+                  <p className="text-xs" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_APPROVAL_GROUP_DRAG_HINT")}</p>
+
+                  {cascading_chains.map((chain) => {
+                    const chain_level_ids = new Set(chain.levels.map((level_field) => level_field.id));
+                    const row_keys = order.filter((key) => chain_level_ids.has(key));
+                    if (row_keys.length === 0) return null;
+                    return (
+                      <div key={chain.id} className="space-y-2">
+                        {/* The cascade named once, as the row's heading */}
+                        <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                          {chain.levels.map((level_field) => field_label(level_field, language)).join(" / ")}
+                        </p>
+                        {/* One-line row: never wraps, never scrolls vertically - every card
+                            (empty ones too) stretches to the row's height, so all cards in
+                            a cascade stand equal; sideways is scrolled with a thin bar, and
+                            dragging near an edge scrolls automatically. */}
+                        <div
+                          className="flex flex-nowrap items-stretch overflow-x-auto overflow-y-hidden touch-pan-x pb-2"
+                          style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "thin", overscrollBehaviorX: "contain" }}
+                          onDragOver={handle_row_drag_over}
+                        >
+                          {row_keys.map((key, row_position) => (
+                            <React.Fragment key={key}>
+                              {row_position > 0 && (
+                                <div className="h-0.5 w-4 sm:w-8 shrink-0 self-center" style={{ backgroundColor: BORDER }} />
+                              )}
+                              {render_group_card(key, row_position, members.get(key) || [], row_keys.length > 1)}
+                            </React.Fragment>
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </>
-            )}
+                    );
+                  })}
+
+                  {/* Pop-up: everyone in the clicked set with ALL their picks - "name
+                      (South, North)". 80% wide, at most 70% tall; only the LIST scrolls,
+                      the header stays put; above everything else on the page. */}
+                  {popup_group && (() => {
+                    const popup_field = level_field_by_id.get(popup_group);
+                    const entries = group_member_entries(popup_group, members.get(popup_group) || []);
+                    return (
+                      <div
+                        className="fixed inset-0 flex items-center justify-center p-4"
+                        style={{ backgroundColor: "rgba(0,0,0,0.4)", zIndex: 999999999 }}
+                        onClick={() => set_popup_group(null)}
+                      >
+                        <div
+                          className="flex flex-col"
+                          style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, width: "80%", maxWidth: "80%", maxHeight: "70%" }}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {/* Fixed header - never scrolls */}
+                          <div className="flex items-center justify-between gap-2 shrink-0 px-4 py-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                            <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                              {popup_field ? field_label(popup_field, language) : ""}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => set_popup_group(null)}
+                              className="p-1 text-lg leading-none"
+                              style={{ color: GRAY, cursor: "pointer" }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          {/* Only this list scrolls when there are many */}
+                          <div className="space-y-1 px-4 py-3 overflow-y-auto" style={{ flex: "1 1 auto", minHeight: 0 }}>
+                            {entries.map((entry) => (
+                              <p key={entry.index} className="text-xs" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                                {entry.values.length > 0 ? `${entry.name} (${entry.values.join(", ")})` : entry.name}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            })()}
 
 {show_step_error && (!step_valid(wizard_step) || (wizard_step === 3 && !is_approval_config_complete({ enabled: true, approvers }))) && (
               <div className="p-3" style={{ backgroundColor: "#FDECEA", border: `1px solid ${DANGER}` }}>
