@@ -51,10 +51,17 @@ export default function DcsFormSubmissionsChart({ formGroupId }) {
       });
   };
 
-  const handle_apply = () => fetch_stats({ period, from, to }, false);
+  const handle_apply = () => {
+    if (period === "custom" && !from) return;
+    fetch_stats({ period, from, to }, false);
+  };
 
   useEffect(() => {
-    if (period !== "custom") fetch_stats({ period, from: "", to: "" }, false);
+    if (period !== "custom") {
+      setFrom("");
+      setTo("");
+      fetch_stats({ period, from: "", to: "" }, false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, formGroupId]);
 

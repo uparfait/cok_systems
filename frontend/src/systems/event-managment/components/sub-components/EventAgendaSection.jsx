@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
+import { FiUser } from 'react-icons/fi';
 import ActivityAgenda from './ActivityAgenda';
+import { employeeService } from '../../../../core/services/employeeService';
 
 const BASE_URL = '/cok/api/v1';
 
@@ -49,12 +51,64 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
   const [draft, setDraft] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [showPresenterPicker, setShowPresenterPicker] = useState(null);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [employees, setEmployees] = useState([]);
+  const [searchingEmployees, setSearchingEmployees] = useState(false);
+  const [copiedVirtualLink, setCopiedVirtualLink] = useState(false);
 
   useEffect(() => {
     if (!isLive) return;
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, [isLive]);
+
+  useEffect(() => {
+    if (showPresenterPicker === null) return;
+    if (!employeeSearch.trim()) { setEmployees([]); return }
+    const timer = setTimeout(async () => {
+      setSearchingEmployees(true);
+      try {
+        const res = await employeeService.search(employeeSearch.trim(), 1, 20);
+        setEmployees(res?.data || []);
+      } catch {
+        setEmployees([]);
+      } finally {
+        setSearchingEmployees(false);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [employeeSearch, showPresenterPicker]);
+
+  const copyVirtualLink = () => {
+    if (event?.virtualLink) {
+      navigator.clipboard.writeText(event.virtualLink).then(() => {
+        setCopiedVirtualLink(true);
+        setTimeout(() => setCopiedVirtualLink(false), 2000);
+      });
+    }
+  };
+
+  const pickPresenter = (emp, agendaIndex) => {
+    const updatedDraft = [...draft];
+    updatedDraft[agendaIndex] = {
+      ...updatedDraft[agendaIndex],
+      presenter: {
+        name: emp.full_name || '',
+        email: emp.email || '',
+        role: emp.title || '',
+      },
+    };
+    setDraft(updatedDraft);
+    setShowPresenterPicker(null);
+    setEmployeeSearch('');
+  };
+
+  const removePresenter = (agendaIndex) => {
+    const updatedDraft = [...draft];
+    updatedDraft[agendaIndex] = { ...updatedDraft[agendaIndex], presenter: null };
+    setDraft(updatedDraft);
+  };
 
   if (!agenda.length && !(canEdit && isLive)) return null;
 
@@ -85,12 +139,21 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
 
   const startEditing = () => {
     setSaveError(null);
-    setDraft(agenda.length ? agenda.map((a) => ({ ...a })) : [{ fromTime: '', toTime: '', title: '', description: '' }]);
+    const eventStartTime = toHHMM(event?.startedAt || event?.willStartAt || event?.startTime);
+    if (agenda.length) {
+      setDraft(agenda.map((a) => ({ ...a })));
+    } else {
+      const firstItem = { fromTime: eventStartTime || '', toTime: '', title: '', description: '', presenter: null };
+      setDraft([firstItem]);
+    }
     setEditing(true);
   };
 
   const validateDraft = (items) => {
+    if (items.length === 0) return 'Cannot save empty agenda. Add at least one item.';
     for (let i = 0; i < items.length; i++) {
+      if (!items[i].title?.trim()) return `Agenda item ${i + 1} needs a title`;
+      if (!items[i].description?.trim()) return `Agenda item ${i + 1} needs a description`;
       const from = parseTimeToMinutes(items[i].fromTime);
       const to = parseTimeToMinutes(items[i].toTime);
       if (from === null || to === null) return `Agenda item ${i + 1} needs valid From and To times`;
@@ -108,7 +171,11 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
   };
 
   const saveAgenda = async () => {
-    const items = draft.filter((a) => a.title?.trim());
+    const items = draft.filter((a) => a.title?.trim() || a.description?.trim());
+    if (items.length === 0) {
+      setSaveError('Cannot save empty agenda. Add at least one item with title and description.');
+      return;
+    }
     const collision = validateDraft(items);
     if (collision) {
       setSaveError(collision);
@@ -160,6 +227,10 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
 
   const fullCurrent = liveItem || nextItem;
 
+  const isVirtual = event?.eventFormat === 'Virtual' || event?.eventFormat === 'virtual';
+  const virtualLink = event?.virtualLink;
+  const virtualDescription = event?.virtualDescription;
+
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
@@ -168,14 +239,20 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
         </h2>
         <div className="flex items-center gap-2">
           {isLive && agenda.length > 0 && (
-            <button type="button" onClick={() => setShowFull(true)}
+            <button type="button" onClick={() => {
+                setShowFull(true);
+                window.history.pushState(null, "", `/calendar/#agendafull`);
+              }}
               className="cok-btn-primary cursor-pointer"
               style={{ width: 'auto', padding: '0.35rem 0.9rem', fontSize: '11px' }}>
               View Full
             </button>
           )}
           {canEdit && isLive && (
-            <button type="button" onClick={startEditing}
+            <button type="button" onClick={() => {
+                startEditing();
+                window.history.pushState(null, "", `/calendar/#agendaedit`);
+              }}
               className="cok-btn-outlined cursor-pointer"
               style={{ padding: '0.35rem 0.9rem', fontSize: '11px' }}>
               Edit Agenda
@@ -183,6 +260,34 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
           )}
         </div>
       </div>
+
+      {isVirtual && virtualLink && (
+        <div className="mb-4 p-3 border border-gray-200" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: PRIMARY, fontFamily: fontHeading }}>Virtual Link</p>
+            <button
+              type="button"
+              onClick={copyVirtualLink}
+              className="cursor-pointer text-[10px] font-semibold uppercase tracking-wide px-2 py-1 border"
+              style={{ color: PRIMARY, borderColor: PRIMARY, fontFamily: fontHeading }}
+            >
+              {copiedVirtualLink ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+          <a
+            href={virtualLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium hover:underline break-all"
+            style={{ color: PRIMARY, fontFamily: fontHeading }}
+          >
+            {virtualLink}
+          </a>
+          {virtualDescription && (
+            <p className="text-xs mt-1 text-gray-600">{virtualDescription}</p>
+          )}
+        </div>
+      )}
 
       {agenda.length === 0 ? (
         <p className="p-4 text-xs text-center" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}`, color: GRAY_DISABLED, fontFamily: fontHeading }}>
@@ -213,6 +318,13 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
                   {item.description && (
                     <p className="text-xs mt-1 break-words" style={{ color: NEUTRAL_DARK }}>{item.description}</p>
                   )}
+                  {item.presenter && item.presenter.name && (
+                    <p className="text-xs mt-1 flex items-center gap-1" style={{ color: PRIMARY, fontFamily: fontHeading }}>
+                      <FiUser className="w-3 h-3" />
+                      <span className="font-semibold">Presenter:</span> {item.presenter.name}
+                      {item.presenter.role && <span className="text-gray-500"> ({item.presenter.role})</span>}
+                    </p>
+                  )}
                 </div>
                 {statusChip(item)}
               </div>
@@ -231,41 +343,64 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
           <div className="w-full max-w-2xl bg-white flex flex-col max-h-[85vh]" style={{ border: `1px solid ${BORDER}` }}>
             <div className="flex items-center justify-between px-4 sm:px-6 py-4 shrink-0" style={{ backgroundColor: PRIMARY }}>
               <h2 className="text-sm font-bold uppercase tracking-widest text-white" style={{ fontFamily: fontHeading }}>Agenda</h2>
-              <button type="button" onClick={() => setShowFull(false)} className="cok-btn-outlined-reverse cursor-pointer" style={{ padding: '0.35rem 0.9rem' }}>
+              <button type="button" onClick={() => {
+                  setShowFull(false);
+                  window.history.pushState(null, "", "/calendar");
+                }} className="cok-btn-outlined-reverse cursor-pointer" style={{ padding: '0.35rem 0.9rem' }}>
                 Close
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 sm:p-10 text-center min-h-[16rem] flex flex-col items-center justify-center gap-4">
+            <div className="flex-1 overflow-y-auto min-h-[16rem] flex flex-col" style={{ padding: '20px' }}>
               {allEnded ? (
-                <>
+                <div className="flex-1 flex flex-col items-start justify-center gap-4">
                   <p className="text-2xl sm:text-3xl font-extrabold uppercase tracking-wide" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Closed</p>
                   <p className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>All agenda items have ended.</p>
-                </>
+                </div>
               ) : fullCurrent ? (
-                <>
-                  <span className="px-3 py-1 text-xs font-bold uppercase tracking-wide text-white shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading }}>
-                    {fullCurrent.status === 'live' ? 'Current' : 'Up next'}
-                  </span>
-                  <p className="text-xl sm:text-3xl font-extrabold break-words w-full" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading, overflowWrap: 'anywhere' }}>
-                    {fullCurrent.index + 1}. {fullCurrent.title || 'Untitled'}
-                  </p>
-                  <p className="text-sm font-semibold" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
-                    {fullCurrent.fromTime} - {fullCurrent.toTime}
-                  </p>
-                  {fullCurrent.description && (
-                    <p className="text-sm sm:text-base break-words max-w-xl w-full" style={{ color: NEUTRAL_DARK, overflowWrap: 'anywhere' }}>{fullCurrent.description}</p>
-                  )}
-                  <p className="text-3xl sm:text-5xl font-mono font-bold" style={{ color: PRIMARY }}>
-                    {fullCurrent.status === 'live'
-                      ? formatSeconds(secondsUntilMinute(fullCurrent.to))
-                      : formatSeconds(secondsUntilMinute(fullCurrent.from))}
-                  </p>
-                  <p className="text-xs uppercase tracking-wide font-semibold" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
-                    {fullCurrent.status === 'live' ? 'Time remaining' : 'Starts in'}
-                  </p>
-                </>
+                <div className="flex flex-col h-full">
+                  {/* Top row - Pulsing time on left, Presenter on right */}
+                  <div className="flex items-start justify-between mb-4 sm:mb-6">
+                    <p className="text-xl sm:text-3xl font-bold font-mono animate-pulse" style={{ color: '#22c55e', fontFamily: fontHeading }}>
+                      {fullCurrent.fromTime} - {fullCurrent.toTime}
+                    </p>
+                    {fullCurrent.presenter && fullCurrent.presenter.name && (
+                      <div className="text-right">
+                        <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Presenter</p>
+                        <p className="text-sm sm:text-base font-semibold uppercase mt-0.5" style={{ color: PRIMARY, fontFamily: fontHeading }}>
+                          {fullCurrent.presenter.name}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Middle section - Title centered */}
+                  <div className="flex-1 flex flex-col items-start justify-center gap-4 sm:gap-6">
+                    <p className="text-xl sm:text-3xl font-extrabold break-words" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading, overflowWrap: 'anywhere' }}>
+                      {fullCurrent.index + 1}. {fullCurrent.title || 'Untitled'}
+                    </p>
+                  </div>
+
+                  {/* Bottom section - Description left, Time remaining centered */}
+                  <div className="mt-4 sm:mt-6 flex flex-col gap-4">
+                    {fullCurrent.description && (
+                      <p className="text-sm sm:text-base break-words max-w-xl text-left" style={{ color: NEUTRAL_DARK, overflowWrap: 'anywhere' }}>{fullCurrent.description}</p>
+                    )}
+                    <div className="flex flex-col items-center gap-1">
+                      <p className="text-xs uppercase tracking-wide font-semibold" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+                        {fullCurrent.status === 'live' ? 'Time remaining' : 'Starts in'}
+                      </p>
+                      <p className="text-2xl sm:text-4xl font-mono font-bold" style={{ color: PRIMARY }}>
+                        {fullCurrent.status === 'live'
+                          ? formatSeconds(secondsUntilMinute(fullCurrent.to))
+                          : formatSeconds(secondsUntilMinute(fullCurrent.from))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               ) : (
-                <p className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>No timed agenda items to display.</p>
+                <div className="flex-1 flex items-start justify-start">
+                  <p className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>No timed agenda items to display.</p>
+                </div>
               )}
             </div>
           </div>
@@ -278,7 +413,10 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
           <div className="w-full max-w-2xl bg-white flex flex-col max-h-[85vh]" style={{ border: `1px solid ${BORDER}` }}>
             <div className="flex items-center justify-between px-4 sm:px-6 py-4 shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
               <h2 className="text-base font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Edit Agenda</h2>
-              <button type="button" onClick={() => setEditing(false)} disabled={saving} className="cok-btn-outlined cursor-pointer disabled:opacity-50" style={{ padding: '0.35rem 0.9rem', fontSize: '11px' }}>
+              <button type="button" onClick={() => {
+                  setEditing(false);
+                  window.history.pushState(null, "", "/calendar");
+                }} disabled={saving} className="cok-btn-outlined cursor-pointer disabled:opacity-50" style={{ padding: '0.35rem 0.9rem', fontSize: '11px' }}>
                 Close
               </button>
             </div>

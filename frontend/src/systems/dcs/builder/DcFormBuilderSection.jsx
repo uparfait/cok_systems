@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { build_schema_error_index, get_field_error_entry } from "./schemaErrorParser.js";
+import { validate_form_schema } from "./validateSchema.js";
 import FormBuilderCanvas from "./FormBuilderCanvas.jsx";
 import FieldSettingsDrawer from "./FieldSettingsDrawer.jsx";
 import ReviewOverlay from "../renderer/ReviewOverlay.jsx";
@@ -21,7 +22,7 @@ export default function DcFormBuilderSection(props) {
   );
 }
 
-function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishing, schemaErrors, publishLabelKey, resolveFieldOptions, resolveFullFieldOptions }) {
+function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishing, schemaErrors, publishLabelKey, resolveFieldOptions, resolveFullFieldOptions, onValidationChange }) {
   const { translate } = useDcsLanguage();
   const { is_uploading, average_percent } = useDesignUpload();
   const [selected_field, setSelectedField] = useState(null);
@@ -31,17 +32,39 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
 
   const all_flat_fields = flatten_fields(fields);
 
+  const frontend_validation = useMemo(
+    () => validate_form_schema({ fields }),
+    [fields],
+  );
+
+  useEffect(() => {
+    if (onValidationChange) {
+      onValidationChange(frontend_validation);
+    }
+  }, [frontend_validation, onValidationChange]);
+
+  const combined_errors = useMemo(() => {
+    const backend_errors = Array.isArray(schemaErrors) ? schemaErrors : [];
+    const frontend_errors = Array.isArray(frontend_validation.errors) ? frontend_validation.errors : [];
+    const seen = new Set();
+    const combined = [];
+    for (const error of [...frontend_errors, ...backend_errors]) {
+      const key = `${error.path}:${error.reason}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push(error);
+      }
+    }
+    return combined;
+  }, [schemaErrors, frontend_validation]);
+
   const schema_error_index = useMemo(
-    () => build_schema_error_index(schemaErrors, fields, translate),
-    [schemaErrors, fields, translate],
+    () => build_schema_error_index(combined_errors, fields, translate),
+    [combined_errors, fields, translate],
   );
   const get_field_error = (field_id) => get_field_error_entry(schema_error_index, field_id);
   const selected_field_error = selected_field ? get_field_error(selected_field.id) : null;
 
-  // Ctrl+6 is a power-user shortcut for the JSON import/export overlay -
-  // author a form externally (e.g. with an AI, given the copied creation
-  // rules) and bring it in as a single paste, rather than clicking through
-  // every component by hand.
   useEffect(() => {
     const handle_keydown = (event) => {
       if (event.ctrlKey && event.key === "6") {
@@ -78,19 +101,46 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
   };
 
   const schema = { fields };
+  const has_validation_errors = combined_errors.length > 0;
+
+  const handle_publish_click = useCallback(async () => {
+    if (has_validation_errors) {
+      return false;
+    }
+    if (onPublish) {
+      return await onPublish(schema);
+    }
+    return false;
+  }, [has_validation_errors, onPublish, schema]);
 
   return (
     <div className="space-y-4">
-      {schemaErrors && schemaErrors.length > 0 && (
-        <p className="text-sm px-3 py-2" style={{ backgroundColor: "rgba(231,76,60,0.1)", color: "#E74C3C", fontFamily: "'Montserrat', sans-serif" }}>
-          {translate("DCS_SCHEMA_ERROR_BANNER")}
-        </p>
+      {has_validation_errors && (
+        <div className="text-sm px-3 py-2 rounded-none" style={{ backgroundColor: "rgba(231,76,60,0.1)", color: "#E74C3C", fontFamily: "'Montserrat', sans-serif" }}>
+          <div className="font-semibold mb-1">{translate("DCS_SCHEMA_ERROR_BANNER")}</div>
+          <ul className="list-disc list-inside text-xs space-y-0.5">
+            {combined_errors.slice(0, 10).map((error, idx) => (
+              <li key={idx}>{translate(`DCS_SCHEMA_ERROR_${error.reason?.toUpperCase?.() || "UNKNOWN"}`)}</li>
+            ))}
+            {combined_errors.length > 10 && (
+              <li>+ {combined_errors.length - 10} {translate("DCS_SCHEMA_ERROR_MORE_COUNT")}</li>
+            )}
+          </ul>
+        </div>
       )}
 
       <FormBuilderCanvas fields={fields} onFieldsChange={onFieldsChange} onOpenSettings={handle_open_settings} getFieldError={get_field_error} />
 
       {fields.length > 0 && (
-        <DcsButtonOutline className="w-full" onClick={() => setIsReviewing(true)} disabled={is_uploading}>
+        <DcsButtonOutline
+          className="w-full"
+          onClick={() => {
+            if (!has_validation_errors) {
+              setIsReviewing(true);
+            }
+          }}
+          disabled={is_uploading || has_validation_errors}
+        >
           {is_uploading ? translate("DCS_DESIGN_UPLOADING_PERCENT", { percent: average_percent }) : translate("DCS_BTN_REVIEW")}
         </DcsButtonOutline>
       )}
@@ -117,7 +167,7 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
           resolveFieldOptions={resolveFieldOptions}
           onClose={() => setIsReviewing(false)}
           onPublish={async () => {
-            const did_succeed = await onPublish(schema);
+            const did_succeed = await handle_publish_click();
             if (did_succeed) setIsReviewing(false);
           }}
         />

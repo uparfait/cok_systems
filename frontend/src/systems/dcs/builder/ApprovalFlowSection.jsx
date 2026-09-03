@@ -145,7 +145,9 @@ function ConditionValueControl({ field, value, onChange, resolveFullFieldOptions
       .then((data) => {
         if (!cancelled) set_fetched_options(flatten_option_data(data));
       })
-      .catch(() => {});
+      .catch((e) => {
+        console.log(e.message);
+      });
     return () => {
       cancelled = true;
     };
@@ -323,12 +325,12 @@ function LocationTrailPicker({ field_key, api_level, value, onChange, language, 
   );
 }
 
-/** Small numbered identity chip reused on every wizard part so rows stay recognizable. */
+/** Circular avatar-style identity chip reused on every wizard part so rows stay recognizable. */
 function ApproverBadge({ index, name, translate }) {
   return (
     <div className="flex items-center gap-2 min-w-0">
       <span
-        className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold shrink-0"
+        className="inline-flex items-center justify-center w-9 h-9 text-sm font-bold shrink-0"
         style={{ backgroundColor: PRIMARY, color: WHITE, borderRadius: "50%", fontFamily: fontHeading }}
       >
         {index + 1}
@@ -546,12 +548,17 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
           className="w-4 h-4 cursor-pointer shrink-0"
           style={{ accentColor: enabled ? WHITE : PRIMARY }}
         />
-        <div className="w-8 h-8 flex items-center justify-center shrink-0"
-          style={{ backgroundColor: enabled ? "rgba(255,255,255,0.2)" : "#E0E0E0" }}>
-          <FiShield className="w-4 h-4" style={{ color: WHITE }} />
+        <div
+          className="w-10 h-10 flex items-center justify-center shrink-0"
+          style={{
+            backgroundColor: enabled ? "rgba(255,255,255,0.2)" : "#E0E0E0",
+            borderRadius: "50%",
+          }}
+        >
+          <FiShield className="w-5 h-5" style={{ color: WHITE }} />
         </div>
         <div className="min-w-0">
-          <label htmlFor="approval-flow-toggle" className="block text-lg font-extrabold cursor-pointer select-none leading-tight"
+          <label htmlFor="approval-flow-toggle" className="block text-lg font-extrabold cursor-pointer select-none leading-tight uppercase"
             style={{ color: enabled ? WHITE : NEUTRAL_DARK, fontFamily: fontHeading, letterSpacing: "-0.5px" }}>
             {translate("DCS_APPROVAL_ENABLE_LABEL")}
           </label>

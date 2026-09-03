@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FiClock, FiEdit2, FiCheck, FiX, FiPlus } from 'react-icons/fi';
+import { FiClock, FiEdit2, FiCheck, FiX, FiPlus, FiUser } from 'react-icons/fi';
 import axios from 'axios';
 import { useToast } from '@/core/contexts/ToastContext';
 import ActivityAgenda from './ActivityAgenda';
@@ -52,6 +52,7 @@ export default function EventDetailAgenda({ event, eventMode, onEventUpdated }) 
       toTime: a.toTime || '',
       title: a.title || '',
       description: a.description || '',
+      presenter: a.presenter || null,
     })));
     setIsEditing(true);
     setError(null);
@@ -70,6 +71,7 @@ export default function EventDetailAgenda({ event, eventMode, onEventUpdated }) 
         toTime: a.toTime || '',
         title: a.title || '',
         description: a.description || '',
+        presenter: a.presenter || null,
       }));
 
     // Enforce the event's time window on every kept item before saving
@@ -194,6 +196,13 @@ export default function EventDetailAgenda({ event, eventMode, onEventUpdated }) 
                   </p>
                   {item.description && (
                     <p className="text-xs mt-1.5 leading-relaxed" style={{ color: '#555555' }}>{item.description}</p>
+                  )}
+                  {item.presenter && item.presenter.name && (
+                    <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: PRIMARY, fontFamily: fontHeading }}>
+                      <FiUser className="w-3 h-3" />
+                      <span className="font-semibold">Presenter:</span> {item.presenter.name}
+                      {item.presenter.role && <span className="text-gray-500"> ({item.presenter.role})</span>}
+                    </p>
                   )}
                 </div>
               </div>

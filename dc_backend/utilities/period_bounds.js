@@ -26,6 +26,16 @@ function resolve_period_bounds(period, from, to) {
   if (period === "today") {
     return { start: start_of_day(now), end: end_of_day(now) };
   }
+  if (period === "this_week") {
+    // Monday 00:00 → Sunday 23:59:59.999 (ISO week, Monday-first)
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return { start: monday, end: sunday };
+  }
   if (period === "this_month") {
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
     const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);

@@ -33,6 +33,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
   const [currentUserId, setCurrentUserId] = useState("");
   const [qrCode, setQrCode] = useState("");
   const [secret, setSecret] = useState("");
+  const [is2FADisabled, setIs2FADisabled] = useState(false);
 
   const cityHallImage = "/cok_hall.jpg";
   const logoImage = "/LOGO_COK.png";
@@ -49,6 +50,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
         setCurrentUserId("");
         setQrCode("");
         setSecret("");
+        setIs2FADisabled(false);
       }, 300);
     }
   }, [isOpen]);
@@ -95,6 +97,19 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
           checkResult.message || checkResult.error || "Failed to verify email",
         );
         setIsLoading(false);
+        return;
+      }
+
+      // Check if 2FA is disabled for this user
+      if (checkResult.data?.is2FADisabled) {
+        setCurrentUserId(checkResult.data.userId);
+        setIs2FADisabled(true);
+        setIsLoading(false);
+        showSuccess("Email verified. Please set your password to continue.");
+        // Use PasswordSetupModal for 2FA-disabled users with signature from backend
+        if (onSuccess) {
+          onSuccess(email, checkResult.data.userId, checkResult.data.signature || "");
+        }
         return;
       }
 
