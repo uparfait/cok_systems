@@ -449,7 +449,7 @@ const en = {
   DCS_ACCESS_INDIVIDUALS_TITLE: "Individuals",
   DCS_ACCESS_INDIVIDUALS_HINT: "Add specific people by their account email - the email must belong to an existing account in the system",
   DCS_ACCESS_EMAIL_LABEL: "Account email",
-  DCS_ACCESS_EMAIL_PLACEHOLDER: "Enter an account email",
+  DCS_ACCESS_EMAIL_PLACEHOLDER: "Enter a name or account email",
   DCS_ACCESS_EMAIL_ADDED: "{{name}} was added",
   DCS_ACCESS_SUGGESTIONS_LABEL: "Matching accounts in the system",
   DCS_ACCESS_CHECKING_EMAIL: "Checking",

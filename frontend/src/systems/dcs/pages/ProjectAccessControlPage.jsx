@@ -7,6 +7,7 @@ import { get_project_access, save_project_access, check_access_email, suggest_ac
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
+import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import DcsAccessFormScope from "../components/DcsAccessFormScope.jsx";
 import DcsAccessDepartmentSelect from "../components/DcsAccessDepartmentSelect.jsx";
 import DcsGrantPermissionsSelect from "../components/DcsGrantPermissionsSelect.jsx";
@@ -18,6 +19,9 @@ const heading_style = { fontFamily: "'Montserrat', sans-serif", fontWeight: 700,
 const hint_style = { color: "#9E9E9E", fontSize: 13 };
 
 const EMPTY_MANAGE = { add_forms: false, edit_forms: false, delete_forms: false, share_forms: false, edit_project: false };
+
+// Text shaped like a full address is added directly; anything else searches for matching accounts.
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Grants saved before the manage object existed only carry can_grant.
 const normalize_individual = (individual) => ({
@@ -64,6 +68,8 @@ export default function ProjectAccessControlPage() {
   const [checking_email, setCheckingEmail] = useState(false);
   const [email_error, setEmailError] = useState("");
   const [suggestions, setSuggestions] = useState([]);
+  const [searching_suggestions, setSearchingSuggestions] = useState(false);
+  const [no_matches, setNoMatches] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [is_confirming_empty, setIsConfirmingEmpty] = useState(false);
@@ -101,23 +107,47 @@ export default function ProjectAccessControlPage() {
     const typed = email.trim();
     if (typed.length < 2) {
       setSuggestions([]);
+      setSearchingSuggestions(false);
+      setNoMatches(false);
       return;
     }
     let is_current = true;
     const timer = setTimeout(() => {
+      setSearchingSuggestions(true);
       suggest_access_users(typed)
         .then((response) => {
           if (!is_current) return;
           const already_added = new Set(individuals.map((individual) => individual.email.toLowerCase()));
-          setSuggestions((response.data || []).filter((user) => !already_added.has(user.email.toLowerCase())));
+          const matches = (response.data || []).filter((user) => !already_added.has(user.email.toLowerCase()));
+          setSuggestions(matches);
+          setNoMatches(matches.length === 0);
         })
-        .catch(() => is_current && setSuggestions([]));
+        .catch(() => is_current && setSuggestions([]))
+        .finally(() => is_current && setSearchingSuggestions(false));
     }, 300);
     return () => {
       is_current = false;
       clearTimeout(timer);
     };
   }, [email, individuals]);
+
+  // Immediate search used when Enter is pressed with a partial name or email.
+  const run_suggestion_search = async (typed) => {
+    setSearchingSuggestions(true);
+    setNoMatches(false);
+    try {
+      const response = await suggest_access_users(typed);
+      const already_added = new Set(individuals.map((individual) => individual.email.toLowerCase()));
+      const matches = (response.data || []).filter((user) => !already_added.has(user.email.toLowerCase()));
+      setSuggestions(matches);
+      setNoMatches(matches.length === 0);
+    } catch (error) {
+      setSuggestions([]);
+      setEmailError(error.message || translate("DCS_ERROR_GENERIC"));
+    } finally {
+      setSearchingSuggestions(false);
+    }
+  };
 
   const add_individual_grant = (user) => {
     setIndividuals((current) => [
@@ -142,6 +172,11 @@ export default function ProjectAccessControlPage() {
     event.preventDefault();
     const cleaned_email = email.trim().toLowerCase();
     if (!cleaned_email) return;
+    // Partial text is a search, not an add - only a full email is checked against the system directly.
+    if (!EMAIL_SHAPE.test(cleaned_email)) {
+      run_suggestion_search(cleaned_email);
+      return;
+    }
     if (individuals.some((individual) => individual.email.toLowerCase() === cleaned_email)) {
       setEmailError(translate("DCS_ACCESS_EMAIL_DUPLICATE"));
       return;
@@ -248,45 +283,59 @@ export default function ProjectAccessControlPage() {
               <div className="flex flex-col sm:flex-row gap-3 sm:items-stretch">
                 <div className="relative w-full sm:flex-1">
                   <input
-                    type="email"
+                    type="text"
                     className="cok-auth-input w-full py-3"
                     placeholder={translate("DCS_ACCESS_EMAIL_PLACEHOLDER")}
                     value={email}
                     onChange={(event) => {
                       setEmail(event.target.value);
                       setEmailError("");
+                      setNoMatches(false);
                     }}
-                    onBlur={() => setSuggestions([])}
+                    onBlur={() => {
+                      setSuggestions([]);
+                      setNoMatches(false);
+                    }}
                     disabled={checking_email}
                     required
                   />
-                  {suggestions.length > 0 && (
+                  {(searching_suggestions || suggestions.length > 0 || no_matches) && (
                     <div
                       className="absolute left-0 right-0 z-10 bg-white border-2 shadow-lg"
                       style={{ borderColor: "#E0E0E0", top: "100%" }}
                     >
-                      <p className="px-3 pt-2 pb-1 text-xs font-semibold uppercase" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.5px" }}>
-                        {translate("DCS_ACCESS_SUGGESTIONS_LABEL")}
-                      </p>
-                      {suggestions.map((user) => (
-                        <button
-                          key={user.user_id}
-                          type="button"
-                          className="w-full text-left px-3 py-2 hover:bg-gray-50"
-                          // onMouseDown so the pick lands before the input's blur clears the list
-                          onMouseDown={(event) => {
-                            event.preventDefault();
-                            handle_pick_suggestion(user);
-                          }}
-                        >
-                          <span className="block text-sm font-semibold truncate" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-                            {user.full_name || user.email}
-                          </span>
-                          <span className="block text-xs truncate" style={{ color: "#9E9E9E" }}>
-                            {user.email}
-                          </span>
-                        </button>
-                      ))}
+                      {searching_suggestions ? (
+                        <SpiralLoader />
+                      ) : suggestions.length > 0 ? (
+                        <>
+                          <p className="px-3 pt-2 pb-1 text-xs font-semibold uppercase" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.5px" }}>
+                            {translate("DCS_ACCESS_SUGGESTIONS_LABEL")}
+                          </p>
+                          {suggestions.map((user) => (
+                            <button
+                              key={user.user_id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                              // onMouseDown so the pick lands before the input's blur clears the list
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                handle_pick_suggestion(user);
+                              }}
+                            >
+                              <span className="block text-sm font-semibold truncate" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
+                                {user.full_name || user.email}
+                              </span>
+                              <span className="block text-xs truncate" style={{ color: "#9E9E9E" }}>
+                                {user.email}
+                              </span>
+                            </button>
+                          ))}
+                        </>
+                      ) : (
+                        <p className="px-3 py-3 text-sm" style={{ color: "#9E9E9E" }}>
+                          {translate("DCS_SEARCH_NO_RESULTS")}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
