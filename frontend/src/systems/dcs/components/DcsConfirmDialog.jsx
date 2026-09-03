@@ -28,10 +28,10 @@ export default function DcsConfirmDialog({ titleKey, messageKey, onConfirm, onCa
           <SpiralLoader />
         ) : (
           <div className="flex gap-3">
-            <DcsButtonOutline className="flex-1" onClick={onCancel}>
+            <DcsButtonOutline className="flex-1" variant="danger" onClick={onCancel}>
               {translate("DCS_NO")}
             </DcsButtonOutline>
-            <DcsButtonPrimary className="flex-1" onClick={onConfirm} style={{ backgroundColor: DANGER, borderColor: DANGER }}>
+            <DcsButtonPrimary className="flex-1" onClick={onConfirm}>
               {translate("DCS_YES")}
             </DcsButtonPrimary>
           </div>
