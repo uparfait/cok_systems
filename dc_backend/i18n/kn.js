@@ -76,6 +76,7 @@ module.exports = {
   USER_EMAIL_REQUIRED: "Aderesi ya imeyili irasabwa",
   USER_EMAIL_NOT_FOUND: "Nta konti ifite iyi imeyili ibaho muri sisitemu",
   USER_EMAIL_FOUND: "Konti ihuye yabonetse",
+  USER_SUGGESTIONS_FETCHED: "Konti zihuye zabonetse neza",
   APPROVAL_CONFIG_INVALID: "Igenamiterere ry'uburyo bwo kwemeza ntabwo ari ryo",
   APPROVAL_NOT_FOUND: "Iri huza ryo kwemeza ntiribaho",
   APPROVAL_FETCHED: "Icyemezo cyabonetse neza",

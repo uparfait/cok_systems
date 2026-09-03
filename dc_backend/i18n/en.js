@@ -76,6 +76,7 @@ module.exports = {
   USER_EMAIL_REQUIRED: "An email address is required",
   USER_EMAIL_NOT_FOUND: "No account with this email exists in the system",
   USER_EMAIL_FOUND: "A matching account was found",
+  USER_SUGGESTIONS_FETCHED: "Matching accounts fetched successfully",
   APPROVAL_CONFIG_INVALID: "The approval flow settings are not valid",
   APPROVAL_NOT_FOUND: "This approval link does not exist",
   APPROVAL_FETCHED: "Approval fetched successfully",

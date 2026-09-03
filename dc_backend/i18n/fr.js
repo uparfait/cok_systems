@@ -76,6 +76,7 @@ module.exports = {
   USER_EMAIL_REQUIRED: "Une adresse e-mail est requise",
   USER_EMAIL_NOT_FOUND: "Aucun compte avec cet e-mail n'existe dans le système",
   USER_EMAIL_FOUND: "Un compte correspondant a été trouvé",
+  USER_SUGGESTIONS_FETCHED: "Comptes correspondants récupérés avec succès",
   APPROVAL_CONFIG_INVALID: "Les paramètres du flux d'approbation ne sont pas valides",
   APPROVAL_NOT_FOUND: "Ce lien d'approbation n'existe pas",
   APPROVAL_FETCHED: "Approbation récupérée avec succès",
