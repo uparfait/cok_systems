@@ -478,6 +478,8 @@ const kn = {
   DCS_TOAST_ACCESS_SAVED: "Amategeko y'uburenganzira yabitswe",
   DCS_ACCESS_CONFIRM_EMPTY_TITLE: "Bika nta muntu wemerewe?",
   DCS_ACCESS_CONFIRM_EMPTY_MESSAGE: "Kugena birakoreshwa ariko nta shami cyangwa umuntu wahawe uburenganzira. Wowe wenyine, uwaremye poroje, ni wowe uzashobora kureba iyi poroje n'amafishi yayo.",
+  DCS_ACCESS_CONFIRM_REMOVE_TITLE: "Kuvanaho uyu muntu?",
+  DCS_ACCESS_CONFIRM_REMOVE_MESSAGE: "Uyu muntu azatakaza uburenganzira kuri iyi poroje nyuma yo kubika. Urashaka kumuvanaho?",
 
   DCS_PROJECT_NAV_SETTINGS: "Igenamiterere",
   DCS_PROJECT_NAV_FORMS: "Amafishi",

@@ -73,6 +73,7 @@ export default function ProjectAccessControlPage() {
 
   const [saving, setSaving] = useState(false);
   const [is_confirming_empty, setIsConfirmingEmpty] = useState(false);
+  const [individual_to_remove, setIndividualToRemove] = useState(null);
   const [active_section, setActiveSection] = useState("departments");
 
   useEffect(() => {
@@ -381,7 +382,7 @@ export default function ProjectAccessControlPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setIndividuals(individuals.filter((selected) => selected.user_id !== individual.user_id))}
+                      onClick={() => setIndividualToRemove(individual)}
                       className="text-xs font-semibold uppercase flex-shrink-0"
                       style={{ color: DANGER, fontFamily: "'Montserrat', sans-serif" }}
                     >
@@ -422,6 +423,18 @@ export default function ProjectAccessControlPage() {
           confirming={saving}
           onConfirm={do_save}
           onCancel={() => setIsConfirmingEmpty(false)}
+        />
+      )}
+
+      {individual_to_remove && (
+        <DcsConfirmDialog
+          titleKey="DCS_ACCESS_CONFIRM_REMOVE_TITLE"
+          messageKey="DCS_ACCESS_CONFIRM_REMOVE_MESSAGE"
+          onConfirm={() => {
+            setIndividuals(individuals.filter((selected) => selected.user_id !== individual_to_remove.user_id));
+            setIndividualToRemove(null);
+          }}
+          onCancel={() => setIndividualToRemove(null)}
         />
       )}
     </div>

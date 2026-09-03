@@ -478,6 +478,8 @@ const en = {
   DCS_TOAST_ACCESS_SAVED: "Access rules saved",
   DCS_ACCESS_CONFIRM_EMPTY_TITLE: "Save with no one granted access?",
   DCS_ACCESS_CONFIRM_EMPTY_MESSAGE: "Restriction is on but no department or individual has been granted access. Only you, the project creator, will be able to view this project and its forms.",
+  DCS_ACCESS_CONFIRM_REMOVE_TITLE: "Remove this person?",
+  DCS_ACCESS_CONFIRM_REMOVE_MESSAGE: "This person will lose access to this project once you save. Do you want to remove them?",
 
   DCS_PROJECT_NAV_SETTINGS: "Settings",
   DCS_PROJECT_NAV_FORMS: "Forms",

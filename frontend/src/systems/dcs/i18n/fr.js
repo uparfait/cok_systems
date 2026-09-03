@@ -478,6 +478,8 @@ const fr = {
   DCS_TOAST_ACCESS_SAVED: "Règles d'accès enregistrées",
   DCS_ACCESS_CONFIRM_EMPTY_TITLE: "Enregistrer sans accorder d'accès ?",
   DCS_ACCESS_CONFIRM_EMPTY_MESSAGE: "La restriction est activée mais aucun département ni personne n'a reçu d'accès. Vous seul, le créateur du projet, pourrez voir ce projet et ses formulaires.",
+  DCS_ACCESS_CONFIRM_REMOVE_TITLE: "Retirer cette personne ?",
+  DCS_ACCESS_CONFIRM_REMOVE_MESSAGE: "Cette personne perdra l'accès à ce projet une fois enregistré. Voulez-vous la retirer ?",
 
   DCS_PROJECT_NAV_SETTINGS: "Paramètres",
   DCS_PROJECT_NAV_FORMS: "Formulaires",
