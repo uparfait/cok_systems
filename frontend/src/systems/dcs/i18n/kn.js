@@ -449,7 +449,7 @@ const kn = {
   DCS_ACCESS_INDIVIDUALS_TITLE: "Abantu ku giti cyabo",
   DCS_ACCESS_INDIVIDUALS_HINT: "Ongeraho abantu ukoresheje imeyili ya konti yabo - imeyili igomba kuba iy'ikonti isanzwe muri sisitemu",
   DCS_ACCESS_EMAIL_LABEL: "Imeyili ya konti",
-  DCS_ACCESS_EMAIL_PLACEHOLDER: "Andika imeyili ya konti",
+  DCS_ACCESS_EMAIL_PLACEHOLDER: "Andika izina cyangwa imeyili ya konti",
   DCS_ACCESS_EMAIL_ADDED: "{{name}} yongewemo",
   DCS_ACCESS_SUGGESTIONS_LABEL: "Konti zihuye ziri muri sisitemu",
   DCS_ACCESS_CHECKING_EMAIL: "Kugenzura",

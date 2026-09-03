@@ -449,7 +449,7 @@ const fr = {
   DCS_ACCESS_INDIVIDUALS_TITLE: "Personnes",
   DCS_ACCESS_INDIVIDUALS_HINT: "Ajoutez des personnes par l'e-mail de leur compte - l'e-mail doit appartenir à un compte existant dans le système",
   DCS_ACCESS_EMAIL_LABEL: "E-mail du compte",
-  DCS_ACCESS_EMAIL_PLACEHOLDER: "Saisir l'e-mail d'un compte",
+  DCS_ACCESS_EMAIL_PLACEHOLDER: "Saisir un nom ou l'e-mail d'un compte",
   DCS_ACCESS_EMAIL_ADDED: "{{name}} a été ajouté(e)",
   DCS_ACCESS_SUGGESTIONS_LABEL: "Comptes correspondants dans le système",
   DCS_ACCESS_CHECKING_EMAIL: "Vérification",
