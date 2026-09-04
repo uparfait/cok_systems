@@ -719,6 +719,7 @@ const en = {
   DCS_APPROVAL_GROUP_DRAG_HINT: "Drag the level badges left and right to reorder the signing cascade.",
   DCS_APPROVAL_VIEW_HIERARCHY: "View approval hierarchy",
   DCS_APPROVAL_GROUP_EMPTY: "No approvers in this cascade yet.",
+  DCS_APPROVAL_GROUP_TOTAL: "{{number}} approver(s) in this group",
   DCS_APPROVAL_STEP_INCOMPLETE: "Complete this part before continuing",
   DCS_APPROVAL_WIZARD_READY: "Approval flow is ready - publish the form to apply it",
   DCS_APPROVAL_SAVE: "Save progress",

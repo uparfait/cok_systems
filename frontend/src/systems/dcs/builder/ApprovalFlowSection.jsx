@@ -1361,10 +1361,6 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                     if (row_keys.length === 0) return null;
                     return (
                       <div key={chain.id} className="space-y-2">
-                        {/* The cascade named once, as the row's heading */}
-                        <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                          {chain.levels.map((level_field) => field_label(level_field, language)).join(" / ")}
-                        </p>
                         {/* One-line row: never wraps, never scrolls vertically - every card
                             (empty ones too) stretches to the row's height, so all cards in
                             a cascade stand equal; sideways is scrolled with a thin bar, and

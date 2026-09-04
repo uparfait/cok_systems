@@ -719,6 +719,7 @@ const fr = {
   DCS_APPROVAL_GROUP_DRAG_HINT: "Faites glisser les badges de niveau de gauche à droite pour réorganiser la cascade de signature.",
   DCS_APPROVAL_VIEW_HIERARCHY: "Voir la hiérarchie d'approbation",
   DCS_APPROVAL_GROUP_EMPTY: "Aucun approbateur dans cette cascade pour le moment.",
+  DCS_APPROVAL_GROUP_TOTAL: "{{number}} approbateur(s) dans ce groupe",
   DCS_APPROVAL_STEP_INCOMPLETE: "Complétez cette partie avant de continuer",
   DCS_APPROVAL_WIZARD_READY: "Le flux d'approbation est prêt - publiez le formulaire pour l'appliquer",
   DCS_APPROVAL_SAVE: "Enregistrer les approbateurs",
