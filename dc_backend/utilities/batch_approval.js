@@ -199,8 +199,10 @@ async function fire_batch_approval({ form_group_id, origin, source, created_by }
 }
 
 /**
- * Fires one claimed schedule and records its outcome; on an unexpected
- * failure the claim is released so the schedule can fire again later.
+ * Fires one claimed schedule and records its outcome. A count schedule is
+ * RECURRING: after firing it goes straight back to waiting so the next N
+ * collected responses send another batch; a datetime schedule is one-shot.
+ * On a failed or empty fire the claim is released so nothing is lost.
  */
 async function fire_claimed_schedule(schedule, origin) {
   try {
@@ -210,7 +212,12 @@ async function fire_claimed_schedule(schedule, origin) {
       source: schedule.trigger.type,
       created_by: schedule.created_by || null,
     });
-    await approval_schedules_model.mark_schedule_sent(schedule._id, result.request ? result.request._id : null, result.sent_count || 0);
+    if (schedule.trigger.type === "count") {
+      if (result.sent) await approval_schedules_model.record_schedule_fire(schedule._id, result.request._id, result.sent_count);
+      else await approval_schedules_model.release_schedule(schedule._id);
+    } else {
+      await approval_schedules_model.mark_schedule_sent(schedule._id, result.request ? result.request._id : null, result.sent_count || 0);
+    }
     return result;
   } catch (error) {
     console.error("Batch approval schedule fire failed:", error.message);
@@ -221,17 +228,22 @@ async function fire_claimed_schedule(schedule, origin) {
 
 /**
  * Called after every stored submission: fires any waiting "after N
- * responses" schedule of this form whose threshold the form has now
- * reached. Never throws - a trigger failure must never fail the
+ * responses" schedule once the form holds N responses no batch covers
+ * yet - and again after every further N, since a count schedule re-arms
+ * itself. While a previous batch is still waiting on its approvers,
+ * firing holds off; the moment it is decided, the next threshold sends
+ * the next link. Never throws - a trigger failure must never fail the
  * submission itself.
  */
 async function check_count_triggers(form_group_id, origin) {
   try {
     const schedules = await approval_schedules_model.find_count_schedules(form_group_id);
     if (schedules.length === 0) return;
-    const total = await submissions_model.count_by_form_group_id(form_group_id);
+    const uncovered = await submissions_model.count_without_approval_request(form_group_id);
     for (const schedule of schedules) {
-      if (total < Number(schedule.trigger.count)) continue;
+      if (uncovered < Number(schedule.trigger.count)) continue;
+      // One decision at a time: the next batch only goes out once the previous one is approved or rejected.
+      if (await approval_requests_model.has_pending_request(form_group_id)) continue;
       const claimed = await approval_schedules_model.claim_schedule_for_sending(schedule._id);
       if (claimed) await fire_claimed_schedule(schedule, origin);
     }

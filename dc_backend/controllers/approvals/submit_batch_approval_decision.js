@@ -5,6 +5,7 @@ const {
   apply_batch_decision,
   get_active_batch_steps,
   notify_batch_steps,
+  check_count_triggers,
   public_batch_trail,
   MAX_OTP_ATTEMPTS,
 } = require("../../utilities/batch_approval.js");
@@ -59,6 +60,14 @@ async function submit_batch_approval_decision(req, res) {
     await approval_requests_model.update_request(request._id, { approvers: request.approvers, status: request.status });
 
     console.log(`[BATCH APPROVAL] ${approver.email} ${approver.status} "${request.form_name}" (${request.submission_count} records) -> batch ${request.status}`);
+
+    // A recurring "after N responses" schedule holds off while a batch is pending -
+    // the moment this one resolves, records collected in the meantime may already
+    // satisfy the next threshold, so check right away instead of waiting for the
+    // next submission to arrive.
+    if (request.status !== "pending") {
+      await check_count_triggers(request.form_group_id, resolve_client_origin(req));
+    }
 
     return res.status(200).json(
       success_response(req, "APPROVAL_DECISION_RECORDED", {
