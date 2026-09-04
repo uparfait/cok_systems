@@ -62,7 +62,7 @@ async function submit_approval_decision(req, res) {
     apply_approval_decision(approval, step, decision, comment ? comment.toString().trim() : null, clean_signature);
 
     // The system itself emails whoever just became able to act (never re-emailing anyone);
-    // a link token only comes back as a manual fallback when the email failed. Legacy
+    // every link is also printed to the backend console by notify_approval_steps. Legacy
     // parallel flows were fully notified at submit time, so nothing new is ever sent here.
     let next_approvers = [];
     if (approval.mode !== "parallel" && approval.status === "pending") {
@@ -77,12 +77,12 @@ async function submit_approval_decision(req, res) {
             entry.email_sent = sent_by_token.get(entry.token);
           }
         });
+        // A failed email's link is only ever printed to the backend console, never handed to the browser.
         next_approvers = notified.map((entry) => ({
           level: entry.level,
           name: entry.name,
           role: entry.role,
           email_sent: entry.email_sent,
-          token: entry.email_sent ? undefined : entry.token,
         }));
       }
     }

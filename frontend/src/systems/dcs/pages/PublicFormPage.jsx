@@ -21,7 +21,6 @@ import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import DcsQueuePanel from "../components/DcsQueuePanel.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
-import { build_approval_link } from "../services/approvalsService.js";
 
 /**
  * Strips any "__v<version>" suffix from a shared link - the public link
@@ -586,7 +585,7 @@ function PublicFormPageContent() {
         </span>
       </div>
 
-      {approval_notices.length > 0 && (
+      {approval_notices.some((notice) => notice.links.some((link_info) => link_info.email_sent)) && (
         <div className="dcs-no-print w-full min-[700px]:max-w-[700px] bg-white border-2 p-4 mb-3" style={{ borderColor: "#056daa" }}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-bold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
@@ -601,37 +600,15 @@ function PublicFormPageContent() {
               {translate("DCS_BTN_CLOSE")}
             </button>
           </div>
+          {/* A failed email is deliberately silent here - its link is printed in the backend console instead. */}
           {approval_notices.map((notice, notice_index) =>
-            notice.links.map((link_info, link_index) => {
-              if (link_info.email_sent) {
-                return (
-                  <p key={`${notice_index}_${link_index}`} className="mt-3 text-sm px-3 py-2" style={{ backgroundColor: "rgba(76,175,80,0.12)", color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
-                    {translate("DCS_APPROVAL_LINK_EMAILED", { name: link_info.name, role: link_info.role })}
-                  </p>
-                );
-              }
-              const approval_link = build_approval_link(link_info.token);
-              return (
-                <div key={`${notice_index}_${link_index}`} className="mt-3 flex items-center justify-between gap-3 flex-wrap">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold" style={{ color: "#F39C12", fontFamily: "'Montserrat', sans-serif" }}>
-                      {translate("DCS_APPROVAL_EMAIL_FAILED", { name: link_info.name, role: link_info.role })}
-                    </p>
-                    <p className="truncate text-sm" style={{ color: "#056daa" }} title={approval_link}>
-                      {approval_link}
-                    </p>
-                  </div>
-                  <DcsButtonOutline
-                    onClick={() => {
-                      window.navigator.clipboard.writeText(approval_link);
-                      showSuccess(translate("DCS_TOAST_LINK_COPIED"));
-                    }}
-                  >
-                    {translate("DCS_FORM_COPY_LINK")}
-                  </DcsButtonOutline>
-                </div>
-              );
-            }),
+            notice.links
+              .filter((link_info) => link_info.email_sent)
+              .map((link_info, link_index) => (
+                <p key={`${notice_index}_${link_index}`} className="mt-3 text-sm px-3 py-2" style={{ backgroundColor: "rgba(76,175,80,0.12)", color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
+                  {translate("DCS_APPROVAL_LINK_EMAILED", { name: link_info.name, role: link_info.role })}
+                </p>
+              )),
           )}
         </div>
       )}
