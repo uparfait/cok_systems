@@ -89,6 +89,7 @@ module.exports = {
   APPROVAL_SCHEDULE_SAVED: "Gahunda yo kwemeza yabitswe neza",
   APPROVAL_SCHEDULE_CANCELLED: "Gahunda yo kwemeza yahagaritswe",
   APPROVAL_SCHEDULE_NOT_FOUND: "Iyi fomu nta gahunda yo kwemeza itegereje ifite",
+  APPROVAL_NO_APPROVERS_CONFIGURED: "Iyi fomu nta bemeza bayigenewe mu igenamiterere ry'uruhererekane rwo kwemeza",
   APPROVAL_SCHEDULE_INVALID: "Igenamiterere rya gahunda yo kwemeza ntabwo ari ryo",
   APPROVAL_LINKS_SENT: "Imihora yo kwemeza yoherejwe ku bemeza",
   APPROVAL_NO_DATA_TO_SEND: "Nta makuru yakusanyijwe ategereje kwemezwa kugeza ubu",
