@@ -67,6 +67,37 @@ async function send_approval_request_email({ to, approver_name, approver_role, f
   }
 }
 
+// Sends one approver their batch approval link plus the one-time code that authorizes the decision; never throws - returns {success}.
+async function send_batch_approval_email({ to, approver_name, form_name, record_count, link, otp, origin }) {
+  const subject = `Data approval requested: ${form_name}`;
+  const html = html_wrapper(
+    `
+    <h2 style="color: ${PRIMARY_COLOR}; font-family: ${FONT}; font-size: 22px; margin: 0 0 16px;">Data approval requested</h2>
+    <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">Dear ${escape_html(approver_name || to)},</p>
+    <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;"><strong>${record_count}</strong> record(s) collected with <strong>${escape_html(form_name)}</strong> are waiting for your approval.</p>
+    <div style="border-left: 3px solid ${PRIMARY_COLOR}; background-color: #F7F9FB; padding: 12px 16px; margin: 0 0 12px;">
+      <p style="font-size: 13px; color: ${TEXT_MUTED}; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.5px;"><strong>Your one-time code</strong></p>
+      <p style="font-size: 26px; color: #333333; letter-spacing: 6px; font-weight: 700; margin: 0;">${escape_html(otp)}</p>
+    </div>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${link}" style="display: inline-block; background-color: ${PRIMARY_COLOR}; color: #FFFFFF; font-family: ${FONT}; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; text-decoration: none; padding: 14px 28px;">Review and approve</a>
+    </div>
+    <p style="font-size: 13px; color: ${TEXT_MUTED}; margin: 0;">Open the link and enter your one-time code to review and approve the collected data.</p>
+    <p style="font-size: 13px; margin: 4px 0 0;"><a href="${link}" style="color: ${PRIMARY_COLOR}; word-break: break-all;">${link}</a></p>
+  `,
+    origin,
+  );
+  const text = `Dear ${approver_name || to}, ${record_count} record(s) collected with ${form_name} are waiting for your approval. Open ${link} and enter your one-time code ${otp} to approve.`;
+
+  try {
+    await transporter.sendMail({ from: config.email.from, to, subject, text, html });
+    return { success: true };
+  } catch (error) {
+    console.error("Batch approval email error:", error.message);
+    return { success: false, error: error.message };
+  }
+}
+
 // Resolves the public site origin approval links are built on - the browser's own origin when sent, else the first configured client URL.
 function resolve_client_origin(req) {
   const origin = req.get && req.get("origin");
@@ -116,4 +147,4 @@ async function notify_approval_steps(req, form_name, steps) {
   return notified;
 }
 
-module.exports = { send_approval_request_email, notify_approval_steps, resolve_client_origin };
+module.exports = { send_approval_request_email, send_batch_approval_email, notify_approval_steps, resolve_client_origin };

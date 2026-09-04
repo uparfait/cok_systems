@@ -71,6 +71,37 @@ async function update_submission_approval(submission_id, approval) {
 }
 
 /**
+ * The ids of every submission of a form not yet covered by any batch
+ * approval request - exactly the records a newly fired "send to approvers"
+ * batch will cover.
+ */
+async function list_ids_without_approval_request(form_group_id) {
+  const documents = await get_db()
+    .collection(COLLECTION_NAME)
+    .find({ form_group_id, approval_request_id: { $exists: false } }, { projection: { _id: 1 } })
+    .toArray();
+  return documents.map((document) => document._id);
+}
+
+/** Stamps a fired batch onto every submission it covers. */
+async function assign_approval_request(submission_ids, request_id) {
+  if (!submission_ids || submission_ids.length === 0) return;
+  await get_db()
+    .collection(COLLECTION_NAME)
+    .updateMany({ _id: { $in: submission_ids } }, { $set: { approval_request_id: request_id } });
+}
+
+/** The full documents of every submission one batch covers, oldest first - the approver's review view. */
+async function list_by_approval_request(request_id, limit) {
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .find({ approval_request_id: request_id })
+    .sort({ submitted_at: 1 })
+    .limit(limit || 500)
+    .toArray();
+}
+
+/**
  * True when a submission with this client-generated idempotency key has
  * already been stored, so the offline sync retry loop never double-submits.
  */
@@ -277,6 +308,9 @@ async function delete_by_form_group_and_version(form_group_id, version) {
 module.exports = {
   ensure_submission_indexes,
   create_submission,
+  list_ids_without_approval_request,
+  assign_approval_request,
+  list_by_approval_request,
   find_by_approval_token,
   list_by_approver_email,
   update_submission_approval,
