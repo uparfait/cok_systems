@@ -44,6 +44,17 @@ async function update_request(request_id, patch) {
   await get_db().collection(COLLECTION_NAME).updateOne({ _id: request_id }, { $set: patch });
 }
 
+/** Every still-pending batch routed to one approver email, newest first - the approver page's form switcher. */
+async function list_pending_by_approver_email(email) {
+  if (!email) return [];
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .find({ status: "pending", "approvers.email": email.toString().trim().toLowerCase() })
+    .sort({ created_at: -1 })
+    .limit(20)
+    .toArray();
+}
+
 /** Recent batches fired for one form, newest first - the scheduling dialog's history. */
 async function list_by_form_group(form_group_id, limit) {
   return get_db()
@@ -61,5 +72,6 @@ module.exports = {
   find_by_id,
   find_by_ids,
   update_request,
+  list_pending_by_approver_email,
   list_by_form_group,
 };

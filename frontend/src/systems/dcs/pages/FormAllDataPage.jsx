@@ -164,8 +164,22 @@ function build_rows(submissions, field_type_by_id, on_delete_click, deleting_id,
     row.version = submission.version;
     row.submitted_at = submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "";
     // Plain text (not a chip) so the table can measure the column's real width - it never bleeds into the next column.
+    // Status on the left, approver progress ("1-out-2") pushed to the far end of the cell.
+    // The column declares its own width (minWidthPx), so this non-text content never bleeds into the next column.
     const approval_label_key = approval_status_label_key(submission.approval_status);
-    row.approval = approval_label_key ? translate(approval_label_key) : "-";
+    const progress = submission.approval_progress;
+    row.approval = approval_label_key ? (
+      <span className="flex items-center justify-between gap-3 w-full">
+        <span>{translate(approval_label_key)}</span>
+        {progress && progress.total > 0 && (
+          <span style={{ color: "#9E9E9E", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", fontFamily: "'Montserrat', sans-serif" }}>
+            {progress.approved}-out-{progress.total}
+          </span>
+        )}
+      </span>
+    ) : (
+      "-"
+    );
     row.actions = (
       <DeleteSubmissionButton onClick={() => on_delete_click(submission._id)} disabled={deleting_id === submission._id} />
     );
@@ -201,7 +215,7 @@ export default function FormAllDataPage() {
   if (loading_versions || !versions || versions.length === 0) return <DcsLoadingState />;
 
   const { columns: data_columns, field_type_by_id, has_diff } = build_diffed_columns(versions, language);
-  const columns = [{ key: "approval", labelKey: "DCS_TABLE_APPROVAL" }]
+  const columns = [{ key: "approval", labelKey: "DCS_TABLE_APPROVAL", minWidthPx: 210 }]
     .concat(data_columns)
     .concat([{ key: "actions", label: "", minWidthPx: ACTIONS_COLUMN_WIDTH_PX }]);
   const rows = build_rows(table.submissions, field_type_by_id, setConfirmingDeleteId, deleting_id, translate);

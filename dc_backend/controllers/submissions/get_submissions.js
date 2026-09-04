@@ -39,17 +39,30 @@ async function get_submissions(req, res) {
 
     // Each row's approval state for the table's Approval column: its own
     // submit-time flow when it has one, else the batch it was sent in, else
-    // "scheduled" when a schedule is still waiting to fire.
+    // "scheduled" when a schedule is still waiting to fire. approval_progress
+    // carries how many approvers have approved out of the total, so the
+    // column can read "Waiting approval 1/2" / "Approved 2/2".
+    const progress_of = (steps) => ({
+      approved: (steps || []).filter((step) => step.status === "approved").length,
+      total: (steps || []).length,
+    });
     const request_ids = [...new Set(result.items.filter((item) => item.approval_request_id).map((item) => item.approval_request_id.toString()))];
     const [requests, schedule] = await Promise.all([
       approval_requests_model.find_by_ids(request_ids),
       approval_schedules_model.get_active_schedule(form_group_id),
     ]);
-    const status_by_request = new Map(requests.map((request) => [request._id.toString(), request.status]));
+    const request_by_id = new Map(requests.map((request) => [request._id.toString(), request]));
     result.items.forEach((item) => {
-      if (item.approval) item.approval_status = item.approval.status;
-      else if (item.approval_request_id) item.approval_status = status_by_request.get(item.approval_request_id.toString()) || "pending";
-      else item.approval_status = schedule ? "scheduled" : "none";
+      if (item.approval) {
+        item.approval_status = item.approval.status;
+        item.approval_progress = progress_of(item.approval.steps);
+      } else if (item.approval_request_id) {
+        const request = request_by_id.get(item.approval_request_id.toString());
+        item.approval_status = (request && request.status) || "pending";
+        if (request) item.approval_progress = progress_of(request.approvers);
+      } else {
+        item.approval_status = schedule ? "scheduled" : "none";
+      }
     });
 
     return res.status(200).json(
