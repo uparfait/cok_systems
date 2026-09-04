@@ -20,19 +20,16 @@ export function approval_status_label_key(status) {
 }
 
 /**
- * A small colored chip for an approval state, or a plain dash when no
- * approval was ever requested or scheduled - used in the approval dialogs
- * and the approver page.
+ * An approval state written as plain text in its status color (no filled
+ * background), or a dash when no approval was ever requested or scheduled -
+ * used in the approval dialogs and the approver page.
  */
 export default function DcsApprovalStatusChip({ status }) {
   const { translate } = useDcsLanguage();
   const chip = CHIP_STYLES[status];
   if (!chip) return <span style={{ color: "#9E9E9E" }}>-</span>;
   return (
-    <span
-      className="text-xs font-bold px-2 py-0.5 uppercase whitespace-nowrap"
-      style={{ color: "#FFFFFF", backgroundColor: chip.color, fontFamily: "'Montserrat', sans-serif" }}
-    >
+    <span className="text-xs font-bold uppercase whitespace-nowrap" style={{ color: chip.color, fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.5px" }}>
       {translate(chip.labelKey)}
     </span>
   );
