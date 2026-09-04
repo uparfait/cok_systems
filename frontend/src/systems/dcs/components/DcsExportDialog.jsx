@@ -6,6 +6,7 @@ import { useToast } from "@/core/contexts/ToastContext";
 import { export_submissions_excel } from "../services/submissionsService.js";
 
 const EXPORT_PERIOD_OPTIONS = [
+  { value: "all", labelKey: "DCS_STATS_PERIOD_ALL" },
   { value: "today", labelKey: "DCS_STATS_PERIOD_TODAY" },
   { value: "this_month", labelKey: "DCS_STATS_PERIOD_THIS_MONTH" },
   { value: "last_month", labelKey: "DCS_STATS_PERIOD_LAST_MONTH" },
@@ -14,6 +15,10 @@ const EXPORT_PERIOD_OPTIONS = [
 ];
 
 function resolve_date_bounds(period, from, to) {
+  // "all" means no window at all - the backend exports every submission the form ever collected.
+  if (period === "all") {
+    return { from: "", to: "" };
+  }
   if (!period || period === "custom") {
     return { from, to };
   }
@@ -52,7 +57,7 @@ function resolve_date_bounds(period, from, to) {
 export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
   const { language, translate } = useDcsLanguage();
   const { showSuccess, showError, showInfo } = useToast();
-  const [period, setPeriod] = useState("this_month");
+  const [period, setPeriod] = useState("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [title, setTitle] = useState("");
@@ -63,7 +68,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
   const cancel_ref = useRef(false);
 
   const reset_state = () => {
-    setPeriod("this_month");
+    setPeriod("all");
     setFrom("");
     setTo("");
     setTitle("");
