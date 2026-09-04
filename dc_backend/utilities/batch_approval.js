@@ -48,6 +48,7 @@ function get_form_batch_approvers(form_version) {
       name: (approver.name || "").toString().trim(),
       role: (approver.role || "").toString().trim(),
       email: approver.email.toString().trim().toLowerCase(),
+      message: (approver.message || "").toString().trim(),
       force: approver.force !== false,
       on_reject: approver.on_reject === "continue" ? "continue" : "stop",
     }));
@@ -132,6 +133,7 @@ async function notify_batch_steps(request, steps, origin) {
       record_count: request.submission_count,
       link,
       otp: approver.otp,
+      message: approver.message || "",
       origin: base_origin,
     });
     console.log(`Email:     ${result.success ? "sent" : `FAILED - ${result.error || "unknown error"}`}`);
@@ -173,6 +175,7 @@ async function fire_batch_approval({ form_group_id, origin, source, created_by }
       name: approver.name,
       role: approver.role,
       email: approver.email,
+      message: approver.message || null,
       force: approver.force,
       on_reject: approver.on_reject,
       token: crypto.randomBytes(24).toString("hex"),
