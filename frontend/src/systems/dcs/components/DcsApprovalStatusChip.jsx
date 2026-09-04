@@ -10,9 +10,19 @@ const CHIP_STYLES = {
 };
 
 /**
- * The data table's Approval column value: a small colored chip for a
- * record's approval state, or a plain dash when no approval was ever
- * requested or scheduled for it.
+ * The label key of a record's approval state, or null when no approval was
+ * ever requested or scheduled for it - used by the data tables, which
+ * render the state as plain measurable text rather than a chip.
+ */
+export function approval_status_label_key(status) {
+  const chip = CHIP_STYLES[status];
+  return chip ? chip.labelKey : null;
+}
+
+/**
+ * A small colored chip for an approval state, or a plain dash when no
+ * approval was ever requested or scheduled - used in the approval dialogs
+ * and the approver page.
  */
 export default function DcsApprovalStatusChip({ status }) {
   const { translate } = useDcsLanguage();
