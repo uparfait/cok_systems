@@ -74,7 +74,7 @@ export default function FormDataPage() {
 
   const data_fields = flatten_fields(version_doc.schema.fields).filter((field) => !NON_DATA_TYPES.includes(field.type));
 
-  const columns = data_fields
+  const columns = [{ key: "approval", labelKey: "DCS_TABLE_APPROVAL" }].concat(data_fields
     .filter(has_any_label)
     .map((field) =>
       Object.assign(
@@ -85,10 +85,7 @@ export default function FormDataPage() {
         field.type === "geolocation" ? { minWidthPx: GEO_CELL_TABLE_MIN_WIDTH_PX } : {},
       ),
     )
-    .concat([
-      { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" },
-      { key: "approval", labelKey: "DCS_TABLE_APPROVAL" },
-    ]);
+    .concat([{ key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" }]));
 
   const rows = build_rows(table.submissions, data_fields);
 
