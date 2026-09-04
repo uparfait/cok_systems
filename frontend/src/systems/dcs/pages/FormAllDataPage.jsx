@@ -17,7 +17,7 @@ import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsExportDialog from "../components/DcsExportDialog.jsx";
-import DcsApprovalStatusChip from "../components/DcsApprovalStatusChip.jsx";
+import { approval_status_label_key } from "../components/DcsApprovalStatusChip.jsx";
 import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
 import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
 
@@ -148,7 +148,7 @@ function build_diffed_columns(versions, language) {
   return { columns, field_type_by_id, has_diff };
 }
 
-function build_rows(submissions, field_type_by_id, on_delete_click, deleting_id) {
+function build_rows(submissions, field_type_by_id, on_delete_click, deleting_id, translate) {
   return (submissions || []).map((submission) => {
     const row = { dcs_row_key: submission._id };
     field_type_by_id.forEach((field_type, field_id) => {
@@ -163,7 +163,9 @@ function build_rows(submissions, field_type_by_id, on_delete_click, deleting_id)
     });
     row.version = submission.version;
     row.submitted_at = submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "";
-    row.approval = <DcsApprovalStatusChip status={submission.approval_status} />;
+    // Plain text (not a chip) so the table can measure the column's real width - it never bleeds into the next column.
+    const approval_label_key = approval_status_label_key(submission.approval_status);
+    row.approval = approval_label_key ? translate(approval_label_key) : "-";
     row.actions = (
       <DeleteSubmissionButton onClick={() => on_delete_click(submission._id)} disabled={deleting_id === submission._id} />
     );
@@ -202,7 +204,7 @@ export default function FormAllDataPage() {
   const columns = [{ key: "approval", labelKey: "DCS_TABLE_APPROVAL" }]
     .concat(data_columns)
     .concat([{ key: "actions", label: "", minWidthPx: ACTIONS_COLUMN_WIDTH_PX }]);
-  const rows = build_rows(table.submissions, field_type_by_id, setConfirmingDeleteId, deleting_id);
+  const rows = build_rows(table.submissions, field_type_by_id, setConfirmingDeleteId, deleting_id, translate);
 
   const handle_delete = async () => {
     setDeletingId(confirming_delete_id);
