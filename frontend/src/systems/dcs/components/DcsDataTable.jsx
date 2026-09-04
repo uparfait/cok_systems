@@ -156,7 +156,7 @@ function PageNumberButton({ number, isActive, onClick }) {
  * seen starting from row one instead of wherever the previous page's
  * scroll happened to be.
  */
-export default function DcsDataTable({ columns, rows, page, totalPages, onPageChange, loading, columnTints, legendItems, scrollResetKey, totalCount }) {
+export default function DcsDataTable({ columns, rows, page, totalPages, onPageChange, loading, columnTints, legendItems, scrollResetKey, totalCount, onRowClick }) {
   const { translate } = useDcsLanguage();
   const has_rows = rows && rows.length > 0;
   const scroll_container_ref = useRef(null);
@@ -277,7 +277,13 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
             {!loading &&
               has_rows &&
               rows.map((row, row_index) => (
-                <tr key={row.dcs_row_key}>
+                <tr
+                  key={row.dcs_row_key}
+                  // A click anywhere on the row opens its details, except on a
+                  // control the row itself carries (file links, delete button).
+                  onClick={onRowClick ? (event) => (event.target.closest("a,button") ? undefined : onRowClick(row)) : undefined}
+                  style={onRowClick ? { cursor: "pointer" } : undefined}
+                >
                   {columns.map((column, column_index) => (
                     <td
                       key={column.key}

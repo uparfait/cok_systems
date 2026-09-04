@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useSilentPolling } from "../hooks/useSilentPolling.js";
@@ -12,6 +12,9 @@ import DcsDataTableGeoCell, { GEO_CELL_TABLE_MIN_WIDTH_PX } from "../components/
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
+import DcsApprovalStatusChip from "../components/DcsApprovalStatusChip.jsx";
+import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
+import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
 
 const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group", "image_block", "horizontal_line"];
 const MEDIA_ANSWER_TYPES = ["image", "video", "audio", "file_upload", "signature"];
@@ -40,6 +43,7 @@ function build_rows(submissions, data_fields) {
       }
     });
     row.submitted_at = submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "";
+    row.approval = <DcsApprovalStatusChip status={submission.approval_status} />;
     return row;
   });
 }
@@ -55,6 +59,8 @@ export default function FormDataPage() {
   const { form_group_id, version } = useParams();
   const { language, translate } = useDcsLanguage();
   const table = useSubmissionsTable(form_group_id, version);
+  const [is_schedule_open, setIsScheduleOpen] = useState(false);
+  const [details_submission_id, setDetailsSubmissionId] = useState(null);
 
   const { data: versions, loading: loading_versions } = useSilentPolling(
     () => get_form_versions(form_group_id).then((res) => res.data || []),
@@ -79,7 +85,10 @@ export default function FormDataPage() {
         field.type === "geolocation" ? { minWidthPx: GEO_CELL_TABLE_MIN_WIDTH_PX } : {},
       ),
     )
-    .concat([{ key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" }]);
+    .concat([
+      { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" },
+      { key: "approval", labelKey: "DCS_TABLE_APPROVAL" },
+    ]);
 
   const rows = build_rows(table.submissions, data_fields);
 
@@ -88,6 +97,18 @@ export default function FormDataPage() {
       <div className="flex-shrink-0 mb-3 pl-14 pr-3 sm:pl-16 sm:pr-4 flex flex-row items-center gap-2 overflow-x-auto">
         <DcsPeriodFilter period={table.period} onPeriodChange={table.setPeriod} from={table.from} onFromChange={table.setFrom} to={table.to} onToChange={table.setTo} onApply={table.handle_apply} includeAll />
         <DcsTableSearchSort search={table.search} onSearchChange={table.setSearch} onSearchSubmit={table.handle_apply} sort={table.sort} onSortChange={table.setSort} />
+        <button
+          type="button"
+          onClick={() => setIsScheduleOpen(true)}
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white rounded-none transition-colors cursor-pointer"
+          style={{ fontFamily: "'Montserrat', sans-serif", height: 40, backgroundColor: "#056daa" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 12l2 2 4-4" />
+            <circle cx="12" cy="12" r="10" />
+          </svg>
+          {translate("DCS_BTN_SCHEDULE_APPROVAL")}
+        </button>
       </div>
 
       <div className="flex-1 min-h-0">
@@ -100,8 +121,17 @@ export default function FormDataPage() {
           loading={table.loading}
           scrollResetKey={table.page}
           totalCount={table.total}
+          onRowClick={(row) => setDetailsSubmissionId(row.dcs_row_key)}
         />
       </div>
+
+      {is_schedule_open && (
+        <DcsApprovalScheduleDialog form_group_id={form_group_id} onClose={() => setIsScheduleOpen(false)} onChanged={table.refresh} />
+      )}
+
+      {details_submission_id && (
+        <DcsApprovalDetailsDialog submission_id={details_submission_id} onClose={() => setDetailsSubmissionId(null)} />
+      )}
     </div>
   );
 }

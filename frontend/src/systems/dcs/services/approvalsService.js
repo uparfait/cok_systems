@@ -22,6 +22,46 @@ export function get_my_approvals() {
   return dcs_request("/approvals/my", "GET");
 }
 
+/** Authenticated: a form's waiting approval schedule plus its recently sent batches. */
+export function get_approval_schedule(form_group_id) {
+  return dcs_request(`/approvals/schedule/${form_group_id}`, "GET");
+}
+
+/** Authenticated: creates or replaces a form's approval schedule (approvers + count/datetime trigger). */
+export function save_approval_schedule(form_group_id, approvers, trigger) {
+  return dcs_request(`/approvals/schedule/${form_group_id}`, "PUT", { approvers, trigger });
+}
+
+/** Authenticated: cancels a form's waiting approval schedule. */
+export function cancel_approval_schedule(form_group_id) {
+  return dcs_request(`/approvals/schedule/${form_group_id}`, "DELETE");
+}
+
+/** Authenticated: immediately emails the given approvers a link + one-time code covering all uncovered data. */
+export function send_approval_links_now(form_group_id, approvers) {
+  return dcs_request(`/approvals/schedule/${form_group_id}/send-now`, "POST", { approvers });
+}
+
+/** Authenticated: one submission's full approval picture for the row-click details panel. */
+export function get_submission_approval_details(submission_id) {
+  return dcs_request(`/approvals/submission/${submission_id}`, "GET");
+}
+
+/** Public: one approver's view of a batch approval request behind /dcs-batch-approval/:token. */
+export function get_batch_approval(token) {
+  return dcs_request(`/public/batch-approvals/${token}`, "GET");
+}
+
+/** Public: exchanges the emailed one-time code for the batch's collected records. */
+export function verify_batch_approval_otp(token, otp) {
+  return dcs_request(`/public/batch-approvals/${token}/verify`, "POST", { otp });
+}
+
+/** Public: records the approver's batch decision, authorized by the one-time code. */
+export function submit_batch_approval_decision(token, otp, decision, comment) {
+  return dcs_request(`/public/batch-approvals/${token}/decision`, "POST", { otp, decision, comment });
+}
+
 /** Uploads the approver's drawn signature PNG or certificate file; raw XHR for upload progress, like uploadService.js. */
 export function upload_approval_file(token, file, onProgress) {
   return new Promise((resolve, reject) => {

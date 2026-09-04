@@ -3,7 +3,8 @@ const submissions_model = require("../../models/submissions_model.js");
 const { validate_submission_data } = require("../../jsonlogic/validate_submission.js");
 const { build_approval_state, get_active_steps } = require("../../utilities/approval.js");
 const { resolve_location_chain } = require("../../utilities/approval_routing.js");
-const { notify_approval_steps } = require("../../utilities/approval_email.js");
+const { notify_approval_steps, resolve_client_origin } = require("../../utilities/approval_email.js");
+const { check_count_triggers } = require("../../utilities/batch_approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /** Strips every step token; a link token is only handed back as a manual fallback when its email failed to send. */
@@ -90,6 +91,9 @@ async function submit_response(req, res) {
       });
       await submissions_model.update_submission_approval(submission._id, submission.approval);
     }
+
+    // Fires any waiting "after N responses" approval schedule this submission just satisfied; never fails the submission.
+    await check_count_triggers(form_group_id, resolve_client_origin(req));
 
     return res.status(201).json(success_response(req, "SUBMISSION_CREATED", to_submitter_view(submission, notified_steps)));
   } catch (error) {
