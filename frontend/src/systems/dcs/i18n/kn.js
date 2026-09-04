@@ -719,6 +719,7 @@ const kn = {
   DCS_APPROVAL_GROUP_DRAG_HINT: "Kurura imbanga z'amabanga kandi kuhambura amakuru ugufatanya cyangwa ahandi kugira ngo ugerageze urutonde rwo gusinya.",
   DCS_APPROVAL_VIEW_HIERARCHY: "Reba uruhare rwo gukwiza",
   DCS_APPROVAL_GROUP_EMPTY: "Nta bamemezi mu iyi cyangombwa nta kenera.",
+  DCS_APPROVAL_GROUP_TOTAL: "{{number}} abemezi mu iyi cyangombwa",
   DCS_APPROVAL_STEP_INCOMPLETE: "Uzuza iki gice mbere yo gukomeza",
   DCS_APPROVAL_WIZARD_READY: "Uburyo bwo kwemeza bwiteguye - tangaza ifishi kugira ngo bukoreshwe",
   DCS_APPROVAL_SAVE: "Bika abemezi",
