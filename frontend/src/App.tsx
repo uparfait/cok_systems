@@ -84,6 +84,7 @@ import NewTemplatePage from "./systems/dcs/pages/NewTemplatePage.jsx";
 import TemplateSettingsPage from "./systems/dcs/pages/TemplateSettingsPage.jsx";
 import PublicFormPage from "./systems/dcs/pages/PublicFormPage.jsx";
 import ApprovalPage from "./systems/dcs/pages/ApprovalPage.jsx";
+import BatchApprovalPage from "./systems/dcs/pages/BatchApprovalPage.jsx";
 import MyApprovalsPage from "./systems/dcs/pages/MyApprovalsPage.jsx";
 
 import HodEmployeesPage from "./systems/serviceDelivery/pages/hod/HodEmployeesPage";
@@ -674,6 +675,7 @@ const App: React.FC = () => {
 
           <Route path="/dcs-form/:id" element={<PublicFormPage />} />
           <Route path="/dcs-approval/:token" element={<ApprovalPage />} />
+          <Route path="/dcs-batch-approval/:token" element={<BatchApprovalPage />} />
 
           {/* Authenticated Routes - With Auth/Socket */}
           <Route path="*" element={<AuthenticatedRoutes />} />

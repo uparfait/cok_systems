@@ -1,4 +1,6 @@
 const submissions_model = require("../../models/submissions_model.js");
+const approval_requests_model = require("../../models/approval_requests_model.js");
+const approval_schedules_model = require("../../models/approval_schedules_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
@@ -34,6 +36,21 @@ async function get_submissions(req, res) {
     const page_size = Math.min(100, Math.max(1, parseInt(limit, 10) || DEFAULT_PAGE_SIZE));
 
     const result = await submissions_model.list_submissions(form_group_id, version, page_number, page_size, bounds, { search, sort });
+
+    // Each row's approval state for the table's Approval column: its own
+    // submit-time flow when it has one, else the batch it was sent in, else
+    // "scheduled" when a schedule is still waiting to fire.
+    const request_ids = [...new Set(result.items.filter((item) => item.approval_request_id).map((item) => item.approval_request_id.toString()))];
+    const [requests, schedule] = await Promise.all([
+      approval_requests_model.find_by_ids(request_ids),
+      approval_schedules_model.get_active_schedule(form_group_id),
+    ]);
+    const status_by_request = new Map(requests.map((request) => [request._id.toString(), request.status]));
+    result.items.forEach((item) => {
+      if (item.approval) item.approval_status = item.approval.status;
+      else if (item.approval_request_id) item.approval_status = status_by_request.get(item.approval_request_id.toString()) || "pending";
+      else item.approval_status = schedule ? "scheduled" : "none";
+    });
 
     return res.status(200).json(
       Object.assign(success_response(req, "SUBMISSIONS_FETCHED", result.items), {

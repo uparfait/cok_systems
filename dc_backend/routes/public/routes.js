@@ -6,6 +6,9 @@ const submit_response = require("../../controllers/submissions/submit_response.j
 const upload_file = require("../../controllers/public/upload_file.js");
 const delete_uploaded_file = require("../../controllers/public/delete_uploaded_file.js");
 const get_approval_by_token = require("../../controllers/approvals/get_approval_by_token.js");
+const get_batch_approval_by_token = require("../../controllers/approvals/get_batch_approval_by_token.js");
+const verify_batch_approval_otp = require("../../controllers/approvals/verify_batch_approval_otp.js");
+const submit_batch_approval_decision = require("../../controllers/approvals/submit_batch_approval_decision.js");
 const submit_approval_decision = require("../../controllers/approvals/submit_approval_decision.js");
 const upload_approval_file_controller = require("../../controllers/approvals/upload_approval_file.js");
 const { get_locations, get_all_locations } = require("../../controllers/locations/get_locations.js");
@@ -122,5 +125,49 @@ Router.post("/approvals/:token/decision", submit_approval_decision);
  *         description: File type or size not allowed
  */
 Router.post("/approvals/:token/upload", upload_approval_file.single("file"), upload_approval_file_controller);
+
+/**
+ * @swagger
+ * /dcs/api/public/batch-approvals/{token}:
+ *   get:
+ *     summary: Fetch one approver's view of a batch approval request (no auth - the token is the credential, no data until the OTP is verified)
+ *     tags: [Public]
+ *     responses:
+ *       200:
+ *         description: Batch approval fetched successfully
+ *       404:
+ *         description: Batch approval link does not exist
+ */
+Router.get("/batch-approvals/:token", get_batch_approval_by_token);
+
+/**
+ * @swagger
+ * /dcs/api/public/batch-approvals/{token}/verify:
+ *   post:
+ *     summary: Verify the approver's emailed one-time code and return the batch's collected records for review
+ *     tags: [Public]
+ *     responses:
+ *       200:
+ *         description: One-time code verified, records returned
+ *       401:
+ *         description: One-time code is wrong
+ *       429:
+ *         description: Too many wrong codes, this link is locked
+ */
+Router.post("/batch-approvals/:token/verify", verify_batch_approval_otp);
+
+/**
+ * @swagger
+ * /dcs/api/public/batch-approvals/{token}/decision:
+ *   post:
+ *     summary: Record one approver's batch approve/reject decision (requires the emailed one-time code)
+ *     tags: [Public]
+ *     responses:
+ *       200:
+ *         description: Decision recorded successfully
+ *       409:
+ *         description: This approver already decided
+ */
+Router.post("/batch-approvals/:token/decision", submit_batch_approval_decision);
 
 module.exports = Router;
