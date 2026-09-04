@@ -126,6 +126,15 @@ async function notify_approval_steps(req, form_name, steps) {
       origin,
       message: step.message || "",
     });
+    // Development visibility while the mail service is down: every approver's link lands in the backend console,
+    // whether or not the email itself went through - the link is never shown in the browser anymore.
+    console.log("\n========== APPROVAL LINK ==========");
+    console.log(`Form:      ${form_name}`);
+    console.log(`Approver:  ${step.name} (${role_label}) <${step.email}>`);
+    console.log(`Link:      ${link}`);
+    console.log(`Email:     ${result.success ? "sent" : `FAILED - ${result.error || "unknown error"}`}`);
+    console.log("===================================\n");
+
     // Registered users land on their own approvals dashboard, not the single-record token page.
     const in_app = await send_in_app_approval_notification({
       email: step.email,
