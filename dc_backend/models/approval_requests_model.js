@@ -44,6 +44,12 @@ async function update_request(request_id, patch) {
   await get_db().collection(COLLECTION_NAME).updateOne({ _id: request_id }, { $set: patch });
 }
 
+/** True while any batch of this form is still waiting on approvers - a recurring trigger holds off until it's decided. */
+async function has_pending_request(form_group_id) {
+  const pending = await get_db().collection(COLLECTION_NAME).findOne({ form_group_id, status: "pending" }, { projection: { _id: 1 } });
+  return !!pending;
+}
+
 /** Every still-pending batch routed to one approver email, newest first - the approver page's form switcher. */
 async function list_pending_by_approver_email(email) {
   if (!email) return [];
@@ -72,6 +78,7 @@ module.exports = {
   find_by_id,
   find_by_ids,
   update_request,
+  has_pending_request,
   list_pending_by_approver_email,
   list_by_form_group,
 };
