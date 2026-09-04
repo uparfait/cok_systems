@@ -83,6 +83,13 @@ async function list_ids_without_approval_request(form_group_id) {
   return documents.map((document) => document._id);
 }
 
+/** How many submissions of a form no batch covers yet - what a recurring "after N responses" trigger counts. */
+async function count_without_approval_request(form_group_id) {
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .countDocuments({ form_group_id, approval_request_id: { $exists: false } });
+}
+
 /** Stamps a fired batch onto every submission it covers. */
 async function assign_approval_request(submission_ids, request_id) {
   if (!submission_ids || submission_ids.length === 0) return;
@@ -309,6 +316,7 @@ module.exports = {
   ensure_submission_indexes,
   create_submission,
   list_ids_without_approval_request,
+  count_without_approval_request,
   assign_approval_request,
   list_by_approval_request,
   find_by_approval_token,

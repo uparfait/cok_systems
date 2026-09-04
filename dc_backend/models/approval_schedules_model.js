@@ -52,12 +52,30 @@ async function claim_schedule_for_sending(schedule_id) {
   return result.modifiedCount > 0;
 }
 
-/** Records the outcome of a fired schedule (request_id is null when there was no data to send). */
+/** Records the outcome of a fired one-shot schedule (request_id is null when there was no data to send). */
 async function mark_schedule_sent(schedule_id, request_id, sent_count) {
   const object_id = to_object_id(schedule_id.toString());
   await get_db()
     .collection(COLLECTION_NAME)
     .updateOne({ _id: object_id }, { $set: { status: "sent", sent_at: new Date(), request_id: request_id || null, sent_count: sent_count || 0 } });
+}
+
+/**
+ * Records one firing of a RECURRING schedule ("after N responses") and puts
+ * it straight back to waiting, so the next N collected responses fire it
+ * again - reschedule-free repetition.
+ */
+async function record_schedule_fire(schedule_id, request_id, sent_count) {
+  const object_id = to_object_id(schedule_id.toString());
+  await get_db()
+    .collection(COLLECTION_NAME)
+    .updateOne(
+      { _id: object_id },
+      {
+        $set: { status: "scheduled", last_sent_at: new Date(), last_request_id: request_id || null, last_sent_count: sent_count || 0 },
+        $inc: { times_sent: 1 },
+      },
+    );
 }
 
 /** Returns a claimed-but-failed schedule to the waiting state so it can fire again. */
@@ -99,6 +117,7 @@ module.exports = {
   cancel_schedule,
   claim_schedule_for_sending,
   mark_schedule_sent,
+  record_schedule_fire,
   release_schedule,
   find_count_schedules,
   find_due_datetime_schedules,
