@@ -1,5 +1,5 @@
 const approval_requests_model = require("../../models/approval_requests_model.js");
-const { public_batch_trail, MAX_OTP_ATTEMPTS } = require("../../utilities/batch_approval.js");
+const { public_batch_trail, can_batch_step_act, MAX_OTP_ATTEMPTS } = require("../../utilities/batch_approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -21,7 +21,8 @@ async function get_batch_approval_by_token(req, res) {
         submission_count: request.submission_count,
         sent_at: request.created_at,
         overall_status: request.status,
-        approver: { name: approver.name, email: approver.email, status: approver.status, comment: approver.comment, acted_at: approver.acted_at },
+        approver: { name: approver.name, role: approver.role, email: approver.email, status: approver.status, comment: approver.comment, acted_at: approver.acted_at },
+        can_act: can_batch_step_act(request, approver),
         otp_locked: approver.otp_attempts >= MAX_OTP_ATTEMPTS,
         trail: public_batch_trail(request),
       }),

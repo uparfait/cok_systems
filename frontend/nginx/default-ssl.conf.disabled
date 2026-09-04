@@ -3,7 +3,7 @@
 #   mv default.conf default-http.conf.disabled
 #   mv default-ssl.conf.disabled default.conf
 #   docker compose restart frontend
-# Replace ksesm.kigalicity.gov.rw with your real domain everywhere below.
+# Replaced ksesm.kigalicity.gov.rw with our real domain everywhere below.
 # ============================================================================
 
 # Port 80: keep the ACME challenge reachable, redirect everything else to HTTPS
