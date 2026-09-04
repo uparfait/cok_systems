@@ -85,7 +85,7 @@ export function is_approval_config_complete(config) {
 }
 
 function people_ok(approver) {
-  return !!(approver.name.trim() && approver.role.trim() && EMAIL_REGEX.test(approver.email.trim()));
+  return !!((approver.name || "").trim() && (approver.role || "").trim() && EMAIL_REGEX.test((approver.email || "").trim()));
 }
 
 function location_ok(approver) {
@@ -227,7 +227,7 @@ function layout_chain_tree(root) {
     // Full text, never trimmed - the rectangle grows to fit its longest line.
     node.header_lines = node.value === null ? [node.label] : [node.label, node.value];
     node.approver_lines = node.approvers.map((approver) =>
-      approver.role && approver.role.trim() ? `${approver.name.trim()} (${approver.role.trim()})` : approver.name.trim(),
+      approver.role && approver.role.trim() ? `${(approver.name || "").trim()} (${approver.role.trim()})` : (approver.name || "").trim(),
     );
     const texts = [...node.header_lines, ...node.approver_lines];
     node.w = Math.max(HIER_MIN_W, Math.max(...texts.map((text) => text.length)) * HIER_CHAR_W + HIER_PAD * 2);
