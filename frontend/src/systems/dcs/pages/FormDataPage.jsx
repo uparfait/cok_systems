@@ -12,7 +12,7 @@ import DcsDataTableGeoCell, { GEO_CELL_TABLE_MIN_WIDTH_PX } from "../components/
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
-import DcsApprovalStatusChip from "../components/DcsApprovalStatusChip.jsx";
+import { approval_status_label_key } from "../components/DcsApprovalStatusChip.jsx";
 import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
 import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
 
@@ -29,7 +29,7 @@ function has_any_label(field) {
   return field.type === "geolocation" || ["en", "kn", "fr"].some((language_code) => !!get_field_text(field.label, language_code));
 }
 
-function build_rows(submissions, data_fields) {
+function build_rows(submissions, data_fields, translate) {
   return (submissions || []).map((submission) => {
     const row = { dcs_row_key: submission._id };
     data_fields.forEach((field) => {
@@ -43,7 +43,9 @@ function build_rows(submissions, data_fields) {
       }
     });
     row.submitted_at = submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "";
-    row.approval = <DcsApprovalStatusChip status={submission.approval_status} />;
+    // Plain text (not a chip) so the table can measure the column's real width - it never bleeds into the next column.
+    const approval_label_key = approval_status_label_key(submission.approval_status);
+    row.approval = approval_label_key ? translate(approval_label_key) : "-";
     return row;
   });
 }
@@ -87,7 +89,7 @@ export default function FormDataPage() {
     )
     .concat([{ key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" }]));
 
-  const rows = build_rows(table.submissions, data_fields);
+  const rows = build_rows(table.submissions, data_fields, translate);
 
   return (
     <div className="h-full flex flex-col pb-4">
