@@ -22,14 +22,14 @@ export function get_my_approvals() {
   return dcs_request("/approvals/my", "GET");
 }
 
-/** Authenticated: a form's waiting approval schedule plus its recently sent batches. */
+/** Authenticated: the form's configured approvers, its waiting approval schedule and its recently sent batches. */
 export function get_approval_schedule(form_group_id) {
   return dcs_request(`/approvals/schedule/${form_group_id}`, "GET");
 }
 
-/** Authenticated: creates or replaces a form's approval schedule (approvers + count/datetime trigger). */
-export function save_approval_schedule(form_group_id, approvers, trigger) {
-  return dcs_request(`/approvals/schedule/${form_group_id}`, "PUT", { approvers, trigger });
+/** Authenticated: creates or replaces a form's approval schedule - just the timer; approvers come from the form's approval flow. */
+export function save_approval_schedule(form_group_id, trigger) {
+  return dcs_request(`/approvals/schedule/${form_group_id}`, "PUT", { trigger });
 }
 
 /** Authenticated: cancels a form's waiting approval schedule. */
@@ -37,9 +37,9 @@ export function cancel_approval_schedule(form_group_id) {
   return dcs_request(`/approvals/schedule/${form_group_id}`, "DELETE");
 }
 
-/** Authenticated: immediately emails the given approvers a link + one-time code covering all uncovered data. */
-export function send_approval_links_now(form_group_id, approvers) {
-  return dcs_request(`/approvals/schedule/${form_group_id}/send-now`, "POST", { approvers });
+/** Authenticated: immediately starts a batch approval routed to the form's configured approvers, in hierarchy order. */
+export function send_approval_links_now(form_group_id) {
+  return dcs_request(`/approvals/schedule/${form_group_id}/send-now`, "POST", {});
 }
 
 /** Authenticated: one submission's full approval picture for the row-click details panel. */

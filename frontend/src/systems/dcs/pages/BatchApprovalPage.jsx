@@ -143,7 +143,9 @@ function BatchApprovalPageContent() {
   if (load_state === "loading") return <DcsFormLoadingSpinner />;
   if (load_state === "not_found") return <DcsEmptyState messageKey="DCS_APPROVAL_NOT_FOUND" />;
 
-  const can_act = batch.approver.status === "pending" && !batch.otp_locked && !decision_result;
+  // The hierarchy is enforced server-side too - can_act is false until every approver before this one has approved.
+  const can_act = batch.can_act && !batch.otp_locked && !decision_result;
+  const waiting_for_turn = batch.approver.status === "pending" && !batch.can_act && !batch.otp_locked && !decision_result;
 
   return (
     <div className="min-h-screen py-8 px-4" style={{ backgroundColor: "#F7F9FB" }}>
@@ -170,6 +172,12 @@ function BatchApprovalPageContent() {
         {batch.approver.status !== "pending" && !decision_result && (
           <p className="text-sm px-3 py-2 mb-4" style={{ backgroundColor: "#F7F9FB", color: "#555555" }}>
             {translate("DCS_BATCH_ALREADY_ACTED")}
+          </p>
+        )}
+
+        {waiting_for_turn && (
+          <p className="text-sm px-3 py-2 mb-4" style={{ backgroundColor: "rgba(243,156,18,0.1)", color: "#F39C12", fontFamily: "'Montserrat', sans-serif" }}>
+            {translate("DCS_BATCH_NOT_TURN")}
           </p>
         )}
 
@@ -248,6 +256,7 @@ function BatchApprovalPageContent() {
                 <div>
                   <p className="text-sm" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
                     {entry.name || entry.email}
+                    {entry.role ? <span style={{ color: "#555555" }}> - {entry.role}</span> : null}
                   </p>
                   {entry.comment && (
                     <p className="text-xs" style={{ color: "#555555" }}>
