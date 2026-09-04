@@ -68,13 +68,21 @@ async function send_approval_request_email({ to, approver_name, approver_role, f
 }
 
 // Sends one approver their batch approval link plus the one-time code that authorizes the decision; never throws - returns {success}.
-async function send_batch_approval_email({ to, approver_name, form_name, record_count, link, otp, origin }) {
+async function send_batch_approval_email({ to, approver_name, form_name, record_count, link, otp, message, origin }) {
   const subject = `Data approval requested: ${form_name}`;
+  // The form author's note to this approver, when one was written while adding them.
+  const message_block = message
+    ? `<div style="border-left: 3px solid ${PRIMARY_COLOR}; background-color: #F7F9FB; padding: 12px 16px; margin: 0 0 12px;">
+        <p style="font-size: 13px; color: ${TEXT_MUTED}; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.5px;"><strong>Message for you</strong></p>
+        <p style="font-size: 15px; color: #333333; margin: 0;">${escape_html(message)}</p>
+      </div>`
+    : "";
   const html = html_wrapper(
     `
     <h2 style="color: ${PRIMARY_COLOR}; font-family: ${FONT}; font-size: 22px; margin: 0 0 16px;">Data approval requested</h2>
     <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">Dear ${escape_html(approver_name || to)},</p>
     <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;"><strong>${record_count}</strong> record(s) collected with <strong>${escape_html(form_name)}</strong> are waiting for your approval.</p>
+    ${message_block}
     <div style="border-left: 3px solid ${PRIMARY_COLOR}; background-color: #F7F9FB; padding: 12px 16px; margin: 0 0 12px;">
       <p style="font-size: 13px; color: ${TEXT_MUTED}; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.5px;"><strong>Your one-time code</strong></p>
       <p style="font-size: 26px; color: #333333; letter-spacing: 6px; font-weight: 700; margin: 0;">${escape_html(otp)}</p>
