@@ -22,6 +22,18 @@ const {
     ensure_location_indexes
 } = require("./models/locations_model.js");
 
+const {
+    ensure_approval_schedule_indexes
+} = require("./models/approval_schedules_model.js");
+
+const {
+    ensure_approval_request_indexes
+} = require("./models/approval_requests_model.js");
+
+const {
+    start_approval_schedule_runner
+} = require("./utilities/approval_schedule_runner.js");
+
 const language_middleware =
     require("./middlewares/language.js");
 
@@ -498,6 +510,13 @@ connect_databases()
         await ensure_submission_indexes();
 
         await ensure_location_indexes();
+
+        await ensure_approval_schedule_indexes();
+
+        await ensure_approval_request_indexes();
+
+        // Fires "at this date and time" approval schedules once a minute.
+        start_approval_schedule_runner();
 
 
         app.listen(PORT, () => {

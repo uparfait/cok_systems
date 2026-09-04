@@ -17,6 +17,9 @@ import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsExportDialog from "../components/DcsExportDialog.jsx";
+import DcsApprovalStatusChip from "../components/DcsApprovalStatusChip.jsx";
+import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
+import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
 
 const ACTIONS_COLUMN_WIDTH_PX = 56;
 
@@ -160,6 +163,7 @@ function build_rows(submissions, field_type_by_id, on_delete_click, deleting_id)
     });
     row.version = submission.version;
     row.submitted_at = submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "";
+    row.approval = <DcsApprovalStatusChip status={submission.approval_status} />;
     row.actions = (
       <DeleteSubmissionButton onClick={() => on_delete_click(submission._id)} disabled={deleting_id === submission._id} />
     );
@@ -183,6 +187,8 @@ export default function FormAllDataPage() {
   const [confirming_delete_id, setConfirmingDeleteId] = useState(null);
   const [deleting_id, setDeletingId] = useState(null);
   const [is_export_open, setIsExportOpen] = useState(false);
+  const [is_schedule_open, setIsScheduleOpen] = useState(false);
+  const [details_submission_id, setDetailsSubmissionId] = useState(null);
 
   const { data: versions, loading: loading_versions } = useSilentPolling(
     () => get_form_versions(form_group_id).then((res) => res.data || []),
@@ -193,7 +199,10 @@ export default function FormAllDataPage() {
   if (loading_versions || !versions || versions.length === 0) return <DcsLoadingState />;
 
   const { columns: data_columns, field_type_by_id, has_diff } = build_diffed_columns(versions, language);
-  const columns = data_columns.concat([{ key: "actions", label: "", minWidthPx: ACTIONS_COLUMN_WIDTH_PX }]);
+  const columns = data_columns.concat([
+    { key: "approval", labelKey: "DCS_TABLE_APPROVAL" },
+    { key: "actions", label: "", minWidthPx: ACTIONS_COLUMN_WIDTH_PX },
+  ]);
   const rows = build_rows(table.submissions, field_type_by_id, setConfirmingDeleteId, deleting_id);
 
   const handle_delete = async () => {
@@ -235,6 +244,18 @@ export default function FormAllDataPage() {
           </svg>
           {translate("DCS_BTN_EXPORT_EXCEL")}
         </button>
+        <button
+          type="button"
+          onClick={() => setIsScheduleOpen(true)}
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white rounded-none transition-colors cursor-pointer"
+          style={{ fontFamily: "'Montserrat', sans-serif", height: 40, backgroundColor: "#056daa" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 12l2 2 4-4" />
+            <circle cx="12" cy="12" r="10" />
+          </svg>
+          {translate("DCS_BTN_SCHEDULE_APPROVAL")}
+        </button>
       </div>
 
       <div className="flex-1 min-h-0">
@@ -249,6 +270,7 @@ export default function FormAllDataPage() {
           columnTints={Object.fromEntries(columns.filter((column) => column.tint).map((column) => [column.key, column.tint]))}
           legendItems={legend_items}
           totalCount={table.total}
+          onRowClick={(row) => setDetailsSubmissionId(row.dcs_row_key)}
         />
       </div>
 
@@ -267,6 +289,14 @@ export default function FormAllDataPage() {
         onOpenChange={setIsExportOpen}
         form_group_id={form_group_id}
       />
+
+      {is_schedule_open && (
+        <DcsApprovalScheduleDialog form_group_id={form_group_id} onClose={() => setIsScheduleOpen(false)} onChanged={table.refresh} />
+      )}
+
+      {details_submission_id && (
+        <DcsApprovalDetailsDialog submission_id={details_submission_id} onClose={() => setDetailsSubmissionId(null)} />
+      )}
     </div>
   );
 }
