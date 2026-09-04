@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_approval, submit_approval_decision, upload_approval_file, build_approval_link } from "../services/approvalsService.js";
+import { get_approval, submit_approval_decision, upload_approval_file } from "../services/approvalsService.js";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 import DcsFormLoadingSpinner from "../components/DcsFormLoadingSpinner.jsx";
@@ -180,11 +180,6 @@ function ApprovalPageContent() {
     }
   };
 
-  const copy_link = (link) => {
-    window.navigator.clipboard.writeText(link);
-    showSuccess(translate("DCS_TOAST_LINK_COPIED"));
-  };
-
   if (load_state === "loading") return <DcsFormLoadingSpinner />;
   if (load_state === "not_found") return <DcsEmptyState messageKey="DCS_APPROVAL_NOT_FOUND" />;
 
@@ -295,29 +290,16 @@ function ApprovalPageContent() {
           ))}
         </div>
 
-        {next_approvers.length > 0 && (
+        {/* A failed email is deliberately silent here - its link is printed in the backend console instead. */}
+        {next_approvers.some((next_info) => next_info.email_sent) && (
           <div className="mt-4 border-2 p-3 space-y-2" style={{ borderColor: "#056daa" }}>
-            {next_approvers.map((next_info, next_index) => {
-              if (next_info.email_sent) {
-                return (
-                  <p key={next_index} className="text-sm px-3 py-2" style={{ backgroundColor: "rgba(76,175,80,0.12)", color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
-                    {translate("DCS_APPROVAL_NEXT_EMAILED", { name: next_info.name, role: next_info.role })}
-                  </p>
-                );
-              }
-              const approval_link = build_approval_link(next_info.token);
-              return (
-                <div key={next_index} className="flex items-center justify-between gap-3 flex-wrap">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold" style={{ color: "#F39C12", fontFamily: "'Montserrat', sans-serif" }}>
-                      {translate("DCS_APPROVAL_EMAIL_FAILED", { name: next_info.name, role: next_info.role })}
-                    </p>
-                    <p className="truncate text-sm" style={{ color: "#056daa" }} title={approval_link}>{approval_link}</p>
-                  </div>
-                  <DcsButtonOutline onClick={() => copy_link(approval_link)}>{translate("DCS_FORM_COPY_LINK")}</DcsButtonOutline>
-                </div>
-              );
-            })}
+            {next_approvers
+              .filter((next_info) => next_info.email_sent)
+              .map((next_info, next_index) => (
+                <p key={next_index} className="text-sm px-3 py-2" style={{ backgroundColor: "rgba(76,175,80,0.12)", color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
+                  {translate("DCS_APPROVAL_NEXT_EMAILED", { name: next_info.name, role: next_info.role })}
+                </p>
+              ))}
           </div>
         )}
 

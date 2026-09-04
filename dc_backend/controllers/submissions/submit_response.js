@@ -7,7 +7,7 @@ const { notify_approval_steps, resolve_client_origin } = require("../../utilitie
 const { check_count_triggers } = require("../../utilities/batch_approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
-/** Strips every step token; a link token is only handed back as a manual fallback when its email failed to send. */
+/** Strips every step token; a failed email's link is only ever printed to the backend console, never handed to the browser. */
 function to_submitter_view(submission, notified_steps) {
   if (!submission.approval) return submission;
   const active_links = (notified_steps || get_active_steps(submission.approval).map((step) => Object.assign({ email_sent: true }, step))).map(
@@ -16,7 +16,6 @@ function to_submitter_view(submission, notified_steps) {
       name: step.name,
       role: step.role,
       email_sent: step.email_sent,
-      token: step.email_sent ? undefined : step.token,
     }),
   );
   const approval = {
