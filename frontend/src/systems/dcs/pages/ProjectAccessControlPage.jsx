@@ -72,7 +72,6 @@ export default function ProjectAccessControlPage() {
   const [no_matches, setNoMatches] = useState(false);
 
   const [saving, setSaving] = useState(false);
-  const [is_confirming_empty, setIsConfirmingEmpty] = useState(false);
   const [individual_to_remove, setIndividualToRemove] = useState(null);
   const [active_section, setActiveSection] = useState("departments");
 
@@ -198,7 +197,7 @@ export default function ProjectAccessControlPage() {
     setIndividuals(individuals.map((individual) => (individual.user_id === user_id ? { ...individual, ...changes } : individual)));
   };
 
-  const do_save = async () => {
+  const handle_save = async () => {
     setSaving(true);
     try {
       await save_project_access(project._id, { enabled, departments: department_grants, individuals });
@@ -207,16 +206,7 @@ export default function ProjectAccessControlPage() {
       showError(error.message || translate("DCS_ERROR_GENERIC"));
     } finally {
       setSaving(false);
-      setIsConfirmingEmpty(false);
     }
-  };
-
-  const handle_save = () => {
-    if (enabled && department_grants.length === 0 && individuals.length === 0) {
-      setIsConfirmingEmpty(true);
-      return;
-    }
-    do_save();
   };
 
   if (loading) return <DcsLoadingState />;
@@ -415,16 +405,6 @@ export default function ProjectAccessControlPage() {
           {saving ? translate("DCS_ACCESS_SAVING") : translate("DCS_BTN_SAVE_ACCESS")}
         </DcsButtonPrimary>
       </div>
-
-      {is_confirming_empty && (
-        <DcsConfirmDialog
-          titleKey="DCS_ACCESS_CONFIRM_EMPTY_TITLE"
-          messageKey="DCS_ACCESS_CONFIRM_EMPTY_MESSAGE"
-          confirming={saving}
-          onConfirm={do_save}
-          onCancel={() => setIsConfirmingEmpty(false)}
-        />
-      )}
 
       {individual_to_remove && (
         <DcsConfirmDialog
