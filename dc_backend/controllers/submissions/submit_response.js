@@ -5,6 +5,7 @@ const { build_approval_state, get_active_steps } = require("../../utilities/appr
 const { resolve_location_chain } = require("../../utilities/approval_routing.js");
 const { notify_approval_steps, resolve_client_origin } = require("../../utilities/approval_email.js");
 const { check_count_triggers } = require("../../utilities/batch_approval.js");
+const approval_schedules_model = require("../../models/approval_schedules_model.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /** Strips every step token; a failed email's link is only ever printed to the backend console, never handed to the browser. */
@@ -61,8 +62,14 @@ async function submit_response(req, res) {
       );
     }
 
+    // An active approval schedule takes over completely: no per-submission
+    // approval is built and no approver hears about this record now - the
+    // schedule (count/datetime/manual send) decides when the batch links go
+    // out to the form's configured approvers.
+    const active_schedule = await approval_schedules_model.get_active_schedule(form_group_id);
+
     // The submission's answered location names resolve to its location_id chain, which picks the approvers responsible for it.
-    const location_chain = form_version.approval_config && form_version.approval_config.enabled === true
+    const location_chain = !active_schedule && form_version.approval_config && form_version.approval_config.enabled === true
       ? await resolve_location_chain(validation_result.resolved_data)
       : [];
 
@@ -72,7 +79,7 @@ async function submit_response(req, res) {
       project_id: form_version.project_id,
       data: validation_result.resolved_data,
       client_submission_id: client_submission_id || null,
-      approval: build_approval_state(form_version.approval_config, location_chain, validation_result.resolved_data),
+      approval: active_schedule ? null : build_approval_state(form_version.approval_config, location_chain, validation_result.resolved_data),
     });
 
     // The system itself emails every approver allowed to act right away - the first one,
