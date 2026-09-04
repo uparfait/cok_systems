@@ -89,6 +89,7 @@ module.exports = {
   APPROVAL_SCHEDULE_SAVED: "Planification d'approbation enregistrée avec succès",
   APPROVAL_SCHEDULE_CANCELLED: "Planification d'approbation annulée",
   APPROVAL_SCHEDULE_NOT_FOUND: "Ce formulaire n'a aucune planification d'approbation en attente",
+  APPROVAL_NO_APPROVERS_CONFIGURED: "Ce formulaire n'a aucun approbateur configuré dans ses paramètres de flux d'approbation",
   APPROVAL_SCHEDULE_INVALID: "Les paramètres de planification d'approbation ne sont pas valides",
   APPROVAL_LINKS_SENT: "Les liens d'approbation ont été envoyés aux approbateurs",
   APPROVAL_NO_DATA_TO_SEND: "Aucune donnée collectée n'attend encore d'approbation",

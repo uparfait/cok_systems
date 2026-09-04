@@ -89,6 +89,7 @@ module.exports = {
   APPROVAL_SCHEDULE_SAVED: "Approval schedule saved successfully",
   APPROVAL_SCHEDULE_CANCELLED: "Approval schedule cancelled",
   APPROVAL_SCHEDULE_NOT_FOUND: "This form has no approval schedule waiting to fire",
+  APPROVAL_NO_APPROVERS_CONFIGURED: "This form has no approvers configured in its approval flow settings",
   APPROVAL_SCHEDULE_INVALID: "The approval schedule settings are not valid",
   APPROVAL_LINKS_SENT: "Approval links were sent to the approvers",
   APPROVAL_NO_DATA_TO_SEND: "There is no collected data waiting for approval yet",

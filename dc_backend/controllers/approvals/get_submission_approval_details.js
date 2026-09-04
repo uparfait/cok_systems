@@ -1,9 +1,10 @@
 const submissions_model = require("../../models/submissions_model.js");
+const forms_model = require("../../models/forms_model.js");
 const approval_requests_model = require("../../models/approval_requests_model.js");
 const approval_schedules_model = require("../../models/approval_schedules_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { public_approval_trail } = require("../../utilities/approval.js");
-const { public_batch_trail } = require("../../utilities/batch_approval.js");
+const { public_batch_trail, get_form_batch_approvers } = require("../../utilities/batch_approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 
@@ -56,12 +57,19 @@ async function get_submission_approval_details(req, res) {
 
     const schedule = await approval_schedules_model.get_active_schedule(submission.form_group_id);
     if (schedule) {
+      // The approvers a fired schedule will route to live on the form itself, in hierarchy order.
+      const form_version = await forms_model.get_latest_version(submission.form_group_id);
       return res.status(200).json(
         success_response(req, "APPROVAL_DETAILS_FETCHED", {
           source: "scheduled",
           status: "scheduled",
           trigger: schedule.trigger,
-          approvers: schedule.approvers.map((approver) => ({ name: approver.name, email: approver.email, status: "pending" })),
+          approvers: get_form_batch_approvers(form_version).map((approver) => ({
+            name: approver.name,
+            role: approver.role,
+            email: approver.email,
+            status: "pending",
+          })),
         }),
       );
     }
