@@ -199,10 +199,9 @@ export default function FormAllDataPage() {
   if (loading_versions || !versions || versions.length === 0) return <DcsLoadingState />;
 
   const { columns: data_columns, field_type_by_id, has_diff } = build_diffed_columns(versions, language);
-  const columns = data_columns.concat([
-    { key: "approval", labelKey: "DCS_TABLE_APPROVAL" },
-    { key: "actions", label: "", minWidthPx: ACTIONS_COLUMN_WIDTH_PX },
-  ]);
+  const columns = [{ key: "approval", labelKey: "DCS_TABLE_APPROVAL" }]
+    .concat(data_columns)
+    .concat([{ key: "actions", label: "", minWidthPx: ACTIONS_COLUMN_WIDTH_PX }]);
   const rows = build_rows(table.submissions, field_type_by_id, setConfirmingDeleteId, deleting_id);
 
   const handle_delete = async () => {
