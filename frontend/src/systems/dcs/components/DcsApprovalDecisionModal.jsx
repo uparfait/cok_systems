@@ -156,47 +156,70 @@ export default function DcsApprovalDecisionModal({ record, form, decision, onClo
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
-      <div className="w-full max-w-lg bg-white max-h-[90vh] flex flex-col">
-        <div className="px-5 py-4 flex items-center justify-between gap-3" style={{ backgroundColor: accent }}>
-          <div className="min-w-0">
-            <h2 className="text-white font-bold text-base truncate" style={{ fontFamily: fontHeading }}>
-              {translate(is_approve ? "DCS_APPROVAL_BTN_APPROVE" : "DCS_APPROVAL_BTN_REJECT")} - {form_name}
+      <div className="w-full max-w-xl bg-white max-h-[90vh] flex flex-col shadow-2xl">
+        {/* Header - action, form and submission date at a glance */}
+        <div className="px-5 py-4 flex items-center gap-3 shrink-0" style={{ backgroundColor: accent }}>
+          <div
+            className="w-10 h-10 flex items-center justify-center text-lg font-extrabold shrink-0"
+            style={{ backgroundColor: "rgba(255,255,255,0.18)", color: "#FFFFFF", borderRadius: "50%" }}
+            aria-hidden="true"
+          >
+            {is_approve ? "✓" : "✕"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-white font-bold text-base leading-tight truncate" style={{ fontFamily: fontHeading }}>
+              {translate(is_approve ? "DCS_APPROVAL_BTN_APPROVE" : "DCS_APPROVAL_BTN_REJECT")}
             </h2>
-            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.85)", fontFamily: fontHeading }}>
-              {translate("DCS_MYAPPROVALS_COL_SUBMITTED")}: {record.submitted_at ? new Date(record.submitted_at).toLocaleString() : "-"}
+            <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.85)", fontFamily: fontHeading }}>
+              {form_name}
+              {record.submitted_at ? ` · ${translate("DCS_APPROVAL_SUBMITTED_AT", { date: new Date(record.submitted_at).toLocaleString() })}` : ""}
             </p>
           </div>
-          <button type="button" onClick={onClose} disabled={acting} className="cursor-pointer text-white text-xl leading-none px-1" aria-label={translate("DCS_MYAPPROVALS_CANCEL")}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={acting}
+            className="cursor-pointer text-white text-lg leading-none w-8 h-8 flex items-center justify-center shrink-0"
+            style={{ backgroundColor: "rgba(255,255,255,0.14)", borderRadius: "50%" }}
+            aria-label={translate("DCS_MYAPPROVALS_CANCEL")}
+          >
             &times;
           </button>
         </div>
 
-        <div className="p-5 overflow-y-auto">
-          {/* Everything the submitter entered, read-only */}
+        {/* Scrollable body - record details, comment and signature */}
+        <div className="px-5 py-4 overflow-y-auto flex-1">
+          <p className="text-xs font-bold uppercase mb-2" style={{ color: accent, fontFamily: fontHeading, letterSpacing: 0.8 }}>
+            {translate("DCS_APPROVAL_DATA_TITLE")}
+          </p>
           <div className="border" style={{ borderColor: BORDER }}>
             {answered_fields.length === 0 && <p className="p-3 text-sm" style={{ color: GRAY }}>-</p>}
             {answered_fields.map((field, index) => (
-              <div key={field.id} className="px-3 py-2 flex flex-col gap-0.5" style={{ borderTop: index === 0 ? "none" : `1px solid ${BORDER}`, backgroundColor: index % 2 === 0 ? "#FFFFFF" : NEUTRAL_LIGHT }}>
-                <span className="text-xs font-semibold uppercase" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>{label_of(field)}</span>
-                <span className="text-sm" style={{ color: NEUTRAL_DARK }}><AnswerValue value={record.data[field.id]} /></span>
+              <div
+                key={field.id}
+                className="px-3 py-2.5 grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-x-4 gap-y-0.5 items-start"
+                style={{ borderTop: index === 0 ? "none" : `1px solid ${BORDER}`, backgroundColor: index % 2 === 0 ? "#FFFFFF" : NEUTRAL_LIGHT }}
+              >
+                <span className="text-xs font-semibold uppercase pt-0.5 break-words" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>{label_of(field)}</span>
+                <span className="text-sm break-words" style={{ color: NEUTRAL_DARK }}><AnswerValue value={record.data[field.id]} /></span>
               </div>
             ))}
           </div>
 
-          <label className="block text-xs font-semibold uppercase mt-4 mb-1" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>
+          <label className="block text-xs font-bold uppercase mt-5 mb-1.5" style={{ color: accent, fontFamily: fontHeading, letterSpacing: 0.8 }}>
             {translate("DCS_APPROVAL_COMMENT_LABEL")}
           </label>
           <textarea
             value={comment}
             onChange={(event) => setComment(event.target.value)}
             rows={3}
-            className="w-full text-sm p-2 border"
-            style={{ borderColor: BORDER, fontFamily: fontHeading, outline: "none", resize: "vertical" }}
+            className="w-full text-sm p-2.5 border"
+            style={{ borderColor: BORDER, fontFamily: fontHeading, outline: "none", resize: "vertical", backgroundColor: NEUTRAL_LIGHT }}
           />
 
           {is_approve && (
             <>
-              <p className="mt-4 mb-2 text-xs font-semibold uppercase" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>
+              <p className="mt-5 mb-2 text-xs font-bold uppercase" style={{ color: accent, fontFamily: fontHeading, letterSpacing: 0.8 }}>
                 {translate("DCS_APPROVAL_SIGN_METHOD_LABEL")}
               </p>
               <div className="flex gap-2 flex-wrap mb-3">
@@ -220,7 +243,7 @@ export default function DcsApprovalDecisionModal({ record, form, decision, onClo
               </div>
 
               {sign_method === "drawn" && (
-                <div>
+                <div className="p-3 border" style={{ borderColor: BORDER, backgroundColor: NEUTRAL_LIGHT }}>
                   <canvas
                     ref={canvas_ref}
                     width={CANVAS_WIDTH}
@@ -244,34 +267,35 @@ export default function DcsApprovalDecisionModal({ record, form, decision, onClo
               )}
 
               {sign_method === "certificate" && (
-                <div>
+                <div className="p-3 border" style={{ borderColor: BORDER, backgroundColor: NEUTRAL_LIGHT }}>
                   <input
                     type="file"
                     accept={CERTIFICATE_ACCEPT}
                     onChange={(event) => setCertificateFile(event.target.files && event.target.files[0] ? event.target.files[0] : null)}
-                    className="text-sm"
+                    className="text-sm w-full"
                     style={{ fontFamily: fontHeading }}
                   />
-                  <p className="text-xs mt-1" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_APPROVAL_CERT_HINT")}</p>
+                  <p className="text-xs mt-1.5" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_APPROVAL_CERT_HINT")}</p>
                 </div>
               )}
             </>
           )}
+        </div>
 
-          <div className="flex gap-3 mt-5 flex-wrap">
-            <DcsButtonOutline onClick={onClose} disabled={acting} className="flex-1">
-              {translate("DCS_MYAPPROVALS_CANCEL")}
-            </DcsButtonOutline>
-            {is_approve ? (
-              <DcsButtonPrimary onClick={handle_confirm} disabled={acting} className="flex-1">
-                {translate("DCS_APPROVAL_BTN_APPROVE")}
-              </DcsButtonPrimary>
-            ) : (
-              <DcsButtonOutlineDanger onClick={handle_confirm} disabled={acting} className="flex-1">
-                {translate("DCS_APPROVAL_BTN_REJECT")}
-              </DcsButtonOutlineDanger>
-            )}
-          </div>
+        {/* Fixed action bar - always reachable without scrolling */}
+        <div className="px-5 py-3.5 flex gap-3 shrink-0 border-t" style={{ borderColor: BORDER, backgroundColor: NEUTRAL_LIGHT }}>
+          <DcsButtonOutline onClick={onClose} disabled={acting} className="flex-1">
+            {translate("DCS_MYAPPROVALS_CANCEL")}
+          </DcsButtonOutline>
+          {is_approve ? (
+            <DcsButtonPrimary onClick={handle_confirm} disabled={acting} className="flex-1">
+              {translate("DCS_APPROVAL_BTN_APPROVE")}
+            </DcsButtonPrimary>
+          ) : (
+            <DcsButtonOutlineDanger onClick={handle_confirm} disabled={acting} className="flex-1">
+              {translate("DCS_APPROVAL_BTN_REJECT")}
+            </DcsButtonOutlineDanger>
+          )}
         </div>
       </div>
     </div>
