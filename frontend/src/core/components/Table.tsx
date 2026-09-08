@@ -34,6 +34,8 @@ export interface TableProps {
   className?: string;
   headerClassName?: string;
   headerStyle?: React.CSSProperties;
+  clipRows?: boolean;
+  nowrap?: boolean;
 }
 
 const Table: React.FC<TableProps> = ({
@@ -50,6 +52,8 @@ const Table: React.FC<TableProps> = ({
   className = '',
   headerClassName,
   headerStyle,
+  clipRows = false,
+  nowrap = false,
 }) => {
   const navigate = useNavigate();
 
@@ -100,7 +104,7 @@ const Table: React.FC<TableProps> = ({
               {headers.map((header, index) => (
                 <th
                   key={header.key || index}
-                  className={`px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider ${header.className || ''}`}
+                  className={`px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider ${nowrap ? 'whitespace-nowrap' : ''} ${header.className || ''}`}
                 >
                   {header.label}
                 </th>
@@ -132,8 +136,12 @@ const Table: React.FC<TableProps> = ({
                   onClick={() => handleRowClick(row, rowIndex)}
                 >
                   {headers.map((header, colIndex) => (
-                    <td key={header.key || colIndex} className="px-6 py-4">
-                      {renderTableCell(header, row, rowIndex)}
+                    <td key={header.key || colIndex} className={`px-6 py-4 ${nowrap ? 'whitespace-nowrap' : ''}`}>
+                      {clipRows ? (
+                        <div className="cok-cell-clip">{renderTableCell(header, row, rowIndex)}</div>
+                      ) : (
+                        renderTableCell(header, row, rowIndex)
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -155,7 +163,7 @@ const Table: React.FC<TableProps> = ({
             <button
               onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
               disabled={pagination.currentPage <= 1 || pagination.loading}
-              className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded flex items-center gap-1 transition-colors"
+              className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed rounded flex items-center gap-1 transition-colors"
             >
               {pagination.loading && (
                 <FiLoader className="w-3 h-3 animate-spin" />
@@ -171,7 +179,7 @@ const Table: React.FC<TableProps> = ({
             <button
               onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
               disabled={pagination.currentPage >= pagination.totalPages || pagination.loading}
-              className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded flex items-center gap-1 transition-colors"
+              className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed rounded flex items-center gap-1 transition-colors"
             >
               Next
               <FiChevronRight className="w-4 h-4" />

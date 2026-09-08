@@ -34,7 +34,7 @@ function TypeSelectionScreen({ onOpenCalendar, showCalendar, calendarEvents, cal
         </div>
       )}
       
-      <div className="min-h-screen w-full flex flex-col items-center justify-start pt-20 px-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+      <div className="min-h-screen w-full flex flex-col items-center justify-start px-4" style={{ backgroundColor: '#FFFFFF' }}>
         <div className="w-full max-w-3xl">
           <div className="text-center mb-10">
             <button onClick={onOpenCalendar}
@@ -53,7 +53,7 @@ function TypeSelectionScreen({ onOpenCalendar, showCalendar, calendarEvents, cal
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             <button onClick={() => onNavigate("/book-a-room/new/event")}
               className="group relative p-6 sm:p-10 text-left transition-all duration-200"
-              style={{ backgroundColor: NEUTRAL_LIGHT, boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)', border: '0', borderRadius: 0, cursor: 'pointer' }}
+              style={{ backgroundColor: '#FFFFFF', boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)', border: '1px solid #E0E0E0', borderRadius: 0, cursor: 'pointer' }}
               onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 12px 48px 0 rgba(0,0,0,0.12)'}
               onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 8px 40px 0 rgba(0,0,0,0.08)'}>
               <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center mb-4 sm:mb-5 transition-colors duration-200" style={{ backgroundColor: 'rgba(5,109,170,0.08)', borderRadius: '50%' }}>
@@ -73,7 +73,7 @@ function TypeSelectionScreen({ onOpenCalendar, showCalendar, calendarEvents, cal
             </button>
             <button onClick={() => onNavigate("/book-a-room/new/meet")}
               className="group relative p-6 sm:p-10 text-left transition-all duration-200"
-              style={{ backgroundColor: NEUTRAL_LIGHT, boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)', border: '0', borderRadius: 0, cursor: 'pointer' }}
+              style={{ backgroundColor: '#FFFFFF', boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)', border: '1px solid #E0E0E0', borderRadius: 0, cursor: 'pointer' }}
               onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 12px 48px 0 rgba(0,0,0,0.12)'}
               onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 8px 40px 0 rgba(0,0,0,0.08)'}>
               <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center mb-4 sm:mb-5 transition-colors duration-200" style={{ backgroundColor: 'rgba(76,175,80,0.08)', borderRadius: '50%' }}>

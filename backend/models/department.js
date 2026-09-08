@@ -63,9 +63,10 @@ const DepartmentSchema = new mongoose.Schema({
       },
     },
   ],
-  department_id: {
+  dpt_id: {
     type: String,
     default: "",
+    trim: true,
   },
   department_response_time_in_minutes: {
     type: Number,
@@ -93,4 +94,15 @@ DepartmentSchema.index({ name: 1 });
 DepartmentSchema.index({ parent_department: 1 });
 
 
-module.exports = mongoose.model('Department', DepartmentSchema);
+const Department = mongoose.model('Department', DepartmentSchema);
+
+// The collection historically carried a unique index on department_id which made
+// every insert without a distinct value fail with E11000. The field is now the
+// optional, non-unique dpt_id, so that stale index is dropped once connected.
+const dropStaleDepartmentIdIndex = () => {
+  Department.collection.dropIndex('department_id_1').catch(() => {});
+};
+if (mongoose.connection.readyState === 1) dropStaleDepartmentIdIndex();
+else mongoose.connection.once('connected', dropStaleDepartmentIdIndex);
+
+module.exports = Department;

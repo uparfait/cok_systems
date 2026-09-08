@@ -52,7 +52,8 @@ class GenerateQrCodeController {
       }
 
   
-      const attendanceUrl = `${process.env.FRONTEND_URL}/event/${encodeURIComponent(liveEvent.eventSpecialId)}/attendances/?eventSpecialId=${encodeURIComponent(liveEvent.eventSpecialId)}&eventName=${encodeURIComponent(liveEvent.eventName)}&eventRoom=${encodeURIComponent(displayRoom)}&roomLocation=${encodeURIComponent(displayLocation)}&eventType=${encodeURIComponent(liveEvent.eventType)}`;
+      const config = require('../configurations/config');
+      const attendanceUrl = `${config.frontendUrl}/event/${encodeURIComponent(liveEvent.eventSpecialId)}/attendances/?eventSpecialId=${encodeURIComponent(liveEvent.eventSpecialId)}&eventName=${encodeURIComponent(liveEvent.eventName)}&eventRoom=${encodeURIComponent(displayRoom)}&roomLocation=${encodeURIComponent(displayLocation)}&eventType=${encodeURIComponent(liveEvent.eventType)}`;
 
       const qrCodeDataUrl = await QRCode.toDataURL(attendanceUrl, {
         width: 400,

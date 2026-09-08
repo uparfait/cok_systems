@@ -26,7 +26,7 @@ export default function BookingOptions() {
         <meta name="description" content="Manage your room booking." />
       </Helmet>
 
-      <main className="w-full min-h-screen flex flex-col items-center px-4 sm:px-6 lg:px-8" style={{ backgroundColor: NEUTRAL_LIGHT, paddingTop: '120px', paddingBottom: '80px' }}>
+      <main className="w-full min-h-screen flex flex-col items-center px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#FFFFFF', paddingBottom: '80px' }}>
         <div className="w-full max-w-[1200px] mx-auto">
           
           {/* Header */}
@@ -59,9 +59,9 @@ export default function BookingOptions() {
 
             {/* Track Your Booking Card */}
             <div className="w-full" style={{
-              backgroundColor: NEUTRAL_LIGHT,
+              backgroundColor: '#FFFFFF',
               boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)',
-              border: '0',
+              border: '1px solid #E0E0E0',
               padding: '40px',
               transition: 'all 0.4s'
             }}>
@@ -147,9 +147,9 @@ export default function BookingOptions() {
               onClick={() => navigate('/book-a-room/new')}
               className="w-full text-left"
               style={{
-                backgroundColor: NEUTRAL_LIGHT,
+                backgroundColor: '#FFFFFF',
                 boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)',
-                border: '0',
+                border: '1px solid #E0E0E0',
                 padding: '40px',
                 cursor: 'pointer',
                 transition: 'all 0.4s',

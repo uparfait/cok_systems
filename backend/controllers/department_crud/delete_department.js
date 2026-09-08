@@ -68,8 +68,7 @@ module.exports = async function delete_department(req, res, next) {
         return res.status(500).json({
             success: false,
             type: "error",
-            message: "Something went wrong during deletion",
-            error: error.message
+            message: "Something went wrong while deleting the department. Please try again or contact the system administrator."
         })
     }
 }

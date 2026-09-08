@@ -332,7 +332,7 @@ export default function MinutesFileViewer({ files, startIndex = 0, mode = "singl
   const headerType = isMerged ? "other" : getFileType(current.name, current.type);
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999999] p-2 sm:p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4" style={{ zIndex: 700000000 }}>
       <div className="bg-white w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] flex flex-col" style={{ borderRadius: 0 }}>
         {/* Header */}
         <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ backgroundColor: PRIMARY }}>

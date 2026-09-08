@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import axios from "axios";
-import { FiSearch, FiMail, FiUsers } from "react-icons/fi";
+import { FiSearch, FiMail, FiUsers, FiX } from "react-icons/fi";
 import { useToast } from "@/core/contexts/ToastContext";
 import { useAuth } from "@/core/contexts/AuthContext";
 import SpiralLoader from "../../components/SpiralLoader";
@@ -13,10 +13,13 @@ const NEUTRAL_DARK = "#333333";
 const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 
-export default function DesignateMinutes({ overlayEventId = null }) {
+export default function DesignateMinutes({ overlayEventId = null, onClose = null }) {
   const { id: routeEventId } = useParams();
   const eventSpecialId = overlayEventId || routeEventId;
-  const navigate = useNavigate();
+  const goBack = () => {
+    if (onClose) onClose();
+    else window.history.pushState(null, '', `/calendar/${eventSpecialId}`);
+  };
   const { showSuccess, showError } = useToast();
   const { user } = useAuth();
 
@@ -125,7 +128,7 @@ export default function DesignateMinutes({ overlayEventId = null }) {
 
   if (loading) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center px-4" style={{ paddingTop: "80px", backgroundColor: "#F7F9FB" }}>
+      <div className="w-full min-h-screen flex items-center justify-center px-4" style={{ paddingTop: "10px", backgroundColor: "#F7F9FB" }}>
         <div className="bg-white flex items-center justify-center gap-3 py-14 max-w-sm w-full" style={{ border: `1px solid ${BORDER}` }}>
           <SpiralLoader color={PRIMARY} />
           <p className="text-sm" style={{ fontFamily: fontHeading, color: GRAY_DISABLED }}>Loading attendees...</p>
@@ -136,11 +139,11 @@ export default function DesignateMinutes({ overlayEventId = null }) {
 
   if (error) {
     return (
-      <div className="w-full min-h-screen flex flex-col items-center justify-center px-4" style={{ paddingTop: "80px", backgroundColor: "#F7F9FB" }}>
+      <div className="w-full min-h-screen flex flex-col items-center justify-center px-4" style={{ paddingTop: "10px", backgroundColor: "#F7F9FB" }}>
         <div className="bg-white p-6 max-w-sm w-full text-center" style={{ border: `1px solid ${BORDER}` }}>
           <p className="text-sm mb-4" style={{ color: DANGER, fontFamily: fontHeading }}>{error}</p>
           <button
-            onClick={() => navigate(-1)}
+            onClick={goBack}
             className="cok-btn-primary"
             style={{ width: "auto", padding: "0.6rem 1.4rem" }}
           >
@@ -152,18 +155,20 @@ export default function DesignateMinutes({ overlayEventId = null }) {
   }
 
   return (
-    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: "80px", backgroundColor: "#F7F9FB" }}>
+    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: "10px", backgroundColor: "#F7F9FB" }}>
       <div className="w-full max-w-5xl px-3 sm:px-6 md:px-8 py-6">
-        {/* Header bar, same component pattern as the attendance form */}
-        <div className="px-4 sm:px-5 py-4 text-white mb-5" style={{ backgroundColor: PRIMARY }}>
-          <h1 className="text-base sm:text-lg font-bold truncate" style={{ fontFamily: fontHeading }} title={eventName}>
-            Designate Minutes Taker
-          </h1>
-          {eventName && (
-            <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.85)" }}>
-              {eventName}
-            </p>
-          )}
+        {/* Header bar with close button */}
+        <div className="flex items-center justify-between px-4 sm:px-5 py-4 text-white mb-5" style={{ backgroundColor: PRIMARY }}>
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-lg font-bold truncate" style={{ fontFamily: fontHeading }} title={eventName}>
+              Designate Minutes Taker
+            </h1>
+            {eventName && (
+              <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.85)" }}>
+                {eventName}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Mode toggle: full-width segmented control on phones */}

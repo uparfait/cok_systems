@@ -32,10 +32,10 @@ const eventActionSchema = new mongoose.Schema({
       maxlength: [200, 'Role cannot exceed 200 characters'],
       trim: true
     },
-    institution: {
+    department: {
       type: String,
-      required: [true, 'Assigned person institution is required'],
-      maxlength: [300, 'Institution name cannot exceed 300 characters'],
+      required: [true, 'Assigned person department is required'],
+      maxlength: [300, 'Department name cannot exceed 300 characters'],
       trim: true
     }
   },
@@ -99,10 +99,10 @@ const eventActionSchema = new mongoose.Schema({
     }
   }],
   createdBy: {
-    name:        { type: String, trim: true, default: 'Administrator' },
-    email:       { type: String, trim: true, lowercase: true },
-    role:        { type: String, trim: true },
-    institution: { type: String, trim: true },
+    name:       { type: String, trim: true, default: 'Administrator' },
+    email:      { type: String, trim: true, lowercase: true },
+    role:       { type: String, trim: true },
+    department: { type: String, trim: true },
   },
   eventSpecialId: {
     type: String,

@@ -613,6 +613,16 @@ body {
   100% { transform: scale(1); }
 }
 
+/* Row clipping for dense tables: cells cap at 60px and reveal fully on row hover */
+.cok-cell-clip {
+  max-height: 60px;
+  overflow: hidden;
+}
+
+tr:hover .cok-cell-clip {
+  max-height: none;
+}
+
 .cok-btn-primary {
   font-family: var(--cok-font-heading);
   font-size: 13px;

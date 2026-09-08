@@ -1,4 +1,5 @@
 const EventAction = require('../models/EventActions');
+const normalizeDueDate = require('../utilities/normalizeDueDate');
 
 class UpdateEventActionController {
   static async handle(req, res) {
@@ -14,7 +15,7 @@ class UpdateEventActionController {
       action.title             = title             ?? action.title;
       action.actionDescription = actionDescription ?? action.actionDescription;
       action.assignedPerson    = assignedPerson    ?? action.assignedPerson;
-      action.dueDate           = dueDate           ?? action.dueDate;
+      action.dueDate           = dueDate ? normalizeDueDate(dueDate) : action.dueDate;
       action.createdBy         = createdBy         ?? action.createdBy;
 
       if (currentStatus) {
