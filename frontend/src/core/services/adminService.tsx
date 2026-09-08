@@ -186,7 +186,9 @@ export const employeeService = {
   },
   downloadTemplate: async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/cok/api'}/multiple/employees/template`);
+      const response = await fetch(`/cok/api/multiple/employees/template`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` },
+      });
       if (!response.ok) throw new Error('Failed to download template');
       const blob = await response.blob();
       return { success: true, data: blob };

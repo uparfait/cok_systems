@@ -2,13 +2,14 @@ const department_model = require('../../models/department.js')
 
 module.exports = async function list_all_departments(req, res, next) {
     try {
-        let { limit = 1000, page = 1 } = req.query || {}
+        let { limit = 0, page = 1 } = req.query || {}
 
-        const limit_val = parseInt(limit)
-        const skip_val = (parseInt(page) - 1) * limit_val;
+        // limit=0 (the default) returns every department — no cap
+        const limit_val = Math.max(0, parseInt(limit) || 0)
+        const skip_val = limit_val > 0 ? (parseInt(page) - 1) * limit_val : 0;
 
         // Get MAIN departments only (exclude both new format is_unit=true AND legacy sub_department_mng.is_sub_department=true)
-        const departments = await department_model.find({
+        let find_query = department_model.find({
             $and: [
                 { is_unit: { $ne: true } },
                 { $or: [
@@ -17,8 +18,8 @@ module.exports = async function list_all_departments(req, res, next) {
                 ]}
             ]
         })
-            .limit(limit_val)
-            .skip(skip_val)
+        if (limit_val > 0) find_query = find_query.limit(limit_val).skip(skip_val)
+        const departments = await find_query
             .sort({ created_at: -1 })
             .populate('leader', 'full_name email title')
             .populate('department_leader', 'full_name email title')

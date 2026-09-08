@@ -2,26 +2,25 @@ const department_model = require("../../models/department.js");
 
 module.exports = async function search_departments(req, res, next) {
   try {
-    let { query = "", limit = 50, page = 1 } = req.query || {};
+    let { query = "", limit = 0, page = 1 } = req.query || {};
 
-    const limit_val = Math.min(parseInt(limit), 50);
-    const skip_val = (parseInt(page) - 1) * limit_val;
+    // limit=0 (the default) returns every match — department lists are small
+    const limit_val = Math.max(0, parseInt(limit) || 0);
+    const skip_val = limit_val > 0 ? (parseInt(page) - 1) * limit_val : 0;
 
     // Escape regex special characters to prevent injection
     const safe_query = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(safe_query, "i"); // case-insensitive
 
-    // update search criteria to include the filter for head of department as well
     const search_criteria = {
-      $or: [{ department_name: regex }, { department_id: regex }],
+      $or: [{ department_name: regex }, { dpt_id: regex }, { department_id: regex }],
     };
 
-
-    const departments = await department_model
+    let find_query = department_model
       .find(search_criteria)
-      .limit(limit_val)
-      .skip(skip_val)
       .sort({ department_name: 1 });
+    if (limit_val > 0) find_query = find_query.limit(limit_val).skip(skip_val);
+    const departments = await find_query;
 
     // also loop all and attach sub-department
     for (let dept of departments) {
