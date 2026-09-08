@@ -59,8 +59,8 @@ export default function EventActionsCreateModal({ showModal, setShowModal, form,
                 <input type="text" required maxLength={200} value={form.assignedPerson.role}
                   onChange={e => setField('assignedPerson.role', e.target.value)} placeholder="Role"
                   className={inputClassName} style={inputStyle} />
-                <input type="text" required maxLength={300} value={form.assignedPerson.institution}
-                  onChange={e => setField('assignedPerson.institution', e.target.value)} placeholder="Institution"
+                <input type="text" required maxLength={300} value={form.assignedPerson.department}
+                  onChange={e => setField('assignedPerson.department', e.target.value)} placeholder="Department / Unit"
                   className={inputClassName} style={inputStyle} />
               </div>
             </div>

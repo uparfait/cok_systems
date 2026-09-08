@@ -110,7 +110,13 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
     setDraft(updatedDraft);
   };
 
-  if (!agenda.length && !(canEdit && isLive)) return null;
+  const isVirtual = (event?.eventFormat || '').toLowerCase() === 'virtual';
+  const virtualLink = event?.virtualLink;
+  const virtualDescription = event?.virtualDescription;
+  const isMeeting = event?.eventMeetingType === 'meet';
+  const canEditAgenda = canEdit && isMeeting;
+
+  if (!agenda.length && !(canEditAgenda && isLive) && !(isVirtual && virtualLink)) return null;
 
   const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
@@ -227,44 +233,12 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
 
   const fullCurrent = liveItem || nextItem;
 
-  const isVirtual = event?.eventFormat === 'Virtual' || event?.eventFormat === 'virtual';
-  const virtualLink = event?.virtualLink;
-  const virtualDescription = event?.virtualDescription;
-
   return (
     <div className="mt-6">
-      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-        <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>
-          Agenda {agenda.length > 0 ? `(${agenda.length})` : ''}
-        </h2>
-        <div className="flex items-center gap-2">
-          {isLive && agenda.length > 0 && (
-            <button type="button" onClick={() => {
-                setShowFull(true);
-                window.history.pushState(null, "", `/calendar/#agendafull`);
-              }}
-              className="cok-btn-primary cursor-pointer"
-              style={{ width: 'auto', padding: '0.35rem 0.9rem', fontSize: '11px' }}>
-              View Full
-            </button>
-          )}
-          {canEdit && isLive && (
-            <button type="button" onClick={() => {
-                startEditing();
-                window.history.pushState(null, "", `/calendar/#agendaedit`);
-              }}
-              className="cok-btn-outlined cursor-pointer"
-              style={{ padding: '0.35rem 0.9rem', fontSize: '11px' }}>
-              Edit Agenda
-            </button>
-          )}
-        </div>
-      </div>
-
       {isVirtual && virtualLink && (
         <div className="mb-4 p-3 border border-gray-200" style={{ backgroundColor: NEUTRAL_LIGHT }}>
           <div className="flex items-center justify-between gap-2 mb-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: PRIMARY, fontFamily: fontHeading }}>Virtual Link</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: PRIMARY, fontFamily: fontHeading }}>Link</p>
             <button
               type="button"
               onClick={copyVirtualLink}
@@ -288,6 +262,35 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
           )}
         </div>
       )}
+
+      <div className="p-5 border rounded-none" style={{ borderColor: BORDER, backgroundColor: WHITE }}>
+      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+        <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>
+          Agenda {agenda.length > 0 ? `(${agenda.length})` : ''}
+        </h2>
+        <div className="flex items-center gap-2">
+          {isLive && agenda.length > 0 && (
+            <button type="button" onClick={() => {
+                setShowFull(true);
+                window.history.pushState(null, "", `/calendar/#agendafull`);
+              }}
+              className="cok-btn-primary cursor-pointer"
+              style={{ width: 'auto', padding: '0.35rem 0.9rem', fontSize: '11px' }}>
+              View Full
+            </button>
+          )}
+          {canEditAgenda && isLive && (
+            <button type="button" onClick={() => {
+                startEditing();
+                window.history.pushState(null, "", `/calendar/#agendaedit`);
+              }}
+              className="cok-btn-outlined cursor-pointer"
+              style={{ padding: '0.35rem 0.9rem', fontSize: '11px' }}>
+              Edit Agenda
+            </button>
+          )}
+        </div>
+      </div>
 
       {agenda.length === 0 ? (
         <p className="p-4 text-xs text-center" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}`, color: GRAY_DISABLED, fontFamily: fontHeading }}>
@@ -337,6 +340,7 @@ export default function EventAgendaSection({ event, isLive = false, canEdit = fa
           )}
         </div>
       )}
+      </div>
 
       {showFull && createPortal(
         <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 2000000000, backgroundColor: 'rgba(0,0,0,0.75)' }}>

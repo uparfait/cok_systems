@@ -13,7 +13,7 @@ const FeedbackLandingPage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ backgroundColor: '#F7F9FB', paddingTop: '80px', paddingBottom: '80px' }}>
+    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ backgroundColor: '#FFFFFF', paddingBottom: '80px' }}>
       <div className="w-full max-w-lg mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>

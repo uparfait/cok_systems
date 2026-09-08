@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
+import { useToast } from '../../../core/contexts/ToastContext';
 import { departmentService, employeeService, normalizeDepartments, type Department, type Employee } from '../../../core/services/adminService';
 import DepartmentManagementTable from '../components/DepartmentManagementTable';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
@@ -10,8 +11,19 @@ import { HiOutlineOfficeBuilding } from 'react-icons/hi';
 import {  FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
+const errMsg = (err: unknown, fallback: string): string => {
+  if (err && typeof err === 'object') {
+    const e = err as { message?: unknown; error?: unknown };
+    if (typeof e.message === 'string' && e.message.trim()) return e.message;
+    if (typeof e.error === 'string' && e.error.trim()) return e.error;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+};
+
 const DepartmentsPage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -29,7 +41,7 @@ const DepartmentsPage: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
-  const [formData, setFormData] = useState<Partial<Department>>({ name: '', description: '', room_number: '', department_id: '', leader: null, services: [] });
+  const [formData, setFormData] = useState<Partial<Department>>({ name: '', description: '', room_number: '', dpt_id: '', leader: null, services: [] });
 
   useEffect(() => { if (showModal) { setFormError(''); setFormSuccess(''); } }, [showModal]);
 
@@ -59,26 +71,50 @@ const DepartmentsPage: React.FC = () => {
     catch (err) { setError(err instanceof Error ? err.message : 'Search failed'); } finally { setLoading(false); }
   };
 
-  const handleNewDepartment = () => { setEditingDepartment(null); setFormData({ name: '', description: '', room_number: '', department_id: '', leader: '', services: [] }); setFormError(''); setFormSuccess(''); setShowModal(true); };
+  const handleNewDepartment = () => { setEditingDepartment(null); setFormData({ name: '', description: '', room_number: '', dpt_id: '', leader: '', services: [] }); setFormError(''); setFormSuccess(''); setShowModal(true); };
   const handleEdit = (department: Department) => {
     let leaderId = ''; const leader = department.leader || department.department_leader;
     if (leader) { if (typeof leader === 'string') leaderId = leader; else if (typeof leader === 'object') leaderId = (leader as { _id?: string })._id || ''; }
-    setEditingDepartment(department); setFormData({ name: department.name || '', description: department.description || '', room_number: department.room_number || '', department_id: department.department_id || '', leader: leaderId, services: department.services || [] }); setFormError(''); setFormSuccess(''); setShowModal(true);
+    setEditingDepartment(department); setFormData({ name: department.name || '', description: department.description || '', room_number: department.room_number || '', dpt_id: department.dpt_id || department.department_id || '', leader: leaderId, services: department.services || [], is_unit: department.is_unit || false }); setFormError(''); setFormSuccess(''); setShowModal(true);
   };
-  const handleAddUnit = (department: Department) => { setEditingDepartment(null); setFormData({ name: '', description: '', room_number: '', department_id: '', leader: '', services: [], is_unit: true, parent_department: department._id }); setFormError(''); setFormSuccess(''); setShowModal(true); };
+  const handleAddUnit = (department: Department) => { setEditingDepartment(null); setFormData({ name: '', description: '', room_number: '', dpt_id: '', leader: '', services: [], is_unit: true, parent_department: department._id }); setFormError(''); setFormSuccess(''); setShowModal(true); };
+
+  const entityLabel = formData?.is_unit ? 'Department unit' : 'Department';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setFormError(''); setFormSuccess('');
-    if (!formData?.name?.trim()) { setFormError('Department name is required'); return; }
-    try { setSubmitting(true); const sd: Record<string, unknown> = { name: formData.name, description: formData.description || '', room_number: formData.room_number || '', department_id: formData.department_id || '', leader: formData.leader || null, services: formData.services || [] };
+    if (!formData?.name?.trim()) { setFormError(`${entityLabel} name is required`); return; }
+    try { setSubmitting(true); const sd: Record<string, unknown> = { name: formData.name, description: formData.description || '', room_number: formData.room_number || '', dpt_id: formData.dpt_id || '', leader: formData.leader || null, services: formData.services || [] };
       if (formData?.is_unit) { sd.is_unit = true; if (formData?.parent_department) sd.parent_department = formData.parent_department; }
-      if (editingDepartment?._id) { const r = await departmentService.update(editingDepartment._id, sd); if (r.success) { setFormSuccess(r.message || 'Updated!'); setTimeout(() => { setShowModal(false); loadDepartments(false); }, 1500); } else setFormError(r.message || 'Failed'); }
-      else { const r = await departmentService.create(sd); if (r.success) { setFormSuccess(r.message || 'Created!'); setTimeout(() => { setShowModal(false); loadDepartments(false); }, 1500); } else setFormError(r.message || 'Failed'); }
-    } catch (err) { setFormError(err instanceof Error ? err.message : 'Failed to save'); } finally { setSubmitting(false); }
+      if (editingDepartment?._id) {
+        const r = await departmentService.update(editingDepartment._id, sd);
+        if (r.success) { const msg = r.message || `${entityLabel} updated successfully`; setFormSuccess(msg); showSuccess(msg); setTimeout(() => { setShowModal(false); loadDepartments(false); }, 1500); }
+        else { const msg = r.message || `The ${entityLabel.toLowerCase()} could not be updated. Please review the form and try again.`; setFormError(msg); showError(msg); }
+      } else {
+        const r = await departmentService.create(sd);
+        if (r.success) { const msg = r.message || `${entityLabel} created successfully`; setFormSuccess(msg); showSuccess(msg); setTimeout(() => { setShowModal(false); loadDepartments(false); }, 1500); }
+        else { const msg = r.message || `The ${entityLabel.toLowerCase()} could not be created. Please review the form and try again.`; setFormError(msg); showError(msg); }
+      }
+    } catch (err) {
+      const msg = errMsg(err, `The ${entityLabel.toLowerCase()} could not be saved. Please review the form and try again.`);
+      setFormError(msg); showError(msg);
+    } finally { setSubmitting(false); }
   };
 
   const handleDeleteClick = (id: string, name: string) => { setDeletingId(id); setDeletingName(name); setShowDeleteConfirm(true); };
-  const handleConfirmDelete = async () => { if (!deletingId) return; try { setDeleting(true); await departmentService.delete(deletingId); setShowDeleteConfirm(false); loadDepartments(false); } catch (err) { setError(err instanceof Error ? err.message : 'Failed'); } finally { setDeleting(false); setDeletingId(null); setDeletingName(''); } };
+  const handleConfirmDelete = async () => {
+    if (!deletingId) return;
+    try {
+      setDeleting(true);
+      const r = await departmentService.delete(deletingId);
+      if (r?.success === false) { showError(r.message || 'The department could not be deleted. Please try again.'); }
+      else { showSuccess(r?.message || 'Department deleted successfully'); }
+      setShowDeleteConfirm(false); loadDepartments(false);
+    } catch (err) {
+      const msg = errMsg(err, 'The department could not be deleted. Please try again.');
+      setError(msg); showError(msg);
+    } finally { setDeleting(false); setDeletingId(null); setDeletingName(''); }
+  };
 
   return (
     <MainLayout>
@@ -113,15 +149,16 @@ const DepartmentsPage: React.FC = () => {
         {showModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-lg shadow-2xl overflow-hidden">
-              <div className="p-4 border-b bg-gray-50"><div className="flex items-center gap-3"><div className="w-9 h-9 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><HiOutlineOfficeBuilding className="w-4 h-4 cok-primary-color" /></div><div><h2 className="text-sm font-bold text-gray-900">{editingDepartment ? 'Edit Department' : 'Add Department'}</h2><p className="text-xs text-gray-500">{editingDepartment ? 'Update details' : 'Create a new department'}</p></div></div></div>
+              <div className="p-4 border-b bg-gray-50"><div className="flex items-center gap-3"><div className="w-9 h-9 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><HiOutlineOfficeBuilding className="w-4 h-4 cok-primary-color" /></div><div><h2 className="text-sm font-bold text-gray-900">{editingDepartment ? `Edit ${entityLabel}` : `Add ${entityLabel}`}</h2><p className="text-xs text-gray-500">{editingDepartment ? `Update ${entityLabel.toLowerCase()} details` : formData?.is_unit ? 'Create a new department unit under the selected department' : 'Create a new department'}</p></div></div></div>
               <form onSubmit={handleSubmit} className="p-4 space-y-4">
                 {formError && <div className="bg-[rgba(231,76,60,0.08)] border border-[#E74C3C] text-[#E74C3C] px-3 py-2 text-sm flex items-start gap-2"><FiAlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{formError}</span></div>}
                 {formSuccess && <div className="bg-[rgba(76,175,80,0.08)] border border-[#388E3C] text-[#388E3C] px-3 py-2 text-sm flex items-start gap-2"><FiCheck className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{formSuccess}</span></div>}
-                <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Name <span className="text-red-500">*</span></label><input type="text" required value={formData?.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="Department name" /></div>
-                <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Department ID</label><input type="text" value={formData?.department_id || ''} onChange={e => setFormData({ ...formData, department_id: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="e.g., DEP-001" /></div>
+                <div><span className={`inline-block text-xs px-2 py-0.5 font-semibold ${formData?.is_unit ? 'bg-[rgba(41,128,185,0.08)] text-[#2980B9]' : 'bg-[rgba(5,109,170,0.1)] text-[#056daa]'}`}>{formData?.is_unit ? 'Department Unit' : 'Department'}</span></div>
+                <div><label className="text-xs font-semibold text-gray-700 mb-1 block">{entityLabel} Name <span className="text-red-500">*</span></label><input type="text" required value={formData?.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder={`${entityLabel} name`} /></div>
+                <div><label className="text-xs font-semibold text-gray-700 mb-1 block">{entityLabel} Code (optional)</label><input type="text" value={formData?.dpt_id || ''} onChange={e => setFormData({ ...formData, dpt_id: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="e.g., DEP-001" /></div>
                 <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Room Number</label><input type="text" value={formData?.room_number || ''} onChange={e => setFormData({ ...formData, room_number: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="e.g., 101" /></div>
                 <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Description</label><textarea value={formData?.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm resize-none" rows={2} placeholder="Description" /></div>
-                <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Department Leader</label><select value={typeof formData?.leader === 'string' ? formData?.leader : ''} onChange={e => setFormData({ ...formData, leader: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm"><option value="">No leader</option>{employees.map(emp => <option key={emp._id || emp.employee_id} value={emp._id || emp.employee_id || ''}>{emp.full_name} ({emp.email})</option>)}</select></div>
+                <div><label className="text-xs font-semibold text-gray-700 mb-1 block">{entityLabel} Leader</label><select value={typeof formData?.leader === 'string' ? formData?.leader : ''} onChange={e => setFormData({ ...formData, leader: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm"><option value="">No leader</option>{employees.map(emp => <option key={emp._id || emp.employee_id} value={emp._id || emp.employee_id || ''}>{emp.full_name} ({emp.email})</option>)}</select></div>
                 <div className="flex gap-3 pt-1">
                   <button type="submit" disabled={submitting} className="flex-1 px-3 py-2 cok-btn-primary text-white text-sm font-medium disabled:opacity-50">{submitting ? 'Saving...' : editingDepartment ? 'Update' : 'Create'}</button>
                                     

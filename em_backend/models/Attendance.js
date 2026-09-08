@@ -25,9 +25,13 @@ const attendanceSchema = new mongoose.Schema({
     required: [true, 'Your phone number is required'],
     trim: true
   },
-  attendeeInstitution: { 
+  attendeeInstitution: {
     type: String,
     required: [true, 'Your Institution is required'],
+    trim: true
+  },
+  attendeeDepartment: {
+    type: String,
     trim: true
   },
   attendeePosition: {

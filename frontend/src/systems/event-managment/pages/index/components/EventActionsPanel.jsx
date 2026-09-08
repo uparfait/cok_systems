@@ -26,7 +26,7 @@ function Badge({ status }) {
 
 function fmt(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function overdue(due, status) {
@@ -36,7 +36,7 @@ function overdue(due, status) {
 const EMPTY = (eventSpecialId) => ({
   title: '',
   actionDescription: '',
-  assignedPerson: { name: '', role: '', institution: '' },
+  assignedPerson: { name: '', role: '', department: '' },
   dueDate: '',
   currentStatus: { status: 'Pending', description: '' },
   eventSpecialId,
@@ -115,7 +115,7 @@ export default function EventActionsPanel({ eventSpecialId, onClose }) {
       title: a.title,
       actionDescription: a.actionDescription,
       assignedPerson: { ...a.assignedPerson },
-      dueDate: a.dueDate?.slice(0, 10) ?? '',
+      dueDate: a.dueDate?.slice(0, 16) ?? '',
       currentStatus: { ...a.currentStatus },
       eventSpecialId,
     });
@@ -127,7 +127,7 @@ export default function EventActionsPanel({ eventSpecialId, onClose }) {
   function pickAttendee(att) {
     setField('assignedPerson.name',        att.attendeeFullName  || '');
     setField('assignedPerson.role',        att.attendeePosition  || '');
-    setField('assignedPerson.institution', att.attendeeInstitution || '');
+    setField('assignedPerson.department', att.attendeeInstitution || '');
     setShowPicker(false);
     setAttendeeSearch('');
   }
@@ -387,9 +387,9 @@ export default function EventActionsPanel({ eventSpecialId, onClose }) {
                     />
                     <input
                       type="text" required maxLength={300}
-                      value={form.assignedPerson.institution}
-                      onChange={e => setField('assignedPerson.institution', e.target.value)}
-                      placeholder="Institution"
+                      value={form.assignedPerson.department}
+                      onChange={e => setField('assignedPerson.department', e.target.value)}
+                      placeholder="Department / Unit"
                       className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 bg-gray-50"
                     />
                   </div>
@@ -402,7 +402,7 @@ export default function EventActionsPanel({ eventSpecialId, onClose }) {
                   Due Date *
                 </label>
                 <input
-                  type="date" required
+                  type="datetime-local" required
                   value={form.dueDate}
                   onChange={e => setField('dueDate', e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 bg-gray-50"

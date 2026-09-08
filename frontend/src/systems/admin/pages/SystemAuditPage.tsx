@@ -27,6 +27,10 @@ const SystemAuditPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFrom, setExportFrom] = useState('');
+  const [exportTo, setExportTo] = useState('');
+  const [exporting, setExporting] = useState(false);
   const pageSize = 20;
 
   const actionOptions = [{ value: '', label: 'All Actions' }, { value: 'GET', label: 'GET' }, { value: 'UPDATE', label: 'UPDATE' }, { value: 'DELETE', label: 'DELETE' }, { value: 'ERROR', label: 'ERROR' }, { value: 'PUT', label: 'PUT' }, { value: 'POST', label: 'POST' }];
@@ -48,18 +52,34 @@ const SystemAuditPage: React.FC = () => {
     catch (error) { }
   }, []);
 
-  const createTestLogs = async () => {
-    try { const r = await fetch('/cok/api/audit/test', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` } }); if (r.ok) { showSuccess('Test logs created'); fetchAuditLogs(1, false); fetchAuditStats(); } else showError('Failed'); }
-    catch (error) { showError('Failed'); }
-  };
-
-  const exportToCSV = () => {
-    if (auditLogs.length === 0) { showError('No data'); return; }
-    const h = ['Time', 'Action', 'User', 'Description', 'error', 'IP Address', 'Method', 'Endpoint'];
-    const rows = auditLogs.map(l => [new Date(l.time).toLocaleString(), l.action, l.user_name || 'System', l.description, l.error || '', l.ip_address || '', l.method || '', l.endpoint || '']);
-    const csv = [h, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`; link.click();
-    showSuccess('Exported');
+  const handleExportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!exportFrom || !exportTo) { showError('Please select both the From and To dates'); return; }
+    if (exportTo < exportFrom) { showError('The To date must be after the From date'); return; }
+    setExporting(true);
+    try {
+      const params = new URLSearchParams({ start_date: exportFrom, end_date: exportTo });
+      const response = await fetch(`/cok/api/audit/export?${params}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` } });
+      if (!response.ok) {
+        let msg = 'Failed to export audit logs';
+        try { const data = await response.json(); if (data?.message) msg = data.message; } catch { /* not json */ }
+        showError(msg);
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `audit_logs_${exportFrom}_to_${exportTo}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showSuccess('Audit logs exported');
+      setShowExportModal(false);
+    } catch {
+      showError('Failed to export audit logs');
+    } finally {
+      setExporting(false);
+    }
   };
 
   useEffect(() => { fetchAuditLogs(1, false); fetchAuditStats(); }, [fetchAuditLogs, fetchAuditStats]);
@@ -71,8 +91,7 @@ const SystemAuditPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div><h1 className="text-base font-bold flex items-center gap-2" style={{ color: '#333333', fontFamily: fontHeading }}><FiActivity className="w-5 h-5 text-[#056daa]" />System Audit</h1><p className="text-xs mt-0.5" style={{ color: '#9E9E9E', fontFamily: fontHeading }}>Monitor and track all system activities</p></div>
           <div className="flex gap-2">
-            <button onClick={createTestLogs} className="px-3 py-1.5 bg-[#F39C12] hover:bg-[#D68910] text-white text-xs font-medium uppercase" style={{ letterSpacing: '1px' }}>Create Test Logs</button>
-            <button onClick={exportToCSV} className="px-3 py-1.5 bg-[#4CAF50] hover:bg-[#388E3C] text-white text-xs font-medium flex items-center gap-1 uppercase" style={{ letterSpacing: '1px' }}><FiDownload className="w-3 h-3" />Export CSV</button>
+            <button onClick={() => setShowExportModal(true)} className="px-3 py-1.5 bg-[#4CAF50] hover:bg-[#388E3C] text-white text-xs font-medium flex items-center gap-1 uppercase cursor-pointer" style={{ letterSpacing: '1px' }}><FiDownload className="w-3 h-3" />Export CSV</button>
           </div>
         </div>
 
@@ -123,6 +142,31 @@ const SystemAuditPage: React.FC = () => {
           }}
           pagination={{ currentPage, totalPages, totalCount, itemsPerPage: pageSize, onPageChange: (page) => fetchAuditLogs(page, false), loading }}
         />
+
+        {showExportModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white w-full max-w-sm shadow-2xl">
+              <div className="p-4 border-b bg-gray-50">
+                <h2 className="text-sm font-bold text-gray-900" style={{ fontFamily: fontHeading }}>Export Audit Logs</h2>
+                <p className="text-xs text-gray-500">Choose the date range to export as CSV</p>
+              </div>
+              <form onSubmit={handleExportSubmit} className="p-4 space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">From <span className="text-red-500">*</span></label>
+                  <input type="date" required value={exportFrom} onChange={e => setExportFrom(e.target.value)} className="cok-auth-input w-full text-sm" style={{ paddingLeft: '10px', minHeight: '36px' }} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">To <span className="text-red-500">*</span></label>
+                  <input type="date" required value={exportTo} onChange={e => setExportTo(e.target.value)} className="cok-auth-input w-full text-sm" style={{ paddingLeft: '10px', minHeight: '36px' }} />
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button type="submit" disabled={exporting} className="flex-1 px-3 py-2 cok-btn-primary text-white text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">{exporting ? 'Exporting...' : 'Export'}</button>
+                  <button type="button" onClick={() => setShowExportModal(false)} disabled={exporting} className="flex-1 px-3 py-2 cok-btn-outlined text-sm font-medium cursor-pointer">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </MainLayout>
   );

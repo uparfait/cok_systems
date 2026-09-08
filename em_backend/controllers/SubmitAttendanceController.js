@@ -10,6 +10,7 @@ class SubmitAttendanceController {
         attendeeEmail,
         attendeePhoneNumber,
         attendeeInstitution,
+        attendeeDepartment,
         attendeePosition,
         eventSpecialId,
         attendeeSignature,
@@ -59,6 +60,13 @@ class SubmitAttendanceController {
         });
       }
 
+      if (String(liveEvent.eventType || '').toLowerCase() === 'internal' && !attendeeEmail) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is required for internal meetings'
+        });
+      }
+
       // Prevent duplicate attendance by phone number
       const existingAttendance = await Attendance.findOne({
         eventSpecialId,
@@ -96,6 +104,7 @@ class SubmitAttendanceController {
         attendeeEmail: attendeeEmail ? attendeeEmail.toLowerCase().trim() : undefined,
         attendeePhoneNumber: attendeePhoneNumber.trim(),
         attendeeInstitution: attendeeInstitution.trim(),
+        attendeeDepartment: String(attendeeDepartment || '').trim(),
         attendeePosition: attendeePosition.trim(),
         eventSpecialId,
         eventName: eventName || undefined,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import axios from 'axios';
 import { FiUploadCloud, FiFileText, FiX } from 'react-icons/fi';
 import { useToast } from '@/core/contexts/ToastContext';
@@ -201,6 +202,7 @@ export default function AttendanceForm() {
     attendeeEmail: '',
     attendeePhoneNumber: '',
     attendeeInstitution: isInternal ? 'City of Kigali' : '',
+    attendeeDepartment: '',
     attendeePosition: '',
   };
 
@@ -214,12 +216,7 @@ export default function AttendanceForm() {
   const [serverError, setServerError] = useState('');
   const [success, setSuccess] = useState(false);
   const [padKey, setPadKey] = useState(0);
-  const successTimerRef = useRef(null);
   const certInputRef = useRef(null);
-
-  useEffect(() => {
-    return () => { if (successTimerRef.current) clearTimeout(successTimerRef.current); };
-  }, []);
 
   const validate = () => {
     const newErrors = {};
@@ -245,6 +242,9 @@ export default function AttendanceForm() {
 
     if (!isInternal && !formData.attendeeInstitution.trim())
       newErrors.attendeeInstitution = 'Institution is required';
+
+    if (isInternal && !formData.attendeeDepartment.trim())
+      newErrors.attendeeDepartment = 'Department / Unit is required';
 
     if (!formData.attendeePosition.trim())
       newErrors.attendeePosition = 'Position is required';
@@ -287,6 +287,7 @@ export default function AttendanceForm() {
         payload.append('attendeeEmail', formData.attendeeEmail.trim() || '');
         payload.append('attendeePhoneNumber', formData.attendeePhoneNumber.trim());
         payload.append('attendeeInstitution', isInternal ? 'City of Kigali' : formData.attendeeInstitution.trim());
+        payload.append('attendeeDepartment', isInternal ? formData.attendeeDepartment.trim() : '');
         payload.append('attendeePosition', formData.attendeePosition.trim());
         payload.append('eventSpecialId', eventSpecialId);
         payload.append('eventName', eventName);
@@ -305,6 +306,7 @@ export default function AttendanceForm() {
           attendeeEmail: formData.attendeeEmail.trim() || undefined,
           attendeePhoneNumber: formData.attendeePhoneNumber.trim(),
           attendeeInstitution: isInternal ? 'City of Kigali' : formData.attendeeInstitution.trim(),
+          attendeeDepartment: isInternal ? formData.attendeeDepartment.trim() : undefined,
           attendeePosition: formData.attendeePosition.trim(),
           eventSpecialId,
           eventName,
@@ -315,18 +317,8 @@ export default function AttendanceForm() {
         });
       }
 
-      // Success: turn the submit button green, reset the form, revert after 5s
       setSuccess(true);
       showSuccess('Attendance recorded');
-      setFormData({ ...emptyForm });
-      setSignature('');
-      setCertificateFile(null);
-      setCertError('');
-      setSignatureMethod('draw');
-      setErrors({});
-      setPadKey((k) => k + 1);
-      if (successTimerRef.current) clearTimeout(successTimerRef.current);
-      successTimerRef.current = setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
       const message = err.response?.data?.message || 'Failed to submit attendance. Please try again.';
       setServerError(message);
@@ -383,8 +375,36 @@ export default function AttendanceForm() {
     );
   }
 
+  if (success) {
+    return (
+      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center px-4" style={{ gap: '20px' }}>
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: [0, 1, 1.06, 1] }}
+          transition={{ duration: 1.6, times: [0, 0.3, 0.65, 1], repeat: Infinity, repeatDelay: 0.6 }}
+          className="w-40 h-40 sm:w-48 sm:h-48 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: SUCCESS }}
+        >
+          <svg viewBox="0 0 52 52" className="w-24 h-24 sm:w-28 sm:h-28">
+            <motion.path
+              d="M14 27 L22 35 L38 18"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: [0, 1, 1] }}
+              transition={{ duration: 1.6, times: [0, 0.6, 1], delay: 0.3, repeat: Infinity, repeatDelay: 0.6 }}
+            />
+          </svg>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full flex flex-col items-center" style={{ paddingTop: '28px', paddingBottom: '32px' }}>
+    <div className="w-full flex flex-col items-center pt-0 lg:pt-7" style={{ paddingBottom: '32px' }}>
       <style>{responsiveStyles}</style>
       <div className="cok-attendance-wrap">
 
@@ -473,8 +493,27 @@ export default function AttendanceForm() {
             )}
           </div>
 
-          {/* Institution: hidden for internal meetings */}
-          {!isInternal && (
+          {isInternal ? (
+            <div>
+              <label htmlFor="attendeeDepartment" style={labelStyle}>
+                Department / Unit <span style={{ color: DANGER }}>*</span>
+              </label>
+              <input
+                type="text"
+                id="attendeeDepartment"
+                name="attendeeDepartment"
+                value={formData.attendeeDepartment}
+                onChange={handleChange}
+                placeholder="e.g. Urban Planning Unit"
+                autoComplete="organization"
+                className={inputClassName}
+                style={inputStyle}
+              />
+              {errors.attendeeDepartment && (
+                <p className="text-xs mt-1" style={{ color: DANGER }}>{errors.attendeeDepartment}</p>
+              )}
+            </div>
+          ) : (
             <div>
               <label htmlFor="attendeeInstitution" style={labelStyle}>
                 Institution / Organization <span style={{ color: DANGER }}>*</span>

@@ -51,12 +51,12 @@ const CreateFollowUpModal: React.FC<CreateFollowUpModalProps> = ({ onClose, onSu
   const [form, setForm] = useState({
     title: '',
     actionDescription: '',
-    assignedPerson: { name: '', email: '', role: '', institution: 'City of Kigali' },
+    assignedPerson: { name: '', email: '', role: '', department: 'City of Kigali' },
     createdBy: {
       name: user?.fullName || '',
       email: user?.email || '',
       role: user?.role || '',
-      institution: 'City of Kigali',
+      department: user?.departmentName || 'City of Kigali',
     },
     dueDate: '',
     currentStatus: { status: FollowUpStatus as any, description: '' }
@@ -98,7 +98,7 @@ const CreateFollowUpModal: React.FC<CreateFollowUpModalProps> = ({ onClose, onSu
     setField('assignedPerson.name', emp.full_name || '')
     setField('assignedPerson.email', emp.email || '')
     setField('assignedPerson.role', emp.title || '')
-    setField('assignedPerson.institution', 'City of Kigali')
+    setField('assignedPerson.department', emp.department_name || (typeof emp.department === 'object' ? emp.department?.department_name : emp.department) || 'City of Kigali')
     setShowPicker(false)
     setEmployeeSearch('')
     setEmployees([])
@@ -121,7 +121,7 @@ const CreateFollowUpModal: React.FC<CreateFollowUpModalProps> = ({ onClose, onSu
           name: user?.fullName || '',
           email: user?.email || '',
           role: user?.role || '',
-          institution: 'City of Kigali',
+          department: user?.departmentName || 'City of Kigali',
         },
       }
       const res: any = await createEventAction(payload as Partial<EventAction>)
@@ -277,7 +277,7 @@ const CreateFollowUpModal: React.FC<CreateFollowUpModalProps> = ({ onClose, onSu
           <div>
             <label style={labelStyle}>Due Date <span style={{ color: DANGER }}>*</span></label>
             <input
-              type="date" required
+              type="datetime-local" required
               value={form.dueDate}
               onChange={(e) => setField('dueDate', e.target.value)}
               className={inputClassName} style={inputStyle}
