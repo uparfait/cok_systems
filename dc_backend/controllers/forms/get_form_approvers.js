@@ -2,19 +2,21 @@ const forms_model = require("../../models/forms_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
-const DEFAULT_PAGE_SIZE = 100;
-const MAX_PAGE_SIZE = 500;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
 
 /**
- * Paginated slice of the active version's approval-flow approvers. Every
- * form-returning route strips the approvers array (a generated test pool
- * can hold thousands), so the approval page assembles the full list through
- * this endpoint, 100 at a time, until total is reached.
+ * Paginated slice of the active version's approval-flow approvers, page by
+ * page (page starts at 1, limit defaults to 20). Every form-returning route
+ * strips the approvers array (a generated test pool can hold thousands), so
+ * the approval page assembles the full list through this endpoint,
+ * incrementing the page until total is reached. The slice is taken inside
+ * MongoDB, so a huge stored array never rides along with a single page.
  */
 async function get_form_approvers(req, res) {
   try {
     const { form_group_id } = req.params;
-    const { offset = 0, limit = DEFAULT_PAGE_SIZE } = req.query || {};
+    const { page = 1, limit = DEFAULT_PAGE_SIZE } = req.query || {};
 
     if (!form_group_id) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
@@ -25,23 +27,22 @@ async function get_form_approvers(req, res) {
       return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     }
 
-    const form_version = (await forms_model.get_active_version(form_group_id)) || (await forms_model.get_latest_version(form_group_id));
-    if (!form_version) {
+    const page_number = Math.max(1, parseInt(page, 10) || 1);
+    const page_size = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(limit, 10) || DEFAULT_PAGE_SIZE));
+
+    const result = await forms_model.get_approvers_page(form_group_id, (page_number - 1) * page_size, page_size);
+    if (!result) {
       return res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
     }
 
-    const config = form_version.approval_config || null;
-    const approvers = (config && Array.isArray(config.approvers) && config.approvers) || [];
-    const page_offset = Math.max(0, parseInt(offset, 10) || 0);
-    const page_size = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(limit, 10) || DEFAULT_PAGE_SIZE));
-
     return res.status(200).json(
       success_response(req, "FORM_APPROVERS_FETCHED", {
-        enabled: !!config && config.enabled === true,
-        mode: config ? config.mode : undefined,
-        total: approvers.length,
-        offset: page_offset,
-        approvers: approvers.slice(page_offset, page_offset + page_size),
+        enabled: result.enabled === true,
+        mode: result.mode,
+        total: result.total,
+        page: page_number,
+        limit: page_size,
+        approvers: result.approvers || [],
       }),
     );
   } catch (error) {

@@ -117,7 +117,7 @@ Router.put("/:form_group_id", update_form);
  * @swagger
  * /dcs/api/forms/{form_group_id}/approvers:
  *   get:
- *     summary: Paginated slice of the active version's approval-flow approvers (offset/limit, default 100 per page)
+ *     summary: Paginated slice of the active version's approval-flow approvers (page/limit, default 20 per page, sliced inside MongoDB)
  *     tags: [Forms]
  *     security:
  *       - BearerAuth: []

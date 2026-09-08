@@ -8,7 +8,7 @@ import ApprovalFlowSection from "../builder/ApprovalFlowSection.jsx";
 import { validate_form_schema } from "../builder/validateSchema.js";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 20;
 
 export default function FormApprovalPage() {
   const { form_group_id, form, refreshForm } = useOutletContext();
@@ -21,7 +21,7 @@ export default function FormApprovalPage() {
   const [is_dirty, setIsDirty] = useState(false);
   const loaded_approvers_ref = useRef([]);
   const seen_keys_ref = useRef(new Set());
-  const fetch_offset_ref = useRef(0);
+  const next_page_ref = useRef(1);
   const run_seq_ref = useRef(0);
 
   const load_approvers = useCallback(async () => {
@@ -35,14 +35,14 @@ export default function FormApprovalPage() {
       let mode;
       let total = null;
       while (!is_stale()) {
-        const response = await get_form_approvers(form_group_id, fetch_offset_ref.current, PAGE_SIZE);
+        const response = await get_form_approvers(form_group_id, next_page_ref.current, PAGE_SIZE);
         if (is_stale()) return;
         enabled = response.data.enabled;
         mode = response.data.mode;
         total = response.data.total;
-        const page = response.data.approvers || [];
-        fetch_offset_ref.current += page.length;
-        page.forEach((approver) => {
+        const page_approvers = response.data.approvers || [];
+        next_page_ref.current += 1;
+        page_approvers.forEach((approver) => {
           const key = JSON.stringify(approver);
           if (seen_keys_ref.current.has(key)) return;
           seen_keys_ref.current.add(key);
@@ -50,7 +50,7 @@ export default function FormApprovalPage() {
         });
         setApprovalConfig({ enabled, mode, approvers: [...loaded_approvers_ref.current] });
         setLoadState({ status: "loading", loaded: loaded_approvers_ref.current.length, total });
-        if (fetch_offset_ref.current >= total || page.length === 0) break;
+        if ((next_page_ref.current - 1) * PAGE_SIZE >= total || page_approvers.length === 0) break;
       }
       if (is_stale()) return;
       setLoadState({ status: "loaded", loaded: loaded_approvers_ref.current.length, total });
@@ -65,7 +65,7 @@ export default function FormApprovalPage() {
   useEffect(() => {
     loaded_approvers_ref.current = [];
     seen_keys_ref.current = new Set();
-    fetch_offset_ref.current = 0;
+    next_page_ref.current = 1;
     setApprovalConfig(null);
     setIsDirty(false);
     load_approvers();

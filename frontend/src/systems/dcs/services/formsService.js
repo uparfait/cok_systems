@@ -41,10 +41,11 @@ export function get_form_versions(form_group_id) {
 /**
  * One page of the active version's approval-flow approvers - every
  * form-returning route strips the (possibly huge) approvers array, so the
- * approval page assembles it through this endpoint, 100 at a time.
+ * approval page assembles it through this endpoint page by page, 20 at a
+ * time, incrementing the page until total is reached.
  */
-export function get_form_approvers(form_group_id, offset, limit) {
-  return dcs_request(`/forms/${form_group_id}/approvers?offset=${offset || 0}&limit=${limit || 100}`, "GET");
+export function get_form_approvers(form_group_id, page, limit) {
+  return dcs_request(`/forms/${form_group_id}/approvers?page=${page || 1}&limit=${limit || 20}`, "GET");
 }
 
 /**

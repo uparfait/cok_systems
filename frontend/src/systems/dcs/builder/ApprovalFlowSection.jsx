@@ -1175,6 +1175,10 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
             {/* Part 1 - who approves */}
             {wizard_step === 1 && (
               <>
+                {/* Roughly five approver cards fit before this container
+                    scrolls internally - thousands of generated approvers
+                    must never stretch the page itself. */}
+                <div className="space-y-4 overflow-y-auto" style={{ maxHeight: 1500, overscrollBehavior: "contain" }}>
                 {approvers.map((approver, index) => {
                   const email_invalid = (approver.email || "").trim() !== "" && !EMAIL_REGEX.test(approver.email.trim());
                   return (
@@ -1228,11 +1232,24 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                     </div>
                   );
                 })}
+                </div>
                 <button type="button" onClick={add_approver}
                   className="w-full py-3 text-sm font-semibold uppercase tracking-wide inline-flex items-center justify-center gap-2"
                   style={{ color: PRIMARY, border: `1px dashed ${PRIMARY}`, fontFamily: fontHeading, backgroundColor: WHITE }}>
                   <FiPlus className="w-4 h-4" /> {translate("DCS_APPROVAL_ADD_APPROVER")}
                 </button>
+                {/* Same drawn approval map the last part offers, reachable
+                    from here too. */}
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => set_show_hierarchy(true)}
+                    className="cok-btn-outlined text-sm inline-flex items-center justify-center gap-2"
+                    style={{ fontFamily: fontHeading, cursor: "pointer" }}
+                  >
+                    <FiEye className="w-4 h-4" /> {translate("DCS_APPROVAL_VIEW_HIERARCHY")}
+                  </button>
+                </div>
               </>
             )}
 
@@ -1241,6 +1258,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
             {wizard_step === 2 && (
               <>
                 <p className="text-xs" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_APPROVAL_CONDITIONS_HINT")}</p>
+                <div className="space-y-4 overflow-y-auto" style={{ maxHeight: 1500, overscrollBehavior: "contain" }}>
                 {approvers.map((approver, index) => {
                   const conditions = approver.conditions || [];
                   const hidden_ids = hidden_condition_field_ids(conditions);
@@ -1342,6 +1360,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                     </div>
                   );
                 })}
+                </div>
               </>
             )}
 
@@ -1399,6 +1418,53 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                       <FiEye className="w-4 h-4" /> {translate("DCS_APPROVAL_VIEW_HIERARCHY")}
                     </button>
                   </div>
+
+                  {/* Pop-up: everyone in the clicked set with ALL their picks - "name
+                      (South, North)". 80% wide, at most 70% tall; only the LIST scrolls,
+                      the header stays put; above everything else on the page. */}
+                  {popup_group && (() => {
+                    const popup_field = level_field_by_id.get(popup_group);
+                    const entries = group_member_entries(popup_group, members.get(popup_group) || []);
+                    return (
+                      <div
+                        className="fixed inset-0 flex items-center justify-center p-4"
+                        style={{ backgroundColor: "rgba(0,0,0,0.4)", zIndex: 999999999 }}
+                        onClick={() => set_popup_group(null)}
+                      >
+                        <div
+                          className="flex flex-col"
+                          style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, width: "80%", maxWidth: "80%", maxHeight: "70%" }}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {/* Fixed header - never scrolls */}
+                          <div className="flex items-center justify-between gap-2 shrink-0 px-4 py-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                            <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                              {popup_field ? field_label(popup_field, language) : ""}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => set_popup_group(null)}
+                              className="p-1 text-lg leading-none"
+                              style={{ color: GRAY, cursor: "pointer" }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          {/* Only this list scrolls when there are many */}
+                          <div className="space-y-1 px-4 py-3 overflow-y-auto" style={{ flex: "1 1 auto", minHeight: 0 }}>
+                            {entries.map((entry) => (
+                              <p key={entry.index} className="text-xs" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                                {entry.values.length > 0 ? `${entry.name} (${entry.values.join(", ")})` : entry.name}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            })()}
 
                   {/* Full-screen white overlay: every cascade drawn as a parent-to-child
                       tree of rectangles and connector lines (SVG). Only selected values
@@ -1516,52 +1582,6 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                     );
                   })()}
 
-                  {/* Pop-up: everyone in the clicked set with ALL their picks - "name
-                      (South, North)". 80% wide, at most 70% tall; only the LIST scrolls,
-                      the header stays put; above everything else on the page. */}
-                  {popup_group && (() => {
-                    const popup_field = level_field_by_id.get(popup_group);
-                    const entries = group_member_entries(popup_group, members.get(popup_group) || []);
-                    return (
-                      <div
-                        className="fixed inset-0 flex items-center justify-center p-4"
-                        style={{ backgroundColor: "rgba(0,0,0,0.4)", zIndex: 999999999 }}
-                        onClick={() => set_popup_group(null)}
-                      >
-                        <div
-                          className="flex flex-col"
-                          style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, width: "80%", maxWidth: "80%", maxHeight: "70%" }}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {/* Fixed header - never scrolls */}
-                          <div className="flex items-center justify-between gap-2 shrink-0 px-4 py-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
-                            <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                              {popup_field ? field_label(popup_field, language) : ""}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => set_popup_group(null)}
-                              className="p-1 text-lg leading-none"
-                              style={{ color: GRAY, cursor: "pointer" }}
-                            >
-                              ×
-                            </button>
-                          </div>
-                          {/* Only this list scrolls when there are many */}
-                          <div className="space-y-1 px-4 py-3 overflow-y-auto" style={{ flex: "1 1 auto", minHeight: 0 }}>
-                            {entries.map((entry) => (
-                              <p key={entry.index} className="text-xs" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                                {entry.values.length > 0 ? `${entry.name} (${entry.values.join(", ")})` : entry.name}
-                              </p>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              );
-            })()}
 
 {show_step_error && (!step_valid(wizard_step) || (wizard_step === 3 && !is_approval_config_complete({ enabled: true, approvers }))) && (
               <div className="p-3" style={{ backgroundColor: "#FDECEA", border: `1px solid ${DANGER}` }}>
