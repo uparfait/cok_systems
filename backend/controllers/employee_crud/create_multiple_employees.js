@@ -26,7 +26,11 @@ module.exports = async function create_multiple_employees(req, res, next) {
 
         // Separate main departments and units — supports both the new
         // (is_unit + parent_department) and legacy (sub_department_mng) formats
-        const isUnitDept = (d) => !!d.is_unit || !!d.sub_department_mng?.is_sub_department;
+        const isUnitDept = (d) => {
+            if (d.is_unit === true) return true;
+            const legacy = d.sub_department_mng?.is_sub_department;
+            return legacy === true || legacy === 'true';
+        };
         const unitParentId = (d) => {
             if (d.parent_department) return d.parent_department.toString();
             if (d.sub_department_mng?.parent_department_id) return d.sub_department_mng.parent_department_id.toString();

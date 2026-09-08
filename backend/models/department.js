@@ -25,6 +25,13 @@ const DepartmentSchema = new mongoose.Schema({
     ref: 'Department',
     default: null,
   },
+  // Legacy unit format still present on older documents; without this in the
+  // schema, Mongoose hides the field on documents and legacy units read as
+  // plain departments everywhere the flag is checked in JS.
+  sub_department_mng: {
+    is_sub_department: { type: mongoose.Schema.Types.Mixed, default: undefined },
+    parent_department_id: { type: String, default: undefined },
+  },
   leader: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

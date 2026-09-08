@@ -3,8 +3,12 @@ const department_model = require('../../models/department.js');
 const role_model = require('../../models/default_roles.js');
 
 // A department is a unit in either the new (is_unit + parent_department) or
-// legacy (sub_department_mng) format
-const isUnitDept = (d) => !!d.is_unit || !!d.sub_department_mng?.is_sub_department;
+// legacy (sub_department_mng) format; the legacy flag is sometimes the string "true"
+const isUnitDept = (d) => {
+    if (d.is_unit === true) return true;
+    const legacy = d.sub_department_mng?.is_sub_department;
+    return legacy === true || legacy === 'true';
+};
 const unitParentId = (d) => {
     if (d.parent_department) return d.parent_department.toString();
     if (d.sub_department_mng?.parent_department_id) return d.sub_department_mng.parent_department_id.toString();
@@ -14,8 +18,8 @@ const unitParentId = (d) => {
 module.exports = async function download_employee_template(req, res, next) {
     try {
         const [allDepartments, allRoles] = await Promise.all([
-            department_model.find({}).sort({ department_name: 1 }),
-            role_model.find({}).sort({ role_name: 1 })
+            department_model.find({}).sort({ department_name: 1 }).lean(),
+            role_model.find({}).sort({ role_name: 1 }).lean()
         ]);
 
         const mainDepartments = allDepartments.filter(dept => !isUnitDept(dept));
