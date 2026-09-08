@@ -20,7 +20,8 @@ const NEUTRAL_DARK = "#333333";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const BORDER = "#E0E0E0";
 const fontHeading = "'Montserrat', sans-serif";
-const PAGE_SIZE = 10;
+// How many records each scroll batch loads - also the rough number of visible rows.
+const PAGE_SIZE = 8;
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 160;
 const CERTIFICATE_ACCEPT = ".pdf,.p12,.pfx,.cer,.crt,.pem,.der,.sig,.png,.jpg,.jpeg";
@@ -81,7 +82,7 @@ function MyApprovalsPageContent() {
   const [forms, setForms] = useState({});
   const [view, setView] = useState("table");
   const [form_filter, setFormFilter] = useState("");
-  const [page, setPage] = useState(1);
+  const [visible_count, setVisibleCount] = useState(PAGE_SIZE);
   const [form_index, setFormIndex] = useState(0);
   const [viewed, setViewed] = useState(() => new Set());
   const [show_modal, setShowModal] = useState(false);
@@ -117,10 +118,27 @@ function MyApprovalsPageContent() {
     () => records.filter((record) => record.form_key === active_form_key),
     [records, active_form_key],
   );
-  const total_pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const current_page = Math.min(page, total_pages);
-  const page_records = filtered.slice((current_page - 1) * PAGE_SIZE, current_page * PAGE_SIZE);
+  // The table starts with one batch and reveals the next batch when scrolled to the bottom.
+  const page_records = filtered.slice(0, visible_count);
   const form_record = filtered[Math.min(form_index, Math.max(0, filtered.length - 1))] || null;
+
+  const table_scroll_ref = useRef(null);
+
+  const handle_table_scroll = (event) => {
+    const element = event.currentTarget;
+    if (element.scrollTop + element.clientHeight >= element.scrollHeight - 80) {
+      setVisibleCount((count) => Math.min(count + PAGE_SIZE, filtered.length));
+    }
+  };
+
+  // On tall screens one batch may not overflow the container, leaving nothing to scroll - keep filling until it does.
+  useEffect(() => {
+    const element = table_scroll_ref.current;
+    if (!element || visible_count >= filtered.length) return;
+    if (element.scrollHeight <= element.clientHeight + 4) {
+      setVisibleCount((count) => Math.min(count + PAGE_SIZE, filtered.length));
+    }
+  }, [visible_count, filtered, view]);
 
   // A record counts as viewed once it has actually been displayed - a table page
   // renders its rows, the form view renders one record at a time.
@@ -134,7 +152,7 @@ function MyApprovalsPageContent() {
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, current_page, form_index, filtered]);
+  }, [view, visible_count, form_index, filtered]);
 
   const approvable = filtered.filter((record) => record.state === "ready" && viewed.has(record.id));
 
@@ -333,7 +351,7 @@ function MyApprovalsPageContent() {
                   value={active_form_key || ""}
                   onChange={(event) => {
                     setFormFilter(event.target.value);
-                    setPage(1);
+                    setVisibleCount(PAGE_SIZE);
                     setFormIndex(0);
                   }}
                   className="cok-auth-input pr-3 py-2 text-sm"
@@ -363,7 +381,8 @@ function MyApprovalsPageContent() {
           {/* Table view */}
           {filtered.length > 0 && view === "table" && (
             <>
-              <div className="mt-3 overflow-x-auto bg-white border lg:flex-1 lg:min-h-0 lg:overflow-y-auto" style={{ borderColor: BORDER }}>
+              {/* max-h controls how many rows are visible (~44px header + ~48px per row) - scrolling inside reveals the next batch */}
+              <div ref={table_scroll_ref} onScroll={handle_table_scroll} className="mt-3 overflow-x-auto overflow-y-auto max-h-[440px] bg-white border" style={{ borderColor: BORDER }}>
                 <table className="w-full text-left" style={{ borderCollapse: "collapse" }}>
                   <thead>
                     {/* Sticky on the th (not the tr) so the header survives vertical scrolling */}
@@ -399,17 +418,6 @@ function MyApprovalsPageContent() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-              <div className="flex items-center gap-3 mt-3">
-                <DcsButtonOutline onClick={() => setPage(Math.max(1, current_page - 1))} disabled={current_page <= 1}>
-                  {translate("DCS_MYAPPROVALS_PREVIOUS")}
-                </DcsButtonOutline>
-                <span className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                  {translate("DCS_MYAPPROVALS_PAGE_OF", { page: current_page, pages: total_pages })}
-                </span>
-                <DcsButtonOutline onClick={() => setPage(Math.min(total_pages, current_page + 1))} disabled={current_page >= total_pages}>
-                  {translate("DCS_MYAPPROVALS_NEXT")}
-                </DcsButtonOutline>
               </div>
             </>
           )}
