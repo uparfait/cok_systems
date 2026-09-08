@@ -2,6 +2,7 @@ const forms_model = require("../../models/forms_model.js");
 const submissions_model = require("../../models/submissions_model.js");
 const { validate_submission_data } = require("../../jsonlogic/validate_submission.js");
 const { build_approval_state, get_active_steps } = require("../../utilities/approval.js");
+const { config_with_generated_for_submission } = require("../../utilities/generated_approvers.js");
 const { resolve_location_chain } = require("../../utilities/approval_routing.js");
 const { notify_approval_steps, resolve_client_origin } = require("../../utilities/approval_email.js");
 const { check_count_triggers } = require("../../utilities/batch_approval.js");
@@ -68,8 +69,16 @@ async function submit_response(req, res) {
     // out to the form's configured approvers.
     const active_schedule = await approval_schedules_model.get_active_schedule(form_group_id);
 
+    // The routing config: the form's own hand-made approvers plus whichever
+    // generated (test) approvers this record's answers can match - the
+    // generated pool lives in its own collection and only the matching few
+    // are ever loaded.
+    const effective_approval_config = active_schedule
+      ? null
+      : await config_with_generated_for_submission(form_group_id, form_version.approval_config, validation_result.resolved_data);
+
     // The submission's answered location names resolve to its location_id chain, which picks the approvers responsible for it.
-    const location_chain = !active_schedule && form_version.approval_config && form_version.approval_config.enabled === true
+    const location_chain = !active_schedule && effective_approval_config && effective_approval_config.enabled === true
       ? await resolve_location_chain(validation_result.resolved_data)
       : [];
 
@@ -79,7 +88,7 @@ async function submit_response(req, res) {
       project_id: form_version.project_id,
       data: validation_result.resolved_data,
       client_submission_id: client_submission_id || null,
-      approval: active_schedule ? null : build_approval_state(form_version.approval_config, location_chain, validation_result.resolved_data),
+      approval: active_schedule ? null : build_approval_state(effective_approval_config, location_chain, validation_result.resolved_data),
     });
 
     // The system itself emails every approver allowed to act right away - the first one,

@@ -1,5 +1,6 @@
 const { faker } = require("@faker-js/faker");
 const forms_model = require("../../models/forms_model.js");
+const form_approvers_model = require("../../models/form_approvers_model.js");
 const project_access = require("../../utilities/project_access.js");
 const test_jobs = require("../../utilities/test_jobs.js");
 const { flatten_fields } = require("../../jsonlogic/dependency_graph.js");
@@ -265,18 +266,20 @@ async function run_config_save(job_id, form_version, generated_approvers) {
       kept_identities.add(identity);
       return true;
     });
-    const next_config = {
+    // The form's own config keeps only the hand-made approvers; the whole
+    // generated pool goes to its own collection, one document each, where
+    // listing and routing page it with plain limit/skip queries.
+    await forms_model.update_approval_config(form_version.form_group_id, form_version.version, {
       enabled: true,
-      approvers: kept_approvers.concat(generated_approvers),
-    };
-
-    await forms_model.update_approval_config(form_version.form_group_id, form_version.version, next_config);
+      approvers: kept_approvers,
+    });
+    const inserted = await form_approvers_model.replace_generated_approvers(form_version.form_group_id, generated_approvers);
 
     test_jobs.update_progress(job_id, {
       processed: generated_approvers.length,
-      saved: generated_approvers.length,
-      failed: 0,
-      approvers: generated_approvers.length,
+      saved: inserted,
+      failed: generated_approvers.length - inserted,
+      approvers: inserted,
     });
     test_jobs.finish_job(job_id, "completed");
   } catch (error) {

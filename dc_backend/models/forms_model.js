@@ -100,55 +100,6 @@ async function update_approval_config(form_group_id, version, approval_config) {
 }
 
 /**
- * One page of the active version's approval-flow approvers, paged by the
- * database itself: the stored array is unwound into a document stream and
- * MongoDB's own $skip/$limit pagination operators pick the page - the query
- * does the paging, nothing is sliced by hand, and a huge generated pool
- * never rides along with a single page. Falls back to the latest version
- * when none is active, mirroring how the approvers endpoint resolves the
- * form.
- */
-async function get_approvers_page(form_group_id, skip, limit) {
-  const page_of = async (match) => {
-    const [result] = await get_db()
-      .collection(COLLECTION_NAME)
-      .aggregate([
-        { $match: match },
-        { $sort: { version: -1 } },
-        { $limit: 1 },
-        {
-          $project: {
-            _id: 0,
-            enabled: "$approval_config.enabled",
-            mode: "$approval_config.mode",
-            approvers: { $ifNull: ["$approval_config.approvers", []] },
-          },
-        },
-        {
-          $facet: {
-            meta: [{ $project: { enabled: 1, mode: 1, total: { $size: "$approvers" } } }],
-            page: [
-              { $unwind: "$approvers" },
-              { $replaceRoot: { newRoot: "$approvers" } },
-              { $skip: skip },
-              { $limit: Math.max(1, limit) },
-            ],
-          },
-        },
-      ])
-      .toArray();
-    if (!result || !result.meta || result.meta.length === 0) return null;
-    return {
-      enabled: result.meta[0].enabled,
-      mode: result.meta[0].mode,
-      total: result.meta[0].total,
-      approvers: result.page || [],
-    };
-  };
-  return (await page_of({ form_group_id, is_active: true })) || (await page_of({ form_group_id }));
-}
-
-/**
  * Returns every version of a form, newest first.
  * Excludes fields to reduce payload size for list views.
  */
@@ -320,7 +271,6 @@ module.exports = {
   create_next_form_version,
   update_version_in_place,
   update_approval_config,
-  get_approvers_page,
   is_form_name_taken,
   get_versions_by_group,
   get_latest_version,

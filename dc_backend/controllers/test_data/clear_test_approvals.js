@@ -1,4 +1,5 @@
 const forms_model = require("../../models/forms_model.js");
+const form_approvers_model = require("../../models/form_approvers_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { is_test_approver } = require("../../utilities/approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
@@ -22,7 +23,10 @@ async function clear_test_approvals(req, res) {
       return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     }
 
-    let removed_approvers = 0;
+    // The generated pool lives in its own collection - one delete removes
+    // it all. The per-version sweep below only cleans up legacy generated
+    // approvers stored on old form documents.
+    let removed_approvers = await form_approvers_model.delete_generated_approvers(form_group_id);
     const versions = await forms_model.get_versions_by_group(form_group_id);
     for (const version of versions) {
       const config = version.approval_config;

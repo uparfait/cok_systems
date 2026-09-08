@@ -1,4 +1,5 @@
 const forms_model = require("../../models/forms_model.js");
+const form_approvers_model = require("../../models/form_approvers_model.js");
 const projects_model = require("../../models/projects_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
@@ -87,23 +88,18 @@ async function update_form(req, res) {
     const next_approval_config =
       incoming_approval_config === undefined ? active_version.approval_config || null : normalize_approval_config(incoming_approval_config);
 
-    // Generated test approvers are only ever removed through the explicit
-    // "clear test approvals" action - a save whose payload carries hand-made
-    // approvers but none of the generated ones (a stale tab, or a client
-    // that never paged the full list in) must not silently wipe the
-    // thousands stored on the form. A deliberately EMPTY approvers list is
-    // respected as-is: it means no approval is wanted.
-    const stored_test_approvers = ((active_version.approval_config && active_version.approval_config.approvers) || []).filter(
-      (approver) => is_test_approver(approver),
-    );
-    if (
-      stored_test_approvers.length > 0 &&
-      next_approval_config &&
-      Array.isArray(next_approval_config.approvers) &&
-      next_approval_config.approvers.length > 0 &&
-      !next_approval_config.approvers.some((approver) => is_test_approver(approver))
-    ) {
-      next_approval_config.approvers = next_approval_config.approvers.concat(stored_test_approvers);
+    // Generated test approvers never live on the form document - they have
+    // their own collection. A payload that carries some back (the approval
+    // page loaded and possibly edited them) replaces the stored pool; a
+    // payload without any leaves the pool untouched, so a stale tab or a
+    // client that never paged the full list in can never wipe it. Only the
+    // explicit "clear test approvals" action deletes the pool.
+    if (next_approval_config && Array.isArray(next_approval_config.approvers)) {
+      const incoming_generated = next_approval_config.approvers.filter((approver) => is_test_approver(approver));
+      next_approval_config.approvers = next_approval_config.approvers.filter((approver) => !is_test_approver(approver));
+      if (incoming_generated.length > 0) {
+        await form_approvers_model.replace_generated_approvers(form_group_id, incoming_generated);
+      }
     }
 
     const should_bump_version = has_data_field_set_changed(active_version.schema, resolved_schema);
