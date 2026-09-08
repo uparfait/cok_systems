@@ -20,29 +20,42 @@ export default function FormApprovalPage() {
   const { resolveFullFieldOptions } = useLazyFieldResolvers("form", form_group_id, get_form_field_options);
   const [is_dirty, setIsDirty] = useState(false);
   const loaded_approvers_ref = useRef([]);
-  const cancelled_ref = useRef(false);
+  const seen_keys_ref = useRef(new Set());
+  const fetch_offset_ref = useRef(0);
+  const run_seq_ref = useRef(0);
 
   const load_approvers = useCallback(async () => {
+    const run_id = run_seq_ref.current + 1;
+    run_seq_ref.current = run_id;
+    const is_stale = () => run_seq_ref.current !== run_id;
+
     setLoadState((previous) => ({ status: "loading", loaded: loaded_approvers_ref.current.length, total: previous.total }));
     try {
       let enabled = false;
       let mode;
       let total = null;
-      while (!cancelled_ref.current) {
-        const offset = loaded_approvers_ref.current.length;
-        const response = await get_form_approvers(form_group_id, offset, PAGE_SIZE);
+      while (!is_stale()) {
+        const response = await get_form_approvers(form_group_id, fetch_offset_ref.current, PAGE_SIZE);
+        if (is_stale()) return;
         enabled = response.data.enabled;
         mode = response.data.mode;
         total = response.data.total;
-        loaded_approvers_ref.current = loaded_approvers_ref.current.concat(response.data.approvers || []);
+        const page = response.data.approvers || [];
+        fetch_offset_ref.current += page.length;
+        page.forEach((approver) => {
+          const key = JSON.stringify(approver);
+          if (seen_keys_ref.current.has(key)) return;
+          seen_keys_ref.current.add(key);
+          loaded_approvers_ref.current.push(approver);
+        });
         setApprovalConfig({ enabled, mode, approvers: [...loaded_approvers_ref.current] });
         setLoadState({ status: "loading", loaded: loaded_approvers_ref.current.length, total });
-        if (loaded_approvers_ref.current.length >= total || (response.data.approvers || []).length === 0) break;
+        if (fetch_offset_ref.current >= total || page.length === 0) break;
       }
-      if (cancelled_ref.current) return;
+      if (is_stale()) return;
       setLoadState({ status: "loaded", loaded: loaded_approvers_ref.current.length, total });
     } catch (error) {
-      if (cancelled_ref.current) return;
+      if (is_stale()) return;
       setLoadState((previous) => ({ status: "failed", loaded: loaded_approvers_ref.current.length, total: previous.total }));
       showError(error.message || translate("DCS_ERROR_GENERIC"));
     }
@@ -50,13 +63,16 @@ export default function FormApprovalPage() {
   }, [form_group_id]);
 
   useEffect(() => {
-    cancelled_ref.current = false;
     loaded_approvers_ref.current = [];
+    seen_keys_ref.current = new Set();
+    fetch_offset_ref.current = 0;
     setApprovalConfig(null);
     setIsDirty(false);
     load_approvers();
     return () => {
-      cancelled_ref.current = true;
+      // Invalidates any in-flight run - a resolved fetch from a stale run
+      // (StrictMode's phantom first mount included) can never append again.
+      run_seq_ref.current += 1;
     };
   }, [form_group_id, load_approvers]);
 
@@ -97,6 +113,16 @@ export default function FormApprovalPage() {
           </div>
         ) : (
           <>
+            <div className="flex items-center justify-between gap-3 px-4 py-3 mb-4" style={{ backgroundColor: "#056daa" }}>
+              <p className="text-sm font-extrabold uppercase" style={{ color: "#FFFFFF", fontFamily: "'Montserrat', sans-serif" }}>
+                {translate("DCS_APPROVAL_TOTAL_APPROVERS", { count: load_state.total === null ? load_state.loaded : load_state.total })}
+              </p>
+              {!is_fully_loaded && (
+                <span className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.85)", fontFamily: "'Montserrat', sans-serif" }}>
+                  {translate("DCS_APPROVAL_LOADING_APPROVERS", { loaded: load_state.loaded, total: load_state.total === null ? "?" : load_state.total })}
+                </span>
+              )}
+            </div>
             <div style={is_fully_loaded ? undefined : { pointerEvents: "none", opacity: 0.75 }}>
               <ApprovalFlowSection
                 value={approval_config}

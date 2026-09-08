@@ -902,6 +902,7 @@ const en = {
   DCS_APPROVAL_LOADING_APPROVERS: "Loading approvers... {{loaded}} / {{total}}",
   DCS_APPROVAL_LOAD_FAILED: "Some approvers could not be loaded",
   DCS_BTN_LOAD_MORE: "Load more",
+  DCS_APPROVAL_TOTAL_APPROVERS: "Total approvers: {{count}}",
 };
 
 export default en;

@@ -902,6 +902,7 @@ const kn = {
   DCS_APPROVAL_LOADING_APPROVERS: "Abemeza barimo gushakishwa... {{loaded}} / {{total}}",
   DCS_APPROVAL_LOAD_FAILED: "Bamwe mu bemeza ntibashoboye kuboneka",
   DCS_BTN_LOAD_MORE: "Shakisha abandi",
+  DCS_APPROVAL_TOTAL_APPROVERS: "Abemeza bose: {{count}}",
 };
 
 export default kn;
