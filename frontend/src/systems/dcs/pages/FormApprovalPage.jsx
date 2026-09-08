@@ -25,7 +25,144 @@ const FIELDS_LOCK_CSS = `
   pointer-events: auto;
   opacity: 1;
 }
+.dcs-approval-hdr-ctl {
+  height: 30px;
+  font-size: 12px;
+  font-family: 'Montserrat', sans-serif;
+  color: rgba(255, 255, 255, 0.85);
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 0 0.55rem;
+  outline: none;
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease, transform 150ms ease;
+}
+.dcs-approval-hdr-ctl:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #FFFFFF;
+}
+.dcs-approval-hdr-ctl:focus {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.85);
+  color: #FFFFFF;
+}
+button.dcs-approval-hdr-ctl {
+  font-weight: 700;
+  cursor: pointer;
+}
+button.dcs-approval-hdr-ctl:active:not(:disabled) {
+  transform: scale(0.95);
+}
+button.dcs-approval-hdr-ctl:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dcs-approval-hdr-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 200px;
+  cursor: pointer;
+}
+.dcs-approval-hdr-chevron {
+  flex-shrink: 0;
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.dcs-approval-hdr-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 190px;
+  max-height: 260px;
+  overflow-y: auto;
+  background-color: #FFFFFF;
+  border: 1px solid #E0E0E0;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
+  animation: dcsHdrMenuIn 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes dcsHdrMenuIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.dcs-approval-hdr-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-size: 12px;
+  font-family: 'Montserrat', sans-serif;
+  color: #333333;
+  background-color: #FFFFFF;
+  border: none;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease, padding-left 140ms ease;
+}
+.dcs-approval-hdr-option:hover {
+  background-color: #F0F7FC;
+  color: #056daa;
+  padding-left: 0.95rem;
+}
+.dcs-approval-hdr-option.is-selected {
+  color: #056daa;
+  font-weight: 700;
+}
+input.dcs-approval-hdr-ctl::placeholder {
+  color: rgba(255, 255, 255, 0.65);
+}
+input.dcs-approval-hdr-ctl::-webkit-outer-spin-button,
+input.dcs-approval-hdr-ctl::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input.dcs-approval-hdr-ctl[type=number] {
+  -moz-appearance: textfield;
+}
 `;
+
+function HeaderDropdown({ value, placeholder, options, onChange, title }) {
+  const [open, setOpen] = useState(false);
+  const container_ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handle_outside = (event) => {
+      if (container_ref.current && !container_ref.current.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handle_outside);
+    return () => document.removeEventListener("mousedown", handle_outside);
+  }, [open]);
+
+  const selected = options.find((option) => option.value === value);
+
+  return (
+    <div ref={container_ref} className="relative" title={title}>
+      <button type="button" className="dcs-approval-hdr-ctl dcs-approval-hdr-select" onClick={() => setOpen((previous) => !previous)}>
+        <span className="truncate">{selected && selected.value !== "" ? selected.label : placeholder}</span>
+        <svg className="dcs-approval-hdr-chevron" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }} width="10" height="6" viewBox="0 0 10 6">
+          <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div className="dcs-approval-hdr-menu">
+          {options.map((option) => (
+            <button
+              key={option.value || "__all__"}
+              type="button"
+              className={`dcs-approval-hdr-option${option.value === value ? " is-selected" : ""}`}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function FormApprovalPage() {
   const { form_group_id, form, refreshForm } = useOutletContext();
@@ -158,43 +295,52 @@ export default function FormApprovalPage() {
     load_more(wanted);
   };
 
-  const compact_control = { height: 30, fontSize: 12, fontFamily: FONT, border: "1px solid rgba(255,255,255,0.6)", backgroundColor: "#FFFFFF", color: "#333333", padding: "0 0.4rem" };
-
   const header_controls = (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      <span className="text-xs font-bold whitespace-nowrap" style={{ color: "#FFFFFF", fontFamily: FONT }}>
+      <span className="text-xs whitespace-nowrap" style={{ color: "rgba(255,255,255,0.85)", fontFamily: FONT }}>
         {translate("DCS_APPROVAL_LOADED_COUNT", { loaded: load_state.loaded, total: load_state.total === null ? "?" : load_state.total })}
       </span>
       {chains.length > 0 && (
         <>
-          <select value={filter_from} onChange={(event) => { setFilterFrom(event.target.value); setFilterTo(""); }} style={compact_control} title={translate("DCS_APPROVAL_FILTER_FROM")}>
-            <option value="">{translate("DCS_APPROVAL_FILTER_ALL")}</option>
-            {chains.flatMap((chain) =>
-              chain.levels.map((level) => (
-                <option key={level.id} value={level.id}>
-                  {translate("DCS_APPROVAL_FILTER_FROM")}: {level_label(level)}
-                </option>
-              )),
+          <HeaderDropdown
+            value={filter_from}
+            placeholder={translate("DCS_APPROVAL_FILTER_ALL")}
+            title={translate("DCS_APPROVAL_FILTER_FROM")}
+            onChange={(next_value) => {
+              setFilterFrom(next_value);
+              setFilterTo("");
+            }}
+            options={[{ value: "", label: translate("DCS_APPROVAL_FILTER_ALL") }].concat(
+              chains.flatMap((chain) =>
+                chain.levels.map((level) => ({
+                  value: level.id,
+                  label: `${translate("DCS_APPROVAL_FILTER_FROM")}: ${level_label(level)}`,
+                })),
+              ),
             )}
-          </select>
+          />
           {filter_from && chain_of_field.get(filter_from) && (
-            <select value={filter_to} onChange={(event) => setFilterTo(event.target.value)} style={compact_control} title={translate("DCS_APPROVAL_FILTER_TO")}>
-              <option value="">{translate("DCS_APPROVAL_FILTER_TO")}...</option>
-              {chain_of_field
-                .get(filter_from)
-                .chain.levels.slice(chain_of_field.get(filter_from).depth)
-                .map((level) => (
-                  <option key={level.id} value={level.id}>
-                    {translate("DCS_APPROVAL_FILTER_TO")}: {level_label(level)}
-                  </option>
-                ))}
-            </select>
+            <HeaderDropdown
+              value={filter_to}
+              placeholder={`${translate("DCS_APPROVAL_FILTER_TO")}...`}
+              title={translate("DCS_APPROVAL_FILTER_TO")}
+              onChange={setFilterTo}
+              options={[{ value: "", label: `${translate("DCS_APPROVAL_FILTER_TO")}...` }].concat(
+                chain_of_field
+                  .get(filter_from)
+                  .chain.levels.slice(chain_of_field.get(filter_from).depth)
+                  .map((level) => ({
+                    value: level.id,
+                    label: `${translate("DCS_APPROVAL_FILTER_TO")}: ${level_label(level)}`,
+                  })),
+              )}
+            />
           )}
         </>
       )}
       {has_more && (
         <>
-          <button type="button" disabled={is_loading} onClick={() => load_more(PAGE_SIZE)} style={Object.assign({}, compact_control, { cursor: is_loading ? "not-allowed" : "pointer", fontWeight: 700 })}>
+          <button type="button" disabled={is_loading} onClick={() => load_more(PAGE_SIZE)} className="dcs-approval-hdr-ctl">
             {translate("DCS_BTN_LOAD_MORE")}
           </button>
           <input
@@ -204,9 +350,10 @@ export default function FormApprovalPage() {
             disabled={is_loading}
             placeholder={translate("DCS_APPROVAL_LOAD_COUNT_PLACEHOLDER")}
             onChange={(event) => setLoadCountInput(event.target.value)}
-            style={Object.assign({}, compact_control, { width: 90 })}
+            className="dcs-approval-hdr-ctl"
+            style={{ width: 90 }}
           />
-          <button type="button" disabled={is_loading} onClick={handle_load_count} style={Object.assign({}, compact_control, { cursor: is_loading ? "not-allowed" : "pointer", fontWeight: 700 })}>
+          <button type="button" disabled={is_loading} onClick={handle_load_count} className="dcs-approval-hdr-ctl">
             {translate("DCS_APPROVAL_LOAD_BTN")}
           </button>
         </>
@@ -218,7 +365,7 @@ export default function FormApprovalPage() {
   return (
     <div className="space-y-4 pb-16 w-full">
       <style>{FIELDS_LOCK_CSS}</style>
-      <div className="bg-white border-2 p-4 sm:p-6 w-full" style={{ borderColor: "#E0E0E0" }}>
+      <div className="bg-white border-2 w-full" style={{ borderColor: "#E0E0E0" }}>
         {approval_config === null ? (
           <div className="flex flex-col items-center gap-3 py-8">
             {load_state.status !== "failed" && <span className="dcs-inline-spinner" style={{ color: "#056daa" }} />}
@@ -245,11 +392,12 @@ export default function FormApprovalPage() {
                 onDirtyChange={setIsDirty}
                 headerExtra={header_controls}
                 saveDisabled={!is_fully_loaded}
+                flush
               />
             </div>
 
             {(is_loading || load_state.status === "failed" || has_more) && (
-              <div className="flex flex-col items-center gap-2 pt-4 mt-4" style={{ borderTop: "1px solid #E0E0E0" }}>
+              <div className="flex flex-col items-center gap-2 pt-4 mt-4 px-4 pb-4" style={{ borderTop: "1px solid #E0E0E0" }}>
                 {is_loading && <span className="dcs-inline-spinner" style={{ color: "#056daa" }} />}
                 <p className="text-sm font-semibold" style={{ color: load_state.status === "failed" ? "#E74C3C" : "#056daa", fontFamily: FONT }}>
                   {load_state.status === "failed"

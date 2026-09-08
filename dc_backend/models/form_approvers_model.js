@@ -1,6 +1,7 @@
 const { get_db } = require("../db_connection/db.js");
 
 const COLLECTION_NAME = "dcs_form_approvers";
+const FORMS_COLLECTION_NAME = "dcs_forms";
 const INSERT_BATCH_SIZE = 1000;
 
 // Internal per-document fields - never sent to a client.
@@ -63,19 +64,64 @@ async function replace_generated_approvers(form_group_id, approvers) {
   return inserted;
 }
 
-/** One page, the standard way: find(filter).limit(limit).skip(skip).sort(...). */
-async function list_generated_approvers(form_group_id, skip, limit, group_field_ids) {
-  return get_db()
-    .collection(COLLECTION_NAME)
-    .find(pool_filter(form_group_id, group_field_ids), { projection: PUBLIC_PROJECTION })
-    .limit(limit)
-    .skip(skip)
-    .sort({ order: 1 })
-    .toArray();
+const PAGE_PROJECTION = { _id: 0, form_group_id: 0, order: 0, match_values: 0, group_field_id: 0, __sort: 0 };
+const CONFIG_SORT_OFFSET = 1000000000;
+
+// One document stream holding EVERY approver of a form - the hand-made ones
+// unwound straight out of the form's own approval_config (sorted first) and
+// the generated pool union-ed in after them. Built once, so both the page
+// and the total come from MongoDB's own operators ($skip/$limit/$count) in
+// a single query - nothing is counted, sliced or merged in code.
+function all_approvers_pipeline(form_group_id, version) {
+  return [
+    { $match: { form_group_id, version: Number(version) } },
+    { $limit: 1 },
+    { $unwind: { path: "$approval_config.approvers", includeArrayIndex: "__config_index" } },
+    {
+      $replaceRoot: {
+        newRoot: { $mergeObjects: ["$approval_config.approvers", { __sort: { $subtract: ["$__config_index", CONFIG_SORT_OFFSET] } }] },
+      },
+    },
+    {
+      $unionWith: {
+        coll: COLLECTION_NAME,
+        pipeline: [{ $match: { form_group_id } }, { $addFields: { __sort: "$order" } }],
+      },
+    },
+    { $sort: { __sort: 1 } },
+  ];
 }
 
-async function count_generated_approvers(form_group_id, group_field_ids) {
-  return get_db().collection(COLLECTION_NAME).countDocuments(pool_filter(form_group_id, group_field_ids));
+/**
+ * One page of a form's approvers plus the total, in one native aggregation:
+ * MongoDB's $skip/$limit pick the page and $count produces the total. A
+ * cascade-level filter narrows to the generated pool alone (hand-made
+ * approvers carry no group).
+ */
+async function page_all_approvers(form_group_id, version, skip, limit, group_field_ids) {
+  const facet = {
+    $facet: {
+      total: [{ $count: "count" }],
+      page: [{ $skip: skip }, { $limit: Math.max(1, limit) }, { $project: PAGE_PROJECTION }],
+    },
+  };
+  const filtered = Array.isArray(group_field_ids) && group_field_ids.length > 0;
+  const pipeline = filtered
+    ? [{ $match: pool_filter(form_group_id, group_field_ids) }, { $sort: { order: 1 } }, facet]
+    : all_approvers_pipeline(form_group_id, version).concat([facet]);
+  const collection = get_db().collection(filtered ? COLLECTION_NAME : FORMS_COLLECTION_NAME);
+  const [result] = await collection.aggregate(pipeline, { allowDiskUse: true }).toArray();
+  return {
+    total: (result && result.total && result.total[0] && result.total[0].count) || 0,
+    approvers: (result && result.page) || [],
+  };
+}
+
+/** The form's whole approver total (hand-made + generated), counted by MongoDB itself. */
+async function count_all_approvers(form_group_id, version) {
+  const pipeline = all_approvers_pipeline(form_group_id, version).concat([{ $count: "count" }]);
+  const [result] = await get_db().collection(FORMS_COLLECTION_NAME).aggregate(pipeline, { allowDiskUse: true }).toArray();
+  return (result && result.count) || 0;
 }
 
 /** Removes a form's whole generated pool - the "clear test approvals" action. */
@@ -105,8 +151,8 @@ async function find_matching_generated_approvers(form_group_id, record_values) {
 module.exports = {
   ensure_form_approver_indexes,
   replace_generated_approvers,
-  list_generated_approvers,
-  count_generated_approvers,
+  page_all_approvers,
+  count_all_approvers,
   delete_generated_approvers,
   find_matching_generated_approvers,
 };

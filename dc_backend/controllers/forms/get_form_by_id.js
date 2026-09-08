@@ -35,10 +35,10 @@ async function get_form_by_id(req, res) {
     // whichever version happens to be active right now - the active
     // version's own created_at reflects when THAT version was published,
     // which can be long after the form itself first existed.
-    const [origin_created_at, total_submissions, generated_approvers_count] = await Promise.all([
+    const [origin_created_at, total_submissions, total_approvers] = await Promise.all([
       forms_model.get_form_origin_created_at(form_group_id),
       submissions_model.count_by_form_group_id(form_group_id),
-      form_approvers_model.count_generated_approvers(form_group_id),
+      form_approvers_model.count_all_approvers(form_group_id, form.version),
     ]);
     const stripped_config = strip_approval_config_for_response(form.approval_config);
     const enriched_form = Object.assign({}, form, {
@@ -47,10 +47,9 @@ async function get_form_by_id(req, res) {
       schema: Object.assign({}, form.schema, { fields: strip_lazy_options_from_fields(form.schema.fields) }),
       // Approvers can number in the thousands (the generated pool lives in
       // its own collection) - the approval page fetches them separately,
-      // page by page; only the combined count travels with the form.
-      approval_config: stripped_config
-        ? Object.assign({}, stripped_config, { approvers_count: stripped_config.approvers_count + generated_approvers_count })
-        : stripped_config,
+      // page by page; the combined count comes from one native $count over
+      // the same unioned stream the approvers endpoint pages.
+      approval_config: stripped_config ? Object.assign({}, stripped_config, { approvers_count: total_approvers }) : stripped_config,
     });
 
     return res.status(200).json(success_response(req, "FORM_FETCHED", enriched_form));

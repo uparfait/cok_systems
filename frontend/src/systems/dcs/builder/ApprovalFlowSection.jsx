@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FiCheckCircle, FiUser, FiFilter, FiMove, FiTrash2, FiPlus, FiShield, FiEye } from "react-icons/fi";
+import { FiCheckCircle, FiUser, FiFilter, FiMove, FiTrash2, FiPlus, FiShield } from "react-icons/fi";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -513,7 +513,7 @@ function ApproverBadge({ index, name, role, translate }) {
 // Optional pre-publish step: the form owner defines who must approve each submitted response.
 // Laid out as a booking-form-style wizard: People -> Conditions -> Order & rules,
 // with a stepper showing where you are. Approvers sign in the order arranged on the last part.
-export default function ApprovalFlowSection({ value, onChange, fields, onSave, resolveFullFieldOptions, headerExtra, saveDisabled }) {
+export default function ApprovalFlowSection({ value, onChange, fields, onSave, resolveFullFieldOptions, headerExtra, saveDisabled, flush }) {
   const { translate, language } = useDcsLanguage();
   const enabled = !!value && value.enabled === true;
   const approvers = (value && value.approvers) || [];
@@ -538,6 +538,18 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
   const [position_edit, set_position_edit] = useState(null);
   // The full-screen "view hierarchy" overlay.
   const [show_hierarchy, set_show_hierarchy] = useState(false);
+  // Keeps the body mounted just long enough for the collapse animation to
+  // finish when the flow is toggled off.
+  const [render_body, set_render_body] = useState(enabled);
+
+  React.useEffect(() => {
+    if (enabled) {
+      set_render_body(true);
+      return undefined;
+    }
+    const collapse_timeout = window.setTimeout(() => set_render_body(false), 360);
+    return () => window.clearTimeout(collapse_timeout);
+  }, [enabled]);
 
   const STEPS = [
     { step: 1, label: translate("DCS_APPROVAL_STEP_PEOPLE"), icon: FiUser },
@@ -1093,10 +1105,10 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
   };
 
   return (
-    <div className="mt-4" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}` }}>
+    <div className={flush ? undefined : "mt-4"} style={{ backgroundColor: WHITE, border: flush ? "none" : `1px solid ${BORDER}` }}>
       {/* Header banner - same treatment as the booking form's blue title block */}
       <div className="px-6 py-5 flex items-center gap-3"
-        style={{ backgroundColor: enabled ? PRIMARY : WHITE, borderBottom: enabled ? "none" : `1px solid ${BORDER}` }}>
+        style={{ backgroundColor: enabled ? PRIMARY : WHITE, borderBottom: enabled ? "none" : `1px solid ${BORDER}`, transition: "background-color 300ms ease" }}>
         <input
           type="checkbox"
           id="approval-flow-toggle"
@@ -1108,27 +1120,77 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
         <div
           className="w-10 h-10 flex items-center justify-center shrink-0"
           style={{
-            backgroundColor: enabled ? "rgba(255,255,255,0.2)" : "#E0E0E0",
+            backgroundColor: enabled ? "rgba(255,255,255,0.16)" : "#EEF2F5",
             borderRadius: "50%",
+            transition: "background-color 300ms ease",
           }}
         >
-          <FiShield className="w-5 h-5" style={{ color: WHITE }} />
+          {/* Muted in both states - full white on grey (disabled) or on blue
+              (enabled) glares. */}
+          <FiShield className="w-5 h-5" style={{ color: enabled ? "rgba(255,255,255,0.85)" : GRAY, transition: "color 300ms ease" }} />
         </div>
         <div className="min-w-0">
           <label htmlFor="approval-flow-toggle" className="block text-lg font-extrabold cursor-pointer select-none leading-tight uppercase"
-            style={{ color: enabled ? WHITE : NEUTRAL_DARK, fontFamily: fontHeading, letterSpacing: "-0.5px" }}>
+            style={{ color: enabled ? "rgba(255,255,255,0.88)" : NEUTRAL_DARK, fontFamily: fontHeading, letterSpacing: "-0.5px", transition: "color 300ms ease" }}>
             {translate("DCS_APPROVAL_ENABLE_LABEL")}
           </label>
           <p className="text-xs mt-0.5" style={{ color: enabled ? "rgba(255,255,255,0.85)" : GRAY, fontFamily: fontHeading }}>
             {translate("DCS_APPROVAL_ENABLE_HINT")}
           </p>
         </div>
-        {/* The page's own controls (total, level filters, load-more) live in
-            this same banner - one combined header, never two stacked ones. */}
-        {headerExtra && <div className="dcs-approval-header-controls ml-auto min-w-0">{headerExtra}</div>}
+        {/* The page's own controls (total, level filters, load-more) and the
+            hierarchy icon live in this same banner - one combined header,
+            never two stacked ones. */}
+        <div className="dcs-approval-header-controls ml-auto flex items-center gap-2 min-w-0">
+          {headerExtra}
+          {enabled && (
+            <button
+              type="button"
+              onClick={() => set_show_hierarchy(true)}
+              title={translate("DCS_APPROVAL_VIEW_HIERARCHY")}
+              className="dcs-approval-hier-btn shrink-0"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="2.5" width="6" height="5" rx="1.2" />
+                <rect x="2.5" y="16.5" width="6" height="5" rx="1.2" />
+                <rect x="15.5" y="16.5" width="6" height="5" rx="1.2" />
+                <path d="M12 7.5v4M5.5 16.5v-5H18.5v5M12 11.5v0" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <style>{`
+          .dcs-approval-hier-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.85);
+            background-color: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            cursor: pointer;
+            transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, transform 180ms ease;
+          }
+          .dcs-approval-hier-btn:hover {
+            background-color: rgba(255, 255, 255, 0.24);
+            border-color: rgba(255, 255, 255, 0.55);
+            color: #FFFFFF;
+            transform: scale(1.08);
+          }
+          .dcs-approval-hier-btn:active {
+            transform: scale(0.94);
+          }
+        `}</style>
       </div>
 
-      {enabled && (
+      {/* Toggling expands/collapses the whole body smoothly: the grid rows
+          animate between 0fr and 1fr while the body stays mounted just long
+          enough for the collapse to finish. */}
+      <div style={{ display: "grid", gridTemplateRows: enabled ? "1fr" : "0fr", transition: "grid-template-rows 320ms cubic-bezier(0.2, 0, 0, 1)" }}>
+        <div style={{ overflow: "hidden", minHeight: 0 }}>
+      {render_body && (
         <>
           {/* Required-fields strip, same as the booking form */}
           <div className="px-6 py-3 text-center" style={{ backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}` }}>
@@ -1241,18 +1303,6 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                   style={{ color: PRIMARY, border: `1px dashed ${PRIMARY}`, fontFamily: fontHeading, backgroundColor: WHITE }}>
                   <FiPlus className="w-4 h-4" /> {translate("DCS_APPROVAL_ADD_APPROVER")}
                 </button>
-                {/* Same drawn approval map the last part offers, reachable
-                    from here too. */}
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => set_show_hierarchy(true)}
-                    className="cok-btn-outlined text-sm inline-flex items-center justify-center gap-2"
-                    style={{ fontFamily: fontHeading, cursor: "pointer" }}
-                  >
-                    <FiEye className="w-4 h-4" /> {translate("DCS_APPROVAL_VIEW_HIERARCHY")}
-                  </button>
-                </div>
               </>
             )}
 
@@ -1410,18 +1460,6 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                     );
                   })}
 
-                  {/* Below all the groups: open the drawn approval map */}
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => set_show_hierarchy(true)}
-                      className="cok-btn-outlined text-sm inline-flex items-center justify-center gap-2"
-                      style={{ fontFamily: fontHeading, cursor: "pointer" }}
-                    >
-                      <FiEye className="w-4 h-4" /> {translate("DCS_APPROVAL_VIEW_HIERARCHY")}
-                    </button>
-                  </div>
-
                   {/* Pop-up: everyone in the clicked set with ALL their picks - "name
                       (South, North)". 80% wide, at most 70% tall; only the LIST scrolls,
                       the header stays put; above everything else on the page. */}
@@ -1558,16 +1596,15 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                         {/* Header stays put while the drawing scrolls; close at the right */}
                         <div
                           className="flex items-center justify-between gap-2 px-4 py-3 sticky top-0"
-                          style={{ backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}`, zIndex: 1 }}
+                          style={{ backgroundColor: PRIMARY, zIndex: 1 }}
                         >
-                          <p className="text-sm font-bold uppercase" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                          <p className="text-sm font-extrabold uppercase" style={{ color: "rgba(255,255,255,0.88)", fontFamily: fontHeading, letterSpacing: "-0.3px" }}>
                             {translate("DCS_APPROVAL_VIEW_HIERARCHY")}
                           </p>
                           <button
                             type="button"
                             onClick={() => set_show_hierarchy(false)}
-                            className="p-1 text-2xl leading-none"
-                            style={{ color: NEUTRAL_DARK, cursor: "pointer" }}
+                            className="dcs-approval-hier-btn text-lg leading-none"
                           >
                             ×
                           </button>
@@ -1642,6 +1679,8 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
              </div>
           </>
       )}
+        </div>
+      </div>
       {!enabled && onSave && (
         <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: "16px", paddingBottom: "16px", textAlign: "center" }}>
           <button

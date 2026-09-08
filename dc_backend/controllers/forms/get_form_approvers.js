@@ -48,29 +48,21 @@ async function get_form_approvers(req, res) {
           .map((entry) => entry.trim())
           .filter(Boolean)
       : [];
-    const config_approvers =
-      group_field_ids.length > 0 ? [] : (config && Array.isArray(config.approvers) && config.approvers) || [];
 
-    const generated_total = await form_approvers_model.count_generated_approvers(form_group_id, group_field_ids);
-    const total = config_approvers.length + generated_total;
-
-    // The page spans the virtual concatenation [config approvers, generated
-    // pool]: whatever the config part doesn't fill comes from the
-    // collection's own skip/limit.
-    const head = config_approvers.slice(skip_val, skip_val + limit_val);
-    const remaining = limit_val - head.length;
-    const generated_skip = Math.max(0, skip_val - config_approvers.length);
-    const tail =
-      remaining > 0 ? await form_approvers_model.list_generated_approvers(form_group_id, generated_skip, remaining, group_field_ids) : [];
+    // One native aggregation does everything: $unionWith joins the
+    // hand-made and generated approvers into a single stream, $skip/$limit
+    // pick the page, $count produces the total - nothing counted or merged
+    // in code.
+    const result = await form_approvers_model.page_all_approvers(form_group_id, form_version.version, skip_val, limit_val, group_field_ids);
 
     return res.status(200).json(
       success_response(req, "FORM_APPROVERS_FETCHED", {
         enabled: !!config && config.enabled === true,
         mode: config ? config.mode : undefined,
-        total,
+        total: result.total,
         page: page_number,
         limit: limit_val,
-        approvers: head.concat(tail),
+        approvers: result.approvers,
       }),
     );
   } catch (error) {
