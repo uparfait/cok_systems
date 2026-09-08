@@ -24,14 +24,22 @@ module.exports = async function create_multiple_employees(req, res, next) {
         const validRoleNames = allRoles.map(role => role.role_name);
         const validDepartmentNames = allDepartments.map(dept => dept.department_name);
 
-        // Separate main departments and sub-departments
-        const mainDepartments = allDepartments.filter(dept => !dept.sub_department_mng?.is_sub_department);
-        const subDepartments = allDepartments.filter(dept => dept.sub_department_mng?.is_sub_department);
+        // Separate main departments and units — supports both the new
+        // (is_unit + parent_department) and legacy (sub_department_mng) formats
+        const isUnitDept = (d) => !!d.is_unit || !!d.sub_department_mng?.is_sub_department;
+        const unitParentId = (d) => {
+            if (d.parent_department) return d.parent_department.toString();
+            if (d.sub_department_mng?.parent_department_id) return d.sub_department_mng.parent_department_id.toString();
+            return null;
+        };
+        const mainDepartments = allDepartments.filter(dept => !isUnitDept(dept));
+        const subDepartments = allDepartments.filter(dept => isUnitDept(dept));
 
         // Group sub-departments by parent ID for validation
         const subDeptByParent = {};
         subDepartments.forEach(sub => {
-            const parentId = sub.sub_department_mng.parent_department_id.toString();
+            const parentId = unitParentId(sub);
+            if (!parentId) return;
             if (!subDeptByParent[parentId]) {
                 subDeptByParent[parentId] = [];
             }
@@ -107,6 +115,9 @@ module.exports = async function create_multiple_employees(req, res, next) {
             const department = row['department'] || row['Department'] || row['DEPARTMENT'] || null;
             const department_unit = row['department unit'] || row['department_unit'] || row['Department Unit'] || row['Department_Unit'] || row['DEPARTMENT UNIT'] || null;
             const role = row['role'] || row['Role'] || row['ROLE'] || null;
+            const title = row['title'] || row['Title'] || row['TITLE'] || null;
+            const id_type = row['id type'] || row['id_type'] || row['ID Type'] || row['Id Type'] || row['ID TYPE'] || null;
+            const id_number = row['id number'] || row['id_number'] || row['ID Number'] || row['Id Number'] || row['ID NUMBER'] || null;
             
             const rowErrors = [];
             
@@ -133,8 +144,8 @@ module.exports = async function create_multiple_employees(req, res, next) {
             }
             
             // Validate gender value
-            if (gender && !['Male', 'Female','male','female','other', 'Other', 'Not specified'].includes(gender.toString().trim())) {
-                rowErrors.push(`gender must be one of: Male, Female, Other, Not specified for record ${rowNumber}`);
+            if (gender && !['Male', 'Female', 'male', 'female'].includes(gender.toString().trim())) {
+                rowErrors.push(`gender must be Male or Female for record ${rowNumber}`);
             }
 
             // Validate department value if provided
@@ -147,8 +158,8 @@ module.exports = async function create_multiple_employees(req, res, next) {
 
                 if (!selectedDepartment) {
                     rowErrors.push(`department "${deptName}" does not exist. Available departments: ${validDepartmentNames.join(', ')} for record ${rowNumber}`);
-                } else if (selectedDepartment.sub_department_mng?.is_sub_department) {
-                    rowErrors.push(`department "${deptName}" is a sub-department, not a main department. Please select a main department for record ${rowNumber}`);
+                } else if (isUnitDept(selectedDepartment)) {
+                    rowErrors.push(`department "${deptName}" is a unit, not a main department. Please select a main department for record ${rowNumber}`);
                 }
             }
 
@@ -159,12 +170,12 @@ module.exports = async function create_multiple_employees(req, res, next) {
 
                 if (!selectedDepartmentUnit) {
                     rowErrors.push(`department unit "${unitName}" does not exist for record ${rowNumber}`);
-                } else if (!selectedDepartmentUnit.sub_department_mng?.is_sub_department) {
-                    rowErrors.push(`"${unitName}" is a main department, not a sub-department. Department units must be sub-departments for record ${rowNumber}`);
+                } else if (!isUnitDept(selectedDepartmentUnit)) {
+                    rowErrors.push(`"${unitName}" is a main department, not a unit. Department units must be units of a department for record ${rowNumber}`);
                 } else if (selectedDepartment) {
                     // Check if the unit belongs to the selected department
-                    const parentId = selectedDepartmentUnit.sub_department_mng.parent_department_id.toString();
-                    if (parentId !== selectedDepartment._id.toString()) {
+                    const parentId = unitParentId(selectedDepartmentUnit);
+                    if (parentId && parentId !== selectedDepartment._id.toString()) {
                         const parentDept = allDepartments.find(d => d._id.toString() === parentId);
                         rowErrors.push(`department unit "${unitName}" does not belong to department "${selectedDepartment.department_name}". It belongs to "${parentDept ? parentDept.department_name : 'unknown department'}" for record ${rowNumber}`);
                     }
@@ -210,6 +221,9 @@ module.exports = async function create_multiple_employees(req, res, next) {
                 telephone: telephone.toString().trim(),
                 email: email.toString().trim().toLowerCase(),
                 gender: gender.toString().trim(),
+                title: title && title.toString().trim() !== '' ? title.toString().trim() : null,
+                id_type: id_type && id_type.toString().trim() !== '' ? id_type.toString().trim() : null,
+                id_number: id_number && id_number.toString().trim() !== '' ? id_number.toString().trim() : null,
                 department: selectedDepartment ? selectedDepartment._id : null,
                 department_unit: selectedDepartmentUnit ? selectedDepartmentUnit._id : null,
                 role: role && role.toString().trim() !== '' ? role.toString().trim() : (validRoleNames.includes('Basic') ? 'Basic' : validRoleNames[0]),
@@ -228,8 +242,8 @@ module.exports = async function create_multiple_employees(req, res, next) {
                 guidance: {
                     name_options: ['Use "fullname" column OR both "firstname" and "lastname" columns'],
                     required_columns: ['telephone', 'email', 'gender'],
-                    optional_columns: ['firstname', 'lastname', 'fullname', 'department', 'department_unit', 'role'],
-                    gender_options: ['Male', 'Female', 'Other', 'Not specified'],
+                    optional_columns: ['firstname', 'lastname', 'fullname', 'title', 'id_type', 'id_number', 'department', 'department_unit', 'role'],
+                    gender_options: ['Male', 'Female'],
                     department_options: validDepartmentNames,
                     department_unit_options: subDepartments.map(sub => sub.department_name),
                     role_options: validRoleNames,
@@ -405,12 +419,12 @@ module.exports = async function create_multiple_employees(req, res, next) {
                     full_name: emp.full_name,
                     telephone: emp.telephone,
                     identification: {
-                        id_type: 'Not specified',
-                        number: 'Not specified'
+                        id_type: emp.id_type || 'Not specified',
+                        number: emp.id_number || 'Not specified'
                     },
                     picture: default_picture,
                     gender: emp.gender,
-                    title: 'Not specified',
+                    title: emp.title || 'Not specified',
                     email: emp.email,
                     department: emp.department,
                     department_unit: emp.department_unit,

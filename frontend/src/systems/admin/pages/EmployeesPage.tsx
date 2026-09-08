@@ -10,6 +10,7 @@ import Table from '../../../core/components/Table';
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers, FiMail, FiPhone, FiAlertCircle, FiCheck } from 'react-icons/fi';
 import EmployeeFormModal from './sub/EmployeeFormModal';
 import EmployeeDetailsModal from '../components/EmployeeDetailsModal';
+import DepartmentFormModal from '../components/DepartmentFormModal';
 
 const PRIMARY = "#056daa";
 const PRIMARY_HOVER = "#045d94";
@@ -60,9 +61,10 @@ const EmployeesPage: React.FC = () => {
   const [errorModalMessage, setErrorModalMessage] = useState('');
   const [errorModalErrors, setErrorModalErrors] = useState<any[]>([]);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
+  const [deptModal, setDeptModal] = useState<{ isUnit: boolean; initialName: string } | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [formData, setFormData] = useState<Partial<Employee>>({ full_name: '', telephone: '', email: '', identification: { id_type: 'National ID', number: '' }, gender: '', title: '', department: '', department_name: '', department_id: '', department_unit: '', roles: { role_name: 'department_employee', permissions: [] } });
+  const [formData, setFormData] = useState<Partial<Employee>>({ full_name: '', telephone: '', email: '', identification: { id_type: 'National ID', number: '' }, gender: '', title: '', department: '', department_name: '', department_id: '', department_unit: '', roles: { role_name: '', permissions: [] } });
 
   useEffect(() => { if (showModal) { setFormError(''); setFormSuccess(''); if (roles.length === 0) loadRoles(); } }, [showModal, roles.length]);
   useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); else if (isAuthenticated) { loadEmployees(1, pageLimit); loadDepartments(); loadRoles(); } }, [isAuthenticated, authLoading, navigate, pageLimit]);
@@ -119,7 +121,7 @@ const EmployeesPage: React.FC = () => {
     } catch (err: any) { setError(err.message || err.error || 'The search could not be completed. Please try again.'); } finally { setLoading(false); }
   };
 
-  const handleNewEmployee = () => { setEditingEmployee(null); setFormData({ full_name: '', telephone: '', email: '', identification: { id_type: 'National ID', number: '' }, gender: '', title: '', department: '', department_name: '', department_id: '', department_unit: '', roles: { role_name: 'department_employee', permissions: [] } }); setDepartmentUnits([]); setFormError(''); setFormSuccess(''); setShowModal(true); };
+  const handleNewEmployee = () => { setEditingEmployee(null); setFormData({ full_name: '', telephone: '', email: '', identification: { id_type: 'National ID', number: '' }, gender: '', title: '', department: '', department_name: '', department_id: '', department_unit: '', roles: { role_name: '', permissions: [] } }); setDepartmentUnits([]); setFormError(''); setFormSuccess(''); setShowModal(true); };
 
   const handleEdit = (employee: Employee) => {
     const hasDeptObj = employee.department && typeof employee.department === 'object';
@@ -127,7 +129,7 @@ const EmployeesPage: React.FC = () => {
     const deptId = hasDeptObj ? (employee.department as any)?._id : employee.department_id || '';
     const unitVal = employee.department_unit || (hasDeptObj && (employee.department as any).department_unit) || '';
     setEditingEmployee(employee);
-    setFormData({ full_name: employee.full_name || '', telephone: employee.telephone || '', email: employee.email || '', identification: employee.identification || { id_type: 'National ID', number: '' }, gender: employee.gender || '', title: employee.title || '', department: deptName, department_name: deptName, department_id: deptId, department_unit: unitVal, roles: { role_name: employee.roles?.role_name || 'department_employee', permissions: [] } });
+    setFormData({ full_name: employee.full_name || '', telephone: employee.telephone || '', email: employee.email || '', identification: employee.identification || { id_type: 'National ID', number: '' }, gender: employee.gender || '', title: employee.title || '', department: deptName, department_name: deptName, department_id: deptId, department_unit: unitVal, roles: { role_name: employee.roles?.role_name || '', permissions: [] } });
     if (deptId) { setLoadingUnits(true); loadDepartmentUnits(deptId); }
     setFormError(''); setFormSuccess(''); setShowModal(true);
   };
@@ -137,6 +139,7 @@ const EmployeesPage: React.FC = () => {
     if (!formData.full_name?.trim()) { setFormError('Full name is required'); return; }
     if (!formData.email?.trim()) { setFormError('Email is required'); return; }
     if (!formData.telephone?.trim()) { setFormError('Phone number is required'); return; }
+    if (!formData.roles?.role_name) { setFormError('User role is required — please select a role for this employee'); return; }
     try { setSubmitting(true);
       if (editingEmployee?._id || editingEmployee?.employee_id) {
         const id = editingEmployee._id || editingEmployee.employee_id || '';
@@ -184,6 +187,29 @@ const EmployeesPage: React.FC = () => {
       else { setErrorModalTitle('Upload Failed'); setErrorModalMessage(r.message || 'Failed'); setErrorModalErrors(r.errors || []); setShowErrorModal(true); }
     } catch (err: any) { setErrorModalTitle('Upload Failed'); setErrorModalMessage(err.message || 'Failed'); setErrorModalErrors(err.errors || []); setShowErrorModal(true); }
     finally { setUploading(false); }
+  };
+
+  const handleAddNewDepartment = (typedName: string) => {
+    setDeptModal({ isUnit: false, initialName: typedName });
+  };
+
+  const handleAddNewUnit = (typedName: string) => {
+    if (!formData.department_id) { dispatchToast('warning', 'Select a department first, then add its unit'); return; }
+    setDeptModal({ isUnit: true, initialName: typedName });
+  };
+
+  const handleDeptModalCreated = async (created: { _id: string; department_name: string }) => {
+    if (!deptModal) return;
+    if (deptModal.isUnit) {
+      setFormData(prev => ({ ...prev, department_unit: created._id }));
+      if (formData.department_id) await loadDepartmentUnits(formData.department_id);
+      loadDepartments();
+    } else {
+      setFormData(prev => ({ ...prev, department: created.department_name, department_name: created.department_name, department_id: created._id, department_unit: '' }));
+      await loadDepartments();
+      setLoadingUnits(true);
+      loadDepartmentUnits(created._id);
+    }
   };
 
   const getUnitNameDisplay = (employee: Employee) => {
@@ -243,7 +269,18 @@ const EmployeesPage: React.FC = () => {
           />
         )}
 
-        <EmployeeFormModal show={showModal} editing={!!editingEmployee} formData={formData as any} formError={formError} formSuccess={formSuccess} submitting={submitting} departments={departments} departmentUnits={departmentUnits} loadingUnits={loadingUnits} roles={roles} onClose={() => setShowModal(false)} onSubmit={handleSubmit} onChange={(data) => setFormData(data)} onDepartmentChange={(name, id) => { setFormData({ ...formData, department_name: name, department_id: id, department_unit: '' }); if (id) { setLoadingUnits(true); loadDepartmentUnits(id); } else setDepartmentUnits([]); }} />
+        <EmployeeFormModal show={showModal} editing={!!editingEmployee} formData={formData as any} formError={formError} formSuccess={formSuccess} submitting={submitting} departments={departments} departmentUnits={departmentUnits} loadingUnits={loadingUnits} roles={roles} onClose={() => setShowModal(false)} onSubmit={handleSubmit} onChange={(data) => setFormData(data)} onDepartmentChange={(name, id) => { setFormData({ ...formData, department_name: name, department_id: id, department_unit: '' }); if (id) { setLoadingUnits(true); loadDepartmentUnits(id); } else setDepartmentUnits([]); }} onAddNewDepartment={handleAddNewDepartment} onAddNewUnit={handleAddNewUnit} onRefetchDepartments={loadDepartments} onRefetchUnits={() => { if (formData.department_id) return loadDepartmentUnits(formData.department_id); }} />
+
+        <DepartmentFormModal
+          show={!!deptModal}
+          isUnit={deptModal?.isUnit || false}
+          parentDepartmentId={formData.department_id || undefined}
+          parentDepartmentName={formData.department_name || undefined}
+          initialName={deptModal?.initialName || ''}
+          employees={employees as any}
+          onClose={() => setDeptModal(null)}
+          onCreated={handleDeptModalCreated}
+        />
 
         {showMultipleUploadModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

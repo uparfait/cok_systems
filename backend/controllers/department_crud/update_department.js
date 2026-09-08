@@ -6,11 +6,12 @@ async function updateDepartment(req, res) {
     const { id } = req.params;
     const { name, description, room_number, is_unit, parent_department, leader, department_leader, employees, services, dpt_id, department_id } = req.body;
 
-    // Check if updating name and it already exists
+    // Check if updating name and it already exists (case-insensitive)
     if (name) {
-      const existingDept = await Department.findOne({department_name: name, _id: { $ne: id } });
+      const escapedName = String(name).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existingDept = await Department.findOne({ department_name: new RegExp(`^${escapedName}$`, 'i'), _id: { $ne: id } });
       if (existingDept) {
-        return res.status(400).json({ success: false, message: 'Department with this name already exists' });
+        return res.status(400).json({ success: false, message: `A department named "${existingDept.department_name}" already exists. Please choose a different name.` });
       }
     }
 

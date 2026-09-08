@@ -5,10 +5,11 @@ async function createDepartment(req, res) {
   try {
     const { name, description, room_number, is_unit, parent_department, leader, department_leader, employees, services, dpt_id, department_id } = req.body;
 
-    // Check if department with this name already exists
-    const existingDept = await Department.findOne({ department_name: name });
+    // Check if department with this name already exists (case-insensitive)
+    const escapedName = String(name || '').trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const existingDept = await Department.findOne({ department_name: new RegExp(`^${escapedName}$`, 'i') });
     if (existingDept) {
-      return res.status(400).json({ success: false, message: 'Department with this name already exists' });
+      return res.status(400).json({ success: false, message: `A department named "${existingDept.department_name}" already exists. Please choose a different name.` });
     }
 
     const leaderId = leader || department_leader;
