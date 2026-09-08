@@ -1,8 +1,9 @@
 const Department = require("../../models/department.js");
+const { departmentErrorMessage, isClientError } = require("./department_error_message.js");
 
 async function createDepartment(req, res) {
   try {
-    const { name, description, room_number, is_unit, parent_department, leader, department_leader, employees, services, department_id } = req.body;
+    const { name, description, room_number, is_unit, parent_department, leader, department_leader, employees, services, dpt_id, department_id } = req.body;
 
     // Check if department with this name already exists
     const existingDept = await Department.findOne({ department_name: name });
@@ -20,7 +21,7 @@ async function createDepartment(req, res) {
       parent_department: parent_department || null,
       leader: leaderId || null,
       department_leader: leaderId || null,
-      department_id: department_id || "", 
+      dpt_id: dpt_id || department_id || "",
       employees: employees || [],
       services: (services || []).map(service => ({
         _id: new (require('mongoose')).Types.ObjectId(),
@@ -46,7 +47,10 @@ async function createDepartment(req, res) {
     });
   } catch (error) {
     console.error('Error creating department:', error);
-    res.status(500).json({ success: false, message: 'Error creating department', error: error.message });
+    res.status(isClientError(error) ? 400 : 500).json({
+      success: false,
+      message: departmentErrorMessage(error, 'creating the department'),
+    });
   }
 }
 

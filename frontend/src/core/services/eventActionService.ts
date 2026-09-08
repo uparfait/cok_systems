@@ -8,7 +8,8 @@ export interface EventAction {
     name: string
     email?: string
     role: string
-    institution: string
+    department: string
+    institution?: string
   }
   dueDate: string
   currentStatus: {
@@ -42,6 +43,7 @@ export interface EventAction {
     name: string
     email?: string
     role?: string
+    department?: string
     institution?: string
   }
   eventSpecialId: string

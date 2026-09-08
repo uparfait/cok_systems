@@ -82,34 +82,25 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Image with overlay */}
-      <div className="hidden lg:flex lg:w-1/2 relative">
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: 'url(/cok_hall.jpg)' }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
-        </div>
-        
-        <div className="relative z-10 flex flex-col justify-end p-7 lg:p-10 text-white w-full h-full">
-         
-
-          
-        </div>
+    <div className="min-h-screen relative">
+      {/* Full-page City Hall image with dark overlay */}
+      <div
+        className="fixed inset-0 bg-cover bg-center"
+        style={{ backgroundImage: 'url(/cok_hall.jpg)' }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
-      {/* Right side - Forgot Password form */}
-      <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6 lg:py-8 bg-white">
-        <div className="w-full max-w-lg px-2 sm:px-4">
-       
+      {/* Centered translucent card; fills the whole screen on mobile */}
+      <div className="relative z-10 flex min-h-screen items-center justify-center p-0 sm:p-4">
+        <div className="w-full max-w-none sm:max-w-md bg-white/95 backdrop-blur-sm shadow-2xl flex flex-col justify-center min-h-screen sm:min-h-0 px-4 py-6 sm:px-8 sm:py-6">
 
           {/* City of Kigali Logo */}
-          <div className="mb-6 ml-4  flex justify-center">
+          <div className="mb-6 flex justify-center">
             <img
               src="/LOGO_COK.png"
               alt="City of Kigali"
-              className="h-30 w-auto"
+              className="h-20 w-auto"
             />
           </div>
 

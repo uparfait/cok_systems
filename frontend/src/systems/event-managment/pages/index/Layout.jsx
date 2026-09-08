@@ -50,13 +50,11 @@ useEffect(() => {
     <div className="w-full text-center min-h-screen h-max flex flex-col box-border items-center">
       {/* Navigation */}
 
-      <div className="fixed z-[1000] pt-[10px]  left-1/2 -translate-x-1/2 h-16  w-full   flex items-center justify-center">
-       <IndexHeader />
-      </div>
+      <IndexHeader />
 
       {/* Pages */}
 
-<div className="w-full bg-transparent relative flex flex-col pt-13 h-max items-center pb-[50px]">
+<div className="w-full bg-transparent relative flex flex-col pt-[100px] h-max items-center pb-[50px]">
           <Outlet context={{LiveEventsData, setLiveEventsData, UpcomingEventsData, setUpcomingEventsData, activeEvent, setActiveEvent}} />
        </div>
 

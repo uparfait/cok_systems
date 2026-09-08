@@ -357,11 +357,17 @@ const CheckOutVehiclePage: React.FC = () => {
       const response = await smartParkingService.checkOutByPlate(selectedRecord.plate_number);
       
       if (response.success) {
+        // Optimistically drop the checked-out record from the list right away
+        const removedKey = selectedRecord._id || selectedRecord.plate_number;
+        const stillIn = (r: ParkingRecord) => (r._id || r.plate_number) !== removedKey;
+        setAllRecords(prev => prev.filter(stillIn));
+        setFilteredRecords(prev => prev.filter(stillIn));
+        setTotalCount(prev => Math.max(0, prev - 1));
         showSuccess('Vehicle checked out.');
         setShowActionModal(false);
         setSelectedRecord(null);
         const { query, page, filter } = lastLoadParamsRef.current;
-        await loadData(query, page, filter);
+        loadData(query, page, filter, true);
       } else {
         showError(response.message || 'Failed to checkout vehicle');
       }

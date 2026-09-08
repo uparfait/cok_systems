@@ -340,7 +340,7 @@ export default function BookNow() {
   return (
     <>
       <Helmet><title>BOOK NOW</title><meta name="description" content="Request Room for your event or meeting." /></Helmet>
-      <div className="min-h-screen w-full flex flex-col items-center pt-6 justify-center" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+      <div className="min-h-screen w-full flex flex-col items-center justify-center" style={{ backgroundColor: '#FFFFFF' }}>
         <div className="w-full" style={{ maxWidth: '800px' }}>
           <div className="px-6 py-6 text-white mb-0" style={{ backgroundColor: PRIMARY }}>
             <div className="flex items-center gap-3 mb-3">

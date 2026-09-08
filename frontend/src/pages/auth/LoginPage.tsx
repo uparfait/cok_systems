@@ -163,7 +163,8 @@ const LoginPage = () => {
           role: result.data.role || '',
           permissions: result.data.permissions || [],
           department_name: result.data.department_name,
-          department_id: result.data.department_id
+          department_id: result.data.department_id,
+          department_unit: result.data.department_unit || ''
         };
         localStorage.setItem('userData', JSON.stringify(userData));
         
@@ -272,41 +273,19 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex bg-white">
-      {/* Left side - City Hall image with dark overlay and text */}
-      <div className="hidden lg:flex lg:w-1/2 relative">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${cityHallImage})` }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
-        </div>
-
-        <div className="relative z-10 flex flex-col justify-end p-7 lg:p-14  text-white w-full h-full">
-
-
-          {/* Main heading and description */}
-          <div className="space-y-2 max-w-xl ">
-            <h1
-              className="text-2xl md:text-3xl lg:text-4xl leading-snug"
-              style={{ fontWeight: 800, letterSpacing: '-0.5px' }}
-            >
-              
-            </h1>
-          
-           
-           
-          </div>
-        </div>
+    <div className="min-h-screen relative">
+      {/* Full-page City Hall image with dark overlay */}
+      <div
+        className="fixed inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${cityHallImage})` }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
-      {/* Right side - Login form card */}
-      <div
-        className="w-full  lg:w-1/2 flex  items-center justify-center"
-        style={{ backgroundColor: '#FFFFFF' }}
-      >
-        <div className="w-full max-w-lg h-full ">
-          <div className="cok-auth-card h-full flex   justify-center flex-col  px-2 py-6 sm:px-10 sm:py-8">
+      {/* Centered translucent login card; fills the whole screen on mobile */}
+      <div className="relative z-10 flex min-h-screen items-center justify-center p-0 sm:p-4">
+        <div className="w-full max-w-none sm:max-w-md">
+          <div className="relative bg-white/95 backdrop-blur-sm shadow-2xl flex justify-center flex-col min-h-screen sm:min-h-0 px-4 py-6 sm:px-8 sm:py-6">
             {/* Logo and intro text */}
             <div onClick={()=> navigate('/')} className="text-center cursor-pointer mb-4 sm:mb-5" title='Click to home'>
               <img

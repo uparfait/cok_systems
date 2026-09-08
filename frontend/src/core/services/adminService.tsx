@@ -26,6 +26,7 @@ export interface SystemResource {
 /** Raw department object as returned by the backend API */
 export interface DepartmentRaw {
   _id?: string;
+  dpt_id?: string;
   department_id?: string;
   department_name?: string;
   department_leader?: string | { _id?: string; full_name?: string; email?: string; title?: string } | null;
@@ -57,6 +58,7 @@ export interface DepartmentRaw {
 /** Normalized Department for frontend use */
 export interface Department {
   _id: string;
+  dpt_id: string;
   department_id: string;
   name: string;
   description: string;
@@ -83,7 +85,8 @@ export interface Department {
 export function normalizeDepartment(raw: DepartmentRaw): Department {
   return {
     _id: raw._id || '',
-    department_id: raw.department_id || '',
+    dpt_id: raw.dpt_id || raw.department_id || '',
+    department_id: raw.department_id || raw.dpt_id || '',
     name: raw.department_name || raw.name || 'Unnamed Department',
     description: raw.description || '',
     room_number: raw.room_number || '',
@@ -483,7 +486,13 @@ export const parkingService = {
       return { success: false, data: [], total: 0 };
     }
   },
-  getAllPaginated: (page: number = 1, limit: number = 50, status: string = 'active') => get(`/smartparking/vehicle?status=${status}&page=${page}&limit=${limit}`),
+  getAllPaginated: (page: number = 1, limit: number = 50, status: string = 'active', opts?: { from?: string; to?: string; search?: string }) => {
+    let url = `/smartparking/vehicle?status=${status}&page=${page}&limit=${limit}`;
+    if (opts?.from) url += `&from=${encodeURIComponent(opts.from)}`;
+    if (opts?.to) url += `&to=${encodeURIComponent(opts.to)}`;
+    if (opts?.search) url += `&search=${encodeURIComponent(opts.search)}`;
+    return get(url);
+  },
   update: (id: string, data: any) => put(`/smartparking/vehicle/${id}`, data),
   getAllVehicles: async () => {
     try {

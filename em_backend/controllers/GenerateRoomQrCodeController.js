@@ -1,5 +1,6 @@
 const QRCode = require('qrcode');
 const Room = require('../models/Room');
+const config = require('../configurations/config');
 
 class GenerateRoomQrCodeController {
   static async handle(req, res) {
@@ -33,7 +34,7 @@ class GenerateRoomQrCodeController {
       }
 
       // Build attendance URL with RoomOnly=true — no event data, the attendance form will fetch the live event
-      const attendanceUrl = `${process.env.FRONTEND_URL}/event/${encodeURIComponent(normalizedRoomName)}/attendances/?RoomOnly=true`;
+      const attendanceUrl = `${config.frontendUrl}/event/${encodeURIComponent(normalizedRoomName)}/attendances/?RoomOnly=true`;
 
       const qrCodeDataUrl = await QRCode.toDataURL(attendanceUrl, {
         width: 400,

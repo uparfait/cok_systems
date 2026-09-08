@@ -274,15 +274,15 @@ const CheckInPersonPage: React.FC = () => {
           id_type: visitor.identification?.id_type || formData.id_type,
           id_number: visitor.identification?.number || '',
           gender: visitor.gender || 'Not specified',
-          badge_number: visitor.badge_number || '',
+          badge_number: '',
         });
         showSuccess('Visitor found and form auto-filled');
       } else {
-        showWarning('No visitor found with this ID type and ID number. Please fill the form manually.');
+        showInfo('No visitor found with this ID type and ID number. Please fill the form manually.');
       }
     } catch (error: any) {
       console.error('Error searching visitor:', error);
-      showError(error.message || 'Failed to search for visitor');
+      showInfo('No visitor found with this ID type and ID number. Please fill the form manually.');
     } finally {
       setSearchLoading(false);
     }

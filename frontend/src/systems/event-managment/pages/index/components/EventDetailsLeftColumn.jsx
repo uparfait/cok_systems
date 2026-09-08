@@ -1,24 +1,17 @@
 const PRIMARY = "#056daa";
 
-export default function EventDetailsLeftColumn({ activeEvent, eventSpecialId, navigate, onOpenSection }) {
+const formatTime = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+
+export default function EventDetailsLeftColumn({ activeEvent, eventSpecialId, navigate }) {
   if (!activeEvent) return null;
 
-  const go = (section, hash) => {
-    if (onOpenSection) {
-      onOpenSection(section);
-      window.history.pushState(null, "", hash);
-    }
-    else navigate(hash);
-  };
-
-  const navBtnProps = {
-    className: "flex items-center justify-between px-5 py-3 transition-colors duration-200 cursor-pointer rounded-none",
-    style: { backgroundColor: PRIMARY, color: "#FFFFFF", border: 0 },
-    onMouseEnter: (e) => { e.currentTarget.style.backgroundColor = "#248fc2"; },
-    onMouseLeave: (e) => { e.currentTarget.style.backgroundColor = PRIMARY; },
-    onMouseDown: (e) => { e.currentTarget.style.transform = "translateY(1px)"; },
-    onMouseUp: (e) => { e.currentTarget.style.transform = "translateY(0)"; },
-  };
+  const startTime = formatTime(activeEvent.startedAt || activeEvent.willStartAt || activeEvent.startTime);
+  const endTime = formatTime(activeEvent.willEndAt || activeEvent.endedAt || activeEvent.expectedToEndAt || activeEvent.endTime);
 
   return (
     <div className="lg:col-span-7 flex flex-col gap-4 rounded-none">
@@ -37,11 +30,7 @@ export default function EventDetailsLeftColumn({ activeEvent, eventSpecialId, na
 
         <div className="inline-block px-3 py-1 bg-zinc-100 max-w-max rounded-none">
           <span className="text-xs font-medium text-zinc-600 tracking-wide rounded-none" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-            {activeEvent.startedAt || activeEvent.willStartAt
-              ? new Date(activeEvent.startedAt || activeEvent.willStartAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
-                " - " +
-                new Date(activeEvent.willEndAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-              : ""}
+            {startTime && endTime ? `${startTime} - ${endTime}` : startTime || endTime || ""}
           </span>
         </div>
 
@@ -53,50 +42,6 @@ export default function EventDetailsLeftColumn({ activeEvent, eventSpecialId, na
             {activeEvent.eventDescription}
           </p>
         </div>
-      </div>
-
-      <div className="flex flex-col gap-2 rounded-none">
-        <button
-          type="button"
-          onClick={() => go("attendees", `/calendar/#view-attendance`)}
-          {...navBtnProps}
-          className={`w-full ${navBtnProps.className}`}
-        >
-          <span className="text-sm font-semibold tracking-wide" style={{ fontFamily: "'Montserrat', sans-serif" }}>View Attendance</span>
-          <span style={{ color: "rgba(255,255,255,0.6)" }}>&gt;</span>
-        </button>
-
-        <div className="flex flex-row gap-2">
-          <button
-            type="button"
-            onClick={() => go("editor", `/calendar/#minutes`)}
-            {...navBtnProps}
-            className={`flex-1 ${navBtnProps.className}`}
-          >
-            <span className="text-sm font-semibold text-white tracking-wide" style={{ fontFamily: "'Montserrat', sans-serif" }}>Record Minutes</span>
-            <span style={{ color: "rgba(255,255,255,0.6)" }}>&gt;</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => go("designate", `/calendar/#designate`)}
-            {...navBtnProps}
-            className={`flex-1 ${navBtnProps.className}`}
-          >
-            <span className="text-sm font-semibold text-white tracking-wide" style={{ fontFamily: "'Montserrat', sans-serif" }}>Designate</span>
-            <span style={{ color: "rgba(255,255,255,0.6)" }}>&gt;</span>
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => go("actions", `/calendar/#event-actions-follow-ups`)}
-          {...navBtnProps}
-          className={`w-full ${navBtnProps.className}`}
-        >
-          <span className="text-sm font-semibold tracking-wide" style={{ fontFamily: "'Montserrat', sans-serif" }}>Event Actions</span>
-          <span style={{ color: "rgba(255,255,255,0.6)" }}>&gt;</span>
-        </button>
       </div>
     </div>
   );

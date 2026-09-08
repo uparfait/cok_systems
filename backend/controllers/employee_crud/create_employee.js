@@ -48,6 +48,8 @@ module.exports = async function create_user(req, res, next) {
       });
     }
 
+    email = email.trim().toLowerCase();
+
     // if department_id is available and is of mongodb valid id
     if (department_id && department_id !== "Not specified") {
       if (mongoose.Types.ObjectId.isValid(department_id)) {

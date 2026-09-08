@@ -290,6 +290,8 @@ const DepartmentQueueTab: React.FC<{ departmentScope?: boolean }> = ({ departmen
             loading={loading && visitors.length === 0}
             emptyMessage="No visitors found in your department queue."
             headerClassName="cok-bg-primary"
+            clipRows
+            nowrap
             onRowClick={(v: any) => {
               setSelectedVisitorForDetails(v.rawVisitor || v);
               setShowVisitorDetails(true);

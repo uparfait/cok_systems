@@ -2,7 +2,7 @@ const ParkingRecord = require('../../models/parking_record.js')
 
 module.exports = async function list_parking_records(req, res, next) {
     try {
-        let { status = 'active', limit = 10, page = 1, date = null } = req.query || {}
+        let { status = 'active', limit = 10, page = 1, date = null, from = null, to = null, search = null } = req.query || {}
 
         // Cap raised from 50 so the dashboard parking map can load every currently-parked vehicle in one request
         const limit_val = Math.min(parseInt(limit), 1000)
@@ -19,11 +19,37 @@ module.exports = async function list_parking_records(req, res, next) {
             startOfDay.setHours(0, 0, 0, 0);
             const endOfDay = new Date(date);
             endOfDay.setHours(23, 59, 59, 999);
-            
+
             filter.check_in = {
                 $gte: startOfDay,
                 $lte: endOfDay
             };
+        } else if (from || to) {
+            // Date range filter (format: YYYY-MM-DD)
+            filter.check_in = {}
+            if (from) {
+                const start = new Date(from)
+                start.setHours(0, 0, 0, 0)
+                if (!isNaN(start.getTime())) filter.check_in.$gte = start
+            }
+            if (to) {
+                const end = new Date(to)
+                end.setHours(23, 59, 59, 999)
+                if (!isNaN(end.getTime())) filter.check_in.$lte = end
+            }
+            if (Object.keys(filter.check_in).length === 0) delete filter.check_in
+        }
+
+        // Free-text search across plate, driver, phone and badge
+        if (search && String(search).trim()) {
+            const escaped = String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            const re = new RegExp(escaped, 'i')
+            filter.$or = [
+                { plate_number: re },
+                { driver_name: re },
+                { driver_telephone: re },
+                { badge_number: re },
+            ]
         }
 
         const records = await ParkingRecord.find(filter)
