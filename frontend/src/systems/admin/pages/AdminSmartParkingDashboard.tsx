@@ -1,7 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import ExcelJS from 'exceljs';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
@@ -9,7 +6,8 @@ import { useSocket } from '../../../core/contexts/SocketContext';
 import { smartParkingService, statisticsService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
-import { FiTruck, FiSearch,FiLoader, FiFlag, FiCheckCircle, FiX, FiDownload, FiFilter, FiCalendar, FiRefreshCw, FiMapPin, FiEdit } from 'react-icons/fi';
+import Table from '../../../core/components/Table';
+import { FiTruck, FiRefreshCw, FiFlag, FiCheckCircle, FiMapPin, FiEdit } from 'react-icons/fi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ParkingSlotConfigModal from './sub/ParkingSlotConfigModal';
 
@@ -44,6 +42,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [rangePreset, setRangePreset] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('month');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [realtimeUpdate, setRealtimeUpdate] = useState<string | null>(null);
@@ -55,12 +54,6 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const PAGE_SIZE = 20;
 
-  // Export dialog: all records or a custom check-in date range
-  const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportMode, setExportMode] = useState<'all' | 'range'>('all');
-  const [exportFrom, setExportFrom] = useState('');
-  const [exportTo, setExportTo] = useState('');
-  const [exporting, setExporting] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -83,22 +76,27 @@ const AdminSmartParkingDashboard: React.FC = () => {
     finally { setLoading(false); setfirstLoad(false); }
   }, []);
 
+  const getRangeDates = useCallback((): { from?: string; to?: string } => {
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const now = new Date();
+    if (rangePreset === 'today') { const t = fmt(now); return { from: t, to: t }; }
+    if (rangePreset === 'week') { const start = new Date(now); start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); return { from: fmt(start), to: fmt(now) }; }
+    if (rangePreset === 'month') { return { from: fmt(new Date(now.getFullYear(), now.getMonth(), 1)), to: fmt(now) }; }
+    if (rangePreset === 'custom') { return { from: dateFrom || undefined, to: dateTo || undefined }; }
+    return {};
+  }, [rangePreset, dateFrom, dateTo]);
+
   const fetchAllRecords = useCallback(async (page = 1) => {
     setModalLoading(true);
     try {
-      const r = await smartParkingService.getAllPaginated(page, PAGE_SIZE);
+      const range = getRangeDates();
+      const r = await smartParkingService.getAllPaginated(page, PAGE_SIZE, statusFilter, { ...range, search: searchQuery.trim() || undefined });
       let records: ParkingRecord[] = [], total = 0;
       if (r?.data && Array.isArray(r.data)) { records = r.data; total = r.total || 0; }
       else if (Array.isArray(r)) { records = r; total = r.length; }
-      if (records.length > 0) {
-        if (searchQuery) records = records.filter(r => r.plate_number?.toLowerCase().includes(searchQuery.toLowerCase()) || r.driver_name?.toLowerCase().includes(searchQuery.toLowerCase()) || r.driver_telephone?.includes(searchQuery));
-        if (statusFilter !== 'all') records = records.filter(r => r.status === statusFilter);
-        if (dateFrom) records = records.filter(r => r.check_in && new Date(r.check_in) >= new Date(dateFrom));
-        if (dateTo) records = records.filter(r => r.check_in && new Date(r.check_in) <= new Date(dateTo + 'T23:59:59'));
-      }
-      setAllRecords(records); setTotalRecords(total); setTotalPages(Math.ceil(total / PAGE_SIZE)); setCurrentPage(page);
+      setAllRecords(records); setTotalRecords(total); setTotalPages(Math.max(1, Math.ceil(total / PAGE_SIZE))); setCurrentPage(page);
     } catch (error) { setAllRecords([]); } finally { setModalLoading(false); }
-  }, [searchQuery, statusFilter, dateFrom, dateTo]);
+  }, [searchQuery, statusFilter, getRangeDates]);
 
   useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); }, [authLoading, isAuthenticated, navigate]);
   useEffect(() => { if (isAuthenticated && !authLoading) fetchData(); }, [isAuthenticated, authLoading, fetchData]);
@@ -112,179 +110,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
 
   useEffect(() => { if (realtimeUpdate) { const t = setTimeout(() => setRealtimeUpdate(null), 3000); return () => clearTimeout(t); } }, [realtimeUpdate]);
 
-  const formatDateForPDF = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-  const truncateText = (t: string | undefined, m: number) => t ? (t.length > m ? t.substring(0, m - 3) + '...' : t) : 'N/A';
 
-  // Fetches records fresh at export time (the dashboard doesn't keep the full
-  // list in memory), optionally filtered to a check-in date range
-  const fetchExportRecords = useCallback(async (opts?: { from?: string; to?: string }) => {
-    const r = await smartParkingService.getAllPaginated(1, 1000, 'all');
-    let records: ParkingRecord[] = Array.isArray(r?.data) ? r.data : (Array.isArray(r) ? r : []);
-    if (opts?.from) records = records.filter(rec => rec.check_in && new Date(rec.check_in) >= new Date(opts.from!));
-    if (opts?.to) records = records.filter(rec => rec.check_in && new Date(rec.check_in) <= new Date(opts.to + 'T23:59:59'));
-    return records;
-  }, []);
-
-  // Official report banner (Republic of Rwanda · City of Kigali) as a base64 data URL
-  const loadReportBanner = async (): Promise<string | null> => {
-    try {
-      const res = await fetch('/LOGO_COK_report.png');
-      if (!res.ok) return null;
-      const blob = await res.blob();
-      return await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } catch {
-      return null;
-    }
-  };
-
-  const handleDownloadReport = useCallback(async (opts?: { from?: string; to?: string }) => {
-    setExporting(true);
-    try {
-      const records = await fetchExportRecords(opts);
-
-      const doc = new jsPDF('l', 'mm', 'a4');
-      const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
-      let y = 10;
-      // Full-width report banner (Republic of Rwanda · City of Kigali), same as the attendance reports
-      const banner = await loadReportBanner();
-      if (banner) {
-        try {
-          const logoW = pw - 20;
-          const logoH = logoW * (221 / 1116); // original banner is 1116x221 px
-          doc.addImage(banner, 'PNG', 10, y, logoW, logoH);
-          y += logoH + 10;
-        } catch (e) { /* render without the banner if it fails to load */ }
-      }
-      doc.setFont('helvetica', 'bold');
-      const now = new Date();
-      doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.text(formatDateForPDF(now), pw / 2, y, { align: 'center' }); y += 5;
-      doc.text(now.toLocaleTimeString(), pw / 2, y, { align: 'center' }); y += 10;
-      doc.setFontSize(16); doc.setTextColor(5, 109, 170);
-      const t = 'RECENT PARKING RECORDS'; doc.text(t, pw / 2, y, { align: 'center' });
-      doc.setDrawColor(5, 109, 170); doc.setLineWidth(0.8); doc.line((pw - doc.getTextWidth(t)) / 2 - 5, y + 2, (pw + doc.getTextWidth(t)) / 2 + 5, y + 2); y += 8;
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 100);
-      // ASCII only — jsPDF's built-in fonts garble unsupported unicode chars
-      const scope = opts?.from || opts?.to
-        ? `Period: ${opts?.from || 'start'} to ${opts?.to || 'today'} (${records.length} records)`
-        : `All records (${records.length})`;
-      doc.text(scope, pw / 2, y, { align: 'center' }); y += 10;
-
-      if (records.length > 0) {
-        const rows = records.map(rec => [
-          truncateText(rec.plate_number || 'N/A', 12),
-          truncateText(rec.driver_name || 'N/A', 24),
-          truncateText(rec.driver_type || 'N/A', 12),
-          rec.status === 'active' ? 'Active' : rec.status === 'completed' ? 'Completed' : 'N/A',
-          rec.check_in ? new Date(rec.check_in).toLocaleString() : 'N/A',
-        ]);
-        autoTable(doc, {
-          startY: y,
-          head: [['Plate', 'Driver', 'Type', 'Status', 'Time']],
-          body: rows,
-          theme: 'grid',
-          headStyles: { fillColor: [5, 109, 170], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: 4 },
-          bodyStyles: { fontSize: 8, cellPadding: 3, halign: 'center' },
-          columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 75, halign: 'left' }, 2: { cellWidth: 45 }, 3: { cellWidth: 40 }, 4: { cellWidth: 80 } },
-          margin: { left: (pw - 280) / 2, right: (pw - 280) / 2 },
-          tableWidth: 280,
-          didDrawPage: (data) => { doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3); doc.line(10, ph - 15, pw - 10, ph - 15); doc.setFontSize(7); doc.setTextColor(128, 128, 128); doc.text('City of Kigali - Smart Parking Management System', pw / 2, ph - 12, { align: 'center' }); doc.text(`Page ${data.pageNumber}`, pw - 10, ph - 12, { align: 'right' }); },
-        });
-      } else {
-        doc.setFontSize(11); doc.setTextColor(100, 100, 100);
-        doc.text('No parking records found for this period', pw / 2, y + 30, { align: 'center' });
-      }
-      doc.save(`Parking_Records_${now.toISOString().split('T')[0]}.pdf`);
-      setShowExportDialog(false);
-    } catch (e) {
-      showError('Failed to export parking records');
-    } finally {
-      setExporting(false);
-    }
-  }, [showError, fetchExportRecords]);
-
-  // Excel export — same records, dialog, and banner as the PDF report
-  const handleDownloadExcel = useCallback(async (opts?: { from?: string; to?: string }) => {
-    setExporting(true);
-    try {
-      const records = await fetchExportRecords(opts);
-      const now = new Date();
-
-      const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet('Parking Records');
-      ws.columns = [{ width: 6 }, { width: 18 }, { width: 30 }, { width: 16 }, { width: 14 }, { width: 24 }];
-
-      // Banner floats over the first rows, sized to span the table width
-      let rowCursor = 1;
-      const banner = await loadReportBanner();
-      if (banner) {
-        const imgId = wb.addImage({ base64: banner, extension: 'png' });
-        const logoWidth = 660;
-        const logoHeight = logoWidth * (221 / 1116);
-        ws.addImage(imgId, { tl: { col: 0, row: 0 }, ext: { width: logoWidth, height: logoHeight } });
-        rowCursor = Math.ceil(logoHeight / 15) + 2;
-      }
-
-      const titleRow = ws.getRow(rowCursor);
-      titleRow.getCell(1).value = 'RECENT PARKING RECORDS';
-      titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF056DAA' } };
-      rowCursor += 1;
-
-      const scopeRow = ws.getRow(rowCursor);
-      scopeRow.getCell(1).value = opts?.from || opts?.to
-        ? `Period: ${opts?.from || 'start'} to ${opts?.to || 'today'} (${records.length} records)`
-        : `All records (${records.length})`;
-      scopeRow.getCell(1).font = { size: 9, italic: true, color: { argb: 'FF888888' } };
-      rowCursor += 2;
-
-      const headers = ['S/N', 'Plate', 'Driver', 'Type', 'Status', 'Check-in Time'];
-      const headerRow = ws.getRow(rowCursor);
-      headers.forEach((h, i) => {
-        const cell = headerRow.getCell(i + 1);
-        cell.value = h;
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF056DAA' } };
-      });
-      rowCursor += 1;
-
-      records.forEach((rec, i) => {
-        const row = ws.getRow(rowCursor + i);
-        [
-          i + 1,
-          rec.plate_number || 'N/A',
-          rec.driver_name || 'N/A',
-          rec.driver_type || 'N/A',
-          rec.status === 'active' ? 'Active' : rec.status === 'completed' ? 'Completed' : 'N/A',
-          rec.check_in ? new Date(rec.check_in).toLocaleString() : 'N/A',
-        ].forEach((v, j) => { row.getCell(j + 1).value = v; });
-      });
-
-      const footerRow = ws.getRow(rowCursor + records.length + 1);
-      footerRow.getCell(1).value =
-        `City of Kigali - Smart Parking Management System   Exported: ${now.toLocaleString()}`;
-      footerRow.getCell(1).font = { size: 9, italic: true, color: { argb: 'FF888888' } };
-
-      const buffer = await wb.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Parking_Records_${now.toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      setShowExportDialog(false);
-    } catch (e) {
-      showError('Failed to export parking records');
-    } finally {
-      setExporting(false);
-    }
-  }, [showError, fetchExportRecords]);
 
   if (authLoading) return <div className="flex items-center justify-center min-h-[600px]"><LoadingSpinner message="Loading dashboard..." /></div>;
 
@@ -295,9 +121,8 @@ const AdminSmartParkingDashboard: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div><h1 className="text-sm font-bold text-[#333333]">Manage and monitor parking operations in real-time</h1></div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => { setExportMode('all'); setShowExportDialog(true); }} className="flex items-center gap-1 px-3 py-1.5 text-white text-xs font-medium" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiDownload className="w-3 h-3" />Export</button>
-            <button onClick={() => { setShowRecordsModal(true); fetchAllRecords(1); }} className="px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)]">View All Records</button>
-            <button onClick={fetchData} disabled={loading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-sm font-medium hover:bg-[rgba(5,109,170,0.06)] disabled:opacity-50"><FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
+            <button onClick={() => { setShowRecordsModal(true); fetchAllRecords(1); }} className="px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer">View All Records</button>
+            <button onClick={fetchData} disabled={loading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-sm font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"><FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
           </div>
         </div>
 
@@ -329,83 +154,61 @@ const AdminSmartParkingDashboard: React.FC = () => {
 
         <ParkingSlotConfigModal show={showSlotConfig} slotConfig={slotConfig} saving={savingSlot} onClose={() => setShowSlotConfig(false)} onChange={(e) => { const { name, value } = e.target; setSlotConfig(p => ({ ...p, [name]: value === '' ? 0 : parseInt(value) || 0 })); }} onSave={async () => { setSavingSlot(true); try { const r = await smartParkingService.updateSlotConfig(slotConfig); if (r.success) { showSuccess('Slot config updated'); setShowSlotConfig(false); fetchData(); } else showError(r.message || 'Failed'); } catch (err: any) { showError(err?.message || 'Failed'); } finally { setSavingSlot(false); } }} />
 
-        {/* Export dialog: all records or a custom check-in date range */}
-        {showExportDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(51,51,51,0.5)' }} onClick={() => !exporting && setShowExportDialog(false)}>
-            <div className="bg-white w-full max-w-md border border-gray-200 shadow-lg" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Export parking records">
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <h3 className="text-sm font-bold text-[#333333]">Export Parking Records</h3>
-                <button onClick={() => setShowExportDialog(false)} disabled={exporting} className="w-7 h-7 flex items-center justify-center border border-gray-200 hover:bg-[#F7F9FB]"><FiX className="w-4 h-4 text-[#555555]" /></button>
-              </div>
-              <div className="p-4 space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-[#333333]">
-                  <input type="radio" name="export-mode" checked={exportMode === 'all'} onChange={() => setExportMode('all')} />
-                  All records
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-[#333333]">
-                  <input type="radio" name="export-mode" checked={exportMode === 'range'} onChange={() => setExportMode('range')} />
-                  Custom date range (check-in date)
-                </label>
-                {exportMode === 'range' && (
-                  <div className="flex flex-wrap items-center gap-3 pl-6">
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-[#555555]" htmlFor="export-from">From</label>
-                      <input id="export-from" type="date" value={exportFrom} onChange={e => setExportFrom(e.target.value)} className="cok-auth-input h-8 pr-2 py-1 text-sm" style={{ paddingLeft: '10px' }} />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-[#555555]" htmlFor="export-to">To</label>
-                      <input id="export-to" type="date" value={exportTo} onChange={e => setExportTo(e.target.value)} className="cok-auth-input h-8 pr-2 py-1 text-sm" style={{ paddingLeft: '10px' }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200">
-                <button onClick={() => setShowExportDialog(false)} disabled={exporting} className="px-4 py-2 text-xs font-medium bg-white border border-[#056daa] text-[#056daa] hover:bg-[rgba(5,109,170,0.06)] disabled:opacity-50">Cancel</button>
-                <button
-                  onClick={() => handleDownloadExcel(exportMode === 'range' ? { from: exportFrom || undefined, to: exportTo || undefined } : undefined)}
-                  disabled={exporting || (exportMode === 'range' && !exportFrom && !exportTo)}
-                  className="flex items-center gap-1.5 px-4 py-2 text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: SUCCESS, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
-                >
-                  {exporting ? <FiLoader className="w-3.5 h-3.5 animate-spin" /> : <FiDownload className="w-3.5 h-3.5" />}
-                  {exporting ? 'Exporting…' : 'Export Excel'}
-                </button>
-                <button
-                  onClick={() => handleDownloadReport(exportMode === 'range' ? { from: exportFrom || undefined, to: exportTo || undefined } : undefined)}
-                  disabled={exporting || (exportMode === 'range' && !exportFrom && !exportTo)}
-                  className="flex items-center gap-1.5 px-4 py-2 text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
-                >
-                  {exporting ? <FiLoader className="w-3.5 h-3.5 animate-spin" /> : <FiDownload className="w-3.5 h-3.5" />}
-                  {exporting ? 'Exporting…' : 'Export PDF'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {showRecordsModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRecordsModal(false)}>
-            <div className="bg-white w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="p-4  flex items-center justify-between bg-gray-50">
-                <h3 className="text-sm font-bold text-[#333333]">All Parking Records</h3>
-                <div className="flex items-center gap-2">
-                  <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="cok-auth-input pr-3 py-2 text-sm w-40" style={{ paddingLeft: '12px' }} />
-                  <button onClick={() => fetchAllRecords(1)} className="px-3 py-1.5 text-white text-xs font-medium" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>Search</button>
-                  <button onClick={() => setShowRecordsModal(false)} className="p-1.5 hover:bg-gray-200">✕</button>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4" onClick={() => setShowRecordsModal(false)}>
+            <div className="bg-white w-full max-w-5xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="p-3 sm:p-4 flex flex-col gap-3 bg-gray-50">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-bold text-[#333333]">All Parking Records</h3>
+                  <button onClick={() => setShowRecordsModal(false)} className="p-1.5 hover:bg-gray-200 cursor-pointer shrink-0">X</button>
+                </div>
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+                  <input type="text" placeholder="Search plate, driver, phone, badge..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') fetchAllRecords(1); }} className="cok-auth-input pr-3 py-2 text-sm w-full sm:w-56" style={{ paddingLeft: '12px', minHeight: '36px' }} />
+                  <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="cok-auth-input text-sm w-full sm:w-36 cursor-pointer" style={{ paddingLeft: '10px', minHeight: '36px' }}>
+                    <option value="all">All Statuses</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                  <select value={rangePreset} onChange={e => setRangePreset(e.target.value as any)} className="cok-auth-input text-sm w-full sm:w-36 cursor-pointer" style={{ paddingLeft: '10px', minHeight: '36px' }}>
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="custom">Custom Range</option>
+                  </select>
+                  {rangePreset === 'custom' && (
+                    <>
+                      <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="cok-auth-input text-sm w-full sm:w-40" style={{ paddingLeft: '10px', minHeight: '36px' }} />
+                      <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="cok-auth-input text-sm w-full sm:w-40" style={{ paddingLeft: '10px', minHeight: '36px' }} />
+                    </>
+                  )}
+                  <button onClick={() => fetchAllRecords(1)} className="px-4 py-1.5 text-white text-xs font-medium cursor-pointer w-full sm:w-auto" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', minHeight: '36px' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>Apply</button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto">
-                {modalLoading ? <div className="flex justify-center py-8"><div className="h-8 w-8" /><FiLoader className='h-8 w-8 animate-spin text-[#056daa]' /></div>
-                  : <table className="w-full"><thead className="sticky top-0" style={{ backgroundColor: PRIMARY }}><tr>{['Plate', 'Driver', 'Phone', 'Type', 'Status', 'Check-in', 'Check-out'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-white/95 uppercase">{h}</th>)}</tr></thead>
-                    <tbody className="divide-y">{(allRecords || []).map((r: any) => <tr key={r._id} className="hover:bg-[#F7F9FB]"><td className="px-3 py-2 text-sm font-medium">{r.plate_number || '___'}</td><td className="px-3 py-2 text-sm">{r.driver_name || '___'}</td><td className="px-3 py-2 text-sm">{r.driver_telephone || '___'}</td><td className="px-3 py-2 text-sm">{r.driver_type || '___'}</td><td className="px-3 py-2"><span className={`text-xs px-2 py-0.5 ${r.status === 'active' ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{r.status}</span></td><td className="px-3 py-2 text-xs">{r.check_in ? new Date(r.check_in).toLocaleString() : '___'}</td><td className="px-3 py-2 text-xs">{r.check_out ? new Date(r.check_out).toLocaleString() : '___'}</td></tr>)}
-                    </tbody></table>}
+              <div className="flex-1 overflow-y-auto p-3">
+                <Table
+                  headers={[{ key: 'plate', label: 'Plate' }, { key: 'driver', label: 'Driver' }, { key: 'phone', label: 'Phone' }, { key: 'type', label: 'Type' }, { key: 'status', label: 'Status' }, { key: 'checkin', label: 'Check-in' }, { key: 'checkout', label: 'Check-out' }]}
+                  data={allRecords}
+                  loading={modalLoading}
+                  emptyMessage="No parking records found for the selected filters."
+                  maxHeight="none"
+                  minWidth="800px"
+                  headerStyle={{ backgroundColor: PRIMARY }}
+                  renderCell={(header, r: any) => {
+                    switch (header.key) {
+                      case 'plate': return <span className="text-sm font-medium text-[#333333] whitespace-nowrap">{r.plate_number || '-'}</span>;
+                      case 'driver': return <span className="text-sm text-[#333333] whitespace-nowrap truncate max-w-[160px] inline-block align-middle" title={r.driver_name}>{r.driver_name || '-'}</span>;
+                      case 'phone': return <span className="text-sm text-[#555555] whitespace-nowrap">{r.driver_telephone || '-'}</span>;
+                      case 'type': return <span className="text-sm text-[#555555] whitespace-nowrap">{r.driver_type || '-'}</span>;
+                      case 'status': return <span className={`text-xs px-2 py-0.5 whitespace-nowrap ${r.status === 'active' ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{r.status || '-'}</span>;
+                      case 'checkin': return <span className="text-xs text-[#555555] whitespace-nowrap">{r.check_in ? new Date(r.check_in).toLocaleString() : '-'}</span>;
+                      case 'checkout': return <span className="text-xs text-[#555555] whitespace-nowrap">{r.check_out ? new Date(r.check_out).toLocaleString() : '-'}</span>;
+                      default: return <span className="text-sm">{r[header.key] || '-'}</span>;
+                    }
+                  }}
+                  pagination={totalPages > 1 ? { currentPage, totalPages, totalCount: totalRecords, itemsPerPage: PAGE_SIZE, onPageChange: (page) => fetchAllRecords(page), loading: modalLoading } : undefined}
+                />
               </div>
-              {totalPages > 1 && <div className="p-3 border-t flex items-center justify-between text-sm"><span>{totalRecords} records</span><div className="flex gap-2"><button onClick={() => fetchAllRecords(currentPage - 1)} disabled={currentPage <= 1} className="px-3 py-1 bg-white border border-[#056daa] text-[#056daa] hover:bg-[rgba(5,109,170,0.06)] disabled:opacity-50">Prev</button><button onClick={() => fetchAllRecords(currentPage + 1)} disabled={currentPage >= totalPages} className="px-3 py-1 bg-white border border-[#056daa] text-[#056daa] hover:bg-[rgba(5,109,170,0.06)]">Next</button></div></div>}
             </div>
           </div>
         )}

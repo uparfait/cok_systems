@@ -23,6 +23,8 @@ const eventAccessAuth = require('./middlewares/eventAccessAuth');
 const CoOrganizerController = require('./controllers/CoOrganizerController');
 Router.get('/events/:eventSpecialId/co-organizers', CoOrganizerController.list);
 Router.post('/events/:eventSpecialId/co-organizers', CoOrganizerController.add);
+Router.put('/events/:eventSpecialId/co-organizers/:email', CoOrganizerController.update);
+Router.delete('/events/:eventSpecialId/co-organizers/:email', CoOrganizerController.remove);
 
 // Mount all routes
 Router.use('/rooms/available', availableRoomRoutes);

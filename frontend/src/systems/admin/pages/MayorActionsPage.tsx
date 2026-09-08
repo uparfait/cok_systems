@@ -17,7 +17,7 @@ interface EventAction {
   _id: string;
   title: string;
   actionDescription?: string;
-  assignedPerson?: { name?: string; email?: string; role?: string; institution?: string };
+  assignedPerson?: { name?: string; email?: string; role?: string; department?: string; institution?: string };
   dueDate?: string;
   currentStatus?: { status?: string; description?: string };
   createdBy?: { name?: string; email?: string };
@@ -304,7 +304,7 @@ export default function MayorActionsPage() {
                         <td className="py-3 px-3 whitespace-nowrap">
                           <span className="text-[13px] font-medium" style={{ color: overdue ? COK.danger : '#555555' }}>
                             {a.dueDate
-                              ? new Date(a.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                              ? new Date(a.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
                               : '—'}
                           </span>
                           {overdue && (

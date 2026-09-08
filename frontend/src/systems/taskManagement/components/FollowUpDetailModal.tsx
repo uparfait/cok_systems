@@ -84,18 +84,18 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
   const [editForm, setEditForm] = useState({
     title: initialFollowUp.title || '',
     actionDescription: initialFollowUp.actionDescription || '',
-    dueDate: initialFollowUp.dueDate ? initialFollowUp.dueDate.slice(0, 10) : '',
+    dueDate: initialFollowUp.dueDate ? initialFollowUp.dueDate.slice(0, 16) : '',
     assignedPerson: {
       name: initialFollowUp.assignedPerson?.name || '',
       email: initialFollowUp.assignedPerson?.email || '',
       role: initialFollowUp.assignedPerson?.role || '',
-      institution: initialFollowUp.assignedPerson?.institution || '',
+      department: initialFollowUp.assignedPerson?.department || initialFollowUp.assignedPerson?.institution || '',
     },
     createdBy: {
       name: initialFollowUp.createdBy?.name || '',
       email: initialFollowUp.createdBy?.email || '',
       role: initialFollowUp.createdBy?.role || '',
-      institution: initialFollowUp.createdBy?.institution || '',
+      department: initialFollowUp.createdBy?.department || initialFollowUp.createdBy?.institution || '',
     },
   })
   const [savingEdit, setSavingEdit] = useState(false)
@@ -146,7 +146,7 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
         name: emp.full_name || '',
         email: emp.email || '',
         role: emp.title || '',
-        institution: 'City of Kigali',
+        department: emp.department_name || (typeof emp.department === 'object' ? emp.department?.department_name : emp.department) || '',
       },
     }))
     setShowPicker(false)
@@ -216,13 +216,13 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
           name: editForm.assignedPerson.name.trim(),
           email: editForm.assignedPerson.email.trim(),
           role: editForm.assignedPerson.role.trim(),
-          institution: editForm.assignedPerson.institution.trim() || 'City of Kigali',
+          department: editForm.assignedPerson.department.trim() || 'City of Kigali',
         },
         createdBy: {
           name: user?.fullName || followup.createdBy?.name || '',
           email: user?.email || followup.createdBy?.email || '',
           role: user?.role || followup.createdBy?.role || '',
-          institution: 'City of Kigali',
+          department: user?.departmentName || followup.createdBy?.department || '',
         },
       } as any)
       setFollowUp(res.data)
@@ -441,7 +441,7 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
                     <div>
                       <label style={labelStyle}>Due Date <span style={{ color: DANGER }}>*</span></label>
                       <input
-                        type="date"
+                        type="datetime-local"
                         value={editForm.dueDate}
                         onChange={(e) => setEditForm(p => ({ ...p, dueDate: e.target.value }))}
                         className={inputClassName} style={inputStyle}

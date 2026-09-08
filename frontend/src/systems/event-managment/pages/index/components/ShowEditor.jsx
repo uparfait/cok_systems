@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import {
   FiX, FiUploadCloud, FiDownload, FiEye, FiTrash2, FiLayers,
@@ -109,10 +109,15 @@ function ConfirmRemoveDialog({ file, onConfirm, onCancel, busy }) {
 function ShowEditor({ overlayEventId = null, onCloseOverride = null }) {
   const { id: routeEventId } = useParams();
   const eventSpecialId = overlayEventId || routeEventId;
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const readOnly = searchParams.get("readonly") === "1";
-  const goBack = () => (onCloseOverride ? onCloseOverride() : navigate(-1));
+  const goBack = () => {
+    if (onCloseOverride) {
+      onCloseOverride();
+    } else {
+      window.history.back();
+    }
+  };
 
   const [files, setFiles] = useState([]);
   const [eventData, setEventData] = useState(null);

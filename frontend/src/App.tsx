@@ -438,11 +438,22 @@ const AuthenticatedRoutes: React.FC = () => {
             />
 
             <Route
-              path="/calender"
+              path="/calendar"
               element={
                 <ProtectedRoute>
                   <MainLayout>
                     <CalendarPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/calendar/:id/*"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <EventDetails bypassAccess />
                   </MainLayout>
                 </ProtectedRoute>
               }

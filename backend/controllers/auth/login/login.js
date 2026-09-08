@@ -9,6 +9,17 @@ const email = require("../../../utilities/email");
 const tokenUtil = require("../../../utilities/token");
 const bcrypt = require("bcrypt");
 const User = require("../../../models/user");
+const Department = require("../../../models/department");
+
+async function resolveDepartmentUnitName(user) {
+  const raw = user.department_unit || '';
+  if (!raw) return '';
+  if (/^[0-9a-fA-F]{24}$/.test(raw)) {
+    const unitDoc = await Department.findById(raw).select('department_name').lean().catch(() => null);
+    if (unitDoc && unitDoc.department_name) return unitDoc.department_name;
+  }
+  return raw;
+}
 
 // Import audit logging
 const { logAuditEvent } = require("../../../middlewares/audit");
@@ -52,6 +63,8 @@ async function login(req, res, next) {
         });
       }
     }
+
+    userEmail = userEmail.trim().toLowerCase()
 
     // If user not found or password doesn't match
     if (!user || !(await bcrypt.compare(password.trim(), user.password))) {
@@ -263,6 +276,7 @@ async function login(req, res, next) {
           telephone: user.telephone,
           department_name: user.department_name,
           department_id: user.department_id,
+          department_unit: await resolveDepartmentUnitName(user),
           permissions: userPermissions,
           accessToken: accessToken,
           refreshToken: refreshToken,

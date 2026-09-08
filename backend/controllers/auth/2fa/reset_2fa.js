@@ -30,6 +30,9 @@ async function reset2FA(req, res, next) {
 
     await User.findByIdAndUpdate(userId, {
       $set: {
+        // Resetting re-enables 2FA so the next login forces a fresh TOTP setup,
+        // matching what the admin UI reports after a reset
+        is_2FA_disabled: false,
         twofa_secret: null,
         twofa_setup: {
           secret: null,

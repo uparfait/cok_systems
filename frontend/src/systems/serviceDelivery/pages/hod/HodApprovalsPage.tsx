@@ -14,7 +14,7 @@ interface EventAction {
   _id: string;
   title: string;
   actionDescription?: string;
-  assignedPerson?: { name?: string; email?: string; role?: string; institution?: string };
+  assignedPerson?: { name?: string; email?: string; role?: string; department?: string; institution?: string };
   dueDate?: string;
   currentStatus?: { status: string; description?: string };
   statusHistory?: { status: string; description?: string; changedAt?: string }[];

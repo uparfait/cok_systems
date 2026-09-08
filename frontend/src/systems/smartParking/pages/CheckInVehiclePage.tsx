@@ -303,12 +303,8 @@ const CheckInVehiclePage: React.FC = () => {
       showWarning('This vehicle is already checked in');
       return;
     }
-    // Allow reserved vehicles to bypass badge requirement
-    if (!verifiedData.is_reserved && !driverInfo.badge_number?.trim()) {
-      showWarning('Badge number is required');
-      return;
-    }
-    
+    // Vehicles already known to the system check in without a badge requirement
+
     setLoading(true);
     try {
       // Get driver type - use driver_type first (shown in UI), then fall back to vehicle_category
@@ -610,7 +606,7 @@ const CheckInVehiclePage: React.FC = () => {
               </div>
               <div className="col-span-1 sm:col-span-2">
                 <label className="text-sm" style={labelStyle}>
-                  Badge Number {verifiedData.is_reserved ? '(Optional for reserved)' : '*'}
+                  Badge Number (Optional)
                 </label>
                 <input 
                   type="text" 

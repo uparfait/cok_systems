@@ -34,6 +34,7 @@ export interface User {
   department_id?: string;
   departmentName?: string;
   department_name?: string;
+  department_unit?: string;
   picture?: string;
 }
 

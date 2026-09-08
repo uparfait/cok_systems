@@ -24,7 +24,7 @@ module.exports = async function update_user(req, res, next) {
       });
     }
 
-    const {
+    let {
       full_name,
       telephone,
       identification = {},
@@ -36,6 +36,8 @@ module.exports = async function update_user(req, res, next) {
       access_control,
       roles,
     } = req.body || {};
+
+    email = email.trim().toLowerCase();
 
     const user = await user_model.findById(id);
     if (!user) {
