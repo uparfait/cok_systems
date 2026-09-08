@@ -17,7 +17,6 @@ import { BsShieldCheck, BsExclamationTriangle } from 'react-icons/bs';
 import { MdOutlineLocalParking, MdOutlineWarning } from 'react-icons/md';
 import { FaRegIdCard } from 'react-icons/fa';
 import ExportVisitorsModal from '../../../core/components/requests/ExportVisitorsModal';
-import ParkingExportDialog from '../components/ParkingExportDialog';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // City of Kigali (CoK) institutional design constants
@@ -108,7 +107,6 @@ const SmartParkingDashboard: React.FC = () => {
 
    // Export modal state
    const [showExportModal, setShowExportModal] = useState(false);
-   const [showParkingExportDialog, setShowParkingExportDialog] = useState(false);
 
   // Data states
   const [verifiedData, setVerifiedData] = useState<VehicleData | null>(null);
@@ -756,11 +754,11 @@ const SmartParkingDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Export Buttons */}
-        <div className="mb-4 flex flex-col sm:flex-row gap-3">
+        {/* Export Visitors Button */}
+        <div className="mb-4">
           <button
             onClick={() => setShowExportModal(true)}
-            className="flex-1 px-6 py-3 text-white font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full px-6 py-3 text-white font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2 cursor-pointer"
             style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, letterSpacing: '1px', textTransform: 'uppercase' }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
@@ -768,19 +766,7 @@ const SmartParkingDashboard: React.FC = () => {
             <FiDownload className="w-5 h-5" />
             EXPORT VISITORS DATA
           </button>
-          <button
-            onClick={() => setShowParkingExportDialog(true)}
-            className="flex-1 px-6 py-3 font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2 cursor-pointer bg-white"
-            style={{ border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0, fontFamily: fontHeading, letterSpacing: '1px', textTransform: 'uppercase' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.06)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; }}
-          >
-            <FiDownload className="w-5 h-5" />
-            EXPORT PARKING DATA
-          </button>
         </div>
-
-        <ParkingExportDialog show={showParkingExportDialog} onClose={() => setShowParkingExportDialog(false)} />
 
         {/* Hourly Analytics Graph */}
         <div className="p-3 sm:p-4 md:p-5 mb-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>

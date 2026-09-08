@@ -452,11 +452,15 @@ const handleCheckout = async () => {
       const response = await serviceDeliveryService.checkOut(selectedRecord._id as string);
 
       if (response.success) {
+        // Optimistically drop the checked-out visitor from the list right away
+        const removedId = selectedRecord._id;
+        setAllRecords(prev => prev.filter(r => r._id !== removedId));
+        setFilteredRecords(prev => prev.filter(r => r._id !== removedId));
         showSuccess('Visitor checked out.');
         setShowActionModal(false);
         setSelectedRecord(null);
         setActionType(null);
-        loadData(searchQuery, currentPage, typeFilter);
+        loadData(searchQuery, currentPage, typeFilter, true);
       } else {
         showError(response.message || 'Failed to checkout visitor');
       }
