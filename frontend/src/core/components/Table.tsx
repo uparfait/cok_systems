@@ -35,6 +35,7 @@ export interface TableProps {
   headerClassName?: string;
   headerStyle?: React.CSSProperties;
   clipRows?: boolean;
+  nowrap?: boolean;
 }
 
 const Table: React.FC<TableProps> = ({
@@ -52,6 +53,7 @@ const Table: React.FC<TableProps> = ({
   headerClassName,
   headerStyle,
   clipRows = false,
+  nowrap = false,
 }) => {
   const navigate = useNavigate();
 
@@ -102,7 +104,7 @@ const Table: React.FC<TableProps> = ({
               {headers.map((header, index) => (
                 <th
                   key={header.key || index}
-                  className={`px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider ${header.className || ''}`}
+                  className={`px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider ${nowrap ? 'whitespace-nowrap' : ''} ${header.className || ''}`}
                 >
                   {header.label}
                 </th>
@@ -134,7 +136,7 @@ const Table: React.FC<TableProps> = ({
                   onClick={() => handleRowClick(row, rowIndex)}
                 >
                   {headers.map((header, colIndex) => (
-                    <td key={header.key || colIndex} className="px-6 py-4">
+                    <td key={header.key || colIndex} className={`px-6 py-4 ${nowrap ? 'whitespace-nowrap' : ''}`}>
                       {clipRows ? (
                         <div className="cok-cell-clip">{renderTableCell(header, row, rowIndex)}</div>
                       ) : (
