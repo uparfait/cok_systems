@@ -84,6 +84,94 @@ class CoOrganizerController {
       return res.status(500).json({ success: false, message: error.message });
     }
   }
+
+  static async update(req, res) {
+    try {
+      const { eventSpecialId, email } = req.params;
+      const { fullNames, email: newEmail, phone, institution } = req.body;
+
+      if (!fullNames || !String(fullNames).trim()) {
+        return res.status(400).json({ success: false, message: 'Co-organizer full names are required' });
+      }
+      if (!newEmail || !String(newEmail).trim()) {
+        return res.status(400).json({ success: false, message: 'Co-organizer email is required' });
+      }
+      if (!phone || !String(phone).trim()) {
+        return res.status(400).json({ success: false, message: 'Co-organizer phone number is required' });
+      }
+
+      const event = await findEventDoc(eventSpecialId);
+      if (!event) {
+        return res.status(404).json({ success: false, message: 'Event not found' });
+      }
+
+      const targetEmail = String(email).trim().toLowerCase();
+      const normalizedEmail = String(newEmail).trim().toLowerCase();
+      const index = (event.coOrganizers || []).findIndex(
+        (c) => (c.email || '').toLowerCase() === targetEmail
+      );
+      if (index === -1) {
+        return res.status(404).json({ success: false, message: 'Co-organizer not found' });
+      }
+
+      if ((event.eventOrganizer?.email || '').toLowerCase() === normalizedEmail) {
+        return res.status(400).json({ success: false, message: 'This person is already the organizer of the event' });
+      }
+      const duplicate = event.coOrganizers.some(
+        (c, i) => i !== index && (c.email || '').toLowerCase() === normalizedEmail
+      );
+      if (duplicate) {
+        return res.status(400).json({ success: false, message: 'This person is already a co-organizer' });
+      }
+
+      event.coOrganizers[index] = {
+        fullNames: String(fullNames).trim(),
+        email: normalizedEmail,
+        phone: String(phone).trim(),
+        institution: String(institution || '').trim(),
+      };
+      event.markModified('coOrganizers');
+      await event.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Co-organizer updated successfully',
+        data: event.coOrganizers,
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  static async remove(req, res) {
+    try {
+      const { eventSpecialId, email } = req.params;
+
+      const event = await findEventDoc(eventSpecialId);
+      if (!event) {
+        return res.status(404).json({ success: false, message: 'Event not found' });
+      }
+
+      const targetEmail = String(email).trim().toLowerCase();
+      const before = (event.coOrganizers || []).length;
+      event.coOrganizers = (event.coOrganizers || []).filter(
+        (c) => (c.email || '').toLowerCase() !== targetEmail
+      );
+      if (event.coOrganizers.length === before) {
+        return res.status(404).json({ success: false, message: 'Co-organizer not found' });
+      }
+      event.markModified('coOrganizers');
+      await event.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Co-organizer removed successfully',
+        data: event.coOrganizers,
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
 }
 
 module.exports = CoOrganizerController;

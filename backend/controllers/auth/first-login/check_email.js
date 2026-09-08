@@ -14,6 +14,7 @@ const OTP_VERIFICATION_TYPE = "otp_verification";
 async function checkEmail(req, res, next) {
   try {
     const { email: userEmail } = req.body;
+    
 
     if (!userEmail) {
       return res.status(400).json({

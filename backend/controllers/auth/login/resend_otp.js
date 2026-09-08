@@ -20,6 +20,8 @@ async function resendOTP(req, res, next) {
       });
     }
 
+    userEmail = userEmail.trim().toLowerCase();
+
     // Verify user exists
     const user = await User.findById(userId);
 

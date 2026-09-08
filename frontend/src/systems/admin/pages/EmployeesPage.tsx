@@ -9,6 +9,8 @@ import MainLayout from '../../../core/components/Layout/MainLayout';
 import Table from '../../../core/components/Table';
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers, FiMail, FiPhone, FiAlertCircle, FiCheck } from 'react-icons/fi';
 import EmployeeFormModal from './sub/EmployeeFormModal';
+import EmployeeDetailsModal from '../components/EmployeeDetailsModal';
+import DepartmentFormModal from '../components/DepartmentFormModal';
 
 const PRIMARY = "#056daa";
 const PRIMARY_HOVER = "#045d94";
@@ -58,9 +60,11 @@ const EmployeesPage: React.FC = () => {
   const [errorModalTitle, setErrorModalTitle] = useState('');
   const [errorModalMessage, setErrorModalMessage] = useState('');
   const [errorModalErrors, setErrorModalErrors] = useState<any[]>([]);
+  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
+  const [deptModal, setDeptModal] = useState<{ isUnit: boolean; initialName: string } | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [formData, setFormData] = useState<Partial<Employee>>({ full_name: '', telephone: '', email: '', identification: { id_type: 'National ID', number: '' }, gender: '', title: '', department: '', department_name: '', department_id: '', department_unit: '', roles: { role_name: 'department_employee', permissions: [] } });
+  const [formData, setFormData] = useState<Partial<Employee>>({ full_name: '', telephone: '', email: '', identification: { id_type: 'National ID', number: '' }, gender: '', title: '', department: '', department_name: '', department_id: '', department_unit: '', roles: { role_name: '', permissions: [] } });
 
   useEffect(() => { if (showModal) { setFormError(''); setFormSuccess(''); if (roles.length === 0) loadRoles(); } }, [showModal, roles.length]);
   useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); else if (isAuthenticated) { loadEmployees(1, pageLimit); loadDepartments(); loadRoles(); } }, [isAuthenticated, authLoading, navigate, pageLimit]);
@@ -113,10 +117,11 @@ const EmployeesPage: React.FC = () => {
     if (!query.trim()) { loadEmployees(1, pageLimit); return; }
     try { setLoading(true); const r = await employeeService.search(query);
       if (r.success) { const d = Array.isArray(r.data) ? r.data : (r.data?.data || []); setEmployees(d); setTotalEmployees(d.length); setTotalPages(1); setCurrentPage(1); }
-    } catch (err: any) { setError(err.message || 'Search failed'); } finally { setLoading(false); }
+      else setError(r.message || r.error || 'The search could not be completed. Please try again.');
+    } catch (err: any) { setError(err.message || err.error || 'The search could not be completed. Please try again.'); } finally { setLoading(false); }
   };
 
-  const handleNewEmployee = () => { setEditingEmployee(null); setFormData({ full_name: '', telephone: '', email: '', identification: { id_type: 'National ID', number: '' }, gender: '', title: '', department: '', department_name: '', department_id: '', department_unit: '', roles: { role_name: 'department_employee', permissions: [] } }); setDepartmentUnits([]); setFormError(''); setFormSuccess(''); setShowModal(true); };
+  const handleNewEmployee = () => { setEditingEmployee(null); setFormData({ full_name: '', telephone: '', email: '', identification: { id_type: 'National ID', number: '' }, gender: '', title: '', department: '', department_name: '', department_id: '', department_unit: '', roles: { role_name: '', permissions: [] } }); setDepartmentUnits([]); setFormError(''); setFormSuccess(''); setShowModal(true); };
 
   const handleEdit = (employee: Employee) => {
     const hasDeptObj = employee.department && typeof employee.department === 'object';
@@ -124,7 +129,7 @@ const EmployeesPage: React.FC = () => {
     const deptId = hasDeptObj ? (employee.department as any)?._id : employee.department_id || '';
     const unitVal = employee.department_unit || (hasDeptObj && (employee.department as any).department_unit) || '';
     setEditingEmployee(employee);
-    setFormData({ full_name: employee.full_name || '', telephone: employee.telephone || '', email: employee.email || '', identification: employee.identification || { id_type: 'National ID', number: '' }, gender: employee.gender || '', title: employee.title || '', department: deptName, department_name: deptName, department_id: deptId, department_unit: unitVal, roles: { role_name: employee.roles?.role_name || 'department_employee', permissions: [] } });
+    setFormData({ full_name: employee.full_name || '', telephone: employee.telephone || '', email: employee.email || '', identification: employee.identification || { id_type: 'National ID', number: '' }, gender: employee.gender || '', title: employee.title || '', department: deptName, department_name: deptName, department_id: deptId, department_unit: unitVal, roles: { role_name: employee.roles?.role_name || '', permissions: [] } });
     if (deptId) { setLoadingUnits(true); loadDepartmentUnits(deptId); }
     setFormError(''); setFormSuccess(''); setShowModal(true);
   };
@@ -134,6 +139,7 @@ const EmployeesPage: React.FC = () => {
     if (!formData.full_name?.trim()) { setFormError('Full name is required'); return; }
     if (!formData.email?.trim()) { setFormError('Email is required'); return; }
     if (!formData.telephone?.trim()) { setFormError('Phone number is required'); return; }
+    if (!formData.roles?.role_name) { setFormError('User role is required — please select a role for this employee'); return; }
     try { setSubmitting(true);
       if (editingEmployee?._id || editingEmployee?.employee_id) {
         const id = editingEmployee._id || editingEmployee.employee_id || '';
@@ -151,7 +157,7 @@ const EmployeesPage: React.FC = () => {
   };
 
   const handleDeleteClick = (id: string, name: string) => { setDeletingId(id); setDeletingName(name); setShowDeleteConfirm(true); };
-  const handleConfirmDelete = async () => { if (!deletingId) return; try { setDeleting(true); await employeeService.delete(deletingId); setShowDeleteConfirm(false); loadEmployees(currentPage, pageLimit); } catch (err: any) { setError(err.message || 'Failed to delete'); } finally { setDeleting(false); setDeletingId(null); setDeletingName(''); } };
+  const handleConfirmDelete = async () => { if (!deletingId) return; try { setDeleting(true); const r = await employeeService.delete(deletingId); if (r?.success === false) { setError(r.message || r.error || 'The employee could not be deleted. Please try again.'); } setShowDeleteConfirm(false); loadEmployees(currentPage, pageLimit); } catch (err: any) { setError(err.message || err.error || 'The employee could not be deleted. Please try again.'); } finally { setDeleting(false); setDeletingId(null); setDeletingName(''); } };
   const handleCancelDelete = () => { setShowDeleteConfirm(false); setDeletingId(null); setDeletingName(''); };
 
   const handleOpenMultipleUpload = () => { setUploadFile(null); setUploadError(''); setUploadSuccess(''); setUploadErrors([]); setShowMultipleUploadModal(true); };
@@ -183,6 +189,29 @@ const EmployeesPage: React.FC = () => {
     finally { setUploading(false); }
   };
 
+  const handleAddNewDepartment = (typedName: string) => {
+    setDeptModal({ isUnit: false, initialName: typedName });
+  };
+
+  const handleAddNewUnit = (typedName: string) => {
+    if (!formData.department_id) { dispatchToast('warning', 'Select a department first, then add its unit'); return; }
+    setDeptModal({ isUnit: true, initialName: typedName });
+  };
+
+  const handleDeptModalCreated = async (created: { _id: string; department_name: string }) => {
+    if (!deptModal) return;
+    if (deptModal.isUnit) {
+      setFormData(prev => ({ ...prev, department_unit: created._id }));
+      if (formData.department_id) await loadDepartmentUnits(formData.department_id);
+      loadDepartments();
+    } else {
+      setFormData(prev => ({ ...prev, department: created.department_name, department_name: created.department_name, department_id: created._id, department_unit: '' }));
+      await loadDepartments();
+      setLoadingUnits(true);
+      loadDepartmentUnits(created._id);
+    }
+  };
+
   const getUnitNameDisplay = (employee: Employee) => {
     const rawUnitVal = employee.department_unit || (employee.department && typeof employee.department === 'object' && (employee.department as any).department_unit);
     if (!rawUnitVal || rawUnitVal === 'Not specified') return '-';
@@ -198,8 +227,8 @@ const EmployeesPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div><h1 className="text-base font-bold text-[#333333] flex items-center gap-2" style={{ fontFamily: fontHeading }}><FiUsers className="w-6 h-6 text-[#056daa]" />Employees</h1><p className="text-xs text-[#555555] mt-0.5">Manage employees in the organization</p></div>
           <div className="flex gap-2">
-            <button onClick={handleNewEmployee} className="inline-flex items-center gap-1.5 px-3 py-2 text-white text-sm" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiPlus className="w-4 h-4" />Add Employee</button>
-            <button onClick={handleOpenMultipleUpload} className="inline-flex items-center gap-1.5 px-3 py-2 text-white text-sm" style={{ backgroundColor: SUCCESS, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}><FiPlus className="w-4 h-4" />Add Multiple</button>
+            <button onClick={handleNewEmployee} className="inline-flex items-center gap-1.5 px-3 py-2 text-white text-sm cursor-pointer" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiPlus className="w-4 h-4" />Add Employee</button>
+            <button onClick={handleOpenMultipleUpload} className="inline-flex items-center gap-1.5 px-3 py-2 text-white text-sm cursor-pointer" style={{ backgroundColor: SUCCESS, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}><FiPlus className="w-4 h-4" />Add Multiple</button>
           </div>
         </div>
 
@@ -209,29 +238,49 @@ const EmployeesPage: React.FC = () => {
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9E9E9E]" />
               <input type="text" placeholder="Search employees..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); searchTimeoutRef.current = setTimeout(() => handleSearch(e.target.value), 500); }} onKeyDown={e => { if (e.key === 'Enter') { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); handleSearch(); } }} className="w-full cok-auth-input pr-3 py-1.5 text-sm" />
             </div>
-            <button onClick={() => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); handleSearch(); }} className="px-4 py-1.5 text-white text-xs" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiSearch className="w-3.5 h-3.5 inline mr-1" />Search</button>
-            <button onClick={() => { setSearchQuery(''); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); loadEmployees(1, pageLimit); }} className="p-1.5 hover:bg-[#F7F9FB] text-[#555555]"><FiRefreshCw className="w-4 h-4" /></button>
+            <button onClick={() => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); handleSearch(); }} className="px-4 py-1.5 text-white text-xs cursor-pointer" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiSearch className="w-3.5 h-3.5 inline mr-1" />Search</button>
+            <button onClick={() => { setSearchQuery(''); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); loadEmployees(1, pageLimit); }} className="p-1.5 hover:bg-[#F7F9FB] text-[#555555] cursor-pointer"><FiRefreshCw className="w-4 h-4" /></button>
           </div>
         </div>
 
         {error && <div className="bg-[rgba(231,76,60,0.08)] border border-[#E0E0E0] text-[#E74C3C] px-3 py-2 flex items-center gap-2 text-sm"><FiAlertCircle className="w-4 h-4 flex-shrink-0" />{error}</div>}
 
-        <Table headers={[{ key: 'employee', label: 'Employee' }, { key: 'contact', label: 'Contact' }, { key: 'department', label: 'Department' }, { key: 'unit', label: 'Unit' }, { key: 'position', label: 'Position' }, { key: 'actions', label: 'Actions' }]} data={employees} loading={loading && firstLoad} emptyMessage="No employees found" maxHeight="400px" minWidth="700px" headerStyle={{ backgroundColor: PRIMARY }}
+        <Table headers={[{ key: 'employee', label: 'Employee' }, { key: 'contact', label: 'Contact' }, { key: 'department', label: 'Department' }, { key: 'unit', label: 'Unit' }, { key: 'position', label: 'Position' }, { key: 'actions', label: 'Actions' }]} data={employees} loading={loading && firstLoad} emptyMessage="No employees found" maxHeight="none" minWidth="700px" headerStyle={{ backgroundColor: PRIMARY }}
+          onRowClick={(employee: any) => setViewingEmployee(employee)}
           renderCell={(header, employee: any) => {
             switch (header.key) {
-              case 'employee': return <div className="flex items-center gap-2"><div className="w-8 h-8 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><span className="text-[#056daa] font-semibold text-xs">{(employee.full_name || 'E').charAt(0).toUpperCase()}</span></div><div><p className="text-sm font-medium text-[#333333]">{employee.full_name || '-'}</p><p className="text-xs text-[#555555]">{employee.email}</p></div></div>;
-              case 'contact': return <div className="text-xs text-[#555555]">{employee.telephone && <p className="flex items-center gap-1"><FiPhone className="w-3 h-3" />{employee.telephone}</p>}<p className="flex items-center gap-1"><FiMail className="w-3 h-3" />{employee.email}</p></div>;
-              case 'department': return <span className="text-sm text-[#333333]">{employee.department_name || (employee.department && typeof employee.department === 'object' && (employee.department as any)?.department_name) || '-'}</span>;
-              case 'unit': return <span className="text-sm text-[#333333] font-medium">{getUnitNameDisplay(employee)}</span>;
-              case 'position': return <span className="text-sm text-[#333333]">{employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '-'}</span>;
-              case 'actions': return <div className="flex items-center justify-end gap-1"><button onClick={() => handleEdit(employee)} className="p-1.5 text-[#056daa] hover:bg-[rgba(5,109,170,0.1)]"><FiEdit2 className="w-3.5 h-3.5" /></button><button onClick={() => handleDeleteClick(employee._id || employee.employee_id || '', employee.full_name || 'this employee')} className="p-1.5 text-[#E74C3C] hover:bg-[rgba(231,76,60,0.12)]"><FiTrash2 className="w-3.5 h-3.5" /></button></div>;
+              case 'employee': return <div className="flex items-center gap-2"><div className="w-8 h-8 bg-[rgba(5,109,170,0.1)] flex items-center justify-center shrink-0"><span className="text-[#056daa] font-semibold text-xs">{(employee.full_name || 'E').charAt(0).toUpperCase()}</span></div><div className="min-w-0"><p className="text-sm font-medium text-[#333333] whitespace-nowrap truncate max-w-[200px]" title={employee.full_name}>{employee.full_name || '-'}</p><p className="text-xs text-[#555555] whitespace-nowrap truncate max-w-[200px]" title={employee.email}>{employee.email}</p></div></div>;
+              case 'contact': return <div className="text-xs text-[#555555]">{employee.telephone && <p className="flex items-center gap-1 whitespace-nowrap"><FiPhone className="w-3 h-3 shrink-0" />{employee.telephone}</p>}<p className="flex items-center gap-1 whitespace-nowrap truncate max-w-[220px]" title={employee.email}><FiMail className="w-3 h-3 shrink-0" />{employee.email}</p></div>;
+              case 'department': return <span className="text-sm text-[#333333] whitespace-nowrap truncate max-w-[180px] inline-block align-middle" title={employee.department_name}>{employee.department_name || (employee.department && typeof employee.department === 'object' && (employee.department as any)?.department_name) || '-'}</span>;
+              case 'unit': return <span className="text-sm text-[#333333] font-medium whitespace-nowrap truncate max-w-[160px] inline-block align-middle">{getUnitNameDisplay(employee)}</span>;
+              case 'position': return <span className="text-sm text-[#333333] whitespace-nowrap truncate max-w-[160px] inline-block align-middle">{employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '-'}</span>;
+              case 'actions': return <div className="flex items-center justify-end gap-1"><button onClick={(e) => { e.stopPropagation(); handleEdit(employee); }} className="p-1.5 text-[#056daa] hover:bg-[rgba(5,109,170,0.1)] cursor-pointer" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button><button onClick={(e) => { e.stopPropagation(); handleDeleteClick(employee._id || employee.employee_id || '', employee.full_name || 'this employee'); }} className="p-1.5 text-[#E74C3C] hover:bg-[rgba(231,76,60,0.12)] cursor-pointer" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button></div>;
               default: return <span>{employee[header.key] || '-'}</span>;
             }
           }}
           pagination={totalPages > 1 ? { currentPage, totalPages, totalCount: totalEmployees, itemsPerPage: pageLimit, onPageChange: (page) => { setCurrentPage(page); loadEmployees(page, pageLimit); }, loading } : undefined}
         />
 
-        <EmployeeFormModal show={showModal} editing={!!editingEmployee} formData={formData as any} formError={formError} formSuccess={formSuccess} submitting={submitting} departments={departments} departmentUnits={departmentUnits} loadingUnits={loadingUnits} roles={roles} onClose={() => setShowModal(false)} onSubmit={handleSubmit} onChange={(data) => setFormData(data)} onDepartmentChange={(name, id) => { setFormData({ ...formData, department_name: name, department_id: id, department_unit: '' }); if (id) { setLoadingUnits(true); loadDepartmentUnits(id); } else setDepartmentUnits([]); }} />
+        {viewingEmployee && (
+          <EmployeeDetailsModal
+            employee={viewingEmployee}
+            unitName={getUnitNameDisplay(viewingEmployee) === '-' ? '' : getUnitNameDisplay(viewingEmployee)}
+            onClose={() => setViewingEmployee(null)}
+          />
+        )}
+
+        <EmployeeFormModal show={showModal} editing={!!editingEmployee} formData={formData as any} formError={formError} formSuccess={formSuccess} submitting={submitting} departments={departments} departmentUnits={departmentUnits} loadingUnits={loadingUnits} roles={roles} onClose={() => setShowModal(false)} onSubmit={handleSubmit} onChange={(data) => setFormData(data)} onDepartmentChange={(name, id) => { setFormData({ ...formData, department_name: name, department_id: id, department_unit: '' }); if (id) { setLoadingUnits(true); loadDepartmentUnits(id); } else setDepartmentUnits([]); }} onAddNewDepartment={handleAddNewDepartment} onAddNewUnit={handleAddNewUnit} onRefetchDepartments={loadDepartments} onRefetchUnits={() => { if (formData.department_id) return loadDepartmentUnits(formData.department_id); }} />
+
+        <DepartmentFormModal
+          show={!!deptModal}
+          isUnit={deptModal?.isUnit || false}
+          parentDepartmentId={formData.department_id || undefined}
+          parentDepartmentName={formData.department_name || undefined}
+          initialName={deptModal?.initialName || ''}
+          employees={employees as any}
+          onClose={() => setDeptModal(null)}
+          onCreated={handleDeptModalCreated}
+        />
 
         {showMultipleUploadModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

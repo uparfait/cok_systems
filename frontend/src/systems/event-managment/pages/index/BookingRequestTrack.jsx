@@ -104,7 +104,7 @@ export default function BookingRequestTrack() {
   return (
     <>
       <Helmet><title>TRACK YOUR BOOK REQUEST</title></Helmet>
-      <div className="w-full min-h-screen items-center flex flex-col mx-auto px-3 sm:px-4" style={{ backgroundColor: NEUTRAL_LIGHT, paddingTop: "110px", paddingBottom: "60px" }}>
+      <div className="w-full min-h-screen items-center flex flex-col mx-auto px-3 sm:px-4" style={{ backgroundColor: '#FFFFFF', paddingBottom: "60px" }}>
         <div className="w-full max-w-lg overflow-hidden bg-white" style={{ border: `1px solid ${BORDER}` }}>
           <div className="px-4 sm:px-6 py-4" style={{ backgroundColor: PRIMARY }}>
             <h1 className="text-base font-bold uppercase tracking-widest text-white" style={{ fontFamily: fontHeading }}>Track Your Booking</h1>

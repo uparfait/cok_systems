@@ -1,15 +1,17 @@
 const Department = require("../../models/department.js");
+const { departmentErrorMessage, isClientError } = require("./department_error_message.js");
 
 async function updateDepartment(req, res) {
   try {
     const { id } = req.params;
-    const { name, description, room_number, is_unit, parent_department, leader, department_leader, employees, services, department_id } = req.body;
+    const { name, description, room_number, is_unit, parent_department, leader, department_leader, employees, services, dpt_id, department_id } = req.body;
 
-    // Check if updating name and it already exists
+    // Check if updating name and it already exists (case-insensitive)
     if (name) {
-      const existingDept = await Department.findOne({department_name: name, _id: { $ne: id } });
+      const escapedName = String(name).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existingDept = await Department.findOne({ department_name: new RegExp(`^${escapedName}$`, 'i'), _id: { $ne: id } });
       if (existingDept) {
-        return res.status(400).json({ success: false, message: 'Department with this name already exists' });
+        return res.status(400).json({ success: false, message: `A department named "${existingDept.department_name}" already exists. Please choose a different name.` });
       }
     }
 
@@ -19,7 +21,7 @@ async function updateDepartment(req, res) {
     if (room_number !== undefined) updateData.room_number = room_number;
     if (is_unit !== undefined) updateData.is_unit = is_unit;
     if (parent_department !== undefined) updateData.parent_department = parent_department;
-    if (department_id !== undefined) updateData.department_id = department_id;
+    if (dpt_id !== undefined || department_id !== undefined) updateData.dpt_id = dpt_id ?? department_id;
     
     // Handle leader field - accept both 'leader' and 'department_leader' from frontend
     if (leader !== undefined || department_leader !== undefined) {
@@ -67,7 +69,10 @@ async function updateDepartment(req, res) {
     });
   } catch (error) {
     console.error('Error updating department:', error);
-    res.status(500).json({ success: false, message: 'Error updating department', error: error.message });
+    res.status(isClientError(error) ? 400 : 500).json({
+      success: false,
+      message: departmentErrorMessage(error, 'updating the department'),
+    });
   }
 }
 
