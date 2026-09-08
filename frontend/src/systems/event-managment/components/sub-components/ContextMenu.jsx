@@ -8,8 +8,8 @@ export default function ContextMenu({ x, y, onAction }) {
 
   return (
     <div
-      style={{ left: `${x}px`, top: `${y}px`, border: '1px solid #E0E0E0', borderRadius: 0 }}
-      className="fixed z-50 bg-white shadow-xl py-1 min-w-[160px]"
+      style={{ left: `${x}px`, top: `${y}px`, borderRadius: 0, backgroundColor: '#F8F9FA' }}
+      className="fixed z-50 py-1 min-w-[160px]"
       onClick={(e) => e.stopPropagation()}
     >
       {menuItems.map((item, index) => (

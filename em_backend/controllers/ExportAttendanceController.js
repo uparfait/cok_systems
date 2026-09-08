@@ -9,7 +9,7 @@ const LOGO_PATH = path.join(__dirname, '..', 'assets', 'LOGO_COK_report.png');
 const LOGO_RATIO = 221 / 1116; // original logo image is 1116x221 px
 
 function formatDateTime(dateStr) {
-  if (!dateStr) return '—';
+  if (!dateStr) return '-';
   const d = new Date(dateStr);
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -215,10 +215,10 @@ class ExportAttendanceController {
                     fit: [columns[j].width - 6, ROW_HEIGHT - 6],
                   });
                 } catch (e) {
-                  doc.text('—', xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });
+                  doc.text('-', xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });
                 }
               } else {
-                doc.text('—', xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });
+                doc.text('-', xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });
               }
             } else {
               doc.text(rowData[j], xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });

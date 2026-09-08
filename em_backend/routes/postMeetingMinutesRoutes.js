@@ -104,6 +104,7 @@ const MinutesFilesController = require('../controllers/MinutesFilesController');
  *         description: Server error
  */
 Router.post('/:eventSpecialId/minutes/files', MinutesFilesController.uploadMiddleware, MinutesFilesController.uploadFiles);
+Router.put('/:eventSpecialId/minutes/files/:fileId', MinutesFilesController.updateMiddleware, MinutesFilesController.updateFile);
 Router.delete('/:eventSpecialId/minutes/files/:fileId', MinutesFilesController.deleteFile);
 Router.post('/:eventSpecialId/minutes', PostMeetingMinutesController.saveMinutes);
 Router.get('/:eventSpecialId/minutes', PostMeetingMinutesController.getMinutes);

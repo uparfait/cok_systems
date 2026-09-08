@@ -103,7 +103,7 @@ function rangeFor(period: PeriodKey): { from: Date; to: Date; granularity: Granu
       buckets.push({
         key: isoWeekKey(cursor),
         label: `Week ${index}`,
-        tooltip: `${cursor.toLocaleDateString()} — ${weekEnd.toLocaleDateString()}`,
+        tooltip: `${cursor.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`,
       });
       cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 7);
       index++;
@@ -161,7 +161,7 @@ const MayorVisitorsTimeline: React.FC = () => {
       } catch (e: any) {
         // A 404 means the backend is running old code without /statistics/visitors-timeline
         if (!ignore) setError(e?.response?.status === 404
-          ? 'Statistics endpoint not found — restart the backend server to load it'
+          ? 'Statistics endpoint not found - restart the backend server to load it'
           : 'Failed to load visitor statistics');
       } finally {
         if (!ignore) setLoading(false);
@@ -205,7 +205,7 @@ const MayorVisitorsTimeline: React.FC = () => {
       </div>
 
       <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
-        {/* Period filter — same dropdown pattern as the mayor overview toolbar */}
+        {/* Period filter - same dropdown pattern as the mayor overview toolbar */}
         <div className="px-6 pt-5 pb-3 flex items-center justify-end gap-2" style={{ borderBottom: `1px solid ${BORDER}` }}>
           <FiFilter className="w-3.5 h-3.5" style={{ color: '#555555' }} />
           <label className="text-xs font-medium" style={{ fontFamily: fontHeading, color: '#555555' }} htmlFor="mayor-visitors-period">

@@ -139,7 +139,7 @@ const EmployeesPage: React.FC = () => {
     if (!formData.full_name?.trim()) { setFormError('Full name is required'); return; }
     if (!formData.email?.trim()) { setFormError('Email is required'); return; }
     if (!formData.telephone?.trim()) { setFormError('Phone number is required'); return; }
-    if (!formData.roles?.role_name) { setFormError('User role is required — please select a role for this employee'); return; }
+    if (!formData.roles?.role_name) { setFormError('User role is required - please select a role for this employee'); return; }
     try { setSubmitting(true);
       if (editingEmployee?._id || editingEmployee?.employee_id) {
         const id = editingEmployee._id || editingEmployee.employee_id || '';

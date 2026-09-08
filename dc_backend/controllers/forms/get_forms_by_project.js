@@ -2,6 +2,7 @@ const forms_model = require("../../models/forms_model.js");
 const projects_model = require("../../models/projects_model.js");
 const submissions_model = require("../../models/submissions_model.js");
 const project_access = require("../../utilities/project_access.js");
+const { strip_approval_config_for_response } = require("../../utilities/approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 
@@ -34,7 +35,10 @@ async function get_forms_by_project(req, res) {
 
     const forms_with_counts = await Promise.all(
       visible_forms.map(async (form) =>
-        Object.assign({}, form, { total_submissions: await submissions_model.count_by_form_group_id(form.form_group_id) }),
+        Object.assign({}, form, {
+          total_submissions: await submissions_model.count_by_form_group_id(form.form_group_id),
+          approval_config: strip_approval_config_for_response(form.approval_config),
+        }),
       ),
     );
 

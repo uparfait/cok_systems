@@ -18,7 +18,7 @@ const BORDER = "#E0E0E0";
 const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 
-// Monday-first weekdays — same as the event-manager dashboard calendar
+// Monday-first weekdays - same as the event-manager dashboard calendar
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // Same chip colors as the dashboard calendar (meetingType mode);
@@ -90,7 +90,7 @@ export default function CalendarPage() {
       const res = await axios.get(`${BASE_URL}/events/calendar`, { params });
       if (res.data?.success) setEvents(res.data.data || []);
     } catch {
-      /* silent — keep the last good calendar on screen */
+      /* silent - keep the last good calendar on screen */
     } finally {
       if (!silent) setLoading(false);
     }
@@ -290,7 +290,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Calendar — same structure as the event-manager dashboard calendar */}
+      {/* Calendar - same structure as the event-manager dashboard calendar */}
       <div className="flex-1 min-h-0 p-1 sm:p-3 flex flex-col">
         <div className="bg-white border border-gray-200 flex flex-col flex-1 relative">
           {/* Header bar */}
@@ -372,7 +372,7 @@ export default function CalendarPage() {
                             style={{ fontSize: "clamp(7px, 1.4vw, 11px)" }}
                             title={clickable ? `${ev.eventName}\n${timeRange}\n${ev.eventRoom}` : `${timeRange}\n${ev.eventRoom}`}
                           >
-                            {/* Event name only when the user is invited or the organiser —
+                            {/* Event name only when the user is invited or the organiser -
                                 everyone else sees just the schedule and the room */}
                             {clickable && (
                               <div className="flex items-start gap-1">

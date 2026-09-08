@@ -86,7 +86,7 @@ const createAnnouncement = async (req, res, next) => {
         let targetDepartment = null;
         const departmentsWithoutLeader = [];
 
-        // When the sender is the target's own head, publishing proceeds — there is
+        // When the sender is the target's own head, publishing proceeds - there is
         // simply nobody else to notify.
         let senderIsTargetLeader = false;
 
@@ -139,7 +139,7 @@ const createAnnouncement = async (req, res, next) => {
                 .filter(Boolean)
                 .map(id => id.toString());
 
-            // No leader pointer on the document — fall back to role-based heads
+            // No leader pointer on the document - fall back to role-based heads
             if (targetLeaderIds.length === 0) {
                 const roleHeads = await findRoleBasedHeads([targetDepartment._id]);
                 targetLeaderIds = roleHeads[targetDepartment._id.toString()] || [];

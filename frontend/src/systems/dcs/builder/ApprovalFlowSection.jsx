@@ -6,7 +6,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Choice fields whose condition value comes from a dropdown of the field's own options
 // (a location field's provinces/districts/... included) instead of free text.
-const CHOICE_FIELD_TYPES = ["single_select", "multi_select", "select_group", "cascading_select", "likert_scale"];
+export const CHOICE_FIELD_TYPES = ["single_select", "multi_select", "select_group", "cascading_select", "likert_scale"];
 
 /** Every selectable value a field (or a lazy-options response) carries, groups flattened. */
 function flatten_option_data(data) {
@@ -43,7 +43,7 @@ const LEVEL_LABEL_KEYS = {
 };
 
 // Form field types an approver condition ("field equals value") can target.
-const CONDITION_FIELD_TYPES = [
+export const CONDITION_FIELD_TYPES = [
   "text", "large_text", "number", "email", "url", "phone",
   "single_select", "multi_select", "likert_scale",
   "select_group", "cascading_select", "hidden",
@@ -80,7 +80,12 @@ function onDirtyChange(isDirty) {}
 /** Client-side mirror of the backend's approval_config validation. */
 export function is_approval_config_complete(config) {
   if (!config || config.enabled !== true) return true;
-  if (!Array.isArray(config.approvers) || config.approvers.length === 0) return false;
+  // The stripped shape form routes return - the approvers were never loaded
+  // here, the server keeps its stored ones untouched on save.
+  if (config.approvers_lazy === true) return true;
+  // An empty list is a valid in-progress save - it simply routes nothing
+  // until approvers are added.
+  if (!Array.isArray(config.approvers) || config.approvers.length === 0) return true;
   return config.approvers.every((approver) => people_ok(approver) && location_ok(approver) && conditions_ok(approver));
 }
 
@@ -100,7 +105,7 @@ function conditions_ok(approver) {
 }
 
 /** Data fields (groups flattened) a condition can point at. */
-function flatten_condition_fields(fields) {
+export function flatten_condition_fields(fields) {
   const flat = [];
   (fields || []).forEach((field) => {
     if (field.type === "group") flat.push(...flatten_condition_fields(field.children));
@@ -291,7 +296,7 @@ function layout_chain_tree(root) {
 const FILTER_THRESHOLD = 300;
 const MAX_SHOWN_OPTIONS = 200;
 
-function ConditionValueControl({ field, value, onChange, resolveFullFieldOptions, language, placeholder, filterPlaceholder }) {
+export function ConditionValueControl({ field, value, onChange, resolveFullFieldOptions, language, placeholder, filterPlaceholder }) {
   const [fetched_options, set_fetched_options] = useState(null);
   const [filter_text, set_filter_text] = useState("");
   const local_options = React.useMemo(() => flatten_option_data(field), [field]);
@@ -394,7 +399,7 @@ function ConditionValueControl({ field, value, onChange, resolveFullFieldOptions
  * scrolls a country-wide list. The pick at the field's level becomes the condition
  * value; the picks above it are handed back so the ancestor conditions get pinned too.
  */
-function LocationTrailPicker({ field_key, api_level, value, onChange, language, sibling_values }) {
+export function LocationTrailPicker({ field_key, api_level, value, onChange, language, sibling_values }) {
   const { translate } = useDcsLanguage();
   const [tree, set_tree] = useState(null);
   const depth = Math.max(0, LOCATION_LEVELS_ORDER.indexOf(api_level));

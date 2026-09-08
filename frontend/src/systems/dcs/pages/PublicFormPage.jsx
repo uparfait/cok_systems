@@ -6,7 +6,16 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_public_form, get_public_form_field_options } from "../services/formsService.js";
 import { useLazyFieldResolvers } from "../hooks/useLazyFieldResolvers.js";
 import { cache_form, get_cached_form } from "../offline/formCache.js";
-import { enqueue_submission, update_queue_item, process_queue_once, list_queue, start_auto_sync } from "../offline/submissionQueue.js";
+import {
+  enqueue_submission,
+  update_queue_item,
+  remove_from_queue,
+  process_queue_once,
+  list_queue,
+  start_auto_sync,
+  submit_direct,
+  generate_client_submission_id,
+} from "../offline/submissionQueue.js";
 import { save_form_draft, get_form_draft, clear_form_draft } from "../offline/draftStore.js";
 import { compute_derived_values, compute_form_progress_percent } from "../renderer/formEngine.js";
 import { MediaUploadProvider } from "../renderer/MediaUploadContext.jsx";
@@ -127,6 +136,11 @@ function PublicFormPageContent() {
   const [draft, setDraft] = useState(null);
   const [resume_prompt_visible, setResumePromptVisible] = useState(false);
   const [is_syncing, setIsSyncing] = useState(false);
+  // "saved" while device-saved (queued) records are being sent - the
+  // auto-sync loop or the manual upload button - "direct" while a normal
+  // online submit is in flight, so the floating indicator can say which
+  // one is actually happening.
+  const [sync_kind, setSyncKind] = useState(null);
   const [file_upload_percent, setFileUploadPercent] = useState(null);
   const [is_online, setIsOnline] = useState(window.navigator.onLine);
   const [is_queue_open, setIsQueueOpen] = useState(false);
@@ -221,12 +235,16 @@ function PublicFormPageContent() {
     const online_poll_interval = window.setInterval(handle_online_change, 10000);
 
     const stop_auto_sync = start_auto_sync({
-      onStart: () => setIsSyncing(true),
+      onStart: () => {
+        setIsSyncing(true);
+        setSyncKind("saved");
+      },
       onItemResult: async () => refresh_queue(),
       onFileProgress: ({ percent }) => setFileUploadPercent(percent),
       onComplete: async (result) => {
         await refresh_queue();
         setIsSyncing(false);
+        setSyncKind(null);
         setFileUploadPercent(null);
         // A record queued offline can land during a background sync - its approval link must still surface.
         if (result.approval_notices && result.approval_notices.length > 0) {
@@ -325,6 +343,7 @@ function PublicFormPageContent() {
   const handle_force_upload = async () => {
     if (!window.navigator.onLine) return;
     setIsSyncing(true);
+    setSyncKind("saved");
     try {
       const result = await process_queue_once(async () => refresh_queue(), ({ percent }) => setFileUploadPercent(percent));
       await refresh_queue();
@@ -340,6 +359,7 @@ function PublicFormPageContent() {
       }
     } finally {
       setIsSyncing(false);
+      setSyncKind(null);
       setFileUploadPercent(null);
     }
   };
@@ -432,62 +452,129 @@ function PublicFormPageContent() {
         return;
       }
 
-      // Whichever id ends up sitting in the queue for this exact response -
-      // used afterwards to tell whether THIS submission actually left the
-      // device or is still sitting there waiting for a connection, since
-      // process_queue_once can also be moving other, older queued records.
-      let queued_item_id = reviewing_queue_id_ref.current;
-      if (reviewing_queue_id_ref.current) {
-        await update_queue_item(reviewing_queue_id_ref.current, {
-          data: resolved_values,
-          version: form.version,
-          status: "pending",
-          field_errors: null,
-          updated_at: new Date().toISOString(),
-        });
-      } else {
-        const queued_item = await enqueue_submission(form_group_id, form.version, resolved_values);
-        queued_item_id = queued_item.id;
-        await clear_form_draft(form_group_id);
-        await refresh_draft();
+      // A reviewed queued record keeps its own client_submission_id; a fresh
+      // response gets one now, BEFORE the direct attempt, so that queueing it
+      // after a network failure retries under the exact same idempotency key
+      // and the server can never store the response twice.
+      const reviewing_id = reviewing_queue_id_ref.current;
+      let reviewing_record = null;
+      if (reviewing_id) {
+        const current_queue = await list_queue();
+        reviewing_record = current_queue.find((item) => item.id === reviewing_id) || null;
       }
-      await refresh_queue();
+      const client_submission_id = reviewing_record
+        ? reviewing_record.client_submission_id
+        : generate_client_submission_id();
 
-      let was_sent_immediately = false;
-      if (window.navigator.onLine) {
-        setIsSyncing(true);
-        const result = await process_queue_once(async () => refresh_queue(), ({ percent }) => setFileUploadPercent(percent));
+      // Saves this exact response to the device for a later automatic send -
+      // reached ONLY when the device is offline or the direct submit just
+      // failed with a network error, never as a step of a normal submit.
+      const store_for_later = async (data_to_store) => {
+        if (reviewing_record) {
+          await update_queue_item(reviewing_record.id, {
+            data: data_to_store,
+            version: form.version,
+            status: "pending",
+            field_errors: null,
+            updated_at: new Date().toISOString(),
+          });
+        } else {
+          await enqueue_submission(form_group_id, form.version, data_to_store, { client_submission_id });
+          await clear_form_draft(form_group_id);
+          await refresh_draft();
+        }
         await refresh_queue();
-        setIsSyncing(false);
-        setFileUploadPercent(null);
+      };
 
-        if (result.approval_notices && result.approval_notices.length > 0) {
-          setApprovalNotices((previous) => previous.concat(result.approval_notices));
+      const reset_after_submit = (was_sent_immediately) => {
+        reviewing_queue_id_ref.current = null;
+        setValues({});
+        setFieldErrors({});
+        setFieldValidMessages({});
+        setRevealAllErrors(false);
+        setRenderResetKey((previous_key) => previous_key + 1);
+        setSubmitState(was_sent_immediately ? "success_submitted" : "success_offline");
+        showSuccess(translate(was_sent_immediately ? "DCS_PUBLIC_DATA_RECORDED" : "DCS_PUBLIC_SUBMIT_QUEUED_OFFLINE"));
+      };
+
+      // Offline: never attempt the network at all - store the response and
+      // let the auto-sync loop send it once the connection is back.
+      if (!window.navigator.onLine) {
+        await store_for_later(resolved_values);
+        reset_after_submit(false);
+        return;
+      }
+
+      setIsSyncing(true);
+      setSyncKind("direct");
+      try {
+        const direct_result = await submit_direct(
+          form_group_id,
+          form.version,
+          resolved_values,
+          client_submission_id,
+          ({ percent }) => setFileUploadPercent(percent),
+        );
+
+        if (reviewing_record) {
+          await remove_from_queue(reviewing_record.id);
+        } else {
+          await clear_form_draft(form_group_id);
+          await refresh_draft();
+        }
+        await refresh_queue();
+
+        const approval = direct_result.response && direct_result.response.data && direct_result.response.data.approval;
+        if (approval && Array.isArray(approval.active_links) && approval.active_links.length > 0) {
+          setApprovalNotices((previous) => previous.concat([{ form_group_id, mode: approval.mode, links: approval.active_links }]));
         }
 
-        if (result.blocked_item) {
-          reviewing_queue_id_ref.current = result.blocked_item.id;
-          setValues(result.blocked_item.data || {});
-          setFieldErrors(result.blocked_item.field_errors || {});
-          setFieldValidMessages({});
-          setRevealAllErrors(true);
-          setSubmitState("error");
-          showError(result.blocked_item.message || translate("DCS_ERROR_GENERIC"));
+        reset_after_submit(true);
+      } catch (direct_error) {
+        // partial_data carries any file uploads that DID land before the
+        // failure, so the stored copy never re-uploads them on retry.
+        const failed_data = (direct_error && direct_error.partial_data) || resolved_values;
+
+        if (direct_error && direct_error.is_network_error) {
+          await store_for_later(failed_data);
+          reset_after_submit(false);
           return;
         }
 
-        const remaining_queue = await list_queue();
-        was_sent_immediately = !remaining_queue.some((item) => item.id === queued_item_id);
-      }
+        // A definitive backend rejection: keep the response on the device as
+        // an error record the respondent can reopen, fix and resubmit.
+        const server_field_errors = (direct_error && direct_error.field_errors) || null;
+        if (reviewing_record) {
+          await update_queue_item(reviewing_record.id, {
+            data: failed_data,
+            version: form.version,
+            status: "error",
+            field_errors: server_field_errors,
+            updated_at: new Date().toISOString(),
+          });
+        } else {
+          const error_item = await enqueue_submission(form_group_id, form.version, failed_data, {
+            client_submission_id,
+            status: "error",
+            field_errors: server_field_errors,
+          });
+          reviewing_queue_id_ref.current = error_item.id;
+          await clear_form_draft(form_group_id);
+          await refresh_draft();
+        }
+        await refresh_queue();
 
-      reviewing_queue_id_ref.current = null;
-      setValues({});
-      setFieldErrors({});
-      setFieldValidMessages({});
-      setRevealAllErrors(false);
-      setRenderResetKey((previous_key) => previous_key + 1);
-      setSubmitState(was_sent_immediately ? "success_submitted" : "success_offline");
-      showSuccess(translate(was_sent_immediately ? "DCS_PUBLIC_DATA_RECORDED" : "DCS_PUBLIC_SUBMIT_QUEUED_OFFLINE"));
+        setValues(failed_data);
+        setFieldErrors(server_field_errors || {});
+        setFieldValidMessages({});
+        setRevealAllErrors(true);
+        setSubmitState("error");
+        showError((direct_error && direct_error.message) || translate("DCS_ERROR_GENERIC"));
+      } finally {
+        setIsSyncing(false);
+        setSyncKind(null);
+        setFileUploadPercent(null);
+      }
     } catch (submit_error) {
       setSubmitState("error");
       showError(submit_error.message || translate("DCS_ERROR_GENERIC"));
@@ -504,12 +591,8 @@ function PublicFormPageContent() {
 
   return (
     <div
-      className="min-h-screen p-0 min-[700px]:p-6 flex flex-col items-center dcs-print-page-bg"
-      style={{
-        backgroundColor: "#F7F9FB",
-        paddingTop: "calc(52px + env(safe-area-inset-top, 0px))",
-        paddingBottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
-      }}
+      className="min-h-screen p-0 min-[760px]:px-6 pt-[env(safe-area-inset-top,0px)] min-[760px]:pt-[calc(52px+env(safe-area-inset-top,0px))] pb-[env(safe-area-inset-bottom,0px)] min-[760px]:pb-[calc(24px+env(safe-area-inset-bottom,0px))] flex flex-col items-center dcs-print-page-bg"
+      style={{ backgroundColor: "#F7F9FB" }}
     >
       {/* Fixed to the true top of the viewport, outside the form and never
           part of the scrollable page - a persistent indicator of how much
@@ -586,7 +669,7 @@ function PublicFormPageContent() {
       </div>
 
       {approval_notices.some((notice) => notice.links.some((link_info) => link_info.email_sent)) && (
-        <div className="dcs-no-print w-full min-[700px]:max-w-[700px] bg-white border-2 p-4 mb-3" style={{ borderColor: "#056daa" }}>
+        <div className="dcs-no-print w-full min-[760px]:max-w-[700px] bg-white border-2 p-4 mb-3" style={{ borderColor: "#056daa" }}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-bold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
               {translate("DCS_APPROVAL_LINK_PANEL_TITLE")}
@@ -614,7 +697,7 @@ function PublicFormPageContent() {
       )}
 
       {resume_prompt_visible && draft && (
-        <div className="dcs-no-print w-full min-[700px]:max-w-[700px] bg-white border-2 p-3 mb-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: "#056daa" }}>
+        <div className="dcs-no-print w-full min-[760px]:max-w-[700px] bg-white border-2 p-3 mb-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: "#056daa" }}>
           <span className="text-sm" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
             {translate("DCS_PUBLIC_RESUME_DRAFT_TITLE")}
           </span>
@@ -626,8 +709,8 @@ function PublicFormPageContent() {
       )}
 
       <div
-        className="w-full min-[700px]:max-w-[700px] bg-white p-4 border-0 min-[700px]:border-[5px] min-[700px]:rounded-[5px] dcs-print-form-card"
-        style={{ borderColor: "rgba(5,109,170,0.35)", marginTop: 12, marginBottom: 24 }}
+        className="w-full min-[760px]:max-w-[700px] bg-white p-4 border-0 min-[760px]:border-[5px] min-[760px]:rounded-[5px] mt-0 min-[760px]:mt-3 mb-0 min-[760px]:mb-6 grow min-[760px]:grow-0 dcs-print-form-card"
+        style={{ borderColor: "rgba(5,109,170,0.35)" }}
       >
         <div className="flex items-center justify-end mb-3 dcs-no-print">
           <button
@@ -718,7 +801,7 @@ function PublicFormPageContent() {
           <span className="text-xs font-semibold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
             {file_upload_percent !== null
               ? translate("DCS_PUBLIC_UPLOADING_FILES_INDICATOR", { percent: file_upload_percent })
-              : translate("DCS_PUBLIC_SUBMITTING_INDICATOR")}
+              : translate(sync_kind === "saved" ? "DCS_PUBLIC_SUBMITTING_INDICATOR" : "DCS_PUBLIC_SUBMITTING_DIRECT_INDICATOR")}
           </span>
         </div>
       )}

@@ -84,6 +84,22 @@ async function update_version_in_place(form_group_id, version, form_data) {
 }
 
 /**
+ * Replaces one version's approval_config in place - no new version is ever
+ * minted for this, exactly like update_version_in_place treats an
+ * approval-only edit. Used by the test-approvals generator so the produced
+ * approvers land on the form's own approval flow.
+ */
+async function update_approval_config(form_group_id, version, approval_config) {
+  await get_db()
+    .collection(COLLECTION_NAME)
+    .updateOne(
+      { form_group_id, version: Number(version) },
+      { $set: { approval_config: approval_config === undefined ? null : approval_config, updated_at: new Date() } },
+    );
+  return get_version_document(form_group_id, version);
+}
+
+/**
  * Returns every version of a form, newest first.
  * Excludes fields to reduce payload size for list views.
  */
@@ -139,9 +155,12 @@ async function get_form_origin_created_at(form_group_id) {
 /**
  * Returns whichever version is currently flagged as active for a form
  * group - this is the version that public data collection links resolve to.
+ * Sorted by version so that even if a past partial failure left more than
+ * one version flagged active, every endpoint deterministically agrees on
+ * the same (highest) one - an unsorted findOne can flip between them.
  */
 async function get_active_version(form_group_id) {
-  return get_db().collection(COLLECTION_NAME).findOne({ form_group_id, is_active: true });
+  return get_db().collection(COLLECTION_NAME).findOne({ form_group_id, is_active: true }, { sort: { version: -1 } });
 }
 
 /**
@@ -251,6 +270,7 @@ module.exports = {
   create_form_version_one,
   create_next_form_version,
   update_version_in_place,
+  update_approval_config,
   is_form_name_taken,
   get_versions_by_group,
   get_latest_version,

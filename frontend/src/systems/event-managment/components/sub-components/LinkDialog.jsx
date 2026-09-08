@@ -46,8 +46,8 @@ export default function LinkDialog({ onClose, onSubmit }) {
   return (
     <div
       ref={dialogRef}
-      style={{ left: `${position.x}px`, top: `${position.y}px`, border: `1px solid ${BORDER}`, borderRadius: 0 }}
-      className="fixed z-50 bg-white shadow-xl w-80 max-w-[calc(100vw-24px)]"
+      style={{ left: `${position.x}px`, top: `${position.y}px`, borderRadius: 0, backgroundColor: '#F8F9FA' }}
+      className="fixed z-50 w-80 max-w-[calc(100vw-24px)]"
     >
       <div
         ref={dragRef}

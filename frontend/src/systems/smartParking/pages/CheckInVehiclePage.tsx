@@ -237,7 +237,7 @@ const CheckInVehiclePage: React.FC = () => {
           driver_type: data.driver_type || data.vehicle_category || 'Regular',
         });
 
-        // Found vehicles reuse the same check-in form, pre-filled — badge always starts empty
+        // Found vehicles reuse the same check-in form, pre-filled - badge always starts empty
         setUnknownForm({
           plate_number: (data.plate_number || searchPlate).toUpperCase(),
           driver_name: data.driver_details?.name || data.driver_name || '',

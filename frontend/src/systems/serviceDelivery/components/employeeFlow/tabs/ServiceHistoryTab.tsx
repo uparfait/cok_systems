@@ -35,7 +35,7 @@ interface FormattedVisitor {
   not_transferred_to_me: boolean;
 }
 
-// departmentScope: HOD mode — the backend scopes rows to the department(s) the user
+// departmentScope: HOD mode - the backend scopes rows to the department(s) the user
 // leads, so rows are matched by their first assignment instead of the viewer's id
 const ServiceHistoryTab: React.FC<{ departmentScope?: boolean }> = ({ departmentScope = false }) => {
   const { user } = useAuth();

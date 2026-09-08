@@ -495,7 +495,7 @@ export const getCurrentSystemFromPath = (pathname: string): string => {
   return pathname;
 };
 
-// Get dashboard route based on user's role — returns role-slug based paths
+// Get dashboard route based on user's role - returns role-slug based paths
 export const getDashboardRoute = (role: string | undefined, _departmentName?: string): string => {
   console.log('[getDashboardRoute] Determining route for role:', role);
   // Every authenticated user lands on the shared events calendar,

@@ -17,7 +17,7 @@ const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 
 function formatTime(iso) {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   return (
     d.toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" }) +
@@ -27,7 +27,7 @@ function formatTime(iso) {
 }
 
 // Drawn signatures live in attendeeSignature (base64); uploaded ones are stored
-// in digitalCertificate as a served file URL — display whichever exists
+// in digitalCertificate as a served file URL - display whichever exists
 function signatureImageSrc(a) {
   if (a?.attendeeSignature) return a.attendeeSignature;
   if (a?.digitalCertificate && /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(a.digitalCertificate)) return a.digitalCertificate;
@@ -209,9 +209,9 @@ export default function AttendeesOverlay({ eventSpecialId, eventName, onClose })
                     <tr key={a._id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                       <td className="px-4 py-3 text-xs text-gray-400 font-mono">{(page - 1) * PAGE_SIZE + i + 1}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">{a.attendeeFullName}</td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">{a.attendeeEmail || "—"}</td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">{a.attendeePhoneNumber || "—"}</td>
-                      <td className="px-4 py-3 text-gray-600">{a.attendeeInstitution || "—"}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">{a.attendeeEmail || "-"}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">{a.attendeePhoneNumber || "-"}</td>
+                      <td className="px-4 py-3 text-gray-600">{a.attendeeInstitution || "-"}</td>
                       <td className="px-4 py-3 text-gray-600">{a.attendeePosition}</td>
                       <td className="px-4 py-3">
                         {signatureImageSrc(a) ? (
@@ -225,7 +225,7 @@ export default function AttendeesOverlay({ eventSpecialId, eventName, onClose })
                             View file
                           </a>
                         ) : (
-                          <span className="text-gray-300">—</span>
+                          <span className="text-gray-300">-</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatTime(a.createdAt)}</td>

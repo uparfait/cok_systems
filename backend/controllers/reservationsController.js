@@ -71,7 +71,7 @@ const getAllReservations = async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        // Plates currently inside the parking — a reservation whose vehicle is checked in
+        // Plates currently inside the parking - a reservation whose vehicle is checked in
         // reports status 'checked_in' so maps/cards count it as occupied, not reserved
         const activeRecords = await ParkingRecord.find({ status: 'active' }).select('plate_number').lean();
         const insidePlates = new Set(activeRecords.map(r => normalizePlate(r.plate_number)));
@@ -296,7 +296,7 @@ if (!activeCheckIn) {
         } else {
             // This is a visitor reservation - the id is the visitor entry's own ObjectId
             // (or a plate number for legacy rows). Bulk uploads share one document, so
-            // cancellation is per visitor — never the whole batch.
+            // cancellation is per visitor - never the whole batch.
             const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
             let reservation = null;
             if (isObjectId) {
@@ -520,7 +520,7 @@ const bulkUploadStaff = async (req, res) => {
         res.status(201).json({
             success: true,
             message: `Successfully uploaded ${validBookings.length} staff reservation(s).`
-                + (skippedRows.length ? ` ${skippedRows.length} row(s) skipped — End Date already passed or Start Date after End Date (format is day/month/year).` : ''),
+                + (skippedRows.length ? ` ${skippedRows.length} row(s) skipped - End Date already passed or Start Date after End Date (format is day/month/year).` : ''),
             count: validBookings.length
         });
     } catch (error) {
@@ -707,7 +707,7 @@ const getReservationBatches = async (req, res) => {
 
 /**
  * Cancel every pending reservation in an uploaded batch.
- * Body: { id, type: 'visitor' | 'staff' } — visitor id is the batch document id,
+ * Body: { id, type: 'visitor' | 'staff' } - visitor id is the batch document id,
  * staff id is the batch (file) name.
  */
 const cancelReservationBatch = async (req, res) => {
@@ -748,7 +748,7 @@ const cancelReservationBatch = async (req, res) => {
         }
 
         global.WebsocketIO?.emit('parking_update', { type: 'info', message: `Reservation batch cancelled (${cancelledPending} pending entries)` });
-        return res.status(200).json({ success: true, message: `Batch cancelled — ${cancelledPending} pending reservation(s) released`, cancelled: cancelledPending });
+        return res.status(200).json({ success: true, message: `Batch cancelled - ${cancelledPending} pending reservation(s) released`, cancelled: cancelledPending });
     } catch (error) {
         console.error('Error cancelling reservation batch:', error);
         return res.status(500).json({ success: false, message: 'Error cancelling reservation batch', error: error.message });
@@ -780,7 +780,7 @@ const rescheduleReservationBatch = async (req, res) => {
             const doc = await EmergencyCar.findById(id);
             if (!doc) return res.status(404).json({ success: false, message: 'Batch not found' });
             doc.visitor_info.forEach(v => {
-                if (v.is_used) return; // the vehicle already came — nothing to reschedule
+                if (v.is_used) return; // the vehicle already came - nothing to reschedule
                 v.valid_from = newFrom;
                 v.valid_until = newUntil;
                 if (v.is_cancelled) { v.is_cancelled = false; revived++; }
@@ -826,7 +826,7 @@ const rescheduleReservationBatch = async (req, res) => {
 
 /**
  * Permanently delete an uploaded batch and every reservation in it.
- * Body: { id, type: 'visitor' | 'staff' } — visitor id is the batch document id,
+ * Body: { id, type: 'visitor' | 'staff' } - visitor id is the batch document id,
  * staff id is the batch (file) name.
  */
 const deleteReservationBatch = async (req, res) => {
@@ -868,7 +868,7 @@ const deleteReservationBatch = async (req, res) => {
         }
 
         global.WebsocketIO?.emit('parking_update', { type: 'info', message: `Reservation batch deleted (${deleted} entries)` });
-        return res.status(200).json({ success: true, message: `Batch deleted — ${deleted} reservation(s) removed`, deleted });
+        return res.status(200).json({ success: true, message: `Batch deleted - ${deleted} reservation(s) removed`, deleted });
     } catch (error) {
         console.error('Error deleting reservation batch:', error);
         return res.status(500).json({ success: false, message: 'Error deleting reservation batch', error: error.message });
@@ -878,7 +878,7 @@ const deleteReservationBatch = async (req, res) => {
 /**
  * Reschedule ONE reservation: the given Start/End dates replace its current window.
  * A cancelled/expired entry is revived for the new window; a used one is refused.
- * Params: :id — Body: { type: 'visitor' | 'staff', start_date, end_date }
+ * Params: :id - Body: { type: 'visitor' | 'staff', start_date, end_date }
  */
 const rescheduleReservation = async (req, res) => {
     try {
@@ -922,7 +922,7 @@ const rescheduleReservation = async (req, res) => {
             const entry = (isObjectId && doc.visitor_info.id(id))
                 || doc.visitor_info.find(v => v.plate_number === id);
             if (!entry) return res.status(404).json({ success: false, message: 'Reservation not found' });
-            if (entry.is_used) return res.status(400).json({ success: false, message: 'The vehicle already arrived — nothing to reschedule' });
+            if (entry.is_used) return res.status(400).json({ success: false, message: 'The vehicle already arrived - nothing to reschedule' });
 
             entry.valid_from = newFrom;
             entry.valid_until = newUntil;

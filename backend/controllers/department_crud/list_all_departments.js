@@ -4,7 +4,7 @@ module.exports = async function list_all_departments(req, res, next) {
     try {
         let { limit = 0, page = 1 } = req.query || {}
 
-        // limit=0 (the default) returns every department — no cap
+        // limit=0 (the default) returns every department - no cap
         const limit_val = Math.max(0, parseInt(limit) || 0)
         const skip_val = limit_val > 0 ? (parseInt(page) - 1) * limit_val : 0;
 

@@ -1,4 +1,4 @@
-// Parking lot map — one cell per slot: red = occupied (hover shows plate), yellow = reserved, green = available
+// Parking lot map - one cell per slot: red = occupied (hover shows plate), yellow = reserved, green = available
 // Shared by the mayor overview dashboard and the gate registrar (smart parking) dashboard
 import React, { useMemo, useState } from 'react';
 

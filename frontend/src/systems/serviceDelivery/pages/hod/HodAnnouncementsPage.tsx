@@ -70,7 +70,7 @@ const HodAnnouncementsPage: React.FC = () => {
   useEffect(() => { load(); }, [load]);
 
   // Real-time: when someone publishes an announcement addressed to this HOD,
-  // the backend pushes 'new_announcement' into their private room — refresh the list live
+  // the backend pushes 'new_announcement' into their private room - refresh the list live
   useEffect(() => {
     if (!socket) return;
     const onNewAnnouncement = (payload: any) => {
@@ -94,7 +94,7 @@ const HodAnnouncementsPage: React.FC = () => {
           mains.forEach(dept => {
             flat.push({ _id: dept._id, name: dept.name });
             (dept.sub_departments || []).forEach(sub => {
-              flat.push({ _id: sub._id, name: `${dept.name} — ${sub.name}`, isUnit: true });
+              flat.push({ _id: sub._id, name: `${dept.name} - ${sub.name}`, isUnit: true });
             });
           });
           setDepartments(flat);
@@ -195,7 +195,7 @@ const HodAnnouncementsPage: React.FC = () => {
                       </div>
                       <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: COK.textMid }}>{item.message}</p>
                       <p className="text-xs mt-1.5" style={{ color: COK.gray }}>
-                        by {item.created_by?.name || '—'}{item.created_by?.title ? ` (${item.created_by.title})` : ''} · {formatDateTime(item.created_at)}
+                        by {item.created_by?.name || '-'}{item.created_by?.title ? ` (${item.created_by.title})` : ''} · {formatDateTime(item.created_at)}
                       </p>
                     </div>
                     {mine && (

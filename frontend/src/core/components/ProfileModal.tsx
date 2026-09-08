@@ -1,6 +1,6 @@
 // ProfileModal - Profile modal opened from Header profile button
 // Design matches EmployeeVisitorsTab/ServiceHistoryTab style
-// Only allows password changes — no profile editing
+// Only allows password changes - no profile editing
 // All messages and errors shown via toast (error uses error.message)
 
 import React, { useState, useEffect, useCallback } from "react";

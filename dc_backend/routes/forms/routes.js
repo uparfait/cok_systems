@@ -11,6 +11,7 @@ const delete_form_version = require("../../controllers/forms/delete_form_version
 const upload_design_file = require("../../controllers/forms/upload_design_file.js");
 const delete_design_file = require("../../controllers/forms/delete_design_file.js");
 const search_forms = require("../../controllers/forms/search_forms.js");
+const get_form_approvers = require("../../controllers/forms/get_form_approvers.js");
 const get_form_submission_stats = require("../../controllers/forms/get_form_submission_stats.js");
 const { upload_design_file: upload_design_file_middleware } = require("../../utilities/upload.js");
 
@@ -111,6 +112,20 @@ Router.get("/:form_group_id", get_form_by_id);
  *         description: A new form version was created
  */
 Router.put("/:form_group_id", update_form);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/approvers:
+ *   get:
+ *     summary: Paginated slice of the active version's approval-flow approvers (offset/limit, default 100 per page)
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Approvers fetched successfully
+ */
+Router.get("/:form_group_id/approvers", get_form_approvers);
 
 /**
  * @swagger

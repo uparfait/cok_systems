@@ -5,7 +5,12 @@ const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { has_data_field_set_changed } = require("../../jsonlogic/schema_diff.js");
 const { resolve_template_placeholders } = require("../../jsonlogic/resolve_templates.js");
 const { merge_lazy_fields } = require("../../jsonlogic/lazy_options.js");
-const { validate_approval_config, normalize_approval_config } = require("../../utilities/approval.js");
+const {
+  validate_approval_config,
+  normalize_approval_config,
+  strip_approval_config_for_response,
+  is_test_approver,
+} = require("../../utilities/approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -65,13 +70,41 @@ async function update_form(req, res) {
       return res.status(409).json(warning_response(req, "FORM_NAME_TAKEN"));
     }
 
-    const approval_validation = validate_approval_config(approval_config);
+    // A lazy config (the stripped {enabled, approvers_count, approvers_lazy}
+    // shape every form route now returns) means the caller never loaded the
+    // approvers - keep the stored ones exactly like an omitted config does,
+    // honoring only the enabled flag it carries.
+    const incoming_approval_config =
+      approval_config && approval_config.approvers_lazy === true
+        ? Object.assign({}, active_version.approval_config || { approvers: [] }, { enabled: approval_config.enabled === true })
+        : approval_config;
+
+    const approval_validation = validate_approval_config(incoming_approval_config);
     if (!approval_validation.valid) {
       return res.status(400).json(warning_response(req, "APPROVAL_CONFIG_INVALID", null, { errors: approval_validation.errors }));
     }
     // An omitted approval_config keeps whatever the active version already had.
     const next_approval_config =
-      approval_config === undefined ? active_version.approval_config || null : normalize_approval_config(approval_config);
+      incoming_approval_config === undefined ? active_version.approval_config || null : normalize_approval_config(incoming_approval_config);
+
+    // Generated test approvers are only ever removed through the explicit
+    // "clear test approvals" action - a save whose payload carries hand-made
+    // approvers but none of the generated ones (a stale tab, or a client
+    // that never paged the full list in) must not silently wipe the
+    // thousands stored on the form. A deliberately EMPTY approvers list is
+    // respected as-is: it means no approval is wanted.
+    const stored_test_approvers = ((active_version.approval_config && active_version.approval_config.approvers) || []).filter(
+      (approver) => is_test_approver(approver),
+    );
+    if (
+      stored_test_approvers.length > 0 &&
+      next_approval_config &&
+      Array.isArray(next_approval_config.approvers) &&
+      next_approval_config.approvers.length > 0 &&
+      !next_approval_config.approvers.some((approver) => is_test_approver(approver))
+    ) {
+      next_approval_config.approvers = next_approval_config.approvers.concat(stored_test_approvers);
+    }
 
     const should_bump_version = has_data_field_set_changed(active_version.schema, resolved_schema);
 
@@ -94,9 +127,11 @@ async function update_form(req, res) {
           updated_by_name: req.user.full_name,
         });
 
+    const stripped_form = Object.assign({}, form, { approval_config: strip_approval_config_for_response(form.approval_config) });
+
     return res
       .status(should_bump_version ? 201 : 200)
-      .json(success_response(req, should_bump_version ? "FORM_UPDATED_NEW_VERSION" : "FORM_UPDATED_IN_PLACE", form));
+      .json(success_response(req, should_bump_version ? "FORM_UPDATED_NEW_VERSION" : "FORM_UPDATED_IN_PLACE", stripped_form));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

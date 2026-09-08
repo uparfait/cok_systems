@@ -76,7 +76,7 @@ module.exports = async function car_check_out(req, res, next) {
     await parking_session.save();
 
     // Repeat plates accumulate one ServiceDelivery doc per visit, so the lookup
-    // must only consider visitors still in-house and prefer the latest entry —
+    // must only consider visitors still in-house and prefer the latest entry -
     // otherwise an old, already-closed record gets "closed" again while the
     // current visitor silently stays in-house.
     let pending_visitor = await ServiceDelivery.findOne({

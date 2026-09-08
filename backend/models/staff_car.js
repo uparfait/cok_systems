@@ -16,7 +16,7 @@ const staff_car_schema = new mongoose.Schema({
     // between valid_from (start of day) and valid_until (end of day); nulls = permanent
     valid_from: { type: Date, default: null },
     valid_until: { type: Date, default: null },
-    // Uploaded-file name — lets the admin find, cancel, or reschedule a whole upload at once
+    // Uploaded-file name - lets the admin find, cancel, or reschedule a whole upload at once
     batch_name: { type: String, default: null }
 },{
     versionKey: false, // removes __v automatically

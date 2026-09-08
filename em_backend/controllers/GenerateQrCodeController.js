@@ -23,7 +23,7 @@ class GenerateQrCodeController {
         });
       }
 
-      // Virtual events have no physical room — the QR simply says "Virtual"
+      // Virtual events have no physical room - the QR simply says "Virtual"
       const isVirtual = liveEvent.eventFormat === 'Virtual';
       let room = null;
 

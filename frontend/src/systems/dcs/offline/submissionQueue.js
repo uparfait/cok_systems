@@ -7,9 +7,10 @@ const RETRY_INTERVAL_MS = 60000;
 
 /**
  * Generates a client-side idempotency key so a retried submission can never
- * be stored twice on the server.
+ * be stored twice on the server. Exported so a direct (online) submit and a
+ * later queued retry of the same response can share one key.
  */
-function generate_client_submission_id() {
+export function generate_client_submission_id() {
   return `sub_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
@@ -29,24 +30,27 @@ async function write_queue(queue) {
 }
 
 /**
- * Adds a completed, ready-to-send response to the queue, always saved
- * immediately regardless of connectivity, before any network attempt is
- * made. This queue only ever holds responses the respondent has actually
- * submitted (or is retrying after a failed attempt) - draftStore.js is the
- * entirely separate store for a still-in-progress, not-yet-submitted
- * response, so the two can never end up mixed together.
+ * Adds a completed response to the queue for a later send - only ever
+ * called once a direct submit has actually failed, or while the device is
+ * offline, never as a step of a normal online submit. This queue only ever
+ * holds responses the respondent has actually submitted (or is retrying
+ * after a failed attempt) - draftStore.js is the entirely separate store
+ * for a still-in-progress, not-yet-submitted response, so the two can never
+ * end up mixed together. options.client_submission_id carries over the key
+ * an already-attempted direct submit used, so the retry can never be stored
+ * twice server-side even if the failed attempt actually landed.
  */
-export async function enqueue_submission(form_group_id, version, data) {
+export async function enqueue_submission(form_group_id, version, data, options) {
   const queue = await read_queue();
   const item = {
     id: generate_client_submission_id(),
-    client_submission_id: generate_client_submission_id(),
+    client_submission_id: (options && options.client_submission_id) || generate_client_submission_id(),
     form_group_id,
     version,
     data,
-    status: "pending",
+    status: (options && options.status) || "pending",
     attempts: 0,
-    field_errors: null,
+    field_errors: (options && options.field_errors) || null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -102,24 +106,61 @@ function is_pending_upload_value(value) {
  * leaving the remaining files - and the submission itself - untouched for
  * the next retry.
  */
-async function upload_pending_files(item, on_file_progress) {
-  const pending_entries = Object.entries(item.data || {}).filter(([, value]) => is_pending_upload_value(value));
-  if (pending_entries.length === 0) return item.data;
+async function upload_pending_files_for_data(form_group_id, version, data, on_file_progress, on_data_change) {
+  const pending_entries = Object.entries(data || {}).filter(([, value]) => is_pending_upload_value(value));
+  if (pending_entries.length === 0) return data;
 
-  const next_data = Object.assign({}, item.data);
+  const next_data = Object.assign({}, data);
   for (const [field_id, value] of pending_entries) {
-    const uploaded = await upload_file_with_progress(item.form_group_id, {
-      version: item.version,
+    const uploaded = await upload_file_with_progress(form_group_id, {
+      version,
       field_id,
       file: value.pending_file,
       onProgress: (percent) => {
-        if (on_file_progress) on_file_progress({ item_id: item.id, field_id, percent });
+        if (on_file_progress) on_file_progress({ field_id, percent });
       },
     });
     next_data[field_id] = { name: uploaded.name, type: uploaded.type, size: uploaded.size, url: uploaded.url };
-    await update_queue_item(item.id, { data: next_data });
+    if (on_data_change) await on_data_change(Object.assign({}, next_data));
   }
   return next_data;
+}
+
+async function upload_pending_files(item, on_file_progress) {
+  return upload_pending_files_for_data(
+    item.form_group_id,
+    item.version,
+    item.data,
+    on_file_progress ? ({ field_id, percent }) => on_file_progress({ item_id: item.id, field_id, percent }) : null,
+    (next_data) => update_queue_item(item.id, { data: next_data }),
+  );
+}
+
+/**
+ * Submits one response straight to the server, without ever touching the
+ * queue - the normal path for an online respondent. Any answer still
+ * holding a local file blob is uploaded first, exactly as the queued path
+ * does. On failure the error is rethrown with partial_data attached: the
+ * response's data with every file that DID finish uploading already
+ * replaced by its real URL, so the caller can queue that instead of the
+ * original and a later retry never re-uploads those files.
+ */
+export async function submit_direct(form_group_id, version, data, client_submission_id, on_file_progress) {
+  let latest_data = data;
+  try {
+    latest_data = await upload_pending_files_for_data(form_group_id, version, data, on_file_progress, (next_data) => {
+      latest_data = next_data;
+    });
+    const response = await submit_response(form_group_id, {
+      version,
+      data: latest_data,
+      client_submission_id,
+    });
+    return { response, data: latest_data };
+  } catch (error) {
+    if (error && typeof error === "object") error.partial_data = latest_data;
+    throw error;
+  }
 }
 
 /**

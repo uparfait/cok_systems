@@ -256,7 +256,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                 <option value="">Select a role</option>
                 {roles.map(r => <option key={r._id || r.role_name} value={r.role_name}>{r.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</option>)}
               </select>
-              {roles.length === 0 && <p className="text-xs text-gray-500 mt-1">No roles available yet — create roles under Roles Management first.</p>}
+              {roles.length === 0 && <p className="text-xs text-gray-500 mt-1">No roles available yet - create roles under Roles Management first.</p>}
             </div>
           </div>
 

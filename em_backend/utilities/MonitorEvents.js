@@ -49,7 +49,7 @@ class MonitorEvents {
 
         // Check if this occurrence already exists in UpcomingEvents.
         // Generated instances use eventSpecialId = `${parent}_${start.getTime()}`,
-        // so we must match the exact generated id — not the parent id — or the
+        // so we must match the exact generated id - not the parent id - or the
         // monitor would re-insert it every cycle and hit a duplicate-key error.
         const generatedEventSpecialId = `${recurring.eventSpecialId}_${start.getTime()}`;
         const escapedGeneratedId = generatedEventSpecialId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -58,7 +58,7 @@ class MonitorEvents {
             eventSpecialId: generatedEventSpecialId
           }).session(session),
           // A cancelled occurrence leaves a PastEvent stamped
-          // `${generatedId}_cancelled_<ts>` — never resurrect it.
+          // `${generatedId}_cancelled_<ts>` - never resurrect it.
           PastEvent.findOne({
             eventSpecialId: { $regex: `^${escapedGeneratedId}_cancelled_` },
             isCancelled: true,

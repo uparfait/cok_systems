@@ -29,7 +29,7 @@ const emergency_car_schema = new mongoose.Schema({
     },
     is_active: { type: Boolean, default: true },
     registered_by: { type: String },
-    // Uploaded-file name — lets the admin find, cancel, or reschedule a whole upload at once
+    // Uploaded-file name - lets the admin find, cancel, or reschedule a whole upload at once
     batch_name: { type: String, default: null }
 },{
     versionKey: false, // removes __v automatically

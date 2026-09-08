@@ -114,9 +114,9 @@ const HodAuditPage: React.FC = () => {
       />
 
       <div className="flex flex-wrap gap-3 mb-4">
-        <HodStatCard label="Total Activities" value={stats?.total_logs ?? '—'} hint={`last ${stats?.period_days || 30} days`} />
-        <HodStatCard label="Top Action" value={topAction ? `${topAction._id}` : '—'} accent={COK.pending} hint={topAction ? `${topAction.count} times` : ''} />
-        <HodStatCard label="Active Members" value={stats?.top_users?.length ?? '—'} accent={COK.success} />
+        <HodStatCard label="Total Activities" value={stats?.total_logs ?? '-'} hint={`last ${stats?.period_days || 30} days`} />
+        <HodStatCard label="Top Action" value={topAction ? `${topAction._id}` : '-'} accent={COK.pending} hint={topAction ? `${topAction.count} times` : ''} />
+        <HodStatCard label="Active Members" value={stats?.top_users?.length ?? '-'} accent={COK.success} />
         <HodStatCard label="Errors" value={errorCount} accent={errorCount > 0 ? COK.danger : COK.success} />
       </div>
 
@@ -176,11 +176,11 @@ const HodAuditPage: React.FC = () => {
                       <HodChip label={log.action} color={ACTION_COLORS[log.action] || COK.primary} />
                     </td>
                     <td className="px-3 py-2.5">
-                      <p className="text-sm font-semibold" style={{ color: COK.textDark, fontFamily: FONT }}>{log.user_name || '—'}</p>
+                      <p className="text-sm font-semibold" style={{ color: COK.textDark, fontFamily: FONT }}>{log.user_name || '-'}</p>
                       <p className="text-xs" style={{ color: COK.gray }}>{log.user_email || ''}</p>
                     </td>
-                    <td className="px-3 py-2.5 text-sm" style={{ color: COK.textMid }}>{log.resource || '—'}</td>
-                    <td className="px-3 py-2.5 text-sm max-w-[320px] truncate" style={{ color: COK.textMid }} title={log.description}>{log.description || '—'}</td>
+                    <td className="px-3 py-2.5 text-sm" style={{ color: COK.textMid }}>{log.resource || '-'}</td>
+                    <td className="px-3 py-2.5 text-sm max-w-[320px] truncate" style={{ color: COK.textMid }} title={log.description}>{log.description || '-'}</td>
                   </tr>
                 ))}
               </tbody>

@@ -119,7 +119,7 @@ const HodKpisPage: React.FC = () => {
         }
       />
 
-      {/* Period filter — one row above the charts */}
+      {/* Period filter - one row above the charts */}
       <HodCard className="mb-4">
         <div className="flex flex-wrap items-center gap-3 px-4 py-3">
           <span className="text-xs font-semibold uppercase" style={{ color: COK.textMid, fontFamily: FONT }}>Period</span>

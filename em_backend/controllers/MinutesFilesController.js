@@ -157,6 +157,90 @@ class MinutesFilesController {
     }
   }
 
+  static updateMiddleware(req, res, next) {
+    upload.single('file')(req, res, (err) => {
+      if (err) {
+        const message = err.code === 'LIMIT_FILE_SIZE'
+          ? 'File too large (max 40TB per file)'
+          : err.message || 'Upload failed';
+        return res.status(400).json({ success: false, message });
+      }
+      next();
+    });
+  }
+
+  // Replaces the stored content of one attachment (edited in the minutes
+  // editor) while keeping its identity: same id, name and upload date
+  static async updateFile(req, res) {
+    const uploadedPath = req.file?.path;
+    const cleanupUploaded = () => {
+      if (uploadedPath) { try { fs.unlinkSync(uploadedPath); } catch { /* already gone */ } }
+    };
+
+    try {
+      const { eventSpecialId, fileId } = req.params;
+      const safeId = sanitizeId(eventSpecialId);
+
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file content was received' });
+      }
+
+      const postMeeting = await PostMeeting.findOne({ eventSpecialId });
+      if (!postMeeting) {
+        cleanupUploaded();
+        return res.status(404).json({ success: false, message: 'No minutes found for this event' });
+      }
+
+      const { files, legacyContent } = parsePayload(postMeeting.meetingMinutes);
+      const target = files.find((f) => f.id === fileId);
+      if (!target) {
+        cleanupUploaded();
+        return res.status(404).json({ success: false, message: 'File not found' });
+      }
+
+      // Remove the previous stored copy from disk
+      if (target.storedName) {
+        const oldPath = path.join(UPLOAD_ROOT, safeId, path.basename(target.storedName));
+        try {
+          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        } catch (err) {
+          console.error('Could not delete previous stored file:', err);
+        }
+      }
+
+      const nextFiles = files.map((f) => {
+        if (f.id !== fileId) return f;
+        const updated = {
+          ...f,
+          type: req.file.mimetype || f.type,
+          size: req.file.size,
+          storedName: req.file.filename,
+          url: `${config.api.basePath}/uploads/minutes/${safeId}/${req.file.filename}`,
+          updatedAt: new Date().toISOString(),
+        };
+        delete updated.dataUrl;
+        return updated;
+      });
+
+      postMeeting.meetingMinutes = serializePayload(nextFiles, legacyContent);
+      await postMeeting.save();
+
+      return res.status(200).json({
+        success: true,
+        message: `"${target.name}" was updated successfully`,
+        data: { files: nextFiles, legacyContent },
+      });
+    } catch (error) {
+      console.error('Error updating minutes file:', error);
+      cleanupUploaded();
+      return res.status(500).json({
+        success: false,
+        message: 'Error updating file',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      });
+    }
+  }
+
   static async deleteFile(req, res) {
     try {
       const { eventSpecialId, fileId } = req.params;

@@ -21,17 +21,17 @@ export const MODAL_SHADOW = '0 20px 60px rgba(0,0,0,0.25)';
 export const FONT = "'Montserrat', sans-serif";
 
 export const formatDateTime = (value?: string | Date | null): string => {
-  if (!value) return '—';
+  if (!value) return '-';
   const d = new Date(value);
-  if (isNaN(d.getTime())) return '—';
+  if (isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
     ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 };
 
 export const formatDate = (value?: string | Date | null): string => {
-  if (!value) return '—';
+  if (!value) return '-';
   const d = new Date(value);
-  if (isNaN(d.getTime())) return '—';
+  if (isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 

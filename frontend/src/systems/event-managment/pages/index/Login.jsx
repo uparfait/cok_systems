@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 
-/* 10s total cycle — visible only in the first half, hidden the second half */
+/* 10s total cycle - visible only in the first half, hidden the second half */
 const slideUp = keyframes`
   0%   { transform: translateY(60px);  opacity: 0; }
   8%   { transform: translateY(0);     opacity: 1; }

@@ -232,7 +232,7 @@ export default function InvitePage() {
         // Store invited emails so user can see and remove them
         setInvitedList(response.data.data.invited || []);
         showSuccess(response.data?.message || "Invites sent successfully");
-        // Do NOT clear inputs — user can send more or remove unwanted
+        // Do NOT clear inputs - user can send more or remove unwanted
       } else {
         showError(response.data?.message || "Failed to send invites");
       }
@@ -516,7 +516,7 @@ export default function InvitePage() {
           )}
         </div>
 
-        {/* Summary & Submit — always visible when file or manual emails exist */}
+        {/* Summary & Submit - always visible when file or manual emails exist */}
         <div className="p-4 sm:p-5" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}` }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2" style={sectionTitleStyle}>
@@ -540,7 +540,7 @@ export default function InvitePage() {
             </div>
           )}
 
-          {/* Submit button — always show when file or manual emails exist, even after previous submit */}
+          {/* Submit button - always show when file or manual emails exist, even after previous submit */}
           {(manualEmails.length > 0 || selectedFile) && (
             <button
               onClick={handleSubmit}

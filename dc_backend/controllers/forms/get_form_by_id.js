@@ -2,6 +2,7 @@ const forms_model = require("../../models/forms_model.js");
 const submissions_model = require("../../models/submissions_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { strip_lazy_options_from_fields } = require("../../jsonlogic/lazy_options.js");
+const { strip_approval_config_for_response } = require("../../utilities/approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -41,6 +42,9 @@ async function get_form_by_id(req, res) {
       created_at: origin_created_at || form.created_at,
       total_submissions,
       schema: Object.assign({}, form.schema, { fields: strip_lazy_options_from_fields(form.schema.fields) }),
+      // Approvers can number in the thousands (generated test pools) - the
+      // approval page fetches them separately, page by page.
+      approval_config: strip_approval_config_for_response(form.approval_config),
     });
 
     return res.status(200).json(success_response(req, "FORM_FETCHED", enriched_form));

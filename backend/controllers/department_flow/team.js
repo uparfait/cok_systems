@@ -49,7 +49,7 @@ const getTeamMembers = async (req, res, next) => {
         const total_count = await User.countDocuments(filter);
         const total_active = await User.countDocuments({ ...filter, is_active: true });
 
-        // department_unit is a plain string id — resolve unit names manually
+        // department_unit is a plain string id - resolve unit names manually
         const unitIds = [...new Set(members.map((m) => m.department_unit).filter(Boolean).map(String))];
         const unitMap = {};
         if (unitIds.length > 0) {

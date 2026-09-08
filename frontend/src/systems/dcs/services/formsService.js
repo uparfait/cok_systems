@@ -39,6 +39,15 @@ export function get_form_versions(form_group_id) {
 }
 
 /**
+ * One page of the active version's approval-flow approvers - every
+ * form-returning route strips the (possibly huge) approvers array, so the
+ * approval page assembles it through this endpoint, 100 at a time.
+ */
+export function get_form_approvers(form_group_id, offset, limit) {
+  return dcs_request(`/forms/${form_group_id}/approvers?offset=${offset || 0}&limit=${limit || 100}`, "GET");
+}
+
+/**
  * Marks one version as the active version.
  */
 export function set_active_version(form_group_id, version) {

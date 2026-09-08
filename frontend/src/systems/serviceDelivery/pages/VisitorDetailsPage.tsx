@@ -418,7 +418,7 @@ const VisitorDetailsPage: React.FC = () => {
   };
 
   // ============================================================
-  //  Timer helper — computes elapsed HH:MM:SS from elapsed seconds
+  //  Timer helper - computes elapsed HH:MM:SS from elapsed seconds
   //  If fromElapsed is given, use it; otherwise derive from startTime
   // ============================================================
   const getElapsedParts = (startTime: string, fromElapsed?: number) => {
@@ -696,7 +696,7 @@ const VisitorDetailsPage: React.FC = () => {
               <h1 className="text-lg" style={{ fontFamily: fontHeading, fontWeight: 700, color: PRIMARY }}>Visitor Details</h1>
 
 
-              {/* Header — In-Progress live counter pill */}
+              {/* Header - In-Progress live counter pill */}
               {(() => {
                 if (!visitor) return null;
                 const currentUser = user as any;
@@ -709,7 +709,7 @@ const VisitorDetailsPage: React.FC = () => {
                 const { h, m, s } = getElapsedParts(serviceStartTimeVal, liveElapsed);
                 return (
                   <span className="inline-flex items-center gap-2 px-3.5 py-1.5 text-[12px] font-bold tracking-wide" style={{ backgroundColor: 'rgba(76,175,80,0.12)', border: `1px solid ${SUCCESS}`, color: SUCCESS, borderRadius: 0 }}>
-                    <FiClock className="w-5 h-5 animate-pulse" style={{ color: SUCCESS }} /> Service In Progress — {h}:{m}:{s}
+                    <FiClock className="w-5 h-5 animate-pulse" style={{ color: SUCCESS }} /> Service In Progress - {h}:{m}:{s}
                   </span>
                 );
               })()}
@@ -1170,7 +1170,7 @@ const VisitorDetailsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer Actions — dual mode: serve buttons (view) / save button (edit) */}
+        {/* Footer Actions - dual mode: serve buttons (view) / save button (edit) */}
         <div className="p-6" style={{ backgroundColor: WHITE, borderTop: `1px solid ${BORDER}` }}>
           {isEditMode ? (
             <div className="flex justify-end gap-3">
@@ -1336,7 +1336,7 @@ const VisitorDetailsPage: React.FC = () => {
                         onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
                         onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                       >
-                        <option value="">No specific unit — assign to department only</option>
+                        <option value="">No specific unit - assign to department only</option>
                         {units.map((unit) => (
                           <option key={unit.id} value={unit.id}>
                             {unit.name} ({unit.staffAvailable} staff)

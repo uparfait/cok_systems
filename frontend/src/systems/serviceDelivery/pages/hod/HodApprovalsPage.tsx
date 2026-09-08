@@ -125,7 +125,7 @@ const HodApprovalsPage: React.FC = () => {
     <div className="p-4">
       <HodPageHeader
         title="Approvals"
-        subtitle="Approval requests addressed to you — only items where you are the destination appear here"
+        subtitle="Approval requests addressed to you - only items where you are the destination appear here"
         actions={
           <button className="cok-btn-outlined px-3 py-2 text-xs flex items-center gap-1" style={{ borderRadius: 0 }} onClick={load}>
             <FiRefreshCw /> Refresh
@@ -157,7 +157,7 @@ const HodApprovalsPage: React.FC = () => {
               <tbody className="divide-y" style={{ borderColor: '#F3F4F6' }}>
                 {actions.map(action => {
                   const status = action.currentStatus?.status || 'Pending';
-                  const submitter = action.createdBy?.name || action.createdBy?.email || '—';
+                  const submitter = action.createdBy?.name || action.createdBy?.email || '-';
                   return (
                     <tr key={action._id} className="hover:bg-gray-50">
                       <td className="px-3 py-2.5">
@@ -197,7 +197,7 @@ const HodApprovalsPage: React.FC = () => {
                           </div>
                         ) : (
                           <span className="text-xs" style={{ color: COK.gray }}>
-                            {action.statusHistory?.length ? formatDateTime(action.statusHistory[action.statusHistory.length - 1]?.changedAt) : '—'}
+                            {action.statusHistory?.length ? formatDateTime(action.statusHistory[action.statusHistory.length - 1]?.changedAt) : '-'}
                           </span>
                         )}
                       </td>

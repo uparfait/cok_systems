@@ -88,12 +88,12 @@ export function cokBtnStyle(variant = 'primary', disabled = false) {
 }
 
 export function fmt(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export function fmtFull(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 

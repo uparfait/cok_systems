@@ -24,7 +24,7 @@ module.exports = async function create_multiple_employees(req, res, next) {
         const validRoleNames = allRoles.map(role => role.role_name);
         const validDepartmentNames = allDepartments.map(dept => dept.department_name);
 
-        // Separate main departments and units — supports both the new
+        // Separate main departments and units - supports both the new
         // (is_unit + parent_department) and legacy (sub_department_mng) formats
         const isUnitDept = (d) => {
             if (d.is_unit === true) return true;

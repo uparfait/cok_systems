@@ -49,7 +49,7 @@ interface QueueSummary {
   }>;
 }
 
-// departmentScope: HOD mode — the backend already scopes the queue to the department(s)
+// departmentScope: HOD mode - the backend already scopes the queue to the department(s)
 // the user leads; rows are matched by their first assignment and actions are hidden
 const DepartmentQueueTab: React.FC<{ departmentScope?: boolean }> = ({ departmentScope = false }) => {
   const { user } = useAuth();

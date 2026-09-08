@@ -24,9 +24,15 @@ async function get_public_form(req, res) {
       return res.status(409).json(warning_response(req, "FORM_PUBLIC_NO_ACTIVE_VERSION"));
     }
 
-    const stripped_form = Object.assign({}, active_form, {
+    // A respondent needs the schema and the version identity - never the
+    // approval flow (approver emails live there) nor the author metadata.
+    const stripped_form = {
+      form_group_id: active_form.form_group_id,
+      form_name: active_form.form_name,
+      version: active_form.version,
+      is_active: active_form.is_active,
       schema: Object.assign({}, active_form.schema, { fields: strip_lazy_options_from_fields(active_form.schema.fields) }),
-    });
+    };
 
     return res.status(200).json(success_response(req, "FORM_FETCHED", stripped_form));
   } catch (error) {

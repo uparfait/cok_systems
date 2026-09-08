@@ -44,12 +44,12 @@ const attendanceSchema = new mongoose.Schema({
     default: Date.now
   },
   attendeeSignature: {
-    type: String, // drawn signature as "data:image/png;base64,..." — optional
+    type: String, // drawn signature as "data:image/png;base64,..." - optional
     required: false,
     maxlength: [200000, 'Signature image too large']
   },
   digitalCertificate: {
-    type: String, // uploaded digital certificate file URL — optional
+    type: String, // uploaded digital certificate file URL - optional
     required: false,
     maxlength: [1000, 'Certificate URL too large']
   },

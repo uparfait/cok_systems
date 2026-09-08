@@ -16,7 +16,7 @@ export default function TaskInfoCard({ label, color, person, extra }) {
           {person?.name?.[0]?.toUpperCase() || <FiUser style={{ width: '16px', height: '16px' }} />}
         </div>
         <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <p style={{ fontSize: '14px', fontWeight: 700, color: '#333333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{person?.name || '—'}</p>
+          <p style={{ fontSize: '14px', fontWeight: 700, color: '#333333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{person?.name || '-'}</p>
           {extra}
           {person?.role && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#6B7280' }}>

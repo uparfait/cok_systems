@@ -48,14 +48,14 @@ function triggerDownload(blob, filename) {
 }
 
 function formatTime(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
   return d.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })
     + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 // Drawn signatures live in attendeeSignature (base64); uploaded ones are stored
-// in digitalCertificate as a served file URL — display whichever exists
+// in digitalCertificate as a served file URL - display whichever exists
 const IMAGE_FILE_REGEX = /\.(png|jpe?g|gif|webp)(\?.*)?$/i;
 
 function signatureImageSrc(a) {

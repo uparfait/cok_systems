@@ -4,7 +4,7 @@ module.exports = async function search_departments(req, res, next) {
   try {
     let { query = "", limit = 0, page = 1 } = req.query || {};
 
-    // limit=0 (the default) returns every match — department lists are small
+    // limit=0 (the default) returns every match - department lists are small
     const limit_val = Math.max(0, parseInt(limit) || 0);
     const skip_val = limit_val > 0 ? (parseInt(page) - 1) * limit_val : 0;
 

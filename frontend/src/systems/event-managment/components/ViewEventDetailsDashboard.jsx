@@ -321,7 +321,7 @@ export default function ViewEventDetailsDashboard() {
               </div>
               <div className="ml-auto shrink-0">
                 <span className="inline-flex items-center justify-center w-8 h-8 text-[#056daa] text-sm font-bold group-hover:bg-[#056daa] group-hover:text-white transition-all" style={{ backgroundColor: PRIMARY_TINT, fontFamily: fontHeading }}>
-                  {attendeeCount !== null ? attendeeCount : "—"}
+                  {attendeeCount !== null ? attendeeCount : "-"}
                 </span>
               </div>
             </button>

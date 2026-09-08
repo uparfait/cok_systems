@@ -52,7 +52,7 @@ interface AttendanceRecord {
 }
 
 // Drawn signatures live in attendeeSignature (base64); uploaded ones are stored
-// in digitalCertificate as a served file URL — display whichever exists
+// in digitalCertificate as a served file URL - display whichever exists
 function signatureImageSrc(a: AttendanceRecord): string | null {
   if (a.attendeeSignature) return a.attendeeSignature;
   if (a.digitalCertificate && /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(a.digitalCertificate)) return a.digitalCertificate;
@@ -73,7 +73,7 @@ function formatTimeRange(startIso?: string, endIso?: string): string {
 }
 
 function formatSubmittedAt(iso?: string): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
   return d.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })
     + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -81,7 +81,7 @@ function formatSubmittedAt(iso?: string): string {
 
 // Detail card following the CoK design rules: white square card with soft shadow,
 // gray uppercase label, bold neutral-dark value, and a uniform primary-blue icon
-// in a tinted square at the top-right — no per-card accent colors
+// in a tinted square at the top-right - no per-card accent colors
 function DetailCard({
   label,
   value,
@@ -175,7 +175,7 @@ export default function MayorEventDetailsOverlay({
     <>
       <div>
         {new Date(start).toLocaleDateString()}
-        {!sameDay && <> — {new Date(end).toLocaleDateString()}</>}
+        {!sameDay && <> - {new Date(end).toLocaleDateString()}</>}
       </div>
       <div className="text-[12px] font-medium mt-0.5" style={{ color: '#555555' }}>{formatTimeRange(start, end)}</div>
     </>
@@ -195,7 +195,7 @@ export default function MayorEventDetailsOverlay({
         aria-modal="true"
         aria-label="Event details"
       >
-        {/* Header — solid CoK-blue bar with the meeting/event name, status chips, and actions */}
+        {/* Header - solid CoK-blue bar with the meeting/event name, status chips, and actions */}
         <div
           className="flex items-start justify-between gap-3 p-5 sticky top-0 z-10"
           style={{ backgroundColor: COK.primary }}
@@ -247,7 +247,7 @@ export default function MayorEventDetailsOverlay({
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Detail cards — uniform CoK styling, primary icons only */}
+          {/* Detail cards - uniform CoK styling, primary icons only */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <DetailCard label="Type" value={event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'} icon={FiTag} />
             <DetailCard label="Mode" value={event.eventType || 'N/A'} icon={FiLayers} />
@@ -257,7 +257,7 @@ export default function MayorEventDetailsOverlay({
             <DetailCard label="Date & Time" value={timeValue} icon={FiClock} />
           </div>
 
-          {/* Organizer — white card with avatar circle, like the employee visitor rows */}
+          {/* Organizer - white card with avatar circle, like the employee visitor rows */}
           <div className="bg-white p-5" style={{ boxShadow: CARD_SHADOW }}>
             {/* Section header in the receptionist style: round tinted icon chip + small semibold title */}
             <div className="flex items-center gap-2 mb-3">
@@ -324,7 +324,7 @@ export default function MayorEventDetailsOverlay({
             </div>
           )}
 
-          {/* Attendance report — blue summary header panel like the employee Queue Summary */}
+          {/* Attendance report - blue summary header panel like the employee Queue Summary */}
           {canViewAttendance && showAttendance && (
             <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
               <div className="flex items-center justify-between p-4 text-white" style={{ backgroundColor: COK.primary }}>
@@ -379,8 +379,8 @@ export default function MayorEventDetailsOverlay({
                         <tr key={a._id} style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : COK.neutralLight }}>
                           <td className="px-4 py-3 text-xs font-mono" style={{ color: '#888888' }}>{i + 1}</td>
                           <td className="px-4 py-3 font-medium" style={{ fontFamily: fontHeading, color: COK.neutralDark }}>{a.attendeeFullName}</td>
-                          <td className="px-4 py-3" style={{ fontFamily: COK.bodyFont, color: '#555555' }}>{a.attendeeInstitution || '—'}</td>
-                          <td className="px-4 py-3" style={{ fontFamily: COK.bodyFont, color: '#555555' }}>{a.attendeePosition || '—'}</td>
+                          <td className="px-4 py-3" style={{ fontFamily: COK.bodyFont, color: '#555555' }}>{a.attendeeInstitution || '-'}</td>
+                          <td className="px-4 py-3" style={{ fontFamily: COK.bodyFont, color: '#555555' }}>{a.attendeePosition || '-'}</td>
                           <td className="px-4 py-3">
                             {signatureImageSrc(a) ? (
                               <img src={signatureImageSrc(a) as string} alt={`Signature of ${a.attendeeFullName}`} className="h-8 max-w-[110px] object-contain" />
@@ -389,7 +389,7 @@ export default function MayorEventDetailsOverlay({
                                 View file
                               </a>
                             ) : (
-                              <span style={{ color: '#CCCCCC' }}>—</span>
+                              <span style={{ color: '#CCCCCC' }}>-</span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: '#888888' }}>{formatSubmittedAt(a.createdAt)}</td>

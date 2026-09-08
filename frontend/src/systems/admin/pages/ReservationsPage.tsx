@@ -11,7 +11,7 @@ import { VisitorReservationForm, StaffBookingForm } from './sub/ReservationForms
 
 interface Reservation { id: string; visitor_name: string; plate_number: string; telephone: string; id_type?: string; id_number?: string; expected_arrival: string; type: 'visitor' | 'staff'; status: 'active' | 'expired' | 'cancelled' | 'checked_in' | 'used'; valid_from?: string | null; valid_until?: string | null; created_at?: string; }
 
-// City of Kigali (CoK) institutional design constants — same set as the receptionist dashboard
+// City of Kigali (CoK) institutional design constants - same set as the receptionist dashboard
 const PRIMARY = '#056daa';
 const PRIMARY_HOVER = '#045d94';
 const ACCENT_DARK_BLUE = '#2980B9';
@@ -43,7 +43,7 @@ const isCancellable = (r: Reservation) =>
     ? (!r.valid_until || new Date(r.valid_until) >= new Date())
     : false;
 
-// One uploaded file = one batch, named after the file — cancel/reschedule it as a whole
+// One uploaded file = one batch, named after the file - cancel/reschedule it as a whole
 interface ReservationBatch { id: string; type: 'visitor' | 'staff'; batch_name: string; uploaded_at?: string | null; total: number; active: number; used: number; cancelled: number; start_date?: string | null; end_date?: string | null; }
 interface ReservationFormData { plate_number: string; driver_name: string; id_type: string; id_number: string; telephone_number: string; slot_number: string; arrival_time?: string; }
 interface StaffBookingData { staff_name: string; phone: string; plate_number: string; department_name?: string; owner_title?: string; id_type?: string; identification?: string; }
@@ -56,7 +56,7 @@ const ReservationsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-  // Search box draft — applied on Enter or the Search button (clearing applies immediately)
+  // Search box draft - applied on Enter or the Search button (clearing applies immediately)
   const [draftSearch, setDraftSearch] = useState('');
 
   // Page shows one view at a time: forms (default), the reservation list, uploaded batches, or history
@@ -92,7 +92,7 @@ const ReservationsPage: React.FC = () => {
   const [reservationToDelete, setReservationToDelete] = useState<Reservation | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Multi-select for bulk cancel/delete — keyed by `${type}:${id}` since visitor and staff ids come from different collections
+  // Multi-select for bulk cancel/delete - keyed by `${type}:${id}` since visitor and staff ids come from different collections
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<'cancel' | 'delete' | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -276,7 +276,7 @@ const ReservationsPage: React.FC = () => {
     catch (error) { showError(error.message); } finally { setShowCancelModal(false); setReservationToCancel(null); }
   };
 
-  // Permanent single-row delete — reuses the bulk-delete endpoint with one item
+  // Permanent single-row delete - reuses the bulk-delete endpoint with one item
   const confirmDelete = async () => {
     if (!reservationToDelete) return;
     setDeleteLoading(true);
@@ -315,7 +315,7 @@ const ReservationsPage: React.FC = () => {
   const totalPages = Math.ceil(filteredReservations.length / itemsPerPage);
   const paginated = filteredReservations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // History keeps every status (cancelled/expired/used included) — the list view hides cancelled
+  // History keeps every status (cancelled/expired/used included) - the list view hides cancelled
   const filteredHistory = useMemo(() => {
     const q = historySearch.toLowerCase();
     return reservations.filter(r =>
@@ -348,11 +348,11 @@ const ReservationsPage: React.FC = () => {
             <p className="text-xs mt-0.5 text-[#555555]">
               {view === 'management' ? 'Manage visitor and staff parking slot allocations'
               : view === 'list' ? 'View and manage all parking reservations'
-              : view === 'history' ? 'Full record of every reservation — including cancelled and used'
+              : view === 'history' ? 'Full record of every reservation - including cancelled and used'
               : 'Cancel or reschedule a whole uploaded file at once'}
             </p>
           </div>
-          {/* View switch: forms (default) or the reservation list — CoK square uppercase buttons */}
+          {/* View switch: forms (default) or the reservation list - CoK square uppercase buttons */}
           <div className="flex gap-3 self-start sm:self-auto">
             <button
               onClick={() => setView('management')}
@@ -417,7 +417,7 @@ const ReservationsPage: React.FC = () => {
             >
               <FiClock className="w-4 h-4" /> History
             </button>
-            {/* Deletes the checked rows — prompts to tick some first when nothing is selected */}
+            {/* Deletes the checked rows - prompts to tick some first when nothing is selected */}
             <button
               onClick={() => { if (selectedKeys.size === 0) { showError('Tick the reservations you want to delete first'); return; } setBulkAction('delete'); }}
               className="flex items-center gap-2 h-11 px-4 bg-transparent text-[13px] font-semibold uppercase transition-colors hover:bg-[rgba(231,76,60,0.08)] flex-shrink-0"
@@ -428,7 +428,7 @@ const ReservationsPage: React.FC = () => {
           </div>
           {selectedKeys.size > 0 && (() => {
             // "Cancel Selected" only appears when EVERY selected reservation can still be
-            // cancelled — checked-in ones qualify only while their End Date has days left
+            // cancelled - checked-in ones qualify only while their End Date has days left
             const selectedRows = reservations.filter(r => selectedKeys.has(keyOf(r)));
             const canCancelSelection = selectedRows.length > 0 && selectedRows.every(isCancellable);
             return (
@@ -446,7 +446,7 @@ const ReservationsPage: React.FC = () => {
           })()}
           <div className="overflow-x-auto px-6">
             <table className="w-full min-w-[720px]">
-              {/* Solid CoK-blue header bar — same as the receptionist Assigned Visitors table */}
+              {/* Solid CoK-blue header bar - same as the receptionist Assigned Visitors table */}
               <thead className="cok-bg-primary sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th className="text-left py-3 px-3 w-10">
@@ -481,11 +481,11 @@ const ReservationsPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-3 text-[#333] text-[13px] font-mono font-semibold">{r.plate_number}</td>
-                    <td className="py-3 text-[#555555] text-[13px]">{r.telephone || '—'}</td>
+                    <td className="py-3 text-[#555555] text-[13px]">{r.telephone || '-'}</td>
                     <td className="py-3 text-[#555555] text-[13px] font-medium whitespace-nowrap">
                       {(r.valid_from || r.valid_until)
                         ? `${r.valid_from ? new Date(r.valid_from).toLocaleDateString() : 'Any'} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString() : 'No expiry'}`
-                        : '—'}
+                        : '-'}
                     </td>
                     <td className="py-3">
                       <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide" style={{ backgroundColor: r.type === 'staff' ? 'rgba(41,128,185,0.12)' : 'rgba(76,175,80,0.12)', color: r.type === 'staff' ? ACCENT_DARK_BLUE : '#388E3C' }}>
@@ -502,7 +502,7 @@ const ReservationsPage: React.FC = () => {
                         {r.status === 'cancelled' && (
                           <button onClick={async () => { const d = await reservationService.reactivateReservation(r.id); if (d.success) { showSuccess('Reactivated'); fetchReservations(); } }} title="Reactivate" className="p-1.5 transition-colors hover:bg-[rgba(76,175,80,0.1)]" style={{ color: '#388E3C', borderRadius: 0 }}><FiCheck className="w-4 h-4" /></button>
                         )}
-                        {/* Reschedule replaces this reservation's dates — hidden once the vehicle arrived */}
+                        {/* Reschedule replaces this reservation's dates - hidden once the vehicle arrived */}
                         {r.status !== 'used' && r.status !== 'checked_in' && (
                           <button onClick={() => { setReservationToReschedule(r); setResStart(''); setResEnd(''); }} title="Reschedule reservation" className="p-1.5 transition-colors hover:bg-[rgba(5,109,170,0.1)]" style={{ color: PRIMARY, borderRadius: 0 }}><FiCalendar className="w-4 h-4" /></button>
                         )}
@@ -575,14 +575,14 @@ const ReservationsPage: React.FC = () => {
                         {b.type}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-[#555555] text-[13px]">{b.uploaded_at ? new Date(b.uploaded_at).toLocaleDateString() : '—'}</td>
+                    <td className="py-3 px-3 text-[#555555] text-[13px]">{b.uploaded_at ? new Date(b.uploaded_at).toLocaleDateString() : '-'}</td>
                     <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">
                       {b.total} total · <span style={{ color: '#388E3C' }}>{b.active} active</span> · {b.used} used · <span style={{ color: DANGER }}>{b.cancelled} cancelled</span>
                     </td>
                     <td className="py-3 px-3 text-[#555555] text-[13px] font-medium whitespace-nowrap">
                       {(b.start_date || b.end_date)
                         ? `${b.start_date ? new Date(b.start_date).toLocaleDateString() : 'Any'} → ${b.end_date ? new Date(b.end_date).toLocaleDateString() : 'No expiry'}`
-                        : '—'}
+                        : '-'}
                     </td>
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-2">
@@ -691,11 +691,11 @@ const ReservationsPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-3 px-3 text-[#333] text-[13px] font-mono font-semibold">{r.plate_number}</td>
-                    <td className="py-3 px-3 text-[#555555] text-[13px]">{r.telephone || '—'}</td>
+                    <td className="py-3 px-3 text-[#555555] text-[13px]">{r.telephone || '-'}</td>
                     <td className="py-3 px-3 text-[#555555] text-[13px] font-medium whitespace-nowrap">
                       {(r.valid_from || r.valid_until)
                         ? `${r.valid_from ? new Date(r.valid_from).toLocaleDateString() : 'Any'} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString() : 'No expiry'}`
-                        : '—'}
+                        : '-'}
                     </td>
                     <td className="py-3 px-3">
                       <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide" style={{ backgroundColor: r.type === 'staff' ? 'rgba(41,128,185,0.12)' : 'rgba(76,175,80,0.12)', color: r.type === 'staff' ? ACCENT_DARK_BLUE : '#388E3C' }}>
@@ -707,7 +707,7 @@ const ReservationsPage: React.FC = () => {
                         {STATUS_CHIP[r.status]?.label || r.status}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td>
+                    <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{r.created_at ? new Date(r.created_at).toLocaleDateString() : '-'}</td>
                   </tr>
                 )) : <tr><td colSpan={7} className="py-10 text-center text-[13px] text-[#9E9E9E]">No reservation history found</td></tr>}
               </tbody>

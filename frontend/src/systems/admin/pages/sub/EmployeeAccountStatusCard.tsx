@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { statisticsService, employeeService } from '../../../../core/services/adminService';
 
-// Chart colors — the admin variant of the overview page's CC palette
+// Chart colors - the admin variant of the overview page's CC palette
 const CC = { blue: '#056daa', teal: '#2980B9', amber: '#F39C12', red: '#E74C3C' };
 
 interface EmployeeStats { total: number; active: number; inactive: number; locked: number; online: number; offline: number }
 
-// 3D-style exploded pie (SVG) — separated slices with extruded depth, % labels on slices, callout lines to names
+// 3D-style exploded pie (SVG) - separated slices with extruded depth, % labels on slices, callout lines to names
 const StatusPie3D: React.FC<{ slices: Array<{ label: string; value: number; color: string }> }> = ({ slices }) => {
   const data = slices.filter(s => s.value > 0);
   const total = data.reduce((sum, d) => sum + d.value, 0);
@@ -90,7 +90,7 @@ const EmployeeAccountStatusCard: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive' | 'locked' | 'online' | 'offline'>('all');
 
-  // The employee list is only needed by the modal's table — fetched 50 per page while it is open
+  // The employee list is only needed by the modal's table - fetched 50 per page while it is open
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -227,13 +227,13 @@ const EmployeeAccountStatusCard: React.FC = () => {
                         return (
                           <tr key={idx} className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-[#F7F9FB]' : 'bg-gray-50/50 hover:bg-[#F7F9FB]'}`}>
                             <td className={`${cell(0)} whitespace-nowrap`}>
-                              <span className="font-bold text-gray-900 text-sm">{e.full_name || '—'}</span>
+                              <span className="font-bold text-gray-900 text-sm">{e.full_name || '-'}</span>
                             </td>
                             <td className={`${cell(1)} break-all`}>
-                              <span className="text-sm text-gray-700">{e.email || '—'}</span>
+                              <span className="text-sm text-gray-700">{e.email || '-'}</span>
                             </td>
                             <td className={cell(2)}>
-                              <span className="text-sm text-gray-700 font-medium">{e.department?.department_name || e.department?.name || e.department_name || '—'}</span>
+                              <span className="text-sm text-gray-700 font-medium">{e.department?.department_name || e.department?.name || e.department_name || '-'}</span>
                             </td>
                             <td className={cell(3)}>
                               <div className="flex flex-wrap gap-1">

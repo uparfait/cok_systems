@@ -152,7 +152,7 @@ export default function EventDetailAgenda({ event, eventMode, onEventUpdated }) 
         <div className="space-y-4">
           {bounds.startTime && bounds.endTime && (
             <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
-              Agenda items must fit within the event time: <strong style={{ color: NEUTRAL_DARK }}>{bounds.startTime} — {bounds.endTime}{bounds.overMidnight ? ' (next day)' : ''}</strong>
+              Agenda items must fit within the event time: <strong style={{ color: NEUTRAL_DARK }}>{bounds.startTime} - {bounds.endTime}{bounds.overMidnight ? ' (next day)' : ''}</strong>
             </p>
           )}
           <ActivityAgenda
@@ -182,11 +182,11 @@ export default function EventDetailAgenda({ event, eventMode, onEventUpdated }) 
             .sort((a, b) => (a.fromTime || '99:99').localeCompare(b.fromTime || '99:99'))
             .map((item, idx) => (
               <div key={idx} style={{ border: `1px solid ${BORDER}` }}>
-                {/* Header: from — to */}
+                {/* Header: from - to */}
                 <div className="flex items-center gap-2 px-3 sm:px-4 py-2" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
                   <FiClock className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
                   <span className="text-xs font-bold tracking-wide" style={{ color: PRIMARY, fontFamily: fontHeading }}>
-                    {item.fromTime || '--:--'} — {item.toTime || '--:--'}
+                    {item.fromTime || '--:--'} - {item.toTime || '--:--'}
                   </span>
                 </div>
                 {/* Body: title and description only */}
