@@ -881,8 +881,15 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
     emit_approvers(approvers.map((approver, i) => (i === index ? Object.assign({}, approver, { [key]: field_value }) : approver)));
   };
 
+  // Scrolled after the new card has rendered, so the freshly added approver
+  // is always brought into view inside the capped list.
+  const approvers_list_ref = React.useRef(null);
   const add_approver = () => {
     emit_approvers([...approvers, Object.assign({}, EMPTY_APPROVER)]);
+    window.setTimeout(() => {
+      const list = approvers_list_ref.current;
+      if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+    }, 60);
   };
 
   const remove_approver = (index) => {
@@ -1182,6 +1189,18 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
           .dcs-approval-hier-btn:active {
             transform: scale(0.94);
           }
+          .dcs-approval-add-btn {
+            cursor: pointer;
+            transition: background-color 200ms ease, border-color 200ms ease, transform 180ms ease, box-shadow 200ms ease;
+          }
+          .dcs-approval-add-btn:hover {
+            background-color: #F0F7FC !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(5, 109, 170, 0.18);
+          }
+          .dcs-approval-add-btn:active {
+            transform: translateY(0) scale(0.99);
+          }
         `}</style>
       </div>
 
@@ -1243,7 +1262,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                 {/* Roughly five approver cards fit before this container
                     scrolls internally - thousands of generated approvers
                     must never stretch the page itself. */}
-                <div className="space-y-4 overflow-y-auto" style={{ maxHeight: 1500, overscrollBehavior: "contain" }}>
+                <div ref={approvers_list_ref} className="space-y-4 overflow-y-auto" style={{ maxHeight: 1500, overscrollBehavior: "contain" }}>
                 {approvers.map((approver, index) => {
                   const email_invalid = (approver.email || "").trim() !== "" && !EMAIL_REGEX.test(approver.email.trim());
                   return (
@@ -1299,7 +1318,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                 })}
                 </div>
                 <button type="button" onClick={add_approver}
-                  className="w-full py-3 text-sm font-semibold uppercase tracking-wide inline-flex items-center justify-center gap-2"
+                  className="dcs-approval-add-btn w-full py-3 text-sm font-semibold uppercase tracking-wide inline-flex items-center justify-center gap-2"
                   style={{ color: PRIMARY, border: `1px dashed ${PRIMARY}`, fontFamily: fontHeading, backgroundColor: WHITE }}>
                   <FiPlus className="w-4 h-4" /> {translate("DCS_APPROVAL_ADD_APPROVER")}
                 </button>
