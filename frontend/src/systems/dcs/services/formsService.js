@@ -44,8 +44,10 @@ export function get_form_versions(form_group_id) {
  * approval page assembles it through this endpoint page by page, 20 at a
  * time, incrementing the page until total is reached.
  */
-export function get_form_approvers(form_group_id, page, limit) {
-  return dcs_request(`/forms/${form_group_id}/approvers?page=${page || 1}&limit=${limit || 20}`, "GET");
+export function get_form_approvers(form_group_id, page, limit, group_fields) {
+  const filter_query =
+    Array.isArray(group_fields) && group_fields.length > 0 ? `&group_fields=${encodeURIComponent(group_fields.join(","))}` : "";
+  return dcs_request(`/forms/${form_group_id}/approvers?page=${page || 1}&limit=${limit || 20}${filter_query}`, "GET");
 }
 
 /**

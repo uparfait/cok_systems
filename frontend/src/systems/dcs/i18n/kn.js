@@ -903,6 +903,12 @@ const kn = {
   DCS_APPROVAL_LOAD_FAILED: "Bamwe mu bemeza ntibashoboye kuboneka",
   DCS_BTN_LOAD_MORE: "Shakisha abandi",
   DCS_APPROVAL_TOTAL_APPROVERS: "Abemeza bose: {{count}}",
+  DCS_APPROVAL_LOADED_COUNT: "Byashakishijwe {{loaded}} / {{total}}",
+  DCS_APPROVAL_FILTER_ALL: "Inzego zose",
+  DCS_APPROVAL_FILTER_FROM: "Kuva",
+  DCS_APPROVAL_FILTER_TO: "Kugeza",
+  DCS_APPROVAL_LOAD_COUNT_PLACEHOLDER: "Zingahe",
+  DCS_APPROVAL_LOAD_BTN: "Shakisha",
 };
 
 export default kn;

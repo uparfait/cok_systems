@@ -513,7 +513,7 @@ function ApproverBadge({ index, name, role, translate }) {
 // Optional pre-publish step: the form owner defines who must approve each submitted response.
 // Laid out as a booking-form-style wizard: People -> Conditions -> Order & rules,
 // with a stepper showing where you are. Approvers sign in the order arranged on the last part.
-export default function ApprovalFlowSection({ value, onChange, fields, onSave, resolveFullFieldOptions }) {
+export default function ApprovalFlowSection({ value, onChange, fields, onSave, resolveFullFieldOptions, headerExtra, saveDisabled }) {
   const { translate, language } = useDcsLanguage();
   const enabled = !!value && value.enabled === true;
   const approvers = (value && value.approvers) || [];
@@ -1123,6 +1123,9 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
             {translate("DCS_APPROVAL_ENABLE_HINT")}
           </p>
         </div>
+        {/* The page's own controls (total, level filters, load-more) live in
+            this same banner - one combined header, never two stacked ones. */}
+        {headerExtra && <div className="dcs-approval-header-controls ml-auto min-w-0">{headerExtra}</div>}
       </div>
 
       {enabled && (
@@ -1617,14 +1620,16 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                   {wizard_step < 3 ? translate("DCS_APPROVAL_NEXT") : translate("DCS_APPROVAL_NEXT")}
                 </button>
               </div>
-              {/* Save progress button centered below */}
+              {/* Save progress button centered below - locked while the page
+                  is still streaming approvers in, so a partial list can never
+                  be saved over the full stored pool. */}
               <div className="mt-3">
                 <button
                   type="button"
                   onClick={handle_save}
-                  disabled={saving}
+                  disabled={saving || saveDisabled === true}
                   className="cok-btn-primary text-sm inline-flex items-center justify-center gap-2 disabled:opacity-50"
-                  style={{ fontFamily: fontHeading, cursor: saving ? "not-allowed" : "pointer" }}
+                  style={{ fontFamily: fontHeading, cursor: saving || saveDisabled === true ? "not-allowed" : "pointer" }}
                 >
                   {saving ? (
                     <div className="animate-spin" style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: "transparent", borderRadius: "50%" }} />
@@ -1642,9 +1647,9 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
           <button
             type="button"
             onClick={handle_save}
-            disabled={saving}
+            disabled={saving || saveDisabled === true}
             className="cok-btn-primary text-sm inline-flex items-center justify-center gap-2 disabled:opacity-50"
-            style={{ fontFamily: fontHeading, cursor: saving ? "not-allowed" : "pointer" }}
+            style={{ fontFamily: fontHeading, cursor: saving || saveDisabled === true ? "not-allowed" : "pointer" }}
           >
             {saving ? (
               <div className="animate-spin" style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: "transparent", borderRadius: "50%" }} />

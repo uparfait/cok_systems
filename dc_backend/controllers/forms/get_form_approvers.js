@@ -17,7 +17,7 @@ const MAX_PAGE_SIZE = 100;
 async function get_form_approvers(req, res) {
   try {
     const { form_group_id } = req.params;
-    const { page = 1, limit = DEFAULT_PAGE_SIZE } = req.query || {};
+    const { page = 1, limit = DEFAULT_PAGE_SIZE, group_fields } = req.query || {};
 
     if (!form_group_id) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
@@ -38,9 +38,20 @@ async function get_form_approvers(req, res) {
     const skip_val = (page_number - 1) * limit_val;
 
     const config = form_version.approval_config || null;
-    const config_approvers = (config && Array.isArray(config.approvers) && config.approvers) || [];
 
-    const generated_total = await form_approvers_model.count_generated_approvers(form_group_id);
+    // A cascade-level filter narrows to specific groups of the generated
+    // pool (their deepest condition field) - hand-made approvers have no
+    // group, so a filtered view lists the pool alone.
+    const group_field_ids = group_fields
+      ? String(group_fields)
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean)
+      : [];
+    const config_approvers =
+      group_field_ids.length > 0 ? [] : (config && Array.isArray(config.approvers) && config.approvers) || [];
+
+    const generated_total = await form_approvers_model.count_generated_approvers(form_group_id, group_field_ids);
     const total = config_approvers.length + generated_total;
 
     // The page spans the virtual concatenation [config approvers, generated
@@ -49,7 +60,8 @@ async function get_form_approvers(req, res) {
     const head = config_approvers.slice(skip_val, skip_val + limit_val);
     const remaining = limit_val - head.length;
     const generated_skip = Math.max(0, skip_val - config_approvers.length);
-    const tail = remaining > 0 ? await form_approvers_model.list_generated_approvers(form_group_id, generated_skip, remaining) : [];
+    const tail =
+      remaining > 0 ? await form_approvers_model.list_generated_approvers(form_group_id, generated_skip, remaining, group_field_ids) : [];
 
     return res.status(200).json(
       success_response(req, "FORM_APPROVERS_FETCHED", {

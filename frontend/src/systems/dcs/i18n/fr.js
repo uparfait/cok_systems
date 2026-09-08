@@ -903,6 +903,12 @@ const fr = {
   DCS_APPROVAL_LOAD_FAILED: "Certains approbateurs n'ont pas pu être chargés",
   DCS_BTN_LOAD_MORE: "Charger plus",
   DCS_APPROVAL_TOTAL_APPROVERS: "Total des approbateurs : {{count}}",
+  DCS_APPROVAL_LOADED_COUNT: "Chargés {{loaded}} / {{total}}",
+  DCS_APPROVAL_FILTER_ALL: "Tous les niveaux",
+  DCS_APPROVAL_FILTER_FROM: "De",
+  DCS_APPROVAL_FILTER_TO: "À",
+  DCS_APPROVAL_LOAD_COUNT_PLACEHOLDER: "Combien",
+  DCS_APPROVAL_LOAD_BTN: "Charger",
 };
 
 export default fr;

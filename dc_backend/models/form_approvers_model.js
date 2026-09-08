@@ -4,7 +4,16 @@ const COLLECTION_NAME = "dcs_form_approvers";
 const INSERT_BATCH_SIZE = 1000;
 
 // Internal per-document fields - never sent to a client.
-const PUBLIC_PROJECTION = { _id: 0, form_group_id: 0, order: 0, match_values: 0 };
+const PUBLIC_PROJECTION = { _id: 0, form_group_id: 0, order: 0, match_values: 0, group_field_id: 0 };
+
+/** Optional narrowing to specific cascade groups (deepest condition field). */
+function pool_filter(form_group_id, group_field_ids) {
+  const filter = { form_group_id };
+  if (Array.isArray(group_field_ids) && group_field_ids.length > 0) {
+    filter.group_field_id = { $in: group_field_ids };
+  }
+  return filter;
+}
 
 function normalize(value) {
   return String(value === undefined || value === null ? "" : value).trim().toLowerCase();
@@ -21,6 +30,7 @@ async function ensure_form_approver_indexes() {
   const collection = get_db().collection(COLLECTION_NAME);
   await collection.createIndex({ form_group_id: 1, order: 1 }, { name: "form_group_order" });
   await collection.createIndex({ form_group_id: 1, match_values: 1 }, { name: "form_group_match_values" });
+  await collection.createIndex({ form_group_id: 1, group_field_id: 1, order: 1 }, { name: "form_group_group_field" });
 }
 
 /**
@@ -34,13 +44,17 @@ async function replace_generated_approvers(form_group_id, approvers) {
   await collection.deleteMany({ form_group_id });
   let inserted = 0;
   for (let start = 0; start < approvers.length; start += INSERT_BATCH_SIZE) {
-    const batch = approvers.slice(start, start + INSERT_BATCH_SIZE).map((approver, index) =>
-      Object.assign({}, approver, {
+    const batch = approvers.slice(start, start + INSERT_BATCH_SIZE).map((approver, index) => {
+      const conditions = approver.conditions || [];
+      return Object.assign({}, approver, {
         form_group_id,
         order: start + index,
-        match_values: (approver.conditions || []).map((condition) => normalize(condition.value)),
-      }),
-    );
+        match_values: conditions.map((condition) => normalize(condition.value)),
+        // The group this approver belongs to: its deepest (last) condition
+        // field - what the level-range filter narrows by.
+        group_field_id: conditions.length > 0 ? conditions[conditions.length - 1].field_id : null,
+      });
+    });
     if (batch.length > 0) {
       const result = await collection.insertMany(batch, { ordered: false });
       inserted += result.insertedCount;
@@ -50,18 +64,18 @@ async function replace_generated_approvers(form_group_id, approvers) {
 }
 
 /** One page, the standard way: find(filter).limit(limit).skip(skip).sort(...). */
-async function list_generated_approvers(form_group_id, skip, limit) {
+async function list_generated_approvers(form_group_id, skip, limit, group_field_ids) {
   return get_db()
     .collection(COLLECTION_NAME)
-    .find({ form_group_id }, { projection: PUBLIC_PROJECTION })
+    .find(pool_filter(form_group_id, group_field_ids), { projection: PUBLIC_PROJECTION })
     .limit(limit)
     .skip(skip)
     .sort({ order: 1 })
     .toArray();
 }
 
-async function count_generated_approvers(form_group_id) {
-  return get_db().collection(COLLECTION_NAME).countDocuments({ form_group_id });
+async function count_generated_approvers(form_group_id, group_field_ids) {
+  return get_db().collection(COLLECTION_NAME).countDocuments(pool_filter(form_group_id, group_field_ids));
 }
 
 /** Removes a form's whole generated pool - the "clear test approvals" action. */
