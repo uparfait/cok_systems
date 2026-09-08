@@ -270,10 +270,11 @@ function MyApprovalsPageContent() {
     : [];
 
   return (
-    <div className="min-h-screen p-3 sm:p-6" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-      <div className="flex flex-col lg:flex-row gap-4 max-w-[1400px] mx-auto items-start">
+    // On desktop the page is fixed to the viewport and only the records list scrolls.
+    <div className="min-h-screen p-3 sm:p-6 lg:h-screen lg:overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+      <div className="flex flex-col lg:flex-row gap-4 max-w-[1400px] mx-auto items-start lg:h-full">
         {/* Sidebar - approver identity, assignment and the author's message */}
-        <div className="w-full lg:w-[320px] shrink-0 bg-white border p-4 space-y-3" style={{ borderColor: BORDER }}>
+        <div className="w-full lg:w-[320px] shrink-0 bg-white border p-4 space-y-3 lg:max-h-full lg:overflow-y-auto" style={{ borderColor: BORDER }}>
           <div className="flex items-center gap-3 pb-3 border-b" style={{ borderColor: BORDER }}>
             <div className="w-14 h-14 flex items-center justify-center text-white text-xl font-extrabold shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading }}>
               {initials}
@@ -306,8 +307,8 @@ function MyApprovalsPageContent() {
           </div>
         </div>
 
-        {/* Records panel */}
-        <div className="flex-1 min-w-0 w-full">
+        {/* Records panel - a column on desktop so the toolbar and pager stay fixed while rows scroll */}
+        <div className="flex-1 min-w-0 w-full lg:h-full lg:min-h-0 lg:flex lg:flex-col">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="inline-flex border" style={{ borderColor: BORDER, backgroundColor: "#FFFFFF" }}>
               {["table", "form"].map((mode) => (
@@ -362,15 +363,16 @@ function MyApprovalsPageContent() {
           {/* Table view */}
           {filtered.length > 0 && view === "table" && (
             <>
-              <div className="mt-3 overflow-x-auto bg-white border" style={{ borderColor: BORDER }}>
+              <div className="mt-3 overflow-x-auto bg-white border lg:flex-1 lg:min-h-0 lg:overflow-y-auto" style={{ borderColor: BORDER }}>
                 <table className="w-full text-left" style={{ borderCollapse: "collapse" }}>
                   <thead>
+                    {/* Sticky on the th (not the tr) so the header survives vertical scrolling */}
                     <tr style={{ backgroundColor: PRIMARY }}>
                       {field_columns.map((field) => (
-                        <th key={field.id} className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap" style={{ fontFamily: fontHeading }}>{label_of(field)}</th>
+                        <th key={field.id} className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap sticky top-0" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY }}>{label_of(field)}</th>
                       ))}
-                      <th className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap" style={{ fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_COL_SUBMITTED")}</th>
-                      <th className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap" style={{ fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_COL_STATUS")}</th>
+                      <th className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap sticky top-0" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY }}>{translate("DCS_MYAPPROVALS_COL_SUBMITTED")}</th>
+                      <th className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap sticky top-0" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY }}>{translate("DCS_MYAPPROVALS_COL_STATUS")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -414,7 +416,7 @@ function MyApprovalsPageContent() {
 
           {/* Form view - one record at a time */}
           {filtered.length > 0 && view === "form" && form_record && (
-            <div className="mt-3 bg-white border p-4 sm:p-6" style={{ borderColor: BORDER }}>
+            <div className="mt-3 bg-white border p-4 sm:p-6 lg:flex-1 lg:min-h-0 lg:overflow-y-auto" style={{ borderColor: BORDER }}>
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-base font-extrabold" style={{ color: PRIMARY, fontFamily: fontHeading }}>
