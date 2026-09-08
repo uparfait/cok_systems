@@ -10,6 +10,7 @@ import DcsEmptyState from "../components/DcsEmptyState.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import DcsApprovalDecisionModal from "../components/DcsApprovalDecisionModal.jsx";
 
 const PRIMARY = "#056daa";
 const SUCCESS = "#4CAF50";
@@ -85,6 +86,7 @@ function MyApprovalsPageContent() {
   const [form_index, setFormIndex] = useState(0);
   const [viewed, setViewed] = useState(() => new Set());
   const [show_modal, setShowModal] = useState(false);
+  const [decision_target, setDecisionTarget] = useState(null);
   const [comment, setComment] = useState("");
   const [sign_method, setSignMethod] = useState("drawn");
   const [certificate_file, setCertificateFile] = useState(null);
@@ -388,9 +390,24 @@ function MyApprovalsPageContent() {
                         </td>
                         <td className="px-4 py-3">
                           {record.state === "ready" ? (
-                            <a href={build_approval_link(record.step.token)} className="no-underline">
-                              <StatePill record={record} translate={translate} />
-                            </a>
+                            <div className="flex items-center gap-2 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => setDecisionTarget({ record, decision: "approve" })}
+                                className="cursor-pointer text-xs font-bold px-3 py-1.5"
+                                style={{ backgroundColor: PRIMARY, color: "#FFFFFF", fontFamily: fontHeading, borderRadius: 4 }}
+                              >
+                                {translate("DCS_APPROVAL_BTN_APPROVE")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDecisionTarget({ record, decision: "reject" })}
+                                className="cursor-pointer text-xs font-bold px-3 py-1.5"
+                                style={{ backgroundColor: "transparent", color: DANGER, border: `1px solid ${DANGER}`, fontFamily: fontHeading, borderRadius: 4 }}
+                              >
+                                {translate("DCS_APPROVAL_BTN_REJECT")}
+                              </button>
+                            </div>
                           ) : (
                             <StatePill record={record} translate={translate} />
                           )}
@@ -459,6 +476,20 @@ function MyApprovalsPageContent() {
           )}
         </div>
       </div>
+
+      {/* Single-record decision popup - approve or reject in place, no navigation */}
+      {decision_target && (
+        <DcsApprovalDecisionModal
+          record={decision_target.record}
+          form={forms[decision_target.record.form_key]}
+          decision={decision_target.decision}
+          onClose={() => setDecisionTarget(null)}
+          onDone={() => {
+            setDecisionTarget(null);
+            load();
+          }}
+        />
+      )}
 
       {/* Bulk approve modal - the signature is still required, exactly like the single page */}
       {show_modal && (
