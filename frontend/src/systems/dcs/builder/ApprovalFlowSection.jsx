@@ -491,6 +491,173 @@ export function LocationTrailPicker({ field_key, api_level, value, onChange, lan
   );
 }
 
+/**
+ * Full-screen hierarchy viewer: fills the whole screen (fixed header, the
+ * drawing area takes every remaining pixel), scales the drawn map so its
+ * boundaries FIT the screen no matter how large it is, and never scrolls -
+ * viewing detail happens by zooming (header buttons, the mouse wheel, or
+ * the +/-/0 keys) and dragging, with panning clamped so the content can
+ * never leave the screen.
+ */
+function HierarchyOverlay({ title, onClose, svgWidth, svgHeight, empty, emptyText, children }) {
+  const viewport_ref = React.useRef(null);
+  const [base_scale, set_base_scale] = React.useState(1);
+  const [zoom, set_zoom] = React.useState(1);
+  const [pan, set_pan] = React.useState({ x: 0, y: 0 });
+  const drag_ref = React.useRef(null);
+
+  const clamp_pan = React.useCallback(
+    (next_pan, next_zoom) => {
+      const viewport = viewport_ref.current;
+      if (!viewport) return next_pan;
+      const rect = viewport.getBoundingClientRect();
+      const scaled_width = svgWidth * base_scale * next_zoom;
+      const scaled_height = svgHeight * base_scale * next_zoom;
+      const max_x = Math.max(0, (scaled_width - rect.width) / 2);
+      const max_y = Math.max(0, (scaled_height - rect.height) / 2);
+      return {
+        x: Math.min(max_x, Math.max(-max_x, next_pan.x)),
+        y: Math.min(max_y, Math.max(-max_y, next_pan.y)),
+      };
+    },
+    [svgWidth, svgHeight, base_scale],
+  );
+
+  // Zoom 1 always means "the whole map fits the screen" - the reset state.
+  const fit_to_screen = React.useCallback(() => {
+    set_zoom(1);
+    set_pan({ x: 0, y: 0 });
+  }, []);
+
+  // The opening view depends on how much data there is: a huge map starts
+  // ZOOMED IN to a readable scale, centered horizontally on the top so the
+  // root parent is what greets the user - zooming out to the full picture
+  // (or further in) is their own move. A small map just opens fitted.
+  const apply_initial_view = React.useCallback(() => {
+    const viewport = viewport_ref.current;
+    if (!viewport || !svgWidth || !svgHeight) return;
+    const rect = viewport.getBoundingClientRect();
+    const PADDING = 24;
+    const fit = Math.min((rect.width - PADDING) / svgWidth, (rect.height - PADDING) / svgHeight, 1);
+    set_base_scale(fit);
+    const READABLE_SCALE = 0.9;
+    const initial_zoom = Math.min(8, Math.max(1, READABLE_SCALE / Math.max(fit, 0.0001)));
+    set_zoom(initial_zoom);
+    const scaled_height = svgHeight * fit * initial_zoom;
+    set_pan({ x: 0, y: Math.max(0, (scaled_height - rect.height) / 2) });
+  }, [svgWidth, svgHeight]);
+
+  React.useEffect(() => {
+    apply_initial_view();
+    window.addEventListener("resize", apply_initial_view);
+    return () => window.removeEventListener("resize", apply_initial_view);
+  }, [apply_initial_view]);
+
+  const zoom_by = React.useCallback(
+    (factor) => {
+      set_zoom((previous) => {
+        const next = Math.min(8, Math.max(1, previous * factor));
+        set_pan((previous_pan) => clamp_pan(previous_pan, next));
+        return next;
+      });
+    },
+    [clamp_pan],
+  );
+
+  React.useEffect(() => {
+    const handle_key = (event) => {
+      if (event.key === "+" || event.key === "=") zoom_by(1.2);
+      else if (event.key === "-" || event.key === "_") zoom_by(1 / 1.2);
+      else if (event.key === "0") fit_to_screen();
+      else if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handle_key);
+    return () => window.removeEventListener("keydown", handle_key);
+  }, [zoom_by, fit_to_screen, onClose]);
+
+  React.useEffect(() => {
+    const viewport = viewport_ref.current;
+    if (!viewport) return undefined;
+    const handle_wheel = (event) => {
+      event.preventDefault();
+      zoom_by(event.deltaY < 0 ? 1.12 : 1 / 1.12);
+    };
+    viewport.addEventListener("wheel", handle_wheel, { passive: false });
+    return () => viewport.removeEventListener("wheel", handle_wheel);
+  }, [zoom_by]);
+
+  const handle_pointer_down = (event) => {
+    drag_ref.current = { start_x: event.clientX, start_y: event.clientY, origin: pan };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const handle_pointer_move = (event) => {
+    if (!drag_ref.current) return;
+    const next = {
+      x: drag_ref.current.origin.x + (event.clientX - drag_ref.current.start_x),
+      y: drag_ref.current.origin.y + (event.clientY - drag_ref.current.start_y),
+    };
+    set_pan(clamp_pan(next, zoom));
+  };
+  const handle_pointer_up = () => {
+    drag_ref.current = null;
+  };
+
+  return (
+    <div
+      className="fixed inset-0 flex flex-col"
+      style={{ backgroundColor: WHITE, zIndex: 9999999, userSelect: "none", WebkitUserSelect: "none" }}
+    >
+      <div className="flex items-center justify-between gap-2 px-4 py-3 shrink-0" style={{ backgroundColor: PRIMARY }}>
+        <p className="text-sm font-extrabold uppercase" style={{ color: "rgba(255,255,255,0.88)", fontFamily: fontHeading, letterSpacing: "-0.3px" }}>
+          {title}
+        </p>
+        <div className="flex items-center gap-2">
+          <button type="button" className="dcs-approval-hier-btn text-lg leading-none" onClick={() => zoom_by(1 / 1.2)} title="-">
+            −
+          </button>
+          <button type="button" className="dcs-approval-hier-btn text-xs leading-none" onClick={fit_to_screen} title="0">
+            1:1
+          </button>
+          <button type="button" className="dcs-approval-hier-btn text-lg leading-none" onClick={() => zoom_by(1.2)} title="+">
+            +
+          </button>
+          <button type="button" onClick={onClose} className="dcs-approval-hier-btn text-lg leading-none">
+            ×
+          </button>
+        </div>
+      </div>
+      <div
+        ref={viewport_ref}
+        className="flex-1 flex items-center justify-center"
+        style={{ overflow: "hidden", minHeight: 0, cursor: zoom > 1 ? "grab" : "default", touchAction: "none" }}
+        onPointerDown={handle_pointer_down}
+        onPointerMove={handle_pointer_move}
+        onPointerUp={handle_pointer_up}
+        onPointerCancel={handle_pointer_up}
+      >
+        {empty ? (
+          <p className="text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>
+            {emptyText}
+          </p>
+        ) : (
+          <div
+            style={{
+              width: svgWidth,
+              height: svgHeight,
+              flexShrink: 0,
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${base_scale * zoom})`,
+              transformOrigin: "center center",
+              transition: drag_ref.current ? "none" : "transform 160ms ease",
+            }}
+          >
+            {children}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Circular avatar-style identity chip reused on every wizard part so rows stay recognizable. */
 function ApproverBadge({ index, name, role, translate }) {
   const display = name.trim() || translate("DCS_APPROVAL_APPROVER_TITLE", { number: index + 1 });
@@ -1611,33 +1778,18 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                       walk(entry.root, "r");
                     });
                     return (
-                      <div className="fixed inset-0" style={{ backgroundColor: WHITE, zIndex: 9999999, overflow: "auto" }}>
-                        {/* Header stays put while the drawing scrolls; close at the right */}
-                        <div
-                          className="flex items-center justify-between gap-2 px-4 py-3 sticky top-0"
-                          style={{ backgroundColor: PRIMARY, zIndex: 1 }}
-                        >
-                          <p className="text-sm font-extrabold uppercase" style={{ color: "rgba(255,255,255,0.88)", fontFamily: fontHeading, letterSpacing: "-0.3px" }}>
-                            {translate("DCS_APPROVAL_VIEW_HIERARCHY")}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => set_show_hierarchy(false)}
-                            className="dcs-approval-hier-btn text-lg leading-none"
-                          >
-                            ×
-                          </button>
-                        </div>
-                        {drawn.length > 0 ? (
-                          <svg width={svg_width} height={svg_height} style={{ display: "block", margin: "0 auto" }}>
-                            {rendered}
-                          </svg>
-                        ) : (
-                          <p className="p-6 text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>
-                            {translate("DCS_APPROVAL_GROUP_EMPTY")}
-                          </p>
-                        )}
-                      </div>
+                      <HierarchyOverlay
+                        title={translate("DCS_APPROVAL_VIEW_HIERARCHY")}
+                        onClose={() => set_show_hierarchy(false)}
+                        svgWidth={svg_width}
+                        svgHeight={svg_height}
+                        empty={drawn.length === 0}
+                        emptyText={translate("DCS_APPROVAL_GROUP_EMPTY")}
+                      >
+                        <svg width={svg_width} height={svg_height} style={{ display: "block" }}>
+                          {rendered}
+                        </svg>
+                      </HierarchyOverlay>
                     );
                   })()}
 

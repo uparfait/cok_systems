@@ -207,7 +207,9 @@ async function generate_test_approvals(req, res) {
       emitted.add(`${root_id}|${depth}`);
       chain.pools[depth].forEach((node) => {
         generated_approvers.push({
-          name: `Test Approver ${node.trail.join(" > ")}`,
+          // A real-looking random person - the place/value this approver is
+          // scoped to lives in the conditions, never in the name.
+          name: faker.person.fullName(),
           role: field_label_text(field),
           // Random, faker-generated identity details - the email is not a
           // real inbox and that is fine for test approvers.
@@ -249,10 +251,11 @@ async function run_config_save(job_id, form_version, generated_approvers) {
     // An unmarked leftover identical to a generated approver (from a save
     // made before the marker survived saving) is treated as generated too,
     // so regenerating can never double the same approval. Matching ignores
-    // email and message - those are randomized on every generation.
+    // name, email and message - all three are randomized on every
+    // generation; a generated approver's true identity is its role plus its
+    // full conditions trail.
     const test_identity = (approver) =>
       JSON.stringify([
-        String(approver.name || "").toLowerCase(),
         String(approver.role || "").toLowerCase(),
         (approver.conditions || []).map((condition) => [String(condition.field_id), String(condition.value).toLowerCase()]),
       ]);
