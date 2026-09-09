@@ -54,6 +54,7 @@ export default function FormDetailPage() {
   const is_versions_tab = location.pathname.startsWith(`${base_path}/versions`);
   const is_approval_tab = location.pathname.startsWith(`${base_path}/approval`);
   const is_test_data_tab = location.pathname.startsWith(`${base_path}/test-data`);
+  const is_dashboard_tab = location.pathname.startsWith(`${base_path}/dashboard`);
   const title = form ? form.form_name || form_group_id : "";
 
   // Belt-and-braces: resetting here too means the flying icon can never get
@@ -141,10 +142,10 @@ export default function FormDetailPage() {
 
           {is_panel_open && (
             <div className="dcs-project-slide-in-right">
-              <div className="flex border-b mb-4" style={{ borderColor: "#E0E0E0" }}>
+              <div className="flex flex-wrap border-b mb-4" style={{ borderColor: "#E0E0E0" }}>
                 <button
                   type="button"
-                  style={tab_style(!is_versions_tab && !is_approval_tab && !is_test_data_tab)}
+                  style={tab_style(!is_versions_tab && !is_approval_tab && !is_test_data_tab && !is_dashboard_tab)}
                   onClick={() => {
                     refresh();
                     navigate(`${base_path}/details`);
@@ -160,6 +161,9 @@ export default function FormDetailPage() {
                 </button>
                 <button type="button" style={tab_style(is_test_data_tab)} onClick={() => navigate(`${base_path}/test-data`)}>
                   {translate("DCS_TEST_DATA_LINK")}
+                </button>
+                <button type="button" style={tab_style(is_dashboard_tab)} onClick={() => navigate(`${base_path}/dashboard`)}>
+                  {translate("DCS_DB_TITLE")}
                 </button>
               </div>
               <Outlet context={{ project_id, form_group_id, form, refreshForm: refresh }} />

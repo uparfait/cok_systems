@@ -11,7 +11,7 @@ import { SIZE_OPTIONS } from "../chartCatalog.js";
  * see a LIVE preview computed by the same endpoint the dashboard itself
  * uses - what is previewed here is exactly what will render after saving.
  */
-export default function StepFinish({ projectId, widget, onChange }) {
+export default function StepFinish({ formGroupId, widget, onChange }) {
   const { translate } = useDcsLanguage();
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +24,7 @@ export default function StepFinish({ projectId, widget, onChange }) {
     setLoading(true);
     setFailed(false);
     const timer = setTimeout(() => {
-      get_dashboard_data(projectId, [widget], null)
+      get_dashboard_data(formGroupId, [widget], null)
         .then((response) => {
           if (run_seq_ref.current !== run_id) return;
           const result = ((response.data && response.data.results) || [])[0] || null;
@@ -42,7 +42,7 @@ export default function StepFinish({ projectId, widget, onChange }) {
     return () => clearTimeout(timer);
     // The preview follows every meaningful change of the draft.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, JSON.stringify({ ...widget, title: "", size: "" })]);
+  }, [formGroupId, JSON.stringify({ ...widget, title: "", size: "" })]);
 
   const size_options = SIZE_OPTIONS.map((option) => ({ id: option.id, name: translate(option.labelKey) }));
 

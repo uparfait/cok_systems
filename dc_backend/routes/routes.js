@@ -13,8 +13,8 @@ const test_data_routes = require("./test_data/routes.js");
 const dashboard_routes = require("../util-dashboard/routes.js");
 
 Router.use("/public", public_routes);
-Router.use("/projects", authenticate, dashboard_routes);
 Router.use("/projects", authenticate, projects_routes);
+Router.use("/forms", authenticate, dashboard_routes);
 Router.use("/departments", authenticate, departments_routes);
 Router.use("/forms", authenticate, forms_routes);
 Router.use("/submissions", authenticate, submissions_routes);

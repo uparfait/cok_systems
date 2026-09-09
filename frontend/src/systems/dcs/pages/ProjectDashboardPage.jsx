@@ -1,12 +1,15 @@
 import React from "react";
-import { useOutletContext } from "react-router-dom";
-import DashboardPage from "../util-dashboard/DashboardPage.jsx";
+import DcsUnderDevelopmentPanel from "../components/DcsUnderDevelopmentPanel.jsx";
 
 /**
- * Project dashboard tab: the full dashboard builder and viewer, backed by
- * live aggregations of the project's collected form data.
+ * Project-level dashboard tab: intentionally empty - dashboards live on
+ * each FORM (every form owns its own dashboard, opened from the form's
+ * overview or its Dashboard tab).
  */
 export default function ProjectDashboardPage() {
-  const { project } = useOutletContext();
-  return <DashboardPage project={project} />;
+  return (
+    <div className="pb-16">
+      <DcsUnderDevelopmentPanel titleKey="DCS_SECTION_BUILD_DASHBOARD" />
+    </div>
+  );
 }

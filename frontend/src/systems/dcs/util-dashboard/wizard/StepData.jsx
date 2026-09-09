@@ -42,17 +42,19 @@ export default function StepData({ widget, forms, onChange }) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="cok-auth-label">{translate("DCS_DB_FIELD_FORM")}</label>
-        <DcsSearchableSelect
-          options={forms.map((entry) => ({ id: entry.form_group_id, name: entry.form_name }))}
-          value={widget.form_group_id}
-          onChange={(form_group_id) =>
-            onChange({ form_group_id, group_by: null, split_by: null, x_field_id: null, y_field_id: null, size_field_id: null, filters: [], metric: { aggregation: "count", field_id: null } })
-          }
-          placeholder={translate("DCS_DB_FIELD_FORM_PLACEHOLDER")}
-        />
-      </div>
+      {forms.length > 1 && (
+        <div>
+          <label className="cok-auth-label">{translate("DCS_DB_FIELD_FORM")}</label>
+          <DcsSearchableSelect
+            options={forms.map((entry) => ({ id: entry.form_group_id, name: entry.form_name }))}
+            value={widget.form_group_id}
+            onChange={(form_group_id) =>
+              onChange({ form_group_id, group_by: null, split_by: null, x_field_id: null, y_field_id: null, size_field_id: null, filters: [], metric: { aggregation: "count", field_id: null } })
+            }
+            placeholder={translate("DCS_DB_FIELD_FORM_PLACEHOLDER")}
+          />
+        </div>
+      )}
 
       {form && definition.kind !== "point" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

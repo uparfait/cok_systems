@@ -10,17 +10,18 @@ import { new_widget, widget_problems, widget_needs_title } from "./widgetModel.j
 const STEP_KEYS = ["DCS_DB_STEP_CHART", "DCS_DB_STEP_DATA", "DCS_DB_STEP_FILTERS", "DCS_DB_STEP_FINISH"];
 
 /**
- * The add/edit widget wizard: chart type first, then the data behind it,
- * then filters and window, then title, size and a live preview. Each step
- * gates the next, and switching the chart type resets whatever no longer
- * fits (a scatter has no group field, a pie takes no split, and so on).
+ * The add/edit widget wizard of ONE form's dashboard: chart type first,
+ * then the data behind it, then filters and window, then title, size and a
+ * live preview. Each step gates the next, and switching the chart type
+ * resets whatever no longer fits (a scatter has no group field, a pie takes
+ * no split, and so on).
  */
-export default function WidgetWizard({ projectId, forms, initialWidget, onClose, onDone }) {
-  const [widget, setWidget] = useState(() => initialWidget || new_widget());
+export default function WidgetWizard({ form, initialWidget, onClose, onDone }) {
+  const [widget, setWidget] = useState(() => initialWidget || new_widget(form.form_group_id));
   const [step, setStep] = useState(0);
 
-  const form = forms.find((entry) => entry.form_group_id === widget.form_group_id) || null;
-  const problems = widget.chart_type && form ? widget_problems(widget, form) : [];
+  const forms = [form];
+  const problems = widget.chart_type ? widget_problems(widget, form) : [];
 
   const apply_changes = (changes) => setWidget((current) => ({ ...current, ...changes }));
 
@@ -50,13 +51,12 @@ export default function WidgetWizard({ projectId, forms, initialWidget, onClose,
     step === 0
       ? !widget.chart_type
       : step === 1
-        ? !form || problems.length > 0
+        ? problems.length > 0
         : step === 2
           ? !filters_complete || !period_complete
           : widget_needs_title(widget) || problems.length > 0;
 
-  const shown_problems =
-    step === 1 && form ? problems : step === 2 && !filters_complete ? ["DCS_DB_PROBLEM_FILTERS"] : [];
+  const shown_problems = step === 1 ? problems : step === 2 && !filters_complete ? ["DCS_DB_PROBLEM_FILTERS"] : [];
 
   const handle_next = () => {
     if (step < STEP_KEYS.length - 1) {
@@ -81,7 +81,7 @@ export default function WidgetWizard({ projectId, forms, initialWidget, onClose,
       {step === 0 && <StepChartType selected={widget.chart_type} onSelect={select_chart} />}
       {step === 1 && <StepData widget={widget} forms={forms} onChange={apply_changes} />}
       {step === 2 && <StepFilters widget={widget} forms={forms} onChange={apply_changes} />}
-      {step === 3 && <StepFinish projectId={projectId} widget={widget} onChange={apply_changes} />}
+      {step === 3 && <StepFinish formGroupId={form.form_group_id} widget={widget} onChange={apply_changes} />}
     </WizardShell>
   );
 }

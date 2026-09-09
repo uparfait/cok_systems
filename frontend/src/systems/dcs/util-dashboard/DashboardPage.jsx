@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_forms_by_project } from "../services/formsService.js";
 import { get_dashboard, save_dashboard, get_dashboard_data } from "./dashboardService.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
@@ -23,20 +22,19 @@ const SIZE_CLASSES = {
 };
 
 /**
- * The project dashboard tab: renders the saved widgets with live data
+ * The FORM's dashboard tab: renders the saved widgets with live data
  * (silently refreshed every 30 seconds), a dashboard-wide period override,
- * and - for users allowed to edit the project - a full builder: add via the
+ * and - for users allowed to edit this form - a full builder: add via the
  * step wizard, edit, remove, reorder and resize, then save everything as
- * one configuration.
+ * one configuration. Every form owns exactly one dashboard of its own.
  */
-export default function DashboardPage({ project }) {
+export default function DashboardPage({ form }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [can_edit, setCanEdit] = useState(false);
   const [widgets, setWidgets] = useState([]);
-  const [forms, setForms] = useState([]);
   const [dirty, setDirty] = useState(false);
   const [edit_mode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -57,12 +55,11 @@ export default function DashboardPage({ project }) {
   useEffect(() => {
     let is_mounted = true;
     setLoading(true);
-    Promise.all([get_dashboard(project._id), get_forms_by_project(project._id)])
-      .then(([dashboard_response, forms_response]) => {
+    get_dashboard(form.form_group_id)
+      .then((dashboard_response) => {
         if (!is_mounted) return;
         setWidgets((dashboard_response.data && dashboard_response.data.widgets) || []);
         setCanEdit((dashboard_response.data && dashboard_response.data.can_edit) === true);
-        setForms(forms_response.data || []);
         setDirty(false);
       })
       .catch((error) => is_mounted && showError(error.message || translate("DCS_ERROR_GENERIC")))
@@ -71,7 +68,7 @@ export default function DashboardPage({ project }) {
       is_mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project._id]);
+  }, [form.form_group_id]);
 
   const fetch_data = (widget_list, applied_period, silent) => {
     if (!widget_list || widget_list.length === 0) {
@@ -82,7 +79,7 @@ export default function DashboardPage({ project }) {
     run_seq_ref.current = run_id;
     applied_period_ref.current = applied_period;
     if (!silent) setDataLoading(true);
-    get_dashboard_data(project._id, widget_list, applied_period)
+    get_dashboard_data(form.form_group_id, widget_list, applied_period)
       .then((response) => {
         if (run_seq_ref.current !== run_id) return;
         const map = {};
@@ -111,7 +108,7 @@ export default function DashboardPage({ project }) {
     }, REFRESH_INTERVAL_MS);
     return () => window.clearInterval(interval_id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project._id]);
+  }, [form.form_group_id]);
 
   // The custom popup hands the picked dates directly - state updates are
   // asynchronous, so reading from/to here would apply the PREVIOUS range.
@@ -156,7 +153,7 @@ export default function DashboardPage({ project }) {
   const handle_save = async () => {
     setSaving(true);
     try {
-      const response = await save_dashboard(project._id, widgets);
+      const response = await save_dashboard(form.form_group_id, widgets);
       setWidgets((response.data && response.data.widgets) || widgets);
       setDirty(false);
       showSuccess(translate("DCS_DB_SAVED_TOAST"));
@@ -268,8 +265,7 @@ export default function DashboardPage({ project }) {
 
       {wizard && (
         <WidgetWizard
-          projectId={project._id}
-          forms={forms}
+          form={form}
           initialWidget={wizard.widget}
           onClose={() => setWizard(null)}
           onDone={handle_wizard_done}

@@ -1,19 +1,19 @@
 import { dcs_request } from "../services/dcsApiClient.js";
 
 /**
- * Fetches the project's saved dashboard configuration plus whether the
- * current viewer may edit it.
+ * Fetches the FORM's saved dashboard configuration plus whether the current
+ * viewer may edit it - every form owns its own dashboard.
  */
-export function get_dashboard(project_id) {
-  return dcs_request(`/projects/${project_id}/dashboard`, "GET");
+export function get_dashboard(form_group_id) {
+  return dcs_request(`/forms/${form_group_id}/dashboard`, "GET");
 }
 
 /**
- * Saves the whole dashboard (validated server-side against the real form
- * schemas).
+ * Saves the form's whole dashboard (validated server-side against the
+ * form's real schema).
  */
-export function save_dashboard(project_id, widgets) {
-  return dcs_request(`/projects/${project_id}/dashboard`, "PUT", { widgets });
+export function save_dashboard(form_group_id, widgets) {
+  return dcs_request(`/forms/${form_group_id}/dashboard`, "PUT", { widgets });
 }
 
 /**
@@ -21,6 +21,6 @@ export function save_dashboard(project_id, widgets) {
  * also used by the builder's preview with a single draft widget. The
  * optional period overrides every widget's own window.
  */
-export function get_dashboard_data(project_id, widgets, period) {
-  return dcs_request(`/projects/${project_id}/dashboard/data`, "POST", { widgets, period: period || null });
+export function get_dashboard_data(form_group_id, widgets, period) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/data`, "POST", { widgets, period: period || null });
 }

@@ -6,11 +6,11 @@ import { chart_definition, classify_fields, SUBMITTED_AT_FIELD } from "./chartCa
  * backend re-validates everything on save, so this only guides the UI.
  */
 
-export function new_widget() {
+export function new_widget(form_group_id) {
   return {
     id: `w_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
     title: "",
-    form_group_id: "",
+    form_group_id: form_group_id || "",
     chart_type: "",
     metric: { aggregation: "count", field_id: null },
     group_by: null,

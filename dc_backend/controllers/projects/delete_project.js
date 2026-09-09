@@ -34,7 +34,7 @@ async function delete_project(req, res) {
     await submissions_model.delete_by_form_group_ids(form_group_ids);
     await forms_model.delete_forms_by_project(project_id);
     await project_access_model.delete_access_by_project(project_id);
-    await dashboards_model.delete_dashboard_by_project(project_id);
+    await dashboards_model.delete_dashboards_by_project(project_id);
     await projects_model.delete_project(project_id);
 
     return res.status(200).json(success_response(req, "PROJECT_DELETED"));
