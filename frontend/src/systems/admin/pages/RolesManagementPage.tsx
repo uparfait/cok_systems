@@ -5,9 +5,31 @@ import MainLayout from '../../../core/components/Layout/MainLayout';
 import { useToast } from '../../../core/contexts/ToastContext';
 import {
   FiSearch, FiRefreshCw, FiShield, FiLock, FiPlus, FiEdit2, FiTrash2,
-  FiChevronDown, FiChevronRight, FiX,
+  FiChevronDown, FiChevronRight, FiX, FiCalendar, FiBarChart2, FiClipboard,
+  FiCheck, FiLayers, FiList, FiActivity, FiArrowRight, FiGrid, FiFile,
+  FiLogIn, FiLogOut, FiTruck, FiUser, FiDatabase, FiHome, FiSettings,
+  FiUsers, FiUserCheck, FiFileText, FiStar, FiMessageSquare, FiHardDrive,
 } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
+
+const LINK_ICONS: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
+  FiCalendar, FiBarChart2, FiClipboard, FiCheck, FiLayers, FiList, FiActivity,
+  FiArrowRight, FiGrid, FiFile, FiLogIn, FiLogOut, FiTruck, FiUser, FiDatabase,
+  FiHome, FiSettings, FiUsers, FiUserCheck, FiFileText, FiStar, FiMessageSquare,
+  FiHardDrive, FiShield,
+};
+
+// Small circular icon badge shown next to every link, like the role avatars
+const LinkIcon: React.FC<{ icon?: string; size?: 'sm' | 'md' }> = ({ icon, size = 'md' }) => {
+  const Icon = (icon && LINK_ICONS[icon]) || FiGrid;
+  const box = size === 'sm' ? 'w-5 h-5' : 'w-7 h-7';
+  const glyph = size === 'sm' ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5';
+  return (
+    <span className={`${box} rounded-full inline-flex items-center justify-center shrink-0`} style={{ backgroundColor: 'rgba(5,109,170,0.1)' }}>
+      <Icon className={glyph} style={{ color: '#056daa' }} />
+    </span>
+  );
+};
 
 const PRIMARY = '#056daa';
 const DANGER = '#E74C3C';
@@ -66,17 +88,19 @@ function selectionToNavLinks(catalog: NavLink[], sel: Selection): RoleNavLink[] 
 
 // Read-only links tree used on both Default and Other role cards
 const LinksTree: React.FC<{ links: NavLink[] }> = ({ links }) => (
-  <div className="flex flex-col gap-1">
+  <div className="flex flex-col gap-1.5">
     {links.map((link) => (
       <div key={link.id}>
         <div className="flex items-center gap-2 text-xs">
+          <LinkIcon icon={link.icon} size="sm" />
           <span className="font-semibold text-gray-900">{link.label}</span>
           <span className="text-gray-400">{link.path}</span>
         </div>
         {(link.children || []).length > 0 && (
-          <div className="ml-4 mt-0.5 flex flex-col gap-0.5">
+          <div className="ml-7 mt-1 flex flex-col gap-1">
             {(link.children || []).map((c) => (
               <div key={c.id} className="flex items-center gap-2 text-[11px]">
+                <LinkIcon icon={c.icon} size="sm" />
                 <span className="text-gray-700">{c.label}</span>
                 <span className="text-gray-400">{c.path}</span>
               </div>
@@ -350,7 +374,7 @@ const RolesManagementPage: React.FC = () => {
                   className="w-full p-4 flex items-center justify-between cursor-pointer hover:bg-[#F7F9FB] text-left"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 flex items-center justify-center" style={{ backgroundColor: 'rgba(5,109,170,0.1)' }}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(5,109,170,0.1)' }}>
                       <FiLock className="w-5 h-5" style={{ color: PRIMARY }} />
                     </div>
                     <div>
@@ -393,7 +417,7 @@ const RolesManagementPage: React.FC = () => {
                       onClick={() => setExpanded((p) => ({ ...p, [key]: !p[key] }))}
                       className="flex items-center gap-3 cursor-pointer text-left flex-1 min-w-0"
                     >
-                      <div className="w-10 h-10 flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(5,109,170,0.1)' }}>
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(5,109,170,0.1)' }}>
                         <FiShield className="w-5 h-5" style={{ color: PRIMARY }} />
                       </div>
                       <div className="min-w-0">
@@ -477,11 +501,12 @@ const RolesManagementPage: React.FC = () => {
                           onChange={() => toggleLink(link.id)}
                           className="cursor-pointer"
                         />
+                        <LinkIcon icon={link.icon} />
                         <span className="text-sm font-medium text-gray-900">{link.label}</span>
                         <span className="text-xs text-gray-400">{link.path}</span>
                       </label>
                       {s?.on && (link.children || []).length > 0 && (
-                        <div className="ml-6 mt-1 flex flex-col gap-1">
+                        <div className="ml-9 mt-1 flex flex-col gap-1">
                           {(link.children || []).map((c) => (
                             <label key={c.id} className="flex items-center gap-2 cursor-pointer">
                               <input
@@ -490,6 +515,7 @@ const RolesManagementPage: React.FC = () => {
                                 onChange={() => toggleChild(link.id, c.id)}
                                 className="cursor-pointer"
                               />
+                              <LinkIcon icon={c.icon} size="sm" />
                               <span className="text-xs text-gray-700">{c.label}</span>
                               <span className="text-[11px] text-gray-400">{c.path}</span>
                             </label>

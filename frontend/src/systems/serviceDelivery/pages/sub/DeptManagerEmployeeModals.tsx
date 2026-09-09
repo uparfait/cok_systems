@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiUser, FiMail, FiPhone, FiBriefcase } from 'react-icons/fi';
-import { employeeService } from '../../../../core/services/adminService';
+import { FiX, FiUser, FiMail, FiPhone, FiBriefcase, FiLoader } from 'react-icons/fi';
+import { employeeService, roleService } from '../../../../core/services/adminService';
 
 // City of Kigali institutional design constants
 const PRIMARY = "#056daa";
@@ -26,10 +26,32 @@ interface AddEmployeeModalProps { isOpen: boolean; onClose: () => void; departme
 export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onClose, departmentId, departmentName, onSuccess }) => {
   const [formData, setFormData] = useState({ full_name: '', email: '', telephone: '', title: '', gender: '', department_id: departmentId || '', department_name: departmentName || '' });
   const [isSubmitting, setIsSubmitting] = useState(false); const [error, setError] = useState('');
+  // Roles always come from the backend (defaults + custom combined)
+  const [roleName, setRoleName] = useState('');
+  const [roles, setRoles] = useState<Array<{ _id?: string | null; role_name: string }>>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+  useEffect(() => {
+    if (!isOpen || roles.length > 0) return;
+    let alive = true;
+    (async () => {
+      setLoadingRoles(true);
+      try {
+        const r: any = await roleService.getAll();
+        if (alive && r?.success && Array.isArray(r.data)) setRoles(r.data);
+        else if (alive && !r?.success) setError(r?.message || 'The roles could not be loaded');
+      } catch (err: any) {
+        if (alive) setError(err?.message || 'The roles could not be loaded');
+      } finally {
+        if (alive) setLoadingRoles(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [isOpen, roles.length]);
   const handleSubmit = async () => {
     if (!formData.full_name || !formData.email || !formData.telephone) { setError('Fill required fields'); return; }
+    if (!roleName) { setError('User role is required - please select a role for this employee'); return; }
     setIsSubmitting(true); setError('');
-    try { const r: any = await employeeService.create({ ...formData, roles: { role_name: 'department_employee', permissions: [] } }); if (r && (r.success === true || r._id || r.data)) onSuccess(); else setError(r?.message || 'Failed'); }
+    try { const r: any = await employeeService.create({ ...formData, roles: { role_name: roleName, permissions: [] } }); if (r && (r.success === true || r._id || r.data)) onSuccess(); else setError(r?.message || 'Failed'); }
     catch (err: any) { setError(err.message); } finally { setIsSubmitting(false); }
   };
   if (!isOpen) return null;
@@ -46,6 +68,20 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
             <div><label className="mb-0.5 block" style={labelStyle}>Telephone *</label><input type="tel" value={formData.telephone} onChange={e => setFormData({...formData, telephone: e.target.value})} className="w-full px-3 py-1.5 outline-none transition-all" style={inputStyle} onFocus={focusInput} onBlur={blurInput} /></div>
             <div><label className="mb-0.5 block" style={labelStyle}>Title</label><input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full px-3 py-1.5 outline-none transition-all" style={inputStyle} onFocus={focusInput} onBlur={blurInput} /></div>
             <div><label className="mb-0.5 block" style={labelStyle}>Gender</label><select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} className="w-full px-3 py-1.5 outline-none transition-all" style={inputStyle} onFocus={focusInput} onBlur={blurInput}><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+            <div>
+              <label className="mb-0.5 block" style={labelStyle}>User Role *</label>
+              {loadingRoles ? (
+                <div className="w-full px-3 py-1.5 flex items-center gap-2 text-sm" style={{ ...inputStyle, color: GRAY_DISABLED }}>
+                  <FiLoader className="w-4 h-4 animate-spin" style={{ color: PRIMARY }} />
+                  Loading roles...
+                </div>
+              ) : (
+                <select value={roleName} onChange={e => setRoleName(e.target.value)} className="w-full px-3 py-1.5 outline-none transition-all cursor-pointer" style={inputStyle} onFocus={focusInput} onBlur={blurInput}>
+                  <option value="">Select a role</option>
+                  {roles.map(r => <option key={r._id || r.role_name} value={r.role_name}>{r.role_name}</option>)}
+                </select>
+              )}
+            </div>
           </div>
           <div className="px-4 py-3 flex justify-end gap-2" style={{ borderTop: `1px solid ${BORDER}` }}><button onClick={onClose} className="px-3 py-1.5 bg-transparent hover:bg-gray-100 transition-colors" style={{ ...btnStyle, border: `1px solid ${PRIMARY}`, color: PRIMARY }}>Cancel</button><button onClick={handleSubmit} disabled={isSubmitting} className="px-3 py-1.5 disabled:opacity-50 transition-colors" style={{ ...btnStyle, backgroundColor: PRIMARY, color: WHITE }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>{isSubmitting ? 'Adding...' : 'Add Employee'}</button></div>
         </div>

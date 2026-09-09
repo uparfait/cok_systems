@@ -223,11 +223,30 @@ class RoleController {
                 };
             });
 
+            // Combine with the default roles from Default_Roles.json so
+            // consumers (e.g. the employee role dropdown) always see the
+            // full set, even when a default role has no DB document yet
+            const coveredSlugs = new Set(
+                annotated.filter((r) => r.is_default_tied).map((r) => r.role_slug)
+            );
+            const missingDefaults = (navigation.loadDefaults().default_roles || [])
+                .filter((d) => !coveredSlugs.has(d.role_slug))
+                .map((d) => ({
+                    _id: null,
+                    role_name: d.role_name,
+                    permissions: [],
+                    nav_links: [],
+                    default_route: d.default_route,
+                    is_default_tied: true,
+                    role_slug: d.role_slug,
+                    is_from_defaults_file: true
+                }));
+
             return res.status(200).json({
                 success: true,
                 type: 'success',
                 message: 'Roles retrieved successfully',
-                data: annotated
+                data: [...annotated, ...missingDefaults]
             });
 
         } catch (error) {

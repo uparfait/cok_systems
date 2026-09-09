@@ -30,6 +30,7 @@ const EmployeesPage: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const [roles, setRoles] = useState<RoleFromBackend[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
   const [loading, setLoading] = useState(true);
   const [firstLoad, setfirstLoad] = useState(true);
   const [error, setError] = useState('');
@@ -109,8 +110,10 @@ const EmployeesPage: React.FC = () => {
   };
 
   const loadRoles = async () => {
+    setLoadingRoles(true);
     try { const r = await roleService.getAll(); if (r.success && r.data) { setRoles(Array.isArray(r.data) ? r.data : (r.data?.data || [])); } }
     catch (err) { console.error(err); }
+    finally { setLoadingRoles(false); }
   };
 
   const handleSearch = async (query = searchQuery) => {
@@ -269,7 +272,7 @@ const EmployeesPage: React.FC = () => {
           />
         )}
 
-        <EmployeeFormModal show={showModal} editing={!!editingEmployee} formData={formData as any} formError={formError} formSuccess={formSuccess} submitting={submitting} departments={departments} departmentUnits={departmentUnits} loadingUnits={loadingUnits} roles={roles} onClose={() => setShowModal(false)} onSubmit={handleSubmit} onChange={(data) => setFormData(data)} onDepartmentChange={(name, id) => { setFormData({ ...formData, department_name: name, department_id: id, department_unit: '' }); if (id) { setLoadingUnits(true); loadDepartmentUnits(id); } else setDepartmentUnits([]); }} onAddNewDepartment={handleAddNewDepartment} onAddNewUnit={handleAddNewUnit} onRefetchDepartments={loadDepartments} onRefetchUnits={() => { if (formData.department_id) return loadDepartmentUnits(formData.department_id); }} />
+        <EmployeeFormModal show={showModal} editing={!!editingEmployee} formData={formData as any} formError={formError} formSuccess={formSuccess} submitting={submitting} departments={departments} departmentUnits={departmentUnits} loadingUnits={loadingUnits} roles={roles} loadingRoles={loadingRoles} onClose={() => setShowModal(false)} onSubmit={handleSubmit} onChange={(data) => setFormData(data)} onDepartmentChange={(name, id) => { setFormData({ ...formData, department_name: name, department_id: id, department_unit: '' }); if (id) { setLoadingUnits(true); loadDepartmentUnits(id); } else setDepartmentUnits([]); }} onAddNewDepartment={handleAddNewDepartment} onAddNewUnit={handleAddNewUnit} onRefetchDepartments={loadDepartments} onRefetchUnits={() => { if (formData.department_id) return loadDepartmentUnits(formData.department_id); }} />
 
         <DepartmentFormModal
           show={!!deptModal}

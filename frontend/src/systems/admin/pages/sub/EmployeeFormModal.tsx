@@ -26,6 +26,7 @@ interface EmployeeFormModalProps {
   departmentUnits: Department[];
   loadingUnits: boolean;
   roles: RoleFromBackend[];
+  loadingRoles?: boolean;
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
   onChange: (data: EmployeeFormData) => void;
@@ -172,7 +173,7 @@ const SearchableCreateSelect: React.FC<SearchableCreateSelectProps> = ({
 };
 
 const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
-  show, editing, formData, formError, formSuccess, submitting, departments, departmentUnits, loadingUnits, roles, onClose, onSubmit, onChange, onDepartmentChange, onAddNewDepartment, onAddNewUnit, onRefetchDepartments, onRefetchUnits
+  show, editing, formData, formError, formSuccess, submitting, departments, departmentUnits, loadingUnits, roles, loadingRoles, onClose, onSubmit, onChange, onDepartmentChange, onAddNewDepartment, onAddNewUnit, onRefetchDepartments, onRefetchUnits
 }) => {
   if (!show) return null;
   const rawUnit = String(formData.department_unit || '');
@@ -252,11 +253,18 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
               />
             </div>
             <div><label className="text-xs font-medium text-gray-700 mb-1 block"><FiShield className="w-3 h-3 inline mr-1" />User Role <span className="text-red-500">*</span></label>
-              <select required value={formData.roles?.role_name || ''} onChange={e => onChange({ ...formData, roles: { role_name: e.target.value, permissions: [] } })} className="cok-auth-input w-full text-sm cursor-pointer" style={{ paddingLeft: '10px', minHeight: '38px' }}>
-                <option value="">Select a role</option>
-                {roles.map(r => <option key={r._id || r.role_name} value={r.role_name}>{r.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</option>)}
-              </select>
-              {roles.length === 0 && <p className="text-xs text-gray-500 mt-1">No roles available yet - create roles under Roles Management first.</p>}
+              {loadingRoles ? (
+                <div className="cok-auth-input w-full text-sm flex items-center gap-2 text-gray-500" style={{ paddingLeft: '10px', minHeight: '38px' }}>
+                  <FiRefreshCw className="w-3.5 h-3.5 animate-spin" style={{ color: '#056daa' }} />
+                  Loading roles...
+                </div>
+              ) : (
+                <select required value={formData.roles?.role_name || ''} onChange={e => onChange({ ...formData, roles: { role_name: e.target.value, permissions: [] } })} className="cok-auth-input w-full text-sm cursor-pointer" style={{ paddingLeft: '10px', minHeight: '38px' }}>
+                  <option value="">Select a role</option>
+                  {roles.map(r => <option key={r._id || r.role_name} value={r.role_name}>{r.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</option>)}
+                </select>
+              )}
+              {!loadingRoles && roles.length === 0 && <p className="text-xs text-gray-500 mt-1">No roles available yet - create roles under Roles Management first.</p>}
             </div>
           </div>
 

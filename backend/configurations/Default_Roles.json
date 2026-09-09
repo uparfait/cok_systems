@@ -11,6 +11,14 @@
       "children": []
     },
     {
+      "id": "overview",
+      "label": "Overview",
+      "path": "/{roleSlug}/overview",
+      "icon": "FiBarChart2",
+      "default_enabled": false,
+      "children": []
+    },
+    {
       "id": "task-manager",
       "label": "Task Manager",
       "path": "/{roleSlug}/tasks",
