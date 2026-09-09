@@ -43,12 +43,14 @@ export default function DashboardPage({ form }) {
 
   const [data_by_widget, setDataByWidget] = useState({});
   const [data_loading, setDataLoading] = useState(false);
-  const [period, setPeriod] = useState("all");
+  // The dashboard opens on the current year by default - "all" stays one
+  // click away in the period filter.
+  const [period, setPeriod] = useState("this_year");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
   const run_seq_ref = useRef(0);
-  const applied_period_ref = useRef(null);
+  const applied_period_ref = useRef({ preset: "this_year", from: null, to: null });
   const widgets_ref = useRef([]);
   widgets_ref.current = widgets;
 
@@ -229,7 +231,7 @@ export default function DashboardPage({ form }) {
               <WidgetCard
                 widget={widget}
                 data={data_by_widget[widget.id]}
-                loading={data_loading && !data_by_widget[widget.id]}
+                loading={data_loading}
                 onRetry={() => fetch_data(widgets, applied_period_ref.current, false)}
               />
             </div>

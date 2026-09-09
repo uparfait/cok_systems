@@ -1,11 +1,11 @@
-const submissions_model = require("../models/submissions_model.js");
 const { resolve_period_bounds } = require("../utilities/period_bounds.js");
 
 /**
- * Builds the base $match of every widget pipeline: the form's submissions,
- * never any generated test data, inside the effective time window, narrowed
- * by the widget's own field filters. Everything here stays a plain Mongo
- * query - the database does all the filtering.
+ * Builds the base $match of every widget pipeline: the form's submissions
+ * (generated test data INCLUDED - the dashboard charts everything the form
+ * holds, exactly like the submissions-over-time chart) inside the effective
+ * time window, narrowed by the widget's own field filters. Everything here
+ * stays a plain Mongo query - the database does all the filtering.
  */
 
 function escape_regex(value) {
@@ -65,7 +65,6 @@ function effective_bounds(widget, period_override) {
 function build_match_stage(widget, bounds) {
   const match = {
     form_group_id: widget.form_group_id,
-    [submissions_model.TEST_DATA_FLAG]: { $ne: true },
   };
   if (bounds) {
     match.submitted_at = { $gte: bounds.start, $lte: bounds.end };

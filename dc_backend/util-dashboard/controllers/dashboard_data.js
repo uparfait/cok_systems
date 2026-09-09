@@ -7,11 +7,12 @@ const { success_response, warning_response, error_response } = require("../../ut
 
 /**
  * Computes the live data of the requested widgets of ONE form in a single
- * round trip - used by the dashboard view and by the builder's preview.
- * Every aggregation runs as a native MongoDB pipeline, always excluding
- * generated test data, and every widget is pinned to this form no matter
- * what the payload claims. A broken widget comes back as a per-widget error
- * so one bad chart never takes the whole dashboard down.
+ * round trip - used by the dashboard view. Every aggregation runs as a
+ * native MongoDB pipeline over everything the form holds (generated test
+ * data included, same as the submissions chart), and every widget is pinned
+ * to this form no matter what the payload claims. A broken widget comes
+ * back as a per-widget error so one bad chart never takes the whole
+ * dashboard down.
  */
 async function dashboard_data(req, res) {
   try {

@@ -36,7 +36,7 @@ Router.put("/:form_group_id/dashboard", save_dashboard);
  * @swagger
  * /dcs/api/forms/{form_group_id}/dashboard/data:
  *   post:
- *     summary: Compute the live aggregated data of the form's widgets (native MongoDB pipelines, test data always excluded)
+ *     summary: Compute the live aggregated data of the form's widgets (native MongoDB pipelines over all records, test data included)
  *     tags: [Dashboard]
  *     security:
  *       - BearerAuth: []
