@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useAuth } from "../../../core/contexts/AuthContext";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_my_approvals, submit_approval_decision, upload_approval_file, build_approval_link } from "../services/approvalsService.js";
+import { get_my_approvals, submit_approval_decision, upload_approval_file } from "../services/approvalsService.js";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 import DcsFormLoadingSpinner from "../components/DcsFormLoadingSpinner.jsx";
@@ -456,21 +456,16 @@ function MyApprovalsPageContent() {
                 ))}
               </div>
 
-              <div className="flex items-center justify-between gap-3 mt-4 flex-wrap">
-                <div className="flex items-center gap-3">
-                  <DcsButtonOutline onClick={() => setFormIndex(Math.max(0, form_index - 1))} disabled={form_index <= 0}>
-                    {translate("DCS_MYAPPROVALS_PREVIOUS")}
-                  </DcsButtonOutline>
-                  <span className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                    {translate("DCS_MYAPPROVALS_RECORD_OF", { index: Math.min(form_index, filtered.length - 1) + 1, total: filtered.length })}
-                  </span>
-                  <DcsButtonOutline onClick={() => setFormIndex(Math.min(filtered.length - 1, form_index + 1))} disabled={form_index >= filtered.length - 1}>
-                    {translate("DCS_MYAPPROVALS_NEXT")}
-                  </DcsButtonOutline>
-                </div>
-                <a href={build_approval_link(form_record.step.token)} className="text-sm font-semibold underline" style={{ color: PRIMARY, fontFamily: fontHeading }}>
-                  {translate("DCS_MYAPPROVALS_OPEN")}
-                </a>
+              <div className="flex items-center gap-3 mt-4 flex-wrap">
+                <DcsButtonOutline onClick={() => setFormIndex(Math.max(0, form_index - 1))} disabled={form_index <= 0}>
+                  {translate("DCS_MYAPPROVALS_PREVIOUS")}
+                </DcsButtonOutline>
+                <span className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                  {translate("DCS_MYAPPROVALS_RECORD_OF", { index: Math.min(form_index, filtered.length - 1) + 1, total: filtered.length })}
+                </span>
+                <DcsButtonOutline onClick={() => setFormIndex(Math.min(filtered.length - 1, form_index + 1))} disabled={form_index >= filtered.length - 1}>
+                  {translate("DCS_MYAPPROVALS_NEXT")}
+                </DcsButtonOutline>
               </div>
             </div>
           )}

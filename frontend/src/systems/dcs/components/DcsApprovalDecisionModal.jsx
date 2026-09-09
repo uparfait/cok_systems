@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { submit_approval_decision, upload_approval_file } from "../services/approvalsService.js";
-import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
-import { get_field_text } from "../fields/fieldText.js";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
 import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "./DcsButtonOutlineDanger.jsx";
@@ -19,31 +17,14 @@ const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 160;
 const CERTIFICATE_ACCEPT = ".pdf,.p12,.pfx,.cer,.crt,.pem,.der,.sig,.png,.jpg,.jpeg";
 
-// One submitted answer rendered read-only, same rules as the approval pages.
-function AnswerValue({ value }) {
-  const { translate } = useDcsLanguage();
-  if (value === null || value === undefined || value === "") return <span style={{ color: GRAY }}>-</span>;
-  if (Array.isArray(value)) return <span>{value.join(", ")}</span>;
-  if (typeof value === "object") {
-    if (value.url) {
-      return (
-        <a href={value.url} target="_blank" rel="noreferrer" className="underline" style={{ color: PRIMARY }}>
-          {value.name || translate("DCS_APPROVAL_FILE_LINK")}
-        </a>
-      );
-    }
-    return <span>{value.name || JSON.stringify(value)}</span>;
-  }
-  return <span>{String(value)}</span>;
-}
-
 /**
- * Popup for deciding one record in place: shows everything the submitter
- * entered, then takes the comment (and, for approve, the signature) and
- * records the decision - no navigation away from the approvals page.
+ * Popup for deciding one record in place: takes the comment (and, for approve,
+ * the signature) and records the decision - no navigation away from the
+ * approvals page. The submitted data is not repeated here; the approver has
+ * already reviewed it in the table or form view.
  */
 export default function DcsApprovalDecisionModal({ record, form, decision, onClose, onDone }) {
-  const { translate, language } = useDcsLanguage();
+  const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
 
   const [comment, setComment] = useState("");
@@ -57,16 +38,6 @@ export default function DcsApprovalDecisionModal({ record, form, decision, onClo
   const is_approve = decision === "approve";
   const accent = is_approve ? PRIMARY : DANGER;
   const form_name = (form && form.form_name) || record.form_key;
-
-  // Only fields the submitter actually answered, in schema order.
-  const answered_fields = useMemo(() => {
-    const schema_fields = (form && form.schema && form.schema.fields) || [];
-    return flatten_fields(schema_fields).filter(
-      (field) => field.type !== "group" && record.data && Object.prototype.hasOwnProperty.call(record.data, field.id),
-    );
-  }, [form, record]);
-
-  const label_of = (field) => get_field_text(field.label, language) || field.id;
 
   // --- signature canvas (same behavior as the single approval page) ---
   const get_canvas_position = (event) => {
@@ -187,26 +158,9 @@ export default function DcsApprovalDecisionModal({ record, form, decision, onClo
           </button>
         </div>
 
-        {/* Scrollable body - record details, comment and signature */}
+        {/* Scrollable body - comment and signature (the data was already reviewed in the list) */}
         <div className="px-5 py-4 overflow-y-auto flex-1">
-          <p className="text-xs font-bold uppercase mb-2" style={{ color: accent, fontFamily: fontHeading, letterSpacing: 0.8 }}>
-            {translate("DCS_APPROVAL_DATA_TITLE")}
-          </p>
-          <div className="border" style={{ borderColor: BORDER }}>
-            {answered_fields.length === 0 && <p className="p-3 text-sm" style={{ color: GRAY }}>-</p>}
-            {answered_fields.map((field, index) => (
-              <div
-                key={field.id}
-                className="px-3 py-2.5 grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-x-4 gap-y-0.5 items-start"
-                style={{ borderTop: index === 0 ? "none" : `1px solid ${BORDER}`, backgroundColor: index % 2 === 0 ? "#FFFFFF" : NEUTRAL_LIGHT }}
-              >
-                <span className="text-xs font-semibold uppercase pt-0.5 break-words" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>{label_of(field)}</span>
-                <span className="text-sm break-words" style={{ color: NEUTRAL_DARK }}><AnswerValue value={record.data[field.id]} /></span>
-              </div>
-            ))}
-          </div>
-
-          <label className="block text-xs font-bold uppercase mt-5 mb-1.5" style={{ color: accent, fontFamily: fontHeading, letterSpacing: 0.8 }}>
+          <label className="block text-xs font-bold uppercase mb-1.5" style={{ color: accent, fontFamily: fontHeading, letterSpacing: 0.8 }}>
             {translate("DCS_APPROVAL_COMMENT_LABEL")}
           </label>
           <textarea
