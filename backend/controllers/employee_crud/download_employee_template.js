@@ -1,6 +1,6 @@
 const ExcelJS = require('exceljs');
 const department_model = require('../../models/department.js');
-const role_model = require('../../models/default_roles.js');
+const { getCombinedRoles } = require('../../utilities/navigation.js');
 
 // A department is a unit in either the new (is_unit + parent_department) or
 // legacy (sub_department_mng) format; the legacy flag is sometimes the string "true"
@@ -17,9 +17,11 @@ const unitParentId = (d) => {
 
 module.exports = async function download_employee_template(req, res, next) {
     try {
+        // Roles come combined: database roles plus the default roles from
+        // Default_Roles.json, deduplicated by slug
         const [allDepartments, allRoles] = await Promise.all([
             department_model.find({}).sort({ department_name: 1 }).lean(),
-            role_model.find({}).sort({ role_name: 1 }).lean()
+            getCombinedRoles()
         ]);
 
         const mainDepartments = allDepartments.filter(dept => !isUnitDept(dept));

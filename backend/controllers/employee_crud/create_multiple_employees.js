@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const user_model = require('../../models/user.js');
 const allowed_resources = require('../../resources/resources.js');
 const department_model = require('../../models/department.js');
-const role_model = require('../../models/default_roles.js');
+const { getCombinedRoles } = require('../../utilities/navigation.js');
 
 /**
  * Bulk create employees from Excel/CSV file
@@ -15,9 +15,9 @@ module.exports = async function create_multiple_employees(req, res, next) {
     let session = null;
 
     try {
-        // Fetch all roles and departments for validation
+        // Fetch all roles (database + defaults combined) and departments
         const [allRoles, allDepartments] = await Promise.all([
-            role_model.find({}).sort({ role_name: 1 }),
+            getCombinedRoles(),
             department_model.find({}).sort({ department_name: 1 })
         ]);
 
@@ -340,7 +340,9 @@ module.exports = async function create_multiple_employees(req, res, next) {
         // Function to get permissions based on role from database
         const getPermissionsByRole = (roleName) => {
             const role = allRoles.find(r => r.role_name.toLowerCase() === roleName.toLowerCase());
-            if (role) {
+            // A default role without a DB document has no stored permissions;
+            // let it fall through to the basic read-only fallback below
+            if (role && Array.isArray(role.permissions) && role.permissions.length > 0) {
                 // Return permissions from the database role
                 return role.permissions.map(perm => ({
                     resource_name: perm.resource_name,

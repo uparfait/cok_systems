@@ -206,47 +206,15 @@ class RoleController {
    
     static async getAllRoles(req, res, next) {
         try {
-            const roles = await role_model.find({}).lean();
-
-            // Flag roles whose name maps onto a default role so the UI can
-            // separate unchangeable default roles from custom ones. A role
-            // with its own configured nav_links is always custom.
-            const annotated = roles.map((role) => {
-                const hasCustomNav = Array.isArray(role.nav_links) && role.nav_links.length > 0;
-                const defaultSlug = navigation.matchDefaultSlug(role.role_name);
-                return {
-                    ...role,
-                    is_default_tied: !hasCustomNav && !!defaultSlug,
-                    role_slug: hasCustomNav
-                        ? navigation.slugify(role.role_name)
-                        : (defaultSlug || navigation.slugify(role.role_name))
-                };
-            });
-
-            // Combine with the default roles from Default_Roles.json so
-            // consumers (e.g. the employee role dropdown) always see the
-            // full set, even when a default role has no DB document yet
-            const coveredSlugs = new Set(
-                annotated.filter((r) => r.is_default_tied).map((r) => r.role_slug)
-            );
-            const missingDefaults = (navigation.loadDefaults().default_roles || [])
-                .filter((d) => !coveredSlugs.has(d.role_slug))
-                .map((d) => ({
-                    _id: null,
-                    role_name: d.role_name,
-                    permissions: [],
-                    nav_links: [],
-                    default_route: d.default_route,
-                    is_default_tied: true,
-                    role_slug: d.role_slug,
-                    is_from_defaults_file: true
-                }));
+            // Database roles combined with the JSON defaults, deduplicated
+            // by slug so no role (e.g. Mayor) can ever appear twice
+            const combined = await navigation.getCombinedRoles();
 
             return res.status(200).json({
                 success: true,
                 type: 'success',
                 message: 'Roles retrieved successfully',
-                data: [...annotated, ...missingDefaults]
+                data: combined
             });
 
         } catch (error) {

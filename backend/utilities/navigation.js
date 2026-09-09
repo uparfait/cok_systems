@@ -170,6 +170,53 @@ async function resolveNavigation(roleName) {
     };
 }
 
+/**
+ * The full role set: database roles plus any default roles that have no
+ * database document yet, deduplicated by slug (so e.g. "Mayor" and "mayor"
+ * never both appear). Database documents win over JSON defaults.
+ */
+async function getCombinedRoles() {
+    const roles = await Role.find({}).sort({ role_name: 1 }).lean();
+
+    const annotated = roles.map((role) => {
+        const hasCustomNav = Array.isArray(role.nav_links) && role.nav_links.length > 0;
+        const defaultSlug = matchDefaultSlug(role.role_name);
+        return {
+            ...role,
+            is_default_tied: !hasCustomNav && !!defaultSlug,
+            role_slug: hasCustomNav
+                ? slugify(role.role_name)
+                : (defaultSlug || slugify(role.role_name)),
+        };
+    });
+
+    // A default role is missing only when no DB role occupies its slug at
+    // all (whatever its casing or custom flag)
+    const occupiedSlugs = new Set(annotated.map((r) => r.role_slug));
+    const missingDefaults = (loadDefaults().default_roles || [])
+        .filter((d) => !occupiedSlugs.has(d.role_slug))
+        .map((d) => ({
+            _id: null,
+            role_name: d.role_name,
+            permissions: [],
+            nav_links: [],
+            default_route: d.default_route,
+            is_default_tied: true,
+            role_slug: d.role_slug,
+            is_from_defaults_file: true,
+        }));
+
+    // Final dedupe by slugified name: case variants of the same role
+    // collapse to the first (DB) entry
+    const seen = new Set();
+    return [...annotated, ...missingDefaults].filter((r) => {
+        const key = slugify(r.role_name);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 module.exports = {
     loadDefaults,
     slugify,
@@ -178,4 +225,5 @@ module.exports = {
     resolveCatalogLinks,
     validateNavLinks,
     applyPlaceholders,
+    getCombinedRoles,
 };

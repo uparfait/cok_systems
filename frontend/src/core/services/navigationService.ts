@@ -54,9 +54,42 @@ export const clearNavigation = (): void => {
   try { localStorage.removeItem(NAV_KEY); } catch { /* ignore */ }
 };
 
+const FORCED_LOGOUT_NOTICE_KEY = 'forced_logout_notice';
+
+// Clears every credential and sends the user back to the login page with a
+// notice shown there as a toast. Used when the navigation contract between
+// frontend and backend no longer matches (system configurations changed).
+export const forceLogout = (notice: string): void => {
+  try { sessionStorage.setItem(FORCED_LOGOUT_NOTICE_KEY, notice); } catch { /* ignore */ }
+  try {
+    localStorage.removeItem('userData');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem(NAV_KEY);
+  } catch { /* ignore */ }
+  window.location.href = '/login';
+};
+
+// The login page reads (and clears) the notice left by forceLogout
+export const consumeForcedLogoutNotice = (): string | null => {
+  try {
+    const notice = sessionStorage.getItem(FORCED_LOGOUT_NOTICE_KEY);
+    if (notice) sessionStorage.removeItem(FORCED_LOGOUT_NOTICE_KEY);
+    return notice;
+  } catch {
+    return null;
+  }
+};
+
+const isRoleFormatFailure = (value: any): boolean => {
+  const msg = String(value?.message || value?.error || '');
+  return /invalid role/i.test(msg);
+};
+
 // Fetches the caller's navigation from the backend and stores it. Called on
 // every page load so a changed role (or edited custom role) takes effect
-// without re-login.
+// without re-login. A role-format failure means the role system changed
+// under this session: log the user out so they re-authenticate cleanly.
 export const refreshNavigation = async (): Promise<StoredNavigation | null> => {
   try {
     const res: any = await get('/roles/navigation');
@@ -65,9 +98,15 @@ export const refreshNavigation = async (): Promise<StoredNavigation | null> => {
       saveNavigation(nav);
       return nav as StoredNavigation;
     }
+    if (res && res.success === false && isRoleFormatFailure(res)) {
+      forceLogout('SYSTEM CONFIGURATIONS CHANGED');
+    }
     return null;
   } catch (err) {
     console.error('Navigation refresh failed:', err);
+    if (isRoleFormatFailure(err)) {
+      forceLogout('SYSTEM CONFIGURATIONS CHANGED');
+    }
     return null;
   }
 };

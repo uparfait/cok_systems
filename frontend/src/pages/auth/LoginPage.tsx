@@ -13,7 +13,7 @@ import { useToast } from '../../core/contexts/ToastContext';
 import { getDashboardRoute } from '../../core/components/Layout/layoutUtils';
 import { validateToken } from '../../core/services/authService';
 import { getStoredUser } from '../../core/services/apiClient';
-import { saveNavigation } from '../../core/services/navigationService';
+import { saveNavigation, consumeForcedLogoutNotice } from '../../core/services/navigationService';
 import LoadingSpinner from '@/core/components/LoadingSpinner';
 
 const LoginPage = () => {
@@ -46,6 +46,13 @@ const LoginPage = () => {
   // Images from public folder
   const cityHallImage = '/cok_hall.jpg';
   const logoImage = '/LOGO_COK.png';
+
+  // A forced logout (system configurations changed) leaves a notice to show
+  useEffect(() => {
+    const notice = consumeForcedLogoutNotice();
+    if (notice) showError(notice);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Check for existing authentication on component mount
   useEffect(() => {
