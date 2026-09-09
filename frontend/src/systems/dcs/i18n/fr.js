@@ -1027,6 +1027,8 @@ const fr = {
   DCS_MYAPPROVALS_PROGRESS: "Approbation de {{done}} sur {{total}}...",
   DCS_MYAPPROVALS_DONE: "{{count}} enregistrements approuvés",
   DCS_MYAPPROVALS_PARTIAL: "{{done}} approuvés, {{failed}} en échec",
+  DCS_MYAPPROVALS_LOADING_MORE: "Chargement d'autres enregistrements...",
+  DCS_MYAPPROVALS_ALL_LOADED: "Les {{total}} enregistrements sont chargés",
   DCS_TEST_DATA_LINK: "Gestion des données de test",
   DCS_TEST_DATA_GENERATE_BTN: "Générer des données de test",
   DCS_TEST_DATA_DELETE_BTN: "Supprimer les données de test",

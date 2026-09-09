@@ -70,6 +70,39 @@ async function list_by_approver_email(email, limit) {
     .toArray();
 }
 
+/**
+ * One scroll batch of an approver's submissions for a single form version
+ * (newest first), plus the total so the dashboard knows when to stop asking.
+ */
+async function list_by_approver_email_page(email, form_group_id, version, skip, limit) {
+  if (!email) return { items: [], total: 0 };
+  const filter = { "approval.steps.email": email.toString().trim().toLowerCase(), form_group_id };
+  if (version !== undefined && version !== null) filter.version = Number(version);
+  const collection = get_db().collection(COLLECTION_NAME);
+  const [items, total] = await Promise.all([
+    collection.find(filter).sort({ submitted_at: -1 }).skip(skip).limit(limit).toArray(),
+    collection.countDocuments(filter),
+  ]);
+  return { items, total };
+}
+
+/**
+ * Every form version routed to one approver with its record count, newest
+ * submission first - feeds the dashboard's form picker without loading records.
+ */
+async function list_form_versions_by_approver_email(email) {
+  if (!email) return [];
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .aggregate([
+      { $match: { "approval.steps.email": email.toString().trim().toLowerCase() } },
+      { $group: { _id: { form_group_id: "$form_group_id", version: "$version" }, count: { $sum: 1 }, latest: { $max: "$submitted_at" } } },
+      { $sort: { latest: -1 } },
+    ])
+    .toArray()
+    .then((groups) => groups.map((group) => ({ form_group_id: group._id.form_group_id, version: group._id.version, count: group.count })));
+}
+
 /** Persists a submission's whole updated approval state after a decision. */
 async function update_submission_approval(submission_id, approval) {
   await get_db().collection(COLLECTION_NAME).updateOne({ _id: submission_id }, { $set: { approval } });
@@ -393,6 +426,8 @@ module.exports = {
   list_by_approval_request,
   find_by_approval_token,
   list_by_approver_email,
+  list_by_approver_email_page,
+  list_form_versions_by_approver_email,
   update_submission_approval,
   find_by_client_submission_id,
   find_submission_by_id,
