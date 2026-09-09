@@ -80,7 +80,8 @@ async function list_by_approver_email_page(email, form_group_id, version, skip, 
   if (version !== undefined && version !== null) filter.version = Number(version);
   const collection = get_db().collection(COLLECTION_NAME);
   const [items, total] = await Promise.all([
-    collection.find(filter).sort({ submitted_at: -1 }).skip(skip).limit(limit).toArray(),
+    // _id breaks submitted_at ties so a record can never appear in two batches or fall between them.
+    collection.find(filter).sort({ submitted_at: -1, _id: -1 }).skip(skip).limit(limit).toArray(),
     collection.countDocuments(filter),
   ]);
   return { items, total };
