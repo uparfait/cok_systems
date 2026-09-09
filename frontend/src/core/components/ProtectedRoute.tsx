@@ -35,7 +35,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/" state={{ from: location }} replace />;
+    // Losing authentication on a protected page always lands on the login
+    // form directly, never on the public home page
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;

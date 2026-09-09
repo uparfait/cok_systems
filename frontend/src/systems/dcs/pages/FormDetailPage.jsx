@@ -12,6 +12,7 @@ import DcsAgeChip from "../components/DcsAgeChip.jsx";
 import DcsPanelToggleButton from "../components/DcsPanelToggleButton.jsx";
 import DcsFormSubmissionsChart from "../components/DcsFormSubmissionsChart.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import FormDashboardControls from "../util-dashboard/FormDashboardControls.jsx";
 
 /**
  * Form overview: its name, a form age counter next to a deliberately
@@ -133,6 +134,8 @@ export default function FormDetailPage() {
               </div>
 
               <DcsFormSubmissionsChart formGroupId={form_group_id} />
+
+              <FormDashboardControls projectId={project_id} form={form} />
             </div>
           )}
 
