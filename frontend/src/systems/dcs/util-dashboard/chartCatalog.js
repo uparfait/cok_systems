@@ -16,6 +16,9 @@ export const CHART_CATALOG = [
   { type: "area", kind: "time", labelKey: "DCS_DB_CHART_AREA" },
   { type: "stacked_column", kind: "category", labelKey: "DCS_DB_CHART_STACKED" },
   { type: "stacked_100", kind: "category", labelKey: "DCS_DB_CHART_STACKED_100" },
+  { type: "grouped_bar", kind: "category", labelKey: "DCS_DB_CHART_GROUPED_BAR" },
+  { type: "stacked_bar", kind: "category", labelKey: "DCS_DB_CHART_STACKED_BAR" },
+  { type: "stacked_bar_100", kind: "category", labelKey: "DCS_DB_CHART_STACKED_BAR_100" },
   { type: "pie", kind: "category", labelKey: "DCS_DB_CHART_PIE" },
   { type: "donut", kind: "category", labelKey: "DCS_DB_CHART_DONUT" },
   { type: "waffle", kind: "category", labelKey: "DCS_DB_CHART_WAFFLE" },
@@ -27,6 +30,45 @@ export const CHART_CATALOG = [
 ];
 
 export const chart_definition = (type) => CHART_CATALOG.find((entry) => entry.type === type) || null;
+
+/**
+ * Chart types whose data is identical map to one family token: every
+ * bar/column-style chart shares one aggregation, every slice chart (capped
+ * at 6 with the tail folded into Other) shares another, and every split
+ * chart (stacked, grouped, 100 percent, heatmap - vertical or horizontal)
+ * shares a third. Flipping the look inside a family never needs a refetch.
+ */
+export function fold_family(type) {
+  if (["bar", "column", "lollipop", "dot_plot"].includes(type)) return "bars";
+  if (["pie", "donut", "waffle"].includes(type)) return "slices";
+  if (["grouped_column", "stacked_column", "stacked_100", "grouped_bar", "stacked_bar", "stacked_bar_100", "heatmap"].includes(type)) {
+    return "split";
+  }
+  return type;
+}
+
+/**
+ * Everything that decides a widget's DATA (never its look or wording) - two
+ * widget lists with equal signatures chart the exact same numbers.
+ */
+export function widgets_data_signature(widget_list) {
+  return JSON.stringify(
+    widget_list.map((widget) => [
+      widget.id,
+      fold_family(widget.chart_type),
+      widget.metric,
+      widget.group_by,
+      widget.split_by,
+      widget.x_field_id,
+      widget.y_field_id,
+      widget.size_field_id,
+      widget.filters,
+      widget.period,
+      widget.sort,
+      widget.limit,
+    ]),
+  );
+}
 
 // Field classification, mirroring the backend catalog exactly.
 const CATEGORICAL_TYPES = ["single_select", "multi_select", "cascading_select", "select_group", "likert_scale"];

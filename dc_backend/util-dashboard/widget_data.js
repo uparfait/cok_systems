@@ -32,11 +32,14 @@ function is_additive(widget) {
 function format_category(widget, rows) {
   const limit = slice_limit(widget);
   const shaped = rows.map((row) => ({ label: String(row._id), value: row.value }));
-  if (shaped.length <= limit) return { rows: shaped, other_folded: false };
+  if (shaped.length <= limit) return { rows: shaped, other_folded: false, other_rows: [] };
   const kept = shaped.slice(0, limit - (is_additive(widget) ? 1 : 0));
-  if (!is_additive(widget)) return { rows: kept, other_folded: false };
-  const other_total = shaped.slice(kept.length).reduce((sum, row) => sum + (row.value || 0), 0);
-  return { rows: kept.concat([{ label: OTHER_KEY, value: other_total }]), other_folded: true };
+  if (!is_additive(widget)) return { rows: kept, other_folded: false, other_rows: [] };
+  // The folded tail rides along so the frontend can show what is inside
+  // "Other" when the user asks for it.
+  const other_rows = shaped.slice(kept.length);
+  const other_total = other_rows.reduce((sum, row) => sum + (row.value || 0), 0);
+  return { rows: kept.concat([{ label: OTHER_KEY, value: other_total }]), other_folded: true, other_rows };
 }
 
 /**
@@ -224,7 +227,7 @@ async function compute_widget_data(widget, form_version, period_override) {
   }
   const rows = await pipelines.category_rows(widget, bounds, catalog);
   const shaped = format_category(widget, rows);
-  return { kind, rows: shaped.rows, series: [], other_folded: shaped.other_folded };
+  return { kind, rows: shaped.rows, series: [], other_folded: shaped.other_folded, other_rows: shaped.other_rows };
 }
 
 module.exports = {

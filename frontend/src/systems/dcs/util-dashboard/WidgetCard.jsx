@@ -104,10 +104,36 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
   );
 }
 
+// Any category chart can be redrawn as bars or columns on the spot -
+// single-series ones become plain bar/column, split ones (stacked, grouped,
+// 100 percent) become their horizontal or vertical counterpart.
+const TO_BAR = {
+  column: "bar",
+  lollipop: "bar",
+  dot_plot: "bar",
+  pie: "bar",
+  donut: "bar",
+  waffle: "bar",
+  grouped_column: "grouped_bar",
+  stacked_column: "stacked_bar",
+  stacked_100: "stacked_bar_100",
+};
+const TO_COLUMN = {
+  bar: "column",
+  lollipop: "column",
+  dot_plot: "column",
+  pie: "column",
+  donut: "column",
+  waffle: "column",
+  grouped_bar: "grouped_column",
+  stacked_bar: "stacked_column",
+  stacked_bar_100: "stacked_100",
+};
+
 /**
- * The three-dots menu at each card's top right: turn a bar chart into a
- * column chart (and back - the underlying data is identical, only the
- * orientation changes), and remove the widget. Closes on outside click.
+ * The three-dots menu at each card's top right: turn any category chart -
+ * stacked or not - into its bar or column form, and remove the widget.
+ * Closes on outside click.
  */
 function CardMenu({ widget, onChangeType, onRemove }) {
   const { translate } = useDcsLanguage();
@@ -162,14 +188,14 @@ function CardMenu({ widget, onChangeType, onRemove }) {
       </button>
       {open && (
         <div role="menu" className="absolute right-0 z-40 bg-white border-2 shadow-lg" style={{ top: "100%", marginTop: 4, borderColor: "#E0E0E0", minWidth: 170 }}>
-          {widget.chart_type === "bar" && onChangeType && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(false)} onClick={() => pick(() => onChangeType("column"))}>
-              {translate("DCS_DB_TO_COLUMN")}
+          {onChangeType && TO_BAR[widget.chart_type] && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(false)} onClick={() => pick(() => onChangeType(TO_BAR[widget.chart_type]))}>
+              {translate("DCS_DB_TO_BAR")}
             </button>
           )}
-          {widget.chart_type === "column" && onChangeType && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(false)} onClick={() => pick(() => onChangeType("bar"))}>
-              {translate("DCS_DB_TO_BAR")}
+          {onChangeType && TO_COLUMN[widget.chart_type] && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(false)} onClick={() => pick(() => onChangeType(TO_COLUMN[widget.chart_type]))}>
+              {translate("DCS_DB_TO_COLUMN")}
             </button>
           )}
           {onRemove && (
@@ -185,15 +211,34 @@ function CardMenu({ widget, onChangeType, onRemove }) {
 }
 
 /**
+ * The grand total behind one widget's data - the sum across ALL its rows,
+ * series, points or tree nodes. Only meaningful for additive measures
+ * (count/sum); averages and extremes show no total.
+ */
+function widget_total(widget, data) {
+  if (!data || data.locked || data.error || data.kind === "kpi") return null;
+  const aggregation = (widget.metric && widget.metric.aggregation) || "count";
+  if (aggregation !== "count" && aggregation !== "sum") return null;
+  if (Array.isArray(data.points)) return data.points.length;
+  if (Array.isArray(data.nodes)) return data.nodes.reduce((sum, node) => sum + (node.value || 0), 0);
+  if (!Array.isArray(data.rows)) return null;
+  if (data.series && data.series.length > 0) {
+    return data.rows.reduce((sum, row) => sum + data.series.reduce((inner, key) => inner + (row[key] || 0), 0), 0);
+  }
+  return data.rows.reduce((sum, row) => sum + (row.value || 0), 0);
+}
+
+/**
  * The frame of every dashboard widget: a title bar (title and description
  * are click-to-edit for users allowed to edit the form, with a spinner
- * while the change saves, and a three-dots menu on the top right) and the
- * loading / error states around the chart itself.
+ * while the change saves, the widget's grand total, and a three-dots menu
+ * on the top right) and the loading / error states around the chart itself.
  */
 export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType }) {
   const { translate } = useDcsLanguage();
   const definition = chart_definition(widget.chart_type);
   const type_label = definition ? translate(definition.labelKey) : widget.chart_type;
+  const total = widget_total(widget, data);
 
   return (
     <div className="bg-white border-2 flex flex-col h-full" style={{ borderColor: "#E0E0E0" }}>
@@ -223,6 +268,15 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
             onCommit={(next) => onUpdateText({ description: next || null })}
           />
         </div>
+        {total !== null && (
+          <span
+            className="flex-shrink-0 text-xs font-semibold px-2 py-0.5"
+            style={{ color: PRIMARY, backgroundColor: "#F0F7FB", border: `1px solid ${PRIMARY}`, fontFamily: "'Montserrat', sans-serif" }}
+            title={translate("DCS_DB_TOTAL")}
+          >
+            {translate("DCS_DB_TOTAL")}: {total.toLocaleString("en-US")}
+          </span>
+        )}
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
         {editable && !savingText && (onRemove || onChangeType) && (
           <CardMenu widget={widget} onChangeType={onChangeType} onRemove={onRemove} />

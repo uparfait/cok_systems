@@ -9,10 +9,11 @@ import { series_color, TOOLTIP_STYLE, CHART_HEIGHT } from "./chartTheme.js";
  * card width instead of squeezing the circle or overflowing sideways. The
  * donut shows the total in its hole.
  */
-export default function PieCharts({ chartType, rows, totalLabel }) {
+export default function PieCharts({ chartType, rows, totalLabel, onItemClick }) {
   const total = rows.reduce((sum, row) => sum + (row.value || 0), 0);
   const is_donut = chartType === "donut";
   const chart_height = CHART_HEIGHT - 60;
+  const handle_click = onItemClick ? (entry) => onItemClick(entry && entry.payload ? entry.payload : entry) : undefined;
 
   return (
     <div>
@@ -28,6 +29,8 @@ export default function PieCharts({ chartType, rows, totalLabel }) {
               paddingAngle={rows.length > 1 ? 2 : 0}
               isAnimationActive={false}
               label={({ value, percent }) => `${value} (${Math.round(percent * 100)}%)`}
+              cursor={handle_click ? "pointer" : undefined}
+              onClick={handle_click}
             >
               {rows.map((row, index) => (
                 <Cell key={row.label} fill={series_color(index)} />

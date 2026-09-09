@@ -4,6 +4,7 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_dashboard, save_dashboard, get_dashboard_data } from "./dashboardService.js";
 import { generate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
+import { fold_family, widgets_data_signature } from "./chartCatalog.js";
 import { IconButton, FULLSCREEN_SVG, EXIT_SVG, FIT_SVG, SCROLL_SVG, REFRESH_SVG, TRASH_SVG } from "./BoardIcons.jsx";
 import GenerationProgress from "./GenerationProgress.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
@@ -17,13 +18,17 @@ const DANGER = "#E74C3C";
 
 // Flexible auto-grow grid: every card carries a size-based flex-basis, and
 // `grow` lets the items of an incomplete last row stretch over the leftover
-// width instead of leaving an empty gap. Static class strings so Tailwind
-// keeps them; mobile is always one full-width column.
+// width instead of leaving an empty gap. NO widget may claim a full row of
+// its own - every base width is at most half the board, so something can
+// always sit next to it; a widget only ever spans the full width when
+// nothing else shares its row (the odd one out, or a one-widget board).
+// Static class strings so Tailwind keeps them; mobile is one column.
+const HALF_ROW = "grow basis-full sm:basis-[calc(50%-0.75rem)]";
 const SIZE_CLASSES = {
-  small: "grow basis-full sm:basis-[calc(50%-0.75rem)] xl:basis-[calc(25%-0.75rem)]",
-  medium: "grow basis-full sm:basis-[calc(50%-0.75rem)] xl:basis-[calc(50%-0.75rem)]",
-  large: "grow basis-full sm:basis-full xl:basis-[calc(75%-0.75rem)]",
-  full: "grow basis-full",
+  small: `${HALF_ROW} xl:basis-[calc(25%-0.75rem)]`,
+  medium: HALF_ROW,
+  large: HALF_ROW,
+  full: HALF_ROW,
 };
 
 // CSS zoom reflows the layout and keeps text crisp at the target size -
@@ -99,13 +104,20 @@ export default function DashboardPage({ form }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.form_group_id]);
 
-  // The board NEVER asks for everything at once: widgets are fetched ONE BY
-  // ONE, each request starting only after the previous one finished. Every
-  // card renders the moment its own data lands, so the page fills in
-  // progressively instead of freezing on one massive response and repaint.
-  // A newer run (period change, regenerate, retry) invalidates the sequence
-  // between any two requests.
-  const fetch_data = async (widget_list, applied_period, silent) => {
+  // ONE global fetch chain: every data request of this board - initial
+  // load, period change, retry, chart-type refresh, silent update - is
+  // appended to the same promise chain, so NO TWO WIDGETS ever fetch at the
+  // same time, not even across different runs. Within a run the widgets go
+  // strictly first to last.
+  const fetch_queue_ref = useRef(Promise.resolve());
+  const data_ref = useRef({});
+  data_ref.current = data_by_widget;
+  const enqueue_fetch = (task) => {
+    fetch_queue_ref.current = fetch_queue_ref.current.then(task).catch(() => {});
+    return fetch_queue_ref.current;
+  };
+
+  const fetch_data = (widget_list, applied_period, silent) => {
     if (!widget_list || widget_list.length === 0) {
       setDataByWidget({});
       return;
@@ -117,65 +129,58 @@ export default function DashboardPage({ form }) {
       setDataByWidget({});
       setDataLoading(true);
     }
-    for (const widget of widget_list) {
+    enqueue_fetch(async () => {
       if (run_seq_ref.current !== run_id) return;
-      try {
-        const response = await get_dashboard_data(form.form_group_id, [widget], applied_period);
+      // A silent update only ever starts once EVERY widget already has its
+      // data - while the first-to-last load is still filling the board, the
+      // update tick simply skips its turn.
+      if (silent && widget_list.some((widget) => !data_ref.current[widget.id])) return;
+      for (const widget of widget_list) {
         if (run_seq_ref.current !== run_id) return;
-        const result = ((response.data && response.data.results) || [])[0];
-        if (result) setDataByWidget((current) => ({ ...current, [widget.id]: result }));
-      } catch (error) {
-        if (run_seq_ref.current !== run_id) return;
-        // A silent refresh keeps whatever the card already shows; a
-        // user-driven load marks just this card as failed and moves on.
-        if (!silent) setDataByWidget((current) => ({ ...current, [widget.id]: { widget_id: widget.id, error: "FAILED" } }));
+        try {
+          const response = await get_dashboard_data(form.form_group_id, [widget], applied_period);
+          if (run_seq_ref.current !== run_id) return;
+          const result = ((response.data && response.data.results) || [])[0];
+          if (result) setDataByWidget((current) => ({ ...current, [widget.id]: result }));
+        } catch (error) {
+          if (run_seq_ref.current !== run_id) return;
+          // A silent refresh keeps whatever the card already shows; a
+          // user-driven load marks just this card as failed and moves on.
+          if (!silent) setDataByWidget((current) => ({ ...current, [widget.id]: { widget_id: widget.id, error: "FAILED" } }));
+        }
       }
-    }
-    if (run_seq_ref.current === run_id && !silent) setDataLoading(false);
+      if (run_seq_ref.current === run_id && !silent) setDataLoading(false);
+    });
   };
 
   // Retrying one failed card refetches ONLY that card - never the whole
-  // board. The result is dropped if a newer full run started meanwhile.
-  const retry_widget = async (widget) => {
+  // board - queued on the same chain as everything else. The result is
+  // dropped if a newer full run started meanwhile.
+  const retry_widget = (widget) => {
     const run_id = run_seq_ref.current;
     setDataByWidget((current) => {
       const next = { ...current };
       delete next[widget.id];
       return next;
     });
-    try {
-      const response = await get_dashboard_data(form.form_group_id, [widget], applied_period_ref.current);
+    enqueue_fetch(async () => {
       if (run_seq_ref.current !== run_id) return;
-      const result = ((response.data && response.data.results) || [])[0];
-      setDataByWidget((current) => ({ ...current, [widget.id]: result || { widget_id: widget.id, error: "FAILED" } }));
-    } catch (error) {
-      if (run_seq_ref.current !== run_id) return;
-      setDataByWidget((current) => ({ ...current, [widget.id]: { widget_id: widget.id, error: "FAILED" } }));
-    }
+      try {
+        const response = await get_dashboard_data(form.form_group_id, [widget], applied_period_ref.current);
+        if (run_seq_ref.current !== run_id) return;
+        const result = ((response.data && response.data.results) || [])[0];
+        setDataByWidget((current) => ({ ...current, [widget.id]: result || { widget_id: widget.id, error: "FAILED" } }));
+      } catch (error) {
+        if (run_seq_ref.current !== run_id) return;
+        setDataByWidget((current) => ({ ...current, [widget.id]: { widget_id: widget.id, error: "FAILED" } }));
+      }
+    });
   };
 
   // Text edits (title/description) also update the widgets state - only a
   // change to what a widget actually CHARTS refetches its data. Removing a
-  // widget updates the signature by hand so the survivors never refetch.
-  const widgets_data_signature = (widget_list) =>
-    JSON.stringify(
-      widget_list.map((widget) => [
-        widget.id,
-        // Bar and column read the exact same aggregation - flipping the
-        // orientation must never refetch, so both map to one token.
-        widget.chart_type === "bar" ? "column" : widget.chart_type,
-        widget.metric,
-        widget.group_by,
-        widget.split_by,
-        widget.x_field_id,
-        widget.y_field_id,
-        widget.size_field_id,
-        widget.filters,
-        widget.period,
-        widget.sort,
-        widget.limit,
-      ]),
-    );
+  // widget updates the signature by hand so the survivors never refetch,
+  // and same-family look flips (see fold_family) never refetch at all.
   const data_signature_ref = useRef("");
   useEffect(() => {
     if (loading) return;
@@ -220,11 +225,21 @@ export default function DashboardPage({ form }) {
   // the form's dashboard right away, with a per-card spinner and a toast.
   const [saving_widget_id, setSavingWidgetId] = useState(null);
   const handle_update_widget = async (widget_id, changes) => {
+    const previous = widgets.find((widget) => widget.id === widget_id);
     const next_widgets = widgets.map((widget) => (widget.id === widget_id ? { ...widget, ...changes } : widget));
     setSavingWidgetId(widget_id);
     try {
       const saved = await save_dashboard(form.form_group_id, next_widgets);
-      setWidgets((saved.data && saved.data.widgets) || next_widgets);
+      const final_widgets = (saved.data && saved.data.widgets) || next_widgets;
+      // The signature is settled by hand so the board never refetches as a
+      // whole; only a switch that changes the data's folding family (donut
+      // to bar, for example) refreshes THAT one card.
+      data_signature_ref.current = widgets_data_signature(final_widgets);
+      setWidgets(final_widgets);
+      if (changes.chart_type && previous && fold_family(changes.chart_type) !== fold_family(previous.chart_type)) {
+        const updated = final_widgets.find((widget) => widget.id === widget_id);
+        if (updated) retry_widget(updated);
+      }
       showSuccess(translate("DCS_DB_WIDGET_UPDATED"));
     } catch (error) {
       showError(error.message || translate("DCS_ERROR_GENERIC"));
