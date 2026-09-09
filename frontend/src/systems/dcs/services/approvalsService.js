@@ -17,9 +17,9 @@ export function build_approval_link(token) {
   return `${window.location.origin}/dcs-approval/${token}`;
 }
 
-/** Authenticated: every submission routed to the logged-in user's email, across all forms. */
-export function get_my_approvals() {
-  return dcs_request("/approvals/my", "GET");
+/** Authenticated: one scroll batch of the logged-in approver's records for a form (offset + limit), plus the form picker list. */
+export function get_my_approvals({ form_key, offset, limit } = {}) {
+  return dcs_request("/approvals/my", "GET", null, { params: { form_key: form_key || undefined, offset, limit } });
 }
 
 /** Authenticated: the form's configured approvers, its waiting approval schedule and its recently sent batches. */

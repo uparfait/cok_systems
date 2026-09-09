@@ -868,6 +868,8 @@ const kn = {
   DCS_MYAPPROVALS_PROGRESS: "Kwemeza {{done}} kuri {{total}}...",
   DCS_MYAPPROVALS_DONE: "Inyandiko {{count}} zemejwe",
   DCS_MYAPPROVALS_PARTIAL: "{{done}} zemejwe, {{failed}} ntizemejwe",
+  DCS_MYAPPROVALS_LOADING_MORE: "Turimo gushaka izindi nyandiko...",
+  DCS_MYAPPROVALS_ALL_LOADED: "Inyandiko zose {{total}} zabonetse",
   DCS_TEST_DATA_LINK: "Gucunga amakuru y'igerageza",
   DCS_TEST_DATA_GENERATE_BTN: "Kora amakuru y'igerageza",
   DCS_TEST_DATA_DELETE_BTN: "Siba amakuru y'igerageza",

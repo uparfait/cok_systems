@@ -868,6 +868,8 @@ const en = {
   DCS_MYAPPROVALS_PROGRESS: "Approving {{done}} of {{total}}...",
   DCS_MYAPPROVALS_DONE: "{{count}} records approved",
   DCS_MYAPPROVALS_PARTIAL: "{{done}} approved, {{failed}} failed",
+  DCS_MYAPPROVALS_LOADING_MORE: "Loading more records...",
+  DCS_MYAPPROVALS_ALL_LOADED: "All {{total}} records loaded",
   DCS_TEST_DATA_LINK: "Test data management",
   DCS_TEST_DATA_GENERATE_BTN: "Generate test data",
   DCS_TEST_DATA_DELETE_BTN: "Delete test data",

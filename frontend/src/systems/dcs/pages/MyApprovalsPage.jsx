@@ -11,6 +11,7 @@ import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsApprovalDecisionModal from "../components/DcsApprovalDecisionModal.jsx";
+import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const PRIMARY = "#056daa";
 const SUCCESS = "#4CAF50";
@@ -105,9 +106,12 @@ function MyApprovalsPageContent() {
   const [load_state, setLoadState] = useState("loading");
   const [records, setRecords] = useState([]);
   const [forms, setForms] = useState({});
+  const [form_options, setFormOptions] = useState([]);
+  const [active_form_key, setActiveFormKey] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [has_more, setHasMore] = useState(false);
+  const [loading_more, setLoadingMore] = useState(false);
   const [view, setView] = useState("table");
-  const [form_filter, setFormFilter] = useState("");
-  const [visible_count, setVisibleCount] = useState(PAGE_SIZE);
   const [form_index, setFormIndex] = useState(0);
   const [viewed, setViewed] = useState(() => new Set());
   const [show_modal, setShowModal] = useState(false);
@@ -120,56 +124,96 @@ function MyApprovalsPageContent() {
   const canvas_ref = useRef(null);
   const is_drawing_ref = useRef(false);
 
-  const load = () => {
-    setLoadState("loading");
-    get_my_approvals()
+  // Guards against overlapping batch requests - scroll events fire faster than state settles.
+  const fetching_ref = useRef(false);
+  const table_scroll_ref = useRef(null);
+
+  // Applies one backend batch: replace the loaded rows or append the next scroll batch.
+  const apply_batch = (data, mode) => {
+    setForms(data.forms || {});
+    setFormOptions(data.form_options || []);
+    setActiveFormKey(data.active_form_key || null);
+    setTotal(data.total || 0);
+    setHasMore(Boolean(data.has_more));
+    setRecords((previous) => (mode === "append" ? [...previous, ...(data.records || [])] : data.records || []));
+  };
+
+  // First batch of a form: the whole-page spinner on mount, an in-table loader when switching forms.
+  const load = (form_key, options = {}) => {
+    if (fetching_ref.current) return;
+    fetching_ref.current = true;
+    if (options.first) setLoadState("loading");
+    else setLoadingMore(true);
+    setRecords([]);
+    setFormIndex(0);
+    get_my_approvals({ form_key, offset: 0, limit: PAGE_SIZE })
       .then((response) => {
-        setRecords(response.data.records || []);
-        setForms(response.data.forms || {});
+        apply_batch(response.data, "replace");
         setLoadState("ready");
       })
       .catch((error) => {
         showError(error.message || translate("DCS_ERROR_GENERIC"));
-        setLoadState("error");
+        if (options.first) setLoadState("error");
+      })
+      .finally(() => {
+        fetching_ref.current = false;
+        setLoadingMore(false);
+      });
+  };
+
+  // Next scroll batch, appended below the rows already on screen.
+  const load_more = (after_load) => {
+    if (fetching_ref.current || !has_more || !active_form_key) return;
+    fetching_ref.current = true;
+    setLoadingMore(true);
+    get_my_approvals({ form_key: active_form_key, offset: records.length, limit: PAGE_SIZE })
+      .then((response) => {
+        apply_batch(response.data, "append");
+        if (after_load) after_load(records.length + (response.data.records || []).length);
+      })
+      .catch((error) => showError(error.message || translate("DCS_ERROR_GENERIC")))
+      .finally(() => {
+        fetching_ref.current = false;
+        setLoadingMore(false);
+      });
+  };
+
+  // After a decision: re-read exactly the rows already loaded so states update without losing scroll position.
+  const refresh = () => {
+    if (fetching_ref.current) return;
+    fetching_ref.current = true;
+    setLoadingMore(true);
+    get_my_approvals({ form_key: active_form_key, offset: 0, limit: Math.max(PAGE_SIZE, records.length) })
+      .then((response) => apply_batch(response.data, "replace"))
+      .catch((error) => showError(error.message || translate("DCS_ERROR_GENERIC")))
+      .finally(() => {
+        fetching_ref.current = false;
+        setLoadingMore(false);
       });
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, []);
+  useEffect(() => load(null, { first: true }), []);
 
-  // One form at a time: the picked form, defaulting to the first that has records.
-  const form_keys = useMemo(() => [...new Set(records.map((record) => record.form_key))], [records]);
-  const active_form_key = form_keys.includes(form_filter) ? form_filter : form_keys[0] || null;
-  const filtered = useMemo(
-    () => records.filter((record) => record.form_key === active_form_key),
-    [records, active_form_key],
-  );
-  // The table starts with one batch and reveals the next batch when scrolled to the bottom.
-  const page_records = filtered.slice(0, visible_count);
-  const form_record = filtered[Math.min(form_index, Math.max(0, filtered.length - 1))] || null;
-
-  const table_scroll_ref = useRef(null);
+  const form_record = records[Math.min(form_index, Math.max(0, records.length - 1))] || null;
 
   const handle_table_scroll = (event) => {
     const element = event.currentTarget;
-    if (element.scrollTop + element.clientHeight >= element.scrollHeight - 80) {
-      setVisibleCount((count) => Math.min(count + PAGE_SIZE, filtered.length));
-    }
+    if (element.scrollTop + element.clientHeight >= element.scrollHeight - 80) load_more();
   };
 
-  // On tall screens one batch may not overflow the container, leaving nothing to scroll - keep filling until it does.
+  // On tall screens one batch may not overflow the container, leaving nothing to scroll - keep fetching until it does.
   useEffect(() => {
     const element = table_scroll_ref.current;
-    if (!element || visible_count >= filtered.length) return;
-    if (element.scrollHeight <= element.clientHeight + 4) {
-      setVisibleCount((count) => Math.min(count + PAGE_SIZE, filtered.length));
-    }
-  }, [visible_count, filtered, view]);
+    if (!element || view !== "table" || !has_more || loading_more) return;
+    if (element.scrollHeight <= element.clientHeight + 4) load_more();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [records, has_more, loading_more, view]);
 
-  // A record counts as viewed once it has actually been displayed - a table page
-  // renders its rows, the form view renders one record at a time.
+  // A record counts as viewed once it has actually been displayed - the table
+  // renders every loaded row, the form view renders one record at a time.
   useEffect(() => {
-    const shown = view === "table" ? page_records.map((record) => record.id) : form_record ? [form_record.id] : [];
+    const shown = view === "table" ? records.map((record) => record.id) : form_record ? [form_record.id] : [];
     if (shown.length === 0) return;
     setViewed((previous) => {
       if (shown.every((id) => previous.has(id))) return previous;
@@ -178,9 +222,9 @@ function MyApprovalsPageContent() {
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, visible_count, form_index, filtered]);
+  }, [view, form_index, records]);
 
-  const approvable = filtered.filter((record) => record.state === "ready" && viewed.has(record.id));
+  const approvable = records.filter((record) => record.state === "ready" && viewed.has(record.id));
 
   // Table columns: every field of the shown form, so the whole record is reviewable in place.
   const field_columns = useMemo(() => {
@@ -190,7 +234,7 @@ function MyApprovalsPageContent() {
 
   // The sidebar mirrors the reference record: the one on screen in form view,
   // otherwise the first record still waiting for this approver.
-  const reference_record = view === "form" ? form_record : filtered.find((record) => record.step.status === "pending") || filtered[0] || null;
+  const reference_record = view === "form" ? form_record : records.find((record) => record.step.status === "pending") || records[0] || null;
   const sidebar_message = (reference_record && reference_record.step.message) || "";
   const assigned_to = (() => {
     if (!reference_record) return "-";
@@ -300,7 +344,7 @@ function MyApprovalsPageContent() {
     setHasDrawn(false);
     if (failed === 0) showSuccess(translate("DCS_MYAPPROVALS_DONE", { count: done }));
     else showError(translate("DCS_MYAPPROVALS_PARTIAL", { done, failed }));
-    load();
+    refresh();
   };
 
   if (load_state === "loading") return <DcsFormLoadingSpinner />;
@@ -372,19 +416,16 @@ function MyApprovalsPageContent() {
               ))}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {form_keys.length > 1 && (
+              {form_options.length > 1 && (
                 <select
                   value={active_form_key || ""}
-                  onChange={(event) => {
-                    setFormFilter(event.target.value);
-                    setVisibleCount(PAGE_SIZE);
-                    setFormIndex(0);
-                  }}
+                  onChange={(event) => load(event.target.value)}
+                  disabled={loading_more}
                   className="cok-auth-input pr-3 py-2 text-sm"
                   style={{ backgroundColor: "#FFFFFF" }}
                 >
-                  {form_keys.map((key) => (
-                    <option key={key} value={key}>{(forms[key] && forms[key].form_name) || key}</option>
+                  {form_options.map((option) => (
+                    <option key={option.form_key} value={option.form_key}>{option.form_name} ({option.count})</option>
                   ))}
                 </select>
               )}
@@ -395,17 +436,17 @@ function MyApprovalsPageContent() {
           </div>
 
           <p className="text-sm mt-3" style={{ color: "#555555", fontFamily: fontHeading }}>
-            {translate("DCS_MYAPPROVALS_VIEWED_HINT", { viewed: filtered.filter((record) => viewed.has(record.id)).length, total: filtered.length })}
+            {translate("DCS_MYAPPROVALS_VIEWED_HINT", { viewed: records.filter((record) => viewed.has(record.id)).length, total })}
           </p>
 
-          {filtered.length === 0 && (
+          {total === 0 && !loading_more && (
             <div className="mt-6">
               <DcsEmptyState messageKey="DCS_MYAPPROVALS_EMPTY" />
             </div>
           )}
 
           {/* Table view */}
-          {filtered.length > 0 && view === "table" && (
+          {(total > 0 || loading_more) && view === "table" && (
             <>
               {/* max-h controls how many rows are visible (~44px header + ~48px per row) - scrolling inside reveals the next batch */}
               <div ref={table_scroll_ref} onScroll={handle_table_scroll} className="mt-3 overflow-x-auto overflow-y-auto max-h-[440px] bg-white border" style={{ borderColor: BORDER }}>
@@ -421,7 +462,7 @@ function MyApprovalsPageContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {page_records.map((record) => (
+                    {records.map((record) => (
                       <tr key={record.id} className="border-t" style={{ borderColor: BORDER }}>
                         {field_columns.map((field) => (
                           <td key={field.id} className="px-4 py-3 text-sm" style={{ color: NEUTRAL_DARK }}>
@@ -442,12 +483,24 @@ function MyApprovalsPageContent() {
                     ))}
                   </tbody>
                 </table>
+                {/* Below the rows: the batch loader while the backend answers, or a quiet "all loaded" once it is done */}
+                {loading_more && (
+                  <div className="flex items-center justify-center gap-3 py-4 border-t" style={{ borderColor: BORDER }}>
+                    <SpiralLoader padded={false} size={20} />
+                    <span className="text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_LOADING_MORE")}</span>
+                  </div>
+                )}
+                {!loading_more && !has_more && records.length > 0 && (
+                  <p className="text-center text-xs py-3 border-t" style={{ color: GRAY, fontFamily: fontHeading, borderColor: BORDER }}>
+                    {translate("DCS_MYAPPROVALS_ALL_LOADED", { total })}
+                  </p>
+                )}
               </div>
             </>
           )}
 
           {/* Form view - one record at a time */}
-          {filtered.length > 0 && view === "form" && form_record && (
+          {records.length > 0 && view === "form" && form_record && (
             <div className="mt-3 bg-white border p-4 sm:p-6 lg:flex-1 lg:min-h-0 lg:overflow-y-auto" style={{ borderColor: BORDER }}>
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
@@ -477,15 +530,23 @@ function MyApprovalsPageContent() {
               </div>
 
               <div className="flex items-center gap-3 mt-4 flex-wrap">
-                <DcsButtonOutline onClick={() => setFormIndex(Math.max(0, form_index - 1))} disabled={form_index <= 0}>
+                <DcsButtonOutline onClick={() => setFormIndex(Math.max(0, form_index - 1))} disabled={form_index <= 0 || loading_more}>
                   {translate("DCS_MYAPPROVALS_PREVIOUS")}
                 </DcsButtonOutline>
                 <span className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                  {translate("DCS_MYAPPROVALS_RECORD_OF", { index: Math.min(form_index, filtered.length - 1) + 1, total: filtered.length })}
+                  {translate("DCS_MYAPPROVALS_RECORD_OF", { index: Math.min(form_index, records.length - 1) + 1, total })}
                 </span>
-                <DcsButtonOutline onClick={() => setFormIndex(Math.min(filtered.length - 1, form_index + 1))} disabled={form_index >= filtered.length - 1}>
+                {/* Past the last loaded record, Next fetches the following batch and then steps into it */}
+                <DcsButtonOutline
+                  onClick={() => {
+                    if (form_index < records.length - 1) setFormIndex(form_index + 1);
+                    else load_more((loaded) => setFormIndex(Math.min(loaded - 1, form_index + 1)));
+                  }}
+                  disabled={loading_more || (form_index >= records.length - 1 && !has_more)}
+                >
                   {translate("DCS_MYAPPROVALS_NEXT")}
                 </DcsButtonOutline>
+                {loading_more && <SpiralLoader padded={false} size={18} />}
               </div>
             </div>
           )}
@@ -501,7 +562,7 @@ function MyApprovalsPageContent() {
           onClose={() => setDecisionTarget(null)}
           onDone={() => {
             setDecisionTarget(null);
-            load();
+            refresh();
           }}
         />
       )}
