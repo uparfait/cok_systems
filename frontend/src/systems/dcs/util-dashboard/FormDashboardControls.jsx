@@ -2,40 +2,35 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_dashboard, save_dashboard } from "./dashboardService.js";
+import { get_dashboard } from "./dashboardService.js";
 import { generate_and_save } from "./autoGenerate.js";
 import GenerationProgress from "./GenerationProgress.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
-import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
-import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
-
-const DANGER = "#E74C3C";
+import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 /**
  * Dashboard controls on the form overview. The dashboard is generated
  * automatically from ALL of the form's fields - nothing to configure: while
- * none exists (and the viewer may edit the form) only "Generate dashboard"
- * shows, with live progress and messages; once it exists, only "View
- * dashboard" (opens the full-screen dashboard page) and "Delete dashboard"
- * remain. Deleting empties the dashboard only - collected data is never
- * touched.
+ * the dashboard state is still being checked a loader shows; without a
+ * dashboard (and the right to edit the form) only "Generate dashboard"
+ * shows, with live progress and messages; once it exists, "View dashboard"
+ * opens the full-screen dashboard page, where it can also be regenerated or
+ * deleted.
  */
 export default function FormDashboardControls({ projectId, form }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
-  const [checked, setChecked] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [can_edit, setCanEdit] = useState(false);
   const [exists, setExists] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ percent: 0, message_key: "" });
-  const [deleting, setDeleting] = useState(false);
-  const [is_confirming_delete, setIsConfirmingDelete] = useState(false);
 
   useEffect(() => {
     let is_mounted = true;
-    setChecked(false);
+    setChecking(true);
     get_dashboard(form.form_group_id)
       .then((response) => {
         if (!is_mounted) return;
@@ -44,7 +39,7 @@ export default function FormDashboardControls({ projectId, form }) {
         setExists(((data.widgets || []).length) > 0);
       })
       .catch(() => is_mounted && setCanEdit(false))
-      .finally(() => is_mounted && setChecked(true));
+      .finally(() => is_mounted && setChecking(false));
     return () => {
       is_mounted = false;
     };
@@ -70,72 +65,45 @@ export default function FormDashboardControls({ projectId, form }) {
     }
   };
 
-  const handle_delete = async () => {
-    setDeleting(true);
-    try {
-      await save_dashboard(form.form_group_id, []);
-      setExists(false);
-      showSuccess(translate("DCS_DB_DELETED_TOAST"));
-    } catch (error) {
-      showError(error.message || translate("DCS_ERROR_GENERIC"));
-    } finally {
-      setDeleting(false);
-      setIsConfirmingDelete(false);
-    }
-  };
-
-  if (!checked) return null;
-
   return (
     <div className="dcs-home-glass-card p-4 sm:p-5">
       <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}>
         {translate("DCS_DB_FORM_SECTION_TITLE")}
       </p>
-      <p className="text-xs mb-3" style={{ color: "#9E9E9E" }}>
-        {exists ? translate("DCS_DB_AUTO_HINT") : translate("DCS_DB_FORM_SECTION_HINT")}
-      </p>
 
-      {generating ? (
+      {checking ? (
+        <div className="flex items-center gap-2 py-2">
+          <SpiralLoader />
+        </div>
+      ) : generating ? (
         <GenerationProgress percent={progress.percent} messageKey={progress.message_key} />
       ) : (
-        <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-          {!exists && can_edit && (
-            <div className="w-full sm:w-56">
-              <DcsButtonPrimary type="button" onClick={handle_generate}>
-                {translate("DCS_DB_BTN_GENERATE")}
-              </DcsButtonPrimary>
-            </div>
-          )}
-          {!exists && !can_edit && (
-            <p className="text-xs" style={{ color: "#9E9E9E" }}>
-              {translate("DCS_DB_EMPTY_HINT_VIEWER")}
-            </p>
-          )}
-          {exists && (
-            <div className="w-full sm:w-48">
-              <DcsButtonPrimary type="button" onClick={() => navigate(dashboard_path)}>
-                {translate("DCS_DB_BTN_VIEW")}
-              </DcsButtonPrimary>
-            </div>
-          )}
-          {exists && can_edit && (
-            <div className="w-full sm:w-56">
-              <DcsButtonOutline type="button" variant="danger" disabled={deleting} onClick={() => setIsConfirmingDelete(true)} style={{ color: DANGER }}>
-                {deleting ? translate("DCS_DB_WORKING") : translate("DCS_DB_BTN_DELETE")}
-              </DcsButtonOutline>
-            </div>
-          )}
-        </div>
-      )}
-
-      {is_confirming_delete && (
-        <DcsConfirmDialog
-          titleKey="DCS_DB_DEL_CONFIRM_TITLE"
-          messageKey="DCS_DB_DEL_CONFIRM_MESSAGE"
-          confirming={deleting}
-          onConfirm={handle_delete}
-          onCancel={() => setIsConfirmingDelete(false)}
-        />
+        <>
+          <p className="text-xs mb-3" style={{ color: "#9E9E9E" }}>
+            {exists ? translate("DCS_DB_AUTO_HINT") : translate("DCS_DB_FORM_SECTION_HINT")}
+          </p>
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+            {!exists && can_edit && (
+              <div className="w-full sm:w-56">
+                <DcsButtonPrimary type="button" onClick={handle_generate}>
+                  {translate("DCS_DB_BTN_GENERATE")}
+                </DcsButtonPrimary>
+              </div>
+            )}
+            {!exists && !can_edit && (
+              <p className="text-xs" style={{ color: "#9E9E9E" }}>
+                {translate("DCS_DB_EMPTY_HINT_VIEWER")}
+              </p>
+            )}
+            {exists && (
+              <div className="w-full sm:w-48">
+                <DcsButtonPrimary type="button" onClick={() => navigate(dashboard_path)}>
+                  {translate("DCS_DB_BTN_VIEW")}
+                </DcsButtonPrimary>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
