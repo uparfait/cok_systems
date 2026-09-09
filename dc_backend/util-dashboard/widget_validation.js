@@ -126,6 +126,11 @@ function validate_widget(widget, index, form_versions_by_group, project_id, erro
   if (typeof widget.title !== "string" || !widget.title.trim() || widget.title.length > LIMITS.MAX_TITLE_LENGTH) {
     errors.push(`${describe}: title is required (max ${LIMITS.MAX_TITLE_LENGTH} characters)`);
   }
+  if (widget.description !== null && widget.description !== undefined) {
+    if (typeof widget.description !== "string" || widget.description.length > 300) {
+      errors.push(`${describe}: description must stay under 300 characters`);
+    }
+  }
   const definition = CHART_TYPES[widget.chart_type];
   if (!definition) {
     errors.push(`${describe}: unknown chart type`);

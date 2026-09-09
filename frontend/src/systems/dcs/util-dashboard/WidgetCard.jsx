@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import WidgetChart from "./WidgetChart.jsx";
@@ -16,24 +16,135 @@ function StateMessage({ children, tone }) {
 }
 
 /**
- * The frame of every dashboard widget: a title bar with the chart type as a
- * quiet subtitle, and the loading / error states around the chart itself.
- * The dashboard is generated automatically, so the card carries no editing
- * controls at all - it only ever displays.
+ * One inline click-to-edit text line: clicking the text swaps it for an
+ * input with explicit SAVE (check) and CANCEL (cross) icon buttons; Enter
+ * saves and Escape cancels too. The buttons prevent the input's blur on
+ * mousedown so a click on Cancel can never be swallowed by a blur-save.
  */
-export default function WidgetCard({ widget, data, loading, onRetry }) {
+function EditableText({ value, placeholder, editable, saving, onCommit, textStyle, maxLength, hint }) {
+  const { translate } = useDcsLanguage();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const start = () => {
+    if (!editable || saving) return;
+    setDraft(value || "");
+    setEditing(true);
+  };
+  const commit = () => {
+    setEditing(false);
+    const next = draft.trim();
+    if (next !== (value || "")) onCommit(next);
+  };
+  const cancel = () => setEditing(false);
+
+  const edit_action_style = (color) => ({
+    width: 26,
+    height: 26,
+    border: `1px solid ${color}`,
+    color,
+    backgroundColor: "#FFFFFF",
+    cursor: "pointer",
+    flexShrink: 0,
+  });
+
+  if (editing) {
+    return (
+      <span className="flex items-center gap-1 w-full">
+        <input
+          autoFocus
+          className="min-w-0 flex-1 text-sm px-1 py-0.5"
+          style={{ border: `1px solid ${PRIMARY}`, outline: "none", fontFamily: "'Montserrat', sans-serif" }}
+          value={draft}
+          maxLength={maxLength}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") commit();
+            if (event.key === "Escape") cancel();
+          }}
+        />
+        <button
+          type="button"
+          title={translate("DCS_BTN_SAVE")}
+          aria-label={translate("DCS_BTN_SAVE")}
+          className="flex items-center justify-center"
+          style={edit_action_style("#4CAF50")}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={commit}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="4 12.5 10 18.5 20 6" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          title={translate("DCS_BTN_CANCEL")}
+          aria-label={translate("DCS_BTN_CANCEL")}
+          className="flex items-center justify-center"
+          style={edit_action_style(DANGER)}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={cancel}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </span>
+    );
+  }
+  return (
+    <p
+      className="truncate"
+      style={{ ...textStyle, cursor: editable ? "pointer" : "default" }}
+      title={editable ? hint : value || placeholder}
+      onClick={start}
+    >
+      {value || placeholder}
+    </p>
+  );
+}
+
+/**
+ * The frame of every dashboard widget: a title bar (title and description
+ * are click-to-edit for users allowed to edit the form, with a spinner
+ * while the change saves) and the loading / error states around the chart
+ * itself. The chart content is generated automatically and never edited
+ * here.
+ */
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText }) {
   const { translate } = useDcsLanguage();
   const definition = chart_definition(widget.chart_type);
+  const type_label = definition ? translate(definition.labelKey) : widget.chart_type;
 
   return (
     <div className="bg-white border-2 flex flex-col h-full" style={{ borderColor: "#E0E0E0" }}>
-      <div className="px-3 pt-3 pb-2">
-        <p className="text-sm font-semibold truncate" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }} title={widget.title}>
-          {widget.title}
-        </p>
-        <p className="text-xs truncate" style={{ color: "#9E9E9E" }}>
-          {definition ? translate(definition.labelKey) : widget.chart_type}
-        </p>
+      <div className="px-3 pt-3 pb-2 flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <EditableText
+            value={widget.title}
+            placeholder={type_label}
+            editable={editable}
+            saving={savingText}
+            hint={translate("DCS_DB_CLICK_TO_EDIT")}
+            maxLength={120}
+            textStyle={{ color: "#333333", fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: 14 }}
+            onCommit={(next) => {
+              // A widget must keep a title - an emptied one falls back.
+              if (next) onUpdateText({ title: next });
+            }}
+          />
+          <EditableText
+            value={widget.description || ""}
+            placeholder={type_label}
+            editable={editable}
+            saving={savingText}
+            hint={translate("DCS_DB_CLICK_TO_EDIT")}
+            maxLength={300}
+            textStyle={{ color: "#9E9E9E", fontSize: 12 }}
+            onCommit={(next) => onUpdateText({ description: next || null })}
+          />
+        </div>
+        {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
       </div>
 
       <div className="px-2 pb-3 flex-1">
@@ -62,7 +173,7 @@ export default function WidgetCard({ widget, data, loading, onRetry }) {
             )}
           </div>
         ) : (
-          <WidgetChart widget={widget} data={data} />
+          <WidgetChart widget={widget} data={data} fitMode={fitMode} />
         )}
       </div>
     </div>

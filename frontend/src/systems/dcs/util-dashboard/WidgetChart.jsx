@@ -15,7 +15,7 @@ const OTHER_KEY = "__other__";
  * folds category tails into an internal "__other__" row - translated to a
  * readable label here, right before rendering.
  */
-export default function WidgetChart({ widget, data }) {
+export default function WidgetChart({ widget, data, fitMode }) {
   const { translate } = useDcsLanguage();
 
   if (!data) return null;
@@ -53,7 +53,7 @@ export default function WidgetChart({ widget, data }) {
     return <TreemapChart nodes={data.nodes} />;
   }
   if (data.kind === "time") {
-    return <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} />;
+    return <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} />;
   }
   if (widget.chart_type === "pie" || widget.chart_type === "donut") {
     return <PieCharts chartType={widget.chart_type} rows={rows} totalLabel={translate("DCS_DB_TOTAL")} />;
@@ -62,7 +62,7 @@ export default function WidgetChart({ widget, data }) {
     return <WaffleChart rows={rows} />;
   }
   if (widget.chart_type === "heatmap") {
-    return <HeatmapChart rows={rows} series={data.series || []} />;
+    return <HeatmapChart rows={rows} series={data.series || []} fitMode={fitMode} />;
   }
   return <CategoryCharts chartType={widget.chart_type} rows={rows} series={data.series || []} />;
 }

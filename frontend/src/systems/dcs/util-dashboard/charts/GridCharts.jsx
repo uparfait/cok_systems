@@ -13,11 +13,11 @@ function heat_color(value, max) {
   return `rgba(5, 109, 170, ${intensity})`;
 }
 
-export function HeatmapChart({ rows, series }) {
+export function HeatmapChart({ rows, series, fitMode }) {
   const max = rows.reduce((best, row) => series.reduce((inner, key) => Math.max(inner, row[key] || 0), best), 0);
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table className="border-collapse w-full" style={{ minWidth: Math.max(240, series.length * 72 + 120) }}>
+    <div style={{ overflowX: fitMode ? "hidden" : "auto" }}>
+      <table className="border-collapse w-full" style={{ minWidth: fitMode ? undefined : Math.max(240, series.length * 72 + 120) }}>
         <thead>
           <tr>
             <th />

@@ -30,6 +30,7 @@ function sanitize_widget(widget) {
   return {
     id: clean_string(widget.id),
     title: clean_string(widget.title),
+    description: clean_string(widget.description) || null,
     form_group_id: clean_string(widget.form_group_id),
     chart_type: clean_string(widget.chart_type),
     metric: {

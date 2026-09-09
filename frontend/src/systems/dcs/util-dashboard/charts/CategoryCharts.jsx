@@ -10,17 +10,23 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  LabelList,
 } from "recharts";
 import { PRIMARY, series_color, TOOLTIP_STYLE, AXIS_TICK, GRID_STROKE, CHART_HEIGHT } from "./chartTheme.js";
 
 /**
  * Every category-comparison renderer: bar (horizontal), column (vertical),
  * lollipop, dot plot, grouped columns, stacked columns and the 100 percent
- * stacked variation. Animation stays off everywhere - the dashboard
+ * stacked variation. Every mark carries its own value label so nothing has
+ * to be hovered to be read. Animation stays off everywhere - the dashboard
  * refreshes silently and replayed entrance animations read as flicker.
  */
 
-const common_margin = { top: 12, right: 16, left: 0, bottom: 5 };
+const common_margin = { top: 18, right: 24, left: 0, bottom: 5 };
+
+// Zero labels are noise - only real values are printed on the marks.
+const show_value = (value) => (value ? value : "");
+const VALUE_LABEL = { fontSize: 11, fontWeight: 600, fill: "#333333" };
 
 function HorizontalBars({ rows }) {
   const height = Math.max(CHART_HEIGHT, rows.length * 34);
@@ -31,7 +37,9 @@ function HorizontalBars({ rows }) {
         <XAxis type="number" tick={AXIS_TICK} allowDecimals={false} />
         <YAxis type="category" dataKey="label" tick={AXIS_TICK} width={110} interval={0} />
         <Tooltip contentStyle={TOOLTIP_STYLE} />
-        <Bar dataKey="value" fill={PRIMARY} isAnimationActive={false} maxBarSize={22} />
+        <Bar dataKey="value" fill={PRIMARY} isAnimationActive={false} maxBarSize={22}>
+          <LabelList dataKey="value" position="right" formatter={show_value} style={VALUE_LABEL} />
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );
@@ -45,7 +53,9 @@ function VerticalColumns({ rows }) {
         <XAxis dataKey="label" tick={AXIS_TICK} interval={0} angle={-25} textAnchor="end" height={54} />
         <YAxis tick={AXIS_TICK} allowDecimals={false} />
         <Tooltip contentStyle={TOOLTIP_STYLE} />
-        <Bar dataKey="value" fill={PRIMARY} isAnimationActive={false} maxBarSize={40} />
+        <Bar dataKey="value" fill={PRIMARY} isAnimationActive={false} maxBarSize={40}>
+          <LabelList dataKey="value" position="top" formatter={show_value} style={VALUE_LABEL} />
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );
@@ -64,7 +74,9 @@ function LollipopOrDots({ rows, with_stick }) {
         <YAxis tick={AXIS_TICK} allowDecimals={false} />
         <Tooltip contentStyle={TOOLTIP_STYLE} />
         {with_stick && <Bar dataKey="value" fill={PRIMARY} barSize={3} isAnimationActive={false} />}
-        <Scatter dataKey="value" fill={PRIMARY} isAnimationActive={false} />
+        <Scatter dataKey="value" fill={PRIMARY} isAnimationActive={false}>
+          <LabelList dataKey="value" position="top" formatter={show_value} style={VALUE_LABEL} />
+        </Scatter>
       </ComposedChart>
     </ResponsiveContainer>
   );
@@ -94,7 +106,7 @@ function SeriesColumns({ rows, series, mode }) {
         <XAxis dataKey="label" tick={AXIS_TICK} interval={0} angle={-25} textAnchor="end" height={54} />
         <YAxis tick={AXIS_TICK} allowDecimals={mode === "stacked_100"} unit={mode === "stacked_100" ? "%" : undefined} />
         <Tooltip contentStyle={TOOLTIP_STYLE} />
-        <Legend wrapperStyle={{ fontSize: 11 }} />
+        <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={9} />
         {series.map((key, index) => (
           <Bar
             key={key}
@@ -103,7 +115,14 @@ function SeriesColumns({ rows, series, mode }) {
             fill={series_color(index)}
             isAnimationActive={false}
             maxBarSize={40}
-          />
+          >
+            <LabelList
+              dataKey={key}
+              position={stacked ? "center" : "top"}
+              formatter={(value) => (value ? (mode === "stacked_100" ? `${value}%` : value) : "")}
+              style={stacked ? { fontSize: 10, fontWeight: 600, fill: "#FFFFFF" } : { ...VALUE_LABEL, fontSize: 10 }}
+            />
+          </Bar>
         ))}
       </BarChart>
     </ResponsiveContainer>
