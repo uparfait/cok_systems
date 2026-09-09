@@ -72,6 +72,30 @@ function StatePill({ record, translate }) {
   );
 }
 
+// Approve / Reject pair for one ready record, opens the single-record decision popup.
+function DecisionButtons({ record, translate, onDecide }) {
+  return (
+    <div className="flex items-center gap-2 whitespace-nowrap">
+      <button
+        type="button"
+        onClick={() => onDecide({ record, decision: "approve" })}
+        className="cursor-pointer text-xs font-bold px-3 py-1.5"
+        style={{ backgroundColor: PRIMARY, color: "#FFFFFF", fontFamily: fontHeading, borderRadius: 4 }}
+      >
+        {translate("DCS_APPROVAL_BTN_APPROVE")}
+      </button>
+      <button
+        type="button"
+        onClick={() => onDecide({ record, decision: "reject" })}
+        className="cursor-pointer text-xs font-bold px-3 py-1.5"
+        style={{ backgroundColor: "transparent", color: DANGER, border: `1px solid ${DANGER}`, fontFamily: fontHeading, borderRadius: 4 }}
+      >
+        {translate("DCS_APPROVAL_BTN_REJECT")}
+      </button>
+    </div>
+  );
+}
+
 // The logged-in approver's own dashboard: every record routed to their email, across all forms.
 function MyApprovalsPageContent() {
   const { translate, language } = useDcsLanguage();
@@ -434,7 +458,12 @@ function MyApprovalsPageContent() {
                     {form_record.submitted_at ? new Date(form_record.submitted_at).toLocaleString() : ""}
                   </p>
                 </div>
-                <StatePill record={form_record} translate={translate} />
+                {/* Ready records can be approved or rejected one at a time, right here */}
+                {form_record.state === "ready" ? (
+                  <DecisionButtons record={form_record} translate={translate} onDecide={setDecisionTarget} />
+                ) : (
+                  <StatePill record={form_record} translate={translate} />
+                )}
               </div>
 
               <div className="border mt-4" style={{ borderColor: BORDER }}>
