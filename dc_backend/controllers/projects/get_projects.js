@@ -1,16 +1,19 @@
 const projects_model = require("../../models/projects_model.js");
 const project_access = require("../../utilities/project_access.js");
+const { strip_creator_list } = require("../../utilities/owner.js");
 const { success_response, error_response } = require("../../utilities/response.js");
 
 /**
  * Lists the projects the requesting user may see, for the sidebar and the
- * projects landing page - restricted projects are filtered out here.
+ * projects landing page - their own projects, the ones whose access rules
+ * cover their department/unit or them personally, and the ones holding
+ * forms they created. Everything else is filtered out here.
  */
 async function get_projects(req, res) {
   try {
     const projects = await projects_model.list_projects();
     const visible_projects = await project_access.filter_projects_for_user(req.user, projects);
-    return res.status(200).json(success_response(req, "PROJECTS_FETCHED", visible_projects));
+    return res.status(200).json(success_response(req, "PROJECTS_FETCHED", strip_creator_list(visible_projects)));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

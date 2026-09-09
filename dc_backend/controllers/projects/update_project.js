@@ -1,14 +1,15 @@
 const projects_model = require("../../models/projects_model.js");
 const project_access = require("../../utilities/project_access.js");
+const { strip_creator } = require("../../utilities/owner.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 
-const EDITABLE_FIELDS = ["name", "description", "department_id", "department_name", "department_unit_id", "department_unit_name"];
+const EDITABLE_FIELDS = ["name", "description"];
 
 /**
- * Updates a project's details (name, description, department assignment).
- * Access-control and dashboard flags stay read-only here - those sections
- * are still under development.
+ * Updates a project's details (name and description). Departments are not
+ * stored on the project - who may see it lives in its access-control rules -
+ * and access-control/dashboard flags stay read-only here.
  */
 async function update_project(req, res) {
   try {
@@ -40,7 +41,7 @@ async function update_project(req, res) {
     });
 
     const updated_project = await projects_model.update_project(project_id, updates);
-    return res.status(200).json(success_response(req, "PROJECT_UPDATED", updated_project));
+    return res.status(200).json(success_response(req, "PROJECT_UPDATED", strip_creator(updated_project)));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

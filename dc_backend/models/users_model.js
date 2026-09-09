@@ -1,4 +1,5 @@
 const { get_cok_db } = require("../db_connection/db.js");
+const { to_object_id } = require("../utilities/object_id.js");
 
 /**
  * Escapes a string so it can be used as a literal inside a regex, letting
@@ -45,7 +46,24 @@ async function search_users(query, limit = 8) {
   return users.map((user) => ({ user_id: user._id.toString(), email: user.email, full_name: user.full_name || "" }));
 }
 
+/**
+ * Finds one user of the main system by account id (read-only) - used to
+ * verify a picked new owner really exists before ownership is handed over.
+ */
+async function find_user_by_id(user_id) {
+  const object_id = to_object_id(user_id);
+  if (!object_id) return null;
+
+  const user = await get_cok_db()
+    .collection("users")
+    .findOne({ _id: object_id }, { projection: { email: 1, full_name: 1 } });
+
+  if (!user) return null;
+  return { user_id: user._id.toString(), email: user.email, full_name: user.full_name || "" };
+}
+
 module.exports = {
   find_user_by_email,
+  find_user_by_id,
   search_users,
 };

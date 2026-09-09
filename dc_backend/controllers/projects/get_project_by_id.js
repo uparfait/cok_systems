@@ -1,5 +1,6 @@
 const projects_model = require("../../models/projects_model.js");
 const project_access = require("../../utilities/project_access.js");
+const { strip_creator } = require("../../utilities/owner.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 
@@ -31,9 +32,21 @@ async function get_project_by_id(req, res) {
     // find_project_by_id() above, which every access/ownership check reuses.
     const project_with_stats = await projects_model.find_project_with_stats(project_id);
 
-    return res
-      .status(200)
-      .json(success_response(req, "PROJECT_FETCHED", Object.assign({}, project_with_stats, { viewer_can_manage_access })));
+    // The raw creator fields stay server-side; the settings page only needs
+    // a display name and whether THIS viewer owns the project (and so may
+    // transfer it).
+    const viewer_is_owner = project.created_by === req.user.user_id.toString();
+    return res.status(200).json(
+      success_response(
+        req,
+        "PROJECT_FETCHED",
+        Object.assign({}, strip_creator(project_with_stats), {
+          viewer_can_manage_access,
+          viewer_is_owner,
+          owner_name: project.created_by_name || "",
+        }),
+      ),
+    );
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

@@ -2,6 +2,7 @@ const Router = require("express").Router();
 
 const create_form = require("../../controllers/forms/create_form.js");
 const update_form = require("../../controllers/forms/update_form.js");
+const transfer_form_ownership = require("../../controllers/forms/transfer_form_ownership.js");
 const get_forms_by_project = require("../../controllers/forms/get_forms_by_project.js");
 const get_form_versions = require("../../controllers/forms/get_form_versions.js");
 const get_form_by_id = require("../../controllers/forms/get_form_by_id.js");
@@ -112,6 +113,20 @@ Router.get("/:form_group_id", get_form_by_id);
  *         description: A new form version was created
  */
 Router.put("/:form_group_id", update_form);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/owner:
+ *   put:
+ *     summary: Transfer the form (all versions) to another employee - form owner or project owner only
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Form ownership transferred successfully
+ */
+Router.put("/:form_group_id/owner", transfer_form_ownership);
 
 /**
  * @swagger

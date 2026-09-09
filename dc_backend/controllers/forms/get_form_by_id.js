@@ -1,7 +1,9 @@
 const forms_model = require("../../models/forms_model.js");
 const form_approvers_model = require("../../models/form_approvers_model.js");
+const projects_model = require("../../models/projects_model.js");
 const submissions_model = require("../../models/submissions_model.js");
 const project_access = require("../../utilities/project_access.js");
+const { strip_creator } = require("../../utilities/owner.js");
 const { strip_lazy_options_from_fields } = require("../../jsonlogic/lazy_options.js");
 const { strip_approval_config_for_response } = require("../../utilities/approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
@@ -40,8 +42,20 @@ async function get_form_by_id(req, res) {
       submissions_model.count_by_form_group_id(form_group_id),
       form_approvers_model.count_all_approvers(form_group_id, form.version),
     ]);
+    // Ownership travels as a display name plus viewer flags only - the raw
+    // creator fields never leave the server. Transfer is offered to the
+    // form's own creator and to the owner of the project it lives in.
+    const requester_id = req.user.user_id.toString();
+    const project = await projects_model.find_project_by_id(form.project_id);
+    const viewer_can_transfer =
+      form.created_by === requester_id ||
+      (!!project && project.created_by === requester_id) ||
+      (await forms_model.is_form_group_created_by(form_group_id, requester_id));
+
     const stripped_config = strip_approval_config_for_response(form.approval_config);
-    const enriched_form = Object.assign({}, form, {
+    const enriched_form = Object.assign({}, strip_creator(form), {
+      owner_name: form.created_by_name || "",
+      viewer_can_transfer,
       created_at: origin_created_at || form.created_at,
       total_submissions,
       schema: Object.assign({}, form.schema, { fields: strip_lazy_options_from_fields(form.schema.fields) }),

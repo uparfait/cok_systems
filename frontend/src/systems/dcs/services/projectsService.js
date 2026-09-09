@@ -29,6 +29,13 @@ export function update_project(project_id, updates) {
 }
 
 /**
+ * Hands the project over to another employee - owner only.
+ */
+export function transfer_project_ownership(project_id, user_id) {
+  return dcs_request(`/projects/${project_id}/owner`, "PUT", { user_id });
+}
+
+/**
  * Permanently deletes a project along with every form and every submission
  * collected under it. Irreversible.
  */

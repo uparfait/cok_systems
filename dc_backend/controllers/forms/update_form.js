@@ -12,6 +12,7 @@ const {
   strip_approval_config_for_response,
   is_test_approver,
 } = require("../../utilities/approval.js");
+const { strip_creator } = require("../../utilities/owner.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -123,7 +124,7 @@ async function update_form(req, res) {
           updated_by_name: req.user.full_name,
         });
 
-    const stripped_form = Object.assign({}, form, { approval_config: strip_approval_config_for_response(form.approval_config) });
+    const stripped_form = Object.assign({}, strip_creator(form), { approval_config: strip_approval_config_for_response(form.approval_config) });
 
     return res
       .status(should_bump_version ? 201 : 200)

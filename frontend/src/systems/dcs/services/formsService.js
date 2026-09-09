@@ -32,6 +32,14 @@ export function update_form(form_group_id, form_name, schema, approval_config) {
 }
 
 /**
+ * Hands the form (all versions) over to another employee - form owner or
+ * project owner only.
+ */
+export function transfer_form_ownership(form_group_id, user_id) {
+  return dcs_request(`/forms/${form_group_id}/owner`, "PUT", { user_id });
+}
+
+/**
  * Lists every version of a form.
  */
 export function get_form_versions(form_group_id) {
