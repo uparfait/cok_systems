@@ -2,6 +2,7 @@
 const mongoose = require('mongoose');
 const role_model = require('../../models/default_roles.js');
 const allowed_resources = require('../../resources/resources.js');
+const navigation = require('../../utilities/navigation.js');
 
 class RoleController {
     
@@ -17,6 +18,18 @@ class RoleController {
                 is_enabled: false // Default to disabled
             }))
         }));
+    }
+
+    /**
+     * A role name is reserved when it is one of the default roles
+     * (same slug or same name); those roles are unchangeable.
+     */
+    static isReservedRoleName(roleName) {
+        const name = String(roleName || '').toLowerCase().trim();
+        const slug = navigation.slugify(roleName);
+        return (navigation.loadDefaults().default_roles || []).some(
+            (r) => r.role_slug === slug || r.role_name.toLowerCase() === name
+        );
     }
 
     /**
@@ -103,7 +116,7 @@ class RoleController {
     
     static async createRole(req, res, next) {
         try {
-            const { role_name, permissions = [] } = req.body;
+            const { role_name, permissions = [], nav_links, default_route } = req.body;
 
             // Validate required fields
             if (!role_name) {
@@ -111,6 +124,15 @@ class RoleController {
                     success: false,
                     type: 'warning',
                     message: 'Role name is required'
+                });
+            }
+
+            // Default roles are unchangeable and cannot be shadowed
+            if (nav_links && RoleController.isReservedRoleName(role_name)) {
+                return res.status(400).json({
+                    success: false,
+                    type: 'warning',
+                    message: `"${role_name}" collides with a default role. Default roles are unchangeable - please choose a different role name.`
                 });
             }
 
@@ -137,13 +159,28 @@ class RoleController {
                 }
             }
 
+            // Validate navigation links against the shared catalog
+            if (nav_links !== undefined) {
+                const navErrors = navigation.validateNavLinks(nav_links);
+                if (navErrors.length > 0) {
+                    return res.status(400).json({
+                        success: false,
+                        type: 'warning',
+                        message: 'Navigation link validation failed',
+                        errors: navErrors
+                    });
+                }
+            }
+
             // Merge permissions with complete resource list
             const mergedPermissions = RoleController.mergePermissions(permissions);
 
             // Create new role
             const newRole = new role_model({
                 role_name,
-                permissions: mergedPermissions
+                permissions: mergedPermissions,
+                nav_links: nav_links || [],
+                default_route: default_route || ''
             });
 
             const savedRole = await newRole.save();
@@ -169,13 +206,28 @@ class RoleController {
    
     static async getAllRoles(req, res, next) {
         try {
-            const roles = await role_model.find({});
-            
+            const roles = await role_model.find({}).lean();
+
+            // Flag roles whose name maps onto a default role so the UI can
+            // separate unchangeable default roles from custom ones. A role
+            // with its own configured nav_links is always custom.
+            const annotated = roles.map((role) => {
+                const hasCustomNav = Array.isArray(role.nav_links) && role.nav_links.length > 0;
+                const defaultSlug = navigation.matchDefaultSlug(role.role_name);
+                return {
+                    ...role,
+                    is_default_tied: !hasCustomNav && !!defaultSlug,
+                    role_slug: hasCustomNav
+                        ? navigation.slugify(role.role_name)
+                        : (defaultSlug || navigation.slugify(role.role_name))
+                };
+            });
+
             return res.status(200).json({
                 success: true,
                 type: 'success',
                 message: 'Roles retrieved successfully',
-                data: roles
+                data: annotated
             });
 
         } catch (error) {
@@ -267,7 +319,7 @@ class RoleController {
     static async updateRole(req, res, next) {
         try {
             const { id } = req.params;
-            const { role_name, permissions } = req.body;
+            const { role_name, permissions, nav_links, default_route } = req.body;
 
             if (!mongoose.Types.ObjectId.isValid(id)) {
                 return res.status(400).json({
@@ -315,6 +367,32 @@ class RoleController {
                 // Merge new permissions while preserving existing enabled states
                 const mergedPermissions = RoleController.mergePermissions(permissions);
                 role.permissions = mergedPermissions;
+            }
+
+            // Update navigation links / landing route (custom roles only)
+            if (nav_links !== undefined || default_route !== undefined) {
+                if (RoleController.isReservedRoleName(role.role_name)) {
+                    return res.status(400).json({
+                        success: false,
+                        type: 'warning',
+                        message: `"${role.role_name}" is a default role. Default role navigation is unchangeable.`
+                    });
+                }
+                if (nav_links !== undefined) {
+                    const navErrors = navigation.validateNavLinks(nav_links);
+                    if (navErrors.length > 0) {
+                        return res.status(400).json({
+                            success: false,
+                            type: 'warning',
+                            message: 'Navigation link validation failed',
+                            errors: navErrors
+                        });
+                    }
+                    role.nav_links = nav_links;
+                }
+                if (default_route !== undefined) {
+                    role.default_route = default_route || '';
+                }
             }
 
             const updatedRole = await role.save();
@@ -478,7 +556,87 @@ class RoleController {
         }
     }
 
-   
+    /**
+     * The unchangeable default roles (from configurations/Default_Roles.json),
+     * links resolved with each role's own slug.
+     */
+    static async getDefaultRoles(req, res) {
+        try {
+            const defaults = navigation.loadDefaults();
+            const roles = (defaults.default_roles || []).map((r) => ({
+                role_name: r.role_name,
+                role_slug: r.role_slug,
+                default_route: r.default_route,
+                links: navigation.applyPlaceholders(r.links, r.role_slug)
+            }));
+            return res.status(200).json({
+                success: true,
+                type: 'success',
+                message: 'Default roles retrieved successfully',
+                data: { version: defaults.version, roles }
+            });
+        } catch (error) {
+            console.error('Error in getDefaultRoles:', error);
+            return res.status(500).json({
+                success: false,
+                type: 'error',
+                message: 'Something went wrong while fetching default roles',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * The catalog of slug-generic links custom roles can toggle.
+     * Role-tied links (backend-hardcoded behaviors) are not in the catalog.
+     */
+    static async getLinksCatalog(req, res) {
+        try {
+            const defaults = navigation.loadDefaults();
+            return res.status(200).json({
+                success: true,
+                type: 'success',
+                message: 'Link catalog retrieved successfully',
+                data: { version: defaults.version, links: defaults.link_catalog || [] }
+            });
+        } catch (error) {
+            console.error('Error in getLinksCatalog:', error);
+            return res.status(500).json({
+                success: false,
+                type: 'error',
+                message: 'Something went wrong while fetching the link catalog',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * Navigation for the authenticated user: sidebar links, role slug and
+     * the route to land on after login. The frontend stores this in
+     * localStorage and refreshes it on every page load.
+     */
+    static async getNavigation(req, res) {
+        try {
+            const roleName = req.user?.role_name || req.user?.role || '';
+            const nav = await navigation.resolveNavigation(roleName);
+            return res.status(200).json({
+                success: true,
+                type: 'success',
+                message: 'Navigation retrieved successfully',
+                data: nav
+            });
+        } catch (error) {
+            console.error('Error in getNavigation:', error);
+            return res.status(500).json({
+                success: false,
+                type: 'error',
+                message: 'Something went wrong while fetching navigation',
+                error: error.message
+            });
+        }
+    }
+
+
     static async bulkUpdatePermissions(req, res, next) {
         try {
             const { id } = req.params;

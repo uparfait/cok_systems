@@ -4,6 +4,7 @@ import axios from "axios";
 import { FiSearch, FiChevronLeft, FiChevronRight, FiDroplet, FiTrash2, FiAlertTriangle } from "react-icons/fi";
 import SpiralLoader from "./SpiralLoader";
 import { useToast } from "@/core/contexts/ToastContext";
+import { roleBase } from "../utilities/roleBase";
 
 const BASE_URL = "/cok/api/v1";
 
@@ -341,7 +342,7 @@ export default function BookingRequestsList({ waterOnly = false }) {
                 {requests.map((req, rowIndex) => (
                   <tr
                     key={req._id}
-                    onClick={() => navigate(`/event-manager/booking-requests/${req._id}`)}
+                    onClick={() => navigate(`${roleBase()}/booking-requests/${req._id}`)}
                     className={`cursor-pointer transition-colors duration-100 ${rowIndex % 2 === 0 ? "bg-white hover:bg-blue-50" : "bg-gray-50/50 hover:bg-blue-50"}`}
                   >
                     {COLUMNS.map((col, colIndex) => (

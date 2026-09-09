@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { getDashboardRoute } from '../Layout/layoutUtils';
+import { saveNavigation } from '../../services/navigationService';
 
 interface TOTPVerificationModalProps {
   isOpen: boolean;
@@ -155,8 +156,8 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
         showSuccess('TOTP verified successfully! Redirecting...');
         
         if (hasAccessToken && result.data) {
-          const { accessToken, refreshToken, user, ...userInfo } = result.data;
-          
+          const { accessToken, refreshToken, user, navigation, ...userInfo } = result.data;
+
           if (accessToken) {
             localStorage.setItem('accessToken', accessToken);
           }
@@ -168,7 +169,10 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
           } else {
             localStorage.setItem('userData', JSON.stringify(userInfo));
           }
-          
+          if (navigation) {
+            saveNavigation(navigation);
+          }
+
           console.log('[TOTPVerificationModal] Tokens stored successfully');
         }
         

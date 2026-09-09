@@ -33,6 +33,7 @@ const tick_square = (is_selected) => ({
 export default function DcsGrantPermissionsSelect({ isProjectScope, manage, onChange, labelKey, hintKey }) {
   const { translate } = useDcsLanguage();
   const [is_open, setIsOpen] = useState(false);
+  const [opens_up, setOpensUp] = useState(true);
   const container_ref = useRef(null);
 
   useEffect(() => {
@@ -81,7 +82,17 @@ export default function DcsGrantPermissionsSelect({ isProjectScope, manage, onCh
             type="button"
             aria-haspopup="listbox"
             aria-expanded={is_open}
-            onClick={() => setIsOpen(!is_open)}
+            onClick={() => {
+              // This select sits at the bottom of its grant card, so the
+              // list opens UPWARD by default to never end up hidden below
+              // the card - unless the button is so close to the top of the
+              // viewport that upward would clip instead.
+              if (!is_open && container_ref.current) {
+                const rect = container_ref.current.getBoundingClientRect();
+                setOpensUp(rect.top >= window.innerHeight - rect.bottom);
+              }
+              setIsOpen(!is_open);
+            }}
             className="cok-auth-input w-full py-3 flex items-center justify-between gap-2 text-left"
             style={{ cursor: "pointer" }}
           >
@@ -106,8 +117,12 @@ export default function DcsGrantPermissionsSelect({ isProjectScope, manage, onCh
             <div
               role="listbox"
               aria-label={translate("DCS_ACCESS_SELECT_ACCESS")}
-              className="absolute left-0 right-0 z-50 mt-1 bg-white border-2"
-              style={{ borderColor: "#E0E0E0" }}
+              className="absolute left-0 right-0 z-50 bg-white border-2"
+              style={
+                opens_up
+                  ? { borderColor: "#E0E0E0", bottom: "100%", marginBottom: 4 }
+                  : { borderColor: "#E0E0E0", top: "100%", marginTop: 4 }
+              }
             >
               {options.map((option) => {
                 const is_selected = selections[option.key] === true;

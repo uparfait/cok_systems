@@ -22,6 +22,7 @@ import {
   verify2FASetup,
   reset2FA
 } from '../services/authService';
+import { refreshNavigation, clearNavigation } from '../services/navigationService';
 
 // User interface
 export interface User {
@@ -120,6 +121,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setUser(parsedUser);
             setPermissions(parsedUser.permissions || []);
             setToken(storedAccessToken);
+            // Refresh the role's navigation in the background so a changed
+            // role (or edited custom role) takes effect on every page load
+            refreshNavigation();
           } else {
             console.log('[AuthContext checkAuth] Token is invalid, clearing stored data');
             localStorage.removeItem('userData');
@@ -363,6 +367,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await authLogout();
     } finally {
+      clearNavigation();
       setUser(null);
       setPermissions([]);
       setToken(null);

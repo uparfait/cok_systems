@@ -2,6 +2,7 @@
  // Handles login, logout, password reset, OTP verification, and token management
  
  import { post, put, setAuthData, clearAuthData, getStoredUser, getAccessToken, isAuthenticated, get } from './apiClient';
+ import { saveNavigation } from './navigationService';
  
  // ==================== USER PROFILE APIs ====================
  
@@ -54,16 +55,16 @@
      const isSuccess = response.status === true || response.success === true;
      
      if (isSuccess) {
-       const { accessToken, refreshToken, verified, userId: uid, email, fullName, role, ...userInfo } = response.data || {};
-       
+       const { accessToken, refreshToken, verified, userId: uid, email, fullName, role, navigation, ...userInfo } = response.data || {};
+
        if (accessToken) {
          console.log('[authService] Storing accessToken and refreshToken directly');
          localStorage.setItem('accessToken', accessToken);
-         
+
          if (refreshToken) {
            localStorage.setItem('refreshToken', refreshToken);
          }
-         
+
          const userData = {
            userId: uid,
            email,
@@ -73,7 +74,12 @@
            ...userInfo
          };
          localStorage.setItem('userData', JSON.stringify(userData));
-         
+
+         // Sidebar links + landing route for this role
+         if (navigation) {
+           saveNavigation(navigation);
+         }
+
          console.log('[authService] Tokens stored successfully');
        }
      }

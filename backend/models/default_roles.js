@@ -17,8 +17,20 @@ const role_schema = new mongoose.Schema({
                 }
             ]
         }
-    ]
+    ],
+    // Custom-role navigation: toggled links from the shared link catalog
+    // (configurations/Default_Roles.json). Each entry: { id, children: [childId] }.
+    // Default roles keep this empty; their links come from the JSON file.
+    nav_links: [
+        {
+            id: { type: String, required: true },
+            children: [{ type: String }]
+        }
+    ],
+    // Where a user with this role lands after login ({roleSlug} placeholder allowed)
+    default_route: { type: String, default: '' }
 }, {
+    timestamps: true,
     versionKey: false,
     toJSON: {
         transform: function (doc, ret) {

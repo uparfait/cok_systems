@@ -8,13 +8,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import LoadingSpinner from '../LoadingSpinner';
-import { 
-  getNavigationByPermissions, 
-  getCurrentSystemFromPath, 
+import {
+  getNavigationByPermissions,
+  getCurrentSystemFromPath,
   toSidebarLinks,
-  type NavItem, 
-  type SidebarLink 
+  type NavItem,
+  type SidebarLink
 } from './layoutUtils';
+import { NAV_UPDATED_EVENT } from '../../services/navigationService';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -30,7 +31,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
   // Responsive state
   const [isDesktop, setIsDesktop] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+
+  // Bumped when the backend-served navigation in localStorage changes so the
+  // sidebar rebuilds without a reload (role edited, or refreshed on page load)
+  const [navVersion, setNavVersion] = useState(0);
+  useEffect(() => {
+    const onNavUpdated = () => setNavVersion((v) => v + 1);
+    window.addEventListener(NAV_UPDATED_EVENT, onNavUpdated);
+    return () => window.removeEventListener(NAV_UPDATED_EVENT, onNavUpdated);
+  }, []);
+
   // Get navigation links (use custom if provided, otherwise use role-based)
   const sidebarLinks: SidebarLink[] = useMemo(() => {
     if (customNavItems) {
@@ -46,7 +56,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
     // Convert navigation to sidebar format
     const navigation = getNavigationByPermissions(user);
     return toSidebarLinks(navigation);
-  }, [user, customNavItems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, customNavItems, navVersion]);
   
   // Determine current system from URL path
   getCurrentSystemFromPath(location.pathname);

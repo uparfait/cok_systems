@@ -37,6 +37,12 @@ const Router = require('express').Router()
  */
 Router.get('/', roles_managment.getAllRoles)
 
+// New navigation endpoints (registered before /:id so the names are not
+// swallowed by the id matcher)
+Router.get('/navigation', roles_managment.getNavigation)
+Router.get('/defaults', roles_managment.getDefaultRoles)
+Router.get('/links-catalog', roles_managment.getLinksCatalog)
+
 /**
  * @swagger
  * /roles:

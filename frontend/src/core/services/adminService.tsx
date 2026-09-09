@@ -742,15 +742,26 @@ export const userAccountService = {
 
 // ==================== ROLE APIs ====================
 
+export interface RoleNavLink {
+  id: string;
+  children?: string[];
+}
+
 export interface Role {
   _id?: string;
   role_name: string;
   permissions?: Array<{ resource_name: string; actions: Array<{ action: string; description?: string; is_enabled?: boolean }> }>;
+  nav_links?: RoleNavLink[];
+  default_route?: string;
+  is_default_tied?: boolean;
+  role_slug?: string;
 }
 
 export interface CreateRoleInput {
   role_name: string;
   permissions?: Array<{ resource_name: string; actions: string[] }>;
+  nav_links?: RoleNavLink[];
+  default_route?: string;
 }
 
 export const roleService = {
@@ -758,7 +769,7 @@ export const roleService = {
   getById: (id: string) => get(`/roles/${id}`),
   getByName: (name: string) => get(`/roles/name/${name}`),
   create: (data: CreateRoleInput) => post('/roles', data),
-  update: (id: string, data: { role_name?: string; permissions?: Array<{ resource_name: string; actions: string[] }> }) => put(`/roles/${id}`, data),
+  update: (id: string, data: { role_name?: string; permissions?: Array<{ resource_name: string; actions: string[] }>; nav_links?: RoleNavLink[]; default_route?: string }) => put(`/roles/${id}`, data),
   delete: (id: string) => del(`/roles/${id}`),
   getAvailableResources: () => get('/roles/resources/available'),
   togglePermission: (id: string, resource_name: string, action: string, enabled?: boolean) => put(`/roles/${id}/permissions/toggle`, { resource_name, action, enabled }),

@@ -13,6 +13,7 @@ import { useToast } from '../../core/contexts/ToastContext';
 import { getDashboardRoute } from '../../core/components/Layout/layoutUtils';
 import { validateToken } from '../../core/services/authService';
 import { getStoredUser } from '../../core/services/apiClient';
+import { saveNavigation } from '../../core/services/navigationService';
 import LoadingSpinner from '@/core/components/LoadingSpinner';
 
 const LoginPage = () => {
@@ -167,14 +168,15 @@ const LoginPage = () => {
           department_unit: result.data.department_unit || ''
         };
         localStorage.setItem('userData', JSON.stringify(userData));
-        
-        const userRole = result.data.role || '';
-        const userDepartment = result.data.department_name || result.data.departmentName || result.data.department;
-        
-        // Use async version to get route based on role
-        const redirectPath = await getDashboardRoute(userRole, userDepartment);
-       
-        window.location.reload();
+
+        // Store the role's sidebar links + landing route sent by the backend
+        if (result.data.navigation) {
+          saveNavigation(result.data.navigation);
+        }
+
+        // Land the user on their role's configured dashboard
+        const redirectPath = result.data.navigation?.default_route || getDashboardRoute(result.data.role || '');
+        window.location.href = redirectPath;
         return;
       } else if (result.error?.includes('not activated') || result.error?.includes('Account not activated')) {
         // First-time login - account not yet activated

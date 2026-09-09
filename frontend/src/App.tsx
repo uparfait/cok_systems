@@ -4,7 +4,10 @@ import {
   Routes,
   Route,
   Navigate,
+  useParams,
 } from "react-router-dom";
+import { getStoredNavigation } from "./core/services/navigationService";
+import { getRoleSlug } from "./core/components/Layout/layoutUtils";
 import LoginPage from "./pages/auth/LoginPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
@@ -126,11 +129,36 @@ import EventActions from "./systems/event-managment/components/EventActions.jsx"
 import BookingRequestsList from "./systems/event-managment/components/BookingRequestsList.jsx";
 import BookingRequestDetails from "./systems/event-managment/components/BookingRequestDetails.jsx";
 
+// Role dashboards are dispatched on the role SLUG (from the URL when
+// present, else from the backend-served navigation). Custom roles have no
+// dashboard of their own and land on their configured default route.
 const RoleDashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const role = (user?.role || "").toLowerCase().trim();
+  const { roleSlug } = useParams();
+  const storedNav = getStoredNavigation();
+  const slug = roleSlug || storedNav?.role_slug || getRoleSlug(user?.role);
 
-  if (role.includes("event-manager")) return <DashboardLayout />;
+  switch (slug) {
+    case "event-manager":
+      return <Navigate to="/event-manager" replace />;
+    case "receptionist":
+      return <ReceptionistDashboard />;
+    case "employee":
+      return <EmployeeDashboard />;
+    case "department-manager":
+      return <DepartmentManagerDashboard />;
+    case "gate-officer":
+      return <SmartParkingDashboard />;
+    case "mayor":
+      return <MayorDashboardPage />;
+    case "system-admin":
+      return <AdminDashboard />;
+    default:
+      break;
+  }
+
+  // Fallback for sessions without stored navigation: free-text role matching
+  const role = (user?.role || "").toLowerCase().trim();
   if (role.includes("receptionist")) return <ReceptionistDashboard />;
   if (role.includes("employee") || role.includes("staff"))
     return <EmployeeDashboard />;
@@ -138,12 +166,9 @@ const RoleDashboardPage: React.FC = () => {
     role.includes("department manager") ||
     role.includes("department head") ||
     role.includes("head of department") ||
-    role.includes("director")
-  )
-    return <DepartmentManagerDashboard />;
-  if (
-    (role.includes("manager") || role.includes("head")) &&
-    !role.includes("receptionist")
+    role.includes("director") ||
+    ((role.includes("manager") || role.includes("head")) &&
+      !role.includes("receptionist"))
   )
     return <DepartmentManagerDashboard />;
   if (role.includes("gate") && role.includes("vehicle"))
@@ -151,7 +176,32 @@ const RoleDashboardPage: React.FC = () => {
   if (role.includes("admin") || role.includes("system"))
     return <AdminDashboard />;
 
-  return <AdminDashboard />;
+  // Custom role: send the user to the role's configured landing route
+  const configured = storedNav?.default_route || "/calendar";
+  const target = /\/dashboard(\?|$)/.test(configured) ? "/calendar" : configured;
+  return <Navigate to={target} replace />;
+};
+
+// Only the mayor slug renders the mayor-specific pages
+const MayorOnly: React.FC<{ page: React.ReactElement }> = ({ page }) => {
+  const { roleSlug } = useParams();
+  if (roleSlug !== "mayor") return <Navigate to="/" replace />;
+  return page;
+};
+
+// Index of the /:roleSlug layout tree: the event-management dashboard for
+// the event manager (and custom roles given event links); anything else is
+// an unknown single-segment path and goes home
+const EventsIndexGuard: React.FC = () => {
+  const { roleSlug } = useParams();
+  const nav = getStoredNavigation();
+  const hasEventLinks =
+    nav?.role_slug === roleSlug &&
+    (nav?.links || []).some((l) =>
+      ["events", "rooms", "booking-requests"].includes(l.id),
+    );
+  if (roleSlug === "event-manager" || hasEventLinks) return <DashboardPage />;
+  return <Navigate to="/" replace />;
 };
 
 const PWAInstallPromptWrapper: React.FC = () => {
@@ -191,32 +241,25 @@ const AuthenticatedRoutes: React.FC = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+            {/* Mayor pages: routed by role slug (the mayor slug guards them) */}
             <Route
-              path="/mayor/dashboard"
+              path="/:roleSlug/events"
               element={
                 <ProtectedRoute>
-                  <MayorDashboardPage />
+                  <MayorOnly page={<MayorEventsPage />} />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/mayor/events"
+              path="/:roleSlug/actions"
               element={
                 <ProtectedRoute>
-                  <MayorEventsPage />
+                  <MayorOnly page={<MayorActionsPage />} />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/mayor/actions"
-              element={
-                <ProtectedRoute>
-                  <MayorActionsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/mayor/feedback-analysis"
+              path="/:roleSlug/feedback-analysis"
               element={
                 <ProtectedRoute>
                   <MayorFeedbackPage />
@@ -224,12 +267,14 @@ const AuthenticatedRoutes: React.FC = () => {
               }
             />
 
-            <Route path="/event-manager" element={
+            {/* Event management pages: routed by role slug so the event
+                manager and any custom role with these links share them */}
+            <Route path="/:roleSlug" element={
               <ProtectedRoute>
                 <DashboardLayout />
               </ProtectedRoute>
             }>
-              <Route index element={<DashboardPage />} />
+              <Route index element={<EventsIndexGuard />} />
               <Route path="rooms/all" element={<RoomsList />} />
               <Route path="rooms/stats" element={<RoomStatistics />} />
               <Route path="rooms/new" element={<CreateRoomForm />} />
@@ -546,8 +591,8 @@ const AuthenticatedRoutes: React.FC = () => {
             <Route path="/admin/dashboard" element={<Navigate to="/system-admin/dashboard" replace />} />
             <Route path="/admin/departments" element={<Navigate to="/system-admin/departments" replace />} />
             <Route path="/admin/employees" element={<Navigate to="/system-admin/employees" replace />} />
-            <Route path="/admin/user-managment" element={<Navigate to="/system-admin/user-managment" replace />} />
-            <Route path="/admin/roles-managment" element={<Navigate to="/system-admin/roles-managment" replace />} />
+            <Route path="/admin/user-managment" element={<Navigate to="/system-admin/user-management" replace />} />
+            <Route path="/admin/roles-managment" element={<Navigate to="/system-admin/roles-management" replace />} />
             <Route path="/admin/system-audit" element={<Navigate to="/system-admin/system-audit" replace />} />
             <Route path="/admin/smart-parking" element={<Navigate to="/system-admin/smart-parking" replace />} />
             <Route path="/admin/smart-parking/reservation" element={<Navigate to="/system-admin/smart-parking/reservation" replace />} />
@@ -565,7 +610,7 @@ const AuthenticatedRoutes: React.FC = () => {
             <Route path="/service-delivery/receptionist" element={<Navigate to="/receptionist/dashboard" replace />} />
 
             <Route
-              path="/receptionist/visitors"
+              path="/:roleSlug/visitors"
               element={
                 <ProtectedRoute>
                   <MainLayout>
@@ -575,7 +620,7 @@ const AuthenticatedRoutes: React.FC = () => {
               }
             />
             <Route
-              path="/receptionist/assigned"
+              path="/:roleSlug/assigned"
               element={
                 <ProtectedRoute>
                   <MainLayout>

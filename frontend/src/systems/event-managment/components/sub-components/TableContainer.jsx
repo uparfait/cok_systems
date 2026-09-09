@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { roleBase } from '../../utilities/roleBase';
 
 const NEUTRAL_DARK = '#333333';
 const BORDER = '#E0E0E0';
@@ -83,7 +84,7 @@ export default function TableContainer({ data }) {
 
   const handleRowClick = (event) => {
     const specialId = event.eventSpecialId || event._id;
-    navigate(`/event-manager/events/${specialId}/details`);
+    navigate(`${roleBase()}/events/${specialId}/details`);
   };
 
   const renderCell = (event, columnKey) => {

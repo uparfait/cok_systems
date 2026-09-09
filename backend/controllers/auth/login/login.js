@@ -10,6 +10,7 @@ const tokenUtil = require("../../../utilities/token");
 const bcrypt = require("bcrypt");
 const User = require("../../../models/user");
 const Department = require("../../../models/department");
+const { resolveNavigation } = require("../../../utilities/navigation");
 
 async function resolveDepartmentUnitName(user) {
   const raw = user.department_unit || '';
@@ -263,6 +264,14 @@ async function login(req, res, next) {
       //   }
       // });
 
+      // Sidebar links + landing route for this role (stored client-side)
+      let navigationData = null;
+      try {
+        navigationData = await resolveNavigation(userRole);
+      } catch (navErr) {
+        console.error('Could not resolve navigation on login:', navErr.message);
+      }
+
       return res.status(200).json({
         status: true,
         error: null,
@@ -281,7 +290,8 @@ async function login(req, res, next) {
           accessToken: accessToken,
           refreshToken: refreshToken,
           requiresOTP: false,
-          twoFADisabled: true
+          twoFADisabled: true,
+          navigation: navigationData
         },
       });
     }

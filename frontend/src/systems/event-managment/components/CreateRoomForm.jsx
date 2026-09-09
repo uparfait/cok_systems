@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FiArrowLeft, FiSave, FiCheck } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { roleBase } from '../utilities/roleBase';
 
 const BASE_URL = '/cok/api/v1';
 
@@ -57,7 +58,7 @@ export default function CreateRoomForm() {
       });
       setSuccess(true);
       setTimeout(() => {
-        navigate('/event-manager/rooms/all');
+        navigate(`${roleBase()}/rooms/all`);
       }, 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create room');
@@ -184,7 +185,7 @@ export default function CreateRoomForm() {
           <div className="flex items-center gap-3 pt-2">
             <button
               type="button"
-              onClick={() => navigate('/event-manager/rooms/all')}
+              onClick={() => navigate(`${roleBase()}/rooms/all`)}
               className="flex-1 h-[45px] px-4  cok-btn-outlined text-sm font-medium"
             >
               Cancel

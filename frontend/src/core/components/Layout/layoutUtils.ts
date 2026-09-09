@@ -1,11 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import type { User, Permission } from '../../contexts/AuthContext';
+import { getStoredNavigation, type NavLink } from '../../services/navigationService';
 
 
 // ==================== Role Slug Helpers ====================
 
-// Convert a role name to a URL-friendly slug prefix
+// Convert a role name to a URL-friendly slug prefix. The backend-served
+// navigation (localStorage navData, refreshed on every load and cleared on
+// logout) is authoritative; the keyword rules below are the offline fallback.
 export const getRoleSlug = (role: string | undefined): string => {
+  const nav = getStoredNavigation();
+  if (nav?.role_slug) return nav.role_slug;
   if (!role) return 'user';
   const normalized = role.toLowerCase().trim();
 
@@ -88,6 +93,25 @@ export interface NavItem {
   children?: NavItem[];
 }
 
+// Converts one backend-served nav link into a NavItem, dropping admin
+// children the user has no permission for (full System Admin sees all)
+const navLinkToItem = (link: NavLink, user: User | null, isAdmin: boolean): NavItem | null => {
+  if (link.permission && !isAdmin && !hasPermission(user, link.permission)) return null;
+  const hadChildren = !!(link.children && link.children.length > 0);
+  const children = (link.children || [])
+    .map((child) => navLinkToItem(child, user, isAdmin))
+    .filter((c): c is NavItem => c !== null);
+  // A group whose children were all permission-filtered away disappears
+  if (hadChildren && children.length === 0) return null;
+  return {
+    id: link.id,
+    label: link.label,
+    path: link.path,
+    icon: link.icon,
+    ...(hadChildren ? { children } : {}),
+  };
+};
+
 export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   if (!user) return [];
 
@@ -95,6 +119,19 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   const userRole = user.role?.toLowerCase() || '';
   const isAdmin = isAdminRole(userRole);
   const slug = getRoleSlug(user.role);
+
+  // Primary mechanism: navigation served by the backend for this role
+  // (default roles come from Default_Roles.json, custom roles from their
+  // toggled links). Stored on login and refreshed on every page load.
+  const storedNav = getStoredNavigation();
+  if (storedNav && Array.isArray(storedNav.links) && storedNav.links.length > 0) {
+    const items = storedNav.links
+      .map((link) => navLinkToItem(link, user, isAdmin))
+      .filter((item): item is NavItem => item !== null);
+    if (items.length > 0) return items;
+  }
+
+  // Fallback (no stored navigation yet): the original built-in role links
 
   // RECEPTIONIST INTERCEPTOR
   if (userRole.includes('receptionist')) {
@@ -495,11 +532,12 @@ export const getCurrentSystemFromPath = (pathname: string): string => {
   return pathname;
 };
 
-// Get dashboard route based on user's role - returns role-slug based paths
+// Where a logged-in user lands: each role carries its own default route in
+// the backend-served navigation (default roles go to their dashboard,
+// custom roles to whatever the role was configured with).
 export const getDashboardRoute = (role: string | undefined, _departmentName?: string): string => {
-  console.log('[getDashboardRoute] Determining route for role:', role);
-  // Every authenticated user lands on the shared events calendar,
-  // regardless of role. Role dashboards remain reachable from the sidebar.
+  const nav = getStoredNavigation();
+  if (nav?.default_route) return nav.default_route;
   return '/calendar';
 };
 

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { FiCalendar, FiUsers, FiArrowRight } from 'react-icons/fi';
+import { roleBase } from '../utilities/roleBase';
 
 const PRIMARY = '#056daa';
 
@@ -16,7 +17,7 @@ export default function NewTypeSelector() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Event Card */}
           <button
-            onClick={() => navigate('/event-manager/events/new/event')}
+            onClick={() => navigate(`${roleBase()}/events/new/event`)}
             className="group relative bg-white border-2 border-gray-200 hover:border-[#056daa] hover:shadow-lg transition-all duration-200 p-8 text-left cursor-pointer"
           >
             <div className="w-14 h-14 rounded-full bg-[#056daa]/10 flex items-center justify-center mb-5 group-hover:bg-[#056daa] transition-colors duration-200">
@@ -43,7 +44,7 @@ export default function NewTypeSelector() {
 
           {/* Meeting Card */}
           <button
-            onClick={() => navigate('/event-manager/events/new/meet')}
+            onClick={() => navigate(`${roleBase()}/events/new/meet`)}
             className="group relative bg-white border-2 border-gray-200 hover:border-emerald-500 hover:shadow-lg transition-all duration-200 p-8 text-left cursor-pointer"
           >
             <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mb-5 group-hover:bg-emerald-600 transition-colors duration-200">

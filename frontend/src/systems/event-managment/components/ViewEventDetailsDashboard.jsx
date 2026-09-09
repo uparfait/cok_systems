@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiXCircle, FiUsers, FiMail, FiX, FiRefreshCw, FiLink, FiCopy } from 'react-icons/fi';
 import axios from 'axios';
+import { roleBase } from '../utilities/roleBase';
 import SpiralLoader from './SpiralLoader';
 import EventDetailHeader from './sub-components/EventDetailHeader';
 import EventDetailBasicInfo from './sub-components/EventDetailBasicInfo';
@@ -457,7 +458,7 @@ export default function ViewEventDetailsDashboard() {
               <button
                 onClick={() => {
                   setShowInvitedModal(false);
-                  navigate(`/event-manager/events/${event?.eventSpecialId}/invite`);
+                  navigate(`${roleBase()}/events/${event?.eventSpecialId}/invite`);
                 }}
                 className="cok-btn-primary"
               >

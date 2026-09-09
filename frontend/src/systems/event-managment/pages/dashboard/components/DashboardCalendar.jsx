@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiChevronLeft, FiChevronRight, FiMapPin, FiClock, FiLoader } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 import { useToast } from '@/core/contexts/ToastContext';
+import { roleBase } from '@/systems/event-managment/utilities/roleBase';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -100,7 +101,7 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
 
   const handleEventClick = (ev) => {
     if (ev.eventSpecialId && window.location.pathname?.split("/")[1] === 'event-manager') {
-      navigate(`/event-manager/events/${ev.eventSpecialId}/details`);
+      navigate(`${roleBase()}/events/${ev.eventSpecialId}/details`);
     } else {
       showInfo("action not permitted!")
     }

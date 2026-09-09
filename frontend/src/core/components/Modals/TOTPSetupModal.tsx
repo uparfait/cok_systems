@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { getDashboardRoute } from '../Layout/layoutUtils';
+import { saveNavigation } from '../../services/navigationService';
 
 interface TOTPSetupModalProps {
   isOpen: boolean;
@@ -140,8 +141,8 @@ const TOTPSetupModal: React.FC<TOTPSetupModalProps> = ({
         showSuccess('TOTP verified successfully! 2FA is now enabled.');
         
         if (hasAccessToken && result.data) {
-          const { accessToken, refreshToken, user, ...userInfo } = result.data;
-          
+          const { accessToken, refreshToken, user, navigation, ...userInfo } = result.data;
+
           if (accessToken) {
             localStorage.setItem('accessToken', accessToken);
           }
@@ -152,6 +153,9 @@ const TOTPSetupModal: React.FC<TOTPSetupModalProps> = ({
             localStorage.setItem('userData', JSON.stringify(user));
           } else {
             localStorage.setItem('userData', JSON.stringify(userInfo));
+          }
+          if (navigation) {
+            saveNavigation(navigation);
           }
         }
         

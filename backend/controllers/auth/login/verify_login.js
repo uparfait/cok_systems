@@ -7,6 +7,7 @@ const jwt = require("../../../utilities/jwt");
 const totp = require("../../../utilities/totp");
 const User = require("../../../models/user");
 const department = require("../../../models/department");
+const { resolveNavigation } = require("../../../utilities/navigation");
 
 // Import audit logging
 const { logAuditEvent } = require("../../../middlewares/audit");
@@ -238,6 +239,14 @@ async function verifyLogin(req, res, next) {
             }
         });
 
+        // Sidebar links + landing route for this role (stored client-side)
+        let navigationData = null;
+        try {
+            navigationData = await resolveNavigation(userRole);
+        } catch (navErr) {
+            console.error('Could not resolve navigation on login verify:', navErr.message);
+        }
+
         // Return verification success with tokens
         return res.status(200).json({
             success: true,
@@ -263,7 +272,8 @@ async function verifyLogin(req, res, next) {
                 })(),
                 permissions: userPermissions,
                 accessToken: accessToken,
-                refreshToken: refreshToken
+                refreshToken: refreshToken,
+                navigation: navigationData
             }
         });
 
