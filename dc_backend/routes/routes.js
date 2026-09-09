@@ -10,8 +10,10 @@ const templates_routes = require("./templates/routes.js");
 const public_routes = require("./public/routes.js");
 const approvals_routes = require("./approvals/routes.js");
 const test_data_routes = require("./test_data/routes.js");
+const dashboard_routes = require("../util-dashboard/routes.js");
 
 Router.use("/public", public_routes);
+Router.use("/projects", authenticate, dashboard_routes);
 Router.use("/projects", authenticate, projects_routes);
 Router.use("/departments", authenticate, departments_routes);
 Router.use("/forms", authenticate, forms_routes);

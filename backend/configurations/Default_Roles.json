@@ -11,12 +11,43 @@
       "children": []
     },
     {
-      "id": "overview",
-      "label": "Overview",
-      "path": "/{roleSlug}/overview",
-      "icon": "FiBarChart2",
+      "id": "admin",
+      "label": "Admin",
+      "path": "/{roleSlug}/dashboard",
+      "icon": "FiSettings",
       "default_enabled": false,
-      "children": []
+      "children": [
+        { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiHome" },
+        { "id": "overview", "label": "Overview", "path": "/{roleSlug}/overview", "icon": "FiBarChart2" },
+        { "id": "departments", "label": "Departments", "path": "/{roleSlug}/departments", "icon": "FiGrid" },
+        { "id": "employees", "label": "Employees", "path": "/{roleSlug}/employees", "icon": "FiUsers" },
+        { "id": "roles-management", "label": "Roles Management", "path": "/{roleSlug}/roles-management", "icon": "FiShield" },
+        { "id": "user-management", "label": "User Management", "path": "/{roleSlug}/user-management", "icon": "FiUser" },
+        { "id": "system-audit", "label": "System Audit", "path": "/{roleSlug}/system-audit", "icon": "FiActivity" },
+        { "id": "storage-management", "label": "Storage Management", "path": "/{roleSlug}/storage-management", "icon": "FiHardDrive" }
+      ]
+    },
+    {
+      "id": "smart-parking",
+      "label": "Smart Parking",
+      "path": "/{roleSlug}/smart-parking",
+      "icon": "FiTruck",
+      "default_enabled": false,
+      "children": [
+        { "id": "sp-dashboard", "label": "Dashboard", "path": "/{roleSlug}/smart-parking", "icon": "FiHome" },
+        { "id": "sp-reservation", "label": "Reservation", "path": "/{roleSlug}/smart-parking/reservation", "icon": "FiCalendar" }
+      ]
+    },
+    {
+      "id": "service-delivery",
+      "label": "Service Delivery",
+      "path": "/{roleSlug}/service-delivery/analytics",
+      "icon": "FiClipboard",
+      "default_enabled": false,
+      "children": [
+        { "id": "sd-analytics", "label": "Analytics", "path": "/{roleSlug}/service-delivery/analytics", "icon": "FiBarChart2" },
+        { "id": "sd-feedback", "label": "Feedback", "path": "/{roleSlug}/service-delivery/feedback", "icon": "FiMessageSquare" }
+      ]
     },
     {
       "id": "task-manager",

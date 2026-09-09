@@ -1,13 +1,12 @@
 import React from "react";
-import DcsUnderDevelopmentPanel from "../components/DcsUnderDevelopmentPanel.jsx";
+import { useOutletContext } from "react-router-dom";
+import DashboardPage from "../util-dashboard/DashboardPage.jsx";
 
 /**
- * Project dashboard-building tab: shown but still under development.
+ * Project dashboard tab: the full dashboard builder and viewer, backed by
+ * live aggregations of the project's collected form data.
  */
 export default function ProjectDashboardPage() {
-  return (
-    <div className="pb-16">
-      <DcsUnderDevelopmentPanel titleKey="DCS_SECTION_BUILD_DASHBOARD" />
-    </div>
-  );
+  const { project } = useOutletContext();
+  return <DashboardPage project={project} />;
 }

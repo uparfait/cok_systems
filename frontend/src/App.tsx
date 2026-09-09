@@ -176,6 +176,14 @@ const RoleDashboardPage: React.FC = () => {
   if (role.includes("admin") || role.includes("system"))
     return <AdminDashboard />;
 
+  // Custom role given the Admin links: its dashboard is the admin dashboard
+  if (
+    storedNav?.role_slug === slug &&
+    (storedNav?.links || []).some((l) => l.id === "admin")
+  ) {
+    return <AdminDashboard />;
+  }
+
   // Custom role: send the user to the role's configured landing route
   const configured = storedNav?.default_route || "/calendar";
   const target = /\/dashboard(\?|$)/.test(configured) ? "/calendar" : configured;

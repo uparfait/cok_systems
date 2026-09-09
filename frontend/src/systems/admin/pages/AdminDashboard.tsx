@@ -122,18 +122,21 @@ const AdminDashboard: React.FC = () => {
   const handleRefresh = useCallback(() => { loadData(); fetchHourlyAnalytics(); }, [loadData, fetchHourlyAnalytics]);
 
   const colorClasses = useMemo(() => ({ blue: { bg: 'cok-bg-primary', text: 'text-[#056daa]', light: 'bg-[rgba(5,109,170,0.1)]' }, green: { bg: 'bg-[#4CAF50]', text: 'text-[#388E3C]', light: 'bg-[rgba(76,175,80,0.12)]' }, purple: { bg: 'bg-[#2980B9]', text: 'text-[#2980B9]', light: 'bg-[rgba(41,128,185,0.1)]' }, orange: { bg: 'bg-[#F39C12]', text: 'text-[#F39C12]', light: 'bg-[rgba(243,156,18,0.12)]' }, red: { bg: 'bg-[#E74C3C]', text: 'text-[#E74C3C]', light: 'bg-[rgba(231,76,60,0.12)]' }, indigo: { bg: 'bg-[#2980B9]', text: 'text-[#2980B9]', light: 'bg-[rgba(41,128,185,0.1)]' } }), []);
+  // The dashboard is mounted under /:roleSlug, so internal links keep
+  // whatever slug the user is browsing under
+  const base = `/${window.location.pathname.split('/')[1] || 'system-admin'}`;
   const quickActions = useMemo(() => [
-    { title: 'Manage Departments', description: 'Add, edit, or remove departments', icon: HiOutlineOfficeBuilding, color: 'blue', path: '/admin/departments' },
-    { title: 'Employee Management', description: 'View and manage employee records', icon: FiUsers, color: 'green', path: '/admin/employees' },
-    { title: 'Smart Parking', description: 'Monitor  parking system', icon: FiTruck, color: 'purple', path: '/system-admin/smart-parking' },
-    { title: 'Service Delivery', description: 'Track visitor services', icon: FiGrid, color: 'orange', path: '/system-admin/service-delivery/analytics' },
-  ], []);
+    { title: 'Manage Departments', description: 'Add, edit, or remove departments', icon: HiOutlineOfficeBuilding, color: 'blue', path: `${base}/departments` },
+    { title: 'Employee Management', description: 'View and manage employee records', icon: FiUsers, color: 'green', path: `${base}/employees` },
+    { title: 'Smart Parking', description: 'Monitor  parking system', icon: FiTruck, color: 'purple', path: `${base}/smart-parking` },
+    { title: 'Service Delivery', description: 'Track visitor services', icon: FiGrid, color: 'orange', path: `${base}/service-delivery/analytics` },
+  ], [base]);
   const statCards = useMemo(() => [
-    { label: 'Total Departments', value: stats.departments, icon: HiOutlineOfficeBuilding, color: 'blue', subtext: stats.departments > 0 ? `${stats.units} total units` : 'No departments', trend: stats.departments > 0 ? `${stats.departments} departments, ${stats.units} units` : 'No data', path: '/admin/departments' },
-    { label: 'Total Employees', value: stats.employees, icon: FiUsers, color: 'green', subtext: stats.employees > 0 ? 'Registered staff' : 'No employees', trend: stats.employees > 0 ? `${stats.employees} registered` : 'No data', path: '/admin/employees' },
+    { label: 'Total Departments', value: stats.departments, icon: HiOutlineOfficeBuilding, color: 'blue', subtext: stats.departments > 0 ? `${stats.units} total units` : 'No departments', trend: stats.departments > 0 ? `${stats.departments} departments, ${stats.units} units` : 'No data', path: `${base}/departments` },
+    { label: 'Total Employees', value: stats.employees, icon: FiUsers, color: 'green', subtext: stats.employees > 0 ? 'Registered staff' : 'No employees', trend: stats.employees > 0 ? `${stats.employees} registered` : 'No data', path: `${base}/employees` },
     { label: 'Active Visitors', value: stats.activeVisitors, icon: FiActivity, color: 'orange', subtext: stats.activeVisitors > 0 ? 'Currently inside' : 'No active visitors', trend: stats.flaggedVehicles > 0 ? `${stats.flaggedVehicles} flagged` : 'All clear', path: '' },
-    { label: "Today's Check-ins", value: stats.parkingRecords, icon: FiTruck, color: 'purple', subtext: stats.parkingRecords > 0 ? 'Check-ins recorded' : 'No records', trend: stats.activeVisitors > 0 ? `${stats.activeVisitors} inside` : 'No data', path: '/admin/smart-parking' },
-  ], [stats]);
+    { label: "Today's Check-ins", value: stats.parkingRecords, icon: FiTruck, color: 'purple', subtext: stats.parkingRecords > 0 ? 'Check-ins recorded' : 'No records', trend: stats.activeVisitors > 0 ? `${stats.activeVisitors} inside` : 'No data', path: `${base}/smart-parking` },
+  ], [stats, base]);
 
   useEffect(() => { const handleOnline = () => { setIsOffline(false); loadData(); }; const handleOffline = () => setIsOffline(true); window.addEventListener('online', handleOnline); window.addEventListener('offline', handleOffline); return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); }; }, [loadData]);
   useEffect(() => { if (!authLoading) { if (!isAuthenticated) navigate('/login'); else { loadData(); fetchHourlyAnalytics(); } } return () => { if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); }; }, [isAuthenticated, authLoading, navigate, loadData, fetchHourlyAnalytics]);
