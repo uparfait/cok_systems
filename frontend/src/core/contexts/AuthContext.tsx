@@ -22,7 +22,8 @@ import {
   verify2FASetup,
   reset2FA
 } from '../services/authService';
-import { refreshNavigation, clearNavigation } from '../services/navigationService';
+import { useNavigate } from 'react-router-dom';
+import { refreshNavigation, clearNavigation, FORCED_LOGOUT_EVENT } from '../services/navigationService';
 
 // User interface
 export interface User {
@@ -165,6 +166,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Forced logout (invalid role / system configurations changed): the
+  // credentials are already cleared; drop the auth state and go to the
+  // login page client-side, without a page refresh
+  const navigate = useNavigate();
+  useEffect(() => {
+    const onForcedLogout = () => {
+      setUser(null);
+      setPermissions([]);
+      setToken(null);
+      setIsLoading(false);
+      navigate('/login', { replace: true });
+    };
+    window.addEventListener(FORCED_LOGOUT_EVENT, onForcedLogout);
+    return () => window.removeEventListener(FORCED_LOGOUT_EVENT, onForcedLogout);
+  }, [navigate]);
 
   const hasPermission = useCallback((resource: string, action: string): boolean => {
     if (!permissions || permissions.length === 0) return false;
