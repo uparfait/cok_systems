@@ -218,13 +218,16 @@ class PostMeetingMinutesController {
         .lean();
 
       // A series is recurring when its parent id exists in the recurring
-      // collection or when materialized occurrences carry the composite id
+      // collection or when ids carry the occurrence marker `parent_<timestamp>`.
+      // Note: EVERY ended event gets an `__<timestamp>` suffix when moved to
+      // the past collection, so a bare `__` never means recurring on its own.
       const recurringParent = await RecurringEvent.findOne({
         eventSpecialId: { $regex: instanceRegex }
       }).select('_id').lean();
+      const isOccurrenceId = (id) => /^[^_]+_\d+$/.test(String(id).split('__')[0]);
       const isRecurring = !!recurringParent ||
-        postMeetings.some((pm) => String(pm.eventSpecialId).includes('__')) ||
-        String(eventSpecialId).includes('__');
+        isOccurrenceId(eventSpecialId) ||
+        postMeetings.some((pm) => isOccurrenceId(pm.eventSpecialId));
 
       return res.status(200).json({
         success: true,

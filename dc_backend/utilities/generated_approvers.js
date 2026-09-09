@@ -1,4 +1,6 @@
 const form_approvers_model = require("../models/form_approvers_model.js");
+const { build_approval_state } = require("./approval.js");
+const { resolve_location_chain } = require("./approval_routing.js");
 
 /**
  * Every scalar value a record holds, normalized - the haystack a generated
@@ -34,7 +36,26 @@ async function config_with_generated_for_submission(form_group_id, approval_conf
   return Object.assign({}, approval_config, { approvers: (approval_config.approvers || []).concat(generated) });
 }
 
+/**
+ * The full approval state one (test) submission deserves under the form's
+ * current flow: hand-made approvers plus the generated ones its answers
+ * match, run through the exact same build_approval_state a real submit
+ * uses - conditions, location scoping, tokens and all. The location chain
+ * is only resolved when some approver actually carries a location, so bulk
+ * generation never pays for lookups nothing needs. Never sends any email.
+ */
+async function build_test_submission_approval(form_group_id, approval_config, resolved_data) {
+  const effective_config = await config_with_generated_for_submission(form_group_id, approval_config, resolved_data);
+  if (!effective_config || effective_config.enabled !== true) return null;
+  const needs_locations = (effective_config.approvers || []).some(
+    (approver) => approver && approver.level && approver.location_id !== null && approver.location_id !== undefined,
+  );
+  const location_chain = needs_locations ? await resolve_location_chain(resolved_data) : [];
+  return build_approval_state(effective_config, location_chain, resolved_data);
+}
+
 module.exports = {
   record_match_values,
   config_with_generated_for_submission,
+  build_test_submission_approval,
 };

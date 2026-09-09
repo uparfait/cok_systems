@@ -1,6 +1,8 @@
 const { faker } = require("@faker-js/faker");
 const forms_model = require("../../models/forms_model.js");
 const form_approvers_model = require("../../models/form_approvers_model.js");
+const submissions_model = require("../../models/submissions_model.js");
+const { build_test_submission_approval } = require("../../utilities/generated_approvers.js");
 const project_access = require("../../utilities/project_access.js");
 const test_jobs = require("../../utilities/test_jobs.js");
 const { flatten_fields } = require("../../jsonlogic/dependency_graph.js");
@@ -278,12 +280,36 @@ async function run_config_save(job_id, form_version, generated_approvers) {
     });
     const inserted = await form_approvers_model.replace_generated_approvers(form_version.form_group_id, generated_approvers);
 
+    // Phase 2: the fresh flow is applied to every EXISTING test record (and
+    // only test records) - each one gets the approval state its own answers
+    // deserve under the new approvers, matched by conditions exactly like a
+    // real submit, no emails.
+    const test_submissions = await submissions_model.list_test_submissions(form_version.form_group_id);
     test_jobs.update_progress(job_id, {
       processed: generated_approvers.length,
       saved: inserted,
       failed: generated_approvers.length - inserted,
       approvers: inserted,
+      total: generated_approvers.length + test_submissions.length,
     });
+
+    const routing_config = { enabled: true, approvers: kept_approvers };
+    let entries = [];
+    let processed = generated_approvers.length;
+    for (const submission of test_submissions) {
+      entries.push({
+        _id: submission._id,
+        approval: await build_test_submission_approval(form_version.form_group_id, routing_config, submission.data),
+      });
+      processed += 1;
+      test_jobs.update_progress(job_id, { processed });
+      if (entries.length >= 500) {
+        await submissions_model.set_test_approvals(entries);
+        entries = [];
+      }
+    }
+    await submissions_model.set_test_approvals(entries);
+
     test_jobs.finish_job(job_id, "completed");
   } catch (error) {
     test_jobs.finish_job(job_id, "error", error.message);

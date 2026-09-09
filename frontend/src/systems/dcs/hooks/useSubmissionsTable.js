@@ -48,9 +48,16 @@ export function useSubmissionsTable(form_group_id, version) {
     fetch_submissions({ ...applied_params_ref.current, page: next_page }, false);
   };
 
-  const handle_apply = () => {
+  // applied_from/applied_to arrive from the custom-range popup's Apply -
+  // the from/to state is not updated yet at that moment (React state
+  // updates are async), so reading state alone would apply the PREVIOUS
+  // range. The search box also calls this with no arguments; then state is
+  // the right source.
+  const handle_apply = (applied_from, applied_to) => {
+    const next_from = typeof applied_from === "string" ? applied_from : from;
+    const next_to = typeof applied_to === "string" ? applied_to : to;
     setPage(1);
-    fetch_submissions({ page: 1, period, from, to, search, sort }, false);
+    fetch_submissions({ page: 1, period, from: next_from, to: next_to, search, sort }, false);
   };
 
   // Re-fetches the current page with whatever params were last applied -

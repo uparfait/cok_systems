@@ -3,6 +3,7 @@ const submissions_model = require("../../models/submissions_model.js");
 const project_access = require("../../utilities/project_access.js");
 const test_jobs = require("../../utilities/test_jobs.js");
 const { generate_test_record } = require("../../utilities/test_data_generator.js");
+const { build_test_submission_approval } = require("../../utilities/generated_approvers.js");
 const { validate_submission_data } = require("../../jsonlogic/validate_submission.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -41,7 +42,7 @@ function build_timestamps(from, to, min_per_hour, max_per_hour) {
  * validate_submission_data gate as a real public submit; a record that
  * cannot pass after a few fresh attempts is counted failed and never saved.
  */
-async function run_generation(job_id, form_version, timestamps) {
+async function run_generation(job_id, form_version, routing_config, timestamps) {
   let buffer = [];
   let saved = 0;
   let failed = 0;
@@ -69,7 +70,10 @@ async function run_generation(job_id, form_version, timestamps) {
           project_id: form_version.project_id,
           data: validation_result.resolved_data,
           client_submission_id: null,
-          approval: null,
+          // Routed through the form's current approval flow (hand-made
+          // approvers plus the generated pool) exactly like a real submit -
+          // conditions decide who signs - but no email is ever sent.
+          approval: await build_test_submission_approval(form_version.form_group_id, routing_config, validation_result.resolved_data),
           [submissions_model.TEST_DATA_FLAG]: true,
           submitted_at,
         });
@@ -138,8 +142,14 @@ async function generate_test_data(req, res) {
       return res.status(400).json(warning_response(req, "TEST_DATA_EMPTY_RANGE"));
     }
 
+    // Approvals are routed against the ACTIVE version's flow - that is
+    // where the approval page saves approvers - regardless of which version
+    // the records are generated into.
+    const active_version = await forms_model.get_active_version(form_group_id);
+    const routing_config = (active_version || form_version).approval_config || null;
+
     const job = test_jobs.create_job(timestamps.length);
-    setImmediate(() => run_generation(job.id, form_version, timestamps));
+    setImmediate(() => run_generation(job.id, form_version, routing_config, timestamps));
 
     return res.status(202).json(success_response(req, "TEST_DATA_GENERATION_STARTED", { job_id: job.id, total: timestamps.length }));
   } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
@@ -29,7 +29,11 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
   const handle_apply = () => {
     onFromChange(local_from);
     onToChange(local_to);
-    onApply();
+    // The picked dates ride along directly: the parent's own from/to state
+    // updates are asynchronous, so reading them inside onApply would still
+    // see the values from BEFORE this apply (empty on the very first one -
+    // the custom range then silently did nothing).
+    onApply(local_from, local_to);
     onOpenChange(false);
   };
 
@@ -108,21 +112,41 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
 export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromChange, to, onToChange, onApply, includeAll, allowWrap }) {
   const { translate } = useDcsLanguage();
   const [is_custom_open, setIsCustomOpen] = useState(false);
+  const [is_menu_open, setIsMenuOpen] = useState(false);
+  const menu_ref = useRef(null);
   const options = includeAll ? PERIOD_OPTIONS : PERIOD_OPTIONS.filter((option) => option.value !== "all");
 
-  const handle_period_change = (event) => {
-    const value = event.target.value;
+  useEffect(() => {
+    if (!is_menu_open) return undefined;
+    const handle_outside = (event) => {
+      if (menu_ref.current && !menu_ref.current.contains(event.target)) setIsMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handle_outside);
+    return () => document.removeEventListener("mousedown", handle_outside);
+  }, [is_menu_open]);
+
+  // A native <select> fires nothing when the already-selected option is
+  // clicked again - this custom menu fires on EVERY click, so re-picking
+  // the active period re-applies it (and re-picking "custom" reopens the
+  // date popup) instead of doing nothing.
+  const handle_option_click = (value) => {
+    setIsMenuOpen(false);
     if (value === "custom") {
-      onPeriodChange(value);
+      onPeriodChange("custom");
       setIsCustomOpen(true);
-    } else {
-      onPeriodChange(value);
+      return;
     }
+    if (value !== period) {
+      // A real change - the consumer's own period effect fetches.
+      onPeriodChange(value);
+      return;
+    }
+    // Same option re-clicked: re-apply the current filter right now.
+    if (onApply) onApply();
   };
 
-  const handle_custom_preset = (preset_value) => {
-    onPeriodChange(preset_value);
-  };
+  const option_label = (option) => (option.value === "custom" ? translate("DCS_STATS_PERIOD_CUSTOM") : translate(option.labelKey));
+  const selected_option = options.find((option) => option.value === period);
 
   const get_selected_label = () => {
     if (period === "custom") {
@@ -135,18 +159,51 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
 
   return (
     <div className={`flex items-center gap-2 ${allowWrap ? "flex-wrap" : "flex-row flex-shrink-0"}`}>
-      <select
-        value={period}
-        onChange={handle_period_change}
-        className="cok-auth-input text-sm flex-shrink-0 cursor-pointer"
-        style={{ fontFamily: "'Montserrat', sans-serif", height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX }}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.value === "custom" ? translate("DCS_STATS_PERIOD_CUSTOM") : translate(option.labelKey)}
-          </option>
-        ))}
-      </select>
+      <div ref={menu_ref} className="relative flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => setIsMenuOpen((previous) => !previous)}
+          className="cok-auth-input text-sm cursor-pointer inline-flex items-center justify-between gap-2"
+          style={{ fontFamily: "'Montserrat', sans-serif", height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX, minWidth: 150 }}
+        >
+          <span className="truncate">{selected_option ? option_label(selected_option) : ""}</span>
+          <svg
+            width="10"
+            height="6"
+            viewBox="0 0 10 6"
+            style={{ flexShrink: 0, transform: is_menu_open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms ease" }}
+          >
+            <path d="M1 1l4 4 4-4" fill="none" stroke="#9E9E9E" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        {is_menu_open && (
+          <div
+            className="absolute left-0 z-50 bg-white"
+            style={{ top: "calc(100% + 4px)", minWidth: "100%", border: "1px solid #E0E0E0", boxShadow: "0 8px 22px rgba(0,0,0,0.14)" }}
+          >
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => handle_option_click(option.value)}
+                className="block w-full text-left text-sm cursor-pointer"
+                style={{
+                  padding: "0.5rem 0.75rem",
+                  fontFamily: "'Montserrat', sans-serif",
+                  color: option.value === period ? "#056daa" : "#333333",
+                  fontWeight: option.value === period ? 700 : 400,
+                  backgroundColor: "#FFFFFF",
+                  border: "none",
+                }}
+                onMouseOver={(event) => (event.currentTarget.style.backgroundColor = "#F0F7FC")}
+                onMouseOut={(event) => (event.currentTarget.style.backgroundColor = "#FFFFFF")}
+              >
+                {option_label(option)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       {period === "custom" && (
         <span className="text-xs text-gray-500 truncate max-w-[200px]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
           {get_selected_label()}
@@ -161,7 +218,6 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
         onFromChange={onFromChange}
         onToChange={onToChange}
         onApply={onApply}
-        onSelectPreset={handle_custom_preset}
         translate={translate}
       />
     </div>

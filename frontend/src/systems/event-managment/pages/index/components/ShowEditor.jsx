@@ -241,9 +241,12 @@ export default function ShowEditor({ overlayEventId = null, onCloseOverride = nu
         lastSavedHtmlRef.current = parsed.legacy || "";
         setEditorInitial(parsed.legacy || "");
 
+        // Every ended event id carries an "__<timestamp>" suffix, so "__" alone
+        // never means recurring; the real occurrence marker is "parent_<timestamp>"
+        const isOccurrenceId = (id) => /^[^_]+_\d+$/.test(String(id).split("__")[0]);
         const recurring = recurringFlag ?? (
-          String(eventSpecialId).includes("__") ||
-          Object.keys(nextDocs).some((id) => String(id).includes("__"))
+          isOccurrenceId(eventSpecialId) ||
+          Object.keys(nextDocs).some(isOccurrenceId)
         );
 
         setEventData(event);

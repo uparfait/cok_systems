@@ -22,7 +22,7 @@ function resolve_granularity(period, bounds) {
   return "year";
 }
 
-function truncate_to_bucket_start(date, granularity) {
+function truncate_to_bucket_start(date, granularity, week_anchor) {
   const result = new Date(date);
   if (granularity === "hour") {
     result.setMinutes(0, 0, 0);
@@ -33,10 +33,17 @@ function truncate_to_bucket_start(date, granularity) {
     return result;
   }
   if (granularity === "week") {
-    const day_index_from_monday = (result.getDay() + 6) % 7;
-    result.setDate(result.getDate() - day_index_from_monday);
-    result.setHours(0, 0, 0, 0);
-    return result;
+    // Weekly buckets are anchored on the RANGE'S OWN first day, not ISO
+    // Mondays - a custom "Aug 1 - Sep 15" must chart as Aug 1, Aug 8, ...,
+    // never as a "Jul 27" week that starts before what was picked.
+    const day_ms = 24 * 60 * 60 * 1000;
+    const day_start = new Date(result);
+    day_start.setHours(0, 0, 0, 0);
+    const offset_days = Math.round((day_start - week_anchor) / day_ms);
+    const bucket_index = Math.floor(offset_days / 7);
+    const bucket_start = new Date(week_anchor);
+    bucket_start.setDate(bucket_start.getDate() + bucket_index * 7);
+    return bucket_start;
   }
   if (granularity === "month") {
     return new Date(result.getFullYear(), result.getMonth(), 1);
@@ -102,19 +109,21 @@ async function get_form_submission_stats(req, res) {
     }
 
     const granularity = resolve_granularity(period, bounds);
+    const week_anchor = new Date(bounds.start);
+    week_anchor.setHours(0, 0, 0, 0);
     const submissions = await submissions_model.list_submitted_at_within(form_group_id, bounds.start, bounds.end);
 
     const counts_by_bucket_key = new Map();
     submissions.forEach((submission) => {
       const submitted_at = submission.submitted_at ? new Date(submission.submitted_at) : null;
       if (!submitted_at || Number.isNaN(submitted_at.getTime())) return;
-      const bucket_key = truncate_to_bucket_start(submitted_at, granularity).getTime();
+      const bucket_key = truncate_to_bucket_start(submitted_at, granularity, week_anchor).getTime();
       counts_by_bucket_key.set(bucket_key, (counts_by_bucket_key.get(bucket_key) || 0) + 1);
     });
 
     const data = [];
-    let cursor = truncate_to_bucket_start(bounds.start, granularity);
-    const end_cursor = truncate_to_bucket_start(bounds.end, granularity);
+    let cursor = truncate_to_bucket_start(bounds.start, granularity, week_anchor);
+    const end_cursor = truncate_to_bucket_start(bounds.end, granularity, week_anchor);
     while (cursor <= end_cursor) {
       const bucket_key = cursor.getTime();
       data.push({ label: format_bucket_label(cursor, granularity), count: counts_by_bucket_key.get(bucket_key) || 0 });
