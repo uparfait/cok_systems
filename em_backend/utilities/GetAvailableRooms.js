@@ -225,7 +225,7 @@ class GetAvailableRooms {
 
     // Monthly patterns that depend on explicit dates must provide them. Without
     // dates we would generate zero occurrences and falsely report every room as
-    // unavailable — fail loudly instead.
+    // unavailable - fail loudly instead.
     if (recurringType === 'Monthly' && (!monthlyPattern || monthlyPattern === 'specific' || monthlyPattern === 'mixed')) {
       if (!Array.isArray(monthlyDates) || monthlyDates.length === 0) {
         throw new Error(`monthlyDates is required for monthly pattern "${monthlyPattern || 'specific'}"`);

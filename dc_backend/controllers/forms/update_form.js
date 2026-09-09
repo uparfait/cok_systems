@@ -1,11 +1,18 @@
 const forms_model = require("../../models/forms_model.js");
+const form_approvers_model = require("../../models/form_approvers_model.js");
 const projects_model = require("../../models/projects_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { has_data_field_set_changed } = require("../../jsonlogic/schema_diff.js");
 const { resolve_template_placeholders } = require("../../jsonlogic/resolve_templates.js");
 const { merge_lazy_fields } = require("../../jsonlogic/lazy_options.js");
-const { validate_approval_config, normalize_approval_config } = require("../../utilities/approval.js");
+const {
+  validate_approval_config,
+  normalize_approval_config,
+  strip_approval_config_for_response,
+  is_test_approver,
+} = require("../../utilities/approval.js");
+const { strip_creator } = require("../../utilities/owner.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -65,13 +72,36 @@ async function update_form(req, res) {
       return res.status(409).json(warning_response(req, "FORM_NAME_TAKEN"));
     }
 
-    const approval_validation = validate_approval_config(approval_config);
+    // A lazy config (the stripped {enabled, approvers_count, approvers_lazy}
+    // shape every form route now returns) means the caller never loaded the
+    // approvers - keep the stored ones exactly like an omitted config does,
+    // honoring only the enabled flag it carries.
+    const incoming_approval_config =
+      approval_config && approval_config.approvers_lazy === true
+        ? Object.assign({}, active_version.approval_config || { approvers: [] }, { enabled: approval_config.enabled === true })
+        : approval_config;
+
+    const approval_validation = validate_approval_config(incoming_approval_config);
     if (!approval_validation.valid) {
       return res.status(400).json(warning_response(req, "APPROVAL_CONFIG_INVALID", null, { errors: approval_validation.errors }));
     }
     // An omitted approval_config keeps whatever the active version already had.
     const next_approval_config =
-      approval_config === undefined ? active_version.approval_config || null : normalize_approval_config(approval_config);
+      incoming_approval_config === undefined ? active_version.approval_config || null : normalize_approval_config(incoming_approval_config);
+
+    // Generated test approvers never live on the form document - they have
+    // their own collection. A payload that carries some back (the approval
+    // page loaded and possibly edited them) replaces the stored pool; a
+    // payload without any leaves the pool untouched, so a stale tab or a
+    // client that never paged the full list in can never wipe it. Only the
+    // explicit "clear test approvals" action deletes the pool.
+    if (next_approval_config && Array.isArray(next_approval_config.approvers)) {
+      const incoming_generated = next_approval_config.approvers.filter((approver) => is_test_approver(approver));
+      next_approval_config.approvers = next_approval_config.approvers.filter((approver) => !is_test_approver(approver));
+      if (incoming_generated.length > 0) {
+        await form_approvers_model.replace_generated_approvers(form_group_id, incoming_generated);
+      }
+    }
 
     const should_bump_version = has_data_field_set_changed(active_version.schema, resolved_schema);
 
@@ -94,9 +124,11 @@ async function update_form(req, res) {
           updated_by_name: req.user.full_name,
         });
 
+    const stripped_form = Object.assign({}, strip_creator(form), { approval_config: strip_approval_config_for_response(form.approval_config) });
+
     return res
       .status(should_bump_version ? 201 : 200)
-      .json(success_response(req, should_bump_version ? "FORM_UPDATED_NEW_VERSION" : "FORM_UPDATED_IN_PLACE", form));
+      .json(success_response(req, should_bump_version ? "FORM_UPDATED_NEW_VERSION" : "FORM_UPDATED_IN_PLACE", stripped_form));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

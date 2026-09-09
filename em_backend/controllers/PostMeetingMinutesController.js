@@ -6,14 +6,12 @@ const PastEvent = require('../models/PastEvent');
 
 async function findEventBySpecialId(eventSpecialId) {
   const collections = [LiveEvent, UpcomingEvent, RecurringEvent, PastEvent];
-  //console.log(`Searching for event with special ID: ${eventSpecialId}`);
   for (const Model of collections) {
     const Rexp = new RegExp(`^${eventSpecialId}`, 'i');
     const event = await Model.findOne({ eventSpecialId: Rexp })
-      .select('eventName eventSpecialId startedAt willStartAt willEndAt eventOrganizer eventType eventMeetingType')
+      .select('eventName eventSpecialId startedAt willStartAt willEndAt eventOrganizer coOrganizers eventType eventMeetingType')
       .lean();
 
-      
     if (event) return event;
   }
   return null;
@@ -41,15 +39,13 @@ class PostMeetingMinutesController {
         });
       }
 
-      // Find the live event to get event details
-      const liveEvent = await LiveEvent.findOne({ eventSpecialId }).lean();
-
+      // Any known occurrence (live, upcoming, past or recurring) can receive minutes
+      const event = await findEventBySpecialId(eventSpecialId);
 
       // Find existing post-meeting record or create new one
       let postMeeting = await PostMeeting.findOne({ eventSpecialId });
 
-
-      if (!liveEvent && !postMeeting) {
+      if (!event && !postMeeting) {
         return res.status(404).json({
           success: false,
           message: 'Event not found with the provided special ID'
@@ -61,17 +57,19 @@ class PostMeetingMinutesController {
         postMeeting.meetingMinutes = meetingMinutes;
         await postMeeting.save();
       } else {
-        // Create new post-meeting record with documenter details
+        const documentedBy = req.body.documentedBy && req.body.documentedBy.name
+          ? req.body.documentedBy
+          : {
+              name: 'Minutes Editor',
+              role: 'System',
+              institution: 'City of Kigali',
+              email: 'system@kigalicity.gov.rw',
+              phone: ''
+            };
         postMeeting = await PostMeeting.create({
           meetingMinutes,
-          documentedBy: {
-            name: 'Testing',
-            role: 'Testing',
-            institution: 'Testing Institution',
-            email: 'Testing@gmail.com',
-            phone: '12345678'
-          },
-          meetingDate: liveEvent.startedAt,
+          documentedBy,
+          meetingDate: event.startedAt || event.willStartAt || new Date(),
           eventSpecialId
         });
       }
@@ -219,11 +217,24 @@ class PostMeetingMinutesController {
         .sort({ meetingDate: -1 })
         .lean();
 
+      // A series is recurring when its parent id exists in the recurring
+      // collection or when ids carry the occurrence marker `parent_<timestamp>`.
+      // Note: EVERY ended event gets an `__<timestamp>` suffix when moved to
+      // the past collection, so a bare `__` never means recurring on its own.
+      const recurringParent = await RecurringEvent.findOne({
+        eventSpecialId: { $regex: instanceRegex }
+      }).select('_id').lean();
+      const isOccurrenceId = (id) => /^[^_]+_\d+$/.test(String(id).split('__')[0]);
+      const isRecurring = !!recurringParent ||
+        isOccurrenceId(eventSpecialId) ||
+        postMeetings.some((pm) => isOccurrenceId(pm.eventSpecialId));
+
       return res.status(200).json({
         success: true,
         message: 'Series minutes retrieved successfully',
         data: {
           event,
+          isRecurring,
           minutes: postMeetings.map(pm => ({
             content: pm.meetingMinutes,
             documentedBy: pm.documentedBy,

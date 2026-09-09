@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
+import { employeeService } from '@/core/services/employeeService';
 import axios from 'axios';
 import {
   FiPlus, FiEdit2, FiTrash2, FiClock, FiCheckCircle,
@@ -8,6 +10,7 @@ import {
 } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 import { useToast } from '@/core/contexts/ToastContext';
+import { useAuth } from '@/core/contexts/AuthContext';
 import FollowUpDetailModal from '../../../taskManagement/components/FollowUpDetailModal';
 
 const BASE_URL = '/cok/api/v1';
@@ -51,7 +54,7 @@ function Badge({ status }) {
 
 function fmt(d) {
   if (!d) return '-';
-  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function overdue(due, status) {
@@ -61,8 +64,8 @@ function overdue(due, status) {
 const EMPTY = (eventSpecialId) => ({
   title: '',
   actionDescription: '',
-  assignedPerson: { name: '', email: '', role: '', institution: '' },
-  createdBy: { name: '', email: '', role: '', institution: '' },
+  assignedPerson: { name: '', email: '', role: '', department: '' },
+  createdBy: { name: '', email: '', role: '', department: '' },
   dueDate: '',
   currentStatus: { status: 'Pending', description: '' },
   eventSpecialId,
@@ -72,6 +75,14 @@ export default function EventActionsPage({ overlayEventId = null }) {
   const { id: routeEventId } = useParams();
   const eventSpecialId = overlayEventId || routeEventId;
   const { showSuccess, showError } = useToast();
+  const { user } = useAuth();
+
+  const loggedInCreator = () => ({
+    name: user?.fullName || '',
+    email: user?.email || '',
+    role: user?.role || '',
+    department: user?.departmentName || user?.department_name || '',
+  });
 
   const [eventTitle, setEventTitle]  = useState('');
 
@@ -94,6 +105,12 @@ export default function EventActionsPage({ overlayEventId = null }) {
   const [attendees, setAttendees]           = useState([]);
   const [attendeeSearch, setAttendeeSearch] = useState('');
   const [showPicker, setShowPicker]         = useState(false);
+
+  const [showEmpPicker, setShowEmpPicker]   = useState(false);
+  const [empSearch, setEmpSearch]           = useState('');
+  const [empResults, setEmpResults]         = useState([]);
+  const [empSearching, setEmpSearching]     = useState(false);
+  const empTimerRef = useRef(null);
 
   const fetchActions = useCallback(async (p = 1) => {
     setLoading(true); setError(null);
@@ -151,7 +168,7 @@ export default function EventActionsPage({ overlayEventId = null }) {
 
   function openCreate() {
     setEditing(null);
-    setForm(EMPTY(eventSpecialId));
+    setForm({ ...EMPTY(eventSpecialId), createdBy: loggedInCreator() });
     setFormError(null);
     setShowForm(true);
   }
@@ -161,8 +178,11 @@ export default function EventActionsPage({ overlayEventId = null }) {
     setForm({
       title: a.title,
       actionDescription: a.actionDescription,
-      assignedPerson: { ...a.assignedPerson },
-      dueDate: a.dueDate?.slice(0, 10) ?? '',
+      assignedPerson: { ...a.assignedPerson, department: a.assignedPerson?.department || a.assignedPerson?.institution || '' },
+      createdBy: a.createdBy
+        ? { ...a.createdBy, department: a.createdBy?.department || a.createdBy?.institution || '' }
+        : loggedInCreator(),
+      dueDate: a.dueDate?.slice(0, 16) ?? '',
       currentStatus: { ...a.currentStatus },
       eventSpecialId,
     });
@@ -173,10 +193,40 @@ export default function EventActionsPage({ overlayEventId = null }) {
   function pickAttendee(att) {
     setField('assignedPerson.name',        att.attendeeFullName   || '');
     setField('assignedPerson.role',        att.attendeePosition   || '');
-    setField('assignedPerson.institution', att.attendeeInstitution || '');
+    setField('assignedPerson.department', att.attendeeInstitution || '');
     setField('assignedPerson.email',       att.attendeeEmail      || '');
     setShowPicker(false);
     setAttendeeSearch('');
+  }
+
+  useEffect(() => {
+    if (!showEmpPicker) return;
+    if (empTimerRef.current) clearTimeout(empTimerRef.current);
+    const q = empSearch.trim();
+    if (!q) { setEmpResults([]); return; }
+    empTimerRef.current = setTimeout(async () => {
+      setEmpSearching(true);
+      try {
+        const res = await employeeService.search(q, 1, 20);
+        setEmpResults(res?.data || []);
+      } catch {
+        setEmpResults([]);
+      } finally {
+        setEmpSearching(false);
+      }
+    }, 350);
+    return () => { if (empTimerRef.current) clearTimeout(empTimerRef.current); };
+  }, [empSearch, showEmpPicker]);
+
+  function pickEmployee(emp) {
+    setField('assignedPerson.name',        emp.full_name || '');
+    setField('assignedPerson.email',       emp.email     || '');
+    setField('assignedPerson.role',        emp.title     || '');
+    const dep = typeof emp.department === 'object' ? emp.department?.department_name : emp.department;
+    setField('assignedPerson.department', emp.department_name || dep || '');
+    setShowEmpPicker(false);
+    setEmpSearch('');
+    setEmpResults([]);
   }
 
   const filteredAttendees = attendees.filter(a => {
@@ -218,7 +268,7 @@ export default function EventActionsPage({ overlayEventId = null }) {
   }
 
   return (
-    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: '96px', backgroundColor: NEUTRAL_LIGHT }}>
+    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: '10px', backgroundColor: NEUTRAL_LIGHT }}>
       <div className="w-full max-w-5xl px-3 sm:px-6 md:px-8 py-6">
 
         <div className="mb-5">
@@ -346,19 +396,18 @@ export default function EventActionsPage({ overlayEventId = null }) {
           )}
         </div>
 
-        {/* CREATE / EDIT MODAL */}
-        {showForm && (
-          <div className="fixed inset-0 z-[999] flex items-start justify-center px-2 sm:px-4 pb-6 overflow-y-auto" style={{ backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: '96px' }}>
-            <div className="bg-white w-full max-w-lg max-h-[82vh] overflow-y-auto" style={{ border: `1px solid ${BORDER}` }}>
-              <div className="flex items-center justify-between px-4 sm:px-6 py-4 sticky top-0 z-10 text-white" style={{ backgroundColor: PRIMARY }}>
-                <h3 className="text-base sm:text-lg font-bold" style={{ fontFamily: fontHeading }}>
-                  {editing ? 'Edit Action (FollowUps)' : 'New Action (FollowUps)'}
-                </h3>
-                <button onClick={() => setShowForm(false)} disabled={submitting} className="p-1.5 cursor-pointer transition-colors text-white hover:opacity-80 disabled:opacity-50">
-                  <FiX className="w-5 h-5" />
-                </button>
-              </div>
-
+        {showForm && createPortal(
+          <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT, zIndex: 2000000000000 }}>
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 shrink-0 text-white" style={{ backgroundColor: PRIMARY }}>
+              <h3 className="text-base sm:text-lg font-bold" style={{ fontFamily: fontHeading }}>
+                {editing ? 'Edit Action (FollowUps)' : 'New Action (FollowUps)'}
+              </h3>
+              <button onClick={() => setShowForm(false)} disabled={submitting} className="cok-btn-outlined-reverse disabled:opacity-50" style={{ padding: '0.4rem 0.8rem' }}>
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="bg-white w-full max-w-2xl mx-auto my-6" style={{ border: `1px solid ${BORDER}` }}>
               <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-5 space-y-4">
                 <p className="text-center text-xs" style={{ color: '#9E9E9E', fontFamily: fontHeading }}>
                   Fields marked with <span style={{ color: DANGER }}>*</span> are required</p>
@@ -396,16 +445,28 @@ export default function EventActionsPage({ overlayEventId = null }) {
                       <p className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>
                         Assigned Person <span style={{ color: DANGER }}>*</span>
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => setShowPicker(p => !p)}
-                        className="inline-flex items-center gap-1 text-xs font-medium cursor-pointer"
-                        style={{ color: PRIMARY, fontFamily: fontHeading }}
-                      >
-                        <FiUser className="w-3 h-3" />
-                        Pick from attendees
-                        <FiChevronDown className={`w-3 h-3 transition-transform ${showPicker ? 'rotate-180' : ''}`} />
-                      </button>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => { setShowPicker(p => !p); setShowEmpPicker(false); }}
+                          className="inline-flex items-center gap-1 text-xs font-medium cursor-pointer"
+                          style={{ color: PRIMARY, fontFamily: fontHeading }}
+                        >
+                          <FiUser className="w-3 h-3" />
+                          Pick from attendees
+                          <FiChevronDown className={`w-3 h-3 transition-transform ${showPicker ? 'rotate-180' : ''}`} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowEmpPicker(p => !p); setShowPicker(false); }}
+                          className="inline-flex items-center gap-1 text-xs font-medium cursor-pointer"
+                          style={{ color: PRIMARY, fontFamily: fontHeading }}
+                        >
+                          <FiUser className="w-3 h-3" />
+                          Pick from employees
+                          <FiChevronDown className={`w-3 h-3 transition-transform ${showEmpPicker ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="p-3 sm:p-4 space-y-4">
@@ -452,6 +513,46 @@ export default function EventActionsPage({ overlayEventId = null }) {
                       </div>
                     )}
 
+                    {showEmpPicker && (
+                      <div style={{ border: `1px solid ${BORDER}` }}>
+                        <div className="p-2" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                          <input
+                            type="text"
+                            placeholder="Search employee by email or phone"
+                            value={empSearch}
+                            onChange={e => setEmpSearch(e.target.value)}
+                            autoFocus
+                            className="w-full cok-auth-input pr-3 py-1.5 text-xs"
+                            style={{ paddingLeft: '12px' }}
+                          />
+                        </div>
+                        <ul className="max-h-44 overflow-y-auto bg-white">
+                          {empSearching ? (
+                            <li className="px-4 py-3 text-xs text-center" style={{ color: GRAY_DISABLED }}>Searching...</li>
+                          ) : empResults.length === 0 ? (
+                            <li className="px-4 py-3 text-xs text-center" style={{ color: GRAY_DISABLED }}>
+                              {empSearch.trim() ? 'No employees found' : 'Type an email or phone number to search'}
+                            </li>
+                          ) : empResults.map(emp => (
+                            <li key={emp._id || emp.email}>
+                              <button
+                                type="button"
+                                onClick={() => pickEmployee(emp)}
+                                className="w-full text-left px-3 sm:px-4 py-2.5 cursor-pointer transition-colors hover:bg-[#F7F9FB]"
+                                style={{ borderBottom: `1px solid ${BORDER}` }}
+                              >
+                                <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>{emp.full_name}</p>
+                                <p className="text-xs" style={{ color: GRAY_DISABLED }}>
+                                  {[emp.title, emp.telephone].filter(Boolean).join(', ')}
+                                </p>
+                                <p className="text-xs mt-0.5 break-all" style={{ color: PRIMARY }}>{emp.email}</p>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label style={labelStyle}>Full Name <span style={{ color: DANGER }}>*</span></label>
@@ -484,12 +585,12 @@ export default function EventActionsPage({ overlayEventId = null }) {
                         />
                       </div>
                       <div>
-                        <label style={labelStyle}>Institution <span style={{ color: DANGER }}>*</span></label>
+                        <label style={labelStyle}>Department / Unit <span style={{ color: DANGER }}>*</span></label>
                         <input
                           type="text" required maxLength={300}
-                          value={form.assignedPerson.institution}
-                          onChange={e => setField('assignedPerson.institution', e.target.value)}
-                          placeholder="Institution"
+                          value={form.assignedPerson.department}
+                          onChange={e => setField('assignedPerson.department', e.target.value)}
+                          placeholder="Department / Unit"
                           className={inputClassName} style={inputStyle}
                         />
                       </div>
@@ -501,49 +602,49 @@ export default function EventActionsPage({ overlayEventId = null }) {
                 <div style={{ border: `1px solid ${BORDER}` }}>
                   <div className="px-3 sm:px-4 py-3" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
                     <p className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>
-                      Created By (your info) <span style={{ color: DANGER }}>*</span>
+                      Created By (your info)
                     </p>
                   </div>
                   <div className="p-3 sm:p-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label style={labelStyle}>Full Name <span style={{ color: DANGER }}>*</span></label>
+                        <label style={labelStyle}>Full Name</label>
                         <input
-                          type="text" required maxLength={200}
+                          type="text" readOnly
                           value={form.createdBy?.name || ''}
-                          onChange={e => setField('createdBy.name', e.target.value)}
-                          placeholder="Your full name"
-                          className={inputClassName} style={inputStyle}
+                          className={`${inputClassName} cursor-not-allowed`}
+                          style={{ ...inputStyle, backgroundColor: NEUTRAL_LIGHT, color: GRAY_DISABLED }}
+                          tabIndex={-1}
                         />
                       </div>
                       <div>
                         <label style={labelStyle}>Email Address</label>
                         <input
-                          type="email" maxLength={300}
+                          type="email" readOnly
                           value={form.createdBy?.email || ''}
-                          onChange={e => setField('createdBy.email', e.target.value)}
-                          placeholder="Your email address"
-                          className={inputClassName} style={inputStyle}
+                          className={`${inputClassName} cursor-not-allowed`}
+                          style={{ ...inputStyle, backgroundColor: NEUTRAL_LIGHT, color: GRAY_DISABLED }}
+                          tabIndex={-1}
                         />
                       </div>
                       <div>
                         <label style={labelStyle}>Your Role</label>
                         <input
-                          type="text" maxLength={200}
+                          type="text" readOnly
                           value={form.createdBy?.role || ''}
-                          onChange={e => setField('createdBy.role', e.target.value)}
-                          placeholder="Your role"
-                          className={inputClassName} style={inputStyle}
+                          className={`${inputClassName} cursor-not-allowed`}
+                          style={{ ...inputStyle, backgroundColor: NEUTRAL_LIGHT, color: GRAY_DISABLED }}
+                          tabIndex={-1}
                         />
                       </div>
                       <div>
-                        <label style={labelStyle}>Your Institution</label>
+                        <label style={labelStyle}>Department / Unit</label>
                         <input
-                          type="text" maxLength={300}
-                          value={form.createdBy?.institution || ''}
-                          onChange={e => setField('createdBy.institution', e.target.value)}
-                          placeholder="Your institution"
-                          className={inputClassName} style={inputStyle}
+                          type="text" readOnly
+                          value={form.createdBy?.department || ''}
+                          className={`${inputClassName} cursor-not-allowed`}
+                          style={{ ...inputStyle, backgroundColor: NEUTRAL_LIGHT, color: GRAY_DISABLED }}
+                          tabIndex={-1}
                         />
                       </div>
                     </div>
@@ -553,7 +654,7 @@ export default function EventActionsPage({ overlayEventId = null }) {
                 <div>
                   <label style={labelStyle}>Due Date <span style={{ color: DANGER }}>*</span></label>
                   <input
-                    type="date" required
+                    type="datetime-local" required
                     value={form.dueDate}
                     onChange={e => setField('dueDate', e.target.value)}
                     className={inputClassName} style={inputStyle}
@@ -606,8 +707,10 @@ export default function EventActionsPage({ overlayEventId = null }) {
                   </button>
                 </div>
               </form>
+              </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* DELETE CONFIRM */}
@@ -648,14 +751,17 @@ export default function EventActionsPage({ overlayEventId = null }) {
           </div>
         )}
 
-        {viewTarget && (
-          <FollowUpDetailModal
-            followup={viewTarget}
-            allowFullEdit
-            onClose={() => { setViewTarget(null); fetchActions(page); }}
-            onUpdate={() => fetchActions(page)}
-            onDelete={() => { setViewTarget(null); fetchActions(page); }}
-          />
+        {viewTarget && createPortal(
+          <div style={{ position: 'relative', zIndex: 2000000000 }}>
+            <FollowUpDetailModal
+              followup={viewTarget}
+              allowFullEdit
+              onClose={() => { setViewTarget(null); fetchActions(page); }}
+              onUpdate={() => fetchActions(page)}
+              onDelete={() => { setViewTarget(null); fetchActions(page); }}
+            />
+          </div>,
+          document.body
         )}
       </div>
     </div>

@@ -12,7 +12,7 @@ import autoTable from 'jspdf-autotable';
 
 interface Visitor { _id: string; full_name?: string; name?: string; visitorName?: string; telephone?: string; phone?: string; email?: string; identification?: { id_type?: string; number?: string }; badge_number?: string; department?: string; departmentName?: string; departments_assigned?: Array<{ department_id: string; department_name: string; assigned_time: Date; reached_in: boolean; provider_name: string; provider_id: string }>; purpose?: string; status?: string; checkInTime?: string; checkIn?: string; checkOutTime?: string; checkOut?: string; entry_date?: string; exist_date?: string; exit_date?: string; is_still_inhouse?: boolean; marked_as_out?: boolean; current_duration?: string; current_duration_hours?: number; services_status?: Array<{ s_type: string; status: string; notes?: string }>; }
 
-// City of Kigali (CoK) institutional design constants — same set as the reservations tables
+// City of Kigali (CoK) institutional design constants - same set as the reservations tables
 const PRIMARY = '#056daa';
 const PRIMARY_HOVER = '#045d94';
 const SUCCESS = '#4CAF50';
@@ -54,7 +54,7 @@ const AdminCheckInCheckOut: React.FC = () => {
 
   const fetchVisitors = useCallback(async () => {
     setLoading(true);
-    // 'all' is required — without it the backend defaults to in-house only and the Checked Out tab stays empty
+    // 'all' is required - without it the backend defaults to in-house only and the Checked Out tab stays empty
     try { const r = await serviceDeliveryService.getAll(1, 1000, 'all'); const d = r?.data || []; const v = Array.isArray(d) ? d : []; setVisitors(v); setRealPendingExitCount(v.filter(x => x.is_still_inhouse && x.marked_as_out).length); }
     catch (error) { showError('Failed to load visitors'); }
     finally { setLoading(false); setFirstLoad(false); }
@@ -150,7 +150,7 @@ const AdminCheckInCheckOut: React.FC = () => {
         </div>
 
         <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
-          {/* View switch in the reservations style — CoK square uppercase buttons */}
+          {/* View switch in the reservations style - CoK square uppercase buttons */}
           <div className="px-6 pt-5 flex flex-wrap gap-3">
             {([['inside', 'Currently Inside', realInsideCount], ['pending', 'Pending Exit', realPendingExitCount], ['left', 'Checked Out', realLeftCount]] as Array<[typeof activeTab, string, number]>).map(([key, label, count]) => (
               <button
@@ -189,7 +189,7 @@ const AdminCheckInCheckOut: React.FC = () => {
           </div>
           <div className="overflow-x-auto px-6">
             <table className="w-full min-w-[900px]">
-              {/* Solid CoK-blue header bar — same as the reservations tables */}
+              {/* Solid CoK-blue header bar - same as the reservations tables */}
               <thead className="cok-bg-primary sticky top-0 z-10 shadow-sm">
                 <tr>
                   {['Visitor Name', 'ID Number', 'Badge', 'Entry Time', 'Exit Time', 'Duration', 'Department', 'Status'].map(h => (
@@ -213,8 +213,8 @@ const AdminCheckInCheckOut: React.FC = () => {
                           <span className="text-[#333] text-[13px] font-medium">{name}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-3 text-[#555555] text-[13px] font-mono">{v.identification?.number || '—'}</td>
-                      <td className="py-3 px-3 text-[#333] text-[13px] font-mono font-semibold">{v.badge_number || '—'}</td>
+                      <td className="py-3 px-3 text-[#555555] text-[13px] font-mono">{v.identification?.number || '-'}</td>
+                      <td className="py-3 px-3 text-[#333] text-[13px] font-mono font-semibold">{v.badge_number || '-'}</td>
                       <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{formatDate(v.entry_date)}</td>
                       <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{formatDate(v.exist_date)}</td>
                       <td className="py-3 px-3 text-[#555555] text-[13px]">{formatDuration(v)}</td>

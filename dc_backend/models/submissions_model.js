@@ -3,6 +3,11 @@ const { to_object_id } = require("../utilities/object_id.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 
+// Internal marker stamped on every generated test record. Deliberately
+// obscure so no real form field can ever collide with it, and stripped from
+// every response body before submissions reach the frontend.
+const TEST_DATA_FLAG = "is_test_data_generated_sss_ddd";
+
 /**
  * Escapes a string so it can be used as a literal inside a regex, letting a
  * search term match case-insensitively without being read as its own regex
@@ -312,9 +317,76 @@ async function delete_by_form_group_and_version(form_group_id, version) {
   return result.deletedCount;
 }
 
+/**
+ * Bulk-inserts generated test submissions exactly as given - each document
+ * already carries its own spread-out submitted_at and the TEST_DATA_FLAG,
+ * unlike create_submission which always stamps "now".
+ */
+async function insert_test_submissions(documents) {
+  if (!documents || documents.length === 0) return 0;
+  const result = await get_db().collection(COLLECTION_NAME).insertMany(documents, { ordered: false });
+  return result.insertedCount;
+}
+
+/**
+ * Permanently removes generated test records of one form - never a real
+ * submission, the flag filter is unconditional. start/end narrow by
+ * submitted_at and version narrows to one form version; either is optional.
+ */
+async function delete_test_submissions(form_group_id, start, end, version) {
+  const filter = { form_group_id, [TEST_DATA_FLAG]: true };
+  if (start && end) filter.submitted_at = { $gte: start, $lte: end };
+  if (version !== undefined && version !== null && version !== "") filter.version = Number(version);
+  const result = await get_db().collection(COLLECTION_NAME).deleteMany(filter);
+  return result.deletedCount;
+}
+
+/** Every generated test record of a form - id and answers only, for building test approvals. */
+async function list_test_submissions(form_group_id) {
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .find({ form_group_id, [TEST_DATA_FLAG]: true }, { projection: { data: 1, approval: 1 } })
+    .toArray();
+}
+
+/** Writes one generated approval state per submission in a single bulk operation. */
+async function set_test_approvals(entries) {
+  if (!entries || entries.length === 0) return 0;
+  const result = await get_db()
+    .collection(COLLECTION_NAME)
+    .bulkWrite(
+      entries.map((entry) => ({
+        updateOne: { filter: { _id: entry._id }, update: { $set: { approval: entry.approval } } },
+      })),
+      { ordered: false },
+    );
+  return result.modifiedCount;
+}
+
+/**
+ * Removes every generated test approval of a form - only ever touches test
+ * records whose approval state itself carries the test marker, so a real
+ * submission's approval flow can never be wiped by this.
+ */
+async function clear_test_approvals(form_group_id) {
+  const result = await get_db()
+    .collection(COLLECTION_NAME)
+    .updateMany(
+      { form_group_id, [TEST_DATA_FLAG]: true, "approval.is_test_approval_sss_ddd": true },
+      { $set: { approval: null } },
+    );
+  return result.modifiedCount;
+}
+
 module.exports = {
+  TEST_DATA_FLAG,
   ensure_submission_indexes,
   create_submission,
+  insert_test_submissions,
+  delete_test_submissions,
+  list_test_submissions,
+  set_test_approvals,
+  clear_test_approvals,
   list_ids_without_approval_request,
   count_without_approval_request,
   assign_approval_request,

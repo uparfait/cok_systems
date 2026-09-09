@@ -9,7 +9,7 @@ const LOGO_PATH = path.join(__dirname, '..', 'assets', 'LOGO_COK_report.png');
 const LOGO_RATIO = 221 / 1116; // original logo image is 1116x221 px
 
 function formatDateTime(dateStr) {
-  if (!dateStr) return '—';
+  if (!dateStr) return '-';
   const d = new Date(dateStr);
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -53,7 +53,7 @@ class ExportAttendanceController {
 
         ws.columns = [
           { width: 6 }, { width: 30 }, { width: 32 }, { width: 18 },
-          { width: 28 }, { width: 24 }, { width: 12 }, { width: 20 },
+          { width: 28 }, { width: 24 }, { width: 24 }, { width: 12 }, { width: 20 },
         ];
 
         // Logo header floats over the first rows, sized to span the table width
@@ -79,7 +79,7 @@ class ExportAttendanceController {
         rowCursor += 2;
 
         const headerRow = ws.getRow(rowCursor);
-        const headers = ['S/N', 'Full Name', 'Email', 'Phone', 'Institution', 'Position', 'Signed', 'Submitted At'];
+        const headers = ['S/N', 'Full Name', 'Email', 'Phone', 'Institution', 'Department / Unit', 'Position', 'Signed', 'Submitted At'];
         headers.forEach((h, i) => {
           const cell = headerRow.getCell(i + 1);
           cell.value = h;
@@ -96,6 +96,7 @@ class ExportAttendanceController {
             a.attendeeEmail || '',
             a.attendeePhoneNumber || '',
             a.attendeeInstitution || '',
+            a.attendeeDepartment || '',
             a.attendeePosition || '',
             a.attendeeSignature ? 'Yes' : 'No',
             formatDateTime(a.createdAt),
@@ -146,13 +147,14 @@ class ExportAttendanceController {
         // Table
         const columns = [
           { header: 'S/N', width: 25 },
-          { header: 'Full Name', width: 85 },
-          { header: 'Email', width: 90 },
-          { header: 'Phone', width: 60 },
-          { header: 'Institution', width: 70 },
-          { header: 'Position', width: 55 },
-          { header: 'Signature', width: 75 },
-          { header: 'Submitted At', width: 75 },
+          { header: 'Full Name', width: 78 },
+          { header: 'Email', width: 80 },
+          { header: 'Phone', width: 55 },
+          { header: 'Institution', width: 60 },
+          { header: 'Department / Unit', width: 57 },
+          { header: 'Position', width: 50 },
+          { header: 'Signature', width: 65 },
+          { header: 'Submitted At', width: 65 },
         ];
         const ROW_HEIGHT = 30; // tall enough to fit signature images
 
@@ -181,6 +183,7 @@ class ExportAttendanceController {
             a.attendeeEmail || '',
             a.attendeePhoneNumber || '',
             a.attendeeInstitution || '',
+            a.attendeeDepartment || '',
             a.attendeePosition || '',
             null, // signature column, drawn as an image below
             formatDateTime(a.createdAt),
@@ -212,10 +215,10 @@ class ExportAttendanceController {
                     fit: [columns[j].width - 6, ROW_HEIGHT - 6],
                   });
                 } catch (e) {
-                  doc.text('—', xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });
+                  doc.text('-', xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });
                 }
               } else {
-                doc.text('—', xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });
+                doc.text('-', xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });
               }
             } else {
               doc.text(rowData[j], xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });

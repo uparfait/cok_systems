@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotification } from "../../contexts/NotificationContext";
@@ -58,6 +58,19 @@ const Header: React.FC<HeaderProps> = ({
   const displayName = user?.fullName || "User";
   const displayRole = user?.role || "Guest";
   const userDepartment = user?.departmentName || user?.department_name || "";
+  const userUnit = user?.department_unit || "";
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showUserMenu) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [showUserMenu]);
 
   const nameParts = displayName
     .trim()
@@ -222,7 +235,7 @@ const Header: React.FC<HeaderProps> = ({
             <FiHelpCircle className="w-5 h-5" />
           </button>
 
-          <div className="relative">
+          <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center gap-2 p-1.5 rounded-none cursor-pointer hover:bg-white/10 transition-colors"
@@ -241,7 +254,7 @@ const Header: React.FC<HeaderProps> = ({
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-none shadow-lg py-2 z-50">
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-none shadow-lg py-2" style={{ zIndex: 7000000000 }}>
                 <div className="px-3 py-2 border-b border-gray-100">
                   <p className="text-sm font-medium text-gray-900">
                     {displayName}
@@ -250,6 +263,11 @@ const Header: React.FC<HeaderProps> = ({
                   {userDepartment && (
                     <p className="text-xs cok-primary-color mt-1">
                       {userDepartment}
+                    </p>
+                  )}
+                  {userUnit && (
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      Unit: {userUnit}
                     </p>
                   )}
                 </div>

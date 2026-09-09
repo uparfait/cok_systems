@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { FiCheckCircle, FiUser, FiFilter, FiMove, FiTrash2, FiPlus, FiShield, FiEye } from "react-icons/fi";
+import { FiCheckCircle, FiUser, FiFilter, FiMove, FiTrash2, FiPlus, FiShield } from "react-icons/fi";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Choice fields whose condition value comes from a dropdown of the field's own options
 // (a location field's provinces/districts/... included) instead of free text.
-const CHOICE_FIELD_TYPES = ["single_select", "multi_select", "select_group", "cascading_select", "likert_scale"];
+export const CHOICE_FIELD_TYPES = ["single_select", "multi_select", "select_group", "cascading_select", "likert_scale"];
 
 /** Every selectable value a field (or a lazy-options response) carries, groups flattened. */
 function flatten_option_data(data) {
@@ -43,7 +43,7 @@ const LEVEL_LABEL_KEYS = {
 };
 
 // Form field types an approver condition ("field equals value") can target.
-const CONDITION_FIELD_TYPES = [
+export const CONDITION_FIELD_TYPES = [
   "text", "large_text", "number", "email", "url", "phone",
   "single_select", "multi_select", "likert_scale",
   "select_group", "cascading_select", "hidden",
@@ -80,7 +80,12 @@ function onDirtyChange(isDirty) {}
 /** Client-side mirror of the backend's approval_config validation. */
 export function is_approval_config_complete(config) {
   if (!config || config.enabled !== true) return true;
-  if (!Array.isArray(config.approvers) || config.approvers.length === 0) return false;
+  // The stripped shape form routes return - the approvers were never loaded
+  // here, the server keeps its stored ones untouched on save.
+  if (config.approvers_lazy === true) return true;
+  // An empty list is a valid in-progress save - it simply routes nothing
+  // until approvers are added.
+  if (!Array.isArray(config.approvers) || config.approvers.length === 0) return true;
   return config.approvers.every((approver) => people_ok(approver) && location_ok(approver) && conditions_ok(approver));
 }
 
@@ -100,7 +105,7 @@ function conditions_ok(approver) {
 }
 
 /** Data fields (groups flattened) a condition can point at. */
-function flatten_condition_fields(fields) {
+export function flatten_condition_fields(fields) {
   const flat = [];
   (fields || []).forEach((field) => {
     if (field.type === "group") flat.push(...flatten_condition_fields(field.children));
@@ -291,7 +296,7 @@ function layout_chain_tree(root) {
 const FILTER_THRESHOLD = 300;
 const MAX_SHOWN_OPTIONS = 200;
 
-function ConditionValueControl({ field, value, onChange, resolveFullFieldOptions, language, placeholder, filterPlaceholder }) {
+export function ConditionValueControl({ field, value, onChange, resolveFullFieldOptions, language, placeholder, filterPlaceholder }) {
   const [fetched_options, set_fetched_options] = useState(null);
   const [filter_text, set_filter_text] = useState("");
   const local_options = React.useMemo(() => flatten_option_data(field), [field]);
@@ -394,7 +399,7 @@ function ConditionValueControl({ field, value, onChange, resolveFullFieldOptions
  * scrolls a country-wide list. The pick at the field's level becomes the condition
  * value; the picks above it are handed back so the ancestor conditions get pinned too.
  */
-function LocationTrailPicker({ field_key, api_level, value, onChange, language, sibling_values }) {
+export function LocationTrailPicker({ field_key, api_level, value, onChange, language, sibling_values }) {
   const { translate } = useDcsLanguage();
   const [tree, set_tree] = useState(null);
   const depth = Math.max(0, LOCATION_LEVELS_ORDER.indexOf(api_level));
@@ -486,6 +491,46 @@ function LocationTrailPicker({ field_key, api_level, value, onChange, language, 
   );
 }
 
+/**
+ * Full-screen hierarchy viewer: the header stays fixed, and the drawn map
+ * scrolls freely on both axes INSIDE the body area below it - no zooming,
+ * no scaling, the map at its natural size.
+ */
+function HierarchyOverlay({ title, onClose, empty, emptyText, children }) {
+  React.useEffect(() => {
+    const handle_key = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handle_key);
+    return () => window.removeEventListener("keydown", handle_key);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 flex flex-col"
+      style={{ backgroundColor: WHITE, zIndex: 9999999, userSelect: "none", WebkitUserSelect: "none" }}
+    >
+      <div className="flex items-center justify-between gap-2 px-4 py-3 shrink-0" style={{ backgroundColor: PRIMARY }}>
+        <p className="text-sm font-extrabold uppercase" style={{ color: "rgba(255,255,255,0.88)", fontFamily: fontHeading, letterSpacing: "-0.3px" }}>
+          {title}
+        </p>
+        <button type="button" onClick={onClose} className="dcs-approval-hier-btn text-lg leading-none">
+          ×
+        </button>
+      </div>
+      <div className="flex-1" style={{ overflow: "auto", minHeight: 0 }}>
+        {empty ? (
+          <p className="p-6 text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>
+            {emptyText}
+          </p>
+        ) : (
+          <div className="p-4" style={{ width: "max-content" }}>{children}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Circular avatar-style identity chip reused on every wizard part so rows stay recognizable. */
 function ApproverBadge({ index, name, role, translate }) {
   const display = name.trim() || translate("DCS_APPROVAL_APPROVER_TITLE", { number: index + 1 });
@@ -508,7 +553,7 @@ function ApproverBadge({ index, name, role, translate }) {
 // Optional pre-publish step: the form owner defines who must approve each submitted response.
 // Laid out as a booking-form-style wizard: People -> Conditions -> Order & rules,
 // with a stepper showing where you are. Approvers sign in the order arranged on the last part.
-export default function ApprovalFlowSection({ value, onChange, fields, onSave, resolveFullFieldOptions }) {
+export default function ApprovalFlowSection({ value, onChange, fields, onSave, resolveFullFieldOptions, headerExtra, saveDisabled, flush }) {
   const { translate, language } = useDcsLanguage();
   const enabled = !!value && value.enabled === true;
   const approvers = (value && value.approvers) || [];
@@ -533,6 +578,18 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
   const [position_edit, set_position_edit] = useState(null);
   // The full-screen "view hierarchy" overlay.
   const [show_hierarchy, set_show_hierarchy] = useState(false);
+  // Keeps the body mounted just long enough for the collapse animation to
+  // finish when the flow is toggled off.
+  const [render_body, set_render_body] = useState(enabled);
+
+  React.useEffect(() => {
+    if (enabled) {
+      set_render_body(true);
+      return undefined;
+    }
+    const collapse_timeout = window.setTimeout(() => set_render_body(false), 360);
+    return () => window.clearTimeout(collapse_timeout);
+  }, [enabled]);
 
   const STEPS = [
     { step: 1, label: translate("DCS_APPROVAL_STEP_PEOPLE"), icon: FiUser },
@@ -864,8 +921,15 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
     emit_approvers(approvers.map((approver, i) => (i === index ? Object.assign({}, approver, { [key]: field_value }) : approver)));
   };
 
+  // Scrolled after the new card has rendered, so the freshly added approver
+  // is always brought into view inside the capped list.
+  const approvers_list_ref = React.useRef(null);
   const add_approver = () => {
     emit_approvers([...approvers, Object.assign({}, EMPTY_APPROVER)]);
+    window.setTimeout(() => {
+      const list = approvers_list_ref.current;
+      if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+    }, 60);
   };
 
   const remove_approver = (index) => {
@@ -1088,10 +1152,10 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
   };
 
   return (
-    <div className="mt-4" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}` }}>
+    <div className={flush ? undefined : "mt-4"} style={{ backgroundColor: WHITE, border: flush ? "none" : `1px solid ${BORDER}` }}>
       {/* Header banner - same treatment as the booking form's blue title block */}
       <div className="px-6 py-5 flex items-center gap-3"
-        style={{ backgroundColor: enabled ? PRIMARY : WHITE, borderBottom: enabled ? "none" : `1px solid ${BORDER}` }}>
+        style={{ backgroundColor: enabled ? PRIMARY : WHITE, borderBottom: enabled ? "none" : `1px solid ${BORDER}`, transition: "background-color 300ms ease" }}>
         <input
           type="checkbox"
           id="approval-flow-toggle"
@@ -1103,24 +1167,89 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
         <div
           className="w-10 h-10 flex items-center justify-center shrink-0"
           style={{
-            backgroundColor: enabled ? "rgba(255,255,255,0.2)" : "#E0E0E0",
+            backgroundColor: enabled ? "rgba(255,255,255,0.16)" : "#EEF2F5",
             borderRadius: "50%",
+            transition: "background-color 300ms ease",
           }}
         >
-          <FiShield className="w-5 h-5" style={{ color: WHITE }} />
+          {/* Muted in both states - full white on grey (disabled) or on blue
+              (enabled) glares. */}
+          <FiShield className="w-5 h-5" style={{ color: enabled ? "rgba(255,255,255,0.85)" : GRAY, transition: "color 300ms ease" }} />
         </div>
         <div className="min-w-0">
           <label htmlFor="approval-flow-toggle" className="block text-lg font-extrabold cursor-pointer select-none leading-tight uppercase"
-            style={{ color: enabled ? WHITE : NEUTRAL_DARK, fontFamily: fontHeading, letterSpacing: "-0.5px" }}>
+            style={{ color: enabled ? "rgba(255,255,255,0.88)" : NEUTRAL_DARK, fontFamily: fontHeading, letterSpacing: "-0.5px", transition: "color 300ms ease" }}>
             {translate("DCS_APPROVAL_ENABLE_LABEL")}
           </label>
           <p className="text-xs mt-0.5" style={{ color: enabled ? "rgba(255,255,255,0.85)" : GRAY, fontFamily: fontHeading }}>
             {translate("DCS_APPROVAL_ENABLE_HINT")}
           </p>
         </div>
+        {/* The page's own controls (total, level filters, load-more) and the
+            hierarchy icon live in this same banner - one combined header,
+            never two stacked ones. */}
+        <div className="dcs-approval-header-controls ml-auto flex items-center gap-2 min-w-0">
+          {headerExtra}
+          {enabled && (
+            <button
+              type="button"
+              onClick={() => set_show_hierarchy(true)}
+              title={translate("DCS_APPROVAL_VIEW_HIERARCHY")}
+              className="dcs-approval-hier-btn shrink-0"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="2.5" width="6" height="5" rx="1.2" />
+                <rect x="2.5" y="16.5" width="6" height="5" rx="1.2" />
+                <rect x="15.5" y="16.5" width="6" height="5" rx="1.2" />
+                <path d="M12 7.5v4M5.5 16.5v-5H18.5v5M12 11.5v0" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <style>{`
+          .dcs-approval-hier-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.85);
+            background-color: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            cursor: pointer;
+            transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, transform 180ms ease;
+          }
+          .dcs-approval-hier-btn:hover {
+            background-color: rgba(255, 255, 255, 0.24);
+            border-color: rgba(255, 255, 255, 0.55);
+            color: #FFFFFF;
+            transform: scale(1.08);
+          }
+          .dcs-approval-hier-btn:active {
+            transform: scale(0.94);
+          }
+          .dcs-approval-add-btn {
+            cursor: pointer;
+            transition: background-color 200ms ease, border-color 200ms ease, transform 180ms ease, box-shadow 200ms ease;
+          }
+          .dcs-approval-add-btn:hover {
+            background-color: #F0F7FC !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(5, 109, 170, 0.18);
+          }
+          .dcs-approval-add-btn:active {
+            transform: translateY(0) scale(0.99);
+          }
+        `}</style>
       </div>
 
-      {enabled && (
+      {/* Toggling expands/collapses the whole body smoothly: the grid rows
+          animate between 0fr and 1fr while the body stays mounted just long
+          enough for the collapse to finish. */}
+      <div style={{ display: "grid", gridTemplateRows: enabled ? "1fr" : "0fr", transition: "grid-template-rows 320ms cubic-bezier(0.2, 0, 0, 1)" }}>
+        <div style={{ overflow: "hidden", minHeight: 0 }}>
+      {render_body && (
         <>
           {/* Required-fields strip, same as the booking form */}
           <div className="px-6 py-3 text-center" style={{ backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}` }}>
@@ -1170,6 +1299,10 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
             {/* Part 1 - who approves */}
             {wizard_step === 1 && (
               <>
+                {/* Roughly five approver cards fit before this container
+                    scrolls internally - thousands of generated approvers
+                    must never stretch the page itself. */}
+                <div ref={approvers_list_ref} className="space-y-4 overflow-y-auto" style={{ maxHeight: 1500, overscrollBehavior: "contain" }}>
                 {approvers.map((approver, index) => {
                   const email_invalid = (approver.email || "").trim() !== "" && !EMAIL_REGEX.test(approver.email.trim());
                   return (
@@ -1223,8 +1356,9 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                     </div>
                   );
                 })}
+                </div>
                 <button type="button" onClick={add_approver}
-                  className="w-full py-3 text-sm font-semibold uppercase tracking-wide inline-flex items-center justify-center gap-2"
+                  className="dcs-approval-add-btn w-full py-3 text-sm font-semibold uppercase tracking-wide inline-flex items-center justify-center gap-2"
                   style={{ color: PRIMARY, border: `1px dashed ${PRIMARY}`, fontFamily: fontHeading, backgroundColor: WHITE }}>
                   <FiPlus className="w-4 h-4" /> {translate("DCS_APPROVAL_ADD_APPROVER")}
                 </button>
@@ -1236,6 +1370,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
             {wizard_step === 2 && (
               <>
                 <p className="text-xs" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_APPROVAL_CONDITIONS_HINT")}</p>
+                <div className="space-y-4 overflow-y-auto" style={{ maxHeight: 1500, overscrollBehavior: "contain" }}>
                 {approvers.map((approver, index) => {
                   const conditions = approver.conditions || [];
                   const hidden_ids = hidden_condition_field_ids(conditions);
@@ -1337,6 +1472,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                     </div>
                   );
                 })}
+                </div>
               </>
             )}
 
@@ -1383,17 +1519,52 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                     );
                   })}
 
-                  {/* Below all the groups: open the drawn approval map */}
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => set_show_hierarchy(true)}
-                      className="cok-btn-outlined text-sm inline-flex items-center justify-center gap-2"
-                      style={{ fontFamily: fontHeading, cursor: "pointer" }}
-                    >
-                      <FiEye className="w-4 h-4" /> {translate("DCS_APPROVAL_VIEW_HIERARCHY")}
-                    </button>
-                  </div>
+                  {/* Pop-up: everyone in the clicked set with ALL their picks - "name
+                      (South, North)". 80% wide, at most 70% tall; only the LIST scrolls,
+                      the header stays put; above everything else on the page. */}
+                  {popup_group && (() => {
+                    const popup_field = level_field_by_id.get(popup_group);
+                    const entries = group_member_entries(popup_group, members.get(popup_group) || []);
+                    return (
+                      <div
+                        className="fixed inset-0 flex items-center justify-center p-4"
+                        style={{ backgroundColor: "rgba(0,0,0,0.4)", zIndex: 999999999 }}
+                        onClick={() => set_popup_group(null)}
+                      >
+                        <div
+                          className="flex flex-col"
+                          style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, width: "80%", maxWidth: "80%", maxHeight: "70%" }}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {/* Fixed header - never scrolls */}
+                          <div className="flex items-center justify-between gap-2 shrink-0 px-4 py-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                            <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                              {popup_field ? field_label(popup_field, language) : ""}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => set_popup_group(null)}
+                              className="p-1 text-lg leading-none"
+                              style={{ color: GRAY, cursor: "pointer" }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          {/* Only this list scrolls when there are many */}
+                          <div className="space-y-1 px-4 py-3 overflow-y-auto" style={{ flex: "1 1 auto", minHeight: 0 }}>
+                            {entries.map((entry) => (
+                              <p key={entry.index} className="text-xs" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                                {entry.values.length > 0 ? `${entry.name} (${entry.values.join(", ")})` : entry.name}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            })()}
 
                   {/* Full-screen white overlay: every cascade drawn as a parent-to-child
                       tree of rectangles and connector lines (SVG). Only selected values
@@ -1480,83 +1651,19 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                       walk(entry.root, "r");
                     });
                     return (
-                      <div className="fixed inset-0" style={{ backgroundColor: WHITE, zIndex: 9999999, overflow: "auto" }}>
-                        {/* Header stays put while the drawing scrolls; close at the right */}
-                        <div
-                          className="flex items-center justify-between gap-2 px-4 py-3 sticky top-0"
-                          style={{ backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}`, zIndex: 1 }}
-                        >
-                          <p className="text-sm font-bold uppercase" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                            {translate("DCS_APPROVAL_VIEW_HIERARCHY")}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => set_show_hierarchy(false)}
-                            className="p-1 text-2xl leading-none"
-                            style={{ color: NEUTRAL_DARK, cursor: "pointer" }}
-                          >
-                            ×
-                          </button>
-                        </div>
-                        {drawn.length > 0 ? (
-                          <svg width={svg_width} height={svg_height} style={{ display: "block", margin: "0 auto" }}>
-                            {rendered}
-                          </svg>
-                        ) : (
-                          <p className="p-6 text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>
-                            {translate("DCS_APPROVAL_GROUP_EMPTY")}
-                          </p>
-                        )}
-                      </div>
+                      <HierarchyOverlay
+                        title={translate("DCS_APPROVAL_VIEW_HIERARCHY")}
+                        onClose={() => set_show_hierarchy(false)}
+                        empty={drawn.length === 0}
+                        emptyText={translate("DCS_APPROVAL_GROUP_EMPTY")}
+                      >
+                        <svg width={svg_width} height={svg_height} style={{ display: "block" }}>
+                          {rendered}
+                        </svg>
+                      </HierarchyOverlay>
                     );
                   })()}
 
-                  {/* Pop-up: everyone in the clicked set with ALL their picks - "name
-                      (South, North)". 80% wide, at most 70% tall; only the LIST scrolls,
-                      the header stays put; above everything else on the page. */}
-                  {popup_group && (() => {
-                    const popup_field = level_field_by_id.get(popup_group);
-                    const entries = group_member_entries(popup_group, members.get(popup_group) || []);
-                    return (
-                      <div
-                        className="fixed inset-0 flex items-center justify-center p-4"
-                        style={{ backgroundColor: "rgba(0,0,0,0.4)", zIndex: 999999999 }}
-                        onClick={() => set_popup_group(null)}
-                      >
-                        <div
-                          className="flex flex-col"
-                          style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, width: "80%", maxWidth: "80%", maxHeight: "70%" }}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {/* Fixed header - never scrolls */}
-                          <div className="flex items-center justify-between gap-2 shrink-0 px-4 py-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
-                            <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                              {popup_field ? field_label(popup_field, language) : ""}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => set_popup_group(null)}
-                              className="p-1 text-lg leading-none"
-                              style={{ color: GRAY, cursor: "pointer" }}
-                            >
-                              ×
-                            </button>
-                          </div>
-                          {/* Only this list scrolls when there are many */}
-                          <div className="space-y-1 px-4 py-3 overflow-y-auto" style={{ flex: "1 1 auto", minHeight: 0 }}>
-                            {entries.map((entry) => (
-                              <p key={entry.index} className="text-xs" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                                {entry.values.length > 0 ? `${entry.name} (${entry.values.join(", ")})` : entry.name}
-                              </p>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              );
-            })()}
 
 {show_step_error && (!step_valid(wizard_step) || (wizard_step === 3 && !is_approval_config_complete({ enabled: true, approvers }))) && (
               <div className="p-3" style={{ backgroundColor: "#FDECEA", border: `1px solid ${DANGER}` }}>
@@ -1592,14 +1699,16 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                   {wizard_step < 3 ? translate("DCS_APPROVAL_NEXT") : translate("DCS_APPROVAL_NEXT")}
                 </button>
               </div>
-              {/* Save progress button centered below */}
+              {/* Save progress button centered below - locked while the page
+                  is still streaming approvers in, so a partial list can never
+                  be saved over the full stored pool. */}
               <div className="mt-3">
                 <button
                   type="button"
                   onClick={handle_save}
-                  disabled={saving}
+                  disabled={saving || saveDisabled === true}
                   className="cok-btn-primary text-sm inline-flex items-center justify-center gap-2 disabled:opacity-50"
-                  style={{ fontFamily: fontHeading, cursor: saving ? "not-allowed" : "pointer" }}
+                  style={{ fontFamily: fontHeading, cursor: saving || saveDisabled === true ? "not-allowed" : "pointer" }}
                 >
                   {saving ? (
                     <div className="animate-spin" style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: "transparent", borderRadius: "50%" }} />
@@ -1612,14 +1721,16 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
              </div>
           </>
       )}
+        </div>
+      </div>
       {!enabled && onSave && (
         <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: "16px", paddingBottom: "16px", textAlign: "center" }}>
           <button
             type="button"
             onClick={handle_save}
-            disabled={saving}
+            disabled={saving || saveDisabled === true}
             className="cok-btn-primary text-sm inline-flex items-center justify-center gap-2 disabled:opacity-50"
-            style={{ fontFamily: fontHeading, cursor: saving ? "not-allowed" : "pointer" }}
+            style={{ fontFamily: fontHeading, cursor: saving || saveDisabled === true ? "not-allowed" : "pointer" }}
           >
             {saving ? (
               <div className="animate-spin" style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: "transparent", borderRadius: "50%" }} />

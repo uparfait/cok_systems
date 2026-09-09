@@ -48,14 +48,14 @@ function triggerDownload(blob, filename) {
 }
 
 function formatTime(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
   return d.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })
     + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 // Drawn signatures live in attendeeSignature (base64); uploaded ones are stored
-// in digitalCertificate as a served file URL — display whichever exists
+// in digitalCertificate as a served file URL - display whichever exists
 const IMAGE_FILE_REGEX = /\.(png|jpe?g|gif|webp)(\?.*)?$/i;
 
 function signatureImageSrc(a) {
@@ -172,7 +172,7 @@ export default function AttendeesList({ overlayEventId = null, embedded = false 
     const ws = wb.addWorksheet('Attendance');
     ws.columns = [
       { width: 6 }, { width: 30 }, { width: 32 }, { width: 28 },
-      { width: 24 }, { width: 12 }, { width: 20 },
+      { width: 24 }, { width: 24 }, { width: 12 }, { width: 20 },
     ];
 
     // Logo header floats over the first rows, sized to span the table width
@@ -195,7 +195,7 @@ export default function AttendeesList({ overlayEventId = null, embedded = false 
     ws.getRow(rowCursor).getCell(1).font = { size: 10, color: { argb: 'FF666666' } };
     rowCursor += 2;
 
-    const headers = ['S/N', 'Full Name', 'Email', 'Institution', 'Position', 'Signed', 'Submitted At'];
+    const headers = ['S/N', 'Full Name', 'Email', 'Institution', 'Department / Unit', 'Position', 'Signed', 'Submitted At'];
     const headerRow = ws.getRow(rowCursor);
     headers.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1);
@@ -212,6 +212,7 @@ export default function AttendeesList({ overlayEventId = null, embedded = false 
         a.attendeeFullName || '',
         a.attendeeEmail || '',
         a.attendeeInstitution || '',
+        a.attendeeDepartment || '',
         a.attendeePosition || '',
         hasSignature(a) ? 'Yes' : 'No',
         formatTime(a.createdAt),
@@ -284,12 +285,13 @@ export default function AttendeesList({ overlayEventId = null, embedded = false 
 
     autoTable(doc, {
       startY: y,
-      head: [['S/N', 'Full Name', 'Email', 'Institution', 'Position', 'Signature', 'Submitted At']],
+      head: [['S/N', 'Full Name', 'Email', 'Institution', 'Department / Unit', 'Position', 'Signature', 'Submitted At']],
       body: filtered.map((a, i) => [
         i + 1,
         a.attendeeFullName || '',
         a.attendeeEmail || '',
         a.attendeeInstitution || '',
+        a.attendeeDepartment || '',
         a.attendeePosition || '',
         '', // drawn as an image in didDrawCell
         formatTime(a.createdAt),
@@ -297,10 +299,10 @@ export default function AttendeesList({ overlayEventId = null, embedded = false 
       styles: { fontSize: 8, cellPadding: 4, valign: 'middle' },
       headStyles: { fillColor: [5, 109, 170], textColor: 255, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [247, 249, 251] },
-      columnStyles: { 0: { cellWidth: 30 }, 5: { cellWidth: 90 } },
+      columnStyles: { 0: { cellWidth: 30 }, 6: { cellWidth: 90 } },
       bodyStyles: { minCellHeight: 30 },
       didDrawCell: (data) => {
-        if (data.section !== 'body' || data.column.index !== 5) return;
+        if (data.section !== 'body' || data.column.index !== 6) return;
         const sig = sigDataUrls[data.row.index];
         if (!sig) return;
         try {
@@ -330,7 +332,7 @@ export default function AttendeesList({ overlayEventId = null, embedded = false 
   }
 
   return (
-    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: '80px', backgroundColor: '#F7F9FB' }}>
+    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: '10px', backgroundColor: '#F7F9FB' }}>
       <div className="w-full max-w-5xl px-3 sm:px-6 md:px-8 py-6">
         <div className="flex items-start justify-between gap-3 mb-5 flex-wrap">
           <div className="min-w-0">
@@ -536,7 +538,7 @@ export default function AttendeesList({ overlayEventId = null, embedded = false 
         <button
           type="button"
           title="Go back"
-          onClick={() => navigate(-1)}
+          onClick={() => window.history.pushState(null, '', `/calendar/${eventSpecialId}`)}
           className="cok-btn-outlined-reverse fixed z-50 flex items-center justify-center cursor-pointer"
           style={{ width: '30px', height: '30px', padding: 0, right: '16px', bottom: '16px' }}
         >

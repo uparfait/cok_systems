@@ -84,6 +84,22 @@ async function update_version_in_place(form_group_id, version, form_data) {
 }
 
 /**
+ * Replaces one version's approval_config in place - no new version is ever
+ * minted for this, exactly like update_version_in_place treats an
+ * approval-only edit. Used by the test-approvals generator so the produced
+ * approvers land on the form's own approval flow.
+ */
+async function update_approval_config(form_group_id, version, approval_config) {
+  await get_db()
+    .collection(COLLECTION_NAME)
+    .updateOne(
+      { form_group_id, version: Number(version) },
+      { $set: { approval_config: approval_config === undefined ? null : approval_config, updated_at: new Date() } },
+    );
+  return get_version_document(form_group_id, version);
+}
+
+/**
  * Returns every version of a form, newest first.
  * Excludes fields to reduce payload size for list views.
  */
@@ -139,9 +155,12 @@ async function get_form_origin_created_at(form_group_id) {
 /**
  * Returns whichever version is currently flagged as active for a form
  * group - this is the version that public data collection links resolve to.
+ * Sorted by version so that even if a past partial failure left more than
+ * one version flagged active, every endpoint deterministically agrees on
+ * the same (highest) one - an unsorted findOne can flip between them.
  */
 async function get_active_version(form_group_id) {
-  return get_db().collection(COLLECTION_NAME).findOne({ form_group_id, is_active: true });
+  return get_db().collection(COLLECTION_NAME).findOne({ form_group_id, is_active: true }, { sort: { version: -1 } });
 }
 
 /**
@@ -212,6 +231,58 @@ async function get_form_group_ids_by_project(project_id) {
 }
 
 /**
+ * The distinct form groups inside one project that this user created (any
+ * version counts) - the forms a user keeps sight of even when no access
+ * grant covers them.
+ */
+async function get_form_group_ids_created_by(project_id, user_id) {
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .distinct("form_group_id", { project_id: project_id.toString(), created_by: user_id.toString() });
+}
+
+/**
+ * Maps every project to the distinct form groups this user created in it,
+ * in one query - preloaded by the projects-list filter so visibility never
+ * costs one query per project.
+ */
+async function map_form_groups_created_by(user_id) {
+  const rows = await get_db()
+    .collection(COLLECTION_NAME)
+    .aggregate([
+      { $match: { created_by: user_id.toString() } },
+      { $group: { _id: { project_id: "$project_id", form_group_id: "$form_group_id" } } },
+      { $group: { _id: "$_id.project_id", form_group_ids: { $push: "$_id.form_group_id" } } },
+    ])
+    .toArray();
+  return new Map(rows.map((row) => [String(row._id), row.form_group_ids]));
+}
+
+/**
+ * True when any version of this form group was created by this user.
+ */
+async function is_form_group_created_by(form_group_id, user_id) {
+  const found = await get_db()
+    .collection(COLLECTION_NAME)
+    .findOne({ form_group_id, created_by: user_id.toString() }, { projection: { _id: 1 } });
+  return !!found;
+}
+
+/**
+ * Hands every version of a form group to a new owner - ownership is one
+ * per form, so the transfer covers the whole version history at once.
+ */
+async function set_form_owner(form_group_id, owner) {
+  const result = await get_db()
+    .collection(COLLECTION_NAME)
+    .updateMany(
+      { form_group_id },
+      { $set: { created_by: owner.user_id.toString(), created_by_name: owner.full_name || "", updated_at: new Date() } },
+    );
+  return result.matchedCount > 0;
+}
+
+/**
  * Permanently removes every version of every form belonging to a project.
  * Only ever called as part of deleting the whole project itself - forms
  * are otherwise immutable and never deleted individually.
@@ -251,6 +322,7 @@ module.exports = {
   create_form_version_one,
   create_next_form_version,
   update_version_in_place,
+  update_approval_config,
   is_form_name_taken,
   get_versions_by_group,
   get_latest_version,
@@ -261,6 +333,10 @@ module.exports = {
   get_latest_forms_by_project,
   search_latest_forms_by_name,
   get_form_group_ids_by_project,
+  get_form_group_ids_created_by,
+  map_form_groups_created_by,
+  is_form_group_created_by,
+  set_form_owner,
   delete_forms_by_project,
   delete_version,
   set_active_version,

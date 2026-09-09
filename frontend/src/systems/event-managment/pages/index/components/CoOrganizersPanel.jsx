@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import axios from "axios";
-import { FiX } from "react-icons/fi";
+import { FiX, FiEdit2, FiTrash2 } from "react-icons/fi";
 import { useToast } from "@/core/contexts/ToastContext";
 import { employeeService } from "@/core/services/employeeService";
 
@@ -34,6 +35,9 @@ export default function CoOrganizersPanel({ eventSpecialId }) {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [editingEmail, setEditingEmail] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [showPicker, setShowPicker] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
@@ -42,6 +46,19 @@ export default function CoOrganizersPanel({ eventSpecialId }) {
   const searchTimerRef = useRef(null);
 
   const [form, setForm] = useState({ fullNames: "", email: "", phone: "", institution: "City of Kigali" });
+
+  useEffect(() => {
+    const onHashChange = () => {
+      if (window.location.hash === "#coorganizer") {
+        setShowModal(true);
+      } else if (window.location.hash === "" || !window.location.hash.startsWith("#coorganizer")) {
+        setShowModal(false);
+      }
+    };
+    onHashChange();
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   const fetchCoOrganizers = useCallback(async () => {
     if (!eventSpecialId) return;
@@ -94,7 +111,23 @@ export default function CoOrganizersPanel({ eventSpecialId }) {
     setForm({ fullNames: "", email: "", phone: "", institution: "City of Kigali" });
     setFormError(null);
     setShowPicker(false);
+    setEditingEmail(null);
     setShowModal(true);
+    window.history.pushState(null, "", `/calendar/#coorganizer`);
+  };
+
+  const openEdit = (c) => {
+    setForm({
+      fullNames: c.fullNames || "",
+      email: c.email || "",
+      phone: c.phone || "",
+      institution: c.institution || "City of Kigali",
+    });
+    setFormError(null);
+    setShowPicker(false);
+    setEditingEmail(c.email);
+    setShowModal(true);
+    window.history.pushState(null, "", `/calendar/#coorganizer`);
   };
 
   const handleSubmit = async (e) => {
@@ -102,20 +135,42 @@ export default function CoOrganizersPanel({ eventSpecialId }) {
     setFormError(null);
     setSubmitting(true);
     try {
-      const res = await axios.post(`/cok/api/v1/events/${eventSpecialId}/co-organizers`, form);
+      const res = editingEmail
+        ? await axios.put(`/cok/api/v1/events/${eventSpecialId}/co-organizers/${encodeURIComponent(editingEmail)}`, form)
+        : await axios.post(`/cok/api/v1/events/${eventSpecialId}/co-organizers`, form);
       if (res.data?.success) {
         setCoOrganizers(res.data.data || []);
-        showSuccess(res.data.message || "Co-organizer added");
+        showSuccess(res.data.message || (editingEmail ? "Co-organizer updated" : "Co-organizer added"));
         setShowModal(false);
+        setEditingEmail(null);
       } else {
-        setFormError(res.data?.message || "Failed to add co-organizer");
+        setFormError(res.data?.message || "Failed to save co-organizer");
       }
     } catch (err) {
-      const message = err.response?.data?.message || err.message || "Failed to add co-organizer";
+      const message = err.response?.data?.message || err.message || "Failed to save co-organizer";
       setFormError(message);
       showError(message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await axios.delete(`/cok/api/v1/events/${eventSpecialId}/co-organizers/${encodeURIComponent(deleteTarget.email)}`);
+      if (res.data?.success) {
+        setCoOrganizers(res.data.data || []);
+        showSuccess(res.data.message || "Co-organizer removed");
+      } else {
+        showError(res.data?.message || "Failed to remove co-organizer");
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || err.message || "Failed to remove co-organizer");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -146,7 +201,7 @@ export default function CoOrganizersPanel({ eventSpecialId }) {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr style={{ backgroundColor: PRIMARY }}>
-                {["Name", "Email", "Telephone"].map((h) => (
+                {["Name", "Email", "Telephone", "Actions"].map((h) => (
                   <th key={h} className="px-3 py-2.5 sm:px-4 text-left text-[11px] sm:text-xs font-bold uppercase tracking-widest whitespace-nowrap" style={{ color: "#FFFFFF", fontFamily: fontHeading }}>
                     {h}
                   </th>
@@ -165,6 +220,32 @@ export default function CoOrganizersPanel({ eventSpecialId }) {
                   <td className="px-3 py-2.5 sm:px-4 whitespace-nowrap border-b border-l text-xs" style={{ borderColor: BORDER, color: "#555555" }}>
                     {c.phone || "-"}
                   </td>
+                  <td className="px-3 py-2.5 sm:px-4 whitespace-nowrap border-b border-l" style={{ borderColor: BORDER }}>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(c)}
+                        title="Edit co-organizer"
+                        className="p-1.5 cursor-pointer border transition-colors"
+                        style={{ color: PRIMARY, borderColor: PRIMARY, backgroundColor: "transparent" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = "#FFFFFF"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = PRIMARY; }}
+                      >
+                        <FiEdit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(c)}
+                        title="Remove co-organizer"
+                        className="p-1.5 cursor-pointer border transition-colors"
+                        style={{ color: DANGER, borderColor: DANGER, backgroundColor: "transparent" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = DANGER; e.currentTarget.style.color = "#FFFFFF"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = DANGER; }}
+                      >
+                        <FiTrash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -172,14 +253,14 @@ export default function CoOrganizersPanel({ eventSpecialId }) {
         </div>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 flex items-start justify-center px-2 sm:px-4 pb-6 overflow-y-auto" style={{ backgroundColor: "rgba(0,0,0,0.5)", paddingTop: "96px", zIndex: 100000001 }}>
+      {showModal && createPortal(
+        <div className="fixed inset-0 flex items-start justify-center px-2 sm:px-4 pb-6 overflow-y-auto" style={{ backgroundColor: "rgba(0,0,0,0.6)", paddingTop: "96px", zIndex: 2000000000 }}>
           <div className="bg-white w-full max-w-lg max-h-[80vh] overflow-y-auto" style={{ border: `1px solid ${BORDER}`, borderRadius: 0 }}>
             <div className="flex items-center justify-between px-4 sm:px-6 py-4 sticky top-0 z-10 text-white" style={{ backgroundColor: PRIMARY }}>
-              <h3 className="text-base font-bold" style={{ fontFamily: fontHeading }}>Add Co-organiser</h3>
+              <h3 className="text-base font-bold" style={{ fontFamily: fontHeading }}>{editingEmail ? "Edit Co-organiser" : "Add Co-organiser"}</h3>
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={() => { setShowModal(false); window.history.pushState(null, "", "/calendar"); }}
                 disabled={submitting}
                 className="cok-btn-outlined-reverse disabled:opacity-50"
                 style={{ padding: "0.4rem 0.8rem" }}
@@ -290,7 +371,7 @@ export default function CoOrganizersPanel({ eventSpecialId }) {
               <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => { setShowModal(false); window.history.pushState(null, "", "/calendar"); }}
                   disabled={submitting}
                   className="cok-btn-outlined disabled:opacity-50"
                   style={{ padding: "0.6rem 1.2rem" }}
@@ -303,12 +384,43 @@ export default function CoOrganizersPanel({ eventSpecialId }) {
                   className="cok-btn-primary sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ width: "100%", padding: "0.6rem 1.4rem" }}
                 >
-                  {submitting ? "Adding..." : "Add Co-organiser"}
+                  {submitting ? "Saving..." : editingEmail ? "Save Changes" : "Add Co-organiser"}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {deleteTarget && createPortal(
+        <div className="fixed inset-0 flex items-center justify-center p-3 sm:p-4" style={{ backgroundColor: "rgba(0,0,0,0.6)", zIndex: 2000000000 }}>
+          <div className="bg-white w-full max-w-sm p-5 sm:p-6" style={{ border: `1px solid ${BORDER}` }}>
+            <h3 className="font-bold text-base mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Remove Co-organiser</h3>
+            <p className="text-sm mb-5 break-words" style={{ color: GRAY_DISABLED }}>
+              Remove <span className="font-semibold" style={{ color: NEUTRAL_DARK }}>{deleteTarget.fullNames || deleteTarget.email}</span> from co-organizers? This cannot be undone.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="cok-btn-outlined flex-1 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="cok-btn-outlined-danger flex-1 disabled:opacity-60"
+              >
+                {deleting ? "Removing..." : "Remove"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

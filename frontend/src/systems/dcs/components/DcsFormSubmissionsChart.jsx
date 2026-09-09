@@ -51,9 +51,14 @@ export default function DcsFormSubmissionsChart({ formGroupId }) {
       });
   };
 
-  const handle_apply = () => {
-    if (period === "custom" && !from) return;
-    fetch_stats({ period, from, to }, false);
+  // The popup passes the just-picked dates as arguments - the from/to state
+  // is not updated yet when this runs (React state updates are async), so
+  // reading state here would fetch with the PREVIOUS apply's range.
+  const handle_apply = (applied_from, applied_to) => {
+    const next_from = typeof applied_from === "string" ? applied_from : from;
+    const next_to = typeof applied_to === "string" ? applied_to : to;
+    if (period === "custom" && !next_from) return;
+    fetch_stats({ period, from: next_from, to: next_to }, false);
   };
 
   useEffect(() => {

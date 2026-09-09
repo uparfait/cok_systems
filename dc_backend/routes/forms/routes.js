@@ -2,6 +2,7 @@ const Router = require("express").Router();
 
 const create_form = require("../../controllers/forms/create_form.js");
 const update_form = require("../../controllers/forms/update_form.js");
+const transfer_form_ownership = require("../../controllers/forms/transfer_form_ownership.js");
 const get_forms_by_project = require("../../controllers/forms/get_forms_by_project.js");
 const get_form_versions = require("../../controllers/forms/get_form_versions.js");
 const get_form_by_id = require("../../controllers/forms/get_form_by_id.js");
@@ -11,6 +12,7 @@ const delete_form_version = require("../../controllers/forms/delete_form_version
 const upload_design_file = require("../../controllers/forms/upload_design_file.js");
 const delete_design_file = require("../../controllers/forms/delete_design_file.js");
 const search_forms = require("../../controllers/forms/search_forms.js");
+const get_form_approvers = require("../../controllers/forms/get_form_approvers.js");
 const get_form_submission_stats = require("../../controllers/forms/get_form_submission_stats.js");
 const { upload_design_file: upload_design_file_middleware } = require("../../utilities/upload.js");
 
@@ -111,6 +113,34 @@ Router.get("/:form_group_id", get_form_by_id);
  *         description: A new form version was created
  */
 Router.put("/:form_group_id", update_form);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/owner:
+ *   put:
+ *     summary: Transfer the form (all versions) to another employee - form owner or project owner only
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Form ownership transferred successfully
+ */
+Router.put("/:form_group_id/owner", transfer_form_ownership);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/approvers:
+ *   get:
+ *     summary: Paginated slice of the active version's approval-flow approvers (page/limit, default 20 per page, sliced inside MongoDB)
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Approvers fetched successfully
+ */
+Router.get("/:form_group_id/approvers", get_form_approvers);
 
 /**
  * @swagger

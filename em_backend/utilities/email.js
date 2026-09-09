@@ -100,7 +100,7 @@ async function sendNotificationEmail(toEmail, subject, htmlContent, textContent)
   }
 }
 
-// Kept as an alias — some callers use the older name
+// Kept as an alias - some callers use the older name
 const sendPlainEmail = sendNotificationEmail;
 
 function escapeHtml(str) {

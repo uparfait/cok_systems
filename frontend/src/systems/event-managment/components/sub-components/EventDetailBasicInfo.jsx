@@ -170,7 +170,7 @@ export default function EventDetailBasicInfo({ event, eventMode, onEventUpdated 
   };
   const isScheduleEditable = eventMode === 'live' || eventMode === 'upcoming';
 
-  // Save date/from/to separately — combine the edited piece with the current
+  // Save date/from/to separately - combine the edited piece with the current
   // values and let the backend re-check room conflicts before saving.
   const onSaveSchedule = async (field, value) => {
     const date = field === 'scheduleDate' ? value : schedule.date;

@@ -4,6 +4,7 @@ const project_access = require("../../utilities/project_access.js");
 const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { resolve_template_placeholders } = require("../../jsonlogic/resolve_templates.js");
 const { validate_approval_config, normalize_approval_config } = require("../../utilities/approval.js");
+const { strip_creator } = require("../../utilities/owner.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 
@@ -67,7 +68,7 @@ async function create_form(req, res) {
       created_by_name: req.user.full_name,
     });
 
-    return res.status(201).json(success_response(req, "FORM_CREATED", form));
+    return res.status(201).json(success_response(req, "FORM_CREATED", strip_creator(form)));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

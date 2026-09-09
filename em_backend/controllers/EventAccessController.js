@@ -41,6 +41,7 @@ class EventAccessController {
       }
 
       const token = crypto.randomBytes(3).toString('hex').toUpperCase();
+      console.log(token)
       pendingTokens.set(`${normalizedEmail}:${eventSpecialId}`, {
         token,
         expires: Date.now() + 15 * 60 * 1000,

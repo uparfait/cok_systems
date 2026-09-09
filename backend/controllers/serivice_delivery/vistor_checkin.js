@@ -149,7 +149,7 @@ module.exports = async function visitor_checkin(req, res, next) {
 
                 const save = await new_parking.save()
 
-                // A vehicle entered through the reception flow — notify dashboards the same way the gate does
+                // A vehicle entered through the reception flow - notify dashboards the same way the gate does
                 global.WebsocketIO?.emit('car_checkedin', {
                     show_notif: false,
                     type: 'info',

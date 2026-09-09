@@ -14,13 +14,15 @@ export default function EventDetailsRightColumn({
   attendeeCount,
   ActualQrCodeUrl,
   showCopiedPopup,
-  setQrCodeUrl,
-  setActualQrCodeUrl,
   setIsQrMaximized,
   setShowCopiedPopup,
   setQrError,
   setIsQrLoading,
+  setQrCodeUrl,
+  setActualQrCodeUrl,
   fetchQrCode,
+  eventSpecialId,
+  navigate,
 }) {
   return (
     <div className="lg:col-span-5 flex flex-col gap-0 rounded-none">
@@ -85,7 +87,6 @@ export default function EventDetailsRightColumn({
               className="w-full cursor-zoom-in rounded-none"
               onClick={() => {
                 setIsQrMaximized(true);
-                window.history.pushState(null, "", `/calendar/#qrcode-full`);
               }}
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}

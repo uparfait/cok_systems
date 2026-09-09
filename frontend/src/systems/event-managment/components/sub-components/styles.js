@@ -44,6 +44,18 @@ export const editorStyles = `
   .tiptap-msword .ProseMirror-selectednode {
     outline: 2px solid #056daa;
   }
+  /* A page break ends the current white sheet: a full-bleed band of the
+     gray canvas separates it from the next sheet, like separate pages.
+     The top margin is set by the paginator so every sheet has the exact
+     paper height; the bottom margin is the next page's top margin. */
+  .tiptap-msword .cok-page-break {
+    display: block;
+    height: 56px;
+    background: #F3F5F7;
+    border-top: 1px solid #E4E6E8;
+    border-bottom: 1px solid #E4E6E8;
+    margin: 0 -300px 1in;
+  }
 `;
 
 // Standalone stylesheet used when printing the document in a new window
@@ -52,4 +64,5 @@ export const printStyles = `
   body { margin: 0; }
   ${editorStyles}
   .tiptap-msword { min-height: 0; }
+  .tiptap-msword .cok-page-break { border: none; margin: 0; height: 0; background: none; page-break-after: always; break-after: page; }
 `;

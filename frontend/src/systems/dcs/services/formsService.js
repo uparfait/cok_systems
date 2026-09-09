@@ -32,10 +32,30 @@ export function update_form(form_group_id, form_name, schema, approval_config) {
 }
 
 /**
+ * Hands the form (all versions) over to another employee - form owner or
+ * project owner only.
+ */
+export function transfer_form_ownership(form_group_id, user_id) {
+  return dcs_request(`/forms/${form_group_id}/owner`, "PUT", { user_id });
+}
+
+/**
  * Lists every version of a form.
  */
 export function get_form_versions(form_group_id) {
   return dcs_request(`/forms/${form_group_id}/versions`, "GET");
+}
+
+/**
+ * One page of the active version's approval-flow approvers - every
+ * form-returning route strips the (possibly huge) approvers array, so the
+ * approval page assembles it through this endpoint page by page, 20 at a
+ * time, incrementing the page until total is reached.
+ */
+export function get_form_approvers(form_group_id, page, limit, group_fields) {
+  const filter_query =
+    Array.isArray(group_fields) && group_fields.length > 0 ? `&group_fields=${encodeURIComponent(group_fields.join(","))}` : "";
+  return dcs_request(`/forms/${form_group_id}/approvers?page=${page || 1}&limit=${limit || 20}${filter_query}`, "GET");
 }
 
 /**

@@ -49,7 +49,7 @@ interface QueueSummary {
   }>;
 }
 
-// departmentScope: HOD mode — the backend already scopes the queue to the department(s)
+// departmentScope: HOD mode - the backend already scopes the queue to the department(s)
 // the user leads; rows are matched by their first assignment and actions are hidden
 const DepartmentQueueTab: React.FC<{ departmentScope?: boolean }> = ({ departmentScope = false }) => {
   const { user } = useAuth();
@@ -290,6 +290,8 @@ const DepartmentQueueTab: React.FC<{ departmentScope?: boolean }> = ({ departmen
             loading={loading && visitors.length === 0}
             emptyMessage="No visitors found in your department queue."
             headerClassName="cok-bg-primary"
+            clipRows
+            nowrap
             onRowClick={(v: any) => {
               setSelectedVisitorForDetails(v.rawVisitor || v);
               setShowVisitorDetails(true);

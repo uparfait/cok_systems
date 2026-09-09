@@ -29,14 +29,49 @@ function is_legacy_config(config) {
   return !!config && config.mode !== undefined;
 }
 
+/**
+ * True for a system-generated test approver (the test-data page's cascade
+ * enumerator). this_is_a_test_approval is the marker written today; the
+ * older is_test_approver_sss_ddd spelling is still honored so approvers
+ * generated before the rename stay recognizable and clearable.
+ */
+function is_test_approver(approver) {
+  return !!approver && (approver.this_is_a_test_approval === true || approver.is_test_approver_sss_ddd === true);
+}
+
+/**
+ * Reduces a stored approval_config to the light shape every form-returning
+ * route sends: enabled + how many approvers exist, never the (possibly
+ * huge, generated) approvers array itself. The approvers are fetched
+ * separately, page by page, through the dedicated approvers endpoint;
+ * approvers_lazy marks the shape so a form save carrying it back keeps the
+ * stored approvers untouched.
+ */
+function strip_approval_config_for_response(config) {
+  if (config === undefined || config === null) return config;
+  return {
+    enabled: config.enabled === true,
+    mode: config.mode,
+    approvers_count: Array.isArray(config.approvers) ? config.approvers.length : 0,
+    approvers_lazy: true,
+  };
+}
+
 /** Validates the optional approval_config a form author attached; absent/disabled configs are always valid. */
 function validate_approval_config(config) {
   const errors = [];
   if (config === undefined || config === null || config.enabled !== true) return { valid: true, errors };
 
-  if (!Array.isArray(config.approvers) || config.approvers.length === 0) {
-    errors.push("approval_config.approvers must contain at least one approver");
-  } else if (config.approvers.length > MAX_APPROVERS) {
+  // Generated test approvers are exempt from the hand-made cap - they are
+  // produced in bulk by the cascade enumerator and cleared in bulk too.
+  const hand_made_count = Array.isArray(config.approvers) ? config.approvers.filter((approver) => !is_test_approver(approver)).length : 0;
+
+  // An enabled flow with NO approvers is a valid in-progress save - it
+  // simply routes nothing until approvers are added, exactly like build_
+  // approval_state returning null when no approver matches.
+  if (!Array.isArray(config.approvers)) {
+    errors.push("approval_config.approvers must be a list");
+  } else if (hand_made_count > MAX_APPROVERS) {
     errors.push(`approval_config.approvers cannot exceed ${MAX_APPROVERS} approvers`);
   } else {
     config.approvers.forEach((approver, index) => {
@@ -44,6 +79,9 @@ function validate_approval_config(config) {
         errors.push(`approver ${index + 1} is not valid`);
         return;
       }
+      // System-generated test approvers are machine-made and bulk-cleared -
+      // their presence must never block saving the hand-made flow around them.
+      if (is_test_approver(approver)) return;
       if (!approver.name || !approver.name.toString().trim()) errors.push(`approver ${index + 1} is missing a name`);
       if (!approver.role || !approver.role.toString().trim()) errors.push(`approver ${index + 1} is missing a role`);
       if (!approver.email || !EMAIL_REGEX.test(approver.email.toString().trim())) errors.push(`approver ${index + 1} is missing a valid email`);
@@ -102,29 +140,57 @@ function normalize_approval_config(config) {
       })),
     };
   }
-  return {
+  const normalized = {
     enabled: true,
     approvers: config.approvers.map((approver) => {
       const located = has_location(approver);
-      return {
-        name: approver.name.toString().trim(),
-        role: approver.role.toString().trim(),
-        email: approver.email.toString().trim().toLowerCase(),
-        message: (approver.message || "").toString().trim(),
-        level: located ? approver.level : null,
-        location_id: located ? Number(approver.location_id) : null,
-        location_name: located ? (approver.location_name || "").toString().trim() : "",
-        conditions: Array.isArray(approver.conditions)
-          ? approver.conditions.map((condition) => ({
-              field_id: condition.field_id.toString().trim(),
-              value: condition.value.toString().trim(),
-            }))
-          : [],
-        force: approver.force !== false,
-        on_reject: ON_REJECT_OPTIONS.includes(approver.on_reject) ? approver.on_reject : "stop",
-      };
+      return Object.assign(
+        {
+          name: approver.name.toString().trim(),
+          role: approver.role.toString().trim(),
+          email: approver.email.toString().trim().toLowerCase(),
+          message: (approver.message || "").toString().trim(),
+          level: located ? approver.level : null,
+          location_id: located ? Number(approver.location_id) : null,
+          location_name: located ? (approver.location_name || "").toString().trim() : "",
+          conditions: Array.isArray(approver.conditions)
+            ? approver.conditions.map((condition) => ({
+                field_id: condition.field_id.toString().trim(),
+                value: condition.value.toString().trim(),
+              }))
+            : [],
+          force: approver.force !== false,
+          on_reject: ON_REJECT_OPTIONS.includes(approver.on_reject) ? approver.on_reject : "stop",
+        },
+        // The generated-test marker must survive a save from the approval
+        // page, or "Clear test approvals" could never find them again.
+        is_test_approver(approver) ? { this_is_a_test_approval: true } : {},
+      );
     }),
   };
+  // The exact same approval must never sit on the flow twice - a doubled
+  // entry (a re-added person, a stale merge) would ask the same person to
+  // sign the same thing two times.
+  const seen_identities = new Set();
+  normalized.approvers = normalized.approvers.filter((approver) => {
+    const identity = approver_identity(approver);
+    if (seen_identities.has(identity)) return false;
+    seen_identities.add(identity);
+    return true;
+  });
+  return normalized;
+}
+
+/** What makes two approver entries "the same approval": person + scope. */
+function approver_identity(approver) {
+  return JSON.stringify([
+    (approver.name || "").toLowerCase(),
+    (approver.role || "").toLowerCase(),
+    (approver.email || "").toLowerCase(),
+    approver.level || null,
+    approver.location_id === undefined ? null : approver.location_id,
+    (approver.conditions || []).map((condition) => [String(condition.field_id), String(condition.value).toLowerCase()]),
+  ]);
 }
 
 /**
@@ -137,16 +203,18 @@ function normalize_approval_config(config) {
 function build_approval_state(config, location_chain, submission_data) {
   if (!config || config.enabled !== true) return null;
 
-  let selected = config.approvers;
+  let selected = config.approvers || [];
   if (!is_legacy_config(config)) {
     const chain_ids = new Set((location_chain || []).map(Number));
-    selected = config.approvers.filter(
+    selected = (config.approvers || []).filter(
       (approver) =>
         (!has_location(approver) || chain_ids.has(Number(approver.location_id))) &&
         matches_conditions(approver.conditions, submission_data),
     );
-    if (selected.length === 0) return null;
   }
+  // An empty (work-in-progress) flow, or one where nobody matches, means
+  // this submission simply needs no approval.
+  if (selected.length === 0) return null;
 
   return {
     status: "pending",
@@ -243,6 +311,9 @@ function public_approval_trail(approval) {
 
 module.exports = {
   APPROVER_LEVELS,
+  is_test_approver,
+  approver_identity,
+  strip_approval_config_for_response,
   validate_approval_config,
   normalize_approval_config,
   build_approval_state,

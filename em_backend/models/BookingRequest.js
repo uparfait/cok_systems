@@ -172,7 +172,7 @@ const bookingRequestSchema = new mongoose.Schema(
       },
       default: null,
     },
-    // Water request made by the organizer from the tracking page — only
+    // Water request made by the organizer from the tracking page - only
     // allowed after the request is Accepted and only for Internal type
     waterRequest: {
       requested: { type: Boolean, default: false },

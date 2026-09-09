@@ -31,6 +31,10 @@ const {
 } = require("./models/approval_requests_model.js");
 
 const {
+    ensure_form_approver_indexes
+} = require("./models/form_approvers_model.js");
+
+const {
     start_approval_schedule_runner
 } = require("./utilities/approval_schedule_runner.js");
 
@@ -514,6 +518,8 @@ connect_databases()
         await ensure_approval_schedule_indexes();
 
         await ensure_approval_request_indexes();
+
+        await ensure_form_approver_indexes();
 
         // Fires "at this date and time" approval schedules once a minute.
         start_approval_schedule_runner();

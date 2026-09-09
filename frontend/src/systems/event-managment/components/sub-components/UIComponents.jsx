@@ -10,14 +10,14 @@ export function RibbonBtn({ onClick, active, disabled, title, children, wide }) 
       onClick={onClick}
       disabled={disabled}
       title={title}
-      style={active ? { backgroundColor: PRIMARY_TINT, borderColor: PRIMARY } : undefined}
+      style={active ? { backgroundColor: '#E4E6E8' } : undefined}
       className={[
         'inline-flex items-center justify-center h-7 rounded-none text-[13px] leading-none gap-1 cursor-pointer',
-        'text-[#333333] border border-transparent',
-        'hover:bg-[#E3F2FD] hover:border-[#9CC7E4]',
-        'active:bg-[#cfe7f8] transition-colors select-none',
+        'text-[#333333] border-0',
+        'hover:bg-[#EDEFF1]',
+        'active:bg-[#E4E6E8] transition-colors select-none',
         wide ? 'px-2' : 'w-7',
-        disabled ? 'opacity-40 cursor-not-allowed hover:bg-transparent hover:border-transparent' : '',
+        disabled ? 'opacity-40 cursor-not-allowed hover:bg-transparent' : '',
       ].join(' ')}
     >
       {children}
@@ -49,8 +49,6 @@ export function RibbonSelect({ value, onChange, title, width = 'w-32', children,
       onMouseDown={(e) => e.stopPropagation()}
       className={`${width} h-7 px-1 text-[13px] text-[#333333] bg-white border rounded-none focus:outline-none cursor-pointer`}
       style={{ borderColor: '#E0E0E0' }}
-      onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; }}
-      onBlur={(e) => { e.currentTarget.style.borderColor = '#E0E0E0'; }}
     >
       {children}
     </select>

@@ -1,6 +1,45 @@
-import { Extension } from '@tiptap/core';
+import { Extension, Node } from '@tiptap/core';
 import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
+
+// Word-style page break: an atom block that starts a new page when the
+// document is printed or exported (docx/pdf)
+export const PageBreak = Node.create({
+  name: 'pageBreak',
+  group: 'block',
+  atom: true,
+  selectable: true,
+
+  parseHTML() {
+    return [{ tag: 'div[data-page-break]' }];
+  },
+
+  renderHTML() {
+    return ['div', { 'data-page-break': 'true', class: 'cok-page-break' }];
+  },
+
+  // The paginator positions each break on an exact page boundary by setting
+  // its top margin; a node view keeps ProseMirror from undoing those styles
+  addNodeView() {
+    return () => {
+      const dom = document.createElement('div');
+      dom.setAttribute('data-page-break', 'true');
+      dom.className = 'cok-page-break';
+      return { dom, ignoreMutation: () => true };
+    };
+  },
+
+  addCommands() {
+    return {
+      setPageBreak:
+        () =>
+        ({ chain }) =>
+          chain()
+            .insertContent([{ type: 'pageBreak' }, { type: 'paragraph' }])
+            .run(),
+    };
+  },
+});
 
 export const StyledBulletList = BulletList.extend({
   addAttributes() {

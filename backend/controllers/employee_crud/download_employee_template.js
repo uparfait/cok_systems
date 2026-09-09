@@ -2,53 +2,52 @@ const ExcelJS = require('exceljs');
 const department_model = require('../../models/department.js');
 const role_model = require('../../models/default_roles.js');
 
-// Function to get Excel column letter
-function getColumnLetter(colIndex) {
-    let letter = '';
-    let temp = colIndex;
-    while (temp >= 0) {
-        letter = String.fromCharCode(65 + (temp % 26)) + letter;
-        temp = Math.floor(temp / 26) - 1;
-    }
-    return letter;
-}
+// A department is a unit in either the new (is_unit + parent_department) or
+// legacy (sub_department_mng) format; the legacy flag is sometimes the string "true"
+const isUnitDept = (d) => {
+    if (d.is_unit === true) return true;
+    const legacy = d.sub_department_mng?.is_sub_department;
+    return legacy === true || legacy === 'true';
+};
+const unitParentId = (d) => {
+    if (d.parent_department) return d.parent_department.toString();
+    if (d.sub_department_mng?.parent_department_id) return d.sub_department_mng.parent_department_id.toString();
+    return null;
+};
 
 module.exports = async function download_employee_template(req, res, next) {
     try {
-        // Fetch all departments and roles
         const [allDepartments, allRoles] = await Promise.all([
-            department_model.find({}).sort({ department_name: 1 }),
-            role_model.find({}).sort({ role_name: 1 })
+            department_model.find({}).sort({ department_name: 1 }).lean(),
+            role_model.find({}).sort({ role_name: 1 }).lean()
         ]);
 
+        const mainDepartments = allDepartments.filter(dept => !isUnitDept(dept));
+        const subDepartments = allDepartments.filter(dept => isUnitDept(dept));
 
-        // Separate main and sub departments
-        const mainDepartments = allDepartments.filter(dept => !dept.sub_department_mng?.is_sub_department);
-        const subDepartments = allDepartments.filter(dept => dept.sub_department_mng?.is_sub_department);
-     
-        // ---------------------------------------------------------
-        // CREATE WORKBOOK
-        // ---------------------------------------------------------
         const workbook = new ExcelJS.Workbook();
         workbook.creator = 'cok';
         workbook.created = new Date();
 
         // ---------------------------------------------------------
-        // MAIN SHEET (UNCHANGED)
+        // MAIN SHEET
         // ---------------------------------------------------------
         const worksheet = workbook.addWorksheet('Employee Template', {
             views: [{ state: 'frozen', ySplit: 1 }]
         });
 
         worksheet.columns = [
-            { header: 'Firstname', key: 'firstname', width: 20 },
-            { header: 'Lastname', key: 'lastname', width: 20 },
-            { header: 'Telephone', key: 'telephone', width: 20 },
-            { header: 'Email', key: 'email', width: 30 },
-            { header: 'Gender', key: 'gender', width: 15 },
-            { header: 'Department', key: 'department', width: 25 },
-            { header: 'Department Unit', key: 'department_unit', width: 25 },
-            { header: 'Role', key: 'role', width: 20 }
+            { header: 'Firstname', key: 'firstname', width: 20 },       // A
+            { header: 'Lastname', key: 'lastname', width: 20 },         // B
+            { header: 'Telephone', key: 'telephone', width: 20 },       // C
+            { header: 'Email', key: 'email', width: 30 },               // D
+            { header: 'Gender', key: 'gender', width: 14 },             // E
+            { header: 'Title', key: 'title', width: 22 },               // F
+            { header: 'ID Type', key: 'id_type', width: 18 },           // G
+            { header: 'ID Number', key: 'id_number', width: 22 },       // H
+            { header: 'Department', key: 'department', width: 28 },     // I
+            { header: 'Department Unit', key: 'department_unit', width: 28 }, // J
+            { header: 'Role', key: 'role', width: 24 }                  // K
         ];
 
         worksheet.columns.forEach(column => {
@@ -60,11 +59,7 @@ module.exports = async function download_employee_template(req, res, next) {
         headerRow.height = 25;
         headerRow.eachCell(cell => {
             cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
-            cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FF1E40AF' }
-            };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF056DAA' } };
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
             cell.border = {
                 top: { style: 'thin', color: { argb: 'FF000000' } },
@@ -91,101 +86,89 @@ module.exports = async function download_employee_template(req, res, next) {
         // ---------------------------------------------------------
         const dataSheet = workbook.addWorksheet('DropdownData', { state: 'hidden' });
 
-        // Gender
-        const genderOptions = ['Male', 'Female', 'Other'];
+        // Column A: Gender
+        const genderOptions = ['Male', 'Female'];
         genderOptions.forEach((option, index) => {
             dataSheet.getCell(`A${index + 2}`).value = option;
         });
-
         workbook.definedNames.add(`DropdownData!$A$2:$A$${genderOptions.length + 1}`, 'GenderList');
 
-        
-        // Departments
+        // Column B: Departments
         mainDepartments.forEach((dept, index) => {
             dataSheet.getCell(`B${index + 2}`).value = dept.department_name;
-            
         });
-
-       
-
         if (mainDepartments.length > 0) {
-            workbook.definedNames.add(
-                `DropdownData!$B$2:$B$${mainDepartments.length + 1}`,
-                'DepartmentList'
-            );
+            workbook.definedNames.add(`DropdownData!$B$2:$B$${mainDepartments.length + 1}`, 'DepartmentList');
         }
 
-        // ---------------------------------------------------------
-        // ALL UNITS LIST (NEW FIX)
-        // ---------------------------------------------------------
-        const unitColumn = 'C';
-
-        subDepartments.forEach((sub, index) => {
-            dataSheet.getCell(`${unitColumn}${index + 2}`).value = sub.department_name;
-        });
-
-        if (subDepartments.length > 0) {
-            workbook.definedNames.add(
-                `DropdownData!$${unitColumn}$2:$${unitColumn}$${subDepartments.length + 1}`,
-                'AllUnitsList'
-            );
-        }
-
-        // ---------------------------------------------------------
-        // ROLES LIST
-        // ---------------------------------------------------------
-        const roleColumn = 'D';
+        // Column C: Roles
         const roleNames = allRoles.map(role => role.role_name);
-
-        dataSheet.getCell(`${roleColumn}1`).value = 'Role Options';
         roleNames.forEach((roleName, index) => {
-            dataSheet.getCell(`${roleColumn}${index + 2}`).value = roleName;
+            dataSheet.getCell(`C${index + 2}`).value = roleName;
         });
-
-        
-
         if (roleNames.length > 0) {
-            //console.log(roleNames);
-            workbook.definedNames.add(
-                `DropdownData!$${roleColumn}$2:$${roleColumn}$${roleNames.length + 1}`,
-                'RoleList'
-            );
+            workbook.definedNames.add(`DropdownData!$C$2:$C$${roleNames.length + 1}`, 'RoleList');
         }
 
+        // Column D: ID Types
+        const idTypeOptions = ['National ID', 'Passport', 'Driver License'];
+        idTypeOptions.forEach((option, index) => {
+            dataSheet.getCell(`D${index + 2}`).value = option;
+        });
+        workbook.definedNames.add(`DropdownData!$D$2:$D$${idTypeOptions.length + 1}`, 'IdTypeList');
 
+        // ---------------------------------------------------------
+        // UNITS: a plain global list works in every spreadsheet app
+        // (dependent INDIRECT validation is refused by several of them).
+        // The bulk upload validates that a unit belongs to the selected
+        // department and reports a clear row error if not.
+        // ---------------------------------------------------------
+        subDepartments.forEach((unit, index) => {
+            dataSheet.getCell(`E${index + 2}`).value = unit.department_name;
+        });
+        if (subDepartments.length > 0) {
+            workbook.definedNames.add(`DropdownData!$E$2:$E$${subDepartments.length + 1}`, 'AllUnitsList');
+        }
 
         // ---------------------------------------------------------
         // APPLY VALIDATION
         // ---------------------------------------------------------
         for (let row = 2; row <= 500; row++) {
-
-            // Gender
             worksheet.getCell(`E${row}`).dataValidation = {
                 type: 'list',
                 allowBlank: true,
                 formulae: ['GenderList']
             };
 
-            // Department
-            worksheet.getCell(`F${row}`).dataValidation = {
-                type: 'list',
-                allowBlank: true,
-                formulae: ['DepartmentList']
-            };
-
-            // Units (NOW GLOBAL LIST)
             worksheet.getCell(`G${row}`).dataValidation = {
                 type: 'list',
                 allowBlank: true,
-                formulae: ['AllUnitsList']
+                formulae: ['IdTypeList']
             };
 
-            // Role
-            worksheet.getCell(`H${row}`).dataValidation = {
-                type: 'list',
-                allowBlank: true,
-                formulae: ['RoleList']
-            };
+            if (mainDepartments.length > 0) {
+                worksheet.getCell(`I${row}`).dataValidation = {
+                    type: 'list',
+                    allowBlank: true,
+                    formulae: ['DepartmentList']
+                };
+
+                if (subDepartments.length > 0) {
+                    worksheet.getCell(`J${row}`).dataValidation = {
+                        type: 'list',
+                        allowBlank: true,
+                        formulae: ['AllUnitsList']
+                    };
+                }
+            }
+
+            if (roleNames.length > 0) {
+                worksheet.getCell(`K${row}`).dataValidation = {
+                    type: 'list',
+                    allowBlank: true,
+                    formulae: ['RoleList']
+                };
+            }
         }
 
         // ---------------------------------------------------------
@@ -206,4 +189,4 @@ module.exports = async function download_employee_template(req, res, next) {
             error: error.message
         });
     }
-}; 
+};

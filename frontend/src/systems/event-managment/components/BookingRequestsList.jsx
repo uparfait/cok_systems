@@ -26,7 +26,7 @@ const COLUMNS = [
   { key: "organizerEmail", label: "Organizer Email" },
   { key: "organizerTel", label: "Organizer Tel" },
   { key: "date", label: "Date" },
-  { key: "time", label: "Time (From — To)" },
+  { key: "time", label: "Time (From - To)" },
   { key: "status", label: "Status" },
 ];
 
@@ -39,7 +39,7 @@ const STATUS_COLORS = {
 
 const toDateStr = (iso) => {
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
+  if (isNaN(d.getTime())) return "-";
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -69,7 +69,7 @@ export default function BookingRequestsList({ waterOnly = false }) {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const { showSuccess, showError } = useToast();
 
-  // Bulk delete (requests only — never the events created from them)
+  // Bulk delete (requests only - never the events created from them)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [delStatus, setDelStatus] = useState("");
   const [delRange, setDelRange] = useState("today");
@@ -128,7 +128,7 @@ export default function BookingRequestsList({ waterOnly = false }) {
   };
 
   const handleBulkDelete = async () => {
-    if (!delStatus) { showError("Select a status — Pending requests cannot be deleted"); return; }
+    if (!delStatus) { showError("Select a status - Pending requests cannot be deleted"); return; }
     if (delRange === "custom" && (!delStart || !delEnd)) { showError("Select the custom date range"); return; }
     setDeleting(true);
     try {
@@ -179,7 +179,7 @@ export default function BookingRequestsList({ waterOnly = false }) {
       case "name":
         return (
           <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <span className="font-bold text-sm" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{req.eventName || "—"}</span>
+            <span className="font-bold text-sm" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{req.eventName || "-"}</span>
             {req.waterRequest?.requested && (
               <span
                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold uppercase bg-sky-100 text-sky-800 border border-sky-300 whitespace-nowrap"
@@ -191,25 +191,25 @@ export default function BookingRequestsList({ waterOnly = false }) {
           </span>
         );
       case "room":
-        return <span className="text-sm font-medium capitalize whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{req.eventRoom || "—"}</span>;
+        return <span className="text-sm font-medium capitalize whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{req.eventRoom || "-"}</span>;
       case "organizerName":
-        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.fullNames || "—"}</span>;
+        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.fullNames || "-"}</span>;
       case "organizerEmail":
-        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.email || "—"}</span>;
+        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.email || "-"}</span>;
       case "organizerTel":
-        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.phone || "—"}</span>;
+        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.phone || "-"}</span>;
       case "date":
-        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{req.startTime ? toDateStr(req.startTime) : "—"}</span>;
+        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{req.startTime ? toDateStr(req.startTime) : "-"}</span>;
       case "time":
         return (
           <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-            {req.startTime && req.endTime ? `${toTimeStr(req.startTime)} — ${toTimeStr(req.endTime)}` : "—"}
+            {req.startTime && req.endTime ? `${toTimeStr(req.startTime)} - ${toTimeStr(req.endTime)}` : "-"}
           </span>
         );
       case "status":
         return getStatusBadge(req.status);
       default:
-        return "—";
+        return "-";
     }
   };
 

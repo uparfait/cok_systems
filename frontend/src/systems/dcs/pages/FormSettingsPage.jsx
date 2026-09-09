@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { update_form, get_form_field_options } from "../services/formsService.js";
+import { update_form, get_form_field_options, transfer_form_ownership } from "../services/formsService.js";
+import DcsOwnershipTransfer from "../components/DcsOwnershipTransfer.jsx";
 import { useLazyFieldResolvers } from "../hooks/useLazyFieldResolvers.js";
 import DcFormBuilderSection from "../builder/DcFormBuilderSection.jsx";
 import { is_approval_config_complete } from "../builder/ApprovalFlowSection.jsx";
@@ -18,6 +19,7 @@ export default function FormSettingsPage() {
   const [form_name, setFormName] = useState(form.form_name || "");
   const [approval_config, setApprovalConfig] = useState(form.approval_config || null);
   const [publishing, setPublishing] = useState(false);
+  const [transferring, setTransferring] = useState(false);
   const [schema_errors, setSchemaErrors] = useState([]);
   const loaded_form_id_ref = useRef(form._id);
   const { resolveFieldOptions, resolveFullFieldOptions } = useLazyFieldResolvers("form", form_group_id, get_form_field_options);
@@ -36,6 +38,19 @@ export default function FormSettingsPage() {
   }, [form]);
 
   const public_link = `${window.location.origin}/dcs-form/${form_group_id}`;
+
+  const handle_transfer = async (user) => {
+    setTransferring(true);
+    try {
+      await transfer_form_ownership(form_group_id, user.user_id);
+      showSuccess(translate("DCS_TOAST_OWNERSHIP_TRANSFERRED", { name: user.full_name || user.email }));
+      refreshForm();
+    } catch (error) {
+      showError(error.message || translate("DCS_ERROR_GENERIC"));
+    } finally {
+      setTransferring(false);
+    }
+  };
 
   const copy_link = () => {
     window.navigator.clipboard.writeText(public_link);
@@ -83,6 +98,12 @@ export default function FormSettingsPage() {
         </div>
         <DcsButtonOutline onClick={copy_link}>{translate("DCS_FORM_COPY_LINK")}</DcsButtonOutline>
       </div>
+
+      {form.viewer_can_transfer === true && (
+        <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
+          <DcsOwnershipTransfer ownerName={form.owner_name} onTransfer={handle_transfer} transferring={transferring} />
+        </div>
+      )}
 
       <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
         <DcsFormNameField value={form_name} onChange={setFormName} />

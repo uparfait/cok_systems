@@ -35,7 +35,7 @@ class CheckRoomAvailability {
 
   /**
    * Fetch every conflicting event for a room across a window exactly once.
-   * Completed (Past) events are intentionally excluded — they no longer occupy the room.
+   * Completed (Past) events are intentionally excluded - they no longer occupy the room.
    */
   static async _fetchRoomEvents(roomName, start, end, excludeEventId = null, excludeRecurringPrefix = null) {
     const excludeFilter = excludeEventId

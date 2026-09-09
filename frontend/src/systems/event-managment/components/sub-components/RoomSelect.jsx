@@ -23,7 +23,7 @@ export default function RoomSelect({ value, rooms, loading, selectedRoom, onChan
           </option>
           {rooms.map((r) => (
             <option key={r._id} value={r.roomName}>
-              {r.roomName} — Cap: {r.roomCapacity} — {r.roomLocation || 'N/A'}
+              {r.roomName} - Cap: {r.roomCapacity} - {r.roomLocation || 'N/A'}
             </option>
           ))}
         </select>

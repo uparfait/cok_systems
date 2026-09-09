@@ -55,8 +55,24 @@ function resolve_period_bounds(period, from, to) {
     return { start, end };
   }
   if (period === "custom" && from) {
-    const start = start_of_day(new Date(from));
-    const end = to ? end_of_day(new Date(to)) : end_of_day(now);
+    const from_date = new Date(from);
+    if (Number.isNaN(from_date.getTime())) return undefined;
+    let start = start_of_day(from_date);
+    let end;
+    if (to) {
+      const to_date = new Date(to);
+      if (Number.isNaN(to_date.getTime())) return undefined;
+      end = end_of_day(to_date);
+      // A reversed pick (from after to) still means the same window - swap
+      // instead of returning an empty range that reads as "no data".
+      if (end < start) {
+        start = start_of_day(to_date);
+        end = end_of_day(from_date);
+      }
+    } else {
+      end = end_of_day(now);
+      if (end < start) end = end_of_day(from_date);
+    }
     return { start, end };
   }
   return undefined;

@@ -5,6 +5,7 @@ const get_projects = require("../../controllers/projects/get_projects.js");
 const get_project_by_id = require("../../controllers/projects/get_project_by_id.js");
 const update_project = require("../../controllers/projects/update_project.js");
 const delete_project = require("../../controllers/projects/delete_project.js");
+const transfer_project_ownership = require("../../controllers/projects/transfer_project_ownership.js");
 
 /**
  * @swagger
@@ -61,6 +62,20 @@ Router.get("/:project_id", get_project_by_id);
  *         description: Project updated successfully
  */
 Router.put("/:project_id", update_project);
+
+/**
+ * @swagger
+ * /dcs/api/projects/{project_id}/owner:
+ *   put:
+ *     summary: Transfer the project to another employee (current owner only)
+ *     tags: [Projects]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Project ownership transferred successfully
+ */
+Router.put("/:project_id/owner", transfer_project_ownership);
 
 /**
  * @swagger

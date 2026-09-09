@@ -75,19 +75,34 @@ module.exports = async function car_check_out(req, res, next) {
 
     await parking_session.save();
 
-    const pending_visitor = await ServiceDelivery.findOne({
-      $or: [
-        {
-          "vehicle_storage.has_vehicle": true,
-          "vehicle_storage.vehicle_details.plate_number": plate_number,
-        },
-        {
-          "vehicle_storage.has_vehicle": false,
-          full_name: parking_session.driver_name,
-          is_still_inhouse: true,
-        },
-      ],
-    });
+    // Repeat plates accumulate one ServiceDelivery doc per visit, so the lookup
+    // must only consider visitors still in-house and prefer the latest entry -
+    // otherwise an old, already-closed record gets "closed" again while the
+    // current visitor silently stays in-house.
+    let pending_visitor = await ServiceDelivery.findOne({
+      "vehicle_storage.has_vehicle": true,
+      "vehicle_storage.vehicle_details.plate_number": plate_number,
+      is_still_inhouse: true,
+    }).sort({ entry_date: -1 });
+
+    if (!pending_visitor) {
+      // Visitors registered elsewhere may carry an unnormalized plate (spaces, dashes)
+      const inhouseWithVehicle = await ServiceDelivery.find({
+        "vehicle_storage.has_vehicle": true,
+        is_still_inhouse: true,
+      }).sort({ entry_date: -1 });
+      pending_visitor = inhouseWithVehicle.find(
+        (v) => cleanPlateNumber(v.vehicle_storage?.vehicle_details?.plate_number) === plate_number,
+      ) || null;
+    }
+
+    if (!pending_visitor) {
+      pending_visitor = await ServiceDelivery.findOne({
+        "vehicle_storage.has_vehicle": false,
+        full_name: parking_session.driver_name,
+        is_still_inhouse: true,
+      }).sort({ entry_date: -1 });
+    }
 
     if (pending_visitor) {
       pending_visitor.is_still_inhouse = false;

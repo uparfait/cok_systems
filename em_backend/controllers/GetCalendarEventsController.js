@@ -7,7 +7,7 @@ const PostMeeting = require('../models/PostMeeting');
 const recurrenceHelper = require('../utilities/recurrenceHelper');
 
 function transformEvent(event, status, startTime, endTime, isCancelled = false) {
-  // Calendars must never expose the virtual link — they only say "Virtual".
+  // Calendars must never expose the virtual link - they only say "Virtual".
   const isVirtual = event.eventFormat === 'Virtual';
   return {
     _id: event._id,
@@ -85,7 +85,7 @@ function getRecurringOccurrences(event, monthStart, monthEnd) {
   const [startHour, startMin] = eventStartTime.split(':').map(Number);
   const [endHour, endMin] = eventEndTime.split(':').map(Number);
 
-  // RecurringEvent has NO top-level eventStartDate field — the schedule effectively
+  // RecurringEvent has NO top-level eventStartDate field - the schedule effectively
   // starts when the event was created (fall back to "now"). Using a missing field
   // produced an Invalid Date and silently yielded zero occurrences.
   const startSource = event.eventStartDate || event.createdAt || new Date();

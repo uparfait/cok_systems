@@ -53,6 +53,12 @@ async function get_submissions(req, res) {
     ]);
     const request_by_id = new Map(requests.map((request) => [request._id.toString(), request]));
     result.items.forEach((item) => {
+      // The internal test-data markers never leave the backend.
+      delete item[submissions_model.TEST_DATA_FLAG];
+      if (item.approval) {
+        delete item.approval.is_test_approval_sss_ddd;
+      }
+
       if (item.approval) {
         item.approval_status = item.approval.status;
         item.approval_progress = progress_of(item.approval.steps);

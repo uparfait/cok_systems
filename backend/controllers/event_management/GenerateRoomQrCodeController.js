@@ -32,7 +32,7 @@ class GenerateRoomQrCodeController {
         });
       }
 
-      // Build attendance URL with RoomOnly=true — no event data, the attendance form will fetch the live event
+      // Build attendance URL with RoomOnly=true - no event data, the attendance form will fetch the live event
       const attendanceUrl = `${process.env.FRONTEND_URL}/event/${encodeURIComponent(normalizedRoomName)}/attendances/?RoomOnly=true`;
 
       const qrCodeDataUrl = await QRCode.toDataURL(attendanceUrl, {

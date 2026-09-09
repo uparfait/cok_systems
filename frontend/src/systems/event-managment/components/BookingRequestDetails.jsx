@@ -72,7 +72,7 @@ function StatusBadge({ status }) {
   );
 }
 
-// Inline editable card — same interaction pattern as the event details page
+// Inline editable card - same interaction pattern as the event details page
 function EditableDisplay({ label, value, field, icon, children, activeField, editValues, onEdit, onCancel, onSave, saving, fieldError, canEdit }) {
   const isEditing = activeField === field;
   const currentEditValue = editValues[field] ?? "";
@@ -118,7 +118,7 @@ function EditableDisplay({ label, value, field, icon, children, activeField, edi
   );
 }
 
-// Location picker panel — Physical/Virtual toggle; physical checks room
+// Location picker panel - Physical/Virtual toggle; physical checks room
 // availability for this request's window, excluding itself
 function RoomChangePanel({ request, onSaved, onClose, saveRequestFields, saving }) {
   const [availableRooms, setAvailableRooms] = useState([]);
@@ -435,7 +435,7 @@ export default function BookingRequestDetails() {
   };
 
   const formatDateTime = (dateStr) => {
-    if (!dateStr) return "—";
+    if (!dateStr) return "-";
     return new Date(dateStr).toLocaleDateString("en-GB", { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
   };
 
@@ -488,7 +488,7 @@ export default function BookingRequestDetails() {
       </div>
 
       <div className="max-w-4xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
-        {/* Basic details — inline editable */}
+        {/* Basic details - inline editable */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <EditableDisplay label="Name" value={request.eventName} field="eventName"
             icon={<FiBookmark className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
@@ -509,7 +509,7 @@ export default function BookingRequestDetails() {
             <input type="number" min="1" value={currentValue("expectedAudience")} onChange={(e) => setEditValue("expectedAudience", e.target.value)} className={inputClassName} autoFocus />
           </EditableDisplay>
 
-          {/* Room — change via availability panel */}
+          {/* Room - change via availability panel */}
           <div className="bg-white p-4" style={{ border: `1px solid ${BORDER}` }}>
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
@@ -559,7 +559,7 @@ export default function BookingRequestDetails() {
             </EditableDisplay>
           </div>
 
-          {/* Schedule — date and times editable separately; backend re-checks conflicts */}
+          {/* Schedule - date and times editable separately; backend re-checks conflicts */}
           <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <EditableDisplay label="Date" value={schedule.date} field="scheduleDate"
               icon={<FiCalendar className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
@@ -576,7 +576,7 @@ export default function BookingRequestDetails() {
           </div>
         </div>
 
-        {/* Organizer — inline editable */}
+        {/* Organizer - inline editable */}
         <div className="bg-white p-4 sm:p-5" style={{ border: `1px solid ${BORDER}` }}>
           <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 mb-4" style={{ color: PRIMARY, fontFamily: fontHeading }}>
             <FiUser className="w-4 h-4" />
@@ -602,7 +602,7 @@ export default function BookingRequestDetails() {
           </div>
         </div>
 
-        {/* Agenda — read only, card style */}
+        {/* Agenda - read only, card style */}
         {request.activityAgenda?.length > 0 && (
           <div className="bg-white p-4 sm:p-5" style={{ border: `1px solid ${BORDER}` }}>
             <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 mb-4" style={{ color: PRIMARY, fontFamily: fontHeading }}>
@@ -615,7 +615,7 @@ export default function BookingRequestDetails() {
                   <div className="flex items-center gap-2 px-3 sm:px-4 py-2" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
                     <FiClock className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
                     <span className="text-xs font-bold tracking-wide" style={{ color: PRIMARY, fontFamily: fontHeading }}>
-                      {item.fromTime || "--:--"} — {item.toTime || "--:--"}
+                      {item.fromTime || "--:--"} - {item.toTime || "--:--"}
                     </span>
                   </div>
                   <div className="px-3 sm:px-4 py-3 bg-white">
@@ -652,7 +652,7 @@ export default function BookingRequestDetails() {
           {request.updatedAt !== request.createdAt && <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Updated: {formatDateTime(request.updatedAt)}</p>}
         </div>
 
-        {/* Actions — Edit button removed; fields are edited inline above */}
+        {/* Actions - Edit button removed; fields are edited inline above */}
         {isPending && (
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-end">
             <button onClick={() => setRejectModal(true)}

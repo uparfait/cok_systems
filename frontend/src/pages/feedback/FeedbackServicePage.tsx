@@ -156,7 +156,7 @@ const FeedbackServicePage: React.FC = () => {
   const handlePreview = () => setStep('preview');
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ backgroundColor: '#F7F9FB', paddingTop: '80px', paddingBottom: '80px' }}>
+    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ backgroundColor: '#FFFFFF', paddingBottom: '80px' }}>
       <div className="w-full max-w-md mx-auto">
         <div className="bg-white p-6 sm:p-8" style={{ backgroundColor: WHITE, borderRadius: 0, border: '2px solid #056daa' }}>
           {/* Step: Phone */}

@@ -4,6 +4,9 @@ import { userAccountService } from '../../../core/services/adminService';
 import type { Employee } from '../../../core/services/adminService';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
+import Table from '../../../core/components/Table';
+import EmployeeDetailsModal from '../components/EmployeeDetailsModal';
+import { useToast } from '../../../core/contexts/ToastContext';
 import { FiSearch, FiLock, FiUnlock, FiLoader, FiRefreshCw, FiUsers, FiMail, FiPhone, FiCheck, FiX, FiAlertCircle, FiUser, FiAlertTriangle, FiShield } from 'react-icons/fi';
 
 const PRIMARY = '#056daa';
@@ -16,6 +19,9 @@ interface UserWithLock extends Employee {
 
 const UserManagementPage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading, toggle2FA, reset2FA } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const [viewingUser, setViewingUser] = useState<UserWithLock | null>(null);
+  const backendMsg = (err: any, fallback: string) => err?.message || err?.error || err?.response?.data?.message || fallback;
   const [users, setUsers] = useState<UserWithLock[]>([]);
   const [loading, setLoading] = useState(false);
   const [firstLoad, setfirstLoad] = useState(true);
@@ -66,7 +72,7 @@ const UserManagementPage: React.FC = () => {
         setCurrentPage(1); 
       } else setError(r.message || 'Failed'); 
     } catch (err: any) { 
-      setError(err.response?.data?.message || 'Failed'); 
+      setError(backendMsg(err, 'The user list could not be loaded. Please try again.'));
     } finally { 
       setLoading(false); 
       setfirstLoad(false); 
@@ -77,13 +83,14 @@ const UserManagementPage: React.FC = () => {
     if (!selectedUser?._id) return; 
     setActionLoading(true); 
     try { 
-      const r = await userAccountService.lockUnlock(selectedUser._id, 'lock', lockReason || 'Account locked'); 
-      if (r.success) { 
-        setUsers(prev => prev.map(u => u._id === selectedUser._id ? { ...u, access_control: { is_locked: true, reason: lockReason || 'Locked' } } : u)); 
-        setShowLockModal(false); 
-        setSelectedUser(null); 
-      } 
-    } catch (err) { } finally { 
+      const r = await userAccountService.lockUnlock(selectedUser._id, 'lock', lockReason || 'Account locked');
+      if (r.success) {
+        setUsers(prev => prev.map(u => u._id === selectedUser._id ? { ...u, access_control: { is_locked: true, reason: lockReason || 'Locked' } } : u));
+        showSuccess(r.message || 'Account locked');
+        setShowLockModal(false);
+        setSelectedUser(null);
+      } else showError(r.message || r.error || 'The account could not be locked. Please try again.');
+    } catch (err) { showError(backendMsg(err, 'The account could not be locked. Please try again.')); } finally {
       setActionLoading(false); 
     } 
   };
@@ -92,13 +99,14 @@ const UserManagementPage: React.FC = () => {
     if (!selectedUser?._id) return; 
     setActionLoading(true); 
     try { 
-      const r = await userAccountService.lockUnlock(selectedUser._id, 'unlock'); 
-      if (r.success) { 
-        setUsers(prev => prev.map(u => u._id === selectedUser._id ? { ...u, access_control: { is_locked: false } } : u)); 
-        setShowUnlockModal(false); 
-        setSelectedUser(null); 
-      } 
-    } catch (err) { } finally { 
+      const r = await userAccountService.lockUnlock(selectedUser._id, 'unlock');
+      if (r.success) {
+        setUsers(prev => prev.map(u => u._id === selectedUser._id ? { ...u, access_control: { is_locked: false } } : u));
+        showSuccess(r.message || 'Account unlocked');
+        setShowUnlockModal(false);
+        setSelectedUser(null);
+      } else showError(r.message || r.error || 'The account could not be unlocked. Please try again.');
+    } catch (err) { showError(backendMsg(err, 'The account could not be unlocked. Please try again.')); } finally {
       setActionLoading(false); 
     } 
   };
@@ -106,10 +114,12 @@ const UserManagementPage: React.FC = () => {
   const handleResetAttempts = async (u: UserWithLock) => { 
     if (!u._id) return; 
     try { 
-      const r = await userAccountService.resetLoginAttempts(u._id); 
-      if (r.success) 
-        setUsers(prev => prev.map(x => x._id === u._id ? { ...x, access_control: { ...x.access_control, last_login_attempt: 0 } } : x)); 
-    } catch (err) { } 
+      const r = await userAccountService.resetLoginAttempts(u._id);
+      if (r.success) {
+        setUsers(prev => prev.map(x => x._id === u._id ? { ...x, access_control: { ...x.access_control, last_login_attempt: 0 } } : x));
+        showSuccess(r.message || 'Login attempts reset');
+      } else showError(r.message || r.error || 'Login attempts could not be reset. Please try again.');
+    } catch (err) { showError(backendMsg(err, 'Login attempts could not be reset. Please try again.')); }
   };
 
   const handleToggle2FA = async () => {
@@ -119,11 +129,12 @@ const UserManagementPage: React.FC = () => {
       const result = await toggle2FA(selectedUser._id, !selectedUser.is_2FA_disabled);
       if (result.status) {
         setUsers(prev => prev.map(u => u._id === selectedUser._id ? { ...u, is_2FA_disabled: !selectedUser.is_2FA_disabled } : u));
+        showSuccess(result.message || `2FA ${selectedUser.is_2FA_disabled ? 'enabled' : 'disabled'} for ${selectedUser.email}`);
         setShow2FAModal(false);
         setSelectedUser(null);
-      }
+      } else showError(result.message || result.error || 'The 2FA setting could not be changed. Please try again.');
     } catch (err) {
-      console.error('Failed to toggle 2FA:', err);
+      showError(backendMsg(err, 'The 2FA setting could not be changed. Please try again.'));
     } finally {
       setIs2FAToggling(false);
     }
@@ -136,11 +147,12 @@ const UserManagementPage: React.FC = () => {
       const result = await reset2FA(selectedUser._id);
       if (result.status) {
         setUsers(prev => prev.map(u => u._id === selectedUser._id ? { ...u, is_2FA_disabled: false } : u));
+        showSuccess(result.message || `2FA has been reset for ${selectedUser.email}`);
         setShowReset2FAModal(false);
         setSelectedUser(null);
-      }
+      } else showError(result.message || result.error || 'The 2FA reset failed. Please try again.');
     } catch (err) {
-      console.error('Failed to reset 2FA:', err);
+      showError(backendMsg(err, 'The 2FA reset failed. Please try again.'));
     } finally {
       setIsReset2FALoading(false);
     }
@@ -172,7 +184,7 @@ const UserManagementPage: React.FC = () => {
             <button 
               onClick={loadUsers} 
               disabled={loading} 
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#056daa] text-white text-xs font-medium hover:bg-[#045d94] disabled:opacity-50 uppercase tracking-[1px]"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#056daa] text-white text-xs font-medium hover:bg-[#045d94] disabled:opacity-50 uppercase tracking-[1px] cursor-pointer disabled:cursor-not-allowed"
             >
               <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               Refresh
@@ -186,178 +198,110 @@ const UserManagementPage: React.FC = () => {
           </div>
         )}
 
-        <div className="p-5 overflow-hidden">
-          <div className="overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="min-w-full divide-y divide-[#E0E0E0]">
-              <thead className="sticky top-0 z-10 shadow-sm" style={{ backgroundColor: PRIMARY }}>
-                <tr>
-                  {['User', 'Department', 'Activation', 'Account Lock', '2FA Status', 'Actions'].map(h => (
-                    <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-white uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-[#E0E0E0]">
-                {(loading && firstLoad) ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center">
-                      <div className="flex justify-center gap-2">
-                        <div className="h-6 w-6 justify-center items-center flex">
-                          <FiLoader className="w-5 h-5 animate-spin text-[#056daa]" />
-                        </div>
+        <Table
+          headers={[{ key: 'user', label: 'User' }, { key: 'department', label: 'Department' }, { key: 'activation', label: 'Activation' }, { key: 'lock', label: 'Account Lock' }, { key: 'twofa', label: '2FA Status' }, { key: 'actions', label: 'Actions' }]}
+          data={paginatedUsers}
+          loading={loading && firstLoad}
+          emptyMessage={searchQuery ? 'No matches' : 'No users'}
+          maxHeight="none"
+          minWidth="900px"
+          headerStyle={{ backgroundColor: PRIMARY }}
+          onRowClick={(u: any) => setViewingUser(u)}
+          renderCell={(header, u: any) => {
+            switch (header.key) {
+              case 'user': return (
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-[rgba(5,109,170,0.1)] flex items-center justify-center shrink-0">
+                    <FiUser className="w-4 h-4 text-[#056daa]" />
+                  </div>
+                  <div className="ml-3 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 whitespace-nowrap truncate max-w-[200px]" title={u.full_name}>{u.full_name || 'N/A'}</div>
+                    <div className="text-xs text-gray-500 flex items-center gap-1 whitespace-nowrap truncate max-w-[220px]" title={u.email}>
+                      <FiMail className="w-3 h-3 shrink-0" />
+                      {u.email || 'N/A'}
+                    </div>
+                    {u.telephone && (
+                      <div className="text-xs text-gray-500 flex items-center gap-1 whitespace-nowrap">
+                        <FiPhone className="w-3 h-3 shrink-0" />
+                        {u.telephone}
                       </div>
-                    </td>
-                  </tr>
-                ) : paginatedUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
-                      {searchQuery ? 'No matches' : 'No users'}
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedUsers.map(u => (
-                    <tr key={u._id} className="hover:bg-[#F7F9FB]">
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-[rgba(5,109,170,0.1)] flex items-center justify-center">
-                            <FiUser className="w-4 h-4 text-[#056daa]" />
-                          </div>
-                          <div className="ml-3">
-                            <div className="text-sm font-medium text-gray-900">{u.full_name || 'N/A'}</div>
-                            <div className="text-xs text-gray-500 flex items-center gap-1">
-                              <FiMail className="w-3 h-3" />
-                              {u.email || 'N/A'}
-                            </div>
-                            {u.telephone && (
-                              <div className="text-xs text-gray-500 flex items-center gap-1">
-                                <FiPhone className="w-3 h-3" />
-                                {u.telephone}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 text-sm text-gray-900">
-                        {u.department_name || (typeof u.department === 'object' ? (u.department as any)?.department_name : 'N/A')}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {u.is_account_activated ? (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(76,175,80,0.12)] text-[#388E3C]">
-                            <FiCheck className="w-3 h-3 mr-1" />
-                            Activated
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(243,156,18,0.12)] text-[#F39C12]">
-                            <FiX className="w-3 h-3 mr-1" />
-                            Not Activated
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {u.access_control?.is_locked ? (
-                          <div>
-                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(231,76,60,0.12)] text-[#E74C3C]">
-                              <FiLock className="w-3 h-3 mr-1" />
-                              Locked
-                            </span>
-                            {u.access_control?.reason && (
-                              <p className="text-xs text-gray-500 mt-1 max-w-48 truncate" title={u.access_control.reason}>
-                                {u.access_control.reason}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(76,175,80,0.12)] text-[#388E3C]">
-                            <FiUnlock className="w-3 h-3 mr-1" />
-                            Unlocked
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {u.is_2FA_disabled ? (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(231,76,60,0.12)] text-[#E74C3C]">
-                            <FiX className="w-3 h-3 mr-1" />
-                            Disabled
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(76,175,80,0.12)] text-[#388E3C]">
-                            <FiShield className="w-3 h-3 mr-1" />
-                            Enabled
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-1.5">
-                          {u.access_control?.is_locked ? (
-                            <button 
-                              onClick={() => { setSelectedUser(u); setShowUnlockModal(true); }}
-                              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#4CAF50] text-white text-xs font-medium hover:bg-[#388E3C] uppercase tracking-[1px]"
-                            >
-                              <FiUnlock className="w-3 h-3" />
-                              Unlock
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => { setSelectedUser(u); setLockReason(''); setShowLockModal(true); }}
-                              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#E74C3C] text-white text-xs font-medium hover:bg-[#C0392B] uppercase tracking-[1px]"
-                            >
-                              <FiLock className="w-3 h-3" />
-                              Lock
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => { setSelectedUser(u); setShow2FAModal(true); }}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#056daa] text-white text-xs font-medium hover:bg-[#045d94] uppercase tracking-[1px]"
-                          >
-                            <FiShield className="w-3 h-3" />
-                            {u.is_2FA_disabled ? 'Enable 2FA' : 'Disable 2FA'}
-                          </button>
-                          <button 
-                            onClick={() => { setSelectedUser(u); setShowReset2FAModal(true); }}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#F39C12] text-white text-xs font-medium hover:bg-[#D68910] uppercase tracking-[1px]"
-                          >
-                            <FiRefreshCw className="w-3 h-3" />
-                            Reset 2FA
-                          </button>
-                          {u.access_control?.last_login_attempt && u.access_control.last_login_attempt > 0 && (
-                            <button 
-                              onClick={() => handleResetAttempts(u)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200"
-                            >
-                              <FiRefreshCw className="w-3 h-3" />
-                              Reset
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        {totalPages > 1 && (
-          <div className="px-4 py-3 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-2 text-xs">
-            <span>
-              Showing {((currentPage - 1) * pageLimit) + 1} to {Math.min(currentPage * pageLimit, totalUsers)} of {totalUsers}
-            </span>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} 
-                disabled={currentPage <= 1} 
-                className="px-3 py-1 border hover:bg-gray-50 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button 
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} 
-                disabled={currentPage >= totalPages} 
-                className="px-3 py-1 border hover:bg-gray-50 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+                    )}
+                  </div>
+                </div>
+              );
+              case 'department': return <span className="text-sm text-gray-900 whitespace-nowrap truncate max-w-[180px] inline-block align-middle" title={u.department_name}>{u.department_name || (typeof u.department === 'object' ? (u.department as any)?.department_name : 'N/A')}</span>;
+              case 'activation': return u.is_account_activated ? (
+                <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium whitespace-nowrap bg-[rgba(76,175,80,0.12)] text-[#388E3C]"><FiCheck className="w-3 h-3 mr-1" />Activated</span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium whitespace-nowrap bg-[rgba(243,156,18,0.12)] text-[#F39C12]"><FiX className="w-3 h-3 mr-1" />Not Activated</span>
+              );
+              case 'lock': return u.access_control?.is_locked ? (
+                <div>
+                  <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium whitespace-nowrap bg-[rgba(231,76,60,0.12)] text-[#E74C3C]"><FiLock className="w-3 h-3 mr-1" />Locked</span>
+                  {u.access_control?.reason && (
+                    <p className="text-xs text-gray-500 mt-1 max-w-48 truncate whitespace-nowrap" title={u.access_control.reason}>{u.access_control.reason}</p>
+                  )}
+                </div>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium whitespace-nowrap bg-[rgba(76,175,80,0.12)] text-[#388E3C]"><FiUnlock className="w-3 h-3 mr-1" />Unlocked</span>
+              );
+              case 'twofa': return u.is_2FA_disabled ? (
+                <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium whitespace-nowrap bg-[rgba(231,76,60,0.12)] text-[#E74C3C]"><FiX className="w-3 h-3 mr-1" />Disabled</span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium whitespace-nowrap bg-[rgba(76,175,80,0.12)] text-[#388E3C]"><FiShield className="w-3 h-3 mr-1" />Enabled</span>
+              );
+              case 'actions': return (
+                <div className="flex items-center gap-1.5 whitespace-nowrap">
+                  {u.access_control?.is_locked ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelectedUser(u); setShowUnlockModal(true); }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-[#4CAF50] text-white text-xs font-medium hover:bg-[#388E3C] uppercase tracking-[1px] cursor-pointer whitespace-nowrap"
+                    >
+                      <FiUnlock className="w-3 h-3" />
+                      Unlock
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelectedUser(u); setLockReason(''); setShowLockModal(true); }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-[#E74C3C] text-white text-xs font-medium hover:bg-[#C0392B] uppercase tracking-[1px] cursor-pointer whitespace-nowrap"
+                    >
+                      <FiLock className="w-3 h-3" />
+                      Lock
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSelectedUser(u); setShow2FAModal(true); }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-[#056daa] text-white text-xs font-medium hover:bg-[#045d94] uppercase tracking-[1px] cursor-pointer whitespace-nowrap"
+                  >
+                    <FiShield className="w-3 h-3" />
+                    {u.is_2FA_disabled ? 'Enable 2FA' : 'Disable 2FA'}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSelectedUser(u); setShowReset2FAModal(true); }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-[#F39C12] text-white text-xs font-medium hover:bg-[#D68910] uppercase tracking-[1px] cursor-pointer whitespace-nowrap"
+                  >
+                    <FiRefreshCw className="w-3 h-3" />
+                    Reset 2FA
+                  </button>
+                  {u.access_control?.last_login_attempt && u.access_control.last_login_attempt > 0 ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleResetAttempts(u); }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 cursor-pointer whitespace-nowrap"
+                    >
+                      <FiRefreshCw className="w-3 h-3" />
+                      Reset
+                    </button>
+                  ) : null}
+                </div>
+              );
+              default: return <span className="text-sm">{u[header.key] || '-'}</span>;
+            }
+          }}
+          pagination={totalPages > 1 ? { currentPage, totalPages, totalCount: totalUsers, itemsPerPage: pageLimit, onPageChange: (page) => setCurrentPage(page), loading } : undefined}
+        />
+
+        {viewingUser && (
+          <EmployeeDetailsModal employee={viewingUser} onClose={() => setViewingUser(null)} />
         )}
 
         {showLockModal && (

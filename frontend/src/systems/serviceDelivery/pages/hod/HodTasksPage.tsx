@@ -174,7 +174,7 @@ const HodTasksPage: React.FC = () => {
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2">
                         <HodAvatar name={task.incharge?.full_name} />
-                        <span className="text-sm" style={{ color: COK.textDark }}>{task.incharge?.full_name || '—'}</span>
+                        <span className="text-sm" style={{ color: COK.textDark }}>{task.incharge?.full_name || '-'}</span>
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
@@ -214,7 +214,7 @@ const HodTasksPage: React.FC = () => {
                   onChange={e => setForm(f => ({ ...f, incharge: e.target.value }))}>
                   <option value="">Select team member...</option>
                   {members.map(m => (
-                    <option key={m._id} value={m._id}>{m.full_name}{m.title ? ` — ${m.title}` : ''}</option>
+                    <option key={m._id} value={m._id}>{m.full_name}{m.title ? ` - ${m.title}` : ''}</option>
                   ))}
                 </select>
               </div>
@@ -247,9 +247,9 @@ const HodTasksPage: React.FC = () => {
             <tbody className="divide-y divide-gray-100">
               {[
                 ['Title', selected.title],
-                ['Description', selected.description || '—'],
-                ['Assignee', selected.incharge?.full_name || '—'],
-                ['Assigned By', selected.createdBy?.full_name || '—'],
+                ['Description', selected.description || '-'],
+                ['Assignee', selected.incharge?.full_name || '-'],
+                ['Assigned By', selected.createdBy?.full_name || '-'],
                 ['Priority', selected.priority || 'Medium'],
                 ['Status', selected.status],
                 ['Due Date', formatDate(selected.dueDate)],

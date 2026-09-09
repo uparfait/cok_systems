@@ -23,6 +23,12 @@ async function delete_project(req, res) {
       return res.status(404).json(warning_response(req, "PROJECT_NOT_FOUND"));
     }
 
+    // Deleting a whole project - forms, data, access rules - is the owner's
+    // call alone; grants never reach this far.
+    if (existing_project.created_by !== req.user.user_id.toString()) {
+      return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
+    }
+
     const form_group_ids = await forms_model.get_form_group_ids_by_project(project_id);
     await submissions_model.delete_by_form_group_ids(form_group_ids);
     await forms_model.delete_forms_by_project(project_id);

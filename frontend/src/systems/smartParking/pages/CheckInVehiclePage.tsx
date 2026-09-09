@@ -164,6 +164,7 @@ const CheckInVehiclePage: React.FC = () => {
   // Modal states
   const [showFoundModal, setShowFoundModal] = useState(false);
   const [showUnknownModal, setShowUnknownModal] = useState(false);
+  const [foundInSystem, setFoundInSystem] = useState(false);
   const [showAlreadyParkedModal, setShowAlreadyParkedModal] = useState(false);
   const [showFlaggedModal, setShowFlaggedModal] = useState(false);
   const [isEditingDriver, setIsEditingDriver] = useState(false);
@@ -226,26 +227,37 @@ const CheckInVehiclePage: React.FC = () => {
       if (response.success && response.data) {
         const data = response.data;
         setVerifiedData(data);
-        
+        setFoundInSystem(true);
+
         // Initialize driver info from verified data
         setDriverInfo({
           name: data.driver_details?.name || data.driver_name || '',
           telephone: data.driver_details?.telephone || data.driver_telephone || '',
-          badge_number: (data as any).badge_number || '',
+          badge_number: '',
           driver_type: data.driver_type || data.vehicle_category || 'Regular',
-          
-          
         });
-        
-        // Vehicle is found in system - ALWAYS show Found Vehicle Modal
-        setShowFoundModal(true);
+
+        // Found vehicles reuse the same check-in form, pre-filled - badge always starts empty
+        setUnknownForm({
+          plate_number: (data.plate_number || searchPlate).toUpperCase(),
+          driver_name: data.driver_details?.name || data.driver_name || '',
+          driver_telephone: data.driver_details?.telephone || data.driver_telephone || '',
+          driver_email: data.driver_details?.email || (data as any).driver_email || '',
+          driver_gender: data.driver_details?.gender || (data as any).driver_gender || '',
+          id_type: data.driver_details?.identification?.id_type || 'National ID',
+          id_number: data.driver_details?.identification?.number || '',
+          badge_number: '',
+          driver_type: data.driver_type || data.vehicle_category || 'Regular',
+        });
+        setShowUnknownModal(true);
       } else {
         // Vehicle not found in system - show Unknown Modal
         setVerifiedData(response.data || {
           plate_number: searchPlate.toUpperCase(),
           vehicle_category: 'Unknown'
         });
-        setUnknownForm(prev => ({ ...prev, plate_number: searchPlate.toUpperCase() }));
+        setFoundInSystem(false);
+        setUnknownForm(prev => ({ ...prev, plate_number: searchPlate.toUpperCase(), badge_number: '' }));
         setShowUnknownModal(true);
         showInfo('Vehicle not found in system');
       }
@@ -254,11 +266,12 @@ const CheckInVehiclePage: React.FC = () => {
       showError(error.message || 'Failed to verify vehicle');
       // Show unknown modal on error as well
       const errorData = error?.response?.data;
-      setVerifiedData(errorData?.data || { 
+      setVerifiedData(errorData?.data || {
         plate_number: searchPlate.toUpperCase(),
-        vehicle_category: 'Unknown' 
+        vehicle_category: 'Unknown'
       });
-      setUnknownForm(prev => ({ ...prev, plate_number: searchPlate.toUpperCase() }));
+      setFoundInSystem(false);
+      setUnknownForm(prev => ({ ...prev, plate_number: searchPlate.toUpperCase(), badge_number: '' }));
       setShowUnknownModal(true);
     } finally {
       setVerifying(false);
@@ -303,12 +316,8 @@ const CheckInVehiclePage: React.FC = () => {
       showWarning('This vehicle is already checked in');
       return;
     }
-    // Allow reserved vehicles to bypass badge requirement
-    if (!verifiedData.is_reserved && !driverInfo.badge_number?.trim()) {
-      showWarning('Badge number is required');
-      return;
-    }
-    
+    // Vehicles already known to the system check in without a badge requirement
+
     setLoading(true);
     try {
       // Get driver type - use driver_type first (shown in UI), then fall back to vehicle_category
@@ -454,6 +463,7 @@ const CheckInVehiclePage: React.FC = () => {
   const closeAllModals = () => {
     setShowFoundModal(false);
     setShowUnknownModal(false);
+    setFoundInSystem(false);
     setShowAlreadyParkedModal(false);
     setShowFlaggedModal(false);
     setVerifiedData(null);
@@ -519,7 +529,7 @@ const CheckInVehiclePage: React.FC = () => {
         >
           {verifying ? (
             <span className="flex items-center gap-2">
-              <SpiralLoader color="#FFFFFFF" />
+              <SpiralLoader color="#FFFFFF" padded={false} size={18} />
               <span>Verifying plate...</span>
             </span>
           ) : (
@@ -610,7 +620,7 @@ const CheckInVehiclePage: React.FC = () => {
               </div>
               <div className="col-span-1 sm:col-span-2">
                 <label className="text-sm" style={labelStyle}>
-                  Badge Number {verifiedData.is_reserved ? '(Optional for reserved)' : '*'}
+                  Badge Number (Optional)
                 </label>
                 <input 
                   type="text" 
@@ -655,14 +665,23 @@ const CheckInVehiclePage: React.FC = () => {
         <button
           type="button"
           onClick={handleConfirmEntry}
-          disabled={verifiedData.is_currently_parked}
-          className={`w-full py-2 sm:py-3 flex items-center justify-center gap-2 transition-colors text-sm sm:text-base ${verifiedData.is_currently_parked ? 'cursor-not-allowed' : ''}`}
-          style={{ ...buttonFont, border: 'none', backgroundColor: verifiedData.is_currently_parked ? GRAY_DISABLED : PRIMARY, color: WHITE }}
-          onMouseEnter={(e) => { if (!verifiedData.is_currently_parked) e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-          onMouseLeave={(e) => { if (!verifiedData.is_currently_parked) e.currentTarget.style.backgroundColor = PRIMARY; }}
+          disabled={verifiedData.is_currently_parked || loading}
+          className={`w-full py-2 sm:py-3 flex items-center justify-center gap-2 transition-colors text-sm sm:text-base cursor-pointer ${verifiedData.is_currently_parked || loading ? 'cursor-not-allowed' : ''}`}
+          style={{ ...buttonFont, border: 'none', backgroundColor: verifiedData.is_currently_parked ? GRAY_DISABLED : PRIMARY, color: WHITE, opacity: loading ? 0.75 : 1 }}
+          onMouseEnter={(e) => { if (!verifiedData.is_currently_parked && !loading) e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+          onMouseLeave={(e) => { if (!verifiedData.is_currently_parked && !loading) e.currentTarget.style.backgroundColor = PRIMARY; }}
         >
-          <FiCheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-          {verifiedData.is_currently_parked ? 'Already Checked In' : verifiedData.is_reserved ? 'Confirm Entry (Reserved Vehicle)' : 'Confirm Entry & Open Gate'}
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <SpiralLoader color="#FFFFFF" padded={false} size={18} />
+              <span>Checking in...</span>
+            </span>
+          ) : (
+            <>
+              <FiCheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+              {verifiedData.is_currently_parked ? 'Already Checked In' : verifiedData.is_reserved ? 'Confirm Entry (Reserved Vehicle)' : 'Confirm Entry & Open Gate'}
+            </>
+          )}
         </button>
 
         <button type="button" onClick={closeAllModals} className="w-full mt-3 sm:mt-5 cok-btn-outlined text-sm sm:text-base py-2 sm:py-2.5">
@@ -673,24 +692,35 @@ const CheckInVehiclePage: React.FC = () => {
   </div>
 )}
 
-{/* Unknown Vehicle Modal */}
-{showUnknownModal && (
+{/* Check-in Form Modal (found vehicles show as info, unknown vehicles as warning) */}
+{showUnknownModal && (() => {
+  const lockAll = foundInSystem && !!verifiedData?.is_currently_parked;
+  const accent = foundInSystem ? PRIMARY : WARNING;
+  const headerBg = foundInSystem ? 'rgba(5,109,170,0.08)' : 'rgba(243,156,18,0.08)';
+  const bannerBg = foundInSystem ? 'rgba(5,109,170,0.12)' : 'rgba(243,156,18,0.12)';
+  return (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
     <div className="w-full max-w-2xl mx-2 sm:mx-4 overflow-hidden max-h-[90vh] overflow-y-auto" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
-      <div className="px-4 sm:px-6 py-3 sm:py-4" style={{ backgroundColor: 'rgba(231,76,60,0.08)' }}>
+      <div className="px-4 sm:px-6 py-3 sm:py-4" style={{ backgroundColor: headerBg }}>
         <div className="flex items-center gap-2">
-          <FiAlertCircle className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: DANGER }} />
+          <FiAlertCircle className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: accent }} />
           <div>
-            <h3 className="text-sm sm:text-base font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Not Found</h3>
-            <p className="text-xs" style={{ color: '#555555' }}>This vehicle is not registered in the system</p>
+            <h3 className="text-sm sm:text-base font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{foundInSystem ? 'Vehicle Found' : 'Vehicle Not Found'}</h3>
+            <p className="text-xs" style={{ color: '#555555' }}>{foundInSystem ? 'This vehicle is registered in the system' : 'This vehicle is not registered in the system'}</p>
           </div>
         </div>
       </div>
-      
-      <div className="px-4 sm:px-6 py-2" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
-        <p className="text-xs text-center" style={{ color: DANGER }}>This vehicle is not registered. Please register visitor details to grant one-time access.</p>
+
+      <div className="px-4 sm:px-6 py-2" style={{ backgroundColor: bannerBg }}>
+        <p className="text-xs text-center" style={{ color: accent }}>
+          {lockAll
+            ? 'This vehicle is already checked in. Details are shown for reference only.'
+            : foundInSystem
+              ? 'Vehicle found. Review the details below and confirm the check-in.'
+              : 'This vehicle is not registered. Please register visitor details to grant one-time access.'}
+        </p>
       </div>
-      
+
       <div className="p-4 sm:p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -704,7 +734,8 @@ const CheckInVehiclePage: React.FC = () => {
               name="id_type"
               value={unknownForm.id_type}
               onChange={handleInputChange}
-              className="cok-auth-input pr-3 py-2 sm:py-3 text-sm"
+              disabled={lockAll}
+              className="cok-auth-input pr-3 py-2 sm:py-3 text-sm disabled:opacity-60"
             >
               <option value="National ID">National ID</option>
               <option value="Passport">Passport</option>
@@ -716,13 +747,14 @@ const CheckInVehiclePage: React.FC = () => {
             <label className="block mb-1 text-sm" style={labelStyle}>
               {unknownForm.id_type === 'National ID' ? 'National ID (16 digits)' : 'ID Number'}
             </label>
-            <input 
-              type="text" 
-              name="id_number" 
-              value={unknownForm.id_number || ''} 
-              onChange={handleInputChange} 
-              placeholder={unknownForm.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'} 
-              className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" 
+            <input
+              type="text"
+              name="id_number"
+              value={unknownForm.id_number || ''}
+              onChange={handleInputChange}
+              disabled={lockAll}
+              placeholder={unknownForm.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'}
+              className="cok-auth-input pr-3 py-2 sm:py-3 text-sm disabled:opacity-60"
               style={{ borderColor: idError ? DANGER : '' }} 
               onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} 
               onBlur={(e) => { e.currentTarget.style.borderColor = idError ? DANGER : ''; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
@@ -737,23 +769,24 @@ const CheckInVehiclePage: React.FC = () => {
 
           <div>
             <label className="block mb-1 text-sm" style={labelStyle}>Full Names</label>
-            <input type="text" name="driver_name" value={unknownForm.driver_name} onChange={handleInputChange} placeholder="Enter full names" className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" />
+            <input type="text" name="driver_name" value={unknownForm.driver_name} onChange={handleInputChange} disabled={lockAll} placeholder="Enter full names" className="cok-auth-input pr-3 py-2 sm:py-3 text-sm disabled:opacity-60" />
           </div>
 
           <div>
             <label className="block mb-1 text-sm" style={labelStyle}>Phone Number</label>
-            <input type="tel" name="driver_telephone" value={unknownForm.driver_telephone} onChange={handleInputChange} placeholder="Enter phone number" className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" />
+            <input type="tel" name="driver_telephone" value={unknownForm.driver_telephone} onChange={handleInputChange} disabled={lockAll} placeholder="Enter phone number" className="cok-auth-input pr-3 py-2 sm:py-3 text-sm disabled:opacity-60" />
           </div>
 
           <div>
             <label className="block mb-1 text-sm" style={labelStyle}>Email Address</label>
-            <input 
-              type="email" 
-              name="driver_email" 
-              value={unknownForm.driver_email || ''} 
-              onChange={handleInputChange} 
-              placeholder="Enter email (optional)" 
-              className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" 
+            <input
+              type="email"
+              name="driver_email"
+              value={unknownForm.driver_email || ''}
+              onChange={handleInputChange}
+              disabled={lockAll}
+              placeholder="Enter email (optional)"
+              className="cok-auth-input pr-3 py-2 sm:py-3 text-sm disabled:opacity-60"
               style={{ borderColor: emailError ? DANGER : '' }} 
               onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} 
               onBlur={(e) => { e.currentTarget.style.borderColor = emailError ? DANGER : ''; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
@@ -765,14 +798,14 @@ const CheckInVehiclePage: React.FC = () => {
 
           <div>
             <label className="block mb-1 text-sm" style={labelStyle}>Badge Number</label>
-            <input type="text" name="badge_number" value={unknownForm.badge_number || ''} onChange={handleInputChange} placeholder="Enter badge number" className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" />
+            <input type="text" name="badge_number" value={unknownForm.badge_number || ''} onChange={handleInputChange} disabled={lockAll} placeholder="Enter badge number" className="cok-auth-input pr-3 py-2 sm:py-3 text-sm disabled:opacity-60" />
           </div>
 
           <div>
             <label className="block mb-1 text-sm" style={labelStyle}>Gender</label>
             <div className="flex gap-2">
               {['Male', 'Female'].map((gender) => (
-                <button key={gender} type="button" onClick={() => handleInputChange({ target: { name: 'driver_gender', value: gender } } as any)} className="flex-1 py-1.5 sm:py-2 transition-colors text-sm" style={{ ...buttonFont, border: 'none', backgroundColor: unknownForm.driver_gender === gender ? PRIMARY : NEUTRAL_LIGHT, color: unknownForm.driver_gender === gender ? WHITE : NEUTRAL_DARK }}>
+                <button key={gender} type="button" disabled={lockAll} onClick={() => handleInputChange({ target: { name: 'driver_gender', value: gender } } as any)} className="flex-1 py-1.5 sm:py-2 transition-colors text-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed" style={{ ...buttonFont, border: 'none', backgroundColor: unknownForm.driver_gender === gender ? PRIMARY : NEUTRAL_LIGHT, color: unknownForm.driver_gender === gender ? WHITE : NEUTRAL_DARK }}>
                   {gender}
                 </button>
               ))}
@@ -782,15 +815,16 @@ const CheckInVehiclePage: React.FC = () => {
 
         <div className="flex flex-col  gap-2 pt-4 mt-2">
           
-          <button type="button" onClick={handleRegisterUnknown} disabled={loading || !unknownForm.driver_name || !unknownForm.driver_telephone} className="w-full sm:flex-1 px-4 py-2 sm:py-2.5 cok-btn-primary disabled:opacity-50 text-sm">
-            {loading ? "Waiting...." : "Check In"}
+          <button type="button" onClick={handleRegisterUnknown} disabled={lockAll || loading || !unknownForm.driver_name || !unknownForm.driver_telephone} className="w-full sm:flex-1 px-4 py-2 sm:py-2.5 cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm flex items-center justify-center gap-2">
+            {lockAll ? 'Already Checked In' : loading ? (<><SpiralLoader color="#FFFFFF" padded={false} size={18} /><span>Checking in...</span></>) : "Check In"}
           </button>
-          <button type="button" onClick={closeAllModals} className="w-full sm:flex-1 cok-btn-outlined text-sm py-2 sm:py-2.5">Cancel</button>
+          <button type="button" onClick={closeAllModals} className="w-full sm:flex-1 cok-btn-outlined cursor-pointer text-sm py-2 sm:py-2.5">{lockAll ? 'Close' : 'Cancel'}</button>
         </div>
       </div>
     </div>
   </div>
-)}
+  );
+})()}
 
 {/* Already Parked Modal */}
 {showAlreadyParkedModal && verifiedData && (

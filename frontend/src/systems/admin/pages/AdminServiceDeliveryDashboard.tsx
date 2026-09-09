@@ -18,7 +18,7 @@ interface Visitor { _id: string; full_name?: string; name?: string; visitorName?
 interface HourlyData { hour: number; visitors_checked_in: number; }
 interface ServiceDeliveryStats { total: number; inhouse: number; completed: number; by_status: { [key: string]: number }; by_department: { [key: string]: number }; }
 
-// City of Kigali (CoK) institutional design constants — same set as the reservations tables
+// City of Kigali (CoK) institutional design constants - same set as the reservations tables
 const PRIMARY = '#056daa';
 const PRIMARY_HOVER = '#045d94';
 const NEUTRAL_DARK = '#333333';
@@ -32,7 +32,7 @@ const initialsOf = (name: string) => (name || '?').split(' ').filter(Boolean).ma
 const AdminServiceDeliveryDashboard: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
-  // This dashboard is shared via /:roleSlug/service-delivery/dashboard — the mayor sees it too
+  // This dashboard is shared via /:roleSlug/service-delivery/dashboard - the mayor sees it too
   const { roleSlug } = useParams();
   const isMayor = roleSlug === 'mayor';
   const { showSuccess, showError } = useToast();
@@ -44,7 +44,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  // Search box draft — applied on Enter or the Search button (clearing applies immediately)
+  // Search box draft - applied on Enter or the Search button (clearing applies immediately)
   const [draftSearch, setDraftSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,7 +74,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
   }, [showError]);
 
   useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); }, [authLoading, isAuthenticated, navigate]);
-  // The mayor's view is only the timeline chart — skip the admin dashboard data fetches for it
+  // The mayor's view is only the timeline chart - skip the admin dashboard data fetches for it
   useEffect(() => { if (isAuthenticated && !authLoading && !isMayor) fetchData(); }, [isAuthenticated, authLoading, fetchData, isMayor]);
   useEffect(() => { if (!socket || !isConnected || isMayor) return; socket.on('visitor_checkedin', () => fetchData()); socket.on('visitor_checkedout', () => fetchData()); return () => { socket.off('visitor_checkedin'); socket.off('visitor_checkedout'); }; }, [socket, isConnected, fetchData, isMayor]);
 
@@ -124,7 +124,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
       doc.setFontSize(16); doc.setTextColor(5, 109, 170);
       const t = 'CURRENT VISITORS REPORT'; doc.text(t, pw / 2, y, { align: 'center' });
       doc.setDrawColor(5, 109, 170); doc.setLineWidth(0.8); doc.line((pw - doc.getTextWidth(t)) / 2 - 5, y + 2, (pw + doc.getTextWidth(t)) / 2 + 5, y + 2); y += 8;
-      // ASCII only — jsPDF's built-in fonts garble unsupported unicode chars
+      // ASCII only - jsPDF's built-in fonts garble unsupported unicode chars
       doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 100);
       const scope = opts?.from || opts?.to
         ? `Period: ${opts?.from || 'start'} to ${opts?.to || 'today'} (${records.length} visitors)`
@@ -256,7 +256,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
           </div>
           <div className="overflow-x-auto px-6">
             <table className="w-full min-w-[820px]">
-              {/* Solid CoK-blue header bar — same as the reservations tables */}
+              {/* Solid CoK-blue header bar - same as the reservations tables */}
               <thead className="cok-bg-primary sticky top-0 z-10 shadow-sm">
                 <tr>
                   {['Visitor Name', 'Department', 'Staff', 'Badge', 'Check-in', 'Check-out', 'Status'].map(h => (
@@ -283,9 +283,9 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
                       </td>
                       <td className="py-3 px-3 text-[#555555] text-[13px]">{getDeptName(v)}</td>
                       <td className="py-3 px-3 text-[13px]" style={{ color: staff.includes('Not') ? WARNING : '#555555' }}>{staff}</td>
-                      <td className="py-3 px-3 text-[#333] text-[13px] font-mono font-semibold">{v.badge_number || '—'}</td>
-                      <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{v.entry_date ? new Date(v.entry_date).toLocaleString() : '—'}</td>
-                      <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{v.exist_date ? new Date(v.exist_date).toLocaleString() : (v.is_still_inhouse ? '-' : '—')}</td>
+                      <td className="py-3 px-3 text-[#333] text-[13px] font-mono font-semibold">{v.badge_number || '-'}</td>
+                      <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{v.entry_date ? new Date(v.entry_date).toLocaleString() : '-'}</td>
+                      <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{v.exist_date ? new Date(v.exist_date).toLocaleString() : (v.is_still_inhouse ? '-' : '-')}</td>
                       <td className="py-3 px-3">
                         <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide" style={{ backgroundColor: st.color === 'green' ? 'rgba(76,175,80,0.12)' : 'rgba(51,51,51,0.08)', color: st.color === 'green' ? '#388E3C' : '#555555' }}>
                           {st.text}
@@ -310,7 +310,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Employee account status (activation / lock / online) — admin only, hidden on the mayor's view */}
+        {/* Employee account status (activation / lock / online) - admin only, hidden on the mayor's view */}
         {!isMayor && <EmployeeAccountStatusCard />}
 
         {/* Export dialog: all visitors or a custom check-in date range */}

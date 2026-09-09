@@ -17,7 +17,7 @@ interface EventAction {
   _id: string;
   title: string;
   actionDescription?: string;
-  assignedPerson?: { name?: string; email?: string; role?: string; institution?: string };
+  assignedPerson?: { name?: string; email?: string; role?: string; department?: string; institution?: string };
   dueDate?: string;
   currentStatus?: { status?: string; description?: string };
   createdBy?: { name?: string; email?: string };
@@ -304,8 +304,8 @@ export default function MayorActionsPage() {
                         <td className="py-3 px-3 whitespace-nowrap">
                           <span className="text-[13px] font-medium" style={{ color: overdue ? COK.danger : '#555555' }}>
                             {a.dueDate
-                              ? new Date(a.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                              : '—'}
+                              ? new Date(a.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+                              : '-'}
                           </span>
                           {overdue && (
                             <p className="text-[10px] uppercase" style={{ color: COK.danger, fontFamily: COK.headingFont, fontWeight: 700, margin: 0 }}>
@@ -342,7 +342,7 @@ export default function MayorActionsPage() {
           </div>
         </div>
 
-        {/* Actions overview donut — replaces the old stat cards, placed below the table */}
+        {/* Actions overview donut - replaces the old stat cards, placed below the table */}
         <div className="bg-white p-4" style={{ border: `1px solid ${COK.border}` }}>
           <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: '0 0 12px 0' }}>
             Actions Overview

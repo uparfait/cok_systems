@@ -380,7 +380,7 @@ const getServiceDeliveryStats = async (req, res) => {
  */
 const getFeedbackTotals = async (req, res) => {
     try {
-        // Optional period filter (today/week/month/last_month/year/range) — no params keeps all-time behavior
+        // Optional period filter (today/week/month/last_month/year/range) - no params keeps all-time behavior
         const { period, from, to } = req.query || {};
         const bounds = getActivityPeriodBounds(period, from, to);
         const dateMatch = bounds ? { created_date: { $gte: bounds.start, $lte: bounds.end } } : {};
@@ -432,7 +432,7 @@ const getFeedbackTotals = async (req, res) => {
  */
 const getFeedbackAverageByDepartment = async (req, res) => {
     try {
-        // Optional period filter (today/week/month/last_month/year/range) — no params keeps all-time behavior
+        // Optional period filter (today/week/month/last_month/year/range) - no params keeps all-time behavior
         const { period, from, to } = req.query || {};
         const bounds = getActivityPeriodBounds(period, from, to);
         const dateMatch = bounds ? [{ $match: { created_date: { $gte: bounds.start, $lte: bounds.end } } }] : [];
@@ -1242,7 +1242,7 @@ const getEmployeePerformanceByTasksDone = async (req, res) => {
  * Get served statistics for the mayor overview, aggregated server-side.
  * Query params: from, to (ISO dates, both optional; omitted = all records).
  * A service record's effective date is its started_at, falling back to the
- * visitor's entry_date — the same rule the dashboard previously applied client-side.
+ * visitor's entry_date - the same rule the dashboard previously applied client-side.
  * Returns: total_visitors, hourly check-ins, last check-in, served counts by
  * department (with the busiest employee) and by employee (with visitor names).
  */
@@ -1458,7 +1458,7 @@ const getVisitorsTimeline = async (req, res) => {
     }
 };
 
-// Period bucketing helpers — same logic as serivice_delivery/assigned_visitors_gender_stats.js
+// Period bucketing helpers - same logic as serivice_delivery/assigned_visitors_gender_stats.js
 const getActivityPeriodBounds = (period, from, to) => {
     const now = new Date();
     const startOfDay = (d) => { const r = new Date(d); r.setHours(0, 0, 0, 0); return r; };

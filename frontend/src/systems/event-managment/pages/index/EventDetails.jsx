@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useOutletContext, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import axios from "axios";
 import EventAccessOverlay from "./components/EventAccessOverlay";
+import EventDetailsQrModal from "./components/EventDetailsQrModal";
 import EventDetailsLeftColumn from "./components/EventDetailsLeftColumn";
 import EventDetailsRightColumn from "./components/EventDetailsRightColumn";
-import EventDetailsQrModal from "./components/EventDetailsQrModal";
 import EventMinutesView from "./components/EventMinutesView";
 import CoOrganizersPanel from "./components/CoOrganizersPanel";
 import EventAgendaSection from "../../components/sub-components/EventAgendaSection";
@@ -13,33 +14,7 @@ import AttendeesList from "./AttendeesList";
 import DesignateMinutes from "./DesignateMinutes";
 import EventActionsPage from "./EventActionsPage";
 import ShowEditor from "./components/ShowEditor";
-import { FiX } from "react-icons/fi";
 import { Helmet } from "react-helmet-async";
-
-const SECTION_TITLES = {
-  attendees: "Attendance",
-  designate: "Designate Minutes Taker",
-  actions: "Event Actions (Follow ups)",
-};
-
-function SectionOverlay({ title, onClose, children }) {
-  return (
-    <div className="fixed inset-0 bg-white overflow-y-auto" style={{ zIndex: 100000000 }}>
-      <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-3" style={{ backgroundColor: PRIMARY }}>
-        <p className="text-sm font-bold text-white truncate" style={{ fontFamily: "'Montserrat', sans-serif" }}>{title}</p>
-        <button
-          type="button"
-          onClick={onClose}
-          className="cok-btn-outlined-reverse"
-          style={{ padding: "0.4rem 0.8rem" }}
-        >
-          <FiX className="w-4 h-4" />
-        </button>
-      </div>
-      {children}
-    </div>
-  );
-}
 
 const generateColorFromName = (name) => {
   let hash = 0;
@@ -60,6 +35,37 @@ const calculateCountdown = (targetTime) => {
 
 const PRIMARY = "#056daa";
 
+const TABS = [
+  { key: "info", label: "Info" },
+  { key: "view-attendance", label: "View Attendance" },
+  { key: "record-minutes", label: "View & Edit Minutes" },
+  { key: "designate-minutes", label: "Designate Minutes" },
+  { key: "event-actions", label: "Actions(Follow-ups)" },
+];
+
+function TabLink({ tabKey, active, children, onTabChange }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onTabChange(tabKey)}
+      className={`relative px-4 py-3 text-sm font-medium whitespace-nowrap cursor-pointer transition-colors duration-300 ${
+        active ? "text-[#056daa]" : "text-gray-500 hover:text-gray-700"
+      }`}
+      style={{ fontFamily: "'Montserrat', sans-serif", display: 'block', width: '100%', background: 'none', border: 'none' }}
+    >
+      {active && (
+        <motion.span
+          layoutId="event-tab-active"
+          className="absolute inset-0"
+          style={{ backgroundColor: "rgba(5,109,170,0.1)", borderBottom: `2px solid ${PRIMARY}` }}
+          transition={{ type: "spring", stiffness: 400, damping: 34 }}
+        />
+      )}
+      <span className="relative z-10">{children}</span>
+    </button>
+  );
+}
+
 export default function EventDetails({ overlayEventId = null, onCloseOverlay = null, bypassAccess = false }) {
   const context = useOutletContext();
   const contextActiveEvent = overlayEventId ? null : context?.activeEvent;
@@ -68,6 +74,19 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
   const { id: routeEventId } = useParams();
   const eventSpecialId = overlayEventId || routeEventId;
   const navigate = useNavigate();
+
+  const isPublic = !bypassAccess;
+  const visibleTabs = isPublic
+    ? TABS.filter((t) => t.key === "info" || t.key === "view-attendance")
+    : TABS;
+
+  const tabFromPath = () => {
+    if (isPublic) return "info";
+    const path = window.location.pathname;
+    const match = TABS.find((t) => t.key !== "info" && path.endsWith(`/${t.key}`));
+    return match ? match.key : "info";
+  };
+  const [activeTab, setActiveTab] = useState(tabFromPath);
 
   const [localEvent, setLocalEvent] = useState(null);
   const [isEventLoading, setIsEventLoading] = useState(false);
@@ -86,41 +105,24 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
   const [showAccessOverlay, setShowAccessOverlay] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
-  const [activeSection, setActiveSection] = useState(null);
 
-  // Hash-based navigation: map hash to section
-  const SECTION_HASH_MAP = {
-    "view-attendance": "attendees",
-    "minutes": "editor",
-    "designate": "designate",
-    "event-actions-follow-ups": "actions",
-  };
+  const handleTabChange = useCallback((tabKey) => {
+    setActiveTab(tabKey);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (isPublic) return;
+    const basePath = `/calendar/${eventSpecialId}`;
+    const newPath = tabKey === "info" ? basePath : `${basePath}/${tabKey}`;
+    window.history.pushState(null, '', newPath);
+  }, [eventSpecialId, isPublic]);
 
-  // Handle hash changes to show appropriate section
   useEffect(() => {
-    const hash = window.location.hash.replace(/^#\//, '').replace(/^#/, '');
-    if (hash && SECTION_HASH_MAP[hash]) {
-      setActiveSection(SECTION_HASH_MAP[hash]);
-    }
-  }, []);
-
-  // Handle browser back/forward
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace(/^#\//, '').replace(/^#/, '');
-      if (!hash) {
-        setActiveSection(null);
-        setIsQrMaximized(false);
-      } else if (SECTION_HASH_MAP[hash]) {
-        setActiveSection(SECTION_HASH_MAP[hash]);
-        setIsQrMaximized(false);
-      } else if (hash === "qrcode-full") {
-        setIsQrMaximized(true);
-        setActiveSection(null);
-      }
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const match = TABS.find((t) => t.key !== "info" && path.endsWith(`/${t.key}`));
+      setActiveTab(match ? match.key : "info");
     };
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const activeEvent = contextActiveEvent || localEvent;
@@ -184,13 +186,11 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
         const headers = accessToken ? { 'x-event-access-token': accessToken } : {};
         const params = { page: 1, limit: 20, search: eventSpecialId, searchField: "eventSpecialId" };
         let fetchedEvent = null;
-        let fetchedList = null;
         for (const status of ["live", "upcoming", "past"]) {
           try {
             const response = await axios.get(`/cok/api/v1/events/${status}`, { params, headers });
             if (response.data?.success && response.data.data.length > 0) {
               fetchedEvent = response.data.data[0];
-              fetchedList = response.data.data;
               break;
             }
           } catch (statusErr) {
@@ -200,7 +200,7 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
         if (fetchedEvent) {
           setLocalEvent(fetchedEvent);
           if (setActiveEvent) setActiveEvent(fetchedEvent);
-          if (setLiveEventsData && fetchedList) setLiveEventsData(fetchedList);
+          if (setLiveEventsData) setLiveEventsData([fetchedEvent]);
         } else {
           setIsEventNotFound(true);
         }
@@ -270,9 +270,10 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
           }
         });
     fetchCount();
-    const timer = setInterval(fetchCount, 5000);
+    if (isEnded) return;
+    const timer = setInterval(fetchCount, 10000);
     return () => clearInterval(timer);
-  }, [activeEvent?.eventSpecialId, isUpcoming, accessToken, eventSpecialId, navigate, isAccessVerified]);
+  }, [activeEvent?.eventSpecialId, isUpcoming, isEnded, accessToken, eventSpecialId, navigate, isAccessVerified]);
 
   useEffect(() => {
     if (!activeEvent) return;
@@ -290,7 +291,7 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
 
   if (isEventLoading || isVerifying || isCheckingAccess) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center p-6  bg-zinc-50 rounded-none">
+      <div className="w-full min-h-screen flex items-center justify-center p-6 bg-zinc-50 rounded-none">
         <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 animate-pulse rounded-none">
           <div className="lg:col-span-7 space-y-4 rounded-none">
             <div className="h-10 bg-zinc-200 w-2/3 rounded-none" />
@@ -367,9 +368,31 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
           content="Happening now"
         />
       </Helmet>
-    <div className="w-full min-h-screen flex justify-center rounded-none">
+    <div className="w-full min-h-screen flex flex-col items-center rounded-none">
+      {/* Sticky Tab Header: full-bleed toolbar above the content so nothing scrolls past its edges */}
+      <nav
+        className={`sticky z-50 bg-white border-b border-gray-200 self-stretch ${
+          bypassAccess
+            ? "top-0 -mt-3 sm:-mt-4 lg:-mt-6 -mx-3 sm:-mx-4 lg:-mx-6"
+            : "top-[80px]"
+        }`}
+      >
+        <div className="max-w-5xl mx-auto flex overflow-x-auto">
+          {visibleTabs.map((tab) => (
+            <TabLink
+              key={tab.key}
+              tabKey={tab.key}
+              active={activeTab === tab.key}
+              onTabChange={handleTabChange}
+            >
+              {tab.key === "view-attendance" ? `${tab.label} (${attendeeCount})` : tab.label}
+            </TabLink>
+          ))}
+        </div>
+      </nav>
+
       <motion.div
-        className="relative w-full max-w-5xl h-max overflow-hidden p-6 md:p-8 rounded-none"
+        className="relative w-full max-w-5xl h-max rounded-none"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
@@ -379,53 +402,84 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
           style={{ background: `radial-gradient(circle at 70% 30%, ${brandColor} 0%, rgba(255,255,255,0) 70%)` }}
         />
 
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start rounded-none">
-          <EventDetailsLeftColumn
-            activeEvent={activeEvent}
-            eventSpecialId={eventSpecialId}
-            navigate={navigate}
-            onOpenSection={overlayEventId ? setActiveSection : undefined}
-          />
-          <EventDetailsRightColumn
-            isUpcoming={isUpcoming}
-            isEnded={isEnded}
-            countdown={countdown}
-            isQrLoading={isQrLoading}
-            qrError={qrError}
-            qrCodeUrl={qrCodeUrl}
-            isQrMaximized={isQrMaximized}
-            attendeeCount={attendeeCount}
-            ActualQrCodeUrl={ActualQrCodeUrl}
-            showCopiedPopup={showCopiedPopup}
-            setIsQrMaximized={setIsQrMaximized}
-            setShowCopiedPopup={setShowCopiedPopup}
-            setQrError={setQrError}
-            setIsQrLoading={setIsQrLoading}
-            setQrCodeUrl={setQrCodeUrl}
-            setActualQrCodeUrl={setActualQrCodeUrl}
-            fetchQrCode={fetchQrCode}
-          />
-        </div>
+        {/* Tab Content */}
+        <div className="relative z-10">
+          {activeTab === "info" && (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start p-6 md:p-8">
+                <EventDetailsLeftColumn
+                  activeEvent={activeEvent}
+                  eventSpecialId={eventSpecialId}
+                  navigate={navigate}
+                />
+                <EventDetailsRightColumn
+                  isUpcoming={isUpcoming}
+                  isEnded={isEnded}
+                  countdown={countdown}
+                  isQrLoading={isQrLoading}
+                  qrError={qrError}
+                  qrCodeUrl={qrCodeUrl}
+                  isQrMaximized={isQrMaximized}
+                  attendeeCount={attendeeCount}
+                  ActualQrCodeUrl={ActualQrCodeUrl}
+                  showCopiedPopup={showCopiedPopup}
+                  setIsQrMaximized={setIsQrMaximized}
+                  setShowCopiedPopup={setShowCopiedPopup}
+                  setQrError={setQrError}
+                  setIsQrLoading={setIsQrLoading}
+                  setQrCodeUrl={setQrCodeUrl}
+                  setActualQrCodeUrl={setActualQrCodeUrl}
+                  fetchQrCode={fetchQrCode}
+                  eventSpecialId={eventSpecialId}
+                  navigate={navigate}
+                />
+              </div>
+              {!isPublic && (
+                <div className="relative z-10 w-full">
+                  <EventAgendaSection
+                    event={activeEvent}
+                    isLive={!isUpcoming && !isEnded}
+                    canEdit={!isUpcoming && !isEnded}
+                    eventType="live"
+                    onUpdated={(updated) => {
+                      setLocalEvent((prev) => ({ ...(prev || {}), ...updated }));
+                      if (setActiveEvent) setActiveEvent((prev) => ({ ...(prev || {}), ...updated }));
+                    }}
+                  />
+                  <CoOrganizersPanel eventSpecialId={eventSpecialId} />
+                  <EventMinutesView
+                    eventSpecialId={eventSpecialId}
+                    activeEvent={activeEvent}
+                    accessToken={accessToken}
+                  />
+                </div>
+              )}
+            </>
+          )}
 
-        <div className="relative z-10 w-full">
-          <EventAgendaSection
-            event={activeEvent}
-            isLive={!isUpcoming && !isEnded}
-            canEdit={!isUpcoming && !isEnded}
-            eventType="live"
-            onUpdated={(updated) => {
-              setLocalEvent((prev) => ({ ...(prev || {}), ...updated }));
-              if (setActiveEvent) setActiveEvent((prev) => ({ ...(prev || {}), ...updated }));
-            }}
-          />
-          <CoOrganizersPanel eventSpecialId={eventSpecialId} />
-          <EventMinutesView
-            eventSpecialId={eventSpecialId}
-            activeEvent={activeEvent}
-            accessToken={accessToken}
-          />
+          {activeTab === "view-attendance" && (
+            <div className="p-6 md:p-8">
+              <AttendeesList />
+            </div>
+          )}
+
+          {!isPublic && activeTab === "record-minutes" && createPortal(
+            <ShowEditor onCloseOverride={() => window.history.back()} />,
+            document.body
+          )}
+
+          {!isPublic && activeTab === "designate-minutes" && (
+            <div className="p-6 md:p-8">
+              <DesignateMinutes onClose={() => handleTabChange("info")} />
+            </div>
+          )}
+
+          {!isPublic && activeTab === "event-actions" && (
+            <div className="p-6 md:p-8">
+              <EventActionsPage />
+            </div>
+          )}
         </div>
-        
       </motion.div>
 
       <EventAccessOverlay
@@ -452,26 +506,6 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
         setIsQrMaximized={setIsQrMaximized}
         setShowCopiedPopup={setShowCopiedPopup}
       />
-
-      {overlayEventId && activeSection === "editor" && (
-        <div className="fixed inset-0" style={{ zIndex: 100000000 }}>
-          <ShowEditor overlayEventId={eventSpecialId} onCloseOverride={() => {
-            setActiveSection(null);
-            window.history.pushState(null, "", "/calendar");
-          }} />
-        </div>
-      )}
-
-      {overlayEventId && activeSection && activeSection !== "editor" && (
-        <SectionOverlay title={SECTION_TITLES[activeSection] || ""} onClose={() => {
-          setActiveSection(null);
-          window.history.pushState(null, "", "/calendar");
-        }}>
-          {activeSection === "attendees" && <AttendeesList overlayEventId={eventSpecialId} embedded />}
-          {activeSection === "designate" && <DesignateMinutes overlayEventId={eventSpecialId} />}
-          {activeSection === "actions" && <EventActionsPage overlayEventId={eventSpecialId} />}
-        </SectionOverlay>
-      )}
     </div>
     </>
   );

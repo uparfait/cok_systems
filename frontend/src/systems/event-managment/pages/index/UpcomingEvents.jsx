@@ -84,7 +84,7 @@ export default function UpcomingEvents() {
         />
       </Helmet>
 
-      <main className="w-full min-h-[calc(100vh-80px)] pt-20 flex flex-col items-center bg-white px-4">
+      <main className="w-full min-h-[calc(100vh-80px)] flex flex-col items-center bg-white px-4">
         <div className="w-full flex flex-col items-center gap-3">
 
           {

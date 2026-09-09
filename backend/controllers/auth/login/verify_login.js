@@ -252,6 +252,15 @@ async function verifyLogin(req, res, next) {
                 telephone: user.telephone,
                 department_name: user.department_name,
                 department_id: user.department_id,
+                department_unit: await (async () => {
+                    const raw = user.department_unit || '';
+                    if (!raw) return '';
+                    if (/^[0-9a-fA-F]{24}$/.test(raw)) {
+                        const unitDoc = await department.findById(raw).select('department_name').lean().catch(() => null);
+                        if (unitDoc && unitDoc.department_name) return unitDoc.department_name;
+                    }
+                    return raw;
+                })(),
                 permissions: userPermissions,
                 accessToken: accessToken,
                 refreshToken: refreshToken

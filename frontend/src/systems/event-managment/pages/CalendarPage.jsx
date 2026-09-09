@@ -18,7 +18,7 @@ const BORDER = "#E0E0E0";
 const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 
-// Monday-first weekdays — same as the event-manager dashboard calendar
+// Monday-first weekdays - same as the event-manager dashboard calendar
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // Same chip colors as the dashboard calendar (meetingType mode);
@@ -52,12 +52,7 @@ export default function CalendarPage() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedDay, setExpandedDay] = useState(null);
-  const [selectedEvent, setSelectedEvent] = useState(null);
   const [highlight, setHighlight] = useState(null); // { id, dateKey }
-  const [eventMinutes, setEventMinutes] = useState([]);
-  const [minutesLoading, setMinutesLoading] = useState(false);
-  const [detailsEventId, setDetailsEventId] = useState(null);
-  const [activeHash, setActiveHash] = useState(window.location.hash || "");
 
   const isOrganizer = useCallback(
     (e) => !!userEmail && (e.eventOrganizer?.email || "").toLowerCase().trim() === userEmail,
@@ -73,51 +68,6 @@ export default function CalendarPage() {
   );
   const canOpen = useCallback((e) => e.isInvited || e.isMinutesTaker || isOrganizerLike(e), [isOrganizerLike]);
 
-  // Handle hash on page load/refresh - restore event from URL
-  useEffect(() => {
-    const hash = window.location.hash;
-    const pathname = window.location.pathname;
-    if (!hash) return;
-
-    // Check if we're on the calendar page
-    if (!pathname.includes('/calendar')) return;
-
-    // Remove the # prefix
-    const hashValue = hash.replace(/^#\//, '').replace(/^#/, '');
-
-    // Check if it's an event ID (UUID format or similar)
-    if (hashValue && !hashValue.startsWith('minutes') && !hashValue.startsWith('agendafull') && !hashValue.startsWith('agendaedit') && !hashValue.startsWith('add-co-organizer') && !hashValue.startsWith('qrcode-full') && !hashValue.startsWith('event-actions-follow-ups') && !hashValue.startsWith('view-attendance') && !hashValue.startsWith('designate')) {
-      // It's an event ID - find and open the event
-      const timer = setTimeout(() => {
-        const allEvents = events.flat();
-        const foundEvent = allEvents.find(ev => ev.eventSpecialId === hashValue);
-        if (foundEvent) {
-          if (isOrganizerLike(foundEvent)) {
-            setDetailsEventId(foundEvent.eventSpecialId);
-          } else {
-            setSelectedEvent(foundEvent);
-          }
-        }
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [events, isOrganizerLike]);
-
-  // Handle browser back/forward navigation via hash
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      if (!hash) {
-        setSelectedEvent(null);
-        setDetailsEventId(null);
-        setActiveHash("");
-      }
-      setActiveHash(hash);
-    };
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
-
   // Search
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -127,51 +77,10 @@ export default function CalendarPage() {
   const poolRef = useRef(null);
 
   const openEvent = useCallback((e) => {
-    if (isOrganizerLike(e)) {
-      setDetailsEventId(e.eventSpecialId);
-      window.history.pushState(null, "", `/calendar/#${e.eventSpecialId}`);
-    } else {
-      setSelectedEvent(e);
-      window.history.pushState(null, "", `/calendar/#${e.eventSpecialId}`);
-    }
-  }, [isOrganizerLike]);
-
-  const closeEvent = useCallback(() => {
-    setSelectedEvent(null);
-    setDetailsEventId(null);
-    window.history.pushState(null, "", "/calendar");
-  }, []);
-
-  const updateHash = useCallback((hash) => {
-    window.history.pushState(null, "", hash);
-  }, []);
-
-  useEffect(() => {
-    if (!selectedEvent || !(isOrganizerLike(selectedEvent) || selectedEvent.isMinutesTaker)) {
-      setEventMinutes([]);
-      return;
-    }
-    let alive = true;
-    setMinutesLoading(true);
-    axios
-      .get(`${BASE_URL}/events/${selectedEvent.eventSpecialId}/minutes/series`)
-      .then((res) => {
-        if (alive && res.data?.success) setEventMinutes(res.data.data?.minutes || []);
-      })
-      .catch(() => { if (alive) setEventMinutes([]); })
-      .finally(() => { if (alive) setMinutesLoading(false); });
-    return () => { alive = false; };
-  }, [selectedEvent, isOrganizerLike]);
-
-  const isTakerOfMinutes = useCallback(
-    (m) => !!userEmail && (m.designatedMinutesTaker?.email || "").toLowerCase().trim() === userEmail,
-    [userEmail]
-  );
-
-  const openMinutes = useCallback((m) => {
-    const editable = isTakerOfMinutes(m) || selectedEvent?.isMinutesTaker;
-    navigate(`/event/${m.eventSpecialId || selectedEvent?.eventSpecialId}/editor${editable ? "" : "?readonly=1"}`);
-  }, [navigate, isTakerOfMinutes, selectedEvent]);
+    const type = (e.eventType || "").toLowerCase();
+    const minutesOnly = e.isMinutesTaker && !isOrganizerLike(e) && (type === "internal" || type === "joint");
+    navigate(minutesOnly ? `/calendar/${e.eventSpecialId}/record-minutes` : `/calendar/${e.eventSpecialId}`);
+  }, [navigate, isOrganizerLike]);
 
   const fetchMonth = useCallback(async (y, m, silent = false) => {
     if (!silent) setLoading(true);
@@ -181,7 +90,7 @@ export default function CalendarPage() {
       const res = await axios.get(`${BASE_URL}/events/calendar`, { params });
       if (res.data?.success) setEvents(res.data.data || []);
     } catch {
-      /* silent — keep the last good calendar on screen */
+      /* silent - keep the last good calendar on screen */
     } finally {
       if (!silent) setLoading(false);
     }
@@ -194,20 +103,6 @@ export default function CalendarPage() {
     const interval = setInterval(() => fetchMonth(year, month, true), 10000);
     return () => clearInterval(interval);
   }, [year, month, fetchMonth]);
-
-  // Handle browser back/forward navigation via hash
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      if (!hash) {
-        setSelectedEvent(null);
-        setDetailsEventId(null);
-        setActiveHash("");
-      }
-    };
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
 
   // ±6-month pool, loaded once, used only for the search suggestions
   const loadSearchPool = useCallback(async () => {
@@ -395,7 +290,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Calendar — same structure as the event-manager dashboard calendar */}
+      {/* Calendar - same structure as the event-manager dashboard calendar */}
       <div className="flex-1 min-h-0 p-1 sm:p-3 flex flex-col">
         <div className="bg-white border border-gray-200 flex flex-col flex-1 relative">
           {/* Header bar */}
@@ -477,7 +372,7 @@ export default function CalendarPage() {
                             style={{ fontSize: "clamp(7px, 1.4vw, 11px)" }}
                             title={clickable ? `${ev.eventName}\n${timeRange}\n${ev.eventRoom}` : `${timeRange}\n${ev.eventRoom}`}
                           >
-                            {/* Event name only when the user is invited or the organiser —
+                            {/* Event name only when the user is invited or the organiser -
                                 everyone else sees just the schedule and the room */}
                             {clickable && (
                               <div className="flex items-start gap-1">
@@ -545,175 +440,6 @@ export default function CalendarPage() {
           )}
         </div>
       </div>
-
-      {/* Event details popup — only for invited/organiser events */}
-      {selectedEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setSelectedEvent(null)} />
-          <div className="relative bg-white border border-gray-200 w-full max-w-lg max-h-[85vh] flex flex-col">
-            {/* Popup header — same bar style as the calendar header */}
-            <div className="flex items-start justify-between gap-3 p-4 cok-blue-bg-primary shrink-0">
-              <div className="min-w-0">
-                <h2 className="text-sm sm:text-base font-semibold text-white leading-tight" style={{ fontFamily: fontHeading }}>
-                  {selectedEvent.eventName}
-                </h2>
-                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                  <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide bg-white" style={{ color: PRIMARY, fontFamily: fontHeading }}>
-                    {selectedEvent.eventStatus}
-                  </span>
-                  {selectedEvent.isInvited && (
-                    <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-white" style={{ backgroundColor: SUCCESS, fontFamily: fontHeading }}>
-                      You are invited
-                    </span>
-                  )}
-                  {isOrganizer(selectedEvent) && (
-                    <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide bg-white" style={{ color: PRIMARY, fontFamily: fontHeading }}>
-                      Organiser
-                    </span>
-                  )}
-                  {!isOrganizer(selectedEvent) && isCoOrganizer(selectedEvent) && (
-                    <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-white" style={{ backgroundColor: "#7C3AED", fontFamily: fontHeading }}>
-                      Co-organiser
-                    </span>
-                  )}
-                  {selectedEvent.isMinutesTaker && (
-                    <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-white" style={{ backgroundColor: "#F39C12", fontFamily: fontHeading }}>
-                      Minutes taker
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button onClick={() => { setSelectedEvent(null); setActiveHash(""); window.history.pushState(null, "", "/calendar"); }} className="p-1 cursor-pointer shrink-0 text-white border border-white hover:bg-white hover:text-[#056daa] transition-colors">
-                <FiX className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[
-                  { icon: FiCalendar, label: "Date", value: dateKeyOf(selectedEvent.startTime) },
-                  { icon: FiClock, label: "Time (From — To)", value: formatTimeRange(selectedEvent.startTime, selectedEvent.endTime) },
-                  { icon: FiMapPin, label: "Room", value: selectedEvent.eventRoom, capitalize: true },
-                  { icon: FiUsers, label: "Expected Audience", value: selectedEvent.expectedAudience ? `${selectedEvent.expectedAudience} people` : "—" },
-                ].map(({ icon: Icon, label, value, capitalize }) => (
-                  <div key={label} className="p-3 border border-gray-100" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-1 text-gray-500" style={{ fontFamily: fontHeading }}>
-                      <Icon className="w-3 h-3" style={{ color: PRIMARY }} /> {label}
-                    </p>
-                    <p className={`text-sm font-semibold ${capitalize ? "capitalize" : ""}`} style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{value || "—"}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: PRIMARY, fontFamily: fontHeading }}>Description</p>
-                <p className="text-sm leading-relaxed text-gray-600">{selectedEvent.eventDescription || "No description provided."}</p>
-              </div>
-
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: PRIMARY, fontFamily: fontHeading }}>Organizer</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {[
-                    { icon: FiUser, label: "Name", value: selectedEvent.eventOrganizer?.fullNames },
-                    { icon: FiMail, label: "Email", value: selectedEvent.eventOrganizer?.email },
-                    { icon: FiPhone, label: "Phone", value: selectedEvent.eventOrganizer?.phone },
-                    { icon: FiMapPin, label: "Institution", value: selectedEvent.eventOrganizer?.institution },
-                  ].map(({ icon: Icon, label, value }) => (
-                    <div key={label} className="flex items-start gap-2">
-                      <div className="w-7 h-7 flex items-center justify-center shrink-0" style={{ backgroundColor: PRIMARY_TINT }}>
-                        <Icon className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] text-gray-400" style={{ fontFamily: fontHeading }}>{label}</p>
-                        <p className="text-sm font-medium text-gray-800 truncate">{value || "—"}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <EventAgendaSection
-                event={selectedEvent}
-                isLive={selectedEvent.eventStatus === "live"}
-                canEdit={selectedEvent.eventStatus === "live" && isOrganizerLike(selectedEvent)}
-                eventType="live"
-                onUpdated={(updated) => setSelectedEvent((prev) => ({ ...prev, activityAgenda: updated?.activityAgenda || [] }))}
-              />
-
-              {(isOrganizerLike(selectedEvent) || selectedEvent.isMinutesTaker) && (
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: PRIMARY, fontFamily: fontHeading }}>Meeting Minutes</p>
-                  {minutesLoading ? (
-                    <p className="text-sm py-3 text-center" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Loading minutes...</p>
-                  ) : eventMinutes.length === 0 ? (
-                    <p className="text-sm py-3 text-center border border-gray-100" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, backgroundColor: NEUTRAL_LIGHT }}>
-                      No minutes recorded yet.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {eventMinutes.map((m, i) => (
-                        <div
-                          key={m.eventSpecialId || i}
-                          className="flex items-center justify-between gap-3 px-3 py-2.5 border border-gray-200 bg-white"
-                        >
-                          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#555555", fontFamily: fontHeading }}>
-                            {m.meetingDate ? new Date(m.meetingDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Minutes"}
-                          </span>
-                           <button
-                              type="button"
-                              onClick={() => {
-                                updateHash(`/calendar/#minutes`);
-                                openMinutes(m);
-                              }}
-                              className="cok-btn-outlined shrink-0"
-                              style={{ padding: "0.35rem 0.9rem" }}
-                            >
-                              {(isTakerOfMinutes(m) || selectedEvent.isMinutesTaker) ? "Edit" : "View"}
-                            </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2 text-xs text-gray-500" style={{ fontFamily: fontHeading }}>
-                <span>Type: <strong className="capitalize text-gray-800">{selectedEvent.eventMeetingType === 'meet' ? 'meeting' : 'event'}</strong></span>
-                <span>·</span>
-                <span>Mode: <strong className="text-gray-800">{selectedEvent.eventType}</strong></span>
-              </div>
-            </div>
-
-            <div className="px-4 sm:px-6 py-3 shrink-0 border-t border-gray-200">
-              <button onClick={() => setSelectedEvent(null)} className="cok-btn-outlined w-full">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Full-screen event details for organizers — no email token needed */}
-      {detailsEventId && (
-        <div className="fixed inset-0 z-[9999999] bg-white overflow-y-auto">
-          <div className="sticky top-0 flex items-center justify-between px-4 sm:px-6 py-3" style={{ backgroundColor: PRIMARY, zIndex: 99999999 }}>
-            <p className="text-sm font-bold text-white truncate" style={{ fontFamily: fontHeading }}>Event Details</p>
-            <button
-              type="button"
-              onClick={() => { setDetailsEventId(null); setActiveHash(""); window.history.pushState(null, "", "/calendar"); }}
-              className="cok-btn-outlined-reverse"
-              style={{ padding: "0.4rem 0.8rem" }}
-            >
-              <FiX className="w-4 h-4" />
-            </button>
-          </div>
-          <EventDetails
-            overlayEventId={detailsEventId}
-            bypassAccess
-            onCloseOverlay={() => setDetailsEventId(null)}
-          />
-        </div>
-      )}
     </div>
   );
 }

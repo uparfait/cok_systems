@@ -137,7 +137,7 @@ const bulkUploadReservations = async (req, res) => {
 
         // Rows whose End Date already passed (they would only be auto-cancelled
         // immediately) or whose Start Date is after their End Date are rejected up
-        // front — the response says how many were skipped.
+        // front - the response says how many were skipped.
         const uploadTime = new Date();
         const isBadRow = (v) => (v.valid_until && v.valid_until < uploadTime)
             || (v.valid_from && v.valid_until && v.valid_from > v.valid_until);
@@ -192,7 +192,7 @@ const bulkUploadReservations = async (req, res) => {
         res.status(201).json({
             success: true,
             message: `Successfully registered ${validVisitors.length} visitor reservation(s).`
-                + (pastRows.length ? ` ${pastRows.length} row(s) skipped — End Date already passed or Start Date after End Date (format is day/month/year).` : ''),
+                + (pastRows.length ? ` ${pastRows.length} row(s) skipped - End Date already passed or Start Date after End Date (format is day/month/year).` : ''),
             data: newReservationBatch
         });
 

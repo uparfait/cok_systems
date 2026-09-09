@@ -9,6 +9,7 @@ const access_control_routes = require("./access_control/routes.js");
 const templates_routes = require("./templates/routes.js");
 const public_routes = require("./public/routes.js");
 const approvals_routes = require("./approvals/routes.js");
+const test_data_routes = require("./test_data/routes.js");
 
 Router.use("/public", public_routes);
 Router.use("/projects", authenticate, projects_routes);
@@ -18,5 +19,6 @@ Router.use("/submissions", authenticate, submissions_routes);
 Router.use("/access-control", authenticate, access_control_routes);
 Router.use("/templates", authenticate, templates_routes);
 Router.use("/approvals", authenticate, approvals_routes);
+Router.use("/test-data", authenticate, test_data_routes);
 
 module.exports = Router;

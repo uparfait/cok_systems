@@ -227,6 +227,70 @@ Router.get('/logs', authenticate, async (req, res) => {
   }
 });
 
+// Export audit logs for a date range as a downloadable CSV file
+Router.get('/export', authenticate, async (req, res) => {
+  try {
+    const { start_date, end_date, action } = req.query;
+
+    if (!start_date || !end_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Both start_date and end_date are required for export'
+      });
+    }
+
+    const start = new Date(start_date);
+    const end = new Date(end_date);
+    end.setHours(23, 59, 59, 999);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid date range provided' });
+    }
+    if (end < start) {
+      return res.status(400).json({ success: false, message: 'End date must be after the start date' });
+    }
+
+    const filter = { time: { $gte: start, $lte: end } };
+    if (action) filter.action = action;
+
+    const audits = await Audit.find(filter).sort('-time').limit(50000).lean();
+
+    if (!audits.length) {
+      return res.status(404).json({ success: false, message: 'No audit logs found in the selected date range' });
+    }
+
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['Time', 'Action', 'User', 'Email', 'Description', 'Error', 'IP Address', 'Method', 'Endpoint', 'Status Code'];
+    const lines = [header.map(esc).join(',')];
+    for (const a of audits) {
+      lines.push([
+        a.time ? new Date(a.time).toISOString().replace('T', ' ').slice(0, 19) : '',
+        a.action || '',
+        a.user_name || 'System',
+        a.user_email || '',
+        a.description || '',
+        a.error || a.error_message || '',
+        a.ip_address || '',
+        a.method || '',
+        a.endpoint || '',
+        a.status_code ?? '',
+      ].map(esc).join(','));
+    }
+    const csv = '﻿' + lines.join('\r\n');
+
+    const fileName = `audit_logs_${String(start_date).slice(0, 10)}_to_${String(end_date).slice(0, 10)}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    return res.status(200).send(csv);
+  } catch (error) {
+    console.error('Error exporting audit logs:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to export audit logs',
+      error: error.message
+    });
+  }
+});
+
 /**
  * @swagger
  * /audit/stats:

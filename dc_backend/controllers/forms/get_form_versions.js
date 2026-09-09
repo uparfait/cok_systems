@@ -1,5 +1,7 @@
 const forms_model = require("../../models/forms_model.js");
 const project_access = require("../../utilities/project_access.js");
+const { strip_approval_config_for_response } = require("../../utilities/approval.js");
+const { strip_creator } = require("../../utilities/owner.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -24,7 +26,11 @@ async function get_form_versions(req, res) {
       return res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
     }
 
-    return res.status(200).json(success_response(req, "FORM_VERSIONS_FETCHED", versions));
+    const stripped_versions = versions.map((version) =>
+      Object.assign({}, strip_creator(version), { approval_config: strip_approval_config_for_response(version.approval_config) }),
+    );
+
+    return res.status(200).json(success_response(req, "FORM_VERSIONS_FETCHED", stripped_versions));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

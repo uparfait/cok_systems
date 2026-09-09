@@ -14,12 +14,12 @@ const COLUMNS = [
   { key: 'organizerEmail', label: 'Organizer Email' },
   { key: 'organizerTel', label: 'Organizer Tel' },
   { key: 'date', label: 'Date' },
-  { key: 'time', label: 'Time (From — To)' },
+  { key: 'time', label: 'Time (From - To)' },
 ];
 
 const toDateStr = (iso) => {
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
+  if (isNaN(d.getTime())) return '-';
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -39,18 +39,18 @@ const getEventDate = (event) => {
     const rec = event.eventRecurring;
     return `${rec.recurringType} (until ${toDateStr(rec.recurringEndDate)})`;
   }
-  return '—';
+  return '-';
 };
 
 const getEventTimeRange = (event) => {
   const startIso = event.startedAt || event.willStartAt;
   const endIso = event.willEndAt || event.endedAt;
-  if (startIso && endIso) return `${toTimeStr(startIso)} — ${toTimeStr(endIso)}`;
+  if (startIso && endIso) return `${toTimeStr(startIso)} - ${toTimeStr(endIso)}`;
   if (event.eventRecurring) {
     const rec = event.eventRecurring;
-    return `${rec.eventStartTime || '--:--'} — ${rec.eventEndTime || '--:--'}`;
+    return `${rec.eventStartTime || '--:--'} - ${rec.eventEndTime || '--:--'}`;
   }
-  return '—';
+  return '-';
 };
 
 const getOrganizer = (event) => {
@@ -74,7 +74,7 @@ const getModeBadge = (type) => {
     case 'Joint':
       return <span className="inline-block bg-teal-50 text-teal-800 border border-teal-300 px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">{type}</span>;
     default:
-      return <span className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-300 px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">{type || '—'}</span>;
+      return <span className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-300 px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">{type || '-'}</span>;
   }
 };
 
@@ -92,23 +92,23 @@ export default function TableContainer({ data }) {
       case 'type':
         return getMeetingTypeBadge(event.eventMeetingType);
       case 'name':
-        return <span className="font-bold text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{event.eventName || '—'}</span>;
+        return <span className="font-bold text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{event.eventName || '-'}</span>;
       case 'mode':
         return getModeBadge(event.eventType);
       case 'room':
-        return <span className="text-sm font-medium capitalize whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{event.eventRoom || '—'}</span>;
+        return <span className="text-sm font-medium capitalize whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{event.eventRoom || '-'}</span>;
       case 'organizerName':
-        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.fullNames || '—'}</span>;
+        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.fullNames || '-'}</span>;
       case 'organizerEmail':
-        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.email || '—'}</span>;
+        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.email || '-'}</span>;
       case 'organizerTel':
-        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.phone || '—'}</span>;
+        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.phone || '-'}</span>;
       case 'date':
         return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{getEventDate(event)}</span>;
       case 'time':
         return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{getEventTimeRange(event)}</span>;
       default:
-        return '—';
+        return '-';
     }
   };
 

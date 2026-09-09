@@ -16,7 +16,7 @@ import ParkingLotMap from '../../../core/components/ParkingLotMap';
 
 // ==================== TYPES ====================
 
-// Shape of /statistics/served — all served/workload aggregation happens server-side
+// Shape of /statistics/served - all served/workload aggregation happens server-side
 interface ServedStats {
   total_visitors: number;
   hourly: Array<{ hour: number; count: number }>;
@@ -92,7 +92,7 @@ const SentimentChartTooltip = ({ active, payload }: any) => {
   );
 };// Bar value label like the reference design: the count with its share of the row total
 // ("650" over "(32%)"), drawn just under the top of the bar. Bars too short to fit the
-// text get the label above them in gray instead. Static — no animation, no blinking.
+// text get the label above them in gray instead. Static - no animation, no blinking.
 const makeStatusBarLabel = (rows: Array<{ total?: number }>) => (props: any) => {
   const { x = 0, y = 0, width = 0, height = 0, index, value } = props;
   const num = Number(value);
@@ -223,7 +223,7 @@ const barValueLabels = {
 
 // ==================== MAIN COMPONENT ====================
 
-// Speedometer-style gauge — needle points at the hour of the LAST check-in (lastHour = hour of the newest entry_date)
+// Speedometer-style gauge - needle points at the hour of the LAST check-in (lastHour = hour of the newest entry_date)
 const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastHour?: number | null }> = ({ hours, lastHour }) => {
   if (!hours.length) return null;
   const n = hours.length;
@@ -288,7 +288,7 @@ const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastH
   );
 };
 
-// Circular occupancy chart — thick donut ring filled by the occupied share, percentage centered inside.
+// Circular occupancy chart - thick donut ring filled by the occupied share, percentage centered inside.
 // Occupancy % = parked vehicles ÷ total slots (e.g. 162 parked of 406 slots → 40%).
 const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; onViewMap?: () => void }> = ({ occupied, totalSlots, onViewMap }) => {
   const pct = totalSlots > 0 ? Math.min(100, Math.round((occupied / totalSlots) * 100)) : 0;
@@ -507,7 +507,7 @@ const Overview: React.FC = () => {
   const navigate = useNavigate();
   const { showError, showSuccess } = useToast();
 
-  // CHART COLORS: all charts read from CC — first palette = mayor, second = admin; change a hex to recolor everywhere
+  // CHART COLORS: all charts read from CC - first palette = mayor, second = admin; change a hex to recolor everywhere
   const isMayor = (user?.role || '').toLowerCase().includes('mayor');
   const CC = useMemo(
     () =>
@@ -632,7 +632,7 @@ const Overview: React.FC = () => {
   // Socket refreshes call this ref so fetchData doesn't need period in its deps
   const servedRefreshRef = useRef<() => void>(() => {});
 
-  // Distinct visitors whose entry date falls in the selected period — shown beside the chart
+  // Distinct visitors whose entry date falls in the selected period - shown beside the chart
   const totalVisitorsInPeriod = servedStats?.total_visitors || 0;
 
   // Real request statistics from /requests/statistics: per-orientation (incoming)
@@ -655,7 +655,7 @@ const Overview: React.FC = () => {
   useEffect(() => { fetchRequestStats(period); }, [fetchRequestStats, period]);
 
   // Feedback sentiment (departments + general/unserviced) aggregated server-side
-  // for the toolbar period — drives the Department Sentiment chart
+  // for the toolbar period - drives the Department Sentiment chart
   interface SentimentStatRow { name: string; average_rating: number; count: number; positive: number; neutral: number; negative: number }
   const [feedbackSentiment, setFeedbackSentiment] = useState<{ departments: SentimentStatRow[]; general: Omit<SentimentStatRow, 'name'> } | null>(null);
   const fetchFeedbackSentiment = useCallback(async (p: PeriodChoice) => {
@@ -707,14 +707,14 @@ const Overview: React.FC = () => {
     : `${rangeFrom || 'start'} → ${rangeTo || 'now'}`, [rangeFrom, rangeTo]);
   const periodLabel = labelForPeriod(period);
 
-  // Every employee with the number of people they served in the selected period —
+  // Every employee with the number of people they served in the selected period -
   // aggregated server-side by /statistics/served (includes zero-served employees
   // and providers on records that don't match an employee account)
   const employeeServed = useMemo(
     () =>
       (servedStats?.by_employee || []).map(e => ({
         name: e.name,
-        department: e.department || '—',
+        department: e.department || '-',
         served: e.served,
         visitors: e.visitors || [],
       })),
@@ -775,7 +775,7 @@ const Overview: React.FC = () => {
     setDraftRatingPeriod('all'); setDraftRatingRangeFrom(''); setDraftRatingRangeTo('');
   };
 
-  // Average rating per department (out of 10) with feedback counts, best first —
+  // Average rating per department (out of 10) with feedback counts, best first -
   // mirrors the departmentData memo on the feedback-analysis page
   const deptRatings = useMemo(() => {
     if (!data) return [] as Array<{ name: string; rating: number; count: number }>;
@@ -790,7 +790,7 @@ const Overview: React.FC = () => {
       .slice(0, 8);
   }, [data]);
 
-  // Departments sorted by average rating ascending — drives the sentiment chart.
+  // Departments sorted by average rating ascending - drives the sentiment chart.
   // Each row carries the sentiment breakdown so the bar can be colored by
   // negative / neutral / positive. General (unserviced) feedback is appended
   // as its own row.
@@ -862,7 +862,7 @@ const Overview: React.FC = () => {
   }, []);
   const gaugeHours = useMemo(() => buildDial(servedStats?.hourly || []), [buildDial, servedStats]);
   const hasGaugeData = gaugeHours.some(g => g.count > 0);
-  // Hour of the chronologically newest check-in in the period — drives the gauge needle
+  // Hour of the chronologically newest check-in in the period - drives the gauge needle
   const lastCheckinHour = useMemo(() => {
     if (!servedStats?.last_checkin) return null;
     const t = new Date(servedStats.last_checkin);
@@ -894,7 +894,7 @@ const Overview: React.FC = () => {
   // the toolbar filter (it resets to that each time the modal opens). A period
   // different from the toolbar's triggers its own served-stats fetch.
   const [modalHourPeriod, setModalHourPeriod] = useState<PeriodChoice | null>(null);
-  // Draft for the hourly modal's period select — committed on Apply
+  // Draft for the hourly modal's period select - committed on Apply
   const [draftModalHourPeriod, setDraftModalHourPeriod] = useState<PeriodChoice | null>(null);
   const modalHourPeriodEff: PeriodChoice = modalHourPeriod ?? period;
   const [modalServedHourly, setModalServedHourly] = useState<Array<{ hour: number; count: number }> | null>(null);
@@ -1315,7 +1315,7 @@ useEffect(() => {
     setSelectedCard(null);
   }, []);
 
-  // POPUP CHARTS A & B (inside modals) — configured below; height on the container divs in modal JSX
+  // POPUP CHARTS A & B (inside modals) - configured below; height on the container divs in modal JSX
   useEffect(() => {
     if (selectedCard === 'services-detail' && modalData.length > 0) {
       const createServicesChart = () => {
@@ -1612,7 +1612,7 @@ useEffect(() => {
       {/* Main Content */}
       <div className="p-3 space-y-2.5">
         
-        {/* CHART 1 · "Departments vs services" — drawn by DeptServicesMirror (top of file); colors from CC */}
+        {/* CHART 1 · "Departments vs services" - drawn by DeptServicesMirror (top of file); colors from CC */}
         <div className="bg-white border border-gray-200 p-4 sm:p-5 shadow-sm-disabled hover:shadow-md transition-all">
           <div className="mb-4">
             <div className="text-base font-bold text-gray-900">Department and services</div>
@@ -1630,7 +1630,7 @@ useEffect(() => {
           )}
         </div>
 
-        {/* CHARTS 2 & 3 · "Requests" histograms — height: h-56 divs, colors: fill= on each <Bar>, bar width: maxBarSize */}
+        {/* CHARTS 2 & 3 · "Requests" histograms - height: h-56 divs, colors: fill= on each <Bar>, bar width: maxBarSize */}
         <div className="bg-white border border-gray-200 p-4 sm:p-5 shadow-sm-disabled">
           <div className="flex justify-between items-start mb-2">
             <div>
@@ -1661,7 +1661,7 @@ useEffect(() => {
                   <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.amber }}>Orientation</span>
                   <span className="text-xs text-gray-500">(incoming requests)</span>
                 </div>
-                {/* Scrolls horizontally when many departments (110px each) — scrollbar hidden via no-scrollbar */}
+                {/* Scrolls horizontally when many departments (110px each) - scrollbar hidden via no-scrollbar */}
                 <div className="h-56 overflow-x-auto no-scrollbar">
                   <div className="h-full" style={{ minWidth: `${requestStatuses.departments.length * 110}px` }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -1700,7 +1700,7 @@ useEffect(() => {
                   <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.blue }}>Assignees</span>
                   <span className="text-xs text-gray-500">(request progress)</span>
                 </div>
-                {/* Scrolls horizontally when many employees (110px each) — scrollbar hidden via no-scrollbar */}
+                {/* Scrolls horizontally when many employees (110px each) - scrollbar hidden via no-scrollbar */}
                 <div className="h-56 overflow-x-auto no-scrollbar">
                   <div className="h-full" style={{ minWidth: `${requestStatuses.employees.length * 110}px` }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -1738,9 +1738,9 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Ratings row — department averages (left) next to the banded avg-feedback chart (right) */}
+        {/* Ratings row - department averages (left) next to the banded avg-feedback chart (right) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-          {/* CHART 4 · "Average Rating by Department" — height: h-64 div, color: fill= on <Bar>, thickness: barSize */}
+          {/* CHART 4 · "Average Rating by Department" - height: h-64 div, color: fill= on <Bar>, thickness: barSize */}
           <div
             onClick={() => { resetRatingFilters(); handleCardClick('rating-analysis'); }}
             className="bg-white p-4 relative cursor-pointer hover:shadow-md transition-all"
@@ -1778,7 +1778,7 @@ useEffect(() => {
             )}
           </div>
 
-          {/* CHART 5 · "Department Sentiment" — height: h-64 div, bar colors: SENTIMENT_META, trend line: <Line> stroke */}
+          {/* CHART 5 · "Department Sentiment" - height: h-64 div, bar colors: SENTIMENT_META, trend line: <Line> stroke */}
           <div className="bg-white p-4" style={{ border: `1px solid ${COK.border}` }}>
           <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
             Department Sentiment
@@ -1817,7 +1817,7 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* CHART 6 · "Hourly parking check-ins" gauge — needle points at the last vehicle check-in hour; hover a segment for its count; click opens the check-ins graph */}
+        {/* CHART 6 · "Hourly parking check-ins" gauge - needle points at the last vehicle check-in hour; hover a segment for its count; click opens the check-ins graph */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
           <div
             onClick={() => handleCardClick('parking-hourly')}
@@ -1839,7 +1839,7 @@ useEffect(() => {
             )}
           </div>
 
-          {/* CHART 7 · Parking card — occupancy donut by default, View map opens the lot map, toggle to the old trends area chart */}
+          {/* CHART 7 · Parking card - occupancy donut by default, View map opens the lot map, toggle to the old trends area chart */}
           <div className="bg-white border border-gray-200 p-3">
             <div className="flex justify-between items-start mb-3">
               <div>
@@ -2192,7 +2192,7 @@ useEffect(() => {
 
               {selectedCard === 'dept-served' && (
                 <div className="space-y-4">
-                  {/* Headline stats — all obey the toolbar period filter */}
+                  {/* Headline stats - all obey the toolbar period filter */}
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-600">
                     <span>Period: <span className="font-semibold capitalize">{periodLabel}</span></span>
                     <span><span className="font-semibold" style={{ color: CC.amber }}>
@@ -2253,7 +2253,7 @@ useEffect(() => {
 
               {selectedCard === 'employee-served' && (
                 <div className="space-y-4">
-                  {/* Headline stats — all obey the toolbar period filter */}
+                  {/* Headline stats - all obey the toolbar period filter */}
                   <div className="flex flex-wrap justify-between items-center gap-2">
                     <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-600">
                       <span>Period: <span className="font-semibold capitalize">{periodLabel}</span></span>
@@ -2495,7 +2495,7 @@ useEffect(() => {
                                       <span className="text-sm text-gray-500">
                                         {f.created_date
                                           ? new Date(f.created_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                                          : '—'}
+                                          : '-'}
                                       </span>
                                     </td>
                                   </tr>
@@ -2633,7 +2633,7 @@ useEffect(() => {
                 </div>
               )}
 
-              {/* Parking check-ins graph — opened by clicking the hourly parking gauge */}
+              {/* Parking check-ins graph - opened by clicking the hourly parking gauge */}
               {selectedCard === 'parking-hourly' && (
                 <div className="space-y-4">
                   <div className="text-sm text-gray-600">Vehicle check-ins per hour · today</div>

@@ -513,7 +513,7 @@ body {
   }
 }
 
-/* Reusable variant of #ToDayAnimatedCalenderBg — applied to the whole calendar
+/* Reusable variant of #ToDayAnimatedCalenderBg - applied to the whole calendar
    day cell that contains a happening (today/live) event, so the animated
    gradient circulates along the cell borders */
 .cok-live-event-frame {
@@ -550,7 +550,7 @@ body {
   z-index: 2;
 }
 
-/* ==================== CoK auth pages (login) — design-rule form controls ==================== */
+/* ==================== CoK auth pages (login) - design-rule form controls ==================== */
 
 .cok-auth-card {
   border-radius: 0;
@@ -611,6 +611,16 @@ body {
   0% { transform: scale(1); }
   35% { transform: scale(1.015); }
   100% { transform: scale(1); }
+}
+
+/* Row clipping for dense tables: cells cap at 60px and reveal fully on row hover */
+.cok-cell-clip {
+  max-height: 60px;
+  overflow: hidden;
+}
+
+tr:hover .cok-cell-clip {
+  max-height: none;
 }
 
 .cok-btn-primary {
@@ -846,7 +856,7 @@ background-color: #056daa;
   font-family: var(--cok-font-heading);
   color: var(--cok-neutral-dark);
 }
-/* ==================== CoK mayor dashboard — soft rounded chart-panel look ==================== */
+/* ==================== CoK mayor dashboard - soft rounded chart-panel look ==================== */
 
 /* Light blue-tinted canvas so white cards pop */
 .cok-mayor-dash {
@@ -891,7 +901,7 @@ background-color: #056daa;
 .cok-mayor-dash .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
 .cok-mayor-dash .p-3.space-y-2\.5 { padding: 22px; }
 
-/* Taller chart canvases — the charts are the dashboard */
+/* Taller chart canvases - the charts are the dashboard */
 .cok-mayor-dash .h-40.w-full { height: 13rem; }
 .cok-mayor-dash .h-32.w-full { height: 11rem; }
 .cok-mayor-dash .w-32.h-32 { width: 9.5rem; height: 9.5rem; }
