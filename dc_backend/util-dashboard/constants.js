@@ -51,7 +51,10 @@ const TIME_GRANULARITIES = ["auto", "hour", "day", "week", "month", "year"];
 const SUBMITTED_AT_FIELD = "submitted_at";
 
 const LIMITS = {
-  MAX_WIDGETS: 30,
+  // The automatic generator builds the full pairwise comparison matrix of
+  // the form's choice fields, so a dashboard is deliberately large - the
+  // user trims it by removing the widgets they do not want.
+  MAX_WIDGETS: 150,
   MAX_TITLE_LENGTH: 120,
   MAX_FILTERS: 10,
   MAX_CATEGORY_LIMIT: 50,

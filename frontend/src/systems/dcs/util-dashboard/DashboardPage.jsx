@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_dashboard, save_dashboard, get_dashboard_data } from "./dashboardService.js";
@@ -63,91 +63,24 @@ export default function DashboardPage({ form }) {
   const widgets_ref = useRef([]);
   widgets_ref.current = widgets;
 
-  // Browser-native full screen with two viewing modes: "fit" scales the
-  // whole board so everything is on screen at once (a single widget grows to
-  // fill it, a huge board shrinks), "scroll" keeps natural size and scrolls.
-  const { container_ref, is_fullscreen, is_fallback, enter, exit } = useBoardFullscreen();
-  const [fs_mode, setFsMode] = useState("fit");
-  const [fit_scale, setFitScale] = useState(1);
-  const [header_visible, setHeaderVisible] = useState(true);
-  const grid_ref = useRef(null);
+  // Browser-native full screen with two viewing modes ("fit" zooms the whole
+  // board onto one screen, "scroll" keeps natural size), the self-fitting
+  // zoom and the hover-driven fixed header all live in the hook.
+  const {
+    container_ref,
+    grid_ref,
+    is_fullscreen,
+    is_fallback,
+    enter,
+    exit,
+    fs_mode,
+    setFsMode,
+    fit_scale,
+    header_visible,
+    show_header,
+    schedule_header_hide,
+  } = useBoardFullscreen();
   const header_ref = useRef(null);
-  const hide_timer_ref = useRef(null);
-
-  // In full screen the header is fixed to the very top and lives on hover:
-  // it slides away 100ms after the pointer leaves it, and an invisible strip
-  // along the top edge brings it back the moment the pointer returns - all
-  // with a smooth animation. A touch on the strip shows it for a moment.
-  const cancel_header_hide = () => {
-    if (hide_timer_ref.current) window.clearTimeout(hide_timer_ref.current);
-  };
-  const show_header = () => {
-    cancel_header_hide();
-    setHeaderVisible(true);
-  };
-  const schedule_header_hide = (delay_ms) => {
-    cancel_header_hide();
-    hide_timer_ref.current = window.setTimeout(() => setHeaderVisible(false), delay_ms);
-  };
-
-  useEffect(() => {
-    if (!is_fullscreen) {
-      cancel_header_hide();
-      setHeaderVisible(true);
-      return undefined;
-    }
-    setHeaderVisible(true);
-    schedule_header_hide(100);
-    return cancel_header_hide;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [is_fullscreen]);
-
-  // Fit mode keeps EVERYTHING on one screen at the LARGEST zoom possible:
-  // a small board zooms IN to fill the viewport, a huge one zooms out just
-  // enough that nothing hides behind a scrollbar. The header floats above
-  // the board in full screen, so the whole container height belongs to the
-  // grid. Zooming reflows the grid (its width changes in layout units), and
-  // data streams in card by card, so a ResizeObserver keeps re-measuring
-  // and re-zooming until the board settles - whatever changes, the fit
-  // corrects itself. The 0.03 tolerance stops measure/zoom ping-pong.
-  useLayoutEffect(() => {
-    if (!is_fullscreen || fs_mode !== "fit") {
-      setFitScale(1);
-      return undefined;
-    }
-    const grid = grid_ref.current;
-    const container = container_ref.current;
-    if (!grid || !container) return undefined;
-
-    let frame = null;
-    const compute = () => {
-      const available = container.clientHeight - 40;
-      // The bounding rect is the VISUAL size on screen - it already includes
-      // the current zoom (or transform), so the next factor is simply the
-      // current one corrected by how far off the visual height is.
-      const visual = grid.getBoundingClientRect().height;
-      if (visual <= 0 || available <= 0) return;
-      setFitScale((current) => {
-        const desired = Math.min(3, Math.max(0.2, Math.floor((available / visual) * current * 100) / 100));
-        return Math.abs(desired - current) > 0.03 ? desired : current;
-      });
-    };
-    const schedule = () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(compute);
-    };
-
-    compute();
-    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null;
-    if (observer) observer.observe(grid);
-    window.addEventListener("resize", schedule);
-    return () => {
-      if (observer) observer.disconnect();
-      window.removeEventListener("resize", schedule);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [is_fullscreen, fs_mode]);
 
   useEffect(() => {
     let is_mounted = true;
@@ -222,12 +155,11 @@ export default function DashboardPage({ form }) {
   };
 
   // Text edits (title/description) also update the widgets state - only a
-  // change to what a widget actually CHARTS refetches its data.
-  const data_signature_ref = useRef("");
-  useEffect(() => {
-    if (loading) return;
-    const signature = JSON.stringify(
-      widgets.map((widget) => [
+  // change to what a widget actually CHARTS refetches its data. Removing a
+  // widget updates the signature by hand so the survivors never refetch.
+  const widgets_data_signature = (widget_list) =>
+    JSON.stringify(
+      widget_list.map((widget) => [
         widget.id,
         widget.chart_type,
         widget.metric,
@@ -242,11 +174,45 @@ export default function DashboardPage({ form }) {
         widget.limit,
       ]),
     );
+  const data_signature_ref = useRef("");
+  useEffect(() => {
+    if (loading) return;
+    const signature = widgets_data_signature(widgets);
     if (signature === data_signature_ref.current) return;
     data_signature_ref.current = signature;
     fetch_data(widgets, applied_period_ref.current, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, widgets]);
+
+  // The generated board is deliberately large (every field categorized by
+  // every other) - each card can be removed on its own, after a warning.
+  const [widget_to_remove, setWidgetToRemove] = useState(null);
+  const [removing, setRemoving] = useState(false);
+  const handle_remove_widget = async () => {
+    const target = widget_to_remove;
+    if (!target) return;
+    const next_widgets = widgets
+      .filter((widget) => widget.id !== target.id)
+      .map((widget, index) => ({ ...widget, position: index }));
+    setRemoving(true);
+    try {
+      const saved = await save_dashboard(form.form_group_id, next_widgets);
+      const final_widgets = (saved.data && saved.data.widgets) || next_widgets;
+      data_signature_ref.current = widgets_data_signature(final_widgets);
+      setWidgets(final_widgets);
+      setDataByWidget((current) => {
+        const next = { ...current };
+        delete next[target.id];
+        return next;
+      });
+      showSuccess(translate("DCS_DB_WIDGET_REMOVED"));
+    } catch (error) {
+      showError(error.message || translate("DCS_ERROR_GENERIC"));
+    } finally {
+      setRemoving(false);
+      setWidgetToRemove(null);
+    }
+  };
 
   // Click-to-edit on a card's title/description: the change is saved into
   // the form's dashboard right away, with a per-card spinner and a toast.
@@ -471,6 +437,7 @@ export default function DashboardPage({ form }) {
                   editable={can_edit && !generating}
                   savingText={saving_widget_id === widget.id}
                   onUpdateText={(changes) => handle_update_widget(widget.id, changes)}
+                  onRemove={can_edit && !generating ? () => setWidgetToRemove(widget) : undefined}
                   onRetry={() => retry_widget(widget)}
                 />
               </div>
@@ -494,6 +461,15 @@ export default function DashboardPage({ form }) {
           confirming={deleting}
           onConfirm={handle_delete}
           onCancel={() => setConfirming(null)}
+        />
+      )}
+      {widget_to_remove && (
+        <DcsConfirmDialog
+          titleKey="DCS_DB_REMOVE_TITLE"
+          messageKey="DCS_DB_REMOVE_MESSAGE"
+          confirming={removing}
+          onConfirm={handle_remove_widget}
+          onCancel={() => setWidgetToRemove(null)}
         />
       )}
     </div>

@@ -5,11 +5,17 @@ import { save_dashboard } from "./dashboardService.js";
  * The dashboard is generated fully automatically from the form itself - the
  * user never picks fields or charts. EVERY chartable field becomes its own
  * widget: a total KPI and a submissions-over-time line first, then one
- * chart per choice field (donut when the options fit in six slices, bars
- * otherwise, treemap for the deepest cascade level nested under its
- * parents), a stacked comparison of the two main choice fields, and an
- * average KPI plus distribution per number field.
+ * "total" chart per choice field (donut when the options fit in six slices,
+ * bars otherwise, treemap for the deepest cascade level nested under its
+ * parents), then EVERY choice field categorized by EVERY other choice field
+ * (district by gender, district by status, gender by status, gender by age,
+ * age by gender, ... - cascading levels included, both directions kept on
+ * purpose), and an average KPI per number field. The result is deliberately
+ * large; each widget card carries its own remove control so the user keeps
+ * only what they want.
  */
+
+const MAX_GENERATED_WIDGETS = 150;
 
 function option_count(field) {
   if (field.type === "select_group" && field.parent_dependency_enabled) {
@@ -93,22 +99,28 @@ export function generate_form_widgets(form, translate) {
     widgets.push(make({ title: translate("DCS_DB_GEN_BY", { label }), chart_type, group_by: { field_id: field.id }, limit, size }));
   });
 
-  // The two main non-cascading choice fields compared against each other.
-  const plain = fields.categorical.filter((field) => !is_cascade_child(field) && !has_cascade_children(field, fields.all));
-  if (plain.length >= 2) {
-    widgets.push(
-      make({
-        title: translate("DCS_DB_GEN_VS", { a: field_label_text(plain[0]), b: field_label_text(plain[1]) }),
-        chart_type: "stacked_column",
-        group_by: { field_id: plain[0].id },
-        split_by: { field_id: plain[1].id },
-        size: "large",
-      }),
-    );
-  }
+  // EVERY choice field categorized by EVERY other one - the full pairwise
+  // comparison matrix, cascading levels included and both directions kept
+  // (district by gender AND gender by district read differently). The cap
+  // only guards against pathological forms with dozens of choice fields.
+  fields.categorical.forEach((group_field) => {
+    fields.categorical.forEach((split_field) => {
+      if (group_field.id === split_field.id || widgets.length >= MAX_GENERATED_WIDGETS) return;
+      widgets.push(
+        make({
+          title: translate("DCS_DB_GEN_VS", { a: field_label_text(group_field), b: field_label_text(split_field) }),
+          chart_type: "stacked_column",
+          group_by: { field_id: group_field.id },
+          split_by: { field_id: split_field.id },
+          size: "large",
+        }),
+      );
+    });
+  });
 
   // EVERY number field gets its average as a KPI.
   fields.numeric.forEach((field) => {
+    if (widgets.length >= MAX_GENERATED_WIDGETS) return;
     widgets.push(
       make({
         title: translate("DCS_DB_GEN_AVG", { label: field_label_text(field) }),

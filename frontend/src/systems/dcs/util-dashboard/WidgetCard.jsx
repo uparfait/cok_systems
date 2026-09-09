@@ -111,7 +111,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
  * itself. The chart content is generated automatically and never edited
  * here.
  */
-export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText }) {
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove }) {
   const { translate } = useDcsLanguage();
   const definition = chart_definition(widget.chart_type);
   const type_label = definition ? translate(definition.labelKey) : widget.chart_type;
@@ -145,6 +145,21 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
           />
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
+        {onRemove && !savingText && (
+          <button
+            type="button"
+            title={translate("DCS_DB_REMOVE_WIDGET")}
+            aria-label={translate("DCS_DB_REMOVE_WIDGET")}
+            onClick={onRemove}
+            className="flex items-center justify-center flex-shrink-0"
+            style={{ width: 26, height: 26, border: `1px solid ${DANGER}`, color: DANGER, backgroundColor: "#FFFFFF", cursor: "pointer" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="px-2 pb-3 flex-1">
