@@ -294,7 +294,7 @@ function MyApprovalsPageContent() {
     <div className="min-h-screen p-3 sm:p-6 lg:h-screen lg:overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT }}>
       <div className="flex flex-col lg:flex-row gap-4 max-w-[1400px] mx-auto items-start lg:h-full">
         {/* Sidebar - approver identity, assignment and the author's message */}
-        <div className="w-full lg:w-[320px] shrink-0 bg-white border p-4 space-y-3 lg:max-h-full lg:overflow-y-auto" style={{ borderColor: BORDER }}>
+        <div className="w-full lg:w-[320px] shrink-0 bg-white border p-4 space-y-3 lg:h-full lg:overflow-y-auto" style={{ borderColor: BORDER }}>
           <div className="flex items-center gap-3 pb-3 border-b" style={{ borderColor: BORDER }}>
             <div className="w-14 h-14 flex items-center justify-center text-white text-xl font-extrabold shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading }}>
               {initials}
@@ -409,24 +409,7 @@ function MyApprovalsPageContent() {
                         </td>
                         <td className="px-4 py-3">
                           {record.state === "ready" ? (
-                            <div className="flex items-center gap-2 whitespace-nowrap">
-                              <button
-                                type="button"
-                                onClick={() => setDecisionTarget({ record, decision: "approve" })}
-                                className="cursor-pointer text-xs font-bold px-3 py-1.5"
-                                style={{ backgroundColor: PRIMARY, color: "#FFFFFF", fontFamily: fontHeading, borderRadius: 4 }}
-                              >
-                                {translate("DCS_APPROVAL_BTN_APPROVE")}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setDecisionTarget({ record, decision: "reject" })}
-                                className="cursor-pointer text-xs font-bold px-3 py-1.5"
-                                style={{ backgroundColor: "transparent", color: DANGER, border: `1px solid ${DANGER}`, fontFamily: fontHeading, borderRadius: 4 }}
-                              >
-                                {translate("DCS_APPROVAL_BTN_REJECT")}
-                              </button>
-                            </div>
+                            <DecisionButtons record={record} translate={translate} onDecide={setDecisionTarget} />
                           ) : (
                             <StatePill record={record} translate={translate} />
                           )}
