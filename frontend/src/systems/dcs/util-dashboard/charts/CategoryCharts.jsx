@@ -118,6 +118,12 @@ function SeriesColumns({ rows, series, mode, horizontal }) {
         })
       : rows;
   const stacked = mode === "stacked" || mode === "stacked_100";
+  // Each legend entry carries its own category's grand total across every
+  // bar - computed from the RAW rows, never the 100-percent-scaled copies.
+  const series_totals = {};
+  series.forEach((key) => {
+    series_totals[key] = rows.reduce((sum, row) => sum + (row[key] || 0), 0);
+  });
   const height = horizontal
     ? Math.max(CHART_HEIGHT, rows.length * (stacked ? 36 : Math.max(26, series.length * 18)))
     : CHART_HEIGHT;
@@ -137,7 +143,12 @@ function SeriesColumns({ rows, series, mode, horizontal }) {
           </>
         )}
         <Tooltip contentStyle={TOOLTIP_STYLE} />
-        <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={9} />
+        <Legend
+          wrapperStyle={{ fontSize: 11 }}
+          iconType="circle"
+          iconSize={9}
+          formatter={(value) => `${value} (${series_totals[value] === undefined ? 0 : series_totals[value]})`}
+        />
         {series.map((key, index) => (
           <Bar
             key={key}

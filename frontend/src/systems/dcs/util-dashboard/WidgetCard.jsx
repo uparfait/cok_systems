@@ -239,9 +239,12 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
   const definition = chart_definition(widget.chart_type);
   const type_label = definition ? translate(definition.labelKey) : widget.chart_type;
   const total = widget_total(widget, data);
+  // A failed or timed-out widget is marked in red - it likely causes errors
+  // or heavy computation and is a removal candidate.
+  const failed = !!(data && data.error);
 
   return (
-    <div className="bg-white border-2 flex flex-col h-full" style={{ borderColor: "#E0E0E0" }}>
+    <div className="bg-white border-2 flex flex-col h-full" style={{ borderColor: failed ? DANGER : "#E0E0E0" }}>
       <div className="px-3 pt-3 pb-2 flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <EditableText
@@ -268,15 +271,6 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
             onCommit={(next) => onUpdateText({ description: next || null })}
           />
         </div>
-        {total !== null && (
-          <span
-            className="flex-shrink-0 text-xs font-semibold px-2 py-0.5"
-            style={{ color: PRIMARY, backgroundColor: "#F0F7FB", border: `1px solid ${PRIMARY}`, fontFamily: "'Montserrat', sans-serif" }}
-            title={translate("DCS_DB_TOTAL")}
-          >
-            {translate("DCS_DB_TOTAL")}: {total.toLocaleString("en-US")}
-          </span>
-        )}
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
         {editable && !savingText && (onRemove || onChangeType) && (
           <CardMenu widget={widget} onChangeType={onChangeType} onRemove={onRemove} />
@@ -294,8 +288,11 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
           <StateMessage>{translate("DCS_DB_LOCKED")}</StateMessage>
         ) : data.error ? (
           <div className="flex flex-col items-center justify-center gap-2" style={{ height: 180 }}>
+            <p className="text-xs text-center px-4 font-semibold" style={{ color: DANGER, fontFamily: "'Montserrat', sans-serif" }}>
+              {translate(data.error === "TIMEOUT" ? "DCS_DB_WIDGET_SLOW" : "DCS_DB_WIDGET_ERROR")}
+            </p>
             <p className="text-xs text-center px-4" style={{ color: DANGER }}>
-              {translate("DCS_DB_WIDGET_ERROR")}
+              {translate("DCS_DB_WIDGET_REMOVE_HINT")}
             </p>
             {onRetry && (
               <button
@@ -312,6 +309,12 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
           <WidgetChart widget={widget} data={data} fitMode={fitMode} />
         )}
       </div>
+
+      {total !== null && (
+        <p className="px-3 pb-2 text-xs font-semibold" style={{ color: PRIMARY, fontFamily: "'Montserrat', sans-serif" }}>
+          {translate("DCS_DB_TOTAL")}: {total.toLocaleString("en-US")}
+        </p>
+      )}
     </div>
   );
 }

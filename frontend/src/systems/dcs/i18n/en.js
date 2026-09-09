@@ -489,6 +489,8 @@ const en = {
   DCS_DB_NO_DATA: "No data for this widget yet",
   DCS_DB_LOCKED: "Your access does not cover this form's data",
   DCS_DB_WIDGET_ERROR: "This widget could not be loaded",
+  DCS_DB_WIDGET_SLOW: "This widget took over 3 minutes and was cut off",
+  DCS_DB_WIDGET_REMOVE_HINT: "Consider removing this widget - it may cause errors or heavy computation",
   DCS_DB_OTHER: "Other",
   DCS_DB_OTHER_EXPAND: "View more ({{count}})",
   DCS_DB_OTHER_BACK: "View less",

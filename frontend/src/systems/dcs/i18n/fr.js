@@ -489,6 +489,8 @@ const fr = {
   DCS_DB_NO_DATA: "Pas encore de données pour ce widget",
   DCS_DB_LOCKED: "Votre accès ne couvre pas les données de ce formulaire",
   DCS_DB_WIDGET_ERROR: "Ce widget n'a pas pu être chargé",
+  DCS_DB_WIDGET_SLOW: "Ce widget a dépassé 3 minutes et a été interrompu",
+  DCS_DB_WIDGET_REMOVE_HINT: "Pensez à retirer ce widget - il peut causer des erreurs ou de lourds calculs",
   DCS_DB_OTHER: "Autres",
   DCS_DB_OTHER_EXPAND: "Voir plus ({{count}})",
   DCS_DB_OTHER_BACK: "Voir moins",

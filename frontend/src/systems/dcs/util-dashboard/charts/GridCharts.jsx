@@ -21,11 +21,14 @@ export function HeatmapChart({ rows, series, fitMode }) {
         <thead>
           <tr>
             <th />
-            {series.map((key) => (
-              <th key={key} className="px-1 pb-1 text-xs font-semibold text-center" style={{ color: "#555555" }} title={key}>
-                <span className="block truncate" style={{ maxWidth: 96 }}>{key}</span>
-              </th>
-            ))}
+            {series.map((key) => {
+              const column_total = rows.reduce((sum, row) => sum + (row[key] || 0), 0);
+              return (
+                <th key={key} className="px-1 pb-1 text-xs font-semibold text-center" style={{ color: "#555555" }} title={`${key} (${column_total})`}>
+                  <span className="block truncate" style={{ maxWidth: 96 }}>{`${key} (${column_total})`}</span>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>

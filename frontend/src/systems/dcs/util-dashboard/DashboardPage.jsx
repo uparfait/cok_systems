@@ -104,24 +104,43 @@ export default function DashboardPage({ form }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.form_group_id]);
 
-  // ONE global fetch chain: every data request of this board - initial
-  // load, period change, retry, chart-type refresh, silent update - is
-  // appended to the same promise chain, so NO TWO WIDGETS ever fetch at the
-  // same time, not even across different runs. Within a run the widgets go
-  // strictly first to last.
-  const fetch_queue_ref = useRef(Promise.resolve());
+  // Every widget fetches IN PARALLEL - one request per widget, all fired at
+  // once, each card rendering the moment its own data lands. One widget's
+  // failure never blocks any other, and a request that drags past three
+  // minutes is cut off and its card marked red - such a widget likely causes
+  // errors or heavy computation and should be removed.
+  const WIDGET_TIMEOUT_MS = 180000;
   const data_ref = useRef({});
   data_ref.current = data_by_widget;
-  const enqueue_fetch = (task) => {
-    fetch_queue_ref.current = fetch_queue_ref.current.then(task).catch(() => {});
-    return fetch_queue_ref.current;
-  };
+
+  const fetch_one = (widget, applied_period, run_id, silent) =>
+    Promise.race([
+      get_dashboard_data(form.form_group_id, [widget], applied_period),
+      new Promise((resolve, reject) => setTimeout(() => reject(new Error("TIMEOUT")), WIDGET_TIMEOUT_MS)),
+    ])
+      .then((response) => {
+        if (run_seq_ref.current !== run_id) return;
+        const result = ((response.data && response.data.results) || [])[0];
+        if (result) setDataByWidget((current) => ({ ...current, [widget.id]: result }));
+      })
+      .catch((error) => {
+        if (run_seq_ref.current !== run_id) return;
+        // A silent refresh keeps whatever the card already shows; a
+        // user-driven load marks just this card, never the others.
+        if (!silent) {
+          const code = error && error.message === "TIMEOUT" ? "TIMEOUT" : "FAILED";
+          setDataByWidget((current) => ({ ...current, [widget.id]: { widget_id: widget.id, error: code } }));
+        }
+      });
 
   const fetch_data = (widget_list, applied_period, silent) => {
     if (!widget_list || widget_list.length === 0) {
       setDataByWidget({});
       return;
     }
+    // A silent update only ever starts once EVERY widget already has its
+    // data - while the first load is still filling the board, it skips.
+    if (silent && widget_list.some((widget) => !data_ref.current[widget.id])) return;
     const run_id = run_seq_ref.current + 1;
     run_seq_ref.current = run_id;
     applied_period_ref.current = applied_period;
@@ -129,33 +148,13 @@ export default function DashboardPage({ form }) {
       setDataByWidget({});
       setDataLoading(true);
     }
-    enqueue_fetch(async () => {
-      if (run_seq_ref.current !== run_id) return;
-      // A silent update only ever starts once EVERY widget already has its
-      // data - while the first-to-last load is still filling the board, the
-      // update tick simply skips its turn.
-      if (silent && widget_list.some((widget) => !data_ref.current[widget.id])) return;
-      for (const widget of widget_list) {
-        if (run_seq_ref.current !== run_id) return;
-        try {
-          const response = await get_dashboard_data(form.form_group_id, [widget], applied_period);
-          if (run_seq_ref.current !== run_id) return;
-          const result = ((response.data && response.data.results) || [])[0];
-          if (result) setDataByWidget((current) => ({ ...current, [widget.id]: result }));
-        } catch (error) {
-          if (run_seq_ref.current !== run_id) return;
-          // A silent refresh keeps whatever the card already shows; a
-          // user-driven load marks just this card as failed and moves on.
-          if (!silent) setDataByWidget((current) => ({ ...current, [widget.id]: { widget_id: widget.id, error: "FAILED" } }));
-        }
-      }
+    Promise.allSettled(widget_list.map((widget) => fetch_one(widget, applied_period, run_id, silent))).then(() => {
       if (run_seq_ref.current === run_id && !silent) setDataLoading(false);
     });
   };
 
   // Retrying one failed card refetches ONLY that card - never the whole
-  // board - queued on the same chain as everything else. The result is
-  // dropped if a newer full run started meanwhile.
+  // board. The result is dropped if a newer full run started meanwhile.
   const retry_widget = (widget) => {
     const run_id = run_seq_ref.current;
     setDataByWidget((current) => {
@@ -163,18 +162,7 @@ export default function DashboardPage({ form }) {
       delete next[widget.id];
       return next;
     });
-    enqueue_fetch(async () => {
-      if (run_seq_ref.current !== run_id) return;
-      try {
-        const response = await get_dashboard_data(form.form_group_id, [widget], applied_period_ref.current);
-        if (run_seq_ref.current !== run_id) return;
-        const result = ((response.data && response.data.results) || [])[0];
-        setDataByWidget((current) => ({ ...current, [widget.id]: result || { widget_id: widget.id, error: "FAILED" } }));
-      } catch (error) {
-        if (run_seq_ref.current !== run_id) return;
-        setDataByWidget((current) => ({ ...current, [widget.id]: { widget_id: widget.id, error: "FAILED" } }));
-      }
-    });
+    fetch_one(widget, applied_period_ref.current, run_id, false);
   };
 
   // Text edits (title/description) also update the widgets state - only a

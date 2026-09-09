@@ -489,6 +489,8 @@ const kn = {
   DCS_DB_NO_DATA: "Nta makuru y'iki gishushanyo arahari",
   DCS_DB_LOCKED: "Uburenganzira bwawe ntibugera ku makuru y'iyi fishi",
   DCS_DB_WIDGET_ERROR: "Iki gishushanyo nticyashoboye gupakirwa",
+  DCS_DB_WIDGET_SLOW: "Iki gishushanyo cyarengeje iminota 3 kirahagarikwa",
+  DCS_DB_WIDGET_REMOVE_HINT: "Tekereza gukuraho iki gishushanyo - gishobora gutera amakosa cyangwa kubara kurenze",
   DCS_DB_OTHER: "Ibindi",
   DCS_DB_OTHER_EXPAND: "Reba byinshi ({{count}})",
   DCS_DB_OTHER_BACK: "Reba bike",

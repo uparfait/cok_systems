@@ -49,7 +49,12 @@ export default function TimeCharts({ chartType, rows, series, fitMode }) {
         <Tooltip contentStyle={TOOLTIP_STYLE} />
         {series && series.length > 0 ? (
           <>
-            <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={9} />
+            <Legend
+              wrapperStyle={{ fontSize: 11 }}
+              iconType="circle"
+              iconSize={9}
+              formatter={(value) => `${value} (${rows.reduce((sum, row) => sum + (row[value] || 0), 0)})`}
+            />
             {series.map((key, index) => (
               <Line
                 key={key}
