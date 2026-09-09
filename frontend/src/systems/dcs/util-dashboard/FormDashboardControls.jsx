@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_dashboard, save_dashboard } from "./dashboardService.js";
-import { generate_form_widgets } from "./autoGenerate.js";
+import { generate_and_save } from "./autoGenerate.js";
+import GenerationProgress from "./GenerationProgress.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
@@ -11,33 +12,39 @@ import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 const DANGER = "#E74C3C";
 
 /**
- * Dashboard controls on the form overview - every form owns its own
- * dashboard: generate it in one click (KPIs, over-time line, one chart per
- * choice field, treemaps for cascades), delete it again, or open the form's
- * Dashboard tab to view and fine-tune it. Generation and deletion go
- * through the same save endpoint as the manual builder, so everything stays
- * editable afterwards.
+ * Dashboard controls on the form overview. The dashboard is generated
+ * automatically from ALL of the form's fields - nothing to configure: while
+ * none exists (and the viewer may edit the form) only "Generate dashboard"
+ * shows, with live progress and messages; once it exists, only "View
+ * dashboard" (opens the full-screen dashboard page) and "Delete dashboard"
+ * remain. Deleting empties the dashboard only - collected data is never
+ * touched.
  */
 export default function FormDashboardControls({ projectId, form }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
+  const [checked, setChecked] = useState(false);
   const [can_edit, setCanEdit] = useState(false);
-  const [widget_count, setWidgetCount] = useState(0);
-  const [working, setWorking] = useState(false);
-  const [confirming, setConfirming] = useState(null);
+  const [exists, setExists] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [progress, setProgress] = useState({ percent: 0, message_key: "" });
+  const [deleting, setDeleting] = useState(false);
+  const [is_confirming_delete, setIsConfirmingDelete] = useState(false);
 
   useEffect(() => {
     let is_mounted = true;
+    setChecked(false);
     get_dashboard(form.form_group_id)
       .then((response) => {
         if (!is_mounted) return;
         const data = response.data || {};
         setCanEdit(data.can_edit === true);
-        setWidgetCount((data.widgets || []).length);
+        setExists(((data.widgets || []).length) > 0);
       })
-      .catch(() => is_mounted && setCanEdit(false));
+      .catch(() => is_mounted && setCanEdit(false))
+      .finally(() => is_mounted && setChecked(true));
     return () => {
       is_mounted = false;
     };
@@ -45,33 +52,39 @@ export default function FormDashboardControls({ projectId, form }) {
 
   const dashboard_path = `/dcs-system/project/${projectId}/forms/${form.form_group_id}/dashboard`;
 
-  const apply = async (next_widgets, toast_message) => {
-    setWorking(true);
+  const handle_generate = async () => {
+    setGenerating(true);
+    setProgress({ percent: 5, message_key: "DCS_DB_GEN_PROGRESS_ANALYZE" });
     try {
-      const saved = await save_dashboard(form.form_group_id, next_widgets);
-      setWidgetCount(((saved.data && saved.data.widgets) || next_widgets).length);
-      showSuccess(toast_message);
+      const saved_widgets = await generate_and_save(form, translate, (percent, message_key) =>
+        setProgress({ percent, message_key }),
+      );
+      setExists(true);
+      showSuccess(translate("DCS_DB_GENERATED_TOAST", { count: saved_widgets.length }));
+      // The freshly generated dashboard opens right away, full screen.
+      navigate(dashboard_path);
+    } catch (error) {
+      showError(error.is_translation_key ? translate(error.message) : error.message || translate("DCS_ERROR_GENERIC"));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handle_delete = async () => {
+    setDeleting(true);
+    try {
+      await save_dashboard(form.form_group_id, []);
+      setExists(false);
+      showSuccess(translate("DCS_DB_DELETED_TOAST"));
     } catch (error) {
       showError(error.message || translate("DCS_ERROR_GENERIC"));
     } finally {
-      setWorking(false);
-      setConfirming(null);
+      setDeleting(false);
+      setIsConfirmingDelete(false);
     }
   };
 
-  const handle_generate = () => {
-    const generated = generate_form_widgets(form, translate);
-    if (generated.length === 0) {
-      showError(translate("DCS_DB_NOTHING_TO_GENERATE"));
-      setConfirming(null);
-      return;
-    }
-    apply(generated, translate("DCS_DB_GENERATED_TOAST", { count: generated.length }));
-  };
-
-  const handle_delete = () => {
-    apply([], translate("DCS_DB_DELETED_TOAST"));
-  };
+  if (!checked) return null;
 
   return (
     <div className="dcs-home-glass-card p-4 sm:p-5">
@@ -79,50 +92,49 @@ export default function FormDashboardControls({ projectId, form }) {
         {translate("DCS_DB_FORM_SECTION_TITLE")}
       </p>
       <p className="text-xs mb-3" style={{ color: "#9E9E9E" }}>
-        {widget_count > 0 ? translate("DCS_DB_FORM_WIDGET_COUNT", { count: widget_count }) : translate("DCS_DB_FORM_SECTION_HINT")}
+        {exists ? translate("DCS_DB_AUTO_HINT") : translate("DCS_DB_FORM_SECTION_HINT")}
       </p>
-      <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-        {can_edit && (
-          <div className="w-full sm:w-56">
-            <DcsButtonPrimary
-              type="button"
-              disabled={working}
-              onClick={() => (widget_count > 0 ? setConfirming("generate") : handle_generate())}
-            >
-              {working ? translate("DCS_DB_WORKING") : translate("DCS_DB_BTN_GENERATE")}
-            </DcsButtonPrimary>
-          </div>
-        )}
-        <div className="w-full sm:w-48">
-          <DcsButtonOutline type="button" onClick={() => navigate(dashboard_path)}>
-            {translate("DCS_DB_BTN_VIEW")}
-          </DcsButtonOutline>
-        </div>
-        {can_edit && widget_count > 0 && (
-          <div className="w-full sm:w-56">
-            <DcsButtonOutline type="button" variant="danger" disabled={working} onClick={() => setConfirming("delete")} style={{ color: DANGER }}>
-              {translate("DCS_DB_BTN_DELETE")}
-            </DcsButtonOutline>
-          </div>
-        )}
-      </div>
 
-      {confirming === "generate" && (
-        <DcsConfirmDialog
-          titleKey="DCS_DB_GEN_CONFIRM_TITLE"
-          messageKey="DCS_DB_GEN_CONFIRM_MESSAGE"
-          confirming={working}
-          onConfirm={handle_generate}
-          onCancel={() => setConfirming(null)}
-        />
+      {generating ? (
+        <GenerationProgress percent={progress.percent} messageKey={progress.message_key} />
+      ) : (
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+          {!exists && can_edit && (
+            <div className="w-full sm:w-56">
+              <DcsButtonPrimary type="button" onClick={handle_generate}>
+                {translate("DCS_DB_BTN_GENERATE")}
+              </DcsButtonPrimary>
+            </div>
+          )}
+          {!exists && !can_edit && (
+            <p className="text-xs" style={{ color: "#9E9E9E" }}>
+              {translate("DCS_DB_EMPTY_HINT_VIEWER")}
+            </p>
+          )}
+          {exists && (
+            <div className="w-full sm:w-48">
+              <DcsButtonPrimary type="button" onClick={() => navigate(dashboard_path)}>
+                {translate("DCS_DB_BTN_VIEW")}
+              </DcsButtonPrimary>
+            </div>
+          )}
+          {exists && can_edit && (
+            <div className="w-full sm:w-56">
+              <DcsButtonOutline type="button" variant="danger" disabled={deleting} onClick={() => setIsConfirmingDelete(true)} style={{ color: DANGER }}>
+                {deleting ? translate("DCS_DB_WORKING") : translate("DCS_DB_BTN_DELETE")}
+              </DcsButtonOutline>
+            </div>
+          )}
+        </div>
       )}
-      {confirming === "delete" && (
+
+      {is_confirming_delete && (
         <DcsConfirmDialog
           titleKey="DCS_DB_DEL_CONFIRM_TITLE"
           messageKey="DCS_DB_DEL_CONFIRM_MESSAGE"
-          confirming={working}
+          confirming={deleting}
           onConfirm={handle_delete}
-          onCancel={() => setConfirming(null)}
+          onCancel={() => setIsConfirmingDelete(false)}
         />
       )}
     </div>

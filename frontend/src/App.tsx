@@ -688,8 +688,8 @@ const AuthenticatedRoutes: React.FC = () => {
                 <Route path="approval" element={<FormApprovalPage />} />
                 <Route path="versions" element={<FormVersionsPage />} />
                 <Route path="test-data" element={<TestDataPage />} />
-                <Route path="dashboard" element={<FormDashboardPage />} />
               </Route>
+              <Route path="project/:project_id/forms/:form_group_id/dashboard" element={<FormDashboardPage />} />
               <Route path="project/:project_id/forms/:form_group_id/data" element={<FormAllDataPage />} />
               <Route path="project/:project_id/forms/:form_group_id/:version/data" element={<FormDataPage />} />
             </Route>

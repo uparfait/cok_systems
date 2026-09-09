@@ -110,7 +110,7 @@ function JobProgress({ job }) {
   );
 }
 
-function GenerateTestDataOverlay({ formGroupId, versions, onClose }) {
+function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClose }) {
   const { translate } = useDcsLanguage();
   const { showError, showSuccess } = useToast();
   const [version, setVersion] = useState(versions.length > 0 ? String(versions[0].version) : "");
@@ -129,8 +129,21 @@ function GenerateTestDataOverlay({ formGroupId, versions, onClose }) {
     };
   }, []);
 
+  // The overlay can open while the versions are still being fetched - the
+  // initial state above would then stay empty forever (state initializers
+  // never re-run), silently failing the start validation. Once the list
+  // lands, the first (latest) version is selected automatically.
+  useEffect(() => {
+    if (!version && versions.length > 0) setVersion(String(versions[0].version));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [versions]);
+
   const handle_start = async () => {
-    if (!version || !from || !to || new Date(from) >= new Date(to)) {
+    if (!version) {
+      showError(translate(versionsLoading ? "DCS_TEST_DATA_VERSIONS_LOADING" : "DCS_TEST_DATA_VERSION_REQUIRED"));
+      return;
+    }
+    if (!from || !to || new Date(from) >= new Date(to)) {
       showError(translate("DCS_TEST_DATA_RANGE_INVALID"));
       return;
     }
@@ -182,13 +195,22 @@ function GenerateTestDataOverlay({ formGroupId, versions, onClose }) {
       <div className="space-y-3">
         <div>
           <FieldLabel labelKey="DCS_TEST_DATA_VERSION_LABEL" />
-          <select className="cok-auth-input w-full py-3" value={version} disabled={running} onChange={(event) => setVersion(event.target.value)}>
-            {versions.map((entry) => (
-              <option key={entry.version} value={String(entry.version)}>
-                {translate("DCS_VERSION_OPTION_LABEL", { version: entry.version })}
-              </option>
-            ))}
-          </select>
+          {versionsLoading ? (
+            <div className="cok-auth-input w-full py-3 flex items-center gap-2">
+              <span className="dcs-inline-spinner" style={{ color: PRIMARY }} />
+              <span className="text-xs" style={MUTED_STYLE}>
+                {translate("DCS_TEST_DATA_VERSIONS_LOADING")}
+              </span>
+            </div>
+          ) : (
+            <select className="cok-auth-input w-full py-3" value={version} disabled={running} onChange={(event) => setVersion(event.target.value)}>
+              {versions.map((entry) => (
+                <option key={entry.version} value={String(entry.version)}>
+                  {translate("DCS_VERSION_OPTION_LABEL", { version: entry.version })}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -229,7 +251,7 @@ function GenerateTestDataOverlay({ formGroupId, versions, onClose }) {
             </span>
           </div>
         ) : (
-          <DcsButtonPrimary className="w-full" onClick={handle_start}>
+          <DcsButtonPrimary className="w-full" onClick={handle_start} disabled={versionsLoading}>
             {translate("DCS_TEST_DATA_START_BTN")}
           </DcsButtonPrimary>
         )}
@@ -238,7 +260,7 @@ function GenerateTestDataOverlay({ formGroupId, versions, onClose }) {
   );
 }
 
-function DeleteTestDataOverlay({ formGroupId, versions, onClose }) {
+function DeleteTestDataOverlay({ formGroupId, versions, versionsLoading, onClose }) {
   const { translate } = useDcsLanguage();
   const { showError, showSuccess } = useToast();
   const [from, setFrom] = useState("");
@@ -285,14 +307,23 @@ function DeleteTestDataOverlay({ formGroupId, versions, onClose }) {
         </div>
         <div>
           <FieldLabel labelKey="DCS_TEST_DATA_VERSION_LABEL" />
-          <select className="cok-auth-input w-full py-3" value={version} disabled={busy} onChange={(event) => setVersion(event.target.value)}>
-            <option value="">{translate("DCS_TEST_DATA_ALL_VERSIONS")}</option>
-            {versions.map((entry) => (
-              <option key={entry.version} value={String(entry.version)}>
-                {translate("DCS_VERSION_OPTION_LABEL", { version: entry.version })}
-              </option>
-            ))}
-          </select>
+          {versionsLoading ? (
+            <div className="cok-auth-input w-full py-3 flex items-center gap-2">
+              <span className="dcs-inline-spinner" style={{ color: PRIMARY }} />
+              <span className="text-xs" style={MUTED_STYLE}>
+                {translate("DCS_TEST_DATA_VERSIONS_LOADING")}
+              </span>
+            </div>
+          ) : (
+            <select className="cok-auth-input w-full py-3" value={version} disabled={busy} onChange={(event) => setVersion(event.target.value)}>
+              <option value="">{translate("DCS_TEST_DATA_ALL_VERSIONS")}</option>
+              {versions.map((entry) => (
+                <option key={entry.version} value={String(entry.version)}>
+                  {translate("DCS_VERSION_OPTION_LABEL", { version: entry.version })}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         {busy ? (
           <div className="flex items-center justify-center">
@@ -720,14 +751,17 @@ export default function DcsTestDataManager({ formGroupId, form, refreshForm }) {
   const { showError } = useToast();
   const [open_overlay, setOpenOverlay] = useState(null);
   const [versions, setVersions] = useState([]);
+  const [versions_loading, setVersionsLoading] = useState(true);
 
   useEffect(() => {
     let is_mounted = true;
+    setVersionsLoading(true);
     get_form_versions(formGroupId)
       .then((response) => {
         if (is_mounted) setVersions(response.data || []);
       })
-      .catch((error) => showError(error.message || translate("DCS_ERROR_GENERIC")));
+      .catch((error) => showError(error.message || translate("DCS_ERROR_GENERIC")))
+      .finally(() => is_mounted && setVersionsLoading(false));
     return () => {
       is_mounted = false;
     };
@@ -755,8 +789,12 @@ export default function DcsTestDataManager({ formGroupId, form, refreshForm }) {
         </DcsButtonOutlineDanger>
       </div>
 
-      {open_overlay === "generate" && <GenerateTestDataOverlay formGroupId={formGroupId} versions={versions} onClose={() => setOpenOverlay(null)} />}
-      {open_overlay === "delete" && <DeleteTestDataOverlay formGroupId={formGroupId} versions={versions} onClose={() => setOpenOverlay(null)} />}
+      {open_overlay === "generate" && (
+        <GenerateTestDataOverlay formGroupId={formGroupId} versions={versions} versionsLoading={versions_loading} onClose={() => setOpenOverlay(null)} />
+      )}
+      {open_overlay === "delete" && (
+        <DeleteTestDataOverlay formGroupId={formGroupId} versions={versions} versionsLoading={versions_loading} onClose={() => setOpenOverlay(null)} />
+      )}
       {open_overlay === "approvals" && (
         <GenerateTestApprovalsOverlay formGroupId={formGroupId} form={form} onRefreshForm={refreshForm} onClose={() => setOpenOverlay(null)} />
       )}

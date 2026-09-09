@@ -1,17 +1,15 @@
 import { classify_fields, field_label_text, SUBMITTED_AT_FIELD } from "./chartCatalog.js";
+import { save_dashboard } from "./dashboardService.js";
 
 /**
- * Builds a sensible ready-made dashboard for one form, straight from its
- * schema: a total KPI, a submissions-over-time line, one chart per choice
- * field (donut when the options fit in six slices, bars otherwise, treemap
- * for the deepest cascade level), an average KPI per number field, and a
- * stacked comparison of the two main choice fields. The result is a plain
- * widget list - saved through the same endpoint the manual builder uses,
- * so everything stays editable afterwards.
+ * The dashboard is generated fully automatically from the form itself - the
+ * user never picks fields or charts. EVERY chartable field becomes its own
+ * widget: a total KPI and a submissions-over-time line first, then one
+ * chart per choice field (donut when the options fit in six slices, bars
+ * otherwise, treemap for the deepest cascade level nested under its
+ * parents), a stacked comparison of the two main choice fields, and an
+ * average KPI plus distribution per number field.
  */
-
-const MAX_CATEGORY_WIDGETS = 8;
-const MAX_NUMERIC_WIDGETS = 3;
 
 function option_count(field) {
   if (field.type === "select_group" && field.parent_dependency_enabled) {
@@ -73,10 +71,11 @@ export function generate_form_widgets(form, translate) {
     }),
   );
 
-  // Deepest cascade levels (a child with no children of its own) become
-  // treemaps nested under their parents; plain choice fields become donuts
-  // when they fit in six slices and bars otherwise.
-  fields.categorical.slice(0, MAX_CATEGORY_WIDGETS).forEach((field) => {
+  // EVERY choice field of the form gets a chart: the deepest cascade levels
+  // (a child with no children of its own) become treemaps nested under
+  // their parents; plain choice fields become donuts when they fit in six
+  // slices and bars otherwise.
+  fields.categorical.forEach((field) => {
     const label = field_label_text(field);
     const child = is_cascade_child(field);
     const parent_of_more = has_cascade_children(field, fields.all);
@@ -108,7 +107,8 @@ export function generate_form_widgets(form, translate) {
     );
   }
 
-  fields.numeric.slice(0, MAX_NUMERIC_WIDGETS).forEach((field) => {
+  // EVERY number field gets its average as a KPI.
+  fields.numeric.forEach((field) => {
     widgets.push(
       make({
         title: translate("DCS_DB_GEN_AVG", { label: field_label_text(field) }),
@@ -120,4 +120,31 @@ export function generate_form_widgets(form, translate) {
   });
 
   return widgets;
+}
+
+const wait = (duration_ms) => new Promise((resolve) => setTimeout(resolve, duration_ms));
+
+/**
+ * Generates the form's dashboard end to end, reporting progress through
+ * on_stage(percent, message_key): analyze the schema, build the widgets,
+ * save them as the form's dashboard. Returns the saved widget list; throws
+ * an Error whose message is a TRANSLATION KEY when the form has nothing
+ * chartable.
+ */
+export async function generate_and_save(form, translate, on_stage) {
+  on_stage(15, "DCS_DB_GEN_PROGRESS_ANALYZE");
+  await wait(400);
+  const widgets = generate_form_widgets(form, translate);
+  if (widgets.length === 0) {
+    const empty_error = new Error("DCS_DB_NOTHING_TO_GENERATE");
+    empty_error.is_translation_key = true;
+    throw empty_error;
+  }
+  on_stage(55, "DCS_DB_GEN_PROGRESS_BUILD");
+  await wait(400);
+  on_stage(85, "DCS_DB_GEN_PROGRESS_SAVE");
+  const saved = await save_dashboard(form.form_group_id, widgets);
+  on_stage(100, "DCS_DB_GEN_DONE");
+  await wait(350);
+  return (saved.data && saved.data.widgets) || widgets;
 }
