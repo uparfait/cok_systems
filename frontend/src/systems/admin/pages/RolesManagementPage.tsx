@@ -62,7 +62,8 @@ function selectionFromCatalog(catalog: NavLink[], existing?: RoleNavLink[]): Sel
         : true;
     });
     sel[link.id] = {
-      on: existing ? !!found : !!(link as any).default_enabled,
+      // Required default links (Calender, Task Manager) are always on
+      on: (existing ? !!found : false) || !!link.default_enabled,
       children,
     };
   });
@@ -218,6 +219,8 @@ const RolesManagementPage: React.FC = () => {
   };
 
   const toggleLink = (id: string) => {
+    // Required default links cannot be turned off
+    if (catalog.find((l) => l.id === id)?.default_enabled) return;
     setSelection((prev) => ({ ...prev, [id]: { ...prev[id], on: !prev[id]?.on } }));
   };
 
@@ -494,16 +497,18 @@ const RolesManagementPage: React.FC = () => {
                   const s = selection[link.id];
                   return (
                     <div key={link.id} className="px-3 py-2" style={{ borderTop: i > 0 ? `1px solid ${BORDER}` : 'none' }}>
-                      <label className="flex items-center gap-2 cursor-pointer">
+                      <label className={`flex items-center gap-2 ${link.default_enabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                         <input
                           type="checkbox"
                           checked={!!s?.on}
+                          disabled={!!link.default_enabled}
                           onChange={() => toggleLink(link.id)}
-                          className="cursor-pointer"
+                          className={link.default_enabled ? 'cursor-not-allowed' : 'cursor-pointer'}
                         />
                         <LinkIcon icon={link.icon} />
                         <span className="text-sm font-medium text-gray-900">{link.label}</span>
                         <span className="text-xs text-gray-400">{link.path}</span>
+                        {link.default_enabled && <Chip bg="rgba(5,109,170,0.1)" color={PRIMARY}>Required</Chip>}
                       </label>
                       {s?.on && (link.children || []).length > 0 && (
                         <div className="ml-9 mt-1 flex flex-col gap-1">

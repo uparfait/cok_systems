@@ -1,8 +1,11 @@
 // controllers/role/RoleController.js
 const mongoose = require('mongoose');
 const role_model = require('../../models/default_roles.js');
+const user_model = require('../../models/user.js');
 const allowed_resources = require('../../resources/resources.js');
 const navigation = require('../../utilities/navigation.js');
+
+const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 class RoleController {
     
@@ -18,6 +21,23 @@ class RoleController {
                 is_enabled: false // Default to disabled
             }))
         }));
+    }
+
+    /**
+     * Links marked default_enabled in the catalog (e.g. Calender, Task
+     * Manager) are required on every custom role; missing ones are added.
+     */
+    static ensureRequiredLinks(navLinks) {
+        const required = (navigation.loadDefaults().link_catalog || [])
+            .filter((l) => l.default_enabled);
+        const present = new Set(
+            (navLinks || []).map((e) => (typeof e === 'string' ? e : e?.id))
+        );
+        const merged = [...(navLinks || [])];
+        required.forEach((l) => {
+            if (!present.has(l.id)) merged.push({ id: l.id });
+        });
+        return merged;
     }
 
     /**
@@ -160,7 +180,15 @@ class RoleController {
             }
 
             // Validate navigation links against the shared catalog
+            let finalNavLinks = nav_links;
             if (nav_links !== undefined) {
+                if (!Array.isArray(nav_links) || nav_links.length === 0) {
+                    return res.status(400).json({
+                        success: false,
+                        type: 'warning',
+                        message: 'A role must have at least one link'
+                    });
+                }
                 const navErrors = navigation.validateNavLinks(nav_links);
                 if (navErrors.length > 0) {
                     return res.status(400).json({
@@ -170,6 +198,8 @@ class RoleController {
                         errors: navErrors
                     });
                 }
+                // Required default links are always part of the role
+                finalNavLinks = RoleController.ensureRequiredLinks(nav_links);
             }
 
             // Merge permissions with complete resource list
@@ -179,7 +209,7 @@ class RoleController {
             const newRole = new role_model({
                 role_name,
                 permissions: mergedPermissions,
-                nav_links: nav_links || [],
+                nav_links: finalNavLinks || [],
                 default_route: default_route || ''
             });
 
@@ -366,6 +396,13 @@ class RoleController {
                     });
                 }
                 if (nav_links !== undefined) {
+                    if (!Array.isArray(nav_links) || nav_links.length === 0) {
+                        return res.status(400).json({
+                            success: false,
+                            type: 'warning',
+                            message: 'A role must keep at least one link'
+                        });
+                    }
                     const navErrors = navigation.validateNavLinks(nav_links);
                     if (navErrors.length > 0) {
                         return res.status(400).json({
@@ -375,7 +412,8 @@ class RoleController {
                             errors: navErrors
                         });
                     }
-                    role.nav_links = nav_links;
+                    // Required default links are always part of the role
+                    role.nav_links = RoleController.ensureRequiredLinks(nav_links);
                 }
                 if (default_route !== undefined) {
                     role.default_route = default_route || '';
@@ -415,7 +453,7 @@ class RoleController {
                 });
             }
 
-            const role = await role_model.findByIdAndDelete(id);
+            const role = await role_model.findById(id);
 
             if (!role) {
                 return res.status(404).json({
@@ -424,6 +462,20 @@ class RoleController {
                     message: "Role not found"
                 });
             }
+
+            // A role still assigned to employees cannot be deleted
+            const assignedCount = await user_model.countDocuments({
+                'roles.role_name': new RegExp(`^${escapeRegex(role.role_name)}$`, 'i')
+            });
+            if (assignedCount > 0) {
+                return res.status(400).json({
+                    success: false,
+                    type: 'warning',
+                    message: `Cannot delete "${role.role_name}" - it is assigned to ${assignedCount} employee${assignedCount > 1 ? 's' : ''}. Reassign them to another role first.`
+                });
+            }
+
+            await role_model.findByIdAndDelete(id);
 
             return res.status(200).json({
                 success: true,

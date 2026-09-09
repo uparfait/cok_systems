@@ -9,6 +9,7 @@ export interface NavLink {
   path: string;
   icon: string;
   permission?: string;
+  default_enabled?: boolean;
   children?: NavLink[];
 }
 
