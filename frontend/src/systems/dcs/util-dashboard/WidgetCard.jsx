@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import WidgetChart from "./WidgetChart.jsx";
@@ -105,13 +105,92 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
 }
 
 /**
+ * The three-dots menu at each card's top right: turn a bar chart into a
+ * column chart (and back - the underlying data is identical, only the
+ * orientation changes), and remove the widget. Closes on outside click.
+ */
+function CardMenu({ widget, onChangeType, onRemove }) {
+  const { translate } = useDcsLanguage();
+  const [open, setOpen] = useState(false);
+  const menu_ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handle_outside = (event) => {
+      if (menu_ref.current && !menu_ref.current.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handle_outside);
+    return () => document.removeEventListener("mousedown", handle_outside);
+  }, [open]);
+
+  const item_style = (danger) => ({
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    padding: "0.5rem 0.75rem",
+    fontSize: 12,
+    fontFamily: "'Montserrat', sans-serif",
+    color: danger ? DANGER : "#333333",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  });
+
+  const pick = (action) => {
+    setOpen(false);
+    action();
+  };
+
+  return (
+    <div ref={menu_ref} className="relative flex-shrink-0">
+      <button
+        type="button"
+        title={translate("DCS_DB_MENU")}
+        aria-label={translate("DCS_DB_MENU")}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-center"
+        style={{ width: 26, height: 26, border: "1px solid #E0E0E0", color: "#555555", backgroundColor: open ? "#F0F7FB" : "#FFFFFF", cursor: "pointer" }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="5" r="2" />
+          <circle cx="12" cy="12" r="2" />
+          <circle cx="12" cy="19" r="2" />
+        </svg>
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 z-40 bg-white border-2 shadow-lg" style={{ top: "100%", marginTop: 4, borderColor: "#E0E0E0", minWidth: 170 }}>
+          {widget.chart_type === "bar" && onChangeType && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(false)} onClick={() => pick(() => onChangeType("column"))}>
+              {translate("DCS_DB_TO_COLUMN")}
+            </button>
+          )}
+          {widget.chart_type === "column" && onChangeType && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(false)} onClick={() => pick(() => onChangeType("bar"))}>
+              {translate("DCS_DB_TO_BAR")}
+            </button>
+          )}
+          {onRemove && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(true)} onClick={() => pick(onRemove)}>
+              {translate("DCS_DB_REMOVE_WIDGET")}
+            </button>
+          )}
+          <style>{`.dcs-db-menu-item:hover { background-color: #F0F7FB !important; }`}</style>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * The frame of every dashboard widget: a title bar (title and description
  * are click-to-edit for users allowed to edit the form, with a spinner
- * while the change saves) and the loading / error states around the chart
- * itself. The chart content is generated automatically and never edited
- * here.
+ * while the change saves, and a three-dots menu on the top right) and the
+ * loading / error states around the chart itself.
  */
-export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove }) {
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType }) {
   const { translate } = useDcsLanguage();
   const definition = chart_definition(widget.chart_type);
   const type_label = definition ? translate(definition.labelKey) : widget.chart_type;
@@ -145,20 +224,8 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
           />
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
-        {onRemove && !savingText && (
-          <button
-            type="button"
-            title={translate("DCS_DB_REMOVE_WIDGET")}
-            aria-label={translate("DCS_DB_REMOVE_WIDGET")}
-            onClick={onRemove}
-            className="flex items-center justify-center flex-shrink-0"
-            style={{ width: 26, height: 26, border: `1px solid ${DANGER}`, color: DANGER, backgroundColor: "#FFFFFF", cursor: "pointer" }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
-          </button>
+        {editable && !savingText && (onRemove || onChangeType) && (
+          <CardMenu widget={widget} onChangeType={onChangeType} onRemove={onRemove} />
         )}
       </div>
 

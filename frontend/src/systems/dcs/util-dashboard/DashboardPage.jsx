@@ -161,7 +161,9 @@ export default function DashboardPage({ form }) {
     JSON.stringify(
       widget_list.map((widget) => [
         widget.id,
-        widget.chart_type,
+        // Bar and column read the exact same aggregation - flipping the
+        // orientation must never refetch, so both map to one token.
+        widget.chart_type === "bar" ? "column" : widget.chart_type,
         widget.metric,
         widget.group_by,
         widget.split_by,
@@ -438,6 +440,7 @@ export default function DashboardPage({ form }) {
                   savingText={saving_widget_id === widget.id}
                   onUpdateText={(changes) => handle_update_widget(widget.id, changes)}
                   onRemove={can_edit && !generating ? () => setWidgetToRemove(widget) : undefined}
+                  onChangeType={can_edit && !generating ? (next_type) => handle_update_widget(widget.id, { chart_type: next_type }) : undefined}
                   onRetry={() => retry_widget(widget)}
                 />
               </div>
