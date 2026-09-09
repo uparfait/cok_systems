@@ -20,7 +20,7 @@ const LoginPage = () => {
 
   const { login } = useAuth();
   
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -50,7 +50,7 @@ const LoginPage = () => {
   // A forced logout (system configurations changed) leaves a notice to show
   useEffect(() => {
     const notice = consumeForcedLogoutNotice();
-    if (notice) showError(notice);
+    if (notice) showInfo(notice);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -99,13 +99,13 @@ export const refreshNavigation = async (): Promise<StoredNavigation | null> => {
       return nav as StoredNavigation;
     }
     if (res && res.success === false && isRoleFormatFailure(res)) {
-      forceLogout('SYSTEM CONFIGURATIONS CHANGED');
+      forceLogout('SYSTEM CONFIGURATIONS CHANGED. LOGIN AGAIN FOR UPDATES.');
     }
     return null;
   } catch (err) {
     console.error('Navigation refresh failed:', err);
     if (isRoleFormatFailure(err)) {
-      forceLogout('SYSTEM CONFIGURATIONS CHANGED');
+      forceLogout('SYSTEM CONFIGURATIONS CHANGED. LOGIN AGAIN FOR UPDATES.');
     }
     return null;
   }
