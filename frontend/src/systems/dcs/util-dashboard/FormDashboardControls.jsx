@@ -33,7 +33,7 @@ export default function FormDashboardControls({ projectId, form }) {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ percent: 0, message_key: "" });
   const [review_widgets, setReviewWidgets] = useState(null);
-  const [board_widgets, setBoardWidgets] = useState([]);
+  const [review_loading, setReviewLoading] = useState(false);
 
   useEffect(() => {
     let is_mounted = true;
@@ -43,7 +43,6 @@ export default function FormDashboardControls({ projectId, form }) {
         if (!is_mounted) return;
         const data = response.data || {};
         setCanEdit(data.can_edit === true);
-        setBoardWidgets(data.widgets || []);
         setExists(((data.widgets || []).length) > 0);
       })
       .catch(() => is_mounted && setCanEdit(false))
@@ -55,6 +54,23 @@ export default function FormDashboardControls({ projectId, form }) {
 
   const dashboard_path = `/dcs-system/project/${projectId}/forms/${form.form_group_id}/dashboard`;
 
+  // "Review widgets" always fetches the SAVED board fresh from the backend
+  // before opening the review - it works in a brand-new browser session,
+  // long after the generation happened.
+  const handle_open_review = async () => {
+    setReviewLoading(true);
+    try {
+      const response = await get_dashboard(form.form_group_id);
+      const widgets = (response.data && response.data.widgets) || [];
+      setExists(widgets.length > 0);
+      setReviewWidgets(widgets);
+    } catch (error) {
+      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
   const handle_generate = async () => {
     setGenerating(true);
     setProgress({ percent: 5, message_key: "DCS_DB_GEN_PROGRESS_ANALYZE" });
@@ -63,7 +79,6 @@ export default function FormDashboardControls({ projectId, form }) {
         setProgress({ percent, message_key }),
       );
       setExists(saved_widgets.length > 0);
-      setBoardWidgets(saved_widgets);
       showSuccess(translate("DCS_DB_GENERATED_TOAST", { count: saved_widgets.length }));
       // No redirect: the user first reviews the generated widgets (nothing
       // loads data here) and decides what to keep before opening the full
@@ -115,9 +130,13 @@ export default function FormDashboardControls({ projectId, form }) {
             )}
             {exists && can_edit && (
               <div className="w-full sm:w-44">
-                <DcsButtonOutline type="button" onClick={() => setReviewWidgets(board_widgets)}>
-                  {translate("DCS_DB_BTN_REVIEW")}
-                </DcsButtonOutline>
+                {review_loading ? (
+                  <SpiralLoader />
+                ) : (
+                  <DcsButtonOutline type="button" onClick={handle_open_review}>
+                    {translate("DCS_DB_BTN_REVIEW")}
+                  </DcsButtonOutline>
+                )}
               </div>
             )}
           </div>
@@ -131,7 +150,6 @@ export default function FormDashboardControls({ projectId, form }) {
           onOpenDashboard={() => navigate(dashboard_path)}
           onClose={() => setReviewWidgets(null)}
           onCountChange={(count) => setExists(count > 0)}
-          onWidgetsChange={setBoardWidgets}
         />
       )}
     </div>

@@ -90,11 +90,17 @@ export function formulas_for_field(field) {
   return KPI_FORMULAS;
 }
 
+// The choice family: fields whose KPI fans out into one card per value.
+export const CHOICE_FIELD_TYPES = ["single_select", "multi_select", "select_group", "cascading_select", "likert_scale", "ranking"];
+
 /**
- * The option values of a choice field (radio/select family) - for a
- * parent-dependent select group, the options of every group combined.
+ * The option values of a choice field (radio/select family) as DEFINED in
+ * the schema - for a parent-dependent select group, the options of every
+ * group combined. The caller unions these with the values actually present
+ * in the collected data (fetched from the backend), because API-sourced
+ * cascadings and likert scales define no inline options at all.
  */
-function field_option_values(field) {
+export function field_option_values(field) {
   if (field.type === "select_group" && field.parent_dependency_enabled) {
     const values = [];
     (field.parent_option_groups || []).forEach((group) => {
@@ -112,15 +118,16 @@ function field_option_values(field) {
 }
 
 /**
- * The KPI card, one KPI card PER OPTION when the field is a choice field
- * (radio/select family: "Count of Gender" also spawns "Count of Gender -
- * Male", "... - Female", "... - Other", each filtered to its option), plus
- * one breakdown chart per OTHER choice field of the form (cascading levels
- * included): "Average income" spawns "Average income by status", "... by
- * district" and so on. Every widget carries the title and description the
- * user typed on the KPI.
+ * The KPI card, one KPI card PER VALUE when the field is a choice field -
+ * whatever the formula: "Count of Gender" spawns "Count of Gender - Male",
+ * "... - Female", "... - Other", and "Average income of District" spawns
+ * one card per district, each filtered to its value. option_values carries
+ * the values to fan out over (schema options unioned with the values found
+ * in the collected data); without it the schema options alone are used.
+ * Plus one breakdown chart per OTHER choice field of the form (cascading
+ * levels included). Every widget carries the KPI's title and description.
  */
-export function build_kpi_widgets(form, field, formula_id, title, description, translate) {
+export function build_kpi_widgets(form, field, formula_id, title, description, translate, option_values) {
   const stamp = Date.now();
   let sequence = 0;
   const make = (extra) => {
@@ -147,9 +154,9 @@ export function build_kpi_widgets(form, field, formula_id, title, description, t
 
   const widgets = [make({ title, chart_type: "kpi", size: "small" })];
 
-  // A choice field fans the formula out over its own options too: one KPI
-  // card per option, each filtered to records that picked it.
-  field_option_values(field).forEach((option_value) => {
+  // A choice field fans the formula out over its values too: one KPI card
+  // per value, each filtered to records that picked it.
+  (option_values || field_option_values(field)).forEach((option_value) => {
     widgets.push(
       make({
         title: `${title} - ${String(option_value)}`.slice(0, 120),

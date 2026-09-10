@@ -1,9 +1,17 @@
 import React, { useMemo, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { save_dashboard, request_error_text } from "./dashboardService.js";
+import { save_dashboard, get_dashboard_data, request_error_text } from "./dashboardService.js";
 import { field_label_text } from "./chartCatalog.js";
-import { eligible_kpi_fields, formulas_for_field, formula_definition, kpi_field_type_key, build_kpi_widgets } from "./kpiCatalog.js";
+import {
+  eligible_kpi_fields,
+  formulas_for_field,
+  formula_definition,
+  kpi_field_type_key,
+  build_kpi_widgets,
+  field_option_values,
+  CHOICE_FIELD_TYPES,
+} from "./kpiCatalog.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
@@ -20,6 +28,54 @@ const empty_row = () => {
   row_sequence += 1;
   return { key: `kpi_row_${row_sequence}`, field_id: "", formula_id: "", title: "", title_touched: false, description: "" };
 };
+
+const OTHER_KEY = "__other__";
+
+/**
+ * Every value of one choice field to fan a KPI out over: the values
+ * ACTUALLY PRESENT in the collected data (fetched through the category
+ * pipeline, folded tail included) unioned with the schema's own options -
+ * so API-sourced cascadings and likert scales, which define no inline
+ * options, still get one KPI card per real value. A probe failure falls
+ * back to the schema options alone.
+ */
+async function resolve_fan_out_values(form, field) {
+  const known = field_option_values(field);
+  try {
+    const probe = {
+      id: `probe_${field.id}`,
+      title: "probe",
+      form_group_id: form.form_group_id,
+      chart_type: "bar",
+      metric: { aggregation: "count", field_id: null },
+      group_by: { field_id: field.id },
+      split_by: null,
+      x_field_id: null,
+      y_field_id: null,
+      size_field_id: null,
+      filters: [],
+      period: { preset: "all", from: null, to: null },
+      sort: "value_desc",
+      limit: 50,
+      size: "medium",
+      position: 0,
+    };
+    const response = await get_dashboard_data(form.form_group_id, [probe], null);
+    const result = ((response.data && response.data.results) || [])[0] || {};
+    const from_data = (result.rows || [])
+      .concat(result.other_rows || [])
+      .map((row) => row.label)
+      .filter((label) => label !== undefined && label !== null && String(label).trim().length > 0 && label !== OTHER_KEY);
+    const values = [...from_data];
+    known.forEach((value) => {
+      if (!values.some((existing) => String(existing) === String(value))) values.push(value);
+    });
+    return values;
+  } catch (probe_error) {
+    void probe_error;
+    return known;
+  }
+}
 
 /**
  * Adding KPI cards by hand - several at once from ONE dialog. Every KPI is
@@ -70,10 +126,29 @@ export default function AddKpiDialog({ form, widgets, onAdded, onCancel }) {
     if (!all_complete) return;
     setSaving(true);
     try {
+      // Choice fields fan out over the values in the COLLECTED DATA, not
+      // just the schema options - resolved per field, for every formula.
+      const values_by_field = new Map();
+      await Promise.all(
+        [...new Set(rows.map((row) => row.field_id))].map(async (field_id) => {
+          const field = fields.find((entry) => entry.id === field_id);
+          if (field && CHOICE_FIELD_TYPES.includes(field.type)) {
+            values_by_field.set(field_id, await resolve_fan_out_values(form, field));
+          }
+        }),
+      );
       let generated = [];
       rows.forEach((row) => {
         generated = generated.concat(
-          build_kpi_widgets(form, field_of(row), row.formula_id, row.title.trim(), row.description.trim(), translate),
+          build_kpi_widgets(
+            form,
+            field_of(row),
+            row.formula_id,
+            row.title.trim(),
+            row.description.trim(),
+            translate,
+            values_by_field.get(row.field_id) || [],
+          ),
         );
       });
       const room = Math.max(0, MAX_WIDGETS - widgets.length);

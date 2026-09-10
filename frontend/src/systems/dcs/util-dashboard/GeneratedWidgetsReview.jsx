@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { save_dashboard, request_error_text } from "./dashboardService.js";
@@ -160,11 +161,20 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, focusIds,
     return definition ? translate(definition.labelKey) : widget.chart_type;
   };
 
-  return (
-    <div className="fixed inset-0 z-[10000] bg-white flex flex-col p-3 sm:p-5">
+  // Rendered through a PORTAL onto document.body: a fixed overlay inside a
+  // transformed/filtered ancestor (the glass cards) would be trapped in
+  // that container instead of covering the whole window. The panel itself
+  // sits CENTERED over a transparent backdrop, its title in the system blue.
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={saving ? undefined : onClose} />
+      <div
+        className="relative bg-white border-2 w-full flex flex-col p-4 sm:p-5"
+        style={{ maxWidth: 760, maxHeight: "92vh", borderColor: PRIMARY }}
+      >
       <div className="flex items-start justify-between gap-2 mb-1">
         <div className="min-w-0">
-          <p className="text-base font-semibold truncate" style={{ color: TEXT_DARK, ...HEADING_FONT }}>
+          <p className="text-base font-semibold truncate" style={{ color: PRIMARY, ...HEADING_FONT }}>
             {translate("DCS_DB_REVIEW_TITLE")}
           </p>
           <p className="text-xs font-semibold" style={{ color: PRIMARY, ...HEADING_FONT }}>
@@ -314,6 +324,8 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, focusIds,
           />
         )}
       </div>
-    </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
