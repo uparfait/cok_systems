@@ -298,6 +298,8 @@ function public_approval_trail(approval) {
     level: step.level,
     name: step.name,
     role: step.role,
+    email: step.email || null,
+    message: step.message || null,
     level_type: step.level_type || null,
     location: step.location || null,
     conditions: step.conditions || [],

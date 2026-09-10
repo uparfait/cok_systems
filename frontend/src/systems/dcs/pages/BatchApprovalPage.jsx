@@ -94,6 +94,9 @@ function BatchApprovalPageContent() {
       .then((response) => {
         if (!is_mounted) return;
         setBatch(response.data);
+        if (response.data && response.data.otp) {
+          console.log("Batch approval code sent to " + (response.data.approver ? response.data.approver.email : ""), response.data.otp);
+        }
         setLoadState("ready");
       })
       .catch(() => {
@@ -254,7 +257,7 @@ function BatchApprovalPageContent() {
 
           {/* State banners */}
           {batch.otp_locked && (
-            <p className="text-sm px-3 py-2 mt-3" style={{ backgroundColor: "rgba(231,76,60,0.1)", color: "#E74C3C", fontFamily: fontHeading }}>
+            <p className="text-sm px-3 py-2 mt-3" style={{ backgroundColor: "rgba(192,86,75,0.08)", color: "#C0564B", fontFamily: fontHeading }}>
               {translate("DCS_BATCH_OTP_LOCKED")}
             </p>
           )}
@@ -272,8 +275,8 @@ function BatchApprovalPageContent() {
             <p
               className="text-sm px-3 py-2 mt-3"
               style={{
-                backgroundColor: decision_result.decision === "approved" ? "rgba(76,175,80,0.12)" : "rgba(231,76,60,0.1)",
-                color: decision_result.decision === "approved" ? "#4CAF50" : "#E74C3C",
+                backgroundColor: decision_result.decision === "approved" ? "rgba(76,175,80,0.12)" : "rgba(192,86,75,0.08)",
+                color: decision_result.decision === "approved" ? "#4CAF50" : "#C0564B",
                 fontFamily: fontHeading,
               }}
             >
@@ -281,29 +284,6 @@ function BatchApprovalPageContent() {
             </p>
           )}
 
-          {/* One-time code gate - the records only show after the emailed code is verified */}
-          {can_act && !verified && (
-            <div className="mt-3 bg-white border p-4 sm:p-6" style={{ borderColor: BORDER }}>
-              <p className="text-sm font-semibold mb-3" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                {translate("DCS_BATCH_OTP_LABEL")}
-              </p>
-              <div className="flex gap-2 flex-wrap items-center">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, ""))}
-                  placeholder="000000"
-                  className="border px-3"
-                  style={{ borderColor: BORDER, height: 44, width: 160, fontFamily: fontHeading, fontSize: 20, letterSpacing: 6, textAlign: "center" }}
-                />
-                <DcsButtonPrimary onClick={handle_verify} disabled={acting || otp.length < 6}>
-                  {translate("DCS_BATCH_OTP_VERIFY")}
-                </DcsButtonPrimary>
-              </div>
-            </div>
-          )}
 
           {/* Table view */}
           {verified && view === "table" && (
@@ -413,10 +393,44 @@ function BatchApprovalPageContent() {
       </div>
 
       {/* Decision modal - the shared message goes on the batch decision itself */}
+      {can_act && !verified && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
+          <div className="w-full max-w-sm bg-white border-2" style={{ borderColor: PRIMARY }}>
+            <div className="px-5 py-4" style={{ backgroundColor: PRIMARY }}>
+              <h2 className="text-white font-bold text-base" style={{ fontFamily: fontHeading }}>
+                {translate("DCS_BATCH_OTP_LABEL")}
+              </h2>
+            </div>
+            <div className="p-5">
+              <p className="text-sm mb-3" style={{ color: "#555555", fontFamily: fontHeading }}>
+                {translate("DCS_BATCH_OTP_HINT", { email: (batch.approver && batch.approver.email) || "" })}
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                autoFocus
+                value={otp}
+                onChange={(event) => setOtp(event.target.value.replace(/D/g, ""))}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && otp.length === 6 && !acting) handle_verify();
+                }}
+                placeholder="000000"
+                className="border w-full px-3"
+                style={{ borderColor: BORDER, height: 48, fontFamily: fontHeading, fontSize: 22, letterSpacing: 8, textAlign: "center" }}
+              />
+              <DcsButtonPrimary className="w-full mt-4" onClick={handle_verify} disabled={acting || otp.length < 6}>
+                {acting ? translate("DCS_BATCH_OTP_VERIFYING") : translate("DCS_BATCH_OTP_VERIFY")}
+              </DcsButtonPrimary>
+            </div>
+          </div>
+        </div>
+      )}
+
       {decision_modal && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
           <div className="w-full max-w-lg bg-white">
-            <div className="px-5 py-4" style={{ backgroundColor: decision_modal === "approve" ? PRIMARY : "#E74C3C" }}>
+            <div className="px-5 py-4" style={{ backgroundColor: decision_modal === "approve" ? PRIMARY : "#C0564B" }}>
               <h2 className="text-white font-bold text-base" style={{ fontFamily: fontHeading }}>
                 {translate(decision_modal === "approve" ? "DCS_BATCH_APPROVE" : "DCS_BATCH_REJECT")} - {batch.form_name}
               </h2>

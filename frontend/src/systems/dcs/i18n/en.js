@@ -1027,6 +1027,8 @@ const en = {
   DCS_BATCH_TITLE: "Data approval",
   DCS_BATCH_RECORDS_WAITING: "{{count}} collected record(s) are waiting for your approval",
   DCS_BATCH_OTP_LABEL: "Enter the one-time code from your email to review the data",
+  DCS_BATCH_OTP_HINT: "Enter the one-time code emailed to {{email}} to open the records.",
+  DCS_BATCH_OTP_VERIFYING: "Checking...",
   DCS_BATCH_OTP_VERIFY: "Verify code",
   DCS_BATCH_OTP_LOCKED: "Too many wrong codes - this approval link is locked",
   DCS_BATCH_COMMENT_LABEL: "Message (optional)",

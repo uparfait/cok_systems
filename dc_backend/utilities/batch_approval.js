@@ -264,6 +264,7 @@ function public_batch_trail(request) {
     name: approver.name,
     role: approver.role,
     email: approver.email,
+    message: approver.message || null,
     status: approver.status,
     comment: approver.comment,
     acted_at: approver.acted_at,

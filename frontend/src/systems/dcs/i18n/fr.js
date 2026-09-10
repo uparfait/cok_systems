@@ -1027,6 +1027,8 @@ const fr = {
   DCS_BATCH_TITLE: "Approbation des données",
   DCS_BATCH_RECORDS_WAITING: "{{count}} enregistrement(s) collecté(s) attendent votre approbation",
   DCS_BATCH_OTP_LABEL: "Saisissez le code à usage unique reçu par e-mail pour consulter les données",
+  DCS_BATCH_OTP_HINT: "Entrez le code a usage unique envoye a {{email}} pour ouvrir les enregistrements.",
+  DCS_BATCH_OTP_VERIFYING: "Verification...",
   DCS_BATCH_OTP_VERIFY: "Vérifier le code",
   DCS_BATCH_OTP_LOCKED: "Trop de codes erronés - ce lien d'approbation est verrouillé",
   DCS_BATCH_COMMENT_LABEL: "Message (facultatif)",

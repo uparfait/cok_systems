@@ -8,7 +8,7 @@ import DcsButtonOutlineDanger from "./DcsButtonOutlineDanger.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const PRIMARY = "#056daa";
-const DANGER = "#E74C3C";
+const DANGER = "#C0564B";
 const GRAY = "#9E9E9E";
 const NEUTRAL_DARK = "#333333";
 const NEUTRAL_LIGHT = "#F7F9FB";

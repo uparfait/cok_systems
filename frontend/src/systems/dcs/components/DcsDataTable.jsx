@@ -308,7 +308,9 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
                         // cell (its own padding included) visually bleeds
                         // into the next column instead of staying inside
                         // its own boundary.
-                        overflowX: column.minWidthPx ? "auto" : "hidden",
+                        // No cell ever scrolls on its own: content wraps to
+                        // full height inside its column instead.
+                        overflowX: "hidden",
                       }}
                     >
                       <div style={get_cell_content_style(column.key)}>{row[column.key]}</div>

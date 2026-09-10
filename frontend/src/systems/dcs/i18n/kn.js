@@ -1027,6 +1027,8 @@ const kn = {
   DCS_BATCH_TITLE: "Kwemeza amakuru",
   DCS_BATCH_RECORDS_WAITING: "Inyandiko {{count}} zakusanyijwe zitegereje kwemezwa nawe",
   DCS_BATCH_OTP_LABEL: "Andika umubare w'ibanga wakiriye kuri imeyili kugira ngo urebe amakuru",
+  DCS_BATCH_OTP_HINT: "Andika kode yoherejwe kuri {{email}} kugira ngo urebe inyandiko.",
+  DCS_BATCH_OTP_VERIFYING: "Kugenzura...",
   DCS_BATCH_OTP_VERIFY: "Emeza umubare",
   DCS_BATCH_OTP_LOCKED: "Imibare myinshi itari yo - uyu muhora wo kwemeza wafunzwe",
   DCS_BATCH_COMMENT_LABEL: "Ubutumwa (si ngombwa)",

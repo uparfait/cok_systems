@@ -8,35 +8,90 @@ import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 const BORDER = "#E0E0E0";
 const PRIMARY = "#056daa";
 
-/** One approver's line in the trail: who they are, their state, their message and when they acted. */
+const GRAY = "#9E9E9E";
+const NEUTRAL_DARK = "#333333";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const SOFT_RED = "#C0564B";
+const FONT = "'Montserrat', sans-serif";
+
+function initials_of(approver) {
+  const source = (approver.name || approver.email || "?").trim();
+  return (
+    source
+      .split(/[\s@.]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0))
+      .join("")
+      .toUpperCase() || "?"
+  );
+}
+
+function MessageBlock({ label, text, accent }) {
+  return (
+    <div className="mt-2 px-3 py-2" style={{ backgroundColor: NEUTRAL_LIGHT, borderLeft: `3px solid ${accent}` }}>
+      <p className="text-[10px] font-bold uppercase" style={{ color: accent, fontFamily: FONT, letterSpacing: 0.5 }}>
+        {label}
+      </p>
+      <p className="text-sm mt-1" style={{ color: NEUTRAL_DARK, overflowWrap: "anywhere" }}>
+        {text}
+      </p>
+    </div>
+  );
+}
+
+/** One approver: who they are, what they were asked, what they answered. */
 function ApproverRow({ approver }) {
   const { translate } = useDcsLanguage();
+  const rejected = approver.status === "rejected";
   return (
-    <div className="border px-3 py-2.5" style={{ borderColor: BORDER }}>
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <p className="text-sm font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-            {approver.name || approver.email}
-            {approver.role ? <span style={{ color: "#555555", fontWeight: 400 }}> - {approver.role}</span> : null}
-          </p>
-          {approver.name && (
-            <p className="text-xs" style={{ color: "#9E9E9E" }}>
-              {approver.email}
+    <div className="border px-3 py-3" style={{ borderColor: rejected ? "rgba(192,86,75,0.4)" : BORDER }}>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-start gap-3 min-w-0">
+          <span
+            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-extrabold text-white shrink-0"
+            style={{ backgroundColor: rejected ? SOFT_RED : PRIMARY, fontFamily: FONT }}
+          >
+            {initials_of(approver)}
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: FONT, overflowWrap: "anywhere" }}>
+              {approver.name || approver.email}
             </p>
-          )}
+            {approver.role && (
+              <p className="text-xs font-semibold" style={{ color: PRIMARY, fontFamily: FONT }}>
+                {approver.role}
+              </p>
+            )}
+            {approver.email && approver.name && (
+              <p className="text-xs" style={{ color: GRAY, overflowWrap: "anywhere" }}>
+                {approver.email}
+              </p>
+            )}
+            {approver.location && approver.location.name && (
+              <p className="text-xs" style={{ color: GRAY }}>
+                {approver.level_type ? translate(`DCS_APPROVAL_LEVEL_${approver.level_type}`) + " = " : ""}
+                {approver.location.name}
+              </p>
+            )}
+          </div>
         </div>
         <DcsApprovalStatusChip status={approver.status === "pending" ? "pending" : approver.status} />
       </div>
-      {approver.comment && (
-        <p className="text-sm mt-2 px-2 py-1.5" style={{ color: "#555555", backgroundColor: "#F7F9FB", borderLeft: `3px solid ${PRIMARY}` }}>
-          <span className="text-xs font-bold uppercase" style={{ color: PRIMARY, letterSpacing: "0.5px" }}>
-            {translate("DCS_APPROVAL_DETAILS_MESSAGE")}:
-          </span>{" "}
-          {approver.comment}
-        </p>
+
+      {approver.message && (
+        <MessageBlock label={translate("DCS_APPROVAL_MESSAGE_FOR_YOU")} text={approver.message} accent={GRAY} />
       )}
+      {approver.comment && (
+        <MessageBlock
+          label={translate("DCS_APPROVAL_DETAILS_MESSAGE")}
+          text={approver.comment}
+          accent={rejected ? SOFT_RED : PRIMARY}
+        />
+      )}
+
       {approver.acted_at && (
-        <p className="text-xs mt-1.5" style={{ color: "#9E9E9E" }}>
+        <p className="text-xs mt-2" style={{ color: GRAY }}>
           {new Date(approver.acted_at).toLocaleString()}
         </p>
       )}
@@ -88,7 +143,7 @@ export default function DcsApprovalDetailsDialog({ submission_id, onClose }) {
         <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
           {load_state === "loading" && <SpiralLoader />}
           {load_state === "error" && (
-            <p className="text-sm" style={{ color: "#E74C3C" }}>
+            <p className="text-sm" style={{ color: SOFT_RED }}>
               {translate("DCS_ERROR_GENERIC")}
             </p>
           )}

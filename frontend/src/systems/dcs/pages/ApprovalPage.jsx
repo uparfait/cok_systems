@@ -12,7 +12,7 @@ import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
 
-const STATUS_COLORS = { pending: "#F39C12", approved: "#4CAF50", rejected: "#E74C3C", skipped: "#9E9E9E" };
+const STATUS_COLORS = { pending: "#F39C12", approved: "#4CAF50", rejected: "#C0564B", skipped: "#9E9E9E" };
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 160;
 const CERTIFICATE_ACCEPT = ".pdf,.p12,.pfx,.cer,.crt,.pem,.der,.sig,.png,.jpg,.jpeg";
@@ -232,7 +232,7 @@ function ApprovalPageContent() {
           </p>
         )}
         {approval.overall_status === "rejected" && (
-          <p className="mt-3 text-sm px-3 py-2" style={{ backgroundColor: "rgba(231,76,60,0.1)", color: "#E74C3C", fontFamily: "'Montserrat', sans-serif" }}>
+          <p className="mt-3 text-sm px-3 py-2" style={{ backgroundColor: "rgba(192,86,75,0.08)", color: "#C0564B", fontFamily: "'Montserrat', sans-serif" }}>
             {translate("DCS_APPROVAL_FINALIZED_REJECTED")}
           </p>
         )}
@@ -401,8 +401,8 @@ function ApprovalPageContent() {
           <p
             className="mt-4 text-sm px-3 py-2"
             style={{
-              backgroundColor: decision_result.decision === "approved" ? "rgba(76,175,80,0.12)" : "rgba(231,76,60,0.1)",
-              color: decision_result.decision === "approved" ? "#4CAF50" : "#E74C3C",
+              backgroundColor: decision_result.decision === "approved" ? "rgba(76,175,80,0.12)" : "rgba(192,86,75,0.08)",
+              color: decision_result.decision === "approved" ? "#4CAF50" : "#C0564B",
               fontFamily: "'Montserrat', sans-serif",
             }}
           >
