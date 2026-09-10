@@ -25,7 +25,7 @@ import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
  * of its own to publish) and only the rehearsal itself and a Close button
  * show, with no publish action at all.
  */
-export default function ReviewOverlay({ schema, onClose, onPublish, publishing, uploadingFiles, uploadPercent, publishLabelKey, resolveFieldOptions }) {
+export default function ReviewOverlay({ schema, onClose, onPublish, publishing, uploadingFiles, uploadPercent, publishLabelKey, publishBlockedKey, resolveFieldOptions }) {
   const { translate, language } = useDcsLanguage();
   const { showSuccess } = useToast();
   const [values, setValues] = useState({});
@@ -95,7 +95,19 @@ export default function ReviewOverlay({ schema, onClose, onPublish, publishing, 
           onIdle={() => setSubmitState("idle")}
         />
 
-        {onPublish && (
+        {/* publishBlockedKey turns this overlay into what it already is
+            for a reviewer - a rehearsal - and says why in the place the
+            publish button would have been, rather than leaving a button
+            that only ever refuses. */}
+        {onPublish && publishBlockedKey && (
+          <div className="w-full mt-3 p-3" style={{ border: "1px solid #F39C12", backgroundColor: "rgba(243,156,18,0.12)" }}>
+            <p className="text-xs" style={{ color: "#B9770E", fontFamily: "'Montserrat', sans-serif" }}>
+              {translate(publishBlockedKey)}
+            </p>
+          </div>
+        )}
+
+        {onPublish && !publishBlockedKey && (
           <div className="w-full mt-3">
             {publishing ? (
               <SpiralLoader />

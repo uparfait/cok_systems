@@ -67,6 +67,7 @@ export default function NewFormPage() {
           publishing={publishing}
           schemaErrors={schema_errors}
           onValidationChange={handle_validation_change}
+          trackingScopeId={`new-form:${project_id}`}
         />
       </div>
     </div>

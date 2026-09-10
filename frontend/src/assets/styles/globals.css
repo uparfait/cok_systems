@@ -1316,6 +1316,79 @@ background-color: #056daa;
   transition: left 0.32s cubic-bezier(0.4, 0, 0.2, 1), width 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* The field row an undo or redo just changed, so a step through the
+   history reads as something happening TO a specific question rather than
+   the whole form quietly rearranging itself. */
+@keyframes dcs-field-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(5, 109, 170, 0.55);
+    background-color: rgba(5, 109, 170, 0.14);
+  }
+  60% {
+    box-shadow: 0 0 0 6px rgba(5, 109, 170, 0);
+    background-color: rgba(5, 109, 170, 0.06);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(5, 109, 170, 0);
+    background-color: transparent;
+  }
+}
+
+.dcs-field-flash {
+  animation: dcs-field-flash 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* The builder while the unpublished-edits question is still unanswered,
+   "decide later" included: nothing in it can be clicked, dragged or typed
+   into, and it reads as held rather than broken. */
+.dcs-builder-locked {
+  pointer-events: none;
+  opacity: 0.5;
+  filter: grayscale(0.35);
+  user-select: none;
+  transition: opacity 0.24s ease, filter 0.24s ease;
+}
+
+/* Left behind by "decide later" on the unpublished-edits question: the
+   decision still has to be made, so it stays pinned to the corner of the
+   window instead of scrolling away with the form. */
+.dcs-track-pending-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 9999;
+  padding: 0.7rem 1.1rem;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #FFFFFF;
+  background-color: #F39C12;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dcs-track-pending-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+/* Undo/redo in the form builder's edit-tracking bar. */
+.dcs-track-step {
+  color: #056daa;
+  background-color: transparent;
+  border: 1px solid rgba(5, 109, 170, 0.35);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.dcs-track-step:hover:not(:disabled) {
+  background-color: rgba(5, 109, 170, 0.08);
+  border-color: #056daa;
+}
+
 /* A stat card that is itself a link to the records it counts - it needs to
    read as pressable without turning into a button, so the card lifts
    instead of changing color. */
@@ -1741,6 +1814,9 @@ background-color: #056daa;
   .dcs-page-nav-indicator,
   .dcs-stat-card-link,
   .dcs-sidebar-panel,
+  .dcs-builder-locked,
+  .dcs-field-flash,
+  .dcs-track-pending-fab,
   .dcs-project-slide-in-right,
   .dcs-project-slide-in-left,
   .dcs-page-arrow,

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { dcs_translate } from "../i18n/index.js";
 import { generate_field_id, DCS_FIELD_TYPE_REGISTRY, DCS_SELECT_LIKE_TYPES } from "../fields/fieldTypes.js";
+import FieldTypeConvertSection from "./FieldTypeConvertSection.jsx";
 import { build_validation_condition, DCS_VALIDATION_OPERATORS, get_value_input_type } from "./validationOperators.js";
 import { DCS_FILE_TYPE_GROUPS } from "../fields/fileTypeGroups.js";
 import { DCS_FILE_SIZE_UNITS } from "../fields/fileSizeLimit.js";
@@ -659,6 +660,19 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {active_tab === "labels" && (
             <>
+              <FieldTypeConvertSection
+                field={draft}
+                allFields={allFields}
+                onConvert={(converted_field) => {
+                  // Saved and closed straight away rather than left in the
+                  // draft: the drawer's own tab set, option editors and
+                  // validation list are all derived from the type, so the
+                  // panel the author is standing in is not the one this
+                  // field needs any more.
+                  onSave(converted_field);
+                }}
+              />
+
               {has_label && (
                 <div style={label_required_error ? { outline: "2px solid #E74C3C", outlineOffset: 4 } : undefined}>
                   <TranslatedTextRow labelKey="DCS_SETTINGS_LABEL" value={draft.label} onChange={(value) => update({ label: value })} translate={translate} />

@@ -94,6 +94,7 @@ export default function FormSettingsPage() {
           schemaErrors={schema_errors}
           resolveFieldOptions={resolveFieldOptions}
           resolveFullFieldOptions={resolveFullFieldOptions}
+          trackingScopeId={`form:${form_group_id}`}
         />
       </div>
     </div>

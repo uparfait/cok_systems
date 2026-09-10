@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
+import { useEditHistory } from "./useEditHistory.js";
+import EditHistoryOverlay, { EditHistoryRestoredDialog, EditHistoryPendingButton } from "./EditHistoryOverlay.jsx";
+import { flash_builder_fields } from "./flashBuilderFields.js";
 import { build_schema_error_index, get_field_error_entry } from "./schemaErrorParser.js";
 import { validate_form_schema } from "./validateSchema.js";
 import FormBuilderCanvas from "./FormBuilderCanvas.jsx";
@@ -22,15 +26,55 @@ export default function DcFormBuilderSection(props) {
   );
 }
 
-function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishing, schemaErrors, publishLabelKey, resolveFieldOptions, resolveFullFieldOptions, onValidationChange }) {
-  const { translate } = useDcsLanguage();
+function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishing, schemaErrors, publishLabelKey, resolveFieldOptions, resolveFullFieldOptions, onValidationChange, trackingScopeId }) {
+  const { translate, language } = useDcsLanguage();
+  const { showSuccess, showInfo } = useToast();
   const { is_uploading, average_percent } = useDesignUpload();
   const [selected_field, setSelectedField] = useState(null);
   const [settings_anchor_rect, setSettingsAnchorRect] = useState(null);
   const [is_reviewing, setIsReviewing] = useState(false);
   const [is_code_overlay_open, setIsCodeOverlayOpen] = useState(false);
+  const [is_history_open, setIsHistoryOpen] = useState(false);
 
   const all_flat_fields = flatten_fields(fields);
+
+  const handle_track_toast = useCallback(
+    (message, kind) => {
+      if (kind === "success") showSuccess(message);
+      else showInfo(message);
+    },
+    [showSuccess, showInfo],
+  );
+
+  const history = useEditHistory({
+    scopeId: trackingScopeId,
+    fields,
+    onFieldsChange,
+    translate,
+    language,
+    onToast: handle_track_toast,
+    onHighlight: flash_builder_fields,
+  });
+
+  // Every mutation in the builder already funnels through this one
+  // callback - the canvas, the settings drawer, the code overlay and a
+  // drag alike - so tracking wraps it here instead of each of them having
+  // to report what it did. It is also the one place that can hold the form
+  // still while the unpublished-edits question is unanswered: editing on
+  // top of edits that may yet be restored would build on a state about to
+  // be replaced.
+  const handle_tracked_fields_change = useCallback(
+    (next_fields) => {
+      if (history.is_locked) {
+        showInfo(translate("DCS_TRACK_LOCKED_TOAST"));
+        history.resume_restored();
+        return;
+      }
+      history.track(next_fields);
+      onFieldsChange(next_fields);
+    },
+    [history, onFieldsChange, showInfo, translate],
+  );
 
   const frontend_validation = useMemo(
     () => validate_form_schema({ fields }),
@@ -67,16 +111,25 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
 
   useEffect(() => {
     const handle_keydown = (event) => {
-      if (event.ctrlKey && event.key === "6") {
+      if (!event.ctrlKey) return;
+      if (event.key === "6") {
         event.preventDefault();
         setIsCodeOverlayOpen(true);
+      } else if (event.key === "7" && trackingScopeId) {
+        event.preventDefault();
+        setIsHistoryOpen(true);
       }
     };
     document.addEventListener("keydown", handle_keydown);
     return () => document.removeEventListener("keydown", handle_keydown);
-  }, []);
+  }, [trackingScopeId]);
 
   const handle_open_settings = (field, rect) => {
+    if (history.is_locked) {
+      showInfo(translate("DCS_TRACK_LOCKED_TOAST"));
+      history.resume_restored();
+      return;
+    }
     setSelectedField(field);
     setSettingsAnchorRect(rect || null);
   };
@@ -90,7 +143,7 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
         }
         return field;
       });
-    onFieldsChange(update_recursive(fields));
+    handle_tracked_fields_change(update_recursive(fields));
     setSelectedField(null);
     setSettingsAnchorRect(null);
   };
@@ -107,11 +160,20 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
     if (has_validation_errors) {
       return false;
     }
-    if (onPublish) {
-      return await onPublish(schema);
+    if (!onPublish) return false;
+    if (history.is_locked) {
+      showInfo(translate("DCS_TRACK_LOCKED_TOAST"));
+      history.resume_restored();
+      return false;
     }
-    return false;
-  }, [has_validation_errors, onPublish, schema]);
+    const did_publish = await onPublish(schema);
+    // The tracked edits have become the form itself, so there is no longer
+    // an unpublished session to come back to - and leaving one behind
+    // would offer to re-apply what is already live. Only a publish that
+    // actually succeeded clears it.
+    if (did_publish) history.clear();
+    return did_publish;
+  }, [has_validation_errors, onPublish, schema, history, showInfo, translate]);
 
   return (
     <div className="space-y-4">
@@ -129,8 +191,19 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
         </div>
       )}
 
-      <FormBuilderCanvas fields={fields} onFieldsChange={onFieldsChange} onOpenSettings={handle_open_settings} getFieldError={get_field_error} />
+      {/* Deferring the unpublished-edits question does not make the form
+          editable again - it only moves the question aside. The builder is
+          held inert until the decision is actually made, since every edit
+          made on top of it would be built on a state that is still about
+          to be replaced or thrown away. The commit-level guard in
+          handle_tracked_fields_change stays as the backstop. */}
+      <div className={history.is_locked ? "dcs-builder-locked" : undefined} aria-disabled={history.is_locked || undefined}>
+        <FormBuilderCanvas fields={fields} onFieldsChange={handle_tracked_fields_change} onOpenSettings={handle_open_settings} getFieldError={get_field_error} />
+      </div>
 
+      {/* Reviewing stays open while the form is held: looking at the form
+          changes nothing, so there is no reason to lock the author out of
+          seeing it. Publishing from inside it is what the hold applies to. */}
       {fields.length > 0 && (
         <DcsButtonOutline
           className="w-full"
@@ -164,6 +237,7 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
           uploadingFiles={is_uploading}
           uploadPercent={average_percent}
           publishLabelKey={publishLabelKey}
+          publishBlockedKey={history.is_locked ? "DCS_TRACK_PUBLISH_BLOCKED" : undefined}
           resolveFieldOptions={resolveFieldOptions}
           onClose={() => setIsReviewing(false)}
           onPublish={async () => {
@@ -173,11 +247,45 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
         />
       )}
 
+      {/* Tracking itself stays out of the way while editing: this asks
+          about unpublished edits once, on open, and the history is only
+          ever raised deliberately (Ctrl+7). */}
+      {!history.is_restored_deferred && (
+        <EditHistoryRestoredDialog
+          restored={history.restored}
+          entries={history.entries}
+          onApply={history.apply_restored}
+          onDiscard={history.discard_restored}
+          onLater={history.defer_restored}
+        />
+      )}
+
+      {history.restored && history.is_restored_deferred && (
+        <EditHistoryPendingButton
+          count={history.restored.count}
+          when={history.restored.updated_at}
+          onClick={history.resume_restored}
+        />
+      )}
+
+      {is_history_open && (
+        <EditHistoryOverlay
+          entries={history.entries}
+          cursor={history.cursor}
+          canUndo={history.can_undo}
+          canRedo={history.can_redo}
+          onUndo={history.undo}
+          onRedo={history.redo}
+          onClear={history.clear}
+          onClose={() => setIsHistoryOpen(false)}
+        />
+      )}
+
       {is_code_overlay_open && (
         <DcsFormCodeOverlay
           fields={fields}
           allFields={all_flat_fields}
-          onCreateForm={(next_fields, mode) => onFieldsChange(mode === "add" ? fields.concat(next_fields) : next_fields)}
+          onCreateForm={(next_fields, mode) => handle_tracked_fields_change(mode === "add" ? fields.concat(next_fields) : next_fields)}
           onClose={() => setIsCodeOverlayOpen(false)}
         />
       )}

@@ -92,8 +92,13 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
     onFieldsChange(reorder_fields(fields, from_index, to_index));
   };
 
+  // data-builder-field-id is what an undo/redo flash finds a row by (see
+  // flashBuilderFields.js) - carried by nested rows too, since an edit
+  // inside a group has to be able to point at the child, not its wrapper.
   const render_child_field = (child_field) => (
-    <BuilderStaticFieldPreview field={child_field} language={language} onOpenSettings={onOpenSettings} getFieldError={getFieldError} />
+    <div data-builder-field-id={child_field.id}>
+      <BuilderStaticFieldPreview field={child_field} language={language} onOpenSettings={onOpenSettings} getFieldError={getFieldError} />
+    </div>
   );
 
   return (
@@ -107,7 +112,7 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
             // field (Designs tab), not one hardcoded value shared by every
             // row - matches how RendererEngine spaces the live/review form,
             // so the canvas shows the real distance the author chose.
-            <div key={field.id} style={{ marginBottom: get_spacing_below_px(field) }}>
+            <div key={field.id} data-builder-field-id={field.id} style={{ marginBottom: get_spacing_below_px(field) }}>
               <BuilderFieldRow
                 field={field}
                 language={language}
