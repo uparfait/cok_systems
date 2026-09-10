@@ -40,7 +40,7 @@ async function kpi_skipped(req, res) {
     const form_versions = new Map([[form_group_id, context.form_version]]);
     const check = validate_dashboard([widget], form_versions, context.project._id);
     if (!check.valid) {
-      return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", { errors: check.errors }));
+      return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: check.errors }));
     }
 
     const period_override = sanitize_period_override(body.period);

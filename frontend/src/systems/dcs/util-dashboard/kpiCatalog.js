@@ -9,16 +9,16 @@ import { is_cascade_child, category_display } from "./autoGenerate.js";
  * carrying the KPI's own title and description.
  */
 
-// Numeric formulas need a number field; the rest (counting) accept any
-// offered field. KPI_ONLY formulas cannot group per category, so their
-// breakdowns use the closest groupable formula instead (see
-// BREAKDOWN_AGGREGATION).
+// EXACTLY the requested formula catalog: Sum, Average (mean), Median,
+// Count, Minimum, Maximum, Standard deviation, Cumulative sum, Moving
+// average. Numeric formulas need a number field; Count accepts any offered
+// field. KPI_ONLY formulas cannot group per category, so their breakdowns
+// use the closest groupable formula instead (see BREAKDOWN_AGGREGATION).
 export const KPI_FORMULAS = [
   { id: "sum", labelKey: "DCS_DB_F_SUM", hintKey: "DCS_DB_F_SUM_HINT", numeric: true },
   { id: "avg", labelKey: "DCS_DB_F_AVG", hintKey: "DCS_DB_F_AVG_HINT", numeric: true },
   { id: "median", labelKey: "DCS_DB_F_MEDIAN", hintKey: "DCS_DB_F_MEDIAN_HINT", numeric: true },
   { id: "count", labelKey: "DCS_DB_F_COUNT", hintKey: "DCS_DB_F_COUNT_HINT", numeric: false },
-  { id: "count_distinct", labelKey: "DCS_DB_F_COUNT_DISTINCT", hintKey: "DCS_DB_F_COUNT_DISTINCT_HINT", numeric: false },
   { id: "min", labelKey: "DCS_DB_F_MIN", hintKey: "DCS_DB_F_MIN_HINT", numeric: true },
   { id: "max", labelKey: "DCS_DB_F_MAX", hintKey: "DCS_DB_F_MAX_HINT", numeric: true },
   { id: "stddev", labelKey: "DCS_DB_F_STDDEV", hintKey: "DCS_DB_F_STDDEV_HINT", numeric: true },
@@ -34,7 +34,6 @@ export const formula_definition = (formula_id) => KPI_FORMULAS.find((entry) => e
 // total; a rolling average per category IS its average).
 const BREAKDOWN_AGGREGATION = {
   count: "count",
-  count_distinct: "count_distinct",
   sum: "sum",
   avg: "avg",
   median: "avg",
@@ -45,23 +44,26 @@ const BREAKDOWN_AGGREGATION = {
   moving_average: "avg",
 };
 
-// Containers, files/media, dates and location fields never carry a KPI;
-// nested cascading levels are not offered either - they only ever appear as
-// the automatically generated breakdown dimensions.
-const EXCLUDED_FIELD_TYPES = [
-  "group",
-  "section",
-  "date",
-  "date_time",
-  "time",
-  "duration",
-  "image",
-  "video",
-  "audio",
-  "file_upload",
-  "signature",
-  "geolocation",
-  "hidden",
+// ONLY data-collection components may carry a KPI - a form also holds pure
+// DESIGN components (paragraphs, headers, file/image blocks, horizontal
+// lines, sections, groups) that collect nothing, so eligibility is a
+// WHITELIST of answer-collecting types: anything unknown is left out by
+// construction. Files/media, dates/times and location fields are excluded
+// on purpose, and nested cascading levels are not offered either - they
+// only ever appear as the automatically generated breakdown dimensions.
+const KPI_FIELD_TYPES = [
+  "number",
+  "text",
+  "large_text",
+  "email",
+  "url",
+  "phone",
+  "single_select",
+  "multi_select",
+  "select_group",
+  "cascading_select",
+  "likert_scale",
+  "ranking",
 ];
 
 export function kpi_field_type_key(field) {
@@ -74,20 +76,48 @@ export function kpi_field_type_key(field) {
 
 export function eligible_kpi_fields(schema) {
   return flatten_schema_fields((schema && schema.fields) || []).filter(
-    (field) => field && field.id && field.type && !EXCLUDED_FIELD_TYPES.includes(field.type) && !is_cascade_child(field),
+    (field) => field && field.id && KPI_FIELD_TYPES.includes(field.type) && !is_cascade_child(field),
   );
 }
 
+/**
+ * EVERY formula is offered on every field - no filtering by type: numeric
+ * formulas simply SKIP the answers they cannot read as numbers when the
+ * data is fetched (the card counts and lists them), so nothing breaks.
+ */
 export function formulas_for_field(field) {
-  const numeric = field && field.type === "number";
-  return KPI_FORMULAS.filter((formula) => numeric || !formula.numeric);
+  void field;
+  return KPI_FORMULAS;
 }
 
 /**
- * The KPI card plus one breakdown per choice field of the form (cascading
- * levels included, the KPI's own field excluded): "Average income" spawns
- * "Average income by status", "... by gender", "... by district", "... by
- * sector" and so on. Every widget carries the title and description the
+ * The option values of a choice field (radio/select family) - for a
+ * parent-dependent select group, the options of every group combined.
+ */
+function field_option_values(field) {
+  if (field.type === "select_group" && field.parent_dependency_enabled) {
+    const values = [];
+    (field.parent_option_groups || []).forEach((group) => {
+      ((group && group.options) || []).forEach((option) => {
+        if (option && option.value !== undefined && option.value !== null && !values.includes(option.value)) {
+          values.push(option.value);
+        }
+      });
+    });
+    return values;
+  }
+  return (field.options || [])
+    .map((option) => option && option.value)
+    .filter((value) => value !== undefined && value !== null && String(value).trim().length > 0);
+}
+
+/**
+ * The KPI card, one KPI card PER OPTION when the field is a choice field
+ * (radio/select family: "Count of Gender" also spawns "Count of Gender -
+ * Male", "... - Female", "... - Other", each filtered to its option), plus
+ * one breakdown chart per OTHER choice field of the form (cascading levels
+ * included): "Average income" spawns "Average income by status", "... by
+ * district" and so on. Every widget carries the title and description the
  * user typed on the KPI.
  */
 export function build_kpi_widgets(form, field, formula_id, title, description, translate) {
@@ -116,6 +146,19 @@ export function build_kpi_widgets(form, field, formula_id, title, description, t
   };
 
   const widgets = [make({ title, chart_type: "kpi", size: "small" })];
+
+  // A choice field fans the formula out over its own options too: one KPI
+  // card per option, each filtered to records that picked it.
+  field_option_values(field).forEach((option_value) => {
+    widgets.push(
+      make({
+        title: `${title} - ${String(option_value)}`.slice(0, 120),
+        chart_type: "kpi",
+        size: "small",
+        filters: [{ field_id: field.id, operator: "eq", value: option_value }],
+      }),
+    );
+  });
 
   const breakdown_aggregation = BREAKDOWN_AGGREGATION[formula_id] || "count";
   const additive = breakdown_aggregation === "count" || breakdown_aggregation === "sum";

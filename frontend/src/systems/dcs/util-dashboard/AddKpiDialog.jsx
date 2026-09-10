@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { save_dashboard } from "./dashboardService.js";
+import { save_dashboard, request_error_text } from "./dashboardService.js";
 import { field_label_text } from "./chartCatalog.js";
 import { eligible_kpi_fields, formulas_for_field, formula_definition, kpi_field_type_key, build_kpi_widgets } from "./kpiCatalog.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
@@ -89,7 +89,7 @@ export default function AddKpiDialog({ form, widgets, onAdded, onCancel }) {
       showSuccess(translate("DCS_DB_KPI_ADDED_TOAST", { count: added.length }));
       onAdded(final_widgets, added.map((widget) => widget.id));
     } catch (error) {
-      showError((error.response && error.response.data && error.response.data.message) || translate("DCS_ERROR_GENERIC"));
+      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
       setSaving(false);
     }
   };

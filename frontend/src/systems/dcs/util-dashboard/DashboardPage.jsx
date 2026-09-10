@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_dashboard, save_dashboard, get_dashboard_data } from "./dashboardService.js";
+import { get_dashboard, save_dashboard, get_dashboard_data, request_error_text } from "./dashboardService.js";
 import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
 import { fold_family, widgets_data_signature } from "./chartCatalog.js";
@@ -13,24 +13,9 @@ import SkippedDetailsModal from "./SkippedDetailsModal.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
-import WidgetCard from "./WidgetCard.jsx";
+import BoardGrid from "./BoardGrid.jsx";
 
 const REFRESH_INTERVAL_MS = 30000;
-
-// Flexible auto-grow grid: every card carries a size-based flex-basis, and
-// `grow` lets the items of an incomplete last row stretch over the leftover
-// width instead of leaving an empty gap. NO widget may claim a full row of
-// its own - every base width is at most half the board, so something can
-// always sit next to it; a widget only ever spans the full width when
-// nothing else shares its row (the odd one out, or a one-widget board).
-// Static class strings so Tailwind keeps them; mobile is one column.
-const HALF_ROW = "grow basis-full sm:basis-[calc(50%-0.75rem)]";
-const SIZE_CLASSES = {
-  small: `${HALF_ROW} xl:basis-[calc(25%-0.75rem)]`,
-  medium: HALF_ROW,
-  large: HALF_ROW,
-  full: HALF_ROW,
-};
 
 // CSS zoom reflows the layout and keeps text crisp at the target size -
 // transform scaling only shrinks pixels, which reads blurry. Zoom is used
@@ -114,7 +99,7 @@ export default function DashboardPage({ form }) {
         setWidgets((response.data && response.data.widgets) || []);
         setCanEdit((response.data && response.data.can_edit) === true);
       })
-      .catch((error) => is_mounted && showError(error.message || translate("DCS_ERROR_GENERIC")))
+      .catch((error) => is_mounted && showError(request_error_text(error, translate("DCS_ERROR_GENERIC"))))
       .finally(() => is_mounted && setLoading(false));
     return () => {
       is_mounted = false;
@@ -223,7 +208,7 @@ export default function DashboardPage({ form }) {
       });
       showSuccess(translate("DCS_DB_WIDGET_REMOVED"));
     } catch (error) {
-      showError(error.message || translate("DCS_ERROR_GENERIC"));
+      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
     } finally {
       setRemoving(false);
       setWidgetToRemove(null);
@@ -251,7 +236,7 @@ export default function DashboardPage({ form }) {
       }
       showSuccess(translate("DCS_DB_WIDGET_UPDATED"));
     } catch (error) {
-      showError(error.message || translate("DCS_ERROR_GENERIC"));
+      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
     } finally {
       setSavingWidgetId(null);
     }
@@ -313,7 +298,7 @@ export default function DashboardPage({ form }) {
         showSuccess(translate("DCS_DB_GENERATED_TOAST", { count: result.widgets.length }));
       }
     } catch (error) {
-      showError(error.is_translation_key ? translate(error.message) : error.message || translate("DCS_ERROR_GENERIC"));
+      showError(error.is_translation_key ? translate(error.message) : request_error_text(error, translate("DCS_ERROR_GENERIC")));
     } finally {
       setGenerating(false);
     }
@@ -343,7 +328,7 @@ export default function DashboardPage({ form }) {
       setDataByWidget({});
       showSuccess(translate("DCS_DB_DELETED_TOAST"));
     } catch (error) {
-      showError(error.message || translate("DCS_ERROR_GENERIC"));
+      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
     } finally {
       setDeleting(false);
       setConfirming(null);
@@ -390,18 +375,7 @@ export default function DashboardPage({ form }) {
         onDelete={() => setConfirming("delete")}
       />
 
-      {review_widgets !== null ? (
-        <div className="bg-white border-2 p-4 sm:p-5" style={{ borderColor: "#E0E0E0" }}>
-          <GeneratedWidgetsReview
-            form={form}
-            initialWidgets={review_widgets}
-            focusIds={review_focus}
-            onOpenDashboard={close_review}
-            onClose={close_review}
-            onWidgetsChange={setWidgets}
-          />
-        </div>
-      ) : widgets.length === 0 && !generating ? (
+      {review_widgets !== null ? null : widgets.length === 0 && !generating ? (
         <div className="bg-white border-2 p-8 text-center" style={{ borderColor: "#E0E0E0" }}>
           <p className="text-sm font-semibold mb-1" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
             {translate("DCS_DB_EMPTY_TITLE")}
@@ -428,33 +402,31 @@ export default function DashboardPage({ form }) {
               : undefined
           }
         >
-          <div className="flex flex-wrap items-stretch gap-3">
-            {widgets.map((widget) => (
-              <div
-                key={widget.id}
-                // A lone widget always spans the whole board - a small card
-                // floating in empty space reads as broken, not minimal.
-                className={widgets.length === 1 ? SIZE_CLASSES.full : SIZE_CLASSES[widget.size] || SIZE_CLASSES.medium}
-              >
-                <WidgetCard
-                  widget={widget}
-                  data={data_by_widget[widget.id]}
-                  loading={data_loading && !data_by_widget[widget.id]}
-                  fitMode={is_fullscreen && fs_mode === "fit"}
-                  editable={can_edit && !generating}
-                  savingText={saving_widget_id === widget.id}
-                  onUpdateText={(changes) => handle_update_widget(widget.id, changes)}
-                  onRemove={can_edit && !generating ? () => setWidgetToRemove(widget) : undefined}
-                  onChangeType={can_edit && !generating ? (next_type) => handle_update_widget(widget.id, { chart_type: next_type }) : undefined}
-                  onRetry={() => retry_widget(widget)}
-                  onShowSkipped={(target) => setSkippedWidget(target)}
-                />
-              </div>
-            ))}
-          </div>
+          <BoardGrid
+            widgets={widgets}
+            dataByWidget={data_by_widget}
+            dataLoading={data_loading}
+            fitMode={is_fullscreen && fs_mode === "fit"}
+            editable={can_edit && !generating}
+            savingWidgetId={saving_widget_id}
+            onUpdateWidget={handle_update_widget}
+            onRemoveWidget={(widget) => setWidgetToRemove(widget)}
+            onRetryWidget={retry_widget}
+            onShowSkipped={(target) => setSkippedWidget(target)}
+          />
         </div>
       )}
 
+      {review_widgets !== null && (
+        <GeneratedWidgetsReview
+          form={form}
+          initialWidgets={review_widgets}
+          focusIds={review_focus}
+          onOpenDashboard={close_review}
+          onClose={close_review}
+          onWidgetsChange={setWidgets}
+        />
+      )}
       {regen_dialog && <RegenerateDialog onPick={handle_generate} onCancel={() => setRegenDialog(false)} />}
       {kpi_dialog && <AddKpiDialog form={form} widgets={widgets} onAdded={handle_kpi_added} onCancel={() => setKpiDialog(false)} />}
       {skipped_widget && (

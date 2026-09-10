@@ -68,6 +68,13 @@ export const SCROLL_SVG = (
   </>
 );
 
+export const CLOSE_SVG = (
+  <>
+    <path d="M6 6l12 12" />
+    <path d="M18 6L6 18" />
+  </>
+);
+
 export const PLUS_SVG = (
   <>
     <path d="M12 5v14" />

@@ -33,12 +33,14 @@ function validate_metric(widget, catalog, errors, describe) {
   if (KPI_ONLY_AGGREGATIONS.includes(metric.aggregation) && widget.chart_type !== "kpi") {
     errors.push(`${describe}: ${metric.aggregation} is only available on KPI cards`);
   }
-  if (NUMERIC_AGGREGATIONS.includes(metric.aggregation) && !is_numeric(catalog, metric.field_id)) {
-    errors.push(`${describe}: ${metric.aggregation} needs a numeric field`);
+  // A numeric formula runs on ANY real field of the form: answers that
+  // cannot be read as numbers are SKIPPED at aggregation time (and counted
+  // back to the card), so the formula catalog is never filtered by type.
+  if (NUMERIC_AGGREGATIONS.includes(metric.aggregation) && !catalog.fields_by_id.has(metric.field_id)) {
+    errors.push(`${describe}: ${metric.aggregation} needs a field of the form`);
   }
-  // Count distinct works on any real field of the form (number or text);
-  // plain count takes an optional field (count its non-empty answers) or
-  // none at all (count records).
+  // Count distinct works on any real field too; plain count takes an
+  // optional field (count its non-empty answers) or none (count records).
   if (metric.aggregation === "count_distinct" && !catalog.fields_by_id.has(metric.field_id)) {
     errors.push(`${describe}: count distinct needs a field of the form`);
   }
@@ -56,8 +58,12 @@ function validate_shape_for_kind(widget, definition, catalog, errors, describe) 
     }
   }
   if (kind === CHART_KINDS.TIME) {
-    if (!widget.group_by || !is_time_source(catalog, widget.group_by.field_id)) {
-      errors.push(`${describe}: time charts group by submitted_at or a date field`);
+    // Line/area charts also accept a CHOICE field: any category chart can
+    // be flipped into a line/area look and back - the data pipeline then
+    // treats it as a category chart (see compute_widget_data).
+    const group_id = widget.group_by && widget.group_by.field_id;
+    if (!widget.group_by || (!is_time_source(catalog, group_id) && !is_categorical(catalog, group_id))) {
+      errors.push(`${describe}: time charts group by submitted_at, a date field, or a choice field`);
     }
     const granularity = widget.group_by && widget.group_by.granularity;
     if (granularity && !TIME_GRANULARITIES.includes(granularity)) {

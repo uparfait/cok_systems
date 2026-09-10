@@ -33,3 +33,14 @@ export function get_dashboard_data(form_group_id, widgets, period) {
 export function get_kpi_skipped(form_group_id, widget, period) {
   return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", { widget, period: period || null });
 }
+
+/**
+ * The human-readable reason a dashboard request failed: the server's own
+ * translated message plus the first concrete violation when the response
+ * carries them - never a bare generic toast when the server said more.
+ */
+export function request_error_text(error, fallback) {
+  if (!error) return fallback;
+  const detail = Array.isArray(error.errors) && error.errors.length > 0 ? ` (${error.errors[0]})` : "";
+  return `${error.message || fallback}${detail}`;
+}

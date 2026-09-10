@@ -31,6 +31,34 @@ export const CHART_CATALOG = [
 
 export const chart_definition = (type) => CHART_CATALOG.find((entry) => entry.type === type) || null;
 
+// Every look a widget can be flipped into, driven by what its data can
+// express (all 20 chart types of the catalog are reachable through these
+// families). A single-series category widget can become any single-series
+// look - bars, columns, lollipops, dots, slices, waffle, treemap, or a
+// line/area across its categories. A split widget (one field categorized
+// by another - many x values each carrying many y values) can become any
+// grouped/stacked/100-percent bar or column form (grouped bars are the
+// clustered bar chart), a heatmap, or a multi-series line. Time widgets
+// flip between line and area, scatter flips to bubble only when it carries
+// a size field, and a KPI card is its own thing.
+const SINGLE_CATEGORY_TYPES = ["bar", "column", "lollipop", "dot_plot", "pie", "donut", "waffle", "treemap", "line", "area"];
+const SPLIT_CATEGORY_TYPES = ["grouped_column", "grouped_bar", "stacked_column", "stacked_bar", "stacked_100", "stacked_bar_100", "heatmap", "line"];
+
+export function convertible_types(widget) {
+  if (!widget || widget.chart_type === "kpi") return [];
+  if (["scatter", "bubble"].includes(widget.chart_type)) {
+    return widget.size_field_id ? ["scatter", "bubble"] : ["scatter"];
+  }
+  const group = widget.group_by || null;
+  if (!group || !group.field_id) return [];
+  // A time source is submitted_at, or any group that carries a granularity
+  // (only time widgets ever do) - those stay in the time family.
+  if (group.field_id === SUBMITTED_AT_FIELD || group.granularity) {
+    return widget.split_by && widget.split_by.field_id ? ["line"] : ["line", "area"];
+  }
+  return widget.split_by && widget.split_by.field_id ? SPLIT_CATEGORY_TYPES : SINGLE_CATEGORY_TYPES;
+}
+
 /**
  * Chart types whose data is identical map to one family token: every
  * bar/column-style chart shares one aggregation, every slice chart (capped

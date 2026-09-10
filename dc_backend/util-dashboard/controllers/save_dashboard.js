@@ -33,7 +33,9 @@ async function save_dashboard(req, res) {
     const form_versions = new Map([[form_group_id, context.form_version]]);
     const check = validate_dashboard(widgets, form_versions, context.project._id);
     if (!check.valid) {
-      return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", { errors: check.errors }));
+      // The precise violations ride along so the client can show WHAT is
+      // invalid, not just that something is.
+      return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: check.errors }));
     }
 
     const saved = await dashboards_model.save_dashboard(form_group_id, context.project._id, widgets);

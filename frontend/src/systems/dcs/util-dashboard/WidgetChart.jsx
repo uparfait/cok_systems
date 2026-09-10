@@ -90,7 +90,12 @@ export default function WidgetChart({ widget, data, fitMode }) {
   }
 
   let chart = null;
-  if (widget.chart_type === "pie" || widget.chart_type === "donut") {
+  if (widget.chart_type === "line" || widget.chart_type === "area") {
+    // A category chart flipped into a line/area look: the categories run
+    // along the X axis (with one line per split value when the data is
+    // split) - same rows/series shape the time renderer already draws.
+    chart = <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} />;
+  } else if (widget.chart_type === "pie" || widget.chart_type === "donut") {
     chart = <PieCharts chartType={widget.chart_type} rows={rows} totalLabel={translate("DCS_DB_TOTAL")} onItemClick={handle_item_click} />;
   } else if (widget.chart_type === "waffle") {
     chart = <WaffleChart rows={rows} />;

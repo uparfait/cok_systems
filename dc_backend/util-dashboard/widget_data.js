@@ -1,7 +1,7 @@
 const pipelines = require("./pipelines.js");
 const { kpi_metric_result } = require("./kpi_metrics.js");
 const { effective_bounds } = require("./match_stage.js");
-const { build_field_catalog, parent_field_id_of } = require("./field_catalog.js");
+const { build_field_catalog, parent_field_id_of, is_categorical } = require("./field_catalog.js");
 const { CHART_TYPES, CHART_KINDS, LIMITS } = require("./constants.js");
 
 /**
@@ -199,7 +199,13 @@ function nest_tree(raw_rows, has_parent) {
 async function compute_widget_data(widget, form_version, period_override) {
   const catalog = build_field_catalog(form_version.schema);
   const bounds = effective_bounds(widget, period_override);
-  const kind = (CHART_TYPES[widget.chart_type] || {}).kind;
+  let kind = (CHART_TYPES[widget.chart_type] || {}).kind;
+  // A line/area chart grouped by a CHOICE field charts categories, not
+  // time - any category chart can be flipped into a line/area look and
+  // back, so its data comes from the category pipelines.
+  if (kind === CHART_KINDS.TIME && widget.group_by && is_categorical(catalog, widget.group_by.field_id)) {
+    kind = CHART_KINDS.CATEGORY;
+  }
 
   if (kind === CHART_KINDS.KPI) {
     const result = await kpi_metric_result(widget, bounds, catalog);

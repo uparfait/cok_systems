@@ -2,15 +2,15 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import WidgetChart from "./WidgetChart.jsx";
-import { chart_definition } from "./chartCatalog.js";
+import { chart_definition, convertible_types } from "./chartCatalog.js";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
 const ORANGE = "#E67E22";
 
-function StateMessage({ children, tone }) {
+function StateMessage({ children, tone, height }) {
   return (
-    <div className="flex items-center justify-center text-center text-xs px-4" style={{ height: 180, color: tone || "#9E9E9E" }}>
+    <div className="flex items-center justify-center text-center text-xs px-4" style={{ height: height || 180, color: tone || "#9E9E9E" }}>
       {children}
     </div>
   );
@@ -22,7 +22,7 @@ function StateMessage({ children, tone }) {
  * saves and Escape cancels too. The buttons prevent the input's blur on
  * mousedown so a click on Cancel can never be swallowed by a blur-save.
  */
-function EditableText({ value, placeholder, editable, saving, onCommit, textStyle, maxLength, hint }) {
+function EditableText({ value, placeholder, editable, saving, onCommit, textStyle, maxLength, hint, wrap }) {
   const { translate } = useDcsLanguage();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -95,7 +95,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
   }
   return (
     <p
-      className="truncate"
+      className={wrap ? "" : "truncate"}
       style={{ ...textStyle, cursor: editable ? "pointer" : "default" }}
       title={editable ? hint : value || placeholder}
       onClick={start}
@@ -105,35 +105,12 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
   );
 }
 
-// Any category chart can be redrawn as bars or columns on the spot -
-// single-series ones become plain bar/column, split ones (stacked, grouped,
-// 100 percent) become their horizontal or vertical counterpart.
-const TO_BAR = {
-  column: "bar",
-  lollipop: "bar",
-  dot_plot: "bar",
-  pie: "bar",
-  donut: "bar",
-  waffle: "bar",
-  grouped_column: "grouped_bar",
-  stacked_column: "stacked_bar",
-  stacked_100: "stacked_bar_100",
-};
-const TO_COLUMN = {
-  bar: "column",
-  lollipop: "column",
-  dot_plot: "column",
-  pie: "column",
-  donut: "column",
-  waffle: "column",
-  grouped_bar: "grouped_column",
-  stacked_bar: "stacked_column",
-  stacked_bar_100: "stacked_100",
-};
-
 /**
- * The three-dots menu at each card's top right: turn any category chart -
- * stacked or not - into its bar or column form, and remove the widget.
+ * The three-dots menu at each card's top right: flip the widget into ANY
+ * compatible look (single-series category charts reach every bar, column,
+ * lollipop, dot, slice, waffle, treemap, line and area form; split ones
+ * reach every grouped/clustered, stacked, 100 percent, heatmap and
+ * multi-series line form - see convertible_types), and remove the widget.
  * Closes on outside click.
  */
 function CardMenu({ widget, onChangeType, onRemove }) {
@@ -188,16 +165,35 @@ function CardMenu({ widget, onChangeType, onRemove }) {
         </svg>
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-40 bg-white border-2 shadow-lg" style={{ top: "100%", marginTop: 4, borderColor: "#E0E0E0", minWidth: 170 }}>
-          {onChangeType && TO_BAR[widget.chart_type] && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(false)} onClick={() => pick(() => onChangeType(TO_BAR[widget.chart_type]))}>
-              {translate("DCS_DB_TO_BAR")}
-            </button>
-          )}
-          {onChangeType && TO_COLUMN[widget.chart_type] && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(false)} onClick={() => pick(() => onChangeType(TO_COLUMN[widget.chart_type]))}>
-              {translate("DCS_DB_TO_COLUMN")}
-            </button>
+        <div role="menu" className="absolute right-0 z-40 bg-white border-2 shadow-lg" style={{ top: "100%", marginTop: 4, borderColor: "#E0E0E0", minWidth: 190 }}>
+          {onChangeType && convertible_types(widget).filter((type) => type !== widget.chart_type).length > 0 && (
+            <>
+              <p
+                className="px-3 pt-2 pb-1 text-xs font-semibold uppercase"
+                style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.4px", margin: 0 }}
+              >
+                {translate("DCS_DB_TURN_INTO")}
+              </p>
+              <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                {convertible_types(widget)
+                  .filter((type) => type !== widget.chart_type)
+                  .map((type) => {
+                    const definition = chart_definition(type);
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        role="menuitem"
+                        className="dcs-db-menu-item"
+                        style={item_style(false)}
+                        onClick={() => pick(() => onChangeType(type))}
+                      >
+                        {definition ? translate(definition.labelKey) : type}
+                      </button>
+                    );
+                  })}
+              </div>
+            </>
           )}
           {onRemove && (
             <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(true)} onClick={() => pick(onRemove)}>
@@ -246,10 +242,14 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
   // A KPI whose numeric formula had to SKIP answers it could not read as
   // numbers is marked orange; clicking the note lists every skipped entry.
   const skipped_count = !failed && data && data.kind === "kpi" ? Number(data.skipped) || 0 : 0;
+  // KPI cards are deliberately COMPACT: small paddings and short state
+  // areas, so a row of them stays low - only a description adds height.
+  const is_kpi = widget.chart_type === "kpi";
+  const state_height = is_kpi ? 90 : 180;
 
   return (
     <div className="bg-white border-2 flex flex-col h-full" style={{ borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : "#E0E0E0" }}>
-      <div className="px-3 pt-3 pb-2 flex items-start gap-2">
+      <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
         <div className="min-w-0 flex-1">
           <EditableText
             value={widget.title}
@@ -258,7 +258,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
             saving={savingText}
             hint={translate("DCS_DB_CLICK_TO_EDIT")}
             maxLength={120}
-            textStyle={{ color: "#333333", fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: 14 }}
+            textStyle={{ color: "#333333", fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: is_kpi ? 12 : 14 }}
             onCommit={(next) => {
               // A widget must keep a title - an emptied one falls back.
               if (next) onUpdateText({ title: next });
@@ -271,7 +271,8 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
             saving={savingText}
             hint={translate("DCS_DB_CLICK_TO_EDIT")}
             maxLength={300}
-            textStyle={{ color: "#9E9E9E", fontSize: 12 }}
+            wrap={is_kpi}
+            textStyle={{ color: "#9E9E9E", fontSize: is_kpi ? 11 : 12 }}
             onCommit={(next) => onUpdateText({ description: next || null })}
           />
         </div>
@@ -281,17 +282,17 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
         )}
       </div>
 
-      <div className="px-2 pb-3 flex-1">
+      <div className={`px-2 ${is_kpi ? "pb-2" : "pb-3"} flex-1`}>
         {loading ? (
-          <div className="flex items-center justify-center" style={{ height: 180 }}>
+          <div className="flex items-center justify-center" style={{ height: state_height }}>
             <SpiralLoader />
           </div>
         ) : !data ? (
-          <StateMessage>{translate("DCS_DB_NO_DATA")}</StateMessage>
+          <StateMessage height={state_height}>{translate("DCS_DB_NO_DATA")}</StateMessage>
         ) : data.locked ? (
-          <StateMessage>{translate("DCS_DB_LOCKED")}</StateMessage>
+          <StateMessage height={state_height}>{translate("DCS_DB_LOCKED")}</StateMessage>
         ) : data.error ? (
-          <div className="flex flex-col items-center justify-center gap-2" style={{ height: 180 }}>
+          <div className="flex flex-col items-center justify-center gap-2" style={{ height: state_height }}>
             <p className="text-xs text-center px-4 font-semibold" style={{ color: DANGER, fontFamily: "'Montserrat', sans-serif" }}>
               {translate(data.error === "TIMEOUT" ? "DCS_DB_WIDGET_SLOW" : "DCS_DB_WIDGET_ERROR")}
             </p>
