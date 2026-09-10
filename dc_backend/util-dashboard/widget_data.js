@@ -1,4 +1,5 @@
 const pipelines = require("./pipelines.js");
+const { kpi_metric_result } = require("./kpi_metrics.js");
 const { effective_bounds } = require("./match_stage.js");
 const { build_field_catalog, parent_field_id_of } = require("./field_catalog.js");
 const { CHART_TYPES, CHART_KINDS, LIMITS } = require("./constants.js");
@@ -201,12 +202,14 @@ async function compute_widget_data(widget, form_version, period_override) {
   const kind = (CHART_TYPES[widget.chart_type] || {}).kind;
 
   if (kind === CHART_KINDS.KPI) {
-    const result = await pipelines.kpi_rows(widget, bounds);
+    const result = await kpi_metric_result(widget, bounds, catalog);
     const change_pct =
       result.previous === null || result.previous === 0
         ? null
         : Math.round(((result.current - result.previous) / Math.abs(result.previous)) * 1000) / 10;
-    return { kind, value: result.current || 0, previous: result.previous, change_pct };
+    // skipped: answers inside the window the numeric formula could not read
+    // as numbers - the card flags them and can list them in full.
+    return { kind, value: result.current || 0, previous: result.previous, change_pct, skipped: result.skipped || 0 };
   }
   if (kind === CHART_KINDS.POINT) {
     const points = await pipelines.point_rows(widget, bounds);

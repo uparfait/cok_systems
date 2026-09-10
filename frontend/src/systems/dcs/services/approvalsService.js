@@ -1,4 +1,5 @@
 import { dcs_request } from "./dcsApiClient.js";
+import { session_headers } from "./batchApprovalSession.js";
 
 const DCS_API_BASE_URL = "/dcs/api";
 
@@ -62,9 +63,24 @@ export function verify_batch_approval_otp(token, otp) {
   return dcs_request(`/public/batch-approvals/${token}/verify`, "POST", { otp });
 }
 
-/** Public: records the approver's batch decision, authorized by the one-time code. */
-export function submit_batch_approval_decision(token, otp, decision, comment) {
-  return dcs_request(`/public/batch-approvals/${token}/decision`, "POST", { otp, decision, comment });
+/** Public: the batch's records, reopened with the session signature (no code replay). */
+export function get_batch_approval_records(token) {
+  return dcs_request(`/public/batch-approvals/${token}/records`, "GET", null, { headers: session_headers(token) });
+}
+
+/** Public: sends this approver's one-time code again after their session expired. */
+export function resend_batch_approval_otp(token) {
+  return dcs_request(`/public/batch-approvals/${token}/resend`, "POST", {});
+}
+
+/**
+ * Public: records the approver's batch decision. The session signature
+ * authorizes it and the idempotency key makes a repeated click harmless.
+ */
+export function submit_batch_approval_decision(token, decision, comment, idempotency_key) {
+  return dcs_request(`/public/batch-approvals/${token}/decision`, "POST", { decision, comment }, {
+    headers: Object.assign({}, session_headers(token), { "x-idempotency-key": idempotency_key }),
+  });
 }
 
 /** Uploads the approver's drawn signature PNG or certificate file; raw XHR for upload progress, like uploadService.js. */

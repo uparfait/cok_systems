@@ -16,14 +16,29 @@ function run_pipeline(pipeline) {
 }
 
 /**
- * The accumulator of a widget metric: plain counting, or a numeric
- * aggregation over one field converted safely to a double.
+ * The accumulator of a widget metric: plain counting, distinct counting
+ * (collected as a set, sized right after the group - see
+ * metric_post_stages), or a numeric aggregation over one field converted
+ * safely to a double. KPI-only aggregations (median, cumulative sum, moving
+ * average) never reach these grouped pipelines - validation rejects them.
  */
 function metric_accumulator(metric) {
   const aggregation = (metric && metric.aggregation) || "count";
   if (aggregation === "count") return { $sum: 1 };
+  if (aggregation === "count_distinct") return { $addToSet: `$data.${metric.field_id}` };
+  if (aggregation === "stddev") return { $stdDevPop: numeric_expr(metric.field_id) };
   const operator = { sum: "$sum", avg: "$avg", min: "$min", max: "$max" }[aggregation];
   return { [operator]: numeric_expr(metric.field_id) };
+}
+
+/**
+ * Stages appended right after a $group so `value` becomes the final number:
+ * a distinct count turns its collected set into that set's size.
+ */
+function metric_post_stages(metric) {
+  const aggregation = (metric && metric.aggregation) || "count";
+  if (aggregation !== "count_distinct") return [];
+  return [{ $set: { value: { $size: { $ifNull: ["$value", []] } } } }];
 }
 
 /**
@@ -50,6 +65,7 @@ async function category_rows(widget, bounds, catalog) {
     ...unwind_stages(catalog, [group_field]),
     { $match: { [`data.${group_field}`]: { $nin: [null, ""] } } },
     { $group: { _id: `$data.${group_field}`, value: metric_accumulator(widget.metric) } },
+    ...metric_post_stages(widget.metric),
     { $match: { value: { $ne: null } } },
     { $sort: sort },
     { $limit: LIMITS.MAX_CATEGORY_LIMIT + 1 },
@@ -75,6 +91,7 @@ async function split_rows(widget, bounds, catalog) {
         value: metric_accumulator(widget.metric),
       },
     },
+    ...metric_post_stages(widget.metric),
     { $match: { value: { $ne: null } } },
     { $sort: { "_id.g": 1, "_id.s": 1 } },
     { $limit: LIMITS.MAX_CATEGORY_LIMIT * LIMITS.MAX_CATEGORY_LIMIT },
@@ -111,6 +128,7 @@ async function time_rows(widget, bounds, granularity, catalog, split_field) {
     ...(split_field ? unwind_stages(catalog, [split_field]) : []),
     ...(split_field ? [{ $match: { [`data.${split_field}`]: { $nin: [null, ""] } } }] : []),
     { $group: { _id: group_id, value: metric_accumulator(widget.metric) } },
+    ...metric_post_stages(widget.metric),
     { $match: { value: { $ne: null }, _id: { $ne: null } } },
     { $sort: { _id: 1 } },
     { $limit: LIMITS.MAX_TIME_BUCKETS * 4 },
@@ -153,36 +171,6 @@ async function point_rows(widget, bounds) {
 }
 
 /**
- * KPI value of the current window plus, when the window is bounded, the same
- * aggregation over the equally long window immediately before it - both
- * computed inside one $facet.
- */
-async function kpi_rows(widget, bounds) {
-  const group_stage = { $group: { _id: null, value: metric_accumulator(widget.metric) } };
-  if (!bounds) {
-    const rows = await run_pipeline([build_match_stage(widget, null), group_stage]);
-    return { current: rows.length ? rows[0].value : 0, previous: null };
-  }
-  const span = bounds.end.getTime() - bounds.start.getTime();
-  const previous_bounds = { start: new Date(bounds.start.getTime() - span - 1), end: new Date(bounds.start.getTime() - 1) };
-  const pipeline = [
-    build_match_stage(widget, null),
-    {
-      $facet: {
-        current: [{ $match: { submitted_at: { $gte: bounds.start, $lte: bounds.end } } }, group_stage],
-        previous: [{ $match: { submitted_at: { $gte: previous_bounds.start, $lte: previous_bounds.end } } }, group_stage],
-      },
-    },
-  ];
-  const rows = await run_pipeline(pipeline);
-  const facet = rows[0] || { current: [], previous: [] };
-  return {
-    current: facet.current.length ? facet.current[0].value : 0,
-    previous: facet.previous.length ? facet.previous[0].value : 0,
-  };
-}
-
-/**
  * Treemap rows: the chosen field grouped together with its cascade parent
  * (when it has one), so children nest under their own parent value.
  */
@@ -194,6 +182,7 @@ async function tree_rows(widget, bounds, catalog, parent_field_id) {
     ...unwind_stages(catalog, [child_field]),
     { $match: { [`data.${child_field}`]: { $nin: [null, ""] } } },
     { $group: { _id: group_id, value: metric_accumulator(widget.metric) } },
+    ...metric_post_stages(widget.metric),
     { $match: { value: { $ne: null } } },
     { $sort: { value: -1 } },
     { $limit: LIMITS.MAX_CATEGORY_LIMIT * LIMITS.MAX_CATEGORY_LIMIT },
@@ -207,6 +196,5 @@ module.exports = {
   time_rows,
   time_extent,
   point_rows,
-  kpi_rows,
   tree_rows,
 };

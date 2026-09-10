@@ -2,6 +2,7 @@ const approval_requests_model = require("../../models/approval_requests_model.js
 const submissions_model = require("../../models/submissions_model.js");
 const forms_model = require("../../models/forms_model.js");
 const { is_otp_valid, MAX_OTP_ATTEMPTS } = require("../../utilities/batch_approval.js");
+const { issue_session } = require("../../utilities/batch_session.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -34,8 +35,18 @@ async function verify_batch_approval_otp(req, res) {
       submissions_model.list_by_approval_request(request._id, 500),
     ]);
 
+    // The code is spent here: from now on this approver carries a
+    // one-day session signature instead of replaying the code.
+    const session = issue_session(approver);
+    approver.otp_attempts = 0;
+    await approval_requests_model.update_request(request._id, { approvers: request.approvers });
+
     return res.status(200).json(
       success_response(req, "APPROVAL_OTP_VERIFIED", {
+        signature: session.signature,
+        // Ownership is proven now, so the full address may be shown back.
+        email: approver.email,
+        signature_expires_at: session.expires_at,
         schema: form_version ? form_version.schema : null,
         submissions: submissions.map((submission) => ({
           data: submission.data,

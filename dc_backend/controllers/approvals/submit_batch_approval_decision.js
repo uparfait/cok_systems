@@ -9,6 +9,7 @@ const {
   public_batch_trail,
   MAX_OTP_ATTEMPTS,
 } = require("../../utilities/batch_approval.js");
+const { is_session_valid, read_session_signature, read_idempotency_key } = require("../../utilities/batch_session.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -24,7 +25,9 @@ const MAX_COMMENT_LENGTH = 1000;
 async function submit_batch_approval_decision(req, res) {
   try {
     const { token } = req.params;
-    const { otp, decision, comment } = req.body || {};
+    const { decision, comment } = req.body || {};
+    const signature = read_session_signature(req);
+    const idempotency_key = read_idempotency_key(req);
 
     if (decision !== "approve" && decision !== "reject") {
       return res.status(400).json(warning_response(req, "APPROVAL_DECISION_INVALID"));
@@ -34,22 +37,43 @@ async function submit_batch_approval_decision(req, res) {
     if (!request) return res.status(404).json(warning_response(req, "APPROVAL_NOT_FOUND"));
 
     const approver = request.approvers.find((entry) => entry.token === token);
-    if (request.status !== "pending" || approver.status !== "pending") {
+
+    // Only the signature issued by a verified code authorizes a decision.
+    if (!is_session_valid(approver, signature)) {
+      return res.status(401).json(warning_response(req, "APPROVAL_SESSION_INVALID", null, { signature_required: true }));
+    }
+
+    if (!idempotency_key) {
+      return res.status(400).json(warning_response(req, "APPROVAL_IDEMPOTENCY_REQUIRED"));
+    }
+
+    // A repeat of the very same attempt answers with the decision that
+    // was already recorded instead of deciding twice.
+    if (approver.decision_idempotency_key && approver.decision_idempotency_key === idempotency_key) {
+      return res.status(200).json(
+        success_response(req, "APPROVAL_DECISION_RECORDED", {
+          overall_status: request.status,
+          decision: approver.status,
+          trail: public_batch_trail(request),
+          repeated: true,
+        }),
+      );
+    }
+
+    // One approver decides once: an approved record can never be rejected
+    // afterwards, nor a rejected one approved.
+    if (approver.status !== "pending") {
+      return res.status(409).json(warning_response(req, "APPROVAL_ALREADY_DECIDED", null, { decision: approver.status }));
+    }
+    if (request.status !== "pending") {
       return res.status(409).json(warning_response(req, "APPROVAL_ALREADY_DECIDED"));
     }
     if (!can_batch_step_act(request, approver)) {
       return res.status(409).json(warning_response(req, "APPROVAL_NOT_YOUR_TURN"));
     }
-    if (approver.otp_attempts >= MAX_OTP_ATTEMPTS) {
-      return res.status(429).json(warning_response(req, "APPROVAL_OTP_LOCKED"));
-    }
-    if (!is_otp_valid(approver, otp)) {
-      approver.otp_attempts += 1;
-      await approval_requests_model.update_request(request._id, { approvers: request.approvers });
-      return res.status(401).json(warning_response(req, "APPROVAL_OTP_INVALID", null, { attempts_left: MAX_OTP_ATTEMPTS - approver.otp_attempts }));
-    }
 
     apply_batch_decision(request, approver, decision, comment ? comment.toString().trim().slice(0, MAX_COMMENT_LENGTH) : null);
+    approver.decision_idempotency_key = idempotency_key;
 
     // The chain advances: whoever just became able to act gets their link and one-time code now (never re-emailing anyone).
     if (request.status === "pending") {

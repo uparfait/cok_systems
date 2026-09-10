@@ -9,6 +9,8 @@ const get_approval_by_token = require("../../controllers/approvals/get_approval_
 const get_batch_approval_by_token = require("../../controllers/approvals/get_batch_approval_by_token.js");
 const verify_batch_approval_otp = require("../../controllers/approvals/verify_batch_approval_otp.js");
 const submit_batch_approval_decision = require("../../controllers/approvals/submit_batch_approval_decision.js");
+const get_batch_approval_records = require("../../controllers/approvals/get_batch_approval_records.js");
+const resend_batch_approval_otp = require("../../controllers/approvals/resend_batch_approval_otp.js");
 const submit_approval_decision = require("../../controllers/approvals/submit_approval_decision.js");
 const upload_approval_file_controller = require("../../controllers/approvals/upload_approval_file.js");
 const { get_locations, get_all_locations } = require("../../controllers/locations/get_locations.js");
@@ -169,5 +171,9 @@ Router.post("/batch-approvals/:token/verify", verify_batch_approval_otp);
  *         description: This approver already decided
  */
 Router.post("/batch-approvals/:token/decision", submit_batch_approval_decision);
+
+// Signature-authenticated reload of the records, and a fresh code when that signature expired.
+Router.get("/batch-approvals/:token/records", get_batch_approval_records);
+Router.post("/batch-approvals/:token/resend", resend_batch_approval_otp);
 
 module.exports = Router;

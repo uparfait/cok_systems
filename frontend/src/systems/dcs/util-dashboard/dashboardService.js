@@ -24,3 +24,12 @@ export function save_dashboard(form_group_id, widgets) {
 export function get_dashboard_data(form_group_id, widgets, period) {
   return dcs_request(`/forms/${form_group_id}/dashboard/data`, "POST", { widgets, period: period || null });
 }
+
+/**
+ * Lists the answers a numeric KPI widget skipped (could not be read as
+ * numbers) inside its current window, honoring the same period the
+ * dashboard shows: { total, rows: [{submitted_at, raw}] }.
+ */
+export function get_kpi_skipped(form_group_id, widget, period) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", { widget, period: period || null });
+}

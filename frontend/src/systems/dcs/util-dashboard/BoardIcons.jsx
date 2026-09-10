@@ -68,6 +68,13 @@ export const SCROLL_SVG = (
   </>
 );
 
+export const PLUS_SVG = (
+  <>
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
+  </>
+);
+
 export const REFRESH_SVG = (
   <>
     <polyline points="21 3 21 9 15 9" />

@@ -2,7 +2,26 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_batch_approval, verify_batch_approval_otp, submit_batch_approval_decision } from "../services/approvalsService.js";
+import {
+  get_batch_approval,
+  verify_batch_approval_otp,
+  get_batch_approval_records,
+  resend_batch_approval_otp,
+  submit_batch_approval_decision,
+} from "../services/approvalsService.js";
+import {
+  read_session,
+  save_session,
+  clear_session,
+  new_idempotency_key,
+  is_session_error,
+} from "../services/batchApprovalSession.js";
+import DcsBatchTokenDialog from "../components/DcsBatchTokenDialog.jsx";
+import DcsApproverPanel from "../components/DcsApproverPanel.jsx";
+import DcsDetailsToggleButton from "../components/DcsDetailsToggleButton.jsx";
+import DcsApprovalSettingsButton from "../components/DcsApprovalSettingsButton.jsx";
+import DcsApprovalFormView from "../components/DcsApprovalFormView.jsx";
+import { collect_data_fields, column_label, render_answer_cell, column_width_for } from "../fields/dataColumns.jsx";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 import DcsFormLoadingSpinner from "../components/DcsFormLoadingSpinner.jsx";
@@ -18,6 +37,7 @@ const GRAY = "#9E9E9E";
 const NEUTRAL_DARK = "#333333";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const BORDER = "#E0E0E0";
+const CARD_BORDER = "rgba(5,109,170,0.35)";
 const fontHeading = "'Montserrat', sans-serif";
 const PAGE_SIZE = 10;
 const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group", "image_block", "horizontal_line"];
@@ -63,7 +83,7 @@ function BatchApprovalPageContent() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { translate, language } = useDcsLanguage();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
 
   const [batch, setBatch] = useState(null);
   const [load_state, setLoadState] = useState("loading");
@@ -76,6 +96,12 @@ function BatchApprovalPageContent() {
   const [acting, setActing] = useState(false);
   const [decision_result, setDecisionResult] = useState(null);
   const [decision_modal, setDecisionModal] = useState(null);
+  const [resending, setResending] = useState(false);
+  const [session_notice, setSessionNotice] = useState("");
+  const [sending_token, setSendingToken] = useState(false);
+  const [panel_open, setPanelOpen] = useState(
+    () => typeof window === "undefined" || window.matchMedia("(min-width: 768px)").matches,
+  );
 
   useEffect(() => {
     let is_mounted = true;
@@ -91,13 +117,26 @@ function BatchApprovalPageContent() {
     setDecisionResult(null);
     setDecisionModal(null);
     get_batch_approval(token)
-      .then((response) => {
+      .then(async (response) => {
         if (!is_mounted) return;
         setBatch(response.data);
-        if (response.data && response.data.otp) {
-          console.log("Batch approval code sent to " + (response.data.approver ? response.data.approver.email : ""), response.data.otp);
-        }
         setLoadState("ready");
+        // Records are never fetched on the token alone: only a stored,
+        // still-valid signature reopens them without a new code.
+        let has_session = false;
+        if (read_session(token)) {
+          try {
+            const records_response = await get_batch_approval_records(token);
+            if (is_mounted) setVerified(records_response.data);
+            has_session = true;
+          } catch (error) {
+            clear_session(token);
+            if (is_mounted && is_session_error(error)) setSessionNotice(error.message || "");
+          }
+        }
+        if (!has_session && is_mounted && response.data.can_act && !response.data.otp_locked) {
+          send_token(true);
+        }
       })
       .catch(() => {
         if (is_mounted) setLoadState("not_found");
@@ -108,29 +147,53 @@ function BatchApprovalPageContent() {
   }, [token]);
 
   const records = (verified && verified.submissions) || [];
-  const fields = useMemo(
-    () => (verified && verified.schema ? flatten_fields(verified.schema.fields || []).filter((field) => !NON_DATA_TYPES.includes(field.type)) : []),
-    [verified],
-  );
+  const fields = useMemo(() => (verified && verified.schema ? collect_data_fields(verified.schema.fields) : []), [verified]);
 
-  const handle_verify = async () => {
-    if (!otp.trim()) return;
+  const handle_verify = async (entered) => {
+    const code = (entered || otp).toString().trim();
+    if (!code) return;
     setActing(true);
+    setSessionNotice("");
     try {
-      const response = await verify_batch_approval_otp(token, otp.trim());
+      const response = await verify_batch_approval_otp(token, code);
+      save_session(token, response.data.signature, response.data.signature_expires_at);
       setVerified(response.data);
       showSuccess(response.message || "");
     } catch (error) {
+      setSessionNotice(error.message || translate("DCS_ERROR_GENERIC"));
       showError(error.message || translate("DCS_ERROR_GENERIC"));
     } finally {
       setActing(false);
     }
   };
 
+  // Asks the backend to mail this approver a fresh token. On the first
+  // automatic send the page says so; a manual resend just confirms.
+  const send_token = async (automatic) => {
+    setSendingToken(true);
+    if (automatic) showInfo(translate("DCS_BATCH_SENDING_TOKEN"));
+    try {
+      const response = await resend_batch_approval_otp(token);
+      if (response.data && response.data.otp) console.log("Batch approval token:", response.data.otp);
+      showSuccess(response.message || "");
+    } catch (error) {
+      showError(error.message || translate("DCS_ERROR_GENERIC"));
+    } finally {
+      setSendingToken(false);
+    }
+  };
+
+  const handle_resend = async () => {
+    setResending(true);
+    setSessionNotice("");
+    await send_token(false);
+    setResending(false);
+  };
+
   const handle_decide = async (decision) => {
     setActing(true);
     try {
-      const response = await submit_batch_approval_decision(token, otp.trim(), decision, comment.trim() || null);
+      const response = await submit_batch_approval_decision(token, decision, comment.trim() || null, new_idempotency_key());
       setDecisionResult(response.data);
       setDecisionModal(null);
       setBatch((previous) =>
@@ -142,6 +205,14 @@ function BatchApprovalPageContent() {
       );
       showSuccess(response.message || "");
     } catch (error) {
+      // A dead signature sends the approver back to the code gate rather
+      // than losing their decision to a generic error.
+      if (is_session_error(error)) {
+        clear_session(token);
+        setVerified(null);
+        setDecisionModal(null);
+        setSessionNotice(error.message || "");
+      }
       showError(error.message || translate("DCS_ERROR_GENERIC"));
     } finally {
       setActing(false);
@@ -156,9 +227,9 @@ function BatchApprovalPageContent() {
   const can_act = batch.can_act && !batch.otp_locked && !decision_result;
   const waiting_for_turn = approver.status === "pending" && !batch.can_act && !batch.otp_locked && !decision_result;
 
-  const display_name = approver.name || approver.email;
+  const display_name = approver.name || approver.email_masked;
   const initials =
-    (approver.name || approver.email)
+    (approver.name || approver.email_masked || "?")
       .trim()
       .split(/\s+/)
       .filter(Boolean)
@@ -167,7 +238,7 @@ function BatchApprovalPageContent() {
       .join("")
       .toUpperCase() || "?";
 
-  const label_of = (field) => get_field_text(field.label, language) || field.id;
+  const label_of = (field) => column_label(field, language, translate);
 
   const total_pages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
   const current_page = Math.min(page, total_pages);
@@ -175,73 +246,58 @@ function BatchApprovalPageContent() {
   const form_record = records[Math.min(form_index, Math.max(0, records.length - 1))] || null;
   const form_view_fields = form_record ? fields.filter((field) => form_record.data && Object.prototype.hasOwnProperty.call(form_record.data, field.id)) : [];
 
+  const status_banner = (() => {
+    if (batch.otp_locked) return { text: translate("DCS_BATCH_OTP_LOCKED"), background: "rgba(192,86,75,0.08)", color: "#C0564B" };
+    if (waiting_for_turn) return { text: translate("DCS_BATCH_NOT_TURN"), background: "rgba(243,156,18,0.1)", color: "#F39C12" };
+    if (decision_result)
+      return {
+        text: translate(decision_result.decision === "approved" ? "DCS_BATCH_DONE_APPROVED" : "DCS_BATCH_DONE_REJECTED"),
+        background: decision_result.decision === "approved" ? "rgba(76,175,80,0.12)" : "rgba(192,86,75,0.08)",
+        color: decision_result.decision === "approved" ? "#4CAF50" : "#C0564B",
+      };
+    if (approver.status !== "pending") return { text: translate("DCS_BATCH_ALREADY_ACTED"), background: "#FFFFFF", color: "#555555" };
+    return null;
+  })();
+
   return (
-    <div className="min-h-screen p-3 sm:p-6" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-      <div className="flex flex-col lg:flex-row gap-4 max-w-[1400px] mx-auto items-start">
-        {/* Sidebar - approver identity, assignment and the author's message */}
-        <div className="w-full lg:w-[320px] shrink-0 bg-white border p-4 space-y-3" style={{ borderColor: BORDER }}>
-          <div className="flex items-center gap-3 pb-3 border-b" style={{ borderColor: BORDER }}>
-            <div className="w-14 h-14 flex items-center justify-center text-white text-xl font-extrabold shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading }}>
-              {initials}
-            </div>
-            <div className="min-w-0">
-              <p className="text-lg font-extrabold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{display_name}</p>
-              {approver.role && <p className="text-sm font-semibold" style={{ color: PRIMARY, fontFamily: fontHeading }}>{approver.role}</p>}
-            </div>
-          </div>
+    <div className="min-h-screen p-2 sm:p-4 min-[760px]:p-6 lg:h-screen lg:overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+      <div className="flex flex-col lg:flex-row lg:gap-0 max-w-[1400px] mx-auto items-stretch lg:items-start lg:h-full">
+        {verified && panel_open && <div className="dcs-details-backdrop" onClick={() => setPanelOpen(false)} />}
 
-          <SidebarBox label={translate("DCS_MYAPPROVALS_EMAIL")}>{approver.email}</SidebarBox>
-          <SidebarBox label={translate("DCS_MYAPPROVALS_ASSIGNED_TO")}>
-            {batch.form_name}
-            <span className="block text-xs mt-0.5 font-normal" style={{ color: GRAY }}>
-              {translate("DCS_SCHED_RECORDS", { count: batch.submission_count })}
-              {batch.sent_at ? ` - ${new Date(batch.sent_at).toLocaleString()}` : ""}
-            </span>
-          </SidebarBox>
-          <SidebarBox label={translate("DCS_MYAPPROVALS_COL_STATUS")}>
-            <DcsApprovalStatusChip status={batch.overall_status} />
-          </SidebarBox>
-          <SidebarBox label={translate("DCS_APPROVAL_MESSAGE_FOR_YOU")}>
-            <span className="font-normal">{approver.message || translate("DCS_MYAPPROVALS_DEFAULT_MESSAGE")}</span>
-          </SidebarBox>
+        {verified && (
+        <div className={`shrink-0 w-full lg:h-full dcs-details-panel ${panel_open ? "is-open" : "is-closed"}`}>
+          <DcsApproverPanel
+            user={{ email: (verified && verified.email) || approver.email_masked }}
+            initials={initials}
+            displayName={display_name}
+            role={approver.role}
+            assignedTo={`${batch.form_name} - ${translate("DCS_SCHED_RECORDS", { count: batch.submission_count })}`}
+            message={approver.message}
+            onClose={() => setPanelOpen(false)}
+            settingsSlot={
+              <DcsApprovalSettingsButton
+                view={view}
+                onViewChange={setView}
+                formOptions={[]}
+                activeFormKey={null}
+                onFormChange={() => {}}
+                busy={acting}
+              />
+            }
+            progressNote={translate("DCS_BATCH_VIEWING_NOTE", {
+              count: records.length,
+              form: batch.form_name,
+            })}
+          />
         </div>
+        )}
 
-        {/* Records panel */}
-        <div className="flex-1 min-w-0 w-full">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="inline-flex border" style={{ borderColor: BORDER, backgroundColor: "#FFFFFF" }}>
-              {["table", "form"].map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setView(mode)}
-                  className="cursor-pointer text-sm font-bold px-4 py-2.5"
-                  style={{
-                    fontFamily: fontHeading,
-                    backgroundColor: view === mode ? PRIMARY : "transparent",
-                    color: view === mode ? "#FFFFFF" : GRAY,
-                  }}
-                >
-                  {translate(mode === "table" ? "DCS_MYAPPROVALS_TABLE_VIEW" : "DCS_MYAPPROVALS_FORM_VIEW")}
-                </button>
-              ))}
-            </div>
+        <div className="flex-1 min-w-0 w-full lg:h-full lg:min-h-0 lg:flex lg:flex-col">
+          <div className="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
+            <span className={`dcs-details-toggle-slot ${verified && !panel_open ? "is-shown" : "is-hidden"}`}>
+              <DcsDetailsToggleButton isOpen={false} onClick={() => setPanelOpen(true)} />
+            </span>
             <div className="flex items-center gap-2 flex-wrap">
-              {(batch.other_batches || []).length > 0 && (
-                <select
-                  value={token}
-                  onChange={(event) => navigate(`/dcs-batch-approval/${event.target.value}`)}
-                  className="cok-auth-input pr-3 py-2 text-sm"
-                  style={{ backgroundColor: "#FFFFFF" }}
-                >
-                  <option value={token}>{batch.form_name}</option>
-                  {batch.other_batches.map((entry) => (
-                    <option key={entry.token} value={entry.token}>
-                      {entry.form_name} ({entry.submission_count})
-                    </option>
-                  ))}
-                </select>
-              )}
               {can_act && verified && (
                 <>
                   <DcsButtonOutlineDanger onClick={() => setDecisionModal("reject")} disabled={acting}>
@@ -255,176 +311,114 @@ function BatchApprovalPageContent() {
             </div>
           </div>
 
-          {/* State banners */}
-          {batch.otp_locked && (
-            <p className="text-sm px-3 py-2 mt-3" style={{ backgroundColor: "rgba(192,86,75,0.08)", color: "#C0564B", fontFamily: fontHeading }}>
-              {translate("DCS_BATCH_OTP_LOCKED")}
-            </p>
-          )}
-          {waiting_for_turn && (
-            <p className="text-sm px-3 py-2 mt-3" style={{ backgroundColor: "rgba(243,156,18,0.1)", color: "#F39C12", fontFamily: fontHeading }}>
-              {translate("DCS_BATCH_NOT_TURN")}
-            </p>
-          )}
-          {approver.status !== "pending" && !decision_result && (
-            <p className="text-sm px-3 py-2 mt-3" style={{ backgroundColor: "#FFFFFF", color: "#555555", border: `1px solid ${BORDER}`, fontFamily: fontHeading }}>
-              {translate("DCS_BATCH_ALREADY_ACTED")}
-            </p>
-          )}
-          {decision_result && (
+          {status_banner && (
             <p
               className="text-sm px-3 py-2 mt-3"
               style={{
-                backgroundColor: decision_result.decision === "approved" ? "rgba(76,175,80,0.12)" : "rgba(192,86,75,0.08)",
-                color: decision_result.decision === "approved" ? "#4CAF50" : "#C0564B",
+                backgroundColor: status_banner.background,
+                color: status_banner.color,
                 fontFamily: fontHeading,
+                border: status_banner.background === "#FFFFFF" ? `1px solid ${BORDER}` : "none",
               }}
             >
-              {translate(decision_result.decision === "approved" ? "DCS_BATCH_DONE_APPROVED" : "DCS_BATCH_DONE_REJECTED")}
+              {status_banner.text}
             </p>
           )}
 
-
-          {/* Table view */}
           {verified && view === "table" && (
-            <>
-              <div className="mt-3 overflow-x-auto bg-white border" style={{ borderColor: BORDER }}>
-                <table className="w-full text-left" style={{ borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ backgroundColor: PRIMARY }}>
-                      {fields.map((field) => (
-                        <th key={field.id} className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap" style={{ fontFamily: fontHeading }}>
-                          {label_of(field)}
-                        </th>
-                      ))}
-                      <th className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap" style={{ fontFamily: fontHeading }}>
-                        {translate("DCS_MYAPPROVALS_COL_SUBMITTED")}
+            <div
+              key="table"
+              className="dcs-view-swap mt-3 overflow-x-auto overflow-y-auto max-h-[60vh] lg:max-h-none bg-white border-2 min-[760px]:border-[5px] min-[760px]:rounded-[5px] lg:flex-1 lg:min-h-0"
+              style={{ borderColor: CARD_BORDER }}
+            >
+              <table className="w-full text-left" style={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
+                <thead>
+                  <tr style={{ backgroundColor: PRIMARY }}>
+                    {fields.map((field) => (
+                      <th
+                        key={field.id}
+                        className="dcs-approvals-head-cell px-4 py-3 text-sm font-bold text-white sticky top-0"
+                        style={{ fontFamily: fontHeading, backgroundColor: PRIMARY, ...column_width_for(field) }}
+                      >
+                        {label_of(field)}
                       </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {page_records.map((record, record_index) => (
-                      <tr key={record_index} className="border-t" style={{ borderColor: BORDER }}>
-                        {fields.map((field) => (
-                          <td key={field.id} className="px-4 py-3 text-sm" style={{ color: NEUTRAL_DARK }}>
-                            <AnswerValue value={record.data ? record.data[field.id] : undefined} />
-                          </td>
-                        ))}
-                        <td className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: "#555555" }}>
-                          {record.submitted_at ? new Date(record.submitted_at).toLocaleDateString() : "-"}
-                        </td>
-                      </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex items-center gap-3 mt-3">
-                <DcsButtonOutline onClick={() => setPage(Math.max(1, current_page - 1))} disabled={current_page <= 1}>
-                  {translate("DCS_MYAPPROVALS_PREVIOUS")}
-                </DcsButtonOutline>
-                <span className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                  {translate("DCS_MYAPPROVALS_PAGE_OF", { page: current_page, pages: total_pages })}
-                </span>
-                <DcsButtonOutline onClick={() => setPage(Math.min(total_pages, current_page + 1))} disabled={current_page >= total_pages}>
-                  {translate("DCS_MYAPPROVALS_NEXT")}
-                </DcsButtonOutline>
-              </div>
-            </>
+                    <th
+                      className="dcs-approvals-head-cell px-4 py-3 text-sm font-bold text-white whitespace-nowrap sticky top-0"
+                      style={{ fontFamily: fontHeading, backgroundColor: PRIMARY }}
+                    >
+                      {translate("DCS_MYAPPROVALS_COL_SUBMITTED")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {page_records.map((record, record_index) => (
+                    <tr
+                      key={record_index}
+                      className={`border-t ${record_index % 2 === 0 ? "dcs-approvals-row-odd" : "dcs-approvals-row-even"}`}
+                      style={{ borderColor: BORDER }}
+                    >
+                      {fields.map((field) => (
+                        <td
+                          key={field.id}
+                          className="dcs-approvals-cell px-4 py-3 text-sm align-top"
+                          style={{ color: NEUTRAL_DARK, ...column_width_for(field) }}
+                        >
+                          <div className="dcs-approvals-cell-content">
+                            {render_answer_cell(field, record.data ? record.data[field.id] : undefined) || <span style={{ color: GRAY }}>-</span>}
+                          </div>
+                        </td>
+                      ))}
+                      <td className="dcs-approvals-cell px-4 py-3 text-sm whitespace-nowrap align-top" style={{ color: "#555555" }}>
+                        {record.submitted_at ? new Date(record.submitted_at).toLocaleDateString() : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
-          {/* Form view - one record at a time */}
+          {verified && view === "table" && total_pages > 1 && (
+            <div className="shrink-0 flex items-center justify-center gap-3 mt-3">
+              <DcsButtonOutline onClick={() => setPage(Math.max(1, current_page - 1))} disabled={current_page <= 1}>
+                {translate("DCS_MYAPPROVALS_PREVIOUS")}
+              </DcsButtonOutline>
+              <span className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                {translate("DCS_MYAPPROVALS_PAGE_OF", { page: current_page, pages: total_pages })}
+              </span>
+              <DcsButtonOutline onClick={() => setPage(Math.min(total_pages, current_page + 1))} disabled={current_page >= total_pages}>
+                {translate("DCS_MYAPPROVALS_NEXT")}
+              </DcsButtonOutline>
+            </div>
+          )}
+
           {verified && view === "form" && form_record && (
-            <div className="mt-3 bg-white border p-4 sm:p-6" style={{ borderColor: BORDER }}>
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <p className="text-base font-extrabold" style={{ color: PRIMARY, fontFamily: fontHeading }}>{batch.form_name}</p>
-                <p className="text-xs" style={{ color: GRAY, fontFamily: fontHeading }}>
-                  {form_record.submitted_at ? new Date(form_record.submitted_at).toLocaleString() : ""}
-                </p>
-              </div>
-
-              <div className="border mt-4" style={{ borderColor: BORDER }}>
-                {form_view_fields.length === 0 && <p className="p-3 text-sm" style={{ color: GRAY }}>-</p>}
-                {form_view_fields.map((field, index) => (
-                  <div key={field.id} className="p-3 flex flex-col gap-1" style={{ borderTop: index === 0 ? "none" : `1px solid ${BORDER}` }}>
-                    <span className="text-xs font-semibold uppercase" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>{label_of(field)}</span>
-                    <span className="text-sm" style={{ color: NEUTRAL_DARK }}>
-                      <AnswerValue value={form_record.data ? form_record.data[field.id] : undefined} />
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-3 mt-4">
-                <DcsButtonOutline onClick={() => setFormIndex(Math.max(0, form_index - 1))} disabled={form_index <= 0}>
-                  {translate("DCS_MYAPPROVALS_PREVIOUS")}
-                </DcsButtonOutline>
-                <span className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                  {translate("DCS_MYAPPROVALS_RECORD_OF", { index: Math.min(form_index, records.length - 1) + 1, total: records.length })}
-                </span>
-                <DcsButtonOutline onClick={() => setFormIndex(Math.min(records.length - 1, form_index + 1))} disabled={form_index >= records.length - 1}>
-                  {translate("DCS_MYAPPROVALS_NEXT")}
-                </DcsButtonOutline>
-              </div>
-            </div>
+            <DcsApprovalFormView
+              record={form_record}
+              form={{ form_name: batch.form_name, schema: verified.schema }}
+              index={Math.min(form_index, records.length - 1) + 1}
+              total={records.length}
+              loadingMore={false}
+              canGoPrevious={form_index > 0}
+              canGoNext={form_index < records.length - 1}
+              onPrevious={() => setFormIndex(Math.max(0, form_index - 1))}
+              onNext={() => setFormIndex(Math.min(records.length - 1, form_index + 1))}
+              decisionSlot={<DcsApprovalStatusChip status={batch.overall_status} />}
+            />
           )}
-
-          {/* Approval trail */}
-          <div className="mt-4 bg-white border p-4" style={{ borderColor: BORDER }}>
-            <p className="text-xs font-bold uppercase mb-2" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>
-              {translate("DCS_BATCH_TRAIL")}
-            </p>
-            <div className="flex flex-col gap-2">
-              {(batch.trail || []).map((entry, index) => (
-                <div key={index} className="flex items-center justify-between gap-2 border px-3 py-2 flex-wrap" style={{ borderColor: BORDER }}>
-                  <div>
-                    <p className="text-sm" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                      {entry.name || entry.email}
-                      {entry.role ? <span style={{ color: "#555555" }}> - {entry.role}</span> : null}
-                    </p>
-                    {entry.comment && <p className="text-xs" style={{ color: "#555555" }}>{entry.comment}</p>}
-                    {entry.acted_at && <p className="text-xs" style={{ color: GRAY }}>{new Date(entry.acted_at).toLocaleString()}</p>}
-                  </div>
-                  <DcsApprovalStatusChip status={entry.status} />
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
-
       {/* Decision modal - the shared message goes on the batch decision itself */}
       {can_act && !verified && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
-          <div className="w-full max-w-sm bg-white border-2" style={{ borderColor: PRIMARY }}>
-            <div className="px-5 py-4" style={{ backgroundColor: PRIMARY }}>
-              <h2 className="text-white font-bold text-base" style={{ fontFamily: fontHeading }}>
-                {translate("DCS_BATCH_OTP_LABEL")}
-              </h2>
-            </div>
-            <div className="p-5">
-              <p className="text-sm mb-3" style={{ color: "#555555", fontFamily: fontHeading }}>
-                {translate("DCS_BATCH_OTP_HINT", { email: (batch.approver && batch.approver.email) || "" })}
-              </p>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                autoFocus
-                value={otp}
-                onChange={(event) => setOtp(event.target.value.replace(/D/g, ""))}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && otp.length === 6 && !acting) handle_verify();
-                }}
-                placeholder="000000"
-                className="border w-full px-3"
-                style={{ borderColor: BORDER, height: 48, fontFamily: fontHeading, fontSize: 22, letterSpacing: 8, textAlign: "center" }}
-              />
-              <DcsButtonPrimary className="w-full mt-4" onClick={handle_verify} disabled={acting || otp.length < 6}>
-                {acting ? translate("DCS_BATCH_OTP_VERIFYING") : translate("DCS_BATCH_OTP_VERIFY")}
-              </DcsButtonPrimary>
-            </div>
-          </div>
-        </div>
+        <DcsBatchTokenDialog
+          maskedEmail={batch.approver && batch.approver.email_masked}
+          busy={acting}
+          resending={resending || sending_token}
+          notice={session_notice}
+          onVerify={handle_verify}
+          onResend={handle_resend}
+        />
       )}
 
       {decision_modal && (

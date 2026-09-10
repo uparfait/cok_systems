@@ -2,6 +2,8 @@ const {
   CHART_TYPES,
   CHART_KINDS,
   AGGREGATIONS,
+  KPI_ONLY_AGGREGATIONS,
+  NUMERIC_AGGREGATIONS,
   FILTER_OPERATORS,
   PERIOD_PRESETS,
   SORT_OPTIONS,
@@ -28,8 +30,20 @@ function validate_metric(widget, catalog, errors, describe) {
     errors.push(`${describe}: unknown aggregation`);
     return;
   }
-  if (metric.aggregation !== "count" && !is_numeric(catalog, metric.field_id)) {
+  if (KPI_ONLY_AGGREGATIONS.includes(metric.aggregation) && widget.chart_type !== "kpi") {
+    errors.push(`${describe}: ${metric.aggregation} is only available on KPI cards`);
+  }
+  if (NUMERIC_AGGREGATIONS.includes(metric.aggregation) && !is_numeric(catalog, metric.field_id)) {
     errors.push(`${describe}: ${metric.aggregation} needs a numeric field`);
+  }
+  // Count distinct works on any real field of the form (number or text);
+  // plain count takes an optional field (count its non-empty answers) or
+  // none at all (count records).
+  if (metric.aggregation === "count_distinct" && !catalog.fields_by_id.has(metric.field_id)) {
+    errors.push(`${describe}: count distinct needs a field of the form`);
+  }
+  if (metric.aggregation === "count" && metric.field_id && !catalog.fields_by_id.has(metric.field_id)) {
+    errors.push(`${describe}: unknown count field`);
   }
 }
 

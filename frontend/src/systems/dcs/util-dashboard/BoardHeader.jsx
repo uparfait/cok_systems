@@ -1,6 +1,6 @@
 import React from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { IconButton, FULLSCREEN_SVG, EXIT_SVG, FIT_SVG, SCROLL_SVG, REFRESH_SVG, TRASH_SVG } from "./BoardIcons.jsx";
+import { IconButton, FULLSCREEN_SVG, EXIT_SVG, FIT_SVG, SCROLL_SVG, PLUS_SVG, REFRESH_SVG, TRASH_SVG } from "./BoardIcons.jsx";
 import GenerationProgress from "./GenerationProgress.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 
@@ -38,6 +38,7 @@ export default function BoardHeader({
   to,
   setTo,
   onApplyPeriod,
+  onAddKpi,
   onRegenerate,
   onDelete,
 }) {
@@ -109,6 +110,9 @@ export default function BoardHeader({
             )}
             {can_edit && widgets_count > 0 && !busy && !is_fullscreen && (
               <>
+                <IconButton title={translate("DCS_DB_ADD_KPI")} onClick={onAddKpi} disabled={deleting}>
+                  {PLUS_SVG}
+                </IconButton>
                 <IconButton title={translate("DCS_DB_REGENERATE")} onClick={onRegenerate} disabled={deleting}>
                   {REFRESH_SVG}
                 </IconButton>

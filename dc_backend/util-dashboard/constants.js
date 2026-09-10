@@ -38,7 +38,28 @@ const CHART_TYPES = {
   kpi: { kind: CHART_KINDS.KPI, split: "none" },
 };
 
-const AGGREGATIONS = ["count", "sum", "avg", "min", "max"];
+const AGGREGATIONS = [
+  "count",
+  "count_distinct",
+  "sum",
+  "avg",
+  "median",
+  "min",
+  "max",
+  "stddev",
+  "cumulative_sum",
+  "moving_average",
+];
+
+// Aggregations only a KPI card can compute - they have no meaningful (or no
+// efficient) per-category grouped form, so category/split/time/tree widgets
+// refuse them.
+const KPI_ONLY_AGGREGATIONS = ["median", "cumulative_sum", "moving_average"];
+
+// Aggregations that read the field as a number: answers that cannot be
+// converted (free text typed into what the formula needs as a number) are
+// SKIPPED, counted, and reported back so the card can flag them.
+const NUMERIC_AGGREGATIONS = ["sum", "avg", "median", "min", "max", "stddev", "cumulative_sum", "moving_average"];
 
 const FILTER_OPERATORS = ["eq", "ne", "contains", "gt", "gte", "lt", "lte"];
 
@@ -70,6 +91,8 @@ module.exports = {
   CHART_KINDS,
   CHART_TYPES,
   AGGREGATIONS,
+  KPI_ONLY_AGGREGATIONS,
+  NUMERIC_AGGREGATIONS,
   FILTER_OPERATORS,
   PERIOD_PRESETS,
   SORT_OPTIONS,

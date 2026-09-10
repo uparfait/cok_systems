@@ -6,6 +6,7 @@ import { chart_definition } from "./chartCatalog.js";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
+const ORANGE = "#E67E22";
 
 function StateMessage({ children, tone }) {
   return (
@@ -234,7 +235,7 @@ function widget_total(widget, data) {
  * while the change saves, the widget's grand total, and a three-dots menu
  * on the top right) and the loading / error states around the chart itself.
  */
-export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType }) {
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onShowSkipped }) {
   const { translate } = useDcsLanguage();
   const definition = chart_definition(widget.chart_type);
   const type_label = definition ? translate(definition.labelKey) : widget.chart_type;
@@ -242,9 +243,12 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
   // A failed or timed-out widget is marked in red - it likely causes errors
   // or heavy computation and is a removal candidate.
   const failed = !!(data && data.error);
+  // A KPI whose numeric formula had to SKIP answers it could not read as
+  // numbers is marked orange; clicking the note lists every skipped entry.
+  const skipped_count = !failed && data && data.kind === "kpi" ? Number(data.skipped) || 0 : 0;
 
   return (
-    <div className="bg-white border-2 flex flex-col h-full" style={{ borderColor: failed ? DANGER : "#E0E0E0" }}>
+    <div className="bg-white border-2 flex flex-col h-full" style={{ borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : "#E0E0E0" }}>
       <div className="px-3 pt-3 pb-2 flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <EditableText
@@ -309,6 +313,17 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
           <WidgetChart widget={widget} data={data} fitMode={fitMode} />
         )}
       </div>
+
+      {skipped_count > 0 && (
+        <button
+          type="button"
+          className="px-3 pb-2 text-xs font-semibold text-left"
+          style={{ color: ORANGE, fontFamily: "'Montserrat', sans-serif", background: "none", border: "none", cursor: "pointer" }}
+          onClick={() => onShowSkipped && onShowSkipped(widget)}
+        >
+          {translate("DCS_DB_SKIPPED_BADGE", { count: skipped_count })}
+        </button>
+      )}
 
       {total !== null && (
         <p className="px-3 pb-2 text-xs font-semibold" style={{ color: PRIMARY, fontFamily: "'Montserrat', sans-serif" }}>

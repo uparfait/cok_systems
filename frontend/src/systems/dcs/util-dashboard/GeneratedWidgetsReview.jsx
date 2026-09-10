@@ -43,9 +43,11 @@ function reindex_positions(widget_list) {
  * and chart type only, in one scrollable list) so the user can delete the
  * ones they do not want - one by one, or every widget that includes a given
  * field at once - and adjust titles and descriptions before opening the
- * full basic dashboard, which is where the data actually loads.
+ * full basic dashboard, which is where the data actually loads. With
+ * focusIds only those widgets are listed (a manual KPI's fresh card and
+ * breakdowns) while every save still persists the WHOLE board around them.
  */
-export default function GeneratedWidgetsReview({ form, initialWidgets, onOpenDashboard, onClose, onCountChange, onWidgetsChange }) {
+export default function GeneratedWidgetsReview({ form, initialWidgets, focusIds, onOpenDashboard, onClose, onCountChange, onWidgetsChange }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
 
@@ -53,6 +55,9 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, onOpenDas
   const [drafts, setDrafts] = useState({});
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [focus_ids] = useState(() => (focusIds && focusIds.length > 0 ? new Set(focusIds) : null));
+  const in_focus = (widget) => !focus_ids || focus_ids.has(widget.id);
+  const visible = widgets.filter(in_focus);
 
   const field_labels = useMemo(() => {
     const labels = new Map();
@@ -66,9 +71,11 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, onOpenDas
   const field_usage = useMemo(() => {
     const usage = new Map();
     widgets.forEach((widget) => {
+      if (!in_focus(widget)) return;
       widget_field_ids(widget).forEach((field_id) => usage.set(field_id, (usage.get(field_id) || 0) + 1));
     });
     return [...usage.entries()].sort((a, b) => b[1] - a[1]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgets]);
 
   const persist = async (next_widgets, toast_message) => {
@@ -128,8 +135,11 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, onOpenDas
       }
       return;
     }
-    const removed = widgets.filter((entry) => widget_field_ids(entry).includes(confirm.field_id));
-    const next = widgets.filter((entry) => !widget_field_ids(entry).includes(confirm.field_id));
+    // Only the widgets under review are swept - in a focused review (a
+    // fresh manual KPI) the rest of the board is never touched.
+    const matches = (entry) => in_focus(entry) && widget_field_ids(entry).includes(confirm.field_id);
+    const removed = widgets.filter(matches);
+    const next = widgets.filter((entry) => !matches(entry));
     const ok = await persist(next, translate("DCS_DB_REVIEW_FIELD_REMOVED_TOAST", { count: removed.length }));
     if (ok) {
       removed.forEach((entry) => clear_draft(entry.id));
@@ -149,7 +159,7 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, onOpenDas
           {translate("DCS_DB_REVIEW_TITLE")}
         </p>
         <p className="text-xs font-semibold" style={{ color: PRIMARY, ...HEADING_FONT }}>
-          {translate("DCS_DB_FORM_WIDGET_COUNT", { count: widgets.length })}
+          {translate("DCS_DB_FORM_WIDGET_COUNT", { count: visible.length })}
         </p>
       </div>
       <p className="text-xs mb-3" style={{ color: TEXT_MUTED }}>
@@ -171,9 +181,9 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, onOpenDas
         </div>
       </div>
 
-      {widgets.length === 0 ? (
+      {visible.length === 0 ? (
         <p className="text-xs py-2" style={{ color: TEXT_MUTED }}>
-          {translate("DCS_DB_REVIEW_ALL_REMOVED")}
+          {translate(focus_ids ? "DCS_DB_REVIEW_FOCUS_EMPTY" : "DCS_DB_REVIEW_ALL_REMOVED")}
         </p>
       ) : (
         <>
@@ -209,7 +219,7 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, onOpenDas
           </div>
 
           <div className="overflow-y-auto pr-1 flex flex-col gap-3" style={{ maxHeight: "65vh" }}>
-            {widgets.map((widget) => {
+            {visible.map((widget) => {
               const draft = draft_of(widget);
               const dirty = is_dirty(widget);
               const used_fields = widget_field_ids(widget);

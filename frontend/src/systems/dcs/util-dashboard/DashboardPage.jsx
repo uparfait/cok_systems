@@ -8,6 +8,8 @@ import { fold_family, widgets_data_signature } from "./chartCatalog.js";
 import BoardHeader from "./BoardHeader.jsx";
 import RegenerateDialog from "./RegenerateDialog.jsx";
 import GeneratedWidgetsReview from "./GeneratedWidgetsReview.jsx";
+import AddKpiDialog from "./AddKpiDialog.jsx";
+import SkippedDetailsModal from "./SkippedDetailsModal.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
@@ -63,7 +65,12 @@ export default function DashboardPage({ form }) {
   const [regen_dialog, setRegenDialog] = useState(false);
   // While review_widgets is set the board is FROZEN behind the review list:
   // the grid is not rendered and no widget may fetch or refresh data.
+  // review_focus narrows the review to just-added widgets (a manual KPI's
+  // card and breakdowns); null reviews the whole board.
   const [review_widgets, setReviewWidgets] = useState(null);
+  const [review_focus, setReviewFocus] = useState(null);
+  const [kpi_dialog, setKpiDialog] = useState(false);
+  const [skipped_widget, setSkippedWidget] = useState(null);
 
   const [data_by_widget, setDataByWidget] = useState({});
   const [data_loading, setDataLoading] = useState(false);
@@ -294,6 +301,7 @@ export default function DashboardPage({ form }) {
         setProgress({ percent, message_key }),
       );
       setWidgets(result.widgets);
+      setReviewFocus(null);
       setReviewWidgets(result.widgets);
       if (mode === "update") {
         showSuccess(
@@ -313,7 +321,19 @@ export default function DashboardPage({ form }) {
 
   // Finishing or canceling the review unfreezes the board: the signature
   // effect runs again and fetches the (possibly pruned) widgets in parallel.
-  const close_review = () => setReviewWidgets(null);
+  const close_review = () => {
+    setReviewWidgets(null);
+    setReviewFocus(null);
+  };
+
+  // A manual KPI was saved (card plus automatic breakdowns): the review
+  // opens focused on just those new widgets, freezing the board meanwhile.
+  const handle_kpi_added = (final_widgets, new_ids) => {
+    setKpiDialog(false);
+    setWidgets(final_widgets);
+    setReviewFocus(new_ids);
+    setReviewWidgets(final_widgets);
+  };
 
   const handle_delete = async () => {
     setDeleting(true);
@@ -365,6 +385,7 @@ export default function DashboardPage({ form }) {
         to={to}
         setTo={setTo}
         onApplyPeriod={handle_period_apply}
+        onAddKpi={() => setKpiDialog(true)}
         onRegenerate={() => setRegenDialog(true)}
         onDelete={() => setConfirming("delete")}
       />
@@ -374,6 +395,7 @@ export default function DashboardPage({ form }) {
           <GeneratedWidgetsReview
             form={form}
             initialWidgets={review_widgets}
+            focusIds={review_focus}
             onOpenDashboard={close_review}
             onClose={close_review}
             onWidgetsChange={setWidgets}
@@ -425,6 +447,7 @@ export default function DashboardPage({ form }) {
                   onRemove={can_edit && !generating ? () => setWidgetToRemove(widget) : undefined}
                   onChangeType={can_edit && !generating ? (next_type) => handle_update_widget(widget.id, { chart_type: next_type }) : undefined}
                   onRetry={() => retry_widget(widget)}
+                  onShowSkipped={(target) => setSkippedWidget(target)}
                 />
               </div>
             ))}
@@ -433,6 +456,15 @@ export default function DashboardPage({ form }) {
       )}
 
       {regen_dialog && <RegenerateDialog onPick={handle_generate} onCancel={() => setRegenDialog(false)} />}
+      {kpi_dialog && <AddKpiDialog form={form} widgets={widgets} onAdded={handle_kpi_added} onCancel={() => setKpiDialog(false)} />}
+      {skipped_widget && (
+        <SkippedDetailsModal
+          form={form}
+          widget={skipped_widget}
+          period={applied_period_ref.current}
+          onClose={() => setSkippedWidget(null)}
+        />
+      )}
       {confirming === "delete" && (
         <DcsConfirmDialog
           titleKey="DCS_DB_DEL_CONFIRM_TITLE"

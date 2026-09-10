@@ -24,7 +24,7 @@ function option_count(field) {
   return (field.options || []).length;
 }
 
-function is_cascade_child(field) {
+export function is_cascade_child(field) {
   if (field.parent_field_id) return true;
   if (field.type === "select_group" && field.parent_dependency_enabled) {
     return (field.parent_option_groups || []).some((group) => group && group.parent_field_id);
@@ -40,6 +40,24 @@ function has_cascade_children(field, all_fields) {
         other.parent_dependency_enabled &&
         (other.parent_option_groups || []).some((group) => group && group.parent_field_id === field.id)),
   );
+}
+
+/**
+ * How one categorical field displays best: for ADDITIVE measures (count and
+ * sum) the deepest cascade level becomes a treemap nested under its parents
+ * and few-option fields become donuts; non-additive measures (averages,
+ * extremes, spreads, distinct counts) are never part-to-whole, so they
+ * always draw as plain columns.
+ */
+export function category_display(field, all_fields, additive) {
+  if (!additive) return { chart_type: "column", limit: 12, size: "medium" };
+  if (is_cascade_child(field) && !has_cascade_children(field, all_fields)) {
+    return { chart_type: "treemap", limit: 50, size: "medium" };
+  }
+  if (option_count(field) > 0 && option_count(field) <= 6) {
+    return { chart_type: "donut", limit: 6, size: "small" };
+  }
+  return { chart_type: "bar", limit: 12, size: "medium" };
 }
 
 export function generate_form_widgets(form, translate) {
