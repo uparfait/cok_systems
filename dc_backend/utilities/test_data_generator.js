@@ -15,6 +15,26 @@ const WORD_BANK = [
 
 const PHONE_PREFIXES = ["078", "072", "073", "079"];
 
+// Every media type gets a REAL random link with a matching extension in its
+// name, so the answer displays like a genuine upload and passes the media
+// validation (a link answer is accepted as-is; the extension-bearing name
+// keeps it honest with the field's allowed types either way).
+const MEDIA_SAMPLES = {
+  image: { extension: "jpg", url: (seed) => `https://picsum.photos/seed/${seed}/640/480` },
+  signature: { extension: "png", url: (seed) => `https://picsum.photos/seed/sig-${seed}/400/160` },
+  video: { extension: "mp4", url: () => "https://www.w3schools.com/html/mov_bbb.mp4" },
+  audio: { extension: "mp3", url: () => "https://www.w3schools.com/html/horse.mp3" },
+  file_upload: { extension: "pdf", url: () => "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" },
+};
+
+function generate_media_candidate(field) {
+  const seed = Math.random().toString(36).slice(2, 10);
+  const sample = MEDIA_SAMPLES[field.type] || MEDIA_SAMPLES.image;
+  return { is_link: true, name: `test-${field.type}-${seed}.${sample.extension}`, url: sample.url(seed) };
+}
+
+const GEO_PROVINCES = ["Umujyi wa Kigali", "Amajyaruguru", "Amajyepfo", "Iburasirazuba", "Iburengerazuba"];
+
 function random_int(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -234,8 +254,13 @@ function generate_candidate(field, data, attempt, fields_by_id) {
     return generate_api_location_candidate(field, data, fields_by_id);
   }
   switch (field.type) {
-    case "text":
+    case "text": {
+      // Later attempts vary the shape so a custom rule (length bounds, must
+      // contain a number, ...) eventually meets a passing sample.
+      if (attempt > 12) return `${random_words(2)} ${random_int(1, 99)}`;
+      if (attempt > 6) return random_words(random_int(3, 6));
       return random_words(random_int(1, 3));
+    }
     case "large_text":
       return random_words(random_int(6, 18));
     case "number": {
@@ -279,22 +304,31 @@ function generate_candidate(field, data, attempt, fields_by_id) {
     case "duration":
       return { hours: String(random_int(0, 12)), minutes: String(random_int(0, 59)) };
     case "geolocation":
+      // The full shape the street-map field stores: random coordinates
+      // inside Rwanda plus random address details, exactly like a real
+      // picked point after reverse geocoding.
       return {
-        latitude: -1.4 - Math.random() * 1.4,
+        latitude: -(1.3 + Math.random() * 1.5),
         longitude: 28.9 + Math.random() * 1.9,
         accuracy: random_int(3, 40),
+        province: pick_random(GEO_PROVINCES),
+        district: random_words(1),
+        sector: random_words(1),
+        cell: random_words(1),
+        village: random_words(1),
+        street: `KN ${random_int(1, 250)} St`,
+        full_address: `${random_words(2)}, ${pick_random(GEO_PROVINCES)}, Rwanda`,
       };
     case "signature":
       // A link-style value is the only shape a generator can produce without
       // a real uploaded file behind it; validate_media_answer accepts it.
-      return { is_link: true, name: "test-signature", url: "https://example.com/test-signature" };
+      return generate_media_candidate(field);
     case "hidden":
       return field.default_value !== undefined && field.default_value !== null ? field.default_value : undefined;
     default:
-      if (MEDIA_TYPES.has(field.type)) {
-        if (!field.mandatory) return undefined;
-        return { is_link: true, name: "test-file", url: "https://example.com/test-file" };
-      }
+      // Media fields ALWAYS get a random link answer, optional or not - a
+      // skipped photo used to fail any rule that expected one.
+      if (MEDIA_TYPES.has(field.type)) return generate_media_candidate(field);
       return undefined;
   }
 }

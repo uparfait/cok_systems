@@ -155,16 +155,20 @@ async function activateAccount(req, res, next) {
       }
     });
 
-    // Send confirmation email
-    try {
-      await email.sendAccountActivatedEmail(user.email, user.full_name);
-    } catch (emailError) {
-      // Log email error but don't fail the activation
-      console.error("Failed to send activation confirmation email:", emailError);
-    }
+    // The account is active now: answer the client immediately. The
+    // confirmation email and the audit entry must never delay or block the
+    // response (an unreachable SMTP host would otherwise hang the request).
+    res.status(200).json({
+      status: true,
+      error: null,
+      message: "Account activated successfully! You can now login with your email and password.",
+    });
 
-    // Log successful activation
-    await logAuditEvent('UPDATE', `Account activated successfully: ${user.email}`, req, {
+    email.sendAccountActivatedEmail(user.email, user.full_name).catch((emailError) => {
+      console.error("Failed to send activation confirmation email:", emailError);
+    });
+
+    logAuditEvent('UPDATE', `Account activated successfully: ${user.email}`, req, {
       resource: 'users',
       resource_id: user._id.toString(),
       status_code: 200,
@@ -174,14 +178,17 @@ async function activateAccount(req, res, next) {
       }
     });
 
-    return res.status(200).json({
-      status: true,
-      error: null,
-      message: "Account activated successfully! You can now login with your email and password.",
-    });
+    return;
 
   } catch (error) {
-    next(error);
+    // Never leave the client hanging: answer here when nothing was sent yet
+    console.error('Account activation failed:', error);
+    if (res.headersSent) return;
+    return res.status(500).json({
+      status: false,
+      error: error.message || 'Account activation failed',
+      message: "The account could not be activated. Please try again.",
+    });
   }
 }
 

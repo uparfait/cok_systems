@@ -14,6 +14,11 @@ const transporter = nodemailer.createTransport({
     tls: {
         rejectUnauthorized: false,
     },
+    // Without these, an unreachable SMTP host keeps the socket open until the
+    // OS gives up, which hangs whatever request is awaiting the mail
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
 });
 
 transporter.verify((error, success) => {
