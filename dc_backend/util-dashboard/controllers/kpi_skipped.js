@@ -2,6 +2,7 @@ const { load_form_dashboard_context } = require("../form_context.js");
 const { sanitize_widget, sanitize_period_override } = require("../sanitize.js");
 const { validate_dashboard } = require("../widget_validation.js");
 const { effective_bounds } = require("../match_stage.js");
+const { build_field_catalog } = require("../field_catalog.js");
 const { kpi_skipped_rows } = require("../kpi_metrics.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -45,7 +46,8 @@ async function kpi_skipped(req, res) {
 
     const period_override = sanitize_period_override(body.period);
     const bounds = effective_bounds(widget, period_override);
-    const result = await kpi_skipped_rows(widget, bounds, MAX_DETAIL_ROWS);
+    const catalog = build_field_catalog(context.form_version.schema);
+    const result = await kpi_skipped_rows(widget, bounds, MAX_DETAIL_ROWS, catalog);
 
     return res.status(200).json(
       success_response(req, "DASHBOARD_SKIPPED_FETCHED", {

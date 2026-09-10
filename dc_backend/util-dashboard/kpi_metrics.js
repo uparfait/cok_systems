@@ -12,11 +12,31 @@ const DAY_MS = 86400000;
  * count, count distinct, sum, average, median, minimum, maximum, standard
  * deviation, cumulative sum (the running total from the very first record
  * up to the end of the selected range) and moving average (the average per
- * day over the last seven days of the range). Numeric formulas SKIP every
- * answer that cannot be read as a number - free text typed into what the
- * formula needs as a number - and report how many were skipped so the card
- * can flag them; kpi_skipped_rows lists those very records in full.
+ * day over the last seven days of the range).
+ *
+ * On a NUMBER-bearing field the numeric formulas aggregate the answers
+ * themselves, SKIPPING every answer that cannot be read as a number (free
+ * text typed into a number field) and reporting how many were skipped;
+ * kpi_skipped_rows lists those records in full. On a CHOICE field (radio,
+ * select, cascading, select group, ranking) the same formulas aggregate the
+ * RECORD COUNTS instead - a "moving average of District - Ruhango" is the
+ * average submissions per day for Ruhango, a sum is its total records, and
+ * average/median/min/max/deviation describe its submissions PER DAY -
+ * because converting "Ruhango" to a number can only ever skip everything.
+ * Likert scales stay numeric: their answers are real ratings.
+ *
+ * The previous-period comparison is computed ONLY for plain count.
  */
+
+// Choice types whose values are names, not numbers - numeric formulas on
+// them aggregate record counts (likert is NOT here: ratings are numbers).
+const COUNT_BASED_TYPES = ["single_select", "multi_select", "cascading_select", "select_group", "ranking"];
+
+function is_count_based(aggregation, field_id, catalog) {
+  if (!NUMERIC_AGGREGATIONS.includes(aggregation)) return false;
+  const field = catalog && catalog.fields_by_id ? catalog.fields_by_id.get(field_id) : null;
+  return !!field && COUNT_BASED_TYPES.includes(field.type);
+}
 
 function run_pipeline(pipeline) {
   return get_db().collection(SUBMISSIONS_COLLECTION).aggregate(pipeline).toArray();
@@ -81,6 +101,24 @@ function value_stages(aggregation, field_id, window, catalog) {
     stages.push({ $count: "value" });
     return stages;
   }
+  if (is_count_based(aggregation, field_id, catalog)) {
+    stages.push(answered_match(field_id));
+    // Additive formulas over a choice field total its records; the window
+    // logic (cumulative, last seven days) does the rest.
+    if (["sum", "cumulative_sum", "moving_average"].includes(aggregation)) {
+      stages.push({ $count: "value" });
+      return stages;
+    }
+    // Statistical formulas describe the field's submissions PER DAY.
+    stages.push({ $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$submitted_at" } }, n: { $sum: 1 } } });
+    if (aggregation === "median") {
+      stages.push({ $sort: { n: 1 } }, { $group: { _id: null, values: { $push: "$n" } } });
+      return stages;
+    }
+    const daily_operator = { avg: "$avg", min: "$min", max: "$max", stddev: "$stdDevPop" }[aggregation];
+    stages.push({ $group: { _id: null, value: { [daily_operator]: "$n" } } });
+    return stages;
+  }
   if (aggregation === "count_distinct") {
     stages.push(answered_match(field_id));
     if (is_multi_value(catalog, field_id)) {
@@ -132,7 +170,9 @@ async function kpi_metric_result(widget, bounds, catalog) {
   const aggregation = (widget.metric && widget.metric.aggregation) || "count";
   const field_id = widget.metric && widget.metric.field_id;
   const windows = kpi_windows(aggregation, bounds);
-  const numeric = NUMERIC_AGGREGATIONS.includes(aggregation);
+  // Only plain count carries the previous-period comparison.
+  if (aggregation !== "count") windows.previous = null;
+  const numeric = NUMERIC_AGGREGATIONS.includes(aggregation) && !is_count_based(aggregation, field_id, catalog);
 
   const facets = { current: value_stages(aggregation, field_id, windows.current, catalog) };
   if (windows.previous) facets.previous = value_stages(aggregation, field_id, windows.previous, catalog);
@@ -165,10 +205,10 @@ async function kpi_metric_result(widget, bounds, catalog) {
  * window: when each was submitted and exactly what was entered, newest
  * first, capped - plus the true total. A non-numeric formula skips nothing.
  */
-async function kpi_skipped_rows(widget, bounds, limit) {
+async function kpi_skipped_rows(widget, bounds, limit, catalog) {
   const aggregation = (widget.metric && widget.metric.aggregation) || "count";
   const field_id = widget.metric && widget.metric.field_id;
-  if (!NUMERIC_AGGREGATIONS.includes(aggregation) || !field_id) {
+  if (!NUMERIC_AGGREGATIONS.includes(aggregation) || !field_id || is_count_based(aggregation, field_id, catalog)) {
     return { total: 0, rows: [] };
   }
   const windows = kpi_windows(aggregation, bounds);
