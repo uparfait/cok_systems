@@ -20,6 +20,7 @@ import DcsExportDialog from "../components/DcsExportDialog.jsx";
 import { approval_status_label_key } from "../components/DcsApprovalStatusChip.jsx";
 import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
 import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
+import DcsFormNav from "../components/DcsFormNav.jsx";
 
 const ACTIONS_COLUMN_WIDTH_PX = 56;
 
@@ -196,7 +197,7 @@ function build_rows(submissions, field_type_by_id, on_delete_click, deleting_id,
  * silent-refresh behavior as the per-version page.
  */
 export default function FormAllDataPage() {
-  const { form_group_id } = useParams();
+  const { project_id, form_group_id } = useParams();
   const { language, translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const table = useSubmissionsTable(form_group_id, undefined);
@@ -212,7 +213,16 @@ export default function FormAllDataPage() {
     [form_group_id],
   );
 
-  if (loading_versions || !versions || versions.length === 0) return <DcsLoadingState />;
+  // The header belongs to the form, not to its records, so it stays put
+  // while the versions this table is built from are still loading.
+  if (loading_versions || !versions || versions.length === 0) {
+    return (
+      <div className="h-full flex flex-col pb-4">
+        <DcsFormNav projectId={project_id} formGroupId={form_group_id} />
+        <DcsLoadingState />
+      </div>
+    );
+  }
 
   const { columns: data_columns, field_type_by_id, has_diff } = build_diffed_columns(versions, language);
   const columns = [{ key: "approval", labelKey: "DCS_TABLE_APPROVAL", minWidthPx: 210 }]
@@ -243,7 +253,8 @@ export default function FormAllDataPage() {
 
   return (
     <div className="h-full flex flex-col pb-4">
-      <div className="flex-shrink-0 mb-3 pl-14 pr-3 sm:pl-16 sm:pr-4 flex flex-row items-center gap-2 overflow-x-auto">
+      <DcsFormNav projectId={project_id} formGroupId={form_group_id} />
+      <div className="flex-shrink-0 mb-3 px-3 sm:px-4 flex flex-row items-center gap-2 overflow-x-auto">
         <DcsPeriodFilter period={table.period} onPeriodChange={table.setPeriod} from={table.from} onFromChange={table.setFrom} to={table.to} onToChange={table.setTo} onApply={table.handle_apply} includeAll />
         <DcsTableSearchSort search={table.search} onSearchChange={table.setSearch} onSearchSubmit={table.handle_apply} sort={table.sort} onSortChange={table.setSort} />
         <button

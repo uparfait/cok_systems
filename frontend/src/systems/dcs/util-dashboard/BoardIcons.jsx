@@ -7,9 +7,26 @@ const DANGER = "#E74C3C";
  * The dashboard's compact SVG icon buttons: every control is an icon whose
  * meaning is spoken by its title tooltip (and aria-label) on hover. An
  * active state fills the button solid for toggle pairs like Fit/Scroll.
+ *
+ * onDark is for a button sitting on one of the solid system-blue header
+ * bands: it carries no fill of its own there, drawing itself in white on
+ * whatever is behind it, since a white chip on that band reads as a hole
+ * punched in the header. Danger loses its red there too - red on blue is
+ * the one pairing that band cannot carry legibly.
  */
-export function IconButton({ title, onClick, danger, active, disabled, children }) {
+export function IconButton({ title, onClick, danger, active, onDark, disabled, children }) {
   const base_color = danger ? DANGER : PRIMARY;
+  const surface_style = onDark
+    ? {
+        border: "1px solid rgba(255, 255, 255, 0.55)",
+        color: "#FFFFFF",
+        backgroundColor: active ? "rgba(255, 255, 255, 0.22)" : "transparent",
+      }
+    : {
+        border: `1px solid ${base_color}`,
+        color: active ? "#FFFFFF" : base_color,
+        backgroundColor: active ? base_color : "#FFFFFF",
+      };
   return (
     <button
       type="button"
@@ -21,11 +38,9 @@ export function IconButton({ title, onClick, danger, active, disabled, children 
       style={{
         width: 36,
         height: 36,
-        border: `1px solid ${base_color}`,
-        color: active ? "#FFFFFF" : base_color,
-        backgroundColor: active ? base_color : "#FFFFFF",
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.5 : 1,
+        ...surface_style,
       }}
     >
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

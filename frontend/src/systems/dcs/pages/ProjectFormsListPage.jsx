@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useSilentPolling } from "../hooks/useSilentPolling.js";
@@ -21,7 +21,7 @@ function FormsListSkeleton() {
  * form navigates to its own dedicated page instead of expanding inline.
  */
 export default function ProjectFormsListPage() {
-  const { project, setPanelBusy } = useOutletContext();
+  const { project } = useOutletContext();
   const { translate } = useDcsLanguage();
   const navigate = useNavigate();
 
@@ -30,17 +30,6 @@ export default function ProjectFormsListPage() {
     10000,
     [project._id],
   );
-
-  // Reported up so the panel's own flying icon disables itself while this
-  // tab's data is still loading, instead of letting it be clicked away
-  // mid-fetch. Always cleared on unmount, so switching tabs before the
-  // fetch resolves can never leave the icon stuck disabled.
-  useEffect(() => {
-    if (setPanelBusy) setPanelBusy(loading);
-    return () => {
-      if (setPanelBusy) setPanelBusy(false);
-    };
-  }, [loading, setPanelBusy]);
 
   const is_empty = !loading && (!forms || forms.length === 0);
 
@@ -64,14 +53,14 @@ export default function ProjectFormsListPage() {
           const title = form.form_name || form.form_group_id;
           const form_path = `/dcs-system/project/${project._id}/forms/${form.form_group_id}`;
           return (
-            <li key={form.form_group_id}  className="hover:underline">
+            <li key={form.form_group_id}>
               <a
                 href={form_path}
                 onClick={(event) => {
                   event.preventDefault();
                   navigate(form_path);
                 }}
-                className="hover:underline"
+                className="block cursor-pointer hover:underline"
                 style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}
               >
                 {title}

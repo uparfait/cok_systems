@@ -164,35 +164,37 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, focusIds,
   // Rendered through a PORTAL onto document.body: a fixed overlay inside a
   // transformed/filtered ancestor (the glass cards) would be trapped in
   // that container instead of covering the whole window. The panel itself
-  // sits CENTERED over a transparent backdrop, its title in the system blue.
+  // sits CENTERED over a transparent backdrop, headed by a solid band of
+  // the system blue - the same header treatment the test data panel uses.
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={saving ? undefined : onClose} />
       <div
-        className="relative bg-white border-2 w-full flex flex-col p-4 sm:p-5"
+        className="relative bg-white border-2 w-full flex flex-col"
         style={{ maxWidth: 760, maxHeight: "92vh", borderColor: PRIMARY }}
       >
-      <div className="flex items-start justify-between gap-2 mb-1">
+      <div className="flex items-center justify-between gap-2 flex-shrink-0 px-4 sm:px-5 py-2" style={{ backgroundColor: PRIMARY }}>
         <div className="min-w-0">
-          <p className="text-base font-semibold truncate" style={{ color: PRIMARY, ...HEADING_FONT }}>
+          <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...HEADING_FONT }}>
             {translate("DCS_DB_REVIEW_TITLE")}
           </p>
-          <p className="text-xs font-semibold" style={{ color: PRIMARY, ...HEADING_FONT }}>
+          <p className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.85)", ...HEADING_FONT }}>
             {translate("DCS_DB_FORM_WIDGET_COUNT", { count: visible.length })}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {widgets.length > 0 && (
-            <IconButton title={translate("DCS_DB_REVIEW_OPEN_FULL")} onClick={onOpenDashboard} disabled={saving}>
+            <IconButton title={translate("DCS_DB_REVIEW_OPEN_FULL")} onClick={onOpenDashboard} onDark disabled={saving}>
               {FULLSCREEN_SVG}
             </IconButton>
           )}
-          <IconButton title={translate("DCS_DB_REVIEW_CLOSE")} onClick={onClose} danger disabled={saving}>
+          <IconButton title={translate("DCS_DB_REVIEW_CLOSE")} onClick={onClose} onDark danger disabled={saving}>
             {CLOSE_SVG}
           </IconButton>
         </div>
         <style>{`.dcs-db-iconbtn { transition: background-color 160ms ease, color 160ms ease, transform 120ms ease; } .dcs-db-iconbtn:hover:not(:disabled) { transform: translateY(-1px); }`}</style>
       </div>
+      <div className="flex flex-col flex-1 min-h-0 px-4 sm:px-5 pt-3 pb-4">
       <p className="text-xs mb-3" style={{ color: TEXT_MUTED }}>
         {translate("DCS_DB_REVIEW_HINT")}
       </p>
@@ -323,6 +325,7 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, focusIds,
             onConfirm={handle_confirmed}
           />
         )}
+      </div>
       </div>
       </div>
     </div>,

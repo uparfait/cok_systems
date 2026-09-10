@@ -1169,8 +1169,48 @@ background-color: #056daa;
   transition: width 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* The panel inside the drawer track. Its width is intrinsic (max-content)
+   but pinned to the track's 16rem by min/max-width, so at rest it looks
+   exactly like a fixed 16rem sidebar with long project names trimmed.
+   Raising max-width on hover lets that intrinsic width through, up to a
+   cap - which is why the width is expressed this way at all: max-content
+   itself cannot be transitioned, a max-width between two lengths can.
+   Positioned so the widened panel paints over the main content next to it
+   (below the sidebar toggle, which stays at z-index 30). The track around
+   it only clips while it is animating open or closed - see
+   DcsSidebarShell.jsx - so this width can animate both ways in full view. */
+.dcs-sidebar-panel {
+  position: relative;
+  /* Above the pinned page header (25) so the widened panel covers it
+     instead of being cut off by it, and still below the sidebar toggle
+     (30), which has to stay clickable to close the sidebar again. */
+  z-index: 28;
+  height: 100%;
+  width: max-content;
+  min-width: 16rem;
+  max-width: 16rem;
+  transition: max-width 0.32s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.32s ease;
+}
+
+/* Only where there is a real pointer to hover with AND room to grow into:
+   on a phone or tablet the panel already takes most of the screen, so
+   widening it would overflow rather than reveal anything. */
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .dcs-sidebar-drawer:hover .dcs-sidebar-panel {
+    max-width: 28rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  }
+}
+
 .dcs-sidebar-toggle {
   transition: left 0.32s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+/* While the button is measuring and following the panel's own hover width
+   frame by frame (DcsSidebarShell.jsx), easing toward each new left would
+   leave it trailing the edge it is supposed to sit on. */
+.dcs-sidebar-toggle.is-following {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .dcs-sidebar-toggle:hover {
@@ -1192,44 +1232,104 @@ background-color: #056daa;
   animation: dcs-fade-in 0.25s ease-out;
 }
 
-/* Project detail page's flying settings toggle - fixed to the viewport so
-   it stays reachable regardless of scroll position, sitting above both the
-   projects sidebar and its own slide-in panel so it's always clickable to
-   close, even once the panel is open beneath it. Two icon layers are
-   stacked via absolute positioning and cross-faded/rotated between them
-   instead of swapping DOM nodes, so the morph itself animates. */
-.dcs-project-fab {
-  position: fixed;
-  top: 116px;
-  right: 20px;
-  z-index: 50;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border-color: #E0E0E0;
+.dcs-page-nav {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  /* Only meaningful on the pages that lay their content out as a flex
+     column (the collected-responses table) - the header must keep its own
+     height there instead of being squeezed by the table below it. */
+  flex-shrink: 0;
+  margin: -0.75rem 0 1.5rem;
+  background-color: #FFFFFF;
+}
+
+@media (min-width: 640px) {
+  .dcs-page-nav {
+    margin-top: -1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .dcs-page-nav {
+    margin-top: -1.5rem;
+  }
+}
+
+.dcs-page-nav-list {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  align-items: stretch;
+  gap: 0.25rem;
+  padding-bottom: 0.75rem;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.dcs-project-fab:hover {
-  transform: scale(1.08);
-  border-color: #056daa;
-  box-shadow: 0 4px 14px rgba(5, 109, 170, 0.25);
+@media (max-width: 1199px) {
+  .dcs-page-nav-list {
+    padding-left: 3.25rem;
+  }
 }
 
-.dcs-project-fab:active {
-  transform: scale(0.94);
+.dcs-page-nav-list::-webkit-scrollbar {
+  display: none;
 }
 
-.dcs-project-fab-icon {
+.dcs-page-nav-link {
+  flex-shrink: 0;
+  /* Most of the row's breathing room sits below the labels rather than
+     above them, but not none above - the labels must not collapse onto
+     the show/hide bar directly overhead. The links stretch to the row's
+     full height regardless, so their hover/active tint is unaffected. */
+  padding: 0.55rem 1.1rem 1.15rem;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #9E9E9E;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dcs-page-nav-link:hover {
+  color: #056daa;
+  background-color: rgba(5, 109, 170, 0.06);
+}
+
+.dcs-page-nav-link.is-active {
+  color: #056daa;
+  background-color: rgba(5, 109, 170, 0.1);
+}
+
+.dcs-page-nav-indicator {
   position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.28s ease, transform 0.28s ease;
+  bottom: 0.75rem;
+  height: 2px;
+  background-color: #056daa;
+  pointer-events: none;
+  transition: left 0.32s cubic-bezier(0.4, 0, 0.2, 1), width 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* A stat card that is itself a link to the records it counts - it needs to
+   read as pressable without turning into a button, so the card lifts
+   instead of changing color. */
+.dcs-stat-card-link {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dcs-stat-card-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(5, 109, 170, 0.18);
+}
+
+.dcs-stat-card-link:active {
+  transform: translateY(0);
 }
 
 /* Project detail page swaps its whole content in place (never an overlay
@@ -1637,8 +1737,10 @@ background-color: #056daa;
   .dcs-home-scroll-chevrons svg,
   .dcs-logo-mark-write,
   .dcs-home-stat-spark,
-  .dcs-project-fab,
-  .dcs-project-fab-icon,
+  .dcs-page-nav-link,
+  .dcs-page-nav-indicator,
+  .dcs-stat-card-link,
+  .dcs-sidebar-panel,
   .dcs-project-slide-in-right,
   .dcs-project-slide-in-left,
   .dcs-page-arrow,

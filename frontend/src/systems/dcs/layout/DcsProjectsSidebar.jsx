@@ -99,8 +99,14 @@ export default function DcsProjectsSidebar({ projects, loading }) {
   const has_no_results = is_searching && !forms_loading && visible_projects.length === 0;
 
   return (
-    <aside className="w-64 h-full bg-white border-r flex flex-col" style={{ borderColor: "#E0E0E0" }}>
+    <aside className="w-full h-full bg-white border-r flex flex-col" style={{ borderColor: "#E0E0E0" }}>
       <div className="p-3 border-b" style={{ borderColor: "#E0E0E0" }}>
+        <h2
+          className="text-xs font-bold uppercase tracking-wide mb-2"
+          style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}
+        >
+          {translate("DCS_SIDEBAR_TITLE")}
+        </h2>
         <div className="relative">
           <input
             type="text"

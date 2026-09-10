@@ -5,6 +5,7 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_form } from "../services/formsService.js";
 import DashboardPage from "../util-dashboard/DashboardPage.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
+import DcsFormNav from "../components/DcsFormNav.jsx";
 
 /**
  * The form's dashboard as its own FULL-WIDTH page (like the collected-data
@@ -14,7 +15,7 @@ import DcsLoadingState from "../components/DcsLoadingState.jsx";
  * the browser/app navigation - no extra button cluttering the header.
  */
 export default function FormDashboardPage() {
-  const { form_group_id } = useParams();
+  const { project_id, form_group_id } = useParams();
   const { translate } = useDcsLanguage();
   const { showError } = useToast();
   const [form, setForm] = useState(null);
@@ -34,7 +35,8 @@ export default function FormDashboardPage() {
   }, [form_group_id]);
 
   return (
-    <div className="w-full px-3 sm:px-6 pt-4 pb-16">
+    <div className="w-full px-3 sm:px-6 pb-16">
+      <DcsFormNav projectId={project_id} formGroupId={form_group_id} />
       {loading ? <DcsLoadingState /> : form ? <DashboardPage form={form} /> : null}
     </div>
   );
