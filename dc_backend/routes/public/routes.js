@@ -14,6 +14,7 @@ const resend_batch_approval_otp = require("../../controllers/approvals/resend_ba
 const submit_batch_record_decision = require("../../controllers/approvals/submit_batch_record_decision.js");
 const submit_approval_decision = require("../../controllers/approvals/submit_approval_decision.js");
 const upload_approval_file_controller = require("../../controllers/approvals/upload_approval_file.js");
+const upload_batch_approval_file_controller = require("../../controllers/approvals/upload_batch_approval_file.js");
 const { get_locations, get_all_locations } = require("../../controllers/locations/get_locations.js");
 const { upload_submission_file, upload_approval_file } = require("../../utilities/upload.js");
 
@@ -179,5 +180,8 @@ Router.post("/batch-approvals/:token/resend", resend_batch_approval_otp);
 
 // One record of the batch decided on its own.
 Router.post("/batch-approvals/:token/records/:submission_id/decision", submit_batch_record_decision);
+
+// The batch approver signature, gated by the session signature.
+Router.post("/batch-approvals/:token/upload", upload_approval_file.single("file"), upload_batch_approval_file_controller);
 
 module.exports = Router;

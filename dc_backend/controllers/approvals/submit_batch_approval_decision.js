@@ -25,7 +25,7 @@ const MAX_COMMENT_LENGTH = 1000;
 async function submit_batch_approval_decision(req, res) {
   try {
     const { token } = req.params;
-    const { decision, comment } = req.body || {};
+    const { decision, comment, signature: approver_signature } = req.body || {};
     const signature = read_session_signature(req);
     const idempotency_key = read_idempotency_key(req);
 
@@ -74,6 +74,9 @@ async function submit_batch_approval_decision(req, res) {
 
     apply_batch_decision(request, approver, decision, comment ? comment.toString().trim().slice(0, MAX_COMMENT_LENGTH) : null);
     approver.decision_idempotency_key = idempotency_key;
+    if (approver_signature && approver_signature.file) {
+      approver.signature = { kind: approver_signature.kind || "drawn", file: approver_signature.file };
+    }
 
     // The chain advances: whoever just became able to act gets their link and one-time code now (never re-emailing anyone).
     if (request.status === "pending") {

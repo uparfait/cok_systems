@@ -22,7 +22,7 @@ const MAX_COMMENT_LENGTH = 1000;
 async function submit_batch_record_decision(req, res) {
   try {
     const { token, submission_id } = req.params;
-    const { decision, comment } = req.body || {};
+    const { decision, comment, signature: approver_signature } = req.body || {};
     const signature = read_session_signature(req);
     const idempotency_key = read_idempotency_key(req);
 
@@ -73,6 +73,7 @@ async function submit_batch_record_decision(req, res) {
       comment: comment ? comment.toString().trim().slice(0, MAX_COMMENT_LENGTH) : null,
       acted_at: new Date(),
       idempotency_key,
+      signature: approver_signature && approver_signature.file ? { kind: approver_signature.kind || "drawn", file: approver_signature.file } : null,
     });
 
     // Once every record of the batch has a decision, the approver's own

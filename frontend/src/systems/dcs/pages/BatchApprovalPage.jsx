@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
@@ -10,71 +10,48 @@ import {
   submit_batch_approval_decision,
   submit_batch_record_decision,
 } from "../services/approvalsService.js";
-import {
-  read_session,
-  save_session,
-  clear_session,
-  new_idempotency_key,
-  is_session_error,
-} from "../services/batchApprovalSession.js";
-import DcsBatchTokenDialog from "../components/DcsBatchTokenDialog.jsx";
-import DcsApproverPanel from "../components/DcsApproverPanel.jsx";
-import DcsDetailsToggleButton from "../components/DcsDetailsToggleButton.jsx";
-import DcsApprovalSettingsButton from "../components/DcsApprovalSettingsButton.jsx";
-import DcsApprovalFormView from "../components/DcsApprovalFormView.jsx";
+import { read_session, save_session, clear_session, is_session_error } from "../services/batchApprovalSession.js";
 import { collect_data_fields, column_label, render_answer_cell, column_width_for } from "../fields/dataColumns.jsx";
 import DcsFormLoadingSpinner from "../components/DcsFormLoadingSpinner.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import DcsApprovalStatusChip from "../components/DcsApprovalStatusChip.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
-import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
-import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
+import DcsBatchTokenDialog from "../components/DcsBatchTokenDialog.jsx";
+import DcsBatchDecisionModal from "../components/DcsBatchDecisionModal.jsx";
+import DcsApproverPanel from "../components/DcsApproverPanel.jsx";
+import DcsDetailsToggleButton from "../components/DcsDetailsToggleButton.jsx";
+import DcsApprovalSettingsButton from "../components/DcsApprovalSettingsButton.jsx";
+import DcsApprovalFormView from "../components/DcsApprovalFormView.jsx";
+import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const PRIMARY = "#056daa";
+const SOFT_RED = "#C0564B";
 const GRAY = "#9E9E9E";
 const NEUTRAL_DARK = "#333333";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const BORDER = "#E0E0E0";
 const CARD_BORDER = "rgba(5,109,170,0.35)";
 const fontHeading = "'Montserrat', sans-serif";
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 8;
 
-/** Small labeled box used down the sidebar. */
-/**
- * Public batch approver page behind /dcs-batch-approval/:token, laid out
- * like the registered approver's dashboard: identity sidebar on the left
- * (name, email, assigned form and the author's message), and on the right
- * the collected records in a table or record-by-record form view, with a
- * switcher to this approver's other forms still waiting on them. The link
- * token identifies the approver; the records only appear after the
- * one-time code from their email is verified, and the same code
- * authorizes the final approve/reject decision.
- */
-// One record of the batch: its own approve / reject pair until it is
-// settled, then the decision it carries.
-function RecordDecision({ record, canAct, busy, translate, onDecide }) {
-  if (record && record.my_decision) {
-    return <DcsApprovalStatusChip status={record.my_decision} />;
-  }
-  if (!canAct) return <span style={{ color: GRAY }}>-</span>;
+// Approve / reject for one record, replaced by its own decision once settled.
+function DecisionButtons({ record, translate, onDecide }) {
   return (
     <div className="flex items-center gap-2 whitespace-nowrap">
       <button
         type="button"
-        disabled={busy}
-        onClick={() => onDecide(record, "approve")}
-        className="cursor-pointer text-xs font-bold px-3 py-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
+        onClick={() => onDecide({ record, decision: "approve" })}
+        className="cursor-pointer text-xs font-bold px-3 py-1.5"
         style={{ backgroundColor: PRIMARY, color: "#FFFFFF", fontFamily: fontHeading, borderRadius: 4 }}
       >
         {translate("DCS_APPROVAL_BTN_APPROVE")}
       </button>
       <button
         type="button"
-        disabled={busy}
-        onClick={() => onDecide(record, "reject")}
-        className="cursor-pointer text-xs font-bold px-3 py-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
-        style={{ backgroundColor: "transparent", color: "#C0564B", border: "1px solid #C0564B", fontFamily: fontHeading, borderRadius: 4 }}
+        onClick={() => onDecide({ record, decision: "reject" })}
+        className="cursor-pointer text-xs font-bold px-3 py-1.5"
+        style={{ backgroundColor: "transparent", color: SOFT_RED, border: `1px solid ${SOFT_RED}`, fontFamily: fontHeading, borderRadius: 4 }}
       >
         {translate("DCS_APPROVAL_BTN_REJECT")}
       </button>
@@ -82,98 +59,52 @@ function RecordDecision({ record, canAct, busy, translate, onDecide }) {
   );
 }
 
+function RecordState({ record, canAct, translate, onDecide }) {
+  if (record && record.my_decision) return <DcsApprovalStatusChip status={record.my_decision} />;
+  if (!canAct) return <span style={{ color: GRAY }}>-</span>;
+  return <DecisionButtons record={record} translate={translate} onDecide={onDecide} />;
+}
+
 function BatchApprovalPageContent() {
   const { token } = useParams();
   const { translate, language } = useDcsLanguage();
   const { showSuccess, showError, showInfo } = useToast();
 
-  const [batch, setBatch] = useState(null);
   const [load_state, setLoadState] = useState("loading");
-  const [otp, setOtp] = useState("");
+  const [batch, setBatch] = useState(null);
   const [verified, setVerified] = useState(null);
+  const [schema, setSchema] = useState(null);
+  const [records, setRecords] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [has_more, setHasMore] = useState(false);
+  const [loading_more, setLoadingMore] = useState(false);
+  const [batch_error, setBatchError] = useState(false);
   const [view, setView] = useState("table");
-  const [page, setPage] = useState(1);
   const [form_index, setFormIndex] = useState(0);
-  const [comment, setComment] = useState("");
-  const [acting, setActing] = useState(false);
-  const [decision_result, setDecisionResult] = useState(null);
-  const [decision_modal, setDecisionModal] = useState(null);
-  const [resending, setResending] = useState(false);
-  const [session_notice, setSessionNotice] = useState("");
-  const [sending_token, setSendingToken] = useState(false);
   const [viewed, setViewed] = useState(() => new Set());
-  const [deciding_id, setDecidingId] = useState("");
-  const [token_failed, setTokenFailed] = useState(false);
   const [panel_open, setPanelOpen] = useState(
     () => typeof window === "undefined" || window.matchMedia("(min-width: 768px)").matches,
   );
+  const [decision_target, setDecisionTarget] = useState(null);
+  const [bulk_target, setBulkTarget] = useState(null);
+  const [acting, setActing] = useState(false);
+  const [decision_result, setDecisionResult] = useState(null);
+  const [resending, setResending] = useState(false);
+  const [sending_token, setSendingToken] = useState(false);
+  const [token_failed, setTokenFailed] = useState(false);
+  const [session_notice, setSessionNotice] = useState("");
 
-  useEffect(() => {
-    let is_mounted = true;
-    // A fresh token (switching to another form) starts over: new code, new records.
-    setLoadState("loading");
-    setBatch(null);
-    setOtp("");
-    setVerified(null);
-    setView("table");
-    setPage(1);
-    setFormIndex(0);
-    setComment("");
-    setDecisionResult(null);
-    setDecisionModal(null);
-    get_batch_approval(token)
-      .then(async (response) => {
-        if (!is_mounted) return;
-        setBatch(response.data);
-        setLoadState("ready");
-        // Records are never fetched on the token alone: only a stored,
-        // still-valid signature reopens them without a new code.
-        let has_session = false;
-        if (read_session(token)) {
-          try {
-            const records_response = await get_batch_approval_records(token);
-            if (is_mounted) setVerified(records_response.data);
-            has_session = true;
-          } catch (error) {
-            clear_session(token);
-            if (is_mounted && is_session_error(error)) setSessionNotice(error.message || "");
-          }
-        }
-        if (!has_session && is_mounted && response.data.can_act && !response.data.otp_locked) {
-          send_token(true);
-        }
-      })
-      .catch(() => {
-        if (is_mounted) setLoadState("not_found");
-      });
-    return () => {
-      is_mounted = false;
-    };
-  }, [token]);
+  // Scroll events fire faster than state settles, so overlapping fetches are guarded.
+  const fetching_ref = useRef(false);
+  const table_scroll_ref = useRef(null);
 
-  const records = (verified && verified.submissions) || [];
-  const fields = useMemo(() => (verified && verified.schema ? collect_data_fields(verified.schema.fields) : []), [verified]);
-
-  const handle_verify = async (entered) => {
-    const code = (entered || otp).toString().trim();
-    if (!code) return;
-    setActing(true);
-    setSessionNotice("");
-    try {
-      const response = await verify_batch_approval_otp(token, code);
-      save_session(token, response.data.signature, response.data.signature_expires_at);
-      setVerified(response.data);
-      showSuccess(response.message || "");
-    } catch (error) {
-      setSessionNotice(error.message || translate("DCS_ERROR_GENERIC"));
-      showError(error.message || translate("DCS_ERROR_GENERIC"));
-    } finally {
-      setActing(false);
-    }
+  const apply_batch = (data, mode) => {
+    if (data.schema) setSchema(data.schema);
+    setTotal(data.total || 0);
+    setHasMore(Boolean(data.has_more));
+    setRecords((previous) => (mode === "append" ? [...previous, ...(data.records || [])] : data.records || []));
   };
 
-  // Asks the backend to mail this approver a fresh token. On the first
-  // automatic send the page says so; a manual resend just confirms.
   const send_token = async (automatic) => {
     setSendingToken(true);
     setTokenFailed(false);
@@ -191,6 +122,126 @@ function BatchApprovalPageContent() {
     }
   };
 
+  const lose_session = (message) => {
+    clear_session(token);
+    setVerified(null);
+    setRecords([]);
+    setTotal(0);
+    setHasMore(false);
+    setSessionNotice(message || "");
+  };
+
+  // First page of records, once a session signature exists.
+  const load = () => {
+    if (fetching_ref.current) return;
+    fetching_ref.current = true;
+    setLoadingMore(true);
+    setFormIndex(0);
+    get_batch_approval_records(token, 0, PAGE_SIZE)
+      .then((response) => {
+        apply_batch(response.data, "replace");
+        setBatchError(false);
+        setVerified({ ready: true, email: response.data.email });
+      })
+      .catch((error) => {
+        if (is_session_error(error)) {
+          lose_session(error.message || "");
+          return;
+        }
+        showError(error.message || translate("DCS_ERROR_GENERIC"));
+        setBatchError(true);
+      })
+      .finally(() => {
+        fetching_ref.current = false;
+        setLoadingMore(false);
+      });
+  };
+
+  // Next scroll batch, appended below the rows already on screen.
+  const load_more = (after_load) => {
+    if (fetching_ref.current || !has_more || !verified) return;
+    fetching_ref.current = true;
+    setLoadingMore(true);
+    get_batch_approval_records(token, records.length, PAGE_SIZE)
+      .then((response) => {
+        apply_batch(response.data, "append");
+        setBatchError(false);
+        if (after_load) after_load(records.length + (response.data.records || []).length);
+      })
+      .catch((error) => {
+        if (is_session_error(error)) {
+          lose_session(error.message || "");
+          return;
+        }
+        showError(error.message || translate("DCS_ERROR_GENERIC"));
+        setBatchError(true);
+      })
+      .finally(() => {
+        fetching_ref.current = false;
+        setLoadingMore(false);
+      });
+  };
+
+  // After a decision: re-read exactly the rows already loaded, so states
+  // update without losing the scroll position.
+  const refresh = () => {
+    if (fetching_ref.current) return;
+    fetching_ref.current = true;
+    setLoadingMore(true);
+    get_batch_approval_records(token, 0, Math.max(PAGE_SIZE, records.length))
+      .then((response) => apply_batch(response.data, "replace"))
+      .catch((error) => {
+        if (is_session_error(error)) lose_session(error.message || "");
+        else showError(error.message || translate("DCS_ERROR_GENERIC"));
+      })
+      .finally(() => {
+        fetching_ref.current = false;
+        setLoadingMore(false);
+      });
+  };
+
+  useEffect(() => {
+    let is_mounted = true;
+    setLoadState("loading");
+    get_batch_approval(token)
+      .then((response) => {
+        if (!is_mounted) return;
+        setBatch(response.data);
+        setLoadState("ready");
+        // Records never travel on the token alone: a stored signature
+        // reopens them, otherwise a fresh token is requested right away.
+        if (read_session(token)) load();
+        else if (response.data.can_act && !response.data.otp_locked) send_token(true);
+      })
+      .catch(() => {
+        if (is_mounted) setLoadState("not_found");
+      });
+    return () => {
+      is_mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const handle_verify = async (entered) => {
+    const code = (entered || "").toString().trim();
+    if (!code) return;
+    setActing(true);
+    setSessionNotice("");
+    try {
+      const response = await verify_batch_approval_otp(token, code);
+      save_session(token, response.data.signature, response.data.signature_expires_at);
+      setSchema(response.data.schema || null);
+      setVerified({ ready: true, email: response.data.email });
+      showSuccess(response.message || "");
+      load();
+    } catch (error) {
+      setSessionNotice(error.message || translate("DCS_ERROR_GENERIC"));
+      showError(error.message || translate("DCS_ERROR_GENERIC"));
+    } finally {
+      setActing(false);
+    }
+  };
+
   const handle_resend = async () => {
     setResending(true);
     setSessionNotice("");
@@ -198,15 +249,25 @@ function BatchApprovalPageContent() {
     setResending(false);
   };
 
+  const handle_table_scroll = (event) => {
+    const element = event.currentTarget;
+    if (element.scrollTop + element.clientHeight >= element.scrollHeight - 80) load_more();
+  };
+
+  // On tall screens one batch may not overflow the container, leaving
+  // nothing to scroll - keep fetching until it does.
   useEffect(() => {
-    const all = (verified && verified.submissions) || [];
-    if (all.length === 0) return;
-    const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
-    const current = Math.min(page, pages);
-    const shown =
-      view === "table"
-        ? all.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE)
-        : [all[Math.min(form_index, all.length - 1)]];
+    const element = table_scroll_ref.current;
+    if (!element || view !== "table" || !has_more || loading_more) return;
+    if (element.scrollHeight <= element.clientHeight + 4) load_more();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [records, has_more, loading_more, view]);
+
+  // A record counts as viewed once it has actually been displayed: the
+  // table renders every loaded row, the form view one record at a time.
+  useEffect(() => {
+    if (records.length === 0) return;
+    const shown = view === "table" ? records : [records[Math.min(form_index, records.length - 1)]];
     const ids = shown.map((record) => record && record.id).filter(Boolean);
     if (ids.length === 0) return;
     setViewed((previous) => {
@@ -215,111 +276,57 @@ function BatchApprovalPageContent() {
       ids.forEach((id) => next.add(id));
       return next;
     });
-  }, [view, page, form_index, verified]);
+  }, [view, form_index, records]);
 
-  // One record settled on its own, leaving the rest of the batch open.
-  const handle_record_decide = async (record, decision) => {
-    if (!record || !record.id) return;
-    setDecidingId(record.id);
-    try {
-      const response = await submit_batch_record_decision(token, record.id, decision, null, new_idempotency_key());
-      setVerified((previous) =>
-        Object.assign({}, previous, {
-          submissions: (previous.submissions || []).map((entry) =>
-            entry.id === record.id ? Object.assign({}, entry, { my_decision: response.data.decision }) : entry,
-          ),
-        }),
-      );
-      if (response.data.step_status && response.data.step_status !== "pending") {
-        setDecisionResult({ decision: response.data.step_status, overall_status: response.data.overall_status });
-        setBatch((previous) =>
-          Object.assign({}, previous, {
-            overall_status: response.data.overall_status,
-            approver: Object.assign({}, previous.approver, { status: response.data.step_status }),
-          }),
-        );
-      }
-      showSuccess(response.message || "");
-    } catch (error) {
-      if (is_session_error(error)) {
-        clear_session(token);
-        setVerified(null);
-        setSessionNotice(error.message || "");
-      }
-      showError(error.message || translate("DCS_ERROR_GENERIC"));
-    } finally {
-      setDecidingId("");
-    }
-  };
-
-  const handle_decide = async (decision) => {
-    setActing(true);
-    try {
-      const response = await submit_batch_approval_decision(token, decision, comment.trim() || null, new_idempotency_key());
-      setDecisionResult(response.data);
-      setDecisionModal(null);
-      setBatch((previous) =>
-        Object.assign({}, previous, {
-          overall_status: response.data.overall_status,
-          approver: Object.assign({}, previous.approver, { status: response.data.decision }),
-          trail: response.data.trail,
-        }),
-      );
-      showSuccess(response.message || "");
-    } catch (error) {
-      // A dead signature sends the approver back to the code gate rather
-      // than losing their decision to a generic error.
-      if (is_session_error(error)) {
-        clear_session(token);
-        setVerified(null);
-        setDecisionModal(null);
-        setSessionNotice(error.message || "");
-      }
-      showError(error.message || translate("DCS_ERROR_GENERIC"));
-    } finally {
-      setActing(false);
-    }
-  };
+  const fields = useMemo(() => (schema ? collect_data_fields(schema.fields) : []), [schema]);
 
   if (load_state === "loading") return <DcsFormLoadingSpinner />;
   if (load_state === "not_found") return <DcsEmptyState messageKey="DCS_APPROVAL_NOT_FOUND" />;
 
-  const approver = batch.approver;
-  // The hierarchy is enforced server-side too - can_act is false until every approver before this one has approved.
-  const can_act = batch.can_act && !batch.otp_locked && !decision_result;
-  const waiting_for_turn = approver.status === "pending" && !batch.can_act && !batch.otp_locked && !decision_result;
+  const label_of = (field) => column_label(field, language, translate);
 
-  const display_name = approver.name || approver.email_masked;
+  const approver = batch.approver;
+  const can_act = batch.can_act && !batch.otp_locked && !decision_result && approver.status === "pending";
+  const waiting_for_turn = approver.status === "pending" && !batch.can_act && !batch.otp_locked && !decision_result;
+  const display_name = approver.name || (verified && verified.email) || approver.email_masked;
   const initials =
     (approver.name || approver.email_masked || "?")
       .trim()
-      .split(/\s+/)
+      .split(/[\s@.]+/)
       .filter(Boolean)
       .slice(0, 2)
       .map((part) => part.charAt(0))
       .join("")
       .toUpperCase() || "?";
 
-  const label_of = (field) => column_label(field, language, translate);
-
-  const total_pages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
-  const current_page = Math.min(page, total_pages);
-  const page_records = records.slice((current_page - 1) * PAGE_SIZE, current_page * PAGE_SIZE);
   const form_record = records[Math.min(form_index, Math.max(0, records.length - 1))] || null;
-  const form_view_fields = form_record ? fields.filter((field) => form_record.data && Object.prototype.hasOwnProperty.call(form_record.data, field.id)) : [];
+  const approvable = records.filter((record) => !record.my_decision && viewed.has(record.id));
 
   const status_banner = (() => {
-    if (batch.otp_locked) return { text: translate("DCS_BATCH_OTP_LOCKED"), background: "rgba(192,86,75,0.08)", color: "#C0564B" };
+    if (batch.otp_locked) return { text: translate("DCS_BATCH_OTP_LOCKED"), background: "rgba(192,86,75,0.08)", color: SOFT_RED };
     if (waiting_for_turn) return { text: translate("DCS_BATCH_NOT_TURN"), background: "rgba(243,156,18,0.1)", color: "#F39C12" };
     if (decision_result)
       return {
         text: translate(decision_result.decision === "approved" ? "DCS_BATCH_DONE_APPROVED" : "DCS_BATCH_DONE_REJECTED"),
         background: decision_result.decision === "approved" ? "rgba(76,175,80,0.12)" : "rgba(192,86,75,0.08)",
-        color: decision_result.decision === "approved" ? "#4CAF50" : "#C0564B",
+        color: decision_result.decision === "approved" ? "#4CAF50" : SOFT_RED,
       };
     if (approver.status !== "pending") return { text: translate("DCS_BATCH_ALREADY_ACTED"), background: "#FFFFFF", color: "#555555" };
     return null;
   })();
+
+  // A per-record decision may be the one that closes this approver's step.
+  const on_step_closed = (data) => {
+    if (data && data.step_status && data.step_status !== "pending") {
+      setDecisionResult({ decision: data.step_status, overall_status: data.overall_status });
+      setBatch((previous) =>
+        Object.assign({}, previous, {
+          overall_status: data.overall_status,
+          approver: Object.assign({}, previous.approver, { status: data.step_status }),
+        }),
+      );
+    }
+  };
 
   return (
     <div className="min-h-screen p-2 sm:p-4 min-[760px]:p-6 lg:h-screen lg:overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT }}>
@@ -327,32 +334,32 @@ function BatchApprovalPageContent() {
         {verified && panel_open && <div className="dcs-details-backdrop" onClick={() => setPanelOpen(false)} />}
 
         {verified && (
-        <div className={`shrink-0 w-full lg:h-full dcs-details-panel ${panel_open ? "is-open" : "is-closed"}`}>
-          <DcsApproverPanel
-            user={{ email: (verified && verified.email) || approver.email_masked }}
-            initials={initials}
-            displayName={display_name}
-            role={approver.role}
-            assignedTo={batch.form_name}
-            message={approver.message}
-            onClose={() => setPanelOpen(false)}
-            settingsSlot={
-              <DcsApprovalSettingsButton
-                view={view}
-                onViewChange={setView}
-                formOptions={[]}
-                activeFormKey={null}
-                onFormChange={() => {}}
-                busy={acting}
-              />
-            }
-            progressNote={translate("DCS_BATCH_VIEWED_HINT", {
-              viewed: records.filter((record) => viewed.has(record.id)).length,
-              total: records.length,
-              decided: records.filter((record) => record.my_decision).length,
-            })}
-          />
-        </div>
+          <div className={`shrink-0 w-full lg:h-full dcs-details-panel ${panel_open ? "is-open" : "is-closed"}`}>
+            <DcsApproverPanel
+              user={{ email: (verified && verified.email) || approver.email_masked }}
+              initials={initials}
+              displayName={display_name}
+              role={approver.role}
+              assignedTo={batch.form_name}
+              message={approver.message}
+              onClose={() => setPanelOpen(false)}
+              settingsSlot={
+                <DcsApprovalSettingsButton
+                  view={view}
+                  onViewChange={setView}
+                  formOptions={[]}
+                  activeFormKey={null}
+                  onFormChange={() => {}}
+                  busy={loading_more}
+                />
+              }
+              progressNote={translate("DCS_BATCH_VIEWED_HINT", {
+                viewed: records.filter((record) => viewed.has(record.id)).length,
+                total,
+                decided: records.filter((record) => record.my_decision).length,
+              })}
+            />
+          </div>
         )}
 
         <div className="flex-1 min-w-0 w-full lg:h-full lg:min-h-0 lg:flex lg:flex-col">
@@ -362,14 +369,9 @@ function BatchApprovalPageContent() {
             </span>
             <div className="flex items-center gap-2 flex-wrap">
               {can_act && verified && (
-                <>
-                  <DcsButtonOutlineDanger onClick={() => setDecisionModal("reject")} disabled={acting}>
-                    {translate("DCS_BATCH_REJECT")}
-                  </DcsButtonOutlineDanger>
-                  <DcsButtonPrimary onClick={() => setDecisionModal("approve")} disabled={acting}>
-                    {translate("DCS_BATCH_APPROVE")}
-                  </DcsButtonPrimary>
-                </>
+                <DcsButtonPrimary onClick={() => setBulkTarget("approve")} disabled={acting || approvable.length === 0}>
+                  {translate("DCS_MYAPPROVALS_APPROVE_ALL", { count: approvable.length })}
+                </DcsButtonPrimary>
               )}
             </div>
           </div>
@@ -388,9 +390,17 @@ function BatchApprovalPageContent() {
             </p>
           )}
 
-          {verified && view === "table" && (
+          {verified && total === 0 && !loading_more && (
+            <div className="mt-6">
+              <DcsEmptyState messageKey="DCS_MYAPPROVALS_EMPTY" />
+            </div>
+          )}
+
+          {verified && (total > 0 || loading_more) && view === "table" && (
             <div
               key="table"
+              ref={table_scroll_ref}
+              onScroll={handle_table_scroll}
               className="dcs-view-swap mt-3 overflow-x-auto overflow-y-auto max-h-[60vh] lg:max-h-none bg-white border-2 min-[760px]:border-[5px] min-[760px]:rounded-[5px] lg:flex-1 lg:min-h-0"
               style={{ borderColor: CARD_BORDER }}
             >
@@ -421,10 +431,10 @@ function BatchApprovalPageContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {page_records.map((record, record_index) => (
+                  {records.map((record, row_index) => (
                     <tr
-                      key={record_index}
-                      className={`border-t ${record_index % 2 === 0 ? "dcs-approvals-row-odd" : "dcs-approvals-row-even"}`}
+                      key={record.id}
+                      className={`border-t ${row_index % 2 === 0 ? "dcs-approvals-row-odd" : "dcs-approvals-row-even"}`}
                       style={{ borderColor: BORDER }}
                     >
                       {fields.map((field) => (
@@ -442,60 +452,55 @@ function BatchApprovalPageContent() {
                         {record.submitted_at ? new Date(record.submitted_at).toLocaleDateString() : "-"}
                       </td>
                       <td className="dcs-approvals-cell px-4 py-3 align-top">
-                        <RecordDecision
-                          record={record}
-                          canAct={can_act}
-                          busy={deciding_id === record.id}
-                          translate={translate}
-                          onDecide={handle_record_decide}
-                        />
+                        <RecordState record={record} canAct={can_act} translate={translate} onDecide={setDecisionTarget} />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+
+              {loading_more && (
+                <div className="flex items-center justify-center gap-3 py-4 border-t" style={{ borderColor: BORDER }}>
+                  <SpiralLoader padded={false} size={20} />
+                  <span className="text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_LOADING_MORE")}</span>
+                </div>
+              )}
+              {!loading_more && batch_error && (
+                <div className="flex items-center justify-center gap-2 py-4 border-t" style={{ borderColor: BORDER }}>
+                  <span className="text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_LOAD_FAILED")}</span>
+                  <button type="button" onClick={() => load()} className="dcs-retry-link text-sm" style={{ fontFamily: fontHeading }}>
+                    {translate("DCS_MYAPPROVALS_RETRY")}
+                  </button>
+                </div>
+              )}
+              {!loading_more && !batch_error && !has_more && records.length > 0 && (
+                <p className="text-center text-xs py-3 border-t" style={{ color: GRAY, fontFamily: fontHeading, borderColor: BORDER }}>
+                  {translate("DCS_MYAPPROVALS_ALL_LOADED", { total })}
+                </p>
+              )}
             </div>
           )}
 
-          {verified && view === "table" && total_pages > 1 && (
-            <div className="shrink-0 flex items-center justify-center gap-3 mt-3">
-              <DcsButtonOutline onClick={() => setPage(Math.max(1, current_page - 1))} disabled={current_page <= 1}>
-                {translate("DCS_MYAPPROVALS_PREVIOUS")}
-              </DcsButtonOutline>
-              <span className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                {translate("DCS_MYAPPROVALS_PAGE_OF", { page: current_page, pages: total_pages })}
-              </span>
-              <DcsButtonOutline onClick={() => setPage(Math.min(total_pages, current_page + 1))} disabled={current_page >= total_pages}>
-                {translate("DCS_MYAPPROVALS_NEXT")}
-              </DcsButtonOutline>
-            </div>
-          )}
-
-          {verified && view === "form" && form_record && (
+          {verified && records.length > 0 && view === "form" && form_record && (
             <DcsApprovalFormView
               record={form_record}
-              form={{ form_name: batch.form_name, schema: verified.schema }}
+              form={{ form_name: batch.form_name, schema }}
               index={Math.min(form_index, records.length - 1) + 1}
-              total={records.length}
-              loadingMore={false}
-              canGoPrevious={form_index > 0}
-              canGoNext={form_index < records.length - 1}
+              total={total}
+              loadingMore={loading_more}
+              canGoPrevious={form_index > 0 && !loading_more}
+              canGoNext={!loading_more && (form_index < records.length - 1 || has_more)}
               onPrevious={() => setFormIndex(Math.max(0, form_index - 1))}
-              onNext={() => setFormIndex(Math.min(records.length - 1, form_index + 1))}
-              decisionSlot={
-                <RecordDecision
-                  record={form_record}
-                  canAct={can_act}
-                  busy={deciding_id === form_record.id}
-                  translate={translate}
-                  onDecide={handle_record_decide}
-                />
-              }
+              onNext={() => {
+                if (form_index < records.length - 1) setFormIndex(form_index + 1);
+                else load_more((loaded) => setFormIndex(Math.min(loaded - 1, form_index + 1)));
+              }}
+              decisionSlot={<RecordState record={form_record} canAct={can_act} translate={translate} onDecide={setDecisionTarget} />}
             />
           )}
         </div>
       </div>
-      {/* Decision modal - the shared message goes on the batch decision itself */}
+
       {can_act && !verified && (
         <DcsBatchTokenDialog
           maskedEmail={batch.approver && batch.approver.email_masked}
@@ -508,54 +513,58 @@ function BatchApprovalPageContent() {
         />
       )}
 
-      {decision_modal && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
-          <div className="w-full max-w-lg bg-white">
-            <div className="px-5 py-4" style={{ backgroundColor: decision_modal === "approve" ? PRIMARY : "#C0564B" }}>
-              <h2 className="text-white font-bold text-base" style={{ fontFamily: fontHeading }}>
-                {translate(decision_modal === "approve" ? "DCS_BATCH_APPROVE" : "DCS_BATCH_REJECT")} - {batch.form_name}
-              </h2>
-            </div>
-            <div className="p-5">
-              <p className="text-sm" style={{ color: "#555555", fontFamily: fontHeading }}>
-                {translate("DCS_BATCH_RECORDS_WAITING", { count: batch.submission_count })}
-              </p>
+      {decision_target && (
+        <DcsBatchDecisionModal
+          token={token}
+          formName={batch.form_name}
+          recordCount={1}
+          decision={decision_target.decision}
+          onClose={() => setDecisionTarget(null)}
+          onSubmit={(comment, key, signature) =>
+            submit_batch_record_decision(token, decision_target.record.id, decision_target.decision, comment, key, signature)
+          }
+          onDone={(data) => {
+            setDecisionTarget(null);
+            on_step_closed(data);
+            refresh();
+          }}
+          onSessionLost={(message) => {
+            setDecisionTarget(null);
+            lose_session(message);
+          }}
+        />
+      )}
 
-              <label className="block text-xs font-semibold uppercase mt-4 mb-1" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>
-                {translate("DCS_BATCH_COMMENT_LABEL")}
-              </label>
-              <textarea
-                value={comment}
-                onChange={(event) => setComment(event.target.value)}
-                rows={3}
-                maxLength={1000}
-                className="w-full text-sm p-2 border"
-                style={{ borderColor: BORDER, fontFamily: fontHeading, outline: "none", resize: "vertical" }}
-              />
-
-              <div className="flex gap-3 mt-5 flex-wrap">
-                <DcsButtonOutline onClick={() => setDecisionModal(null)} disabled={acting} className="flex-1">
-                  {translate("DCS_MYAPPROVALS_CANCEL")}
-                </DcsButtonOutline>
-                {decision_modal === "approve" ? (
-                  <DcsButtonPrimary onClick={() => handle_decide("approve")} disabled={acting} className="flex-1">
-                    {translate("DCS_BATCH_APPROVE")}
-                  </DcsButtonPrimary>
-                ) : (
-                  <DcsButtonOutlineDanger onClick={() => handle_decide("reject")} disabled={acting} className="flex-1">
-                    {translate("DCS_BATCH_REJECT")}
-                  </DcsButtonOutlineDanger>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+      {bulk_target && (
+        <DcsBatchDecisionModal
+          token={token}
+          formName={batch.form_name}
+          recordCount={approvable.length}
+          decision={bulk_target}
+          onClose={() => setBulkTarget(null)}
+          onSubmit={(comment, key, signature) => submit_batch_approval_decision(token, bulk_target, comment, key, signature)}
+          onDone={(data) => {
+            setBulkTarget(null);
+            setDecisionResult({ decision: data.decision, overall_status: data.overall_status });
+            setBatch((previous) =>
+              Object.assign({}, previous, {
+                overall_status: data.overall_status,
+                approver: Object.assign({}, previous.approver, { status: data.decision }),
+              }),
+            );
+            refresh();
+          }}
+          onSessionLost={(message) => {
+            setBulkTarget(null);
+            lose_session(message);
+          }}
+        />
       )}
     </div>
   );
 }
 
-// Standalone public route, wrapped with its own language provider like ApprovalPage.
+// Public route /dcs-batch-approval/:token, with its own DCS language provider.
 export default function BatchApprovalPage() {
   return (
     <DcsErrorBoundary>

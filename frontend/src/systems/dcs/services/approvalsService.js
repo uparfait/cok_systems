@@ -67,9 +67,20 @@ export function verify_batch_approval_otp(token, otp) {
   return dcs_request(`/public/batch-approvals/${token}/verify`, "POST", { otp });
 }
 
+/** Public: the batch approver's signature image or certificate. */
+export function upload_batch_approval_file(token, file) {
+  const form_data = new FormData();
+  form_data.append("file", file);
+  return dcs_request(`/public/batch-approvals/${token}/upload`, "POST", form_data, {
+    headers: Object.assign({ "Content-Type": "multipart/form-data" }, session_headers(token)),
+  }).then((response) => response.data);
+}
 /** Public: the batch's records, reopened with the session signature (no code replay). */
-export function get_batch_approval_records(token) {
-  return dcs_request(`/public/batch-approvals/${token}/records`, "GET", null, { headers: session_headers(token) });
+export function get_batch_approval_records(token, offset, limit) {
+  return dcs_request(`/public/batch-approvals/${token}/records`, "GET", null, {
+    headers: session_headers(token),
+    params: { offset, limit },
+  });
 }
 
 /** Public: sends this approver's one-time code again after their session expired. */
@@ -78,11 +89,11 @@ export function resend_batch_approval_otp(token) {
 }
 
 /** Public: decides one record of the batch on its own. */
-export function submit_batch_record_decision(token, submission_id, decision, comment, idempotency_key) {
+export function submit_batch_record_decision(token, submission_id, decision, comment, idempotency_key, signature) {
   return dcs_request(
     `/public/batch-approvals/${token}/records/${submission_id}/decision`,
     "POST",
-    { decision, comment },
+    { decision, comment, signature },
     { headers: Object.assign({}, session_headers(token), { "x-idempotency-key": idempotency_key }) },
   );
 }
@@ -90,8 +101,8 @@ export function submit_batch_record_decision(token, submission_id, decision, com
  * Public: records the approver's batch decision. The session signature
  * authorizes it and the idempotency key makes a repeated click harmless.
  */
-export function submit_batch_approval_decision(token, decision, comment, idempotency_key) {
-  return dcs_request(`/public/batch-approvals/${token}/decision`, "POST", { decision, comment }, {
+export function submit_batch_approval_decision(token, decision, comment, idempotency_key, signature) {
+  return dcs_request(`/public/batch-approvals/${token}/decision`, "POST", { decision, comment, signature }, {
     headers: Object.assign({}, session_headers(token), { "x-idempotency-key": idempotency_key }),
   });
 }

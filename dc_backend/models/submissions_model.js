@@ -159,6 +159,30 @@ async function update_submission_approval(submission_id, approval) {
   await get_db().collection(COLLECTION_NAME).updateOne({ _id: submission_id }, { $set: { approval } });
 }
 
+/** One offset+limit page of a batch, oldest first, with the batch total. */
+async function list_by_approval_request_page(request_id, skip, limit, decided_ids) {
+  const collection = get_db().collection(COLLECTION_NAME);
+  const decided = (decided_ids || []).map((id) => to_object_id(id.toString()));
+  // Same ordering rule as the approver dashboard: what still needs a
+  // decision comes first, oldest first, and what this approver already
+  // settled sinks below it.
+  const pipeline = [
+    { $match: { approval_request_id: request_id } },
+    { $addFields: { dcs_is_decided: { $cond: [{ $in: ["$_id", decided] }, 1, 0] } } },
+    { $sort: { dcs_is_decided: 1, submitted_at: 1, _id: 1 } },
+    {
+      $facet: {
+        items: [{ $skip: skip }, { $limit: limit }, { $project: { dcs_is_decided: 0 } }],
+        total: [{ $count: "count" }],
+      },
+    },
+  ];
+  const [result] = await collection.aggregate(pipeline).toArray();
+  return {
+    items: (result && result.items) || [],
+    total: result && result.total && result.total[0] ? result.total[0].count : 0,
+  };
+}
 /** Just the ids a batch covers - the per-record decision completeness check. */
 async function list_ids_by_approval_request(request_id) {
   const documents = await get_db()
@@ -484,6 +508,7 @@ module.exports = {
   assign_approval_request,
   list_by_approval_request,
   list_ids_by_approval_request,
+  list_by_approval_request_page,
   find_by_approval_token,
   list_by_approver_email,
   list_by_approver_email_page,
