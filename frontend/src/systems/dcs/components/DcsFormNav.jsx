@@ -15,6 +15,7 @@ const FORM_NAV_ITEMS = [
   { key: "approval", labelKey: "DCS_FORM_NAV_APPROVAL", path: "approval" },
   { key: "versions", labelKey: "DCS_FORM_NAV_VERSIONS", path: "versions" },
   { key: "test-data", labelKey: "DCS_TEST_DATA_LINK", path: "test-data" },
+  { key: "ownership", labelKey: "DCS_FORM_NAV_OWNERSHIP", path: "ownership" },
 ];
 
 export default function DcsFormNav({ projectId, formGroupId, onBeforeNavigate }) {
