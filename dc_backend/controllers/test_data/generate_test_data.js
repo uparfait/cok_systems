@@ -85,9 +85,11 @@ async function run_generation(job_id, form_version, routing_config, timestamps) 
       processed += 1;
       test_jobs.update_progress(job_id, { processed, saved, failed });
       if (buffer.length >= INSERT_BATCH_SIZE) await flush();
-      // Generation is pure CPU work - yielding every few records keeps the
-      // event loop (and the long-poll progress endpoint) responsive.
-      if (processed % 20 === 0) await new Promise((resolve) => setImmediate(resolve));
+      // Generation is pure CPU work - yielding after EVERY record keeps the
+      // event loop (and the long-poll progress endpoint) responsive even on
+      // heavy schemas where a single record takes a while; starving the
+      // loop used to kill the client's poll with a dead connection.
+      await new Promise((resolve) => setImmediate(resolve));
     }
     await flush();
     test_jobs.finish_job(job_id, "completed");

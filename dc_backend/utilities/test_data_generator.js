@@ -335,13 +335,18 @@ function generate_candidate(field, data, attempt, fields_by_id) {
 
 /**
  * True when every error-severity validation rule of this one field passes
- * against the data as it currently stands (warnings never block).
+ * against the data as it currently stands (warnings never block). Mirrors
+ * validate_submission_data: a value rule is skipped while the field holds
+ * no answer - only depends_on_parent (the conditional-requirement rule)
+ * evaluates against an empty field.
  */
 function passes_own_rules(field, data) {
   const trimmed = build_trimmed_evaluation_data(data);
+  const answered = has_real_answer(data[field.id]);
   return (field.validation_rules || []).every((rule) => {
     if (!rule || !rule.condition) return true;
     if (rule.severity === "warning") return true;
+    if (!answered && rule.operator && rule.operator !== "depends_on_parent") return true;
     const result = evaluate_rule(rule.condition, trimmed);
     return result.error ? false : result.value !== false;
   });

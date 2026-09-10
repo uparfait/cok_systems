@@ -20,15 +20,24 @@ function count_field_options(field) {
 }
 
 /**
- * True for a select_group/cascading_select field carrying more than
- * LAZY_OPTIONS_THRESHOLD real options - the only fields ever stripped for a
- * client response and fetched back on demand. Everything else (including a
- * small select_group/cascading_select) is always sent whole, exactly as
- * before - lazy-loading a handful of options would only add complexity with
- * no real payload saved.
+ * Lazy option stripping is RETIRED: the API compresses every JSON response
+ * (brotli/gzip, see main.js), so even a cascading field with thousands of
+ * inline options travels cheaply and is sent WHOLE with the form - no more
+ * one-by-one option requests while a respondent walks a cascade. The only
+ * options still fetched on demand are API-sourced location fields, which
+ * never carried inline options in the first place (they read the country
+ * location tree through /dcs/api/locations, itself compressed).
+ *
+ * The rest of this module stays alive for backward compatibility: the
+ * field-options endpoints still answer any older client or open session,
+ * and merge_lazy_fields still protects a save that carries a leftover lazy
+ * placeholder from wiping the stored options.
  */
 function is_lazy_options_field(field) {
-  return !!field && LAZY_TYPES.includes(field.type) && count_field_options(field) > LAZY_OPTIONS_THRESHOLD;
+  // Previous rule, kept for reference: LAZY_TYPES.includes(field.type) and
+  // count_field_options(field) > LAZY_OPTIONS_THRESHOLD.
+  void field;
+  return false;
 }
 
 /**

@@ -5,6 +5,7 @@ import { submit_approval_decision, upload_approval_file } from "../services/appr
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
 import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "./DcsButtonOutlineDanger.jsx";
+import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -117,10 +118,14 @@ export default function DcsApprovalDecisionModal({ record, form, decision, onClo
         signature = { kind: sign_method, file: uploaded };
       }
       const response = await submit_approval_decision(record.step.token, decision, comment.trim() || null, signature);
-      showSuccess((response && response.message) || translate("DCS_APPROVAL_DECISION_DONE"));
+      showSuccess(
+        (response && response.message) ||
+          translate(is_approve ? "DCS_APPROVAL_APPROVED_DONE" : "DCS_APPROVAL_REJECTED_DONE"),
+      );
       onDone();
     } catch (error) {
-      showError(error.message || translate("DCS_ERROR_GENERIC"));
+      const backend_message = error && !error.is_network_error ? error.message : null;
+      showError(backend_message || (error && error.message) || translate("DCS_ERROR_GENERIC"));
       setActing(false);
     }
   };
@@ -243,11 +248,17 @@ export default function DcsApprovalDecisionModal({ record, form, decision, onClo
           </DcsButtonOutline>
           {is_approve ? (
             <DcsButtonPrimary onClick={handle_confirm} disabled={acting} className="flex-1">
-              {translate("DCS_APPROVAL_BTN_APPROVE")}
+              <span className="inline-flex items-center justify-center gap-2">
+                {acting && <SpiralLoader color="#FFFFFF" padded={false} size={16} />}
+                {translate("DCS_APPROVAL_BTN_APPROVE")}
+              </span>
             </DcsButtonPrimary>
           ) : (
             <DcsButtonOutlineDanger onClick={handle_confirm} disabled={acting} className="flex-1">
-              {translate("DCS_APPROVAL_BTN_REJECT")}
+              <span className="inline-flex items-center justify-center gap-2">
+                {acting && <SpiralLoader color={DANGER} padded={false} size={16} />}
+                {translate("DCS_APPROVAL_BTN_REJECT")}
+              </span>
             </DcsButtonOutlineDanger>
           )}
         </div>

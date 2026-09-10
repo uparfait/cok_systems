@@ -11,6 +11,9 @@ import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsApprovalDecisionModal from "../components/DcsApprovalDecisionModal.jsx";
+import DcsApproverPanel from "../components/DcsApproverPanel.jsx";
+import DcsDetailsToggleButton from "../components/DcsDetailsToggleButton.jsx";
+import DcsPagerButton from "../components/DcsPagerButton.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const PRIMARY = "#056daa";
@@ -21,6 +24,7 @@ const GRAY = "#9E9E9E";
 const NEUTRAL_DARK = "#333333";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const BORDER = "#E0E0E0";
+const CARD_BORDER = "rgba(5,109,170,0.35)";
 const fontHeading = "'Montserrat', sans-serif";
 // How many records each scroll batch loads - also the rough number of visible rows.
 const PAGE_SIZE = 8;
@@ -111,9 +115,13 @@ function MyApprovalsPageContent() {
   const [total, setTotal] = useState(0);
   const [has_more, setHasMore] = useState(false);
   const [loading_more, setLoadingMore] = useState(false);
+  const [batch_error, setBatchError] = useState(false);
   const [view, setView] = useState("table");
   const [form_index, setFormIndex] = useState(0);
   const [viewed, setViewed] = useState(() => new Set());
+  const [panel_open, setPanelOpen] = useState(
+    () => typeof window === "undefined" || window.matchMedia("(min-width: 768px)").matches,
+  );
   const [show_modal, setShowModal] = useState(false);
   const [decision_target, setDecisionTarget] = useState(null);
   const [comment, setComment] = useState("");
@@ -149,10 +157,12 @@ function MyApprovalsPageContent() {
     get_my_approvals({ form_key, offset: 0, limit: PAGE_SIZE })
       .then((response) => {
         apply_batch(response.data, "replace");
+        setBatchError(false);
         setLoadState("ready");
       })
       .catch((error) => {
         showError(error.message || translate("DCS_ERROR_GENERIC"));
+        setBatchError(true);
         if (options.first) setLoadState("error");
       })
       .finally(() => {
@@ -169,9 +179,13 @@ function MyApprovalsPageContent() {
     get_my_approvals({ form_key: active_form_key, offset: records.length, limit: PAGE_SIZE })
       .then((response) => {
         apply_batch(response.data, "append");
+        setBatchError(false);
         if (after_load) after_load(records.length + (response.data.records || []).length);
       })
-      .catch((error) => showError(error.message || translate("DCS_ERROR_GENERIC")))
+      .catch((error) => {
+        showError(error.message || translate("DCS_ERROR_GENERIC"));
+        setBatchError(true);
+      })
       .finally(() => {
         fetching_ref.current = false;
         setLoadingMore(false);
@@ -348,7 +362,15 @@ function MyApprovalsPageContent() {
   };
 
   if (load_state === "loading") return <DcsFormLoadingSpinner />;
-  if (load_state === "error") return <DcsEmptyState messageKey="DCS_ERROR_GENERIC" />;
+  if (load_state === "error")
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+        <DcsEmptyState messageKey="DCS_ERROR_GENERIC" />
+        <button type="button" onClick={() => load(active_form_key, { first: true })} className="dcs-retry-link text-sm" style={{ fontFamily: fontHeading }}>
+          {translate("DCS_MYAPPROVALS_RETRY")}
+        </button>
+      </div>
+    );
 
   const label_of = (field) => get_field_text(field.label, language) || field.id;
   const form_view_fields = form_record
@@ -359,46 +381,27 @@ function MyApprovalsPageContent() {
 
   return (
     // On desktop the page is fixed to the viewport and only the records list scrolls.
-    <div className="min-h-screen p-3 sm:p-6 lg:h-screen lg:overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-      <div className="flex flex-col lg:flex-row gap-4 max-w-[1400px] mx-auto items-start lg:h-full">
-        {/* Sidebar - approver identity, assignment and the author's message */}
-        <div className="w-full lg:w-[320px] shrink-0 bg-white border p-4 space-y-3 lg:h-full lg:overflow-y-auto" style={{ borderColor: BORDER }}>
-          <div className="flex items-center gap-3 pb-3 border-b" style={{ borderColor: BORDER }}>
-            <div className="w-14 h-14 flex items-center justify-center text-white text-xl font-extrabold shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading }}>
-              {initials}
-            </div>
-            <div className="min-w-0">
-              <p className="text-lg font-extrabold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{display_name}</p>
-              {reference_record && (
-                <p className="text-sm font-semibold" style={{ color: PRIMARY, fontFamily: fontHeading }}>{reference_record.step.role}</p>
-              )}
-            </div>
-          </div>
-
-          {user && user.telephone && (
-            <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
-              <p className="text-xs font-bold uppercase" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>{translate("DCS_MYAPPROVALS_TELEPHONE")}</p>
-              <p className="text-sm mt-1 font-semibold" style={{ color: NEUTRAL_DARK }}>{user.telephone}</p>
-            </div>
-          )}
-          <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
-            <p className="text-xs font-bold uppercase" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>{translate("DCS_MYAPPROVALS_EMAIL")}</p>
-            <p className="text-sm mt-1 font-semibold break-all" style={{ color: NEUTRAL_DARK }}>{(user && user.email) || "-"}</p>
-          </div>
-          <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
-            <p className="text-xs font-bold uppercase" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>{translate("DCS_MYAPPROVALS_ASSIGNED_TO")}</p>
-            <p className="text-sm mt-1 font-semibold" style={{ color: NEUTRAL_DARK }}>{assigned_to}</p>
-          </div>
-          <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
-            <p className="text-xs font-bold uppercase" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>{translate("DCS_APPROVAL_MESSAGE_FOR_YOU")}</p>
-            <p className="text-sm mt-1" style={{ color: NEUTRAL_DARK }}>{sidebar_message || translate("DCS_MYAPPROVALS_DEFAULT_MESSAGE")}</p>
-          </div>
+    <div className="min-h-screen p-2 sm:p-4 min-[760px]:p-6 lg:h-screen lg:overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+      <div className="flex flex-col lg:flex-row lg:gap-0 max-w-[1400px] mx-auto items-stretch lg:items-start lg:h-full">
+        <div className={`shrink-0 w-full lg:h-full dcs-details-panel ${panel_open ? "is-open mb-3 lg:mb-0" : "is-closed"}`}>
+          <DcsApproverPanel
+            user={user}
+            initials={initials}
+            displayName={display_name}
+            role={reference_record ? reference_record.step.role : ""}
+            assignedTo={assigned_to}
+            message={sidebar_message}
+            onClose={() => setPanelOpen(false)}
+          />
         </div>
 
         {/* Records panel - a column on desktop so the toolbar and pager stay fixed while rows scroll */}
         <div className="flex-1 min-w-0 w-full lg:h-full lg:min-h-0 lg:flex lg:flex-col">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="inline-flex border" style={{ borderColor: BORDER, backgroundColor: "#FFFFFF" }}>
+          <div className="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
+            <span className={`dcs-details-toggle-slot ${panel_open ? "is-hidden" : "is-shown"}`}>
+              <DcsDetailsToggleButton isOpen={false} onClick={() => setPanelOpen(true)} />
+            </span>
+            <div className="inline-flex border-2" style={{ borderColor: CARD_BORDER, backgroundColor: "#FFFFFF" }}>
               {["table", "form"].map((mode) => (
                 <button
                   key={mode}
@@ -421,7 +424,7 @@ function MyApprovalsPageContent() {
                   value={active_form_key || ""}
                   onChange={(event) => load(event.target.value)}
                   disabled={loading_more}
-                  className="cok-auth-input pr-3 py-2 text-sm"
+                  className="cok-auth-input pr-3 py-2 text-sm cursor-pointer"
                   style={{ backgroundColor: "#FFFFFF" }}
                 >
                   {form_options.map((option) => (
@@ -448,8 +451,9 @@ function MyApprovalsPageContent() {
           {/* Table view */}
           {(total > 0 || loading_more) && view === "table" && (
             <>
+
               {/* max-h controls how many rows are visible (~44px header + ~48px per row) - scrolling inside reveals the next batch */}
-              <div ref={table_scroll_ref} onScroll={handle_table_scroll} className="mt-3 overflow-x-auto overflow-y-auto max-h-[440px] bg-white border" style={{ borderColor: BORDER }}>
+              <div key="table" ref={table_scroll_ref} onScroll={handle_table_scroll} className="dcs-view-swap mt-3 mb-0 overflow-x-auto overflow-y-auto max-h-[60vh] lg:max-h-none bg-white border-2 min-[760px]:border-[5px] min-[760px]:rounded-[5px] lg:flex-1 lg:min-h-0" style={{ borderColor: CARD_BORDER }}>
                 <table className="w-full text-left" style={{ borderCollapse: "collapse" }}>
                   <thead>
                     {/* Sticky on the th (not the tr) so the header survives vertical scrolling */}
@@ -462,8 +466,8 @@ function MyApprovalsPageContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {records.map((record) => (
-                      <tr key={record.id} className="border-t" style={{ borderColor: BORDER }}>
+                    {records.map((record, row_index) => (
+                      <tr key={record.id} className={`border-t ${row_index % 2 === 0 ? "dcs-approvals-row-odd" : "dcs-approvals-row-even"}`} style={{ borderColor: BORDER }}>
                         {field_columns.map((field) => (
                           <td key={field.id} className="px-4 py-3 text-sm" style={{ color: NEUTRAL_DARK }}>
                             <AnswerValue value={record.data[field.id]} />
@@ -490,7 +494,15 @@ function MyApprovalsPageContent() {
                     <span className="text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_LOADING_MORE")}</span>
                   </div>
                 )}
-                {!loading_more && !has_more && records.length > 0 && (
+                {!loading_more && batch_error && (
+                  <div className="flex items-center justify-center gap-2 py-4 border-t" style={{ borderColor: BORDER }}>
+                    <span className="text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_LOAD_FAILED")}</span>
+                    <button type="button" onClick={() => load(active_form_key, { first: records.length === 0 })} className="dcs-retry-link text-sm" style={{ fontFamily: fontHeading }}>
+                      {translate("DCS_MYAPPROVALS_RETRY")}
+                    </button>
+                  </div>
+                )}
+                {!loading_more && !batch_error && !has_more && records.length > 0 && (
                   <p className="text-center text-xs py-3 border-t" style={{ color: GRAY, fontFamily: fontHeading, borderColor: BORDER }}>
                     {translate("DCS_MYAPPROVALS_ALL_LOADED", { total })}
                   </p>
@@ -499,10 +511,13 @@ function MyApprovalsPageContent() {
             </>
           )}
 
-          {/* Form view - one record at a time */}
           {records.length > 0 && view === "form" && form_record && (
-            <div className="mt-3 bg-white border p-4 sm:p-6 lg:flex-1 lg:min-h-0 lg:overflow-y-auto" style={{ borderColor: BORDER }}>
-              <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div
+              key="form"
+              className="dcs-view-swap mt-3 bg-white border-2 min-[760px]:border-[5px] min-[760px]:rounded-[5px] flex flex-col overflow-hidden max-h-[70vh] lg:max-h-none lg:flex-1 lg:min-h-0"
+              style={{ borderColor: CARD_BORDER }}
+            >
+              <div className="shrink-0 p-3 sm:p-4 min-[760px]:p-6 pb-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderBottom: `2px solid ${CARD_BORDER}` }}>
                 <div className="min-w-0">
                   <p className="text-base font-extrabold" style={{ color: PRIMARY, fontFamily: fontHeading }}>
                     {(forms[form_record.form_key] && forms[form_record.form_key].form_name) || "-"}
@@ -511,7 +526,6 @@ function MyApprovalsPageContent() {
                     {form_record.submitted_at ? new Date(form_record.submitted_at).toLocaleString() : ""}
                   </p>
                 </div>
-                {/* Ready records can be approved or rejected one at a time, right here */}
                 {form_record.state === "ready" ? (
                   <DecisionButtons record={form_record} translate={translate} onDecide={setDecisionTarget} />
                 ) : (
@@ -519,33 +533,39 @@ function MyApprovalsPageContent() {
                 )}
               </div>
 
-              <div className="border mt-4" style={{ borderColor: BORDER }}>
-                {form_view_fields.length === 0 && <p className="p-3 text-sm" style={{ color: GRAY }}>-</p>}
-                {form_view_fields.map((field, index) => (
-                  <div key={field.id} className="p-3 flex flex-col gap-1" style={{ borderTop: index === 0 ? "none" : `1px solid ${BORDER}` }}>
-                    <span className="text-xs font-semibold uppercase" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>{label_of(field)}</span>
-                    <span className="text-sm" style={{ color: NEUTRAL_DARK }}><AnswerValue value={form_record.data[field.id]} /></span>
-                  </div>
-                ))}
+              <div className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 min-[760px]:px-6 py-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+                <div className="w-full min-[760px]:max-w-[700px] mx-auto bg-white p-4 flex flex-col gap-4 border-0 min-[760px]:border-2" style={{ borderColor: PRIMARY }}>
+                  {form_view_fields.length === 0 && <p className="text-sm" style={{ color: GRAY }}>-</p>}
+                  {form_view_fields.map((field) => (
+                    <div key={field.id} className="flex flex-col gap-1.5">
+                      <span className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{label_of(field)}</span>
+                      <div className="text-sm px-3 py-2.5 border" style={{ borderColor: BORDER, backgroundColor: NEUTRAL_LIGHT, color: NEUTRAL_DARK }}>
+                        <AnswerValue value={form_record.data[field.id]} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="flex items-center gap-3 mt-4 flex-wrap">
-                <DcsButtonOutline onClick={() => setFormIndex(Math.max(0, form_index - 1))} disabled={form_index <= 0 || loading_more}>
-                  {translate("DCS_MYAPPROVALS_PREVIOUS")}
-                </DcsButtonOutline>
-                <span className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+              <div className="shrink-0 flex items-center justify-center gap-4 px-3 py-3 bg-white" style={{ borderTop: `2px solid ${CARD_BORDER}` }}>
+                <DcsPagerButton
+                  direction="previous"
+                  title={translate("DCS_MYAPPROVALS_PREVIOUS")}
+                  onClick={() => setFormIndex(Math.max(0, form_index - 1))}
+                  disabled={form_index <= 0 || loading_more}
+                />
+                <span className="text-sm font-bold whitespace-nowrap" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
                   {translate("DCS_MYAPPROVALS_RECORD_OF", { index: Math.min(form_index, records.length - 1) + 1, total })}
                 </span>
-                {/* Past the last loaded record, Next fetches the following batch and then steps into it */}
-                <DcsButtonOutline
+                <DcsPagerButton
+                  direction="next"
+                  title={translate("DCS_MYAPPROVALS_NEXT")}
                   onClick={() => {
                     if (form_index < records.length - 1) setFormIndex(form_index + 1);
                     else load_more((loaded) => setFormIndex(Math.min(loaded - 1, form_index + 1)));
                   }}
                   disabled={loading_more || (form_index >= records.length - 1 && !has_more)}
-                >
-                  {translate("DCS_MYAPPROVALS_NEXT")}
-                </DcsButtonOutline>
+                />
                 {loading_more && <SpiralLoader padded={false} size={18} />}
               </div>
             </div>
@@ -570,7 +590,7 @@ function MyApprovalsPageContent() {
       {/* Bulk approve modal - the signature is still required, exactly like the single page */}
       {show_modal && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
-          <div className="w-full max-w-lg bg-white max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg bg-white max-h-[90vh] overflow-y-auto border-2 min-[760px]:rounded-[5px]" style={{ borderColor: PRIMARY }}>
             <div className="px-5 py-4" style={{ backgroundColor: PRIMARY }}>
               <h2 className="text-white font-bold text-base" style={{ fontFamily: fontHeading }}>
                 {translate("DCS_MYAPPROVALS_MODAL_TITLE", { count: approvable.length })}

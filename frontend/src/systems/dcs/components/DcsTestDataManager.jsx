@@ -91,6 +91,25 @@ function FieldLabel({ labelKey }) {
   return <label className="cok-auth-label">{translate(labelKey)}</label>;
 }
 
+/**
+ * One long-poll round that survives transient network failures: a heavy
+ * generation can momentarily starve the server or trip a proxy, killing a
+ * single poll request - the job itself keeps running, so the poll simply
+ * retries a few times before giving up for real.
+ */
+async function poll_job_with_retry(job_id, known_percent) {
+  let last_error = null;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      return await get_test_data_job(job_id, known_percent);
+    } catch (error) {
+      last_error = error;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+  throw last_error;
+}
+
 function JobProgress({ job }) {
   const { translate } = useDcsLanguage();
   return (
@@ -168,7 +187,7 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
       let known_percent = -1;
       let current = null;
       while (!cancelled_ref.current) {
-        const response = await get_test_data_job(job_id, known_percent);
+        const response = await poll_job_with_retry(job_id, known_percent);
         current = response.data;
         setJob(current);
         known_percent = current.percent;
@@ -465,7 +484,7 @@ function GenerateTestApprovalsOverlay({ formGroupId, form, onRefreshForm, onClos
       let known_percent = -1;
       let current = null;
       while (!cancelled_ref.current) {
-        const response = await get_test_data_job(job_id, known_percent);
+        const response = await poll_job_with_retry(job_id, known_percent);
         current = response.data;
         setJob(current);
         known_percent = current.percent;

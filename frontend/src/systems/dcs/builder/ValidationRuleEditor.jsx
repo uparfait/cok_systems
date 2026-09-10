@@ -37,16 +37,20 @@ export default function ValidationRuleEditor({ field, allFields, onChange, ruleE
   };
 
   const add_rule = () => {
+    const default_operator = applicable_operators[0].id;
     const new_rule = {
       id: `rule_${Math.random().toString(36).slice(2, 8)}`,
-      operator: applicable_operators[0].id,
+      operator: default_operator,
       value: "",
       parent_field_id: null,
       parent_value: "",
       message: { en: "", kn: "", fr: "" },
       valid_message: { en: "", kn: "", fr: "" },
       severity: "error",
-      condition: null,
+      // Built right away - a rule saved without ever being edited again
+      // (e.g. a valueless operator like "is a whole number") must still
+      // carry a real condition, or it would silently never be enforced.
+      condition: build_validation_condition(field.id, default_operator, "", null, "", field.type),
     };
     onChange(rules.concat([new_rule]));
   };

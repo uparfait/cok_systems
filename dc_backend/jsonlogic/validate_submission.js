@@ -230,6 +230,20 @@ function validate_submission_data(schema, submitted_data, language) {
 
     (field.validation_rules || []).forEach((validation_rule) => {
       if (!validation_rule.condition) return;
+      // A value rule judges an ANSWER - an optional field left empty must
+      // never fail "at least 10", "must be positive", "min 3 characters",
+      // a date/time bound or a selections count (whether an answer is
+      // required at all is the separate mandatory check above). Only
+      // depends_on_parent keeps evaluating on empty: it IS the
+      // conditional-requirement rule ("when the parent says X, this field
+      // must answer Y").
+      if (
+        validation_rule.operator &&
+        validation_rule.operator !== "depends_on_parent" &&
+        is_empty_value(working_data[field_id])
+      ) {
+        return;
+      }
       const rule_result = evaluate_rule(validation_rule.condition, trimmed_data);
       const satisfied = rule_result.error ? false : rule_result.value !== false;
       if (satisfied) return;
