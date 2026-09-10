@@ -33,7 +33,6 @@ const ADDABLE_TYPES = DCS_FIELD_TYPE_REGISTRY.filter((entry) => entry.category =
 export default function SectionField({ field, language, mode, onFieldChange, onOpenSettings, renderChildField, getFieldError }) {
   const is_builder = mode === "builder";
   const { translate } = useDcsLanguage();
-  const label = get_field_text(field.label, language);
   const outer_ref = useRef(null);
   const resize_state_ref = useRef(null);
   const [context_menu, setContextMenu] = useState(null);
@@ -148,11 +147,6 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
 
     return (
       <div className="w-full">
-        {label && (
-          <p className="text-sm font-semibold mb-2" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-            {label}
-          </p>
-        )}
         <div ref={outer_ref} className="hidden min-[700px]:block relative w-full" style={{ height: height_px, backgroundColor: background_color }}>
           {children.map((child) => {
             const layout = child.section_layout || DEFAULT_LAYOUT;
@@ -196,11 +190,6 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
 
   return (
     <div className="w-full">
-      {label && (
-        <p className="text-sm font-semibold mb-2" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-          {label}
-        </p>
-      )}
       <div
         ref={outer_ref}
         onContextMenu={handle_context_menu}

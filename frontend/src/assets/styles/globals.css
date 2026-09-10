@@ -1338,6 +1338,110 @@ background-color: #056daa;
   animation: dcs-field-flash 0.9s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* The clickable gap between two builder fields (FieldInsertZone.jsx).
+   Collapsed to a few pixels until hovered, so a long form is not lined
+   with permanent buttons - the affordance appears where the pointer
+   actually is. */
+.dcs-insert-zone {
+  height: 10px;
+  position: relative;
+}
+
+.dcs-insert-zone-trigger {
+  position: absolute;
+  inset: -5px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: copy;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.dcs-insert-zone-trigger:hover,
+.dcs-insert-zone-trigger:focus-visible {
+  opacity: 1;
+}
+
+.dcs-insert-zone-line {
+  flex: 1;
+  height: 2px;
+  background-color: rgba(5, 109, 170, 0.45);
+}
+
+.dcs-insert-zone-plus {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  color: #FFFFFF;
+  background-color: #056daa;
+  border-radius: 50%;
+}
+
+/* A group child's own drag handle - the children of a group are an
+   ordered list the respondent reads in order, so they reorder the same
+   way the canvas does. */
+.dcs-group-child-grip {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px;
+  background: none;
+  border: none;
+  cursor: move;
+  opacity: 0.6;
+  transition: opacity 0.16s ease;
+}
+
+.dcs-group-child-grip:hover {
+  opacity: 1;
+}
+
+/* Find-a-field panel (FieldSearchPanel.jsx): pinned near the top right,
+   draggable anywhere by its header, above the builder but below the
+   overlays it might sit behind. */
+.dcs-field-search {
+  position: fixed;
+  z-index: 9998;
+  background-color: #FFFFFF;
+  border: 2px solid #056daa;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.24);
+}
+
+.dcs-field-search-grip {
+  background-color: #056daa;
+  cursor: move;
+  user-select: none;
+}
+
+/* The Review action pinned to the bottom of the window while its real
+   place in the builder is scrolled out of sight (StickyReviewButton.jsx).
+   Sits above the page but below the overlays it opens. */
+.dcs-sticky-review {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 16px;
+  z-index: 40;
+  width: min(680px, calc(100vw - 2rem));
+  padding: 8px;
+  background-color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  animation: dcs-fade-in 0.2s ease-out;
+}
+
 /* The builder while the unpublished-edits question is still unanswered,
    "decide later" included: nothing in it can be clicked, dragged or typed
    into, and it reads as held rather than broken. */

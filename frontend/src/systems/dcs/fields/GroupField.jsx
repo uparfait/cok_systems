@@ -1,5 +1,10 @@
 import React from "react";
+import { DndContext, closestCenter } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { get_field_text } from "./fieldText.js";
+import FieldInsertZone from "../builder/FieldInsertZone.jsx";
+import SortableGroupChild from "../builder/SortableGroupChild.jsx";
+import { reorder_fields } from "../builder/builderUtils.js";
 import { get_spacing_below_px } from "../renderer/designStyles.js";
 import { DCS_FIELD_RENDERER_MAP } from "../renderer/fieldRendererMap.js";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
@@ -8,7 +13,10 @@ import { collect_uploaded_file_urls } from "../builder/collectUploadedFileUrls.j
 import { delete_design_file } from "../services/designUploadService.js";
 
 /**
- * Organizes related fields visually together. In the builder, each child
+ * Organizes related fields visually together. A group is a container, not
+ * a question, so it carries no label of its own - a title over a cluster
+ * of questions belongs to a header component above it, where it reads as
+ * a heading instead of as a question with no answer. In the builder, each child
  * gets its own live preview plus settings/delete controls, and an "Add
  * field" trigger below the list opens the exact same, single, shared
  * "Choose a component to add" panel the main canvas (and every other
@@ -18,20 +26,14 @@ import { delete_design_file } from "../services/designUploadService.js";
  * renderer (and the read-only review) instead delegates each child to
  * renderChildField, exactly as before.
  */
-export default function GroupField({ field, language, mode, onFieldChange, onOpenSettings, renderChildField, getFieldError, onRequestAddMenu }) {
+export default function GroupField({ field, language, mode, onFieldChange, onOpenSettings, renderChildField, getFieldError, onRequestAddMenu, searchVisibleIds }) {
   const { translate } = useDcsLanguage();
   const is_builder = mode === "builder";
-  const label = get_field_text(field.label, language);
   const children = field.children || [];
 
   if (!is_builder) {
     return (
       <div className="w-full border p-3" style={{ borderColor: "#E0E0E0" }}>
-        {label && (
-          <p className="text-sm font-semibold mb-3" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-            {label}
-          </p>
-        )}
         <div>
           {children.map((child_field) => (
             <div key={child_field.id} style={{ marginBottom: get_spacing_below_px(child_field) }}>
@@ -57,30 +59,38 @@ export default function GroupField({ field, language, mode, onFieldChange, onOpe
     collect_uploaded_file_urls(removed_child).forEach((url) => delete_design_file(url));
   };
 
+  const handle_child_drag_end = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const from_index = children.findIndex((child) => child.id === active.id);
+    const to_index = children.findIndex((child) => child.id === over.id);
+    if (from_index === -1 || to_index === -1) return;
+    update_children(reorder_fields(children, from_index, to_index));
+  };
+
+  // While a search is filtering the canvas, only the children that matched
+  // are shown - and dragging is off, because the neighbours a drop would
+  // land between are not on screen to aim at. searchVisibleIds is only
+  // ever set while a search is running.
+  const is_filtered = !!searchVisibleIds;
+  const visible_children = is_filtered ? children.filter((child) => searchVisibleIds.has(child.id)) : children;
+
   return (
     <div className="w-full border p-3" style={{ borderColor: "#E0E0E0" }}>
-      {label && (
-        <p className="text-sm font-semibold mb-3" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-          {label}
-        </p>
-      )}
+      <DndContext collisionDetection={closestCenter} onDragEnd={handle_child_drag_end}>
+      <SortableContext items={visible_children.map((child) => child.id)} strategy={verticalListSortingStrategy}>
+      <div>
+        {!is_filtered && <FieldInsertZone onInsert={() => onRequestAddMenu && onRequestAddMenu(field.id, 0)} />}
 
-      <div className="space-y-2">
-        {children.map((child) => {
+        {visible_children.map((child) => {
           const ChildComponent = DCS_FIELD_RENDERER_MAP[child.type];
           if (!ChildComponent) return null;
           const child_error = getFieldError ? getFieldError(child.id) : null;
           const child_has_error = !!(child_error && child_error.messages.length > 0);
+          const child_index = children.findIndex((candidate) => candidate.id === child.id);
           return (
-            <div
-              key={child.id}
-              className="border p-2 flex gap-2"
-              style={{
-                position: "relative",
-                borderColor: child_has_error ? "#E74C3C" : "#E0E0E0",
-                backgroundColor: child_has_error ? "rgba(231,76,60,0.05)" : undefined,
-              }}
-            >
+            <React.Fragment key={child.id}>
+            <SortableGroupChild childId={child.id} disabled={is_filtered} hasError={child_has_error}>
               <div className="flex-1 min-w-0">
                 <ChildComponent
                   field={child}
@@ -90,13 +100,14 @@ export default function GroupField({ field, language, mode, onFieldChange, onOpe
                   onOpenSettings={onOpenSettings}
                   getFieldError={getFieldError}
                   onRequestAddMenu={onRequestAddMenu}
+                  searchVisibleIds={searchVisibleIds}
                 />
               </div>
               {child_has_error && (
                 <div
                   title={child_error.messages.join(" ")}
                   className="absolute flex items-center justify-center"
-                  style={{ top: -6, left: -6, width: 15, height: 15, borderRadius: "50%", backgroundColor: "#E74C3C", color: "#FFFFFF", fontSize: 10, fontWeight: 700, zIndex: 2 }}
+                  style={{ top: -6, left: -6, width: 15, height: 15, borderRadius: "50%", backgroundColor: "#F39C12", color: "#FFFFFF", fontSize: 10, fontWeight: 700, zIndex: 2 }}
                 >
                   !
                 </div>
@@ -127,12 +138,24 @@ export default function GroupField({ field, language, mode, onFieldChange, onOpe
                   </svg>
                 </button>
               </div>
-            </div>
+            </SortableGroupChild>
+            {!is_filtered && (
+              <FieldInsertZone onInsert={() => onRequestAddMenu && onRequestAddMenu(field.id, child_index + 1)} />
+            )}
+            </React.Fragment>
           );
         })}
       </div>
+      </SortableContext>
+      </DndContext>
 
-      {children.length === 0 && (
+      {is_filtered && visible_children.length === 0 && (
+        <p className="text-xs py-3" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}>
+          {translate("DCS_SEARCH_FIELD_NO_MATCH_IN_GROUP")}
+        </p>
+      )}
+
+      {!is_filtered && children.length === 0 && (
         <button
           type="button"
           onClick={() => onRequestAddMenu && onRequestAddMenu(field.id)}
@@ -142,7 +165,7 @@ export default function GroupField({ field, language, mode, onFieldChange, onOpe
           {translate("DCS_GROUP_EMPTY_HINT")}
         </button>
       )}
-      <DcsButtonOutline className="w-full mt-2" onClick={() => onRequestAddMenu && onRequestAddMenu(field.id)}>
+      <DcsButtonOutline className="w-full mt-2" onClick={() => onRequestAddMenu && onRequestAddMenu(field.id, children.length)}>
         {translate("DCS_GROUP_ADD_FIELD")}
       </DcsButtonOutline>
     </div>

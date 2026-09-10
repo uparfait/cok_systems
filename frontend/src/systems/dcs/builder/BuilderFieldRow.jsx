@@ -12,9 +12,9 @@ import { build_design_styles } from "../renderer/designStyles.js";
  * without being individually draggable, and - unlike a Section's own
  * children - are never individually resizable or repositionable here.
  */
-export default function BuilderFieldRow({ field, language, onOpenSettings, onOpenChildSettings, onDelete, onFieldChange, renderChildField, getFieldError, onRequestAddMenu }) {
+export default function BuilderFieldRow({ field, language, dragDisabled, onOpenSettings, onOpenChildSettings, onDelete, onFieldChange, renderChildField, getFieldError, onRequestAddMenu, searchVisibleIds }) {
   const { translate } = useDcsLanguage();
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id, disabled: !!dragDisabled });
   const FieldComponent = DCS_FIELD_RENDERER_MAP[field.type];
   const field_error = getFieldError ? getFieldError(field.id) : null;
   const has_error = !!(field_error && field_error.messages.length > 0);
@@ -33,6 +33,7 @@ export default function BuilderFieldRow({ field, language, onOpenSettings, onOpe
       onOpenSettings={onOpenChildSettings}
       getFieldError={getFieldError}
       onRequestAddMenu={onRequestAddMenu}
+      searchVisibleIds={searchVisibleIds}
     />
   );
 
@@ -55,16 +56,17 @@ export default function BuilderFieldRow({ field, language, onOpenSettings, onOpe
   return (
     <div
       ref={setNodeRef}
-      style={Object.assign({ position: "relative" }, style, has_error ? { backgroundColor: "rgba(231,76,60,0.05)", borderColor: "#E74C3C" } : undefined)}
+      style={Object.assign({ position: "relative" }, style, has_error ? { backgroundColor: "rgba(243,156,18,0.08)", borderColor: "#F39C12" } : undefined)}
       className="border p-3 bg-white flex gap-3"
     >
       <button
         type="button"
         {...attributes}
         {...listeners}
-        className="cursor-move flex-shrink-0 mt-1"
+        className="flex-shrink-0 mt-1"
         aria-label="drag"
-        style={{ color: "#9E9E9E" }}
+        title={dragDisabled ? translate("DCS_SEARCH_FIELD_DRAG_OFF") : undefined}
+        style={{ color: "#9E9E9E", cursor: dragDisabled ? "not-allowed" : "move", opacity: dragDisabled ? 0.35 : 1 }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <circle cx="8" cy="6" r="1.5" />
@@ -103,7 +105,7 @@ export default function BuilderFieldRow({ field, language, onOpenSettings, onOpe
         <div
           title={field_error.messages.join(" ")}
           className="absolute flex items-center justify-center"
-          style={{ top: -8, left: -8, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#E74C3C", color: "#FFFFFF", fontSize: 12, fontWeight: 700, zIndex: 2 }}
+          style={{ top: -8, left: -8, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#F39C12", color: "#FFFFFF", fontSize: 12, fontWeight: 700, zIndex: 2 }}
         >
           !
         </div>

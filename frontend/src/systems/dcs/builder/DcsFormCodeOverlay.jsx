@@ -4,6 +4,7 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
 import { get_field_text } from "../fields/fieldText.js";
 import { build_form_creation_guide } from "./formSpecCatalog.js";
+import { strip_container_labels } from "./stripContainerLabels.js";
 import { resolve_template_placeholders } from "../jsonlogic/resolveTemplates.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
@@ -45,6 +46,7 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
   const { showSuccess, showError } = useToast();
   const [pasted_code, setPastedCode] = useState("");
   const [parse_error, setParseError] = useState("");
+  const [removed_label_count, setRemovedLabelCount] = useState(0);
   const [selected_copy_ids, setSelectedCopyIds] = useState(() => new Set(fields.map((field) => field.id)));
   const [selected_rule_types, setSelectedRuleTypes] = useState(() => new Set(DCS_FIELD_TYPE_REGISTRY.map((entry) => entry.type)));
 
@@ -91,6 +93,7 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
 
   const handle_create_form = async (mode) => {
     setParseError("");
+    setRemovedLabelCount(0);
     try {
       const parsed_fields = parse_pasted_fields(pasted_code);
       // A hand-authored/pasted field list can itself contain a
@@ -99,7 +102,13 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
       // exactly like every other entry point, before it ever reaches the
       // canvas.
       const next_fields = await resolve_template_placeholders(parsed_fields);
-      onCreateForm(next_fields, mode);
+      // Pasted code is the usual way a label ends up on a container, so it
+      // is corrected here rather than a moment later by the canvas - and
+      // the total is left on screen, not only flashed in a toast, since
+      // this is a change made to what the author pasted.
+      const stripped = strip_container_labels(next_fields);
+      setRemovedLabelCount(stripped.stripped_count);
+      onCreateForm(stripped.fields, mode);
       showSuccess(translate("DCS_TOAST_FORM_CREATED_FROM_CODE"));
     } catch (error) {
       setParseError(translate("DCS_ERROR_INVALID_FORM_CODE"));
@@ -223,6 +232,15 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
                 </label>
               ))}
             </div>
+            {/* Stated here as well as inside the copied guide: it is the
+                one schema rule the builder enforces by editing what was
+                pasted, so it should not be a surprise found afterwards. */}
+            <div className="mt-3 p-2" style={{ border: "1px solid #F39C12", backgroundColor: "rgba(243,156,18,0.12)" }}>
+              <p className="text-xs" style={{ color: "#B9770E", fontFamily: "'Montserrat', sans-serif" }}>
+                {translate("DCS_CODE_OVERLAY_CONTAINER_LABEL_RULE")}
+              </p>
+            </div>
+
             <DcsButtonOutline className="w-full mt-3" onClick={handle_copy_creation_rules} disabled={selected_rule_types.size === 0}>
               {translate("DCS_BTN_COPY_CREATION_RULES")}
             </DcsButtonOutline>
@@ -238,6 +256,14 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
               value={pasted_code}
               onChange={(event) => setPastedCode(event.target.value)}
             />
+            {removed_label_count > 0 && (
+              <div className="p-2" style={{ border: "1px solid #F39C12", backgroundColor: "rgba(243,156,18,0.12)" }}>
+                <p className="text-xs" style={{ color: "#B9770E", fontFamily: "'Montserrat', sans-serif" }}>
+                  {translate("DCS_CODE_OVERLAY_LABELS_REMOVED", { count: removed_label_count })}
+                </p>
+              </div>
+            )}
+
             {parse_error && (
               <p className="text-xs" style={{ color: "#E74C3C" }}>{parse_error}</p>
             )}

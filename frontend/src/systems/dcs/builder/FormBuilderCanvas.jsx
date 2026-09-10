@@ -9,6 +9,7 @@ import { delete_design_file } from "../services/designUploadService.js";
 import { get_spacing_below_px } from "../renderer/designStyles.js";
 import AddComponentPanel from "./AddComponentPanel.jsx";
 import BuilderFieldRow from "./BuilderFieldRow.jsx";
+import FieldInsertZone from "./FieldInsertZone.jsx";
 import BuilderStaticFieldPreview from "./BuilderStaticFieldPreview.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
 
@@ -22,14 +23,33 @@ import DcsEmptyState from "../components/DcsEmptyState.jsx";
  * separate templates list/polling; add_panel_group_id tracks which one
  * (null for the top-level canvas itself) the next pick actually goes into.
  */
-export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettings, getFieldError }) {
+export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettings, getFieldError, searchVisibleIds }) {
   const { language, translate } = useDcsLanguage();
   const [is_add_panel_open, setIsAddPanelOpen] = useState(false);
   const [add_panel_group_id, setAddPanelGroupId] = useState(null);
+  // Where the next pick lands, rather than always at the end: an insert
+  // zone between two fields passes its own position here. null means the
+  // end of whichever list is being added to.
+  const [add_panel_index, setAddPanelIndex] = useState(null);
 
-  const open_add_panel = (group_id) => {
+  // While a search is filtering the canvas, only matching fields are on
+  // screen, so dragging is off - there is nothing visible to drop between,
+  // and a reorder computed against a filtered list would move a field
+  // somewhere the author never saw.
+  const is_filtered = !!searchVisibleIds;
+  const visible_fields = is_filtered ? fields.filter((field) => searchVisibleIds.has(field.id)) : fields;
+
+  const open_add_panel = (group_id, insert_index) => {
     setAddPanelGroupId(group_id || null);
+    setAddPanelIndex(typeof insert_index === "number" ? insert_index : null);
     setIsAddPanelOpen(true);
+  };
+
+  const insert_into = (list, new_field) => {
+    const index = add_panel_index === null ? list.length : Math.max(0, Math.min(add_panel_index, list.length));
+    const next_list = list.slice();
+    next_list.splice(index, 0, new_field);
+    return next_list;
   };
 
   const handle_add_component = (field_type) => {
@@ -37,17 +57,18 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
     if (add_panel_group_id) {
       onFieldsChange(
         update_field_by_id(fields, add_panel_group_id, (group) =>
-          Object.assign({}, group, { children: (group.children || []).concat([new_field]) }),
+          Object.assign({}, group, { children: insert_into(group.children || [], new_field) }),
         ),
       );
     } else {
-      onFieldsChange(insert_field_at(fields, fields.length - 1, new_field));
+      onFieldsChange(insert_into(fields, new_field));
     }
     // A brand new group starts with zero children - keeping the panel open,
     // now targeting straight at it, saves the extra click of finding and
     // pressing its own "Add field" trigger on an otherwise-empty box.
     if (field_type === "group") {
       setAddPanelGroupId(new_field.id);
+      setAddPanelIndex(null);
     } else {
       setIsAddPanelOpen(false);
     }
@@ -101,30 +122,42 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
     </div>
   );
 
+  const insert_zone_at = (index) =>
+    is_filtered ? null : <FieldInsertZone key={`insert_${index}`} onInsert={() => open_add_panel(null, index)} />;
+
   return (
     <div className="w-full" style={{ userSelect: "none" }}>
       {fields.length === 0 && <DcsEmptyState messageKey="DCS_EMPTY_FORM_CANVAS" />}
 
+      {is_filtered && visible_fields.length === 0 && <DcsEmptyState messageKey="DCS_SEARCH_FIELD_NO_MATCH" />}
+
       <DndContext collisionDetection={closestCenter} onDragEnd={handle_drag_end}>
-        <SortableContext items={fields.map((field) => field.id)} strategy={verticalListSortingStrategy}>
-          {fields.map((field) => (
+        <SortableContext items={visible_fields.map((field) => field.id)} strategy={verticalListSortingStrategy}>
+          {fields.length > 0 && insert_zone_at(0)}
+
+          {visible_fields.map((field) => (
             // The gap below each row is whatever the author set for that
             // field (Designs tab), not one hardcoded value shared by every
             // row - matches how RendererEngine spaces the live/review form,
             // so the canvas shows the real distance the author chose.
-            <div key={field.id} data-builder-field-id={field.id} style={{ marginBottom: get_spacing_below_px(field) }}>
-              <BuilderFieldRow
-                field={field}
-                language={language}
-                onOpenSettings={(rect) => onOpenSettings(field, rect)}
-                onOpenChildSettings={onOpenSettings}
-                onDelete={() => handle_delete_field(field.id)}
-                onFieldChange={handle_field_inline_change}
-                renderChildField={render_child_field}
-                getFieldError={getFieldError}
-                onRequestAddMenu={open_add_panel}
-              />
-            </div>
+            <React.Fragment key={field.id}>
+              <div data-builder-field-id={field.id} style={{ marginBottom: get_spacing_below_px(field) }}>
+                <BuilderFieldRow
+                  field={field}
+                  language={language}
+                  dragDisabled={is_filtered}
+                  onOpenSettings={(rect) => onOpenSettings(field, rect)}
+                  onOpenChildSettings={onOpenSettings}
+                  onDelete={() => handle_delete_field(field.id)}
+                  onFieldChange={handle_field_inline_change}
+                  renderChildField={render_child_field}
+                  getFieldError={getFieldError}
+                  onRequestAddMenu={open_add_panel}
+                  searchVisibleIds={searchVisibleIds}
+                />
+              </div>
+              {insert_zone_at(fields.findIndex((candidate) => candidate.id === field.id) + 1)}
+            </React.Fragment>
           ))}
         </SortableContext>
       </DndContext>

@@ -99,7 +99,7 @@ const FIELD_TYPE_DOCS = {
       children: "Array of child field objects (content types only), each with an added 'section_layout' object.",
     },
     usage_notes:
-      "Each child needs section_layout: { x_percent, y_percent, width_percent, height_percent }, all 0-100, describing its position/size as a percentage of the section's own box. Below a 700px-wide screen, children automatically stack full-width instead (section_layout is ignored there).",
+      "Each child needs section_layout: { x_percent, y_percent, width_percent, height_percent }, all 0-100, describing its position/size as a percentage of the section's own box. Below a 700px-wide screen, children automatically stack full-width instead (section_layout is ignored there). NEVER give a section a 'label' of its own, exactly as with a group - it is a container, not a question, and any label found on one is removed automatically by the builder. Use a 'header' child (or a header above the section) to title it.",
     example: {
       id: "section_ab12cd",
       type: "section",
@@ -117,10 +117,11 @@ const FIELD_TYPE_DOCS = {
     },
   },
   group: {
-    description: "A visual box that groups several data-collection fields together under one shared label - purely organizational, not repeating.",
+    description: "A visual box that holds several data-collection fields together - purely organizational, not repeating, and never labelled itself.",
     extra_properties: { children: "Array of child field objects (any type)." },
-    usage_notes: "Use to visually cluster related questions (e.g. 'Contact details'). Each child is answered and validated exactly as if it were top-level.",
-    example: { id: "group_ab12cd", type: "group", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Contact details" }), children: [], design: { spacing_below_px: 16 } },
+    usage_notes:
+      "Use to visually cluster related questions. NEVER give a group a 'label' - a group asks nothing, so a label on it reads to the respondent as a question that has no answer. Any label found on a group is removed automatically by the builder. To title a cluster of questions, put a 'header' component above the group instead. Each child is answered and validated exactly as if it were top-level.",
+    example: { id: "group_ab12cd", type: "group", children: [], design: { spacing_below_px: 16 } },
   },
   text: {
     description: "Single-line free text answer.",
@@ -346,6 +347,7 @@ export function build_form_creation_guide(selected_types) {
       "Copy that JSON reply, paste it into the 'Paste form JSON here' box in this same overlay, then click 'Create form'.",
       "Every field id must be a unique string across the whole form, including inside group/section children. Recommended pattern: '<type>_<6 random lowercase letters/digits>', e.g. 'text_a1b2c3'.",
       "Every translated text value (label, help_text, placeholder, required_message, valid_message, option labels, low_label/high_label, paragraph content) is an object with 'en', 'kn' and 'fr' string keys. A blank string for a language is fine.",
+      "NEVER put a 'label' on a 'group' or a 'section'. Those two types are containers, not questions - they ask nothing, so a label on one would render to the respondent as a question with no answer. To title a set of fields, add a separate 'header' component above the group/section. Any label found on a group or section is stripped out automatically when the JSON is pasted in, and the author is told how many were removed.",
       "After pasting, choose 'Add pasted fields' to append them after whatever is already on the canvas, or 'Overwrite with pasted fields' to replace the canvas entirely.",
       "Instead of writing every field of a saved template out by hand, one entry in 'fields' can be a template placeholder (see template_placeholder_shape) referencing it by id - it is expanded into real fields automatically.",
     ],
