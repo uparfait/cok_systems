@@ -159,6 +159,14 @@ async function update_submission_approval(submission_id, approval) {
   await get_db().collection(COLLECTION_NAME).updateOne({ _id: submission_id }, { $set: { approval } });
 }
 
+/** Just the ids a batch covers - the per-record decision completeness check. */
+async function list_ids_by_approval_request(request_id) {
+  const documents = await get_db()
+    .collection(COLLECTION_NAME)
+    .find({ approval_request_id: request_id }, { projection: { _id: 1 } })
+    .toArray();
+  return documents.map((document) => document._id);
+}
 /**
  * The ids of every submission of a form not yet covered by any batch
  * approval request - exactly the records a newly fired "send to approvers"
@@ -475,6 +483,7 @@ module.exports = {
   count_without_approval_request,
   assign_approval_request,
   list_by_approval_request,
+  list_ids_by_approval_request,
   find_by_approval_token,
   list_by_approver_email,
   list_by_approver_email_page,

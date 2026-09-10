@@ -108,6 +108,8 @@ module.exports = {
   APPROVAL_SESSION_INVALID: "Votre session d approbation a expire. Entrez a nouveau le code envoye a votre e-mail.",
   APPROVAL_IDEMPOTENCY_REQUIRED: "Cle de requete manquante",
   APPROVAL_OTP_RESENT: "Un nouveau code a ete envoye a votre e-mail",
+  APPROVAL_LINK_READY: "Lien d approbation pret",
+  APPROVAL_LINK_UNAVAILABLE: "Aucun lien d approbation en attente pour cet approbateur",
   APPROVAL_OTP_LOCKED: "Trop de codes erronés - ce lien d'approbation est verrouillé",
   APPROVAL_OTP_VERIFIED: "Code à usage unique vérifié avec succès",
   APPROVAL_DETAILS_FETCHED: "Détails d'approbation récupérés avec succès",

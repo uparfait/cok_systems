@@ -11,6 +11,7 @@ const verify_batch_approval_otp = require("../../controllers/approvals/verify_ba
 const submit_batch_approval_decision = require("../../controllers/approvals/submit_batch_approval_decision.js");
 const get_batch_approval_records = require("../../controllers/approvals/get_batch_approval_records.js");
 const resend_batch_approval_otp = require("../../controllers/approvals/resend_batch_approval_otp.js");
+const submit_batch_record_decision = require("../../controllers/approvals/submit_batch_record_decision.js");
 const submit_approval_decision = require("../../controllers/approvals/submit_approval_decision.js");
 const upload_approval_file_controller = require("../../controllers/approvals/upload_approval_file.js");
 const { get_locations, get_all_locations } = require("../../controllers/locations/get_locations.js");
@@ -175,5 +176,8 @@ Router.post("/batch-approvals/:token/decision", submit_batch_approval_decision);
 // Signature-authenticated reload of the records, and a fresh code when that signature expired.
 Router.get("/batch-approvals/:token/records", get_batch_approval_records);
 Router.post("/batch-approvals/:token/resend", resend_batch_approval_otp);
+
+// One record of the batch decided on its own.
+Router.post("/batch-approvals/:token/records/:submission_id/decision", submit_batch_record_decision);
 
 module.exports = Router;

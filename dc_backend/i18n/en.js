@@ -108,6 +108,8 @@ module.exports = {
   APPROVAL_SESSION_INVALID: "Your approval session expired. Enter the code sent to your email again.",
   APPROVAL_IDEMPOTENCY_REQUIRED: "Missing request key",
   APPROVAL_OTP_RESENT: "A new code was sent to your email",
+  APPROVAL_LINK_READY: "Approval link ready",
+  APPROVAL_LINK_UNAVAILABLE: "No pending approval link for this approver yet",
   APPROVAL_OTP_LOCKED: "Too many wrong codes - this approval link is locked",
   APPROVAL_OTP_VERIFIED: "One-time code verified successfully",
   APPROVAL_DETAILS_FETCHED: "Approval details fetched successfully",

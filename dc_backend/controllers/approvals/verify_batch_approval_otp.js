@@ -41,6 +41,8 @@ async function verify_batch_approval_otp(req, res) {
     approver.otp_attempts = 0;
     await approval_requests_model.update_request(request._id, { approvers: request.approvers });
 
+    const decisions = approver.record_decisions || [];
+
     return res.status(200).json(
       success_response(req, "APPROVAL_OTP_VERIFIED", {
         signature: session.signature,
@@ -48,11 +50,17 @@ async function verify_batch_approval_otp(req, res) {
         email: approver.email,
         signature_expires_at: session.expires_at,
         schema: form_version ? form_version.schema : null,
-        submissions: submissions.map((submission) => ({
-          data: submission.data,
-          version: submission.version,
-          submitted_at: submission.submitted_at,
-        })),
+        submissions: submissions.map((submission) => {
+          const own = decisions.find((entry) => entry.submission_id === submission._id.toString());
+          return {
+            id: submission._id.toString(),
+            data: submission.data,
+            version: submission.version,
+            submitted_at: submission.submitted_at,
+            my_decision: own ? own.status : null,
+            my_comment: own ? own.comment : null,
+          };
+        }),
       }),
     );
   } catch (error) {

@@ -38,7 +38,14 @@ dcs_api_client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (!error.response) {
-      return Promise.reject({ success: false, message: "Network Error", is_network_error: true });
+      // A connection failure is reported in words the approver can act
+      // on, never as a bare "Network Error".
+      return Promise.reject({
+        success: false,
+        message: "The server could not be reached. Check your connection and try again.",
+        message_key: "DCS_ERROR_NETWORK",
+        is_network_error: true,
+      });
     }
     const response_data = error.response.data || {};
     if (response_data.goto_login) {

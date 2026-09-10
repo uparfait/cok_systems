@@ -5,6 +5,7 @@ import {
   get_approval_schedule,
   save_approval_schedule,
   save_approval_settings,
+  get_approver_link,
   cancel_approval_schedule,
   send_approval_links_now,
 } from "../services/approvalsService.js";
@@ -102,7 +103,25 @@ function SendModeOption({ value, mode, onSelect, labelKey, hintKey, children }) 
 }
 
 /** The form's approver chain, numbered and connected top to bottom - purely informative here. */
-function ApproverChain({ approvers }) {
+function ApproverChain({ approvers, formGroupId, onCopied, onFailed }) {
+  const { translate } = useDcsLanguage();
+  const [copying, setCopying] = useState("");
+
+  const copy_link = async (email) => {
+    setCopying(email);
+    try {
+      const response = await get_approver_link(formGroupId, email);
+      const link = response.data && response.data.link;
+      if (!link) throw new Error(response.message || "");
+      if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(link);
+      onCopied(link);
+    } catch (error) {
+      onFailed(error.message || "");
+    } finally {
+      setCopying("");
+    }
+  };
+
   return (
     <div className="flex flex-col">
       {approvers.map((approver, index) => (
@@ -116,11 +135,22 @@ function ApproverChain({ approvers }) {
             </span>
             {index < approvers.length - 1 && <span className="flex-1" style={{ width: 2, minHeight: 14, backgroundColor: "rgba(5,109,170,0.25)" }} />}
           </div>
-          <div className="min-w-0 pb-3">
-            <p className="text-sm font-semibold truncate leading-7" style={{ color: TEXT, fontFamily: FONT }}>
-              {approver.name || approver.email}
-              {approver.role ? <span style={{ color: MUTED, fontWeight: 400 }}> - {approver.role}</span> : null}
-            </p>
+          <div className="min-w-0 pb-3 flex-1">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-sm font-semibold truncate leading-7" style={{ color: TEXT, fontFamily: FONT }}>
+                {approver.name || approver.email}
+                {approver.role ? <span style={{ color: MUTED, fontWeight: 400 }}> - {approver.role}</span> : null}
+              </p>
+              <button
+                type="button"
+                onClick={() => copy_link(approver.email)}
+                disabled={copying === approver.email}
+                className="text-xs font-bold uppercase cursor-pointer px-2 py-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ fontFamily: FONT, letterSpacing: 0.5, color: PRIMARY, border: "1px solid " + PRIMARY, background: "none" }}
+              >
+                {translate("DCS_SCHED_COPY_LINK")}
+              </button>
+            </div>
             <p className="text-xs truncate" style={{ color: FADED, fontFamily: FONT }}>
               {approver.email}
             </p>
@@ -310,7 +340,12 @@ export default function DcsApprovalScheduleDialog({ form_group_id, onClose, onCh
                 <section>
                   <SectionLabel>{translate("DCS_SCHED_APPROVERS")}</SectionLabel>
                   {has_approvers ? (
-                    <ApproverChain approvers={approvers} />
+                    <ApproverChain
+                      approvers={approvers}
+                      formGroupId={form_group_id}
+                      onCopied={() => showSuccess(translate("DCS_SCHED_LINK_COPIED"))}
+                      onFailed={(message) => showError(message || translate("DCS_ERROR_GENERIC"))}
+                    />
                   ) : (
                     <p className="text-sm px-3 py-2.5" style={{ backgroundColor: "rgba(243,156,18,0.08)", borderLeft: "4px solid #F39C12", color: "#B9770E", fontFamily: FONT }}>
                       {translate("DCS_SCHED_NO_APPROVERS")}

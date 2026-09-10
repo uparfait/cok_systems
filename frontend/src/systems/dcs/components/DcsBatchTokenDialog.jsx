@@ -19,7 +19,7 @@ function format_countdown(seconds) {
  * The gate in front of every batch approval: no record is fetched until
  * the emailed code is exchanged for a session signature.
  */
-export default function DcsBatchTokenDialog({ maskedEmail, busy, resending, onVerify, onResend, notice }) {
+export default function DcsBatchTokenDialog({ maskedEmail, busy, resending, onVerify, onResend, notice, sendFailed }) {
   const { translate } = useDcsLanguage();
   const [token_value, setTokenValue] = useState("");
   const [seconds_left, setSecondsLeft] = useState(RESEND_SECONDS);
@@ -78,7 +78,17 @@ export default function DcsBatchTokenDialog({ maskedEmail, busy, resending, onVe
           </DcsButtonPrimary>
 
           <div className="mt-3 text-center">
-            {seconds_left > 0 ? (
+            {sendFailed ? (
+              <button
+                type="button"
+                onClick={handle_resend}
+                disabled={resending}
+                className="dcs-retry-link text-xs disabled:opacity-60"
+                style={{ fontFamily: fontHeading }}
+              >
+                {translate("DCS_MYAPPROVALS_RETRY")}
+              </button>
+            ) : seconds_left > 0 ? (
               <p className="text-xs" style={{ color: GRAY, fontFamily: fontHeading }}>
                 {translate("DCS_BATCH_RESEND_IN", { time: format_countdown(seconds_left) })}
               </p>

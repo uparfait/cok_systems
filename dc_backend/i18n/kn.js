@@ -108,6 +108,8 @@ module.exports = {
   APPROVAL_SESSION_INVALID: "Igihe cyawe cyarangiye. Ongera wandike kode yoherejwe kuri imeyili yawe.",
   APPROVAL_IDEMPOTENCY_REQUIRED: "Urufunguzo rwa gisabwa rurabura",
   APPROVAL_OTP_RESENT: "Kode nshya yoherejwe kuri imeyili yawe",
+  APPROVAL_LINK_READY: "Umurongo wo kwemeza witeguye",
+  APPROVAL_LINK_UNAVAILABLE: "Nta murongo utegereje uwo wemeza",
   APPROVAL_OTP_LOCKED: "Imibare myinshi itari yo - uyu muhora wo kwemeza wafunzwe",
   APPROVAL_OTP_VERIFIED: "Umubare w'ibanga wemejwe neza",
   APPROVAL_DETAILS_FETCHED: "Ibisobanuro byo kwemeza byabonetse neza",

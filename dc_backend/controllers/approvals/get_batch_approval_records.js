@@ -28,15 +28,23 @@ async function get_batch_approval_records(req, res) {
       submissions_model.list_by_approval_request(request._id, 500),
     ]);
 
+    const decisions = approver.record_decisions || [];
+
     return res.status(200).json(
       success_response(req, "APPROVAL_OTP_VERIFIED", {
         email: approver.email,
         schema: form_version ? form_version.schema : null,
-        submissions: submissions.map((submission) => ({
-          data: submission.data,
-          version: submission.version,
-          submitted_at: submission.submitted_at,
-        })),
+        submissions: submissions.map((submission) => {
+          const own = decisions.find((entry) => entry.submission_id === submission._id.toString());
+          return {
+            id: submission._id.toString(),
+            data: submission.data,
+            version: submission.version,
+            submitted_at: submission.submitted_at,
+            my_decision: own ? own.status : null,
+            my_comment: own ? own.comment : null,
+          };
+        }),
       }),
     );
   } catch (error) {

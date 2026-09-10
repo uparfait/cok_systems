@@ -38,6 +38,10 @@ export function save_approval_settings(form_group_id, approved_retention) {
   return dcs_request(`/approvals/settings/${form_group_id}`, "PUT", { approved_retention });
 }
 
+/** Authenticated: one approver's batch link, to hand over manually. */
+export function get_approver_link(form_group_id, email) {
+  return dcs_request(`/approvals/schedule/${form_group_id}/link/${encodeURIComponent(email)}`, "GET");
+}
 /** Authenticated: cancels a form's waiting approval schedule. */
 export function cancel_approval_schedule(form_group_id) {
   return dcs_request(`/approvals/schedule/${form_group_id}`, "DELETE");
@@ -73,6 +77,15 @@ export function resend_batch_approval_otp(token) {
   return dcs_request(`/public/batch-approvals/${token}/resend`, "POST", {});
 }
 
+/** Public: decides one record of the batch on its own. */
+export function submit_batch_record_decision(token, submission_id, decision, comment, idempotency_key) {
+  return dcs_request(
+    `/public/batch-approvals/${token}/records/${submission_id}/decision`,
+    "POST",
+    { decision, comment },
+    { headers: Object.assign({}, session_headers(token), { "x-idempotency-key": idempotency_key }) },
+  );
+}
 /**
  * Public: records the approver's batch decision. The session signature
  * authorizes it and the idempotency key makes a repeated click harmless.
