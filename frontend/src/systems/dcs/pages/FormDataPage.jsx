@@ -5,29 +5,22 @@ import { useSilentPolling } from "../hooks/useSilentPolling.js";
 import { useSubmissionsTable } from "../hooks/useSubmissionsTable.js";
 import { get_form_versions } from "../services/formsService.js";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
-import { get_field_text } from "../fields/fieldText.js";
+import {
+  NON_DATA_TYPES,
+  MEDIA_ANSWER_TYPES,
+  GEO_CELL_TABLE_MIN_WIDTH_PX,
+  has_any_label,
+  column_label,
+} from "../fields/dataColumns.jsx";
 import DcsDataTable from "../components/DcsDataTable.jsx";
 import DcsDataTableFileCell from "../components/DcsDataTableFileCell.jsx";
-import DcsDataTableGeoCell, { GEO_CELL_TABLE_MIN_WIDTH_PX } from "../components/DcsDataTableGeoCell.jsx";
+import DcsDataTableGeoCell from "../components/DcsDataTableGeoCell.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import { approval_status_label_key } from "../components/DcsApprovalStatusChip.jsx";
 import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
 import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
-
-const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group", "image_block", "horizontal_line"];
-const MEDIA_ANSWER_TYPES = ["image", "video", "audio", "file_upload", "signature"];
-
-/**
- * A field with no label authored in any language has nothing meaningful to
- * head its own column with - rather than show a blank header, that column
- * is left out of the table entirely, in every language, not only the one
- * currently active.
- */
-function has_any_label(field) {
-  return field.type === "geolocation" || ["en", "kn", "fr"].some((language_code) => !!get_field_text(field.label, language_code));
-}
 
 function build_rows(submissions, data_fields, translate) {
   return (submissions || []).map((submission) => {
@@ -94,10 +87,7 @@ export default function FormDataPage() {
     .filter(has_any_label)
     .map((field) =>
       Object.assign(
-        // GeoLocation carries no question label of its own (see
-        // NON_LABEL_TYPES) - falling back to a fixed header keeps this
-        // column from ever showing up blank.
-        { key: field.id, label: get_field_text(field.label, language) || (field.type === "geolocation" ? translate("DCS_GEO_TABLE_HEADER_LABEL") : "") },
+        { key: field.id, label: column_label(field, language, translate) },
         field.type === "geolocation" ? { minWidthPx: GEO_CELL_TABLE_MIN_WIDTH_PX } : {},
       ),
     )

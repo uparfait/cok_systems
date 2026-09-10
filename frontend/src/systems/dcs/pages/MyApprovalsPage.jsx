@@ -3,8 +3,7 @@ import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx
 import { useAuth } from "../../../core/contexts/AuthContext";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_my_approvals, submit_approval_decision, upload_approval_file } from "../services/approvalsService.js";
-import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
-import { get_field_text } from "../fields/fieldText.js";
+import { collect_data_fields, column_label, render_answer_cell, column_width_for } from "../fields/dataColumns.jsx";
 import DcsFormLoadingSpinner from "../components/DcsFormLoadingSpinner.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
@@ -13,7 +12,8 @@ import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsApprovalDecisionModal from "../components/DcsApprovalDecisionModal.jsx";
 import DcsApproverPanel from "../components/DcsApproverPanel.jsx";
 import DcsDetailsToggleButton from "../components/DcsDetailsToggleButton.jsx";
-import DcsPagerButton from "../components/DcsPagerButton.jsx";
+import DcsApprovalFormView from "../components/DcsApprovalFormView.jsx";
+import DcsApprovalSettingsButton from "../components/DcsApprovalSettingsButton.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const PRIMARY = "#056daa";
@@ -41,24 +41,6 @@ const STATE_STYLES = {
   approved: { background: "rgba(76,175,80,0.15)", color: SUCCESS, key: "DCS_APPROVAL_STATUS_APPROVED" },
   rejected: { background: "rgba(231,76,60,0.12)", color: DANGER, key: "DCS_APPROVAL_STATUS_REJECTED" },
 };
-
-// One submitted answer rendered read-only, same rules as the single approval page.
-function AnswerValue({ value }) {
-  const { translate } = useDcsLanguage();
-  if (value === null || value === undefined || value === "") return <span style={{ color: GRAY }}>-</span>;
-  if (Array.isArray(value)) return <span>{value.join(", ")}</span>;
-  if (typeof value === "object") {
-    if (value.url) {
-      return (
-        <a href={value.url} target="_blank" rel="noreferrer" className="underline" style={{ color: PRIMARY }}>
-          {value.name || translate("DCS_APPROVAL_FILE_LINK")}
-        </a>
-      );
-    }
-    return <span>{value.name || JSON.stringify(value)}</span>;
-  }
-  return <span>{String(value)}</span>;
-}
 
 function StatePill({ record, translate }) {
   const style = STATE_STYLES[record.state] || STATE_STYLES.skipped;
@@ -243,7 +225,7 @@ function MyApprovalsPageContent() {
   // Table columns: every field of the shown form, so the whole record is reviewable in place.
   const field_columns = useMemo(() => {
     if (!active_form_key || !forms[active_form_key]) return [];
-    return flatten_fields(forms[active_form_key].schema.fields || []).filter((field) => field.type !== "group");
+    return collect_data_fields(forms[active_form_key].schema.fields);
   }, [active_form_key, forms]);
 
   // The sidebar mirrors the reference record: the one on screen in form view,
@@ -372,18 +354,15 @@ function MyApprovalsPageContent() {
       </div>
     );
 
-  const label_of = (field) => get_field_text(field.label, language) || field.id;
-  const form_view_fields = form_record
-    ? flatten_fields((forms[form_record.form_key] || { schema: { fields: [] } }).schema.fields || []).filter(
-        (field) => form_record.data && Object.prototype.hasOwnProperty.call(form_record.data, field.id),
-      )
-    : [];
+  const label_of = (field) => column_label(field, language, translate);
 
   return (
     // On desktop the page is fixed to the viewport and only the records list scrolls.
     <div className="min-h-screen p-2 sm:p-4 min-[760px]:p-6 lg:h-screen lg:overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT }}>
       <div className="flex flex-col lg:flex-row lg:gap-0 max-w-[1400px] mx-auto items-stretch lg:items-start lg:h-full">
-        <div className={`shrink-0 w-full lg:h-full dcs-details-panel ${panel_open ? "is-open mb-3 lg:mb-0" : "is-closed"}`}>
+        {panel_open && <div className="dcs-details-backdrop" onClick={() => setPanelOpen(false)} />}
+
+        <div className={`shrink-0 w-full lg:h-full dcs-details-panel ${panel_open ? "is-open" : "is-closed"}`}>
           <DcsApproverPanel
             user={user}
             initials={initials}
@@ -392,6 +371,21 @@ function MyApprovalsPageContent() {
             assignedTo={assigned_to}
             message={sidebar_message}
             onClose={() => setPanelOpen(false)}
+            settingsSlot={
+              <DcsApprovalSettingsButton
+                view={view}
+                onViewChange={setView}
+                formOptions={form_options}
+                activeFormKey={active_form_key}
+                onFormChange={(key) => load(key)}
+                busy={loading_more}
+              />
+            }
+            progressNote={translate("DCS_MYAPPROVALS_VIEWED_HINT", {
+              viewed: records.filter((record) => viewed.has(record.id)).length,
+              total,
+              ready: approvable.length,
+            })}
           />
         </div>
 
@@ -401,46 +395,13 @@ function MyApprovalsPageContent() {
             <span className={`dcs-details-toggle-slot ${panel_open ? "is-hidden" : "is-shown"}`}>
               <DcsDetailsToggleButton isOpen={false} onClick={() => setPanelOpen(true)} />
             </span>
-            <div className="inline-flex border-2" style={{ borderColor: CARD_BORDER, backgroundColor: "#FFFFFF" }}>
-              {["table", "form"].map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setView(mode)}
-                  className="cursor-pointer text-sm font-bold px-4 py-2.5"
-                  style={{
-                    fontFamily: fontHeading,
-                    backgroundColor: view === mode ? PRIMARY : "transparent",
-                    color: view === mode ? "#FFFFFF" : GRAY,
-                  }}
-                >
-                  {translate(mode === "table" ? "DCS_MYAPPROVALS_TABLE_VIEW" : "DCS_MYAPPROVALS_FORM_VIEW")}
-                </button>
-              ))}
-            </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {form_options.length > 1 && (
-                <select
-                  value={active_form_key || ""}
-                  onChange={(event) => load(event.target.value)}
-                  disabled={loading_more}
-                  className="cok-auth-input pr-3 py-2 text-sm cursor-pointer"
-                  style={{ backgroundColor: "#FFFFFF" }}
-                >
-                  {form_options.map((option) => (
-                    <option key={option.form_key} value={option.form_key}>{option.form_name} ({option.count})</option>
-                  ))}
-                </select>
-              )}
               <DcsButtonPrimary onClick={() => setShowModal(true)} disabled={approvable.length === 0}>
                 {translate("DCS_MYAPPROVALS_APPROVE_ALL", { count: approvable.length })}
               </DcsButtonPrimary>
             </div>
           </div>
 
-          <p className="text-sm mt-3" style={{ color: "#555555", fontFamily: fontHeading }}>
-            {translate("DCS_MYAPPROVALS_VIEWED_HINT", { viewed: records.filter((record) => viewed.has(record.id)).length, total })}
-          </p>
 
           {total === 0 && !loading_more && (
             <div className="mt-6">
@@ -454,29 +415,31 @@ function MyApprovalsPageContent() {
 
               {/* max-h controls how many rows are visible (~44px header + ~48px per row) - scrolling inside reveals the next batch */}
               <div key="table" ref={table_scroll_ref} onScroll={handle_table_scroll} className="dcs-view-swap mt-3 mb-0 overflow-x-auto overflow-y-auto max-h-[60vh] lg:max-h-none bg-white border-2 min-[760px]:border-[5px] min-[760px]:rounded-[5px] lg:flex-1 lg:min-h-0" style={{ borderColor: CARD_BORDER }}>
-                <table className="w-full text-left" style={{ borderCollapse: "collapse" }}>
+                <table className="w-full text-left" style={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
                   <thead>
                     {/* Sticky on the th (not the tr) so the header survives vertical scrolling */}
                     <tr style={{ backgroundColor: PRIMARY }}>
                       {field_columns.map((field) => (
-                        <th key={field.id} className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap sticky top-0" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY }}>{label_of(field)}</th>
+                        <th key={field.id} className="dcs-approvals-head-cell px-4 py-3 text-sm font-bold text-white sticky top-0" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY, ...column_width_for(field) }}>{label_of(field)}</th>
                       ))}
-                      <th className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap sticky top-0" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY }}>{translate("DCS_MYAPPROVALS_COL_SUBMITTED")}</th>
-                      <th className="px-4 py-3 text-sm font-bold text-white whitespace-nowrap sticky top-0" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY }}>{translate("DCS_MYAPPROVALS_COL_STATUS")}</th>
+                      <th className="dcs-approvals-head-cell px-4 py-3 text-sm font-bold text-white whitespace-nowrap sticky top-0" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY }}>{translate("DCS_MYAPPROVALS_COL_SUBMITTED")}</th>
+                      <th className="dcs-approvals-head-cell px-4 py-3 text-sm font-bold text-white whitespace-nowrap sticky top-0" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY }}>{translate("DCS_MYAPPROVALS_COL_STATUS")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {records.map((record, row_index) => (
                       <tr key={record.id} className={`border-t ${row_index % 2 === 0 ? "dcs-approvals-row-odd" : "dcs-approvals-row-even"}`} style={{ borderColor: BORDER }}>
                         {field_columns.map((field) => (
-                          <td key={field.id} className="px-4 py-3 text-sm" style={{ color: NEUTRAL_DARK }}>
-                            <AnswerValue value={record.data[field.id]} />
+                          <td key={field.id} className="dcs-approvals-cell px-4 py-3 text-sm align-top" style={{ color: NEUTRAL_DARK, ...column_width_for(field) }}>
+                            <div className="dcs-approvals-cell-content">
+                              {render_answer_cell(field, record.data ? record.data[field.id] : undefined) || <span style={{ color: GRAY }}>-</span>}
+                            </div>
                           </td>
                         ))}
-                        <td className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: "#555555" }}>
+                        <td className="dcs-approvals-cell px-4 py-3 text-sm whitespace-nowrap" style={{ color: "#555555" }}>
                           {record.submitted_at ? new Date(record.submitted_at).toLocaleDateString() : "-"}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="dcs-approvals-cell px-4 py-3">
                           {record.state === "ready" ? (
                             <DecisionButtons record={record} translate={translate} onDecide={setDecisionTarget} />
                           ) : (
@@ -511,64 +474,35 @@ function MyApprovalsPageContent() {
             </>
           )}
 
+          {view === "form" && loading_more && records.length === 0 && (
+            <div className="dcs-view-swap mt-3 flex items-center justify-center gap-3 py-16 bg-white border-2 min-[760px]:border-[5px] min-[760px]:rounded-[5px] lg:flex-1" style={{ borderColor: CARD_BORDER }}>
+              <SpiralLoader padded={false} size={22} />
+              <span className="text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_LOADING_MORE")}</span>
+            </div>
+          )}
+
           {records.length > 0 && view === "form" && form_record && (
-            <div
-              key="form"
-              className="dcs-view-swap mt-3 bg-white border-2 min-[760px]:border-[5px] min-[760px]:rounded-[5px] flex flex-col overflow-hidden max-h-[70vh] lg:max-h-none lg:flex-1 lg:min-h-0"
-              style={{ borderColor: CARD_BORDER }}
-            >
-              <div className="shrink-0 p-3 sm:p-4 min-[760px]:p-6 pb-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderBottom: `2px solid ${CARD_BORDER}` }}>
-                <div className="min-w-0">
-                  <p className="text-base font-extrabold" style={{ color: PRIMARY, fontFamily: fontHeading }}>
-                    {(forms[form_record.form_key] && forms[form_record.form_key].form_name) || "-"}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: GRAY, fontFamily: fontHeading }}>
-                    {form_record.submitted_at ? new Date(form_record.submitted_at).toLocaleString() : ""}
-                  </p>
-                </div>
-                {form_record.state === "ready" ? (
+            <DcsApprovalFormView
+              record={form_record}
+              form={forms[form_record.form_key]}
+              index={Math.min(form_index, records.length - 1) + 1}
+              total={total}
+              loadingMore={loading_more}
+              canGoPrevious={form_index > 0 && !loading_more}
+              canGoNext={!loading_more && (form_index < records.length - 1 || has_more)}
+              onPrevious={() => setFormIndex(Math.max(0, form_index - 1))}
+              onNext={() => {
+                if (form_index < records.length - 1) setFormIndex(form_index + 1);
+                else load_more((loaded) => setFormIndex(Math.min(loaded - 1, form_index + 1)));
+              }}
+              decisionSlot={
+                form_record.state === "ready" ? (
                   <DecisionButtons record={form_record} translate={translate} onDecide={setDecisionTarget} />
                 ) : (
                   <StatePill record={form_record} translate={translate} />
-                )}
-              </div>
-
-              <div className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 min-[760px]:px-6 py-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-                <div className="w-full min-[760px]:max-w-[700px] mx-auto bg-white p-4 flex flex-col gap-4 border-0 min-[760px]:border-2" style={{ borderColor: PRIMARY }}>
-                  {form_view_fields.length === 0 && <p className="text-sm" style={{ color: GRAY }}>-</p>}
-                  {form_view_fields.map((field) => (
-                    <div key={field.id} className="flex flex-col gap-1.5">
-                      <span className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{label_of(field)}</span>
-                      <div className="text-sm px-3 py-2.5 border" style={{ borderColor: BORDER, backgroundColor: NEUTRAL_LIGHT, color: NEUTRAL_DARK }}>
-                        <AnswerValue value={form_record.data[field.id]} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="shrink-0 flex items-center justify-center gap-4 px-3 py-3 bg-white" style={{ borderTop: `2px solid ${CARD_BORDER}` }}>
-                <DcsPagerButton
-                  direction="previous"
-                  title={translate("DCS_MYAPPROVALS_PREVIOUS")}
-                  onClick={() => setFormIndex(Math.max(0, form_index - 1))}
-                  disabled={form_index <= 0 || loading_more}
-                />
-                <span className="text-sm font-bold whitespace-nowrap" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                  {translate("DCS_MYAPPROVALS_RECORD_OF", { index: Math.min(form_index, records.length - 1) + 1, total })}
-                </span>
-                <DcsPagerButton
-                  direction="next"
-                  title={translate("DCS_MYAPPROVALS_NEXT")}
-                  onClick={() => {
-                    if (form_index < records.length - 1) setFormIndex(form_index + 1);
-                    else load_more((loaded) => setFormIndex(Math.min(loaded - 1, form_index + 1)));
-                  }}
-                  disabled={loading_more || (form_index >= records.length - 1 && !has_more)}
-                />
-                {loading_more && <SpiralLoader padded={false} size={18} />}
-              </div>
-            </div>
+                )
+              }
+            />
           )}
         </div>
       </div>

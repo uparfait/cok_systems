@@ -74,16 +74,66 @@ async function list_by_approver_email(email, limit) {
  * One scroll batch of an approver's submissions for a single form version
  * (newest first), plus the total so the dashboard knows when to stop asking.
  */
-async function list_by_approver_email_page(email, form_group_id, version, skip, limit) {
+async function list_by_approver_email_page(email, form_group_id, version, skip, limit, decided_cutoff) {
   if (!email) return { items: [], total: 0 };
-  const filter = { "approval.steps.email": email.toString().trim().toLowerCase(), form_group_id };
+  const normalized_email = email.toString().trim().toLowerCase();
+  const filter = { "approval.steps.email": normalized_email, form_group_id };
   if (version !== undefined && version !== null) filter.version = Number(version);
-  const collection = get_db().collection(COLLECTION_NAME);
-  const [items, total] = await Promise.all([
-    // _id breaks submitted_at ties so a record can never appear in two batches or fall between them.
-    collection.find(filter).sort({ submitted_at: -1, _id: -1 }).skip(skip).limit(limit).toArray(),
-    collection.countDocuments(filter),
-  ]);
+
+  // This approver's own step decides both the ordering and the retention
+  // cut: still-to-act records come first oldest-first, everything already
+  // decided sinks below them, and decisions older than the form's window
+  // drop off the dashboard entirely.
+  const my_steps = { $filter: { input: { $ifNull: ["$approval.steps", []] }, as: "step", cond: { $eq: ["$$step.email", normalized_email] } } };
+  const pipeline = [
+    { $match: filter },
+    { $addFields: { dcs_my_steps: my_steps } },
+    {
+      $addFields: {
+        dcs_my_step: {
+          $ifNull: [
+            { $arrayElemAt: [{ $filter: { input: "$dcs_my_steps", as: "step", cond: { $eq: ["$$step.status", "pending"] } } }, 0] },
+            { $arrayElemAt: ["$dcs_my_steps", -1] },
+          ],
+        },
+      },
+    },
+    {
+      $addFields: {
+        // Decided means this approver has nothing left to do on it: either
+        // their own step is settled, or the whole approval already closed.
+        dcs_is_decided: {
+          $cond: [
+            {
+              $or: [
+                { $in: [{ $ifNull: ["$dcs_my_step.status", "pending"] }, ["approved", "rejected", "skipped"]] },
+                { $ne: [{ $ifNull: ["$approval.status", "pending"] }, "pending"] },
+              ],
+            },
+            1,
+            0,
+          ],
+        },
+        dcs_decided_at: {
+          $ifNull: ["$dcs_my_step.acted_at", { $ifNull: ["$approval.completed_at", "$submitted_at"] }],
+        },
+      },
+    },
+  ];
+  if (decided_cutoff) {
+    pipeline.push({ $match: { $or: [{ dcs_is_decided: 0 }, { dcs_decided_at: { $gte: decided_cutoff } }] } });
+  }
+  pipeline.push({ $sort: { dcs_is_decided: 1, submitted_at: 1, _id: 1 } });
+  pipeline.push({
+    $facet: {
+      items: [{ $skip: skip }, { $limit: limit }, { $project: { dcs_my_steps: 0, dcs_my_step: 0, dcs_is_decided: 0, dcs_decided_at: 0 } }],
+      total: [{ $count: "count" }],
+    },
+  });
+
+  const [result] = await get_db().collection(COLLECTION_NAME).aggregate(pipeline).toArray();
+  const items = (result && result.items) || [];
+  const total = result && result.total && result.total[0] ? result.total[0].count : 0;
   return { items, total };
 }
 

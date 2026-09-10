@@ -27,6 +27,10 @@ const {
 } = require("./models/approval_schedules_model.js");
 
 const {
+    ensure_approval_settings_indexes
+} = require("./models/approval_settings_model.js");
+
+const {
     ensure_approval_request_indexes
 } = require("./models/approval_requests_model.js");
 
@@ -516,6 +520,8 @@ connect_databases()
         await ensure_location_indexes();
 
         await ensure_approval_schedule_indexes();
+
+        await ensure_approval_settings_indexes();
 
         await ensure_approval_request_indexes();
 

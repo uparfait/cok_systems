@@ -4,6 +4,7 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import {
   get_approval_schedule,
   save_approval_schedule,
+  save_approval_settings,
   cancel_approval_schedule,
   send_approval_links_now,
 } from "../services/approvalsService.js";
@@ -152,6 +153,9 @@ export default function DcsApprovalScheduleDialog({ form_group_id, onClose, onCh
   const [count, setCount] = useState(10);
   const [datetime, setDatetime] = useState("");
   const [acting, setActing] = useState(false);
+  const [retention, setRetention] = useState("month");
+  const [retention_configured, setRetentionConfigured] = useState(true);
+  const [saving_retention, setSavingRetention] = useState(false);
 
   const load = () => {
     get_approval_schedule(form_group_id)
@@ -160,6 +164,8 @@ export default function DcsApprovalScheduleDialog({ form_group_id, onClose, onCh
         setApprovers(data.approvers || []);
         setSchedule(data.schedule || null);
         setRequests(data.requests || []);
+        setRetention(data.approved_retention || data.approved_retention_default || "month");
+        setRetentionConfigured(!!data.approved_retention);
         if (data.schedule) {
           setMode(data.schedule.trigger.type);
           if (data.schedule.trigger.type === "count") setCount(data.schedule.trigger.count);
@@ -180,6 +186,19 @@ export default function DcsApprovalScheduleDialog({ form_group_id, onClose, onCh
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form_group_id]);
 
+  const handle_save_retention = async () => {
+    setSavingRetention(true);
+    try {
+      const response = await save_approval_settings(form_group_id, retention);
+      showSuccess(response.message || translate("DCS_SCHED_SAVED"));
+      setRetentionConfigured(true);
+    } catch (error) {
+      showError(error.message || translate("DCS_ERROR_GENERIC"));
+    } finally {
+      setSavingRetention(false);
+    }
+  };
+
   const has_approvers = approvers.length > 0;
 
   const handle_action = async () => {
@@ -193,7 +212,7 @@ export default function DcsApprovalScheduleDialog({ form_group_id, onClose, onCh
         showSuccess(response.message || translate("DCS_SCHED_SENT"));
       } else {
         const trigger = mode === "count" ? { type: "count", count: Number(count) } : { type: "datetime", datetime: new Date(datetime).toISOString() };
-        const response = await save_approval_schedule(form_group_id, trigger);
+        const response = await save_approval_schedule(form_group_id, trigger, retention);
         showSuccess(response.message || translate("DCS_SCHED_SAVED"));
       }
       if (onChanged) onChanged();
@@ -312,6 +331,43 @@ export default function DcsApprovalScheduleDialog({ form_group_id, onClose, onCh
                   </div>
                 </section>
               </div>
+
+              <section className="mt-6">
+                <SectionLabel>{translate("DCS_SCHED_RETENTION")}</SectionLabel>
+                <div className="flex flex-wrap items-center gap-2">
+                  {["week", "month", "year"].map((window_key) => (
+                    <button
+                      key={window_key}
+                      type="button"
+                      disabled={acting}
+                      onClick={() => setRetention(window_key)}
+                      className="text-xs font-bold uppercase cursor-pointer px-3 py-2"
+                      style={{
+                        fontFamily: FONT,
+                        letterSpacing: 0.5,
+                        border: "1px solid #056daa",
+                        backgroundColor: retention === window_key ? "#056daa" : "transparent",
+                        color: retention === window_key ? "#FFFFFF" : "#056daa",
+                      }}
+                    >
+                      {translate("DCS_SCHED_RETENTION_" + window_key.toUpperCase())}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs mt-2" style={{ color: FADED, fontFamily: FONT }}>
+                  {translate("DCS_SCHED_RETENTION_HINT")}
+                  {!retention_configured ? " " + translate("DCS_SCHED_RETENTION_LEGACY") : ""}
+                </p>
+                <button
+                  type="button"
+                  onClick={handle_save_retention}
+                  disabled={saving_retention || acting}
+                  className="mt-3 text-xs font-bold uppercase cursor-pointer px-4 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{ fontFamily: FONT, letterSpacing: 0.5, backgroundColor: "#056daa", color: "#FFFFFF", border: "none" }}
+                >
+                  {saving_retention ? translate("DCS_SCHED_SAVING") : translate("DCS_SCHED_RETENTION_SAVE")}
+                </button>
+              </section>
 
               <section className="mt-6">
                 <SectionLabel>{translate("DCS_SCHED_HISTORY")}</SectionLabel>

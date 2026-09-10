@@ -132,14 +132,14 @@ function InlineFileLink({ fileName, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="cursor-pointer text-xs hover:underline flex items-center gap-1 rounded-none"
+      className="cursor-pointer text-xs hover:underline flex items-center gap-1 rounded-none max-w-full min-w-0"
       style={{ background: "none", border: "none", padding: 0, color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}
       title={fileName}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
         <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" fill="currentColor" />
       </svg>
-      {display_name}
+      <span className="truncate">{display_name}</span>
     </button>
   );
 }
@@ -198,7 +198,7 @@ export default function DcsDataTableFileCell({ value, fieldType }) {
 
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 max-w-full min-w-0 overflow-hidden">
         {render_inline_preview()}
       </div>
       {is_open && (

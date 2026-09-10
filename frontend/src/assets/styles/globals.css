@@ -1686,8 +1686,14 @@ background-color: #056daa;
 }
 
 .dcs-details-toggle:hover {
-  transform: scale(1.08);
-  box-shadow: 0 4px 14px rgba(5, 109, 170, 0.25);
+  background-color: #045d94;
+  border-color: #045d94;
+  box-shadow: 0 2px 8px rgba(5, 109, 170, 0.25);
+}
+
+.dcs-details-toggle:not(.is-open):hover {
+  background-color: rgba(5, 109, 170, 0.1);
+  border-color: #045d94;
 }
 
 .dcs-details-toggle:active {
@@ -1823,4 +1829,220 @@ background-color: #056daa;
 
 .dcs-retry-link:hover {
   color: #045d94;
+}
+
+/* The approvals form view renders the real public form with the submitted
+   answers already in it: everything the respondent saw (paragraphs, images,
+   layout) stays visible, but nothing can be changed, and the form's own
+   language switcher row is dropped. */
+.dcs-readonly-form {
+  pointer-events: none;
+  user-select: text;
+}
+
+.dcs-readonly-form > div > div:first-child {
+  display: none;
+}
+
+.dcs-readonly-form a,
+.dcs-readonly-form img,
+.dcs-readonly-form video,
+.dcs-readonly-form audio {
+  pointer-events: auto;
+}
+
+.dcs-readonly-form input,
+.dcs-readonly-form textarea,
+.dcs-readonly-form select {
+  background-color: #F7F9FB;
+}
+
+/* Records table: column separators so wide rows stay readable. */
+.dcs-approvals-cell {
+  border-right: 1px solid #E0E0E0;
+}
+
+.dcs-approvals-cell:last-child {
+  border-right: none;
+}
+
+.dcs-approvals-head-cell {
+  border-right: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.dcs-approvals-head-cell:last-child {
+  border-right: none;
+}
+
+/* Read-only answers: a choice list shows only what was actually chosen, so
+   unselected choices are dropped instead of padding the record out with
+   options nobody picked. */
+.dcs-readonly-form label:has(> input[type="checkbox"]:not(:checked)),
+.dcs-readonly-form label:has(> input[type="radio"]:not(:checked)) {
+  display: none;
+}
+
+.dcs-readonly-form select[multiple] option:not(:checked) {
+  display: none;
+}
+
+.dcs-readonly-form label:has(> input:checked) > input {
+  accent-color: #056daa;
+}
+
+/* Below the desktop breakpoint the approver panel stays a real sidebar: it
+   slides in from the left over the records instead of stacking above them. */
+@media (max-width: 1023px) {
+  .dcs-details-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 60;
+    width: 86%;
+    max-width: 320px;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    transition: transform 0.32s ease, opacity 0.25s ease;
+  }
+
+  .dcs-details-panel.is-open {
+    transform: translateX(0);
+    opacity: 1;
+    max-height: none;
+    height: 100%;
+    margin: 0;
+  }
+
+  .dcs-details-panel.is-closed {
+    transform: translateX(-100%);
+    opacity: 0;
+    max-height: none;
+    height: 100%;
+    margin: 0;
+    visibility: hidden;
+  }
+}
+
+.dcs-details-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background-color: rgba(0, 0, 0, 0.35);
+  animation: dcs-view-fade-in 0.25s ease both;
+}
+
+@media (min-width: 1024px) {
+  .dcs-details-backdrop {
+    display: none;
+  }
+}
+
+/* Table / form view switch on the approvals page: icon-only toggle. */
+.dcs-view-switch {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.25s ease;
+}
+
+.dcs-view-switch.is-active {
+  background-color: #056daa;
+}
+
+.dcs-view-switch:not(.is-active):hover {
+  background-color: rgba(5, 109, 170, 0.12);
+}
+
+/* Approver panel settings: a ticking gear pinned to the panel's bottom
+   right corner, opening view / form / language controls above itself. */
+.dcs-approval-settings {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
+}
+
+.dcs-approval-settings-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(5, 109, 170, 0.3);
+  transition: box-shadow 0.2s ease;
+}
+
+.dcs-approval-settings-button:hover {
+  box-shadow: 0 6px 18px rgba(5, 109, 170, 0.45);
+}
+
+.dcs-approval-settings-button svg {
+  transition: transform 0.3s ease;
+}
+
+@keyframes dcs-settings-tick {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(5, 109, 170, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgba(5, 109, 170, 0);
+  }
+}
+
+.dcs-approval-settings-button.is-ticking {
+  animation: dcs-settings-tick 2s ease-out infinite;
+}
+
+.dcs-approval-settings-panel {
+  position: absolute;
+  right: 0;
+  bottom: 42px;
+  width: 250px;
+  max-width: calc(100vw - 48px);
+  background-color: #ffffff;
+  border: 2px solid;
+  padding: 14px;
+  animation: dcs-view-fade-in 0.25s ease both;
+}
+
+/* Approvals table: a long answer wraps inside its own column instead of
+   stretching the row or bleeding into the next cell, and any media the
+   shared file cell renders stays within the column too. */
+.dcs-approvals-cell-content {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.dcs-approvals-cell-content img,
+.dcs-approvals-cell-content video,
+.dcs-approvals-cell-content canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* The approver panel and everything inside it stays within its width. */
+.dcs-details-panel,
+.dcs-details-panel * {
+  min-width: 0;
+}
+
+.dcs-details-panel p,
+.dcs-details-panel span,
+.dcs-details-panel a {
+  overflow-wrap: anywhere;
 }

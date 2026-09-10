@@ -1,5 +1,6 @@
 import { evaluate_rule, build_trimmed_evaluation_data } from "./engine.js";
 import { flatten_fields, build_dependency_graph, build_field_parent_map, is_visible_through_ancestors } from "./dependencyGraph.js";
+import { build_validation_condition } from "../builder/validationOperators.js";
 import { get_field_text, get_field_options_state } from "../fields/fieldText.js";
 
 const PARENT_GROUP_CAPABLE_TYPES = ["single_select", "multi_select", "select_group"];
@@ -145,7 +146,22 @@ export function validate_submission_client_side(schema, submitted_data, language
     }
 
     (field.validation_rules || []).forEach((validation_rule) => {
-      if (!validation_rule.condition) return;
+      // The condition is REBUILT from the rule's operator metadata against
+      // this very field - a stored condition can be stale (older builder,
+      // or copied along with a duplicated field so its var still points at
+      // the original field id) and must never be what gets enforced.
+      // Mirrors dc_backend/jsonlogic/validation_condition.js.
+      const condition = validation_rule.operator
+        ? build_validation_condition(
+            field.id,
+            validation_rule.operator,
+            validation_rule.value,
+            validation_rule.parent_field_id,
+            validation_rule.parent_value,
+            field.type,
+          ) || validation_rule.condition
+        : validation_rule.condition;
+      if (!condition) return;
       // A value rule judges an ANSWER - an optional field left empty must
       // never fail "at least 10", "must be positive", "min 3 characters", a
       // date/time bound or a selections count (mandatory-ness is its own
@@ -159,7 +175,7 @@ export function validate_submission_client_side(schema, submitted_data, language
       ) {
         return;
       }
-      const rule_result = evaluate_rule(validation_rule.condition, trimmed_data);
+      const rule_result = evaluate_rule(condition, trimmed_data);
       const satisfied = rule_result.error ? false : rule_result.value !== false;
 
       if (!satisfied) {

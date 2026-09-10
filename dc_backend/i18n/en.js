@@ -96,6 +96,7 @@ module.exports = {
   APPROVAL_DECISION_RECORDED: "Your decision was recorded successfully",
   APPROVAL_SCHEDULE_FETCHED: "Approval schedule fetched successfully",
   APPROVAL_SCHEDULE_SAVED: "Approval schedule saved successfully",
+  APPROVAL_SETTINGS_SAVED: "Dashboard settings saved successfully",
   APPROVAL_SCHEDULE_CANCELLED: "Approval schedule cancelled",
   APPROVAL_SCHEDULE_NOT_FOUND: "This form has no approval schedule waiting to fire",
   APPROVAL_NO_APPROVERS_CONFIGURED: "This form has no approvers configured in its approval flow settings",

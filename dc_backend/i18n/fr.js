@@ -96,6 +96,7 @@ module.exports = {
   APPROVAL_DECISION_RECORDED: "Votre décision a été enregistrée avec succès",
   APPROVAL_SCHEDULE_FETCHED: "Planification d'approbation récupérée avec succès",
   APPROVAL_SCHEDULE_SAVED: "Planification d'approbation enregistrée avec succès",
+  APPROVAL_SETTINGS_SAVED: "Parametres du tableau de bord enregistres avec succes",
   APPROVAL_SCHEDULE_CANCELLED: "Planification d'approbation annulée",
   APPROVAL_SCHEDULE_NOT_FOUND: "Ce formulaire n'a aucune planification d'approbation en attente",
   APPROVAL_NO_APPROVERS_CONFIGURED: "Ce formulaire n'a aucun approbateur configuré dans ses paramètres de flux d'approbation",

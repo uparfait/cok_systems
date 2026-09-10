@@ -28,8 +28,13 @@ export function get_approval_schedule(form_group_id) {
 }
 
 /** Authenticated: creates or replaces a form's approval schedule - just the timer; approvers come from the form's approval flow. */
-export function save_approval_schedule(form_group_id, trigger) {
-  return dcs_request(`/approvals/schedule/${form_group_id}`, "PUT", { trigger });
+export function save_approval_schedule(form_group_id, trigger, approved_retention) {
+  return dcs_request(`/approvals/schedule/${form_group_id}`, "PUT", { trigger, approved_retention });
+}
+
+/** Authenticated: saves only the approver-dashboard settings - sends nothing. */
+export function save_approval_settings(form_group_id, approved_retention) {
+  return dcs_request(`/approvals/settings/${form_group_id}`, "PUT", { approved_retention });
 }
 
 /** Authenticated: cancels a form's waiting approval schedule. */

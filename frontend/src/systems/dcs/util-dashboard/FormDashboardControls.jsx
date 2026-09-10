@@ -5,6 +5,7 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_dashboard } from "./dashboardService.js";
 import { generate_and_save } from "./autoGenerate.js";
 import GenerationProgress from "./GenerationProgress.jsx";
+import GeneratedWidgetsReview from "./GeneratedWidgetsReview.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
@@ -13,7 +14,10 @@ import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
  * automatically from ALL of the form's fields - nothing to configure: while
  * the dashboard state is still being checked a loader shows; without a
  * dashboard (and the right to edit the form) only "Generate dashboard"
- * shows, with live progress and messages; once it exists, "View dashboard"
+ * shows, with live progress and messages; a fresh generation NEVER
+ * redirects - it opens the review list of every generated widget (no data
+ * loaded) where the user prunes widgets one by one or by field and adjusts
+ * titles and descriptions first; once a dashboard exists, "View dashboard"
  * opens the full-screen dashboard page, where it can also be regenerated or
  * deleted.
  */
@@ -27,6 +31,7 @@ export default function FormDashboardControls({ projectId, form }) {
   const [exists, setExists] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ percent: 0, message_key: "" });
+  const [review_widgets, setReviewWidgets] = useState(null);
 
   useEffect(() => {
     let is_mounted = true;
@@ -54,10 +59,12 @@ export default function FormDashboardControls({ projectId, form }) {
       const saved_widgets = await generate_and_save(form, translate, (percent, message_key) =>
         setProgress({ percent, message_key }),
       );
-      setExists(true);
+      setExists(saved_widgets.length > 0);
       showSuccess(translate("DCS_DB_GENERATED_TOAST", { count: saved_widgets.length }));
-      // The freshly generated dashboard opens right away, full screen.
-      navigate(dashboard_path);
+      // No redirect: the user first reviews the generated widgets (nothing
+      // loads data here) and decides what to keep before opening the full
+      // basic dashboard.
+      setReviewWidgets(saved_widgets);
     } catch (error) {
       showError(error.is_translation_key ? translate(error.message) : error.message || translate("DCS_ERROR_GENERIC"));
     } finally {
@@ -77,6 +84,14 @@ export default function FormDashboardControls({ projectId, form }) {
         </div>
       ) : generating ? (
         <GenerationProgress percent={progress.percent} messageKey={progress.message_key} />
+      ) : review_widgets ? (
+        <GeneratedWidgetsReview
+          form={form}
+          initialWidgets={review_widgets}
+          onOpenDashboard={() => navigate(dashboard_path)}
+          onClose={() => setReviewWidgets(null)}
+          onCountChange={(count) => setExists(count > 0)}
+        />
       ) : (
         <>
           <p className="text-xs mb-3" style={{ color: "#9E9E9E" }}>

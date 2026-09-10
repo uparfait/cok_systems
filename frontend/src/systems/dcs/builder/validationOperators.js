@@ -246,6 +246,13 @@ export function build_validation_condition(field_id, operator_id, value, parent_
   // already does for a date answer.
   const is_time_bound = field_type === "time" && (operator_id === "min_value" || operator_id === "max_value");
   const numeric_value = is_time_bound ? value : Number(value);
+  // A numeric operator whose authored value cannot be read as a number
+  // would build a NaN comparison that fails everything - build nothing
+  // instead (the rule stays inert until a real value is typed). Mirrors
+  // dc_backend/jsonlogic/validation_condition.js.
+  if (!is_time_bound && NUMERIC_VALUE_OPERATOR_IDS.includes(operator_id) && !Number.isFinite(numeric_value)) {
+    return null;
+  }
 
   switch (operator_id) {
     case "equals":

@@ -1,5 +1,6 @@
 const { evaluate_rule, build_trimmed_evaluation_data } = require("./engine.js");
 const { flatten_fields, build_dependency_graph, build_field_parent_map, is_visible_through_ancestors } = require("./dependency_graph.js");
+const { effective_rule_condition } = require("./validation_condition.js");
 const { translate } = require("../i18n/index.js");
 const { file_extension_allowed } = require("../constants/file_type_groups.js");
 
@@ -229,7 +230,12 @@ function validate_submission_data(schema, submitted_data, language) {
     }
 
     (field.validation_rules || []).forEach((validation_rule) => {
-      if (!validation_rule.condition) return;
+      // The condition is REBUILT from the rule's operator metadata against
+      // this very field - a stored condition can be stale (older builder,
+      // or copied along with a duplicated field so its var still points at
+      // the original field id) and must never be what gets enforced.
+      const condition = effective_rule_condition(field, validation_rule);
+      if (!condition) return;
       // A value rule judges an ANSWER - an optional field left empty must
       // never fail "at least 10", "must be positive", "min 3 characters",
       // a date/time bound or a selections count (whether an answer is
@@ -244,7 +250,7 @@ function validate_submission_data(schema, submitted_data, language) {
       ) {
         return;
       }
-      const rule_result = evaluate_rule(validation_rule.condition, trimmed_data);
+      const rule_result = evaluate_rule(condition, trimmed_data);
       const satisfied = rule_result.error ? false : rule_result.value !== false;
       if (satisfied) return;
 

@@ -2,19 +2,18 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_dashboard, save_dashboard, get_dashboard_data } from "./dashboardService.js";
-import { generate_and_save } from "./autoGenerate.js";
+import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
 import { fold_family, widgets_data_signature } from "./chartCatalog.js";
-import { IconButton, FULLSCREEN_SVG, EXIT_SVG, FIT_SVG, SCROLL_SVG, REFRESH_SVG, TRASH_SVG } from "./BoardIcons.jsx";
-import GenerationProgress from "./GenerationProgress.jsx";
+import BoardHeader from "./BoardHeader.jsx";
+import RegenerateDialog from "./RegenerateDialog.jsx";
+import GeneratedWidgetsReview from "./GeneratedWidgetsReview.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
-import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import WidgetCard from "./WidgetCard.jsx";
 
 const REFRESH_INTERVAL_MS = 30000;
-const DANGER = "#E74C3C";
 
 // Flexible auto-grow grid: every card carries a size-based flex-basis, and
 // `grow` lets the items of an incomplete last row stretch over the leftover
@@ -41,7 +40,14 @@ const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports
  * the form's own fields, so there is nothing to configure - the page only
  * views (live data, silently refreshed every 30 seconds, with a
  * dashboard-wide period filter). Users allowed to edit the form can
- * regenerate the whole dashboard (with visible progress) or delete it.
+ * regenerate the dashboard - choosing between "generate and update" (only
+ * widgets that do not exist yet are added, everything kept stays untouched)
+ * and "overwrite" (a fresh board replaces the current one) - or delete it.
+ * A regeneration NEVER shows data right away: the result opens in the
+ * review list where widgets can be deleted (one by one, or every widget of
+ * a field at once) and retitled first, and while that review is open NO
+ * widget fetches or refreshes anything - fetching resumes only once the
+ * review is finished or canceled.
  */
 export default function DashboardPage({ form }) {
   const { translate } = useDcsLanguage();
@@ -54,6 +60,10 @@ export default function DashboardPage({ form }) {
   const [progress, setProgress] = useState({ percent: 0, message_key: "" });
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState(null);
+  const [regen_dialog, setRegenDialog] = useState(false);
+  // While review_widgets is set the board is FROZEN behind the review list:
+  // the grid is not rendered and no widget may fetch or refresh data.
+  const [review_widgets, setReviewWidgets] = useState(null);
 
   const [data_by_widget, setDataByWidget] = useState({});
   const [data_loading, setDataLoading] = useState(false);
@@ -67,6 +77,8 @@ export default function DashboardPage({ form }) {
   const applied_period_ref = useRef({ preset: "this_year", from: null, to: null });
   const widgets_ref = useRef([]);
   widgets_ref.current = widgets;
+  const frozen_ref = useRef(false);
+  frozen_ref.current = generating || review_widgets !== null;
 
   // Browser-native full screen with two viewing modes ("fit" zooms the whole
   // board onto one screen, "scroll" keeps natural size), the self-fitting
@@ -85,7 +97,6 @@ export default function DashboardPage({ form }) {
     show_header,
     schedule_header_hide,
   } = useBoardFullscreen();
-  const header_ref = useRef(null);
 
   useEffect(() => {
     let is_mounted = true;
@@ -169,15 +180,18 @@ export default function DashboardPage({ form }) {
   // change to what a widget actually CHARTS refetches its data. Removing a
   // widget updates the signature by hand so the survivors never refetch,
   // and same-family look flips (see fold_family) never refetch at all.
+  // While the post-regeneration review is open NOTHING fetches: the effect
+  // re-runs the moment the review closes and only then compares signatures,
+  // so the regenerated board loads exactly once, after the user is done.
   const data_signature_ref = useRef("");
   useEffect(() => {
-    if (loading) return;
+    if (loading || review_widgets !== null) return;
     const signature = widgets_data_signature(widgets);
     if (signature === data_signature_ref.current) return;
     data_signature_ref.current = signature;
     fetch_data(widgets, applied_period_ref.current, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, widgets]);
+  }, [loading, widgets, review_widgets]);
 
   // The generated board is deliberately large (every field categorized by
   // every other) - each card can be removed on its own, after a warning.
@@ -238,6 +252,9 @@ export default function DashboardPage({ form }) {
 
   useEffect(() => {
     const interval_id = window.setInterval(() => {
+      // A regeneration in progress or under review freezes the board - the
+      // silent refresh sits out until the review is finished or canceled.
+      if (frozen_ref.current) return;
       fetch_data(widgets_ref.current, applied_period_ref.current, true);
     }, REFRESH_INTERVAL_MS);
     return () => window.clearInterval(interval_id);
@@ -255,7 +272,7 @@ export default function DashboardPage({ form }) {
   };
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || frozen_ref.current) return;
     if (period !== "custom") {
       setFrom("");
       setTo("");
@@ -265,22 +282,38 @@ export default function DashboardPage({ form }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
-  const handle_generate = async () => {
-    setConfirming(null);
+  // "update" adds only the widgets that do not exist yet; "overwrite"
+  // replaces the whole board. Either way the fresh board opens in the
+  // review list (no data loads there) instead of fetching right away.
+  const handle_generate = async (mode) => {
+    setRegenDialog(false);
     setGenerating(true);
     setProgress({ percent: 5, message_key: "DCS_DB_GEN_PROGRESS_ANALYZE" });
     try {
-      const saved_widgets = await generate_and_save(form, translate, (percent, message_key) =>
+      const result = await regenerate_and_save(form, translate, mode, widgets, (percent, message_key) =>
         setProgress({ percent, message_key }),
       );
-      setWidgets(saved_widgets);
-      showSuccess(translate("DCS_DB_GENERATED_TOAST", { count: saved_widgets.length }));
+      setWidgets(result.widgets);
+      setReviewWidgets(result.widgets);
+      if (mode === "update") {
+        showSuccess(
+          result.added > 0
+            ? translate("DCS_DB_REGEN_UPDATED_TOAST", { count: result.added })
+            : translate("DCS_DB_REGEN_NO_NEW_TOAST"),
+        );
+      } else {
+        showSuccess(translate("DCS_DB_GENERATED_TOAST", { count: result.widgets.length }));
+      }
     } catch (error) {
       showError(error.is_translation_key ? translate(error.message) : error.message || translate("DCS_ERROR_GENERIC"));
     } finally {
       setGenerating(false);
     }
   };
+
+  // Finishing or canceling the review unfreezes the board: the signature
+  // effect runs again and fetches the (possibly pruned) widgets in parallel.
+  const close_review = () => setReviewWidgets(null);
 
   const handle_delete = async () => {
     setDeleting(true);
@@ -309,97 +342,44 @@ export default function DashboardPage({ form }) {
           : undefined
       }
     >
-      {is_fullscreen && (
-        // Invisible strip along the top edge: hovering it (or touching it)
-        // slides the fixed header back in.
-        <div
-          className="fixed top-0 left-0 right-0"
-          style={{ height: 22, zIndex: 29 }}
-          onMouseEnter={show_header}
-          onTouchStart={() => {
-            show_header();
-            schedule_header_hide(2500);
-          }}
-        />
-      )}
-      <div
-        ref={header_ref}
-        className="bg-white border-2 px-3 py-2 sm:px-4 flex flex-col gap-2"
-        onMouseEnter={is_fullscreen ? show_header : undefined}
-        onMouseLeave={is_fullscreen ? () => schedule_header_hide(100) : undefined}
-        style={{
-          borderColor: "#E0E0E0",
-          ...(is_fullscreen
-            ? {
-                position: "fixed",
-                top: 0,
-                left: 0,
-                right: 0,
-                zIndex: 30,
-                opacity: header_visible ? 1 : 0,
-                transform: header_visible ? "translateY(0)" : "translateY(-105%)",
-                pointerEvents: header_visible ? "auto" : "none",
-                transition: "opacity 240ms ease, transform 240ms ease",
-                boxShadow: "0 6px 18px rgba(0,0,0,0.14)",
-              }
-            : {}),
-        }}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2
-            className="min-w-0 truncate"
-            style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 15, color: "#333333", textTransform: "uppercase", letterSpacing: "0.3px" }}
-          >
-            {translate("DCS_DB_BOARD_TITLE", { name: form.form_name || form.form_group_id })}
-          </h2>
-          <div className="flex flex-wrap items-center gap-2">
-            {is_fullscreen && (
-              <IconButton title={translate("DCS_DB_FIT_MODE")} onClick={() => setFsMode("fit")} active={fs_mode === "fit"}>
-                {FIT_SVG}
-              </IconButton>
-            )}
-            {is_fullscreen && (
-              <IconButton title={translate("DCS_DB_SCROLL_MODE")} onClick={() => setFsMode("scroll")} active={fs_mode === "scroll"}>
-                {SCROLL_SVG}
-              </IconButton>
-            )}
-            {widgets.length > 0 && !generating && (
-              <IconButton
-                title={translate(is_fullscreen ? "DCS_DB_EXIT_FULLSCREEN" : "DCS_DB_FULLSCREEN")}
-                onClick={is_fullscreen ? exit : enter}
-              >
-                {is_fullscreen ? EXIT_SVG : FULLSCREEN_SVG}
-              </IconButton>
-            )}
-            {can_edit && widgets.length > 0 && !generating && !is_fullscreen && (
-              <>
-                <IconButton title={translate("DCS_DB_REGENERATE")} onClick={() => setConfirming("generate")} disabled={deleting}>
-                  {REFRESH_SVG}
-                </IconButton>
-                <IconButton title={translate("DCS_DB_BTN_DELETE")} onClick={() => setConfirming("delete")} danger disabled={deleting}>
-                  {TRASH_SVG}
-                </IconButton>
-              </>
-            )}
-          </div>
-          <style>{`.dcs-db-iconbtn { transition: background-color 160ms ease, color 160ms ease, transform 120ms ease; } .dcs-db-iconbtn:hover:not(:disabled) { transform: translateY(-1px); }`}</style>
-        </div>
-        {generating && <GenerationProgress percent={progress.percent} messageKey={progress.message_key} />}
-        {widgets.length > 0 && !generating && (
-          <DcsPeriodFilter
-            period={period}
-            onPeriodChange={setPeriod}
-            from={from}
-            onFromChange={setFrom}
-            to={to}
-            onToChange={setTo}
-            onApply={handle_period_apply}
-            allowWrap
-          />
-        )}
-      </div>
+      <BoardHeader
+        form={form}
+        widgets_count={widgets.length}
+        can_edit={can_edit}
+        generating={generating}
+        reviewing={review_widgets !== null}
+        deleting={deleting}
+        progress={progress}
+        is_fullscreen={is_fullscreen}
+        fs_mode={fs_mode}
+        setFsMode={setFsMode}
+        enter={enter}
+        exit={exit}
+        header_visible={header_visible}
+        show_header={show_header}
+        schedule_header_hide={schedule_header_hide}
+        period={period}
+        setPeriod={setPeriod}
+        from={from}
+        setFrom={setFrom}
+        to={to}
+        setTo={setTo}
+        onApplyPeriod={handle_period_apply}
+        onRegenerate={() => setRegenDialog(true)}
+        onDelete={() => setConfirming("delete")}
+      />
 
-      {widgets.length === 0 && !generating ? (
+      {review_widgets !== null ? (
+        <div className="bg-white border-2 p-4 sm:p-5" style={{ borderColor: "#E0E0E0" }}>
+          <GeneratedWidgetsReview
+            form={form}
+            initialWidgets={review_widgets}
+            onOpenDashboard={close_review}
+            onClose={close_review}
+            onWidgetsChange={setWidgets}
+          />
+        </div>
+      ) : widgets.length === 0 && !generating ? (
         <div className="bg-white border-2 p-8 text-center" style={{ borderColor: "#E0E0E0" }}>
           <p className="text-sm font-semibold mb-1" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
             {translate("DCS_DB_EMPTY_TITLE")}
@@ -409,7 +389,7 @@ export default function DashboardPage({ form }) {
           </p>
           {can_edit && (
             <div className="w-full sm:w-56 mx-auto">
-              <DcsButtonPrimary type="button" onClick={handle_generate}>
+              <DcsButtonPrimary type="button" onClick={() => handle_generate("overwrite")}>
                 {translate("DCS_DB_BTN_GENERATE")}
               </DcsButtonPrimary>
             </div>
@@ -452,14 +432,7 @@ export default function DashboardPage({ form }) {
         </div>
       )}
 
-      {confirming === "generate" && (
-        <DcsConfirmDialog
-          titleKey="DCS_DB_GEN_CONFIRM_TITLE"
-          messageKey="DCS_DB_GEN_CONFIRM_MESSAGE"
-          onConfirm={handle_generate}
-          onCancel={() => setConfirming(null)}
-        />
-      )}
+      {regen_dialog && <RegenerateDialog onPick={handle_generate} onCancel={() => setRegenDialog(false)} />}
       {confirming === "delete" && (
         <DcsConfirmDialog
           titleKey="DCS_DB_DEL_CONFIRM_TITLE"

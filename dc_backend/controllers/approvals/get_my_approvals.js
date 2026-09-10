@@ -1,5 +1,6 @@
 const submissions_model = require("../../models/submissions_model.js");
 const forms_model = require("../../models/forms_model.js");
+const approval_settings_model = require("../../models/approval_settings_model.js");
 const { can_step_act } = require("../../utilities/approval.js");
 const { success_response, error_response } = require("../../utilities/response.js");
 
@@ -62,7 +63,16 @@ async function get_my_approvals(req, res) {
       return res.status(200).json(success_response(req, "APPROVAL_FETCHED", { records: [], forms, form_options, active_form_key: null, offset, limit, total: 0, has_more: false }));
     }
 
-    const { items, total } = await submissions_model.list_by_approver_email_page(email, active.form_group_id, active.version, offset, limit);
+    const retention = await approval_settings_model.get_approved_retention(active.form_group_id);
+    const decided_cutoff = approval_settings_model.retention_cutoff(retention);
+    const { items, total } = await submissions_model.list_by_approver_email_page(
+      email,
+      active.form_group_id,
+      active.version,
+      offset,
+      limit,
+      decided_cutoff,
+    );
 
     const records = [];
     for (const submission of items) {
@@ -101,6 +111,7 @@ async function get_my_approvals(req, res) {
         forms,
         form_options,
         active_form_key: active.form_key,
+        approved_retention: retention,
         offset,
         limit,
         total,

@@ -196,9 +196,10 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
   const get_cell_content_style = (column_key) => ({
     width: "100%",
     minWidth: `${column_widths[column_key]}px`,
+    maxWidth: `${column_widths[column_key]}px`,
     whiteSpace: "normal",
-    wordBreak: "keep-all",
-    overflowWrap: "break-word",
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
   });
 
   const get_cell_background = (column_key, row_index) => {
@@ -307,7 +308,7 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
                         // cell (its own padding included) visually bleeds
                         // into the next column instead of staying inside
                         // its own boundary.
-                        overflowX: column.minWidthPx ? "auto" : "visible",
+                        overflowX: column.minWidthPx ? "auto" : "hidden",
                       }}
                     >
                       <div style={get_cell_content_style(column.key)}>{row[column.key]}</div>

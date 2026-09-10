@@ -1,4 +1,5 @@
 const { evaluate_rule, build_trimmed_evaluation_data } = require("../jsonlogic/engine.js");
+const { effective_rule_condition } = require("../jsonlogic/validation_condition.js");
 const { flatten_fields, build_field_parent_map, is_visible_through_ancestors } = require("../jsonlogic/dependency_graph.js");
 const { location_tree, PROVINCE_TRANSLATIONS } = require("../controllers/locations/get_locations.js");
 
@@ -344,10 +345,11 @@ function passes_own_rules(field, data) {
   const trimmed = build_trimmed_evaluation_data(data);
   const answered = has_real_answer(data[field.id]);
   return (field.validation_rules || []).every((rule) => {
-    if (!rule || !rule.condition) return true;
+    const condition = effective_rule_condition(field, rule);
+    if (!condition) return true;
     if (rule.severity === "warning") return true;
     if (!answered && rule.operator && rule.operator !== "depends_on_parent") return true;
-    const result = evaluate_rule(rule.condition, trimmed);
+    const result = evaluate_rule(condition, trimmed);
     return result.error ? false : result.value !== false;
   });
 }
