@@ -34,6 +34,8 @@ const BORDER = "#E0E0E0";
 const CARD_BORDER = "rgba(5,109,170,0.35)";
 const fontHeading = "'Montserrat', sans-serif";
 const PAGE_SIZE = 8;
+// How long a signature carried by an admin-copied link stays usable - mirrors the backend's one-day session.
+const LINK_SIGNATURE_TTL_MS = 24 * 60 * 60 * 1000;
 
 // Approve / reject for one record, replaced by its own decision once settled.
 function DecisionButtons({ record, translate, onDecide }) {
@@ -203,6 +205,15 @@ function BatchApprovalPageContent() {
   useEffect(() => {
     let is_mounted = true;
     setLoadState("loading");
+    // A link copied by the form's admin carries a ready one-day signature:
+    // it is kept like a verified session and dropped from the address bar,
+    // so no code is requested. An expired or wrong one falls back to the
+    // usual code flow through the normal session-error path.
+    const link_signature = new URLSearchParams(window.location.search).get("signature");
+    if (link_signature) {
+      save_session(token, link_signature, new Date(Date.now() + LINK_SIGNATURE_TTL_MS).toISOString());
+      window.history.replaceState(null, "", window.location.pathname);
+    }
     get_batch_approval(token)
       .then((response) => {
         if (!is_mounted) return;
@@ -404,7 +415,7 @@ function BatchApprovalPageContent() {
               className="dcs-view-swap mt-3 overflow-x-auto overflow-y-auto max-h-[60vh] lg:max-h-none bg-white border-2 min-[760px]:border-[5px] min-[760px]:rounded-[5px] lg:flex-1 lg:min-h-0"
               style={{ borderColor: CARD_BORDER }}
             >
-              <table className="w-full text-left" style={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
+              <table className="text-left" style={{ borderCollapse: "collapse", tableLayout: "auto", width: "max-content", minWidth: "100%" }}>
                 <thead>
                   <tr style={{ backgroundColor: PRIMARY }}>
                     {fields.map((field) => (
@@ -443,7 +454,7 @@ function BatchApprovalPageContent() {
                           className="dcs-approvals-cell px-4 py-3 text-sm align-top"
                           style={{ color: NEUTRAL_DARK, ...column_width_for(field) }}
                         >
-                          <div className="dcs-approvals-cell-content">
+                          <div className="dcs-approvals-cell-content is-full" style={column_width_for(field)}>
                             {render_answer_cell(field, record.data ? record.data[field.id] : undefined) || <span style={{ color: GRAY }}>-</span>}
                           </div>
                         </td>
