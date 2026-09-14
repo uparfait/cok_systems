@@ -106,6 +106,7 @@ const kn = {
   DCS_BTN_TEMPLATE_ADD: "Ongeraho ku bice bisanzwe",
   DCS_BTN_TEMPLATE_OVERWRITE: "Isubiremo ibice bisanzwe",
   DCS_BTN_TEMPLATES: "Templte",
+  DCS_BTN_APPROVE_DATA: "Emeza amakuru",
   DCS_BTN_FIELDS: "Ibice",
   DCS_BTN_NEW_TEMPLATE: "Templte nshya",
   DCS_BTN_SAVE_TEMPLATE: "Bika templte",

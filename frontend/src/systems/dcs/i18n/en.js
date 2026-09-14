@@ -106,6 +106,7 @@ const en = {
   DCS_BTN_TEMPLATE_ADD: "Add to current fields",
   DCS_BTN_TEMPLATE_OVERWRITE: "Overwrite current fields",
   DCS_BTN_TEMPLATES: "Templates",
+  DCS_BTN_APPROVE_DATA: "Approve data",
   DCS_BTN_FIELDS: "Fields",
   DCS_BTN_NEW_TEMPLATE: "New template",
   DCS_BTN_SAVE_TEMPLATE: "Save template",

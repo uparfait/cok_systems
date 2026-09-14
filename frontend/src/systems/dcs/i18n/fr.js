@@ -106,6 +106,7 @@ const fr = {
   DCS_BTN_TEMPLATE_ADD: "Ajouter aux champs actuels",
   DCS_BTN_TEMPLATE_OVERWRITE: "Remplacer les champs actuels",
   DCS_BTN_TEMPLATES: "Modèles",
+  DCS_BTN_APPROVE_DATA: "Approuver les donnees",
   DCS_BTN_FIELDS: "Champs",
   DCS_BTN_NEW_TEMPLATE: "Nouveau modèle",
   DCS_BTN_SAVE_TEMPLATE: "Enregistrer le modèle",

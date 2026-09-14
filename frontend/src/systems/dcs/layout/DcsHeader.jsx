@@ -80,6 +80,18 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, p
               {translate("DCS_BTN_TEMPLATES")}
             </button>
 
+            <button
+              type="button"
+              onClick={() => navigate("/dcs-my-approvals")}
+              className="text-sm font-semibold cursor-pointer flex-shrink-0"
+              style={{
+                color: "#056daa",
+                fontFamily: "'Montserrat', sans-serif",
+              }}
+            >
+              {translate("DCS_BTN_APPROVE_DATA")}
+            </button>
+
             {breadcrumb_path && (
               <span
                 className="text-xs truncate"
