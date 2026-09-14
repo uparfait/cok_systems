@@ -33,11 +33,15 @@ function escapeRegex(s) {
 function matchDefaultSlug(roleName) {
     const n = String(roleName || '').toLowerCase().trim();
     if (!n) return null;
+    // A default role's exact name always wins over the keyword rules below
+    // ("Gate Officer" must never fall through to the generic "officer" rule).
+    const exact = (loadDefaults().default_roles || []).find((r) => r.role_name.toLowerCase() === n);
+    if (exact) return exact.role_slug;
     if (n === 'system admin' || (n.includes('admin') && n.includes('system'))) return 'system-admin';
     if (n.includes('receptionist')) return 'receptionist';
     if (n.includes('mayor')) return 'mayor';
     if (['department manager', 'department head', 'head of department', 'director'].some((k) => n.includes(k))) return 'department-manager';
-    if (n.includes('gate') && n.includes('vehicle')) return 'gate-officer';
+    if (n.includes('gate') || n.includes('vehicle registrar')) return 'gate-officer';
     if (n.includes('event manager') || n.includes('event-manager')) return 'event-manager';
     if ((n.includes('manager') || n.includes('head')) && !n.includes('receptionist')) return 'department-manager';
     if (['employee', 'staff', 'officer', 'clerk'].some((k) => n.includes(k))) return 'employee';

@@ -1,0 +1,326 @@
+{
+  "version": 1,
+  "comment": "Default (unchangeable) roles and the shared link catalog. Paths use the {roleSlug} placeholder which is replaced with the role's slug when navigation is served. link_catalog holds only slug-generic links that custom roles may toggle; links tied to backend-hardcoded roles live only inside the default role definitions below.",
+  "link_catalog": [
+    {
+      "id": "calender",
+      "label": "Calender",
+      "path": "/calendar",
+      "icon": "FiCalendar",
+      "default_enabled": true,
+      "children": []
+    },
+    {
+      "id": "admin",
+      "label": "Admin",
+      "path": "/{roleSlug}/dashboard",
+      "icon": "FiSettings",
+      "default_enabled": false,
+      "children": [
+        { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiHome" },
+        { "id": "overview", "label": "Overview", "path": "/{roleSlug}/overview", "icon": "FiBarChart2" },
+        { "id": "departments", "label": "Departments", "path": "/{roleSlug}/departments", "icon": "FiGrid" },
+        { "id": "employees", "label": "Employees", "path": "/{roleSlug}/employees", "icon": "FiUsers" },
+        { "id": "roles-management", "label": "Roles Management", "path": "/{roleSlug}/roles-management", "icon": "FiShield" },
+        { "id": "user-management", "label": "User Management", "path": "/{roleSlug}/user-management", "icon": "FiUser" },
+        { "id": "system-audit", "label": "System Audit", "path": "/{roleSlug}/system-audit", "icon": "FiActivity" },
+        { "id": "storage-management", "label": "Storage Management", "path": "/{roleSlug}/storage-management", "icon": "FiHardDrive" }
+      ]
+    },
+    {
+      "id": "smart-parking",
+      "label": "Smart Parking",
+      "path": "/{roleSlug}/smart-parking",
+      "icon": "FiTruck",
+      "default_enabled": false,
+      "children": [
+        { "id": "sp-dashboard", "label": "Dashboard", "path": "/{roleSlug}/smart-parking", "icon": "FiHome" },
+        { "id": "sp-reservation", "label": "Reservation", "path": "/{roleSlug}/smart-parking/reservation", "icon": "FiCalendar" }
+      ]
+    },
+    {
+      "id": "service-delivery",
+      "label": "Service Delivery",
+      "path": "/{roleSlug}/service-delivery/analytics",
+      "icon": "FiClipboard",
+      "default_enabled": false,
+      "children": [
+        { "id": "sd-analytics", "label": "Analytics", "path": "/{roleSlug}/service-delivery/analytics", "icon": "FiBarChart2" },
+        { "id": "sd-feedback", "label": "Feedback", "path": "/{roleSlug}/service-delivery/feedback", "icon": "FiMessageSquare" }
+      ]
+    },
+    {
+      "id": "task-manager",
+      "label": "Task Manager",
+      "path": "/{roleSlug}/tasks",
+      "icon": "FiClipboard",
+      "default_enabled": true,
+      "children": [
+        { "id": "individual-tasks", "label": "Individual Tasks", "path": "/{roleSlug}/tasks", "icon": "FiClipboard" },
+        { "id": "follow-ups", "label": "Follow-ups", "path": "/{roleSlug}/followups", "icon": "FiCheck" }
+      ]
+    },
+    {
+      "id": "rooms",
+      "label": "Rooms",
+      "path": "/{roleSlug}/rooms/all",
+      "icon": "FiLayers",
+      "default_enabled": false,
+      "children": [
+        { "id": "all-rooms", "label": "All Rooms", "path": "/{roleSlug}/rooms/all", "icon": "FiList" },
+        { "id": "rooms-analytics", "label": "Analytics", "path": "/{roleSlug}/rooms/stats", "icon": "FiBarChart2" },
+        { "id": "new-room", "label": "New Room", "path": "/{roleSlug}/rooms/new", "icon": "FiClipboard" },
+        { "id": "check-availability", "label": "Check Availability", "path": "/{roleSlug}/rooms/availability", "icon": "FiCheck" },
+        { "id": "date-check", "label": "Date Check", "path": "/{roleSlug}/rooms/date-check", "icon": "FiCalendar" }
+      ]
+    },
+    {
+      "id": "events",
+      "label": "Events",
+      "path": "/{roleSlug}/events/live",
+      "icon": "FiActivity",
+      "default_enabled": false,
+      "children": [
+        { "id": "live-events", "label": "Live", "path": "/{roleSlug}/events/live", "icon": "FiActivity" },
+        { "id": "upcoming-events", "label": "Upcoming", "path": "/{roleSlug}/events/upcoming", "icon": "FiArrowRight" },
+        { "id": "recurring-events", "label": "Recurring", "path": "/{roleSlug}/events/recurring", "icon": "FiGrid" },
+        { "id": "past-events", "label": "Completed", "path": "/{roleSlug}/events/past", "icon": "FiFile" },
+        { "id": "new-event", "label": "New", "path": "/{roleSlug}/events/new", "icon": "FiClipboard" }
+      ]
+    },
+    {
+      "id": "booking-requests",
+      "label": "Booking Requests",
+      "path": "/{roleSlug}/booking-requests/all",
+      "icon": "FiClipboard",
+      "default_enabled": false,
+      "children": [
+        { "id": "all-requests", "label": "All Requests", "path": "/{roleSlug}/booking-requests/all", "icon": "FiList" }
+      ]
+    },
+    {
+      "id": "check-in",
+      "label": "Check-in",
+      "path": "/{roleSlug}/checkin-vehicle",
+      "icon": "FiLogIn",
+      "default_enabled": false,
+      "children": [
+        { "id": "checkin-vehicle", "label": "Vehicle", "path": "/{roleSlug}/checkin-vehicle", "icon": "FiTruck" },
+        { "id": "checkin-person", "label": "Person", "path": "/{roleSlug}/checkin-person", "icon": "FiUser" }
+      ]
+    },
+    {
+      "id": "check-out",
+      "label": "Check-out",
+      "path": "/{roleSlug}/checkout-vehicle",
+      "icon": "FiLogOut",
+      "default_enabled": false,
+      "children": [
+        { "id": "checkout-vehicle", "label": "Vehicle", "path": "/{roleSlug}/checkout-vehicle", "icon": "FiTruck" },
+        { "id": "checkout-person", "label": "Person", "path": "/{roleSlug}/checkout-person", "icon": "FiUser" }
+      ]
+    },
+    {
+      "id": "dcs",
+      "label": "DCS",
+      "path": "/dcs-system",
+      "icon": "FiDatabase",
+      "default_enabled": false,
+      "children": []
+    }
+  ],
+  "default_roles": [
+    {
+      "role_name": "System Admin",
+      "role_slug": "system-admin",
+      "default_route": "/system-admin/dashboard",
+      "links": [
+        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        {
+          "id": "admin",
+          "label": "Admin",
+          "path": "/{roleSlug}/dashboard",
+          "icon": "FiSettings",
+          "children": [
+            { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiHome", "permission": "admin" },
+            { "id": "overview", "label": "Overview", "path": "/{roleSlug}/overview", "icon": "FiBarChart2", "permission": "admin" },
+            { "id": "departments", "label": "Departments", "path": "/{roleSlug}/departments", "icon": "FiGrid", "permission": "departments" },
+            { "id": "employees", "label": "Employees", "path": "/{roleSlug}/employees", "icon": "FiUsers", "permission": "employees" },
+            { "id": "roles-management", "label": "Roles Management", "path": "/{roleSlug}/roles-management", "icon": "FiShield", "permission": "roles_management" },
+            { "id": "user-management", "label": "User Management", "path": "/{roleSlug}/user-management", "icon": "FiUser", "permission": "user_management" },
+            { "id": "system-audit", "label": "System Audit", "path": "/{roleSlug}/system-audit", "icon": "FiActivity", "permission": "admin" },
+            { "id": "storage-management", "label": "Storage Management", "path": "/{roleSlug}/storage-management", "icon": "FiHardDrive", "permission": "admin" }
+          ]
+        },
+        {
+          "id": "task-manager", "label": "Task Manager", "path": "/{roleSlug}/tasks", "icon": "FiClipboard",
+          "children": [
+            { "id": "individual-tasks", "label": "Individual Tasks", "path": "/{roleSlug}/tasks", "icon": "FiClipboard" },
+            { "id": "follow-ups", "label": "Follow-ups", "path": "/{roleSlug}/followups", "icon": "FiCheck" }
+          ]
+        },
+        {
+          "id": "smart-parking", "label": "Smart Parking", "path": "/{roleSlug}/smart-parking", "icon": "FiTruck",
+          "children": [
+            { "id": "sp-dashboard", "label": "Dashboard", "path": "/{roleSlug}/smart-parking", "icon": "FiHome" },
+            { "id": "sp-reservation", "label": "Reservation", "path": "/{roleSlug}/smart-parking/reservation", "icon": "FiCalendar" }
+          ]
+        },
+        {
+          "id": "service-delivery", "label": "Service Delivery", "path": "/{roleSlug}/service-delivery/analytics", "icon": "FiClipboard",
+          "children": [
+            { "id": "sd-analytics", "label": "Analytics", "path": "/{roleSlug}/service-delivery/analytics", "icon": "FiBarChart2" },
+            { "id": "sd-feedback", "label": "Feedback", "path": "/{roleSlug}/service-delivery/feedback", "icon": "FiMessageSquare" }
+          ]
+        },
+        { "id": "dcs", "label": "DCS", "path": "/dcs-system", "icon": "FiDatabase" }
+      ]
+    },
+    {
+      "role_name": "Receptionist",
+      "role_slug": "receptionist",
+      "default_route": "/receptionist/dashboard",
+      "links": [
+        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiHome" },
+        { "id": "visitors", "label": "Visitors", "path": "/{roleSlug}/visitors", "icon": "FiUsers" },
+        { "id": "assigned-visitors", "label": "Assigned Visitors", "path": "/{roleSlug}/assigned", "icon": "FiUserCheck" },
+        { "id": "requests", "label": "Requests", "path": "/{roleSlug}/requests", "icon": "FiFile" },
+        {
+          "id": "task-manager", "label": "Task Manager", "path": "/{roleSlug}/tasks", "icon": "FiClipboard",
+          "children": [
+            { "id": "individual-tasks", "label": "Individual Tasks", "path": "/{roleSlug}/tasks", "icon": "FiClipboard" },
+            { "id": "follow-ups", "label": "Follow-ups", "path": "/{roleSlug}/followups", "icon": "FiCheck" }
+          ]
+        },
+        { "id": "dcs", "label": "DCS", "path": "/dcs-system", "icon": "FiDatabase" }
+      ]
+    },
+    {
+      "role_name": "Employee",
+      "role_slug": "employee",
+      "default_route": "/employee/dashboard",
+      "links": [
+        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiGrid" },
+        { "id": "visitors", "label": "Visitors", "path": "/{roleSlug}/all-visitors", "icon": "FiUsers" },
+        {
+          "id": "task-manager", "label": "Task Manager", "path": "/{roleSlug}/tasks", "icon": "FiClipboard",
+          "children": [
+            { "id": "individual-tasks", "label": "Individual Tasks", "path": "/{roleSlug}/tasks", "icon": "FiClipboard" },
+            { "id": "follow-ups", "label": "Follow-ups", "path": "/{roleSlug}/followups", "icon": "FiCheck" }
+          ]
+        },
+        { "id": "history", "label": "Service History", "path": "/{roleSlug}/dashboard?tab=history", "icon": "FiFileText" },
+        { "id": "queue", "label": "Department Queue", "path": "/{roleSlug}/dashboard?tab=queue", "icon": "FiList" },
+        { "id": "dcs", "label": "DCS", "path": "/dcs-system", "icon": "FiDatabase" }
+      ]
+    },
+    {
+      "role_name": "Head of department",
+      "role_slug": "department-manager",
+      "default_route": "/department-manager/dashboard",
+      "links": [
+        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiGrid" },
+        { "id": "requests", "label": "Requests", "path": "/{roleSlug}/requests", "icon": "FiFile" },
+        { "id": "my-employees", "label": "My Employees", "path": "/{roleSlug}/hod/employees", "icon": "FiUsers" },
+        {
+          "id": "task-manager", "label": "Task Manager", "path": "/{roleSlug}/tasks", "icon": "FiClipboard",
+          "children": [
+            { "id": "individual-tasks", "label": "Individual Tasks", "path": "/{roleSlug}/tasks", "icon": "FiClipboard" },
+            { "id": "follow-ups", "label": "Follow-ups", "path": "/{roleSlug}/followups", "icon": "FiCheck" }
+          ]
+        },
+        { "id": "hod-feedback", "label": "Feedback", "path": "/{roleSlug}/hod/feedback", "icon": "FiStar" },
+        { "id": "history", "label": "Service History", "path": "/{roleSlug}/dashboard?tab=history", "icon": "FiFileText" },
+        { "id": "queue", "label": "Department Queue", "path": "/{roleSlug}/dashboard?tab=queue", "icon": "FiUsers" },
+        { "id": "dcs", "label": "DCS", "path": "/dcs-system", "icon": "FiDatabase" }
+      ]
+    },
+    {
+      "role_name": "Gate Officer",
+      "role_slug": "gate-officer",
+      "default_route": "/gate-officer/dashboard",
+      "links": [
+        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "dashboard", "label": "Overview", "path": "/{roleSlug}/dashboard", "icon": "FiHome" },
+        {
+          "id": "check-in", "label": "Check-in", "path": "/{roleSlug}/checkin-vehicle", "icon": "FiLogIn",
+          "children": [
+            { "id": "checkin-vehicle", "label": "Vehicle", "path": "/{roleSlug}/checkin-vehicle", "icon": "FiTruck" },
+            { "id": "checkin-person", "label": "Person", "path": "/{roleSlug}/checkin-person", "icon": "FiUser" }
+          ]
+        },
+        {
+          "id": "check-out", "label": "Check-out", "path": "/{roleSlug}/checkout-vehicle", "icon": "FiLogOut",
+          "children": [
+            { "id": "checkout-vehicle", "label": "Vehicle", "path": "/{roleSlug}/checkout-vehicle", "icon": "FiTruck" },
+            { "id": "checkout-person", "label": "Person", "path": "/{roleSlug}/checkout-person", "icon": "FiUser" }
+          ]
+        }
+      ]
+    },
+    {
+      "role_name": "Event Manager",
+      "role_slug": "event-manager",
+      "default_route": "/event-manager",
+      "links": [
+        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}", "icon": "FiBarChart2" },
+        {
+          "id": "task-manager", "label": "Task Manager", "path": "/{roleSlug}/tasks", "icon": "FiClipboard",
+          "children": [
+            { "id": "individual-tasks", "label": "Individual Tasks", "path": "/{roleSlug}/tasks", "icon": "FiClipboard" },
+            { "id": "follow-ups", "label": "Follow-ups", "path": "/{roleSlug}/followups", "icon": "FiCheck" }
+          ]
+        },
+        {
+          "id": "rooms", "label": "Rooms", "path": "/{roleSlug}/rooms/all", "icon": "FiLayers",
+          "children": [
+            { "id": "all-rooms", "label": "All Rooms", "path": "/{roleSlug}/rooms/all", "icon": "FiList" },
+            { "id": "rooms-analytics", "label": "Analytics", "path": "/{roleSlug}/rooms/stats", "icon": "FiBarChart2" },
+            { "id": "new-room", "label": "New Room", "path": "/{roleSlug}/rooms/new", "icon": "FiClipboard" },
+            { "id": "check-availability", "label": "Check Availability", "path": "/{roleSlug}/rooms/availability", "icon": "FiCheck" },
+            { "id": "date-check", "label": "Date Check", "path": "/{roleSlug}/rooms/date-check", "icon": "FiCalendar" }
+          ]
+        },
+        {
+          "id": "events", "label": "Events", "path": "/{roleSlug}/events/live", "icon": "FiActivity",
+          "children": [
+            { "id": "live-events", "label": "Live", "path": "/{roleSlug}/events/live", "icon": "FiActivity" },
+            { "id": "upcoming-events", "label": "Upcoming", "path": "/{roleSlug}/events/upcoming", "icon": "FiArrowRight" },
+            { "id": "recurring-events", "label": "Recurring", "path": "/{roleSlug}/events/recurring", "icon": "FiGrid" },
+            { "id": "past-events", "label": "Completed", "path": "/{roleSlug}/events/past", "icon": "FiFile" },
+            { "id": "new-event", "label": "New", "path": "/{roleSlug}/events/new", "icon": "FiClipboard" }
+          ]
+        },
+        {
+          "id": "booking-requests", "label": "Booking Requests", "path": "/{roleSlug}/booking-requests/all", "icon": "FiClipboard",
+          "children": [
+            { "id": "all-requests", "label": "All Requests", "path": "/{roleSlug}/booking-requests/all", "icon": "FiList" }
+          ]
+        },
+        { "id": "dcs", "label": "DCS", "path": "/dcs-system", "icon": "FiDatabase" }
+      ]
+    },
+    {
+      "role_name": "Mayor",
+      "role_slug": "mayor",
+      "default_route": "/mayor/dashboard",
+      "links": [
+        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiHome" },
+        { "id": "feedback-analysis", "label": "Feedback Analysis", "path": "/{roleSlug}/feedback-analysis", "icon": "FiMessageSquare" },
+        {
+          "id": "task-manager", "label": "Task Manager", "path": "/{roleSlug}/tasks", "icon": "FiClipboard",
+          "children": [
+            { "id": "individual-tasks", "label": "Individual Tasks", "path": "/{roleSlug}/tasks", "icon": "FiClipboard" },
+            { "id": "follow-ups", "label": "Follow-ups", "path": "/{roleSlug}/followups", "icon": "FiCheck" }
+          ]
+        },
+        { "id": "dcs", "label": "DCS", "path": "/dcs-system", "icon": "FiDatabase" }
+      ]
+    }
+  ]
+}

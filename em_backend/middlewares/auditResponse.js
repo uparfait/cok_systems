@@ -49,7 +49,9 @@ function bearerIdentity(req) {
 
 function buildRow(req, res) {
   const body = parseBody(res) || {};
-  const identity = bearerIdentity(req);
+  const identity = req.user
+    ? { user_id: String(req.user.user_id), user_email: req.user.email || null, user_name: req.user.full_name || null }
+    : bearerIdentity(req);
   const endpoint = req.originalUrl || req.url || '';
   return {
     time: new Date(),

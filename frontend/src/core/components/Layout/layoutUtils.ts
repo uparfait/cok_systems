@@ -18,7 +18,7 @@ export const getRoleSlug = (role: string | undefined): string => {
   if (normalized === 'system admin' || (normalized.includes('admin') && normalized.includes('system'))) return 'system-admin';
   if (normalized.includes('receptionist')) return 'receptionist';
   if (normalized.includes('department manager') || normalized.includes('department head') || normalized.includes('head of department') || normalized.includes('director')) return 'department-manager';
-  if (normalized.includes('gate') && normalized.includes('vehicle')) return 'gate-officer';
+  if (normalized.includes('gate') || normalized.includes('vehicle registrar')) return 'gate-officer';
   if (normalized.includes('event manager') || normalized.includes('event-manager')) return 'event-manager';
   if ((normalized.includes('manager') || normalized.includes('head')) && !normalized.includes('receptionist')) return 'department-manager';
   if (normalized.includes('employee') || normalized.includes('staff') || normalized.includes('officer') || normalized.includes('clerk')) return 'employee';

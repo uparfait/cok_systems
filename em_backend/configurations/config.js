@@ -31,12 +31,12 @@ module.exports = {
   frontendUrl: (process.env.FRONTEND_URL || 'http://localhost:5173')
     .replace(/\/$/, '')
     .replace(/^https:\/\/(localhost|127\.0\.0\.1)(?=[:/]|$)/i, 'http://$1'),
+  // Must match the main backend's JWT_SECRET: tokens issued by its login flow
+  // are verified here directly (middlewares/authenticate.js). The default
+  // mirrors the main backend's own development default.
   jwt: {
-    secret: process.env.JWT_SECRET || uuid.v4(),
+    secret: process.env.JWT_SECRET || 'cok-jwt-secret-2026',
   },
-  // Base URL of the main backend API - the caller's bearer token is forwarded
-  // there (GET /roles/navigation) to learn which systems their role may use.
-  cokApiUrl: (process.env.COK_API_URL || 'http://localhost:2026/cok/api').replace(/\/$/, ''),
   email: {
     host: process.env.EMAIL_HOST || 'mail.kigalicity.gov.rw',
     port: parseInt(process.env.EMAIL_PORT, 10) || 25,
