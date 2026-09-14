@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import WidgetChart from "./WidgetChart.jsx";
-import TablerIcon from "./icons/TablerIcon.jsx";
+import LibraryIcon from "./icons/LibraryIcon.jsx";
 import { chart_definition, convertible_types } from "./chartCatalog.js";
 
 const PRIMARY = "#056daa";
@@ -227,13 +227,13 @@ function widget_total(widget, data) {
 }
 
 /**
- * A KPI card's icon slot, left of its title: the chosen Tabler icon, or -
+ * A KPI card's icon slot, left of its title: the chosen icon, or -
  * for editors only - a dashed placeholder inviting one. Clicking it (like
  * clicking the card's number) opens the icon picker.
  */
 function KpiIconSlot({ icon, onPick, hint }) {
   if (!icon && !onPick) return null;
-  const content = icon ? <TablerIcon name={icon} size={22} color={PRIMARY} /> : <span style={{ fontSize: 16, lineHeight: 1, color: "#9E9E9E" }}>+</span>;
+  const content = icon ? <LibraryIcon icon={icon} size={22} color={PRIMARY} /> : <span style={{ fontSize: 16, lineHeight: 1, color: "#9E9E9E" }}>+</span>;
   const style = {
     width: 32,
     height: 32,

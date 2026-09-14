@@ -31,7 +31,7 @@ function sanitize_widget(widget) {
     id: clean_string(widget.id),
     title: clean_string(widget.title),
     description: clean_string(widget.description) || null,
-    // A KPI card's optional Tabler icon, stored by its component name.
+    // A KPI card's optional icon, stored as "<library>:<icon name>".
     icon: clean_string(widget.icon) || null,
     form_group_id: clean_string(widget.form_group_id),
     chart_type: clean_string(widget.chart_type),

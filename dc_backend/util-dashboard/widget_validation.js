@@ -13,8 +13,9 @@ const {
 } = require("./constants.js");
 const { build_field_catalog, is_categorical, is_numeric, is_time_source } = require("./field_catalog.js");
 
-// A KPI card's icon is stored as a Tabler React component name ("IconChartBar").
-const ICON_NAME_PATTERN = /^Icon[A-Za-z0-9]{1,80}$/;
+// A KPI card's icon is stored as "<library>:<icon name>" ("lucide:Cat",
+// "tabler:IconChartBar"); a bare name predates the library prefix (Tabler).
+const ICON_NAME_PATTERN = /^(?:[a-z0-9_-]{1,40}:)?[A-Za-z0-9_-]{1,100}$/;
 
 /**
  * Validates a dashboard's widget list against the real schemas of the forms
@@ -155,7 +156,7 @@ function validate_widget(widget, index, form_versions_by_group, project_id, erro
     }
   }
   if (widget.icon !== null && widget.icon !== undefined && !ICON_NAME_PATTERN.test(widget.icon)) {
-    errors.push(`${describe}: icon must be a Tabler icon name`);
+    errors.push(`${describe}: icon must be a "<library>:<icon name>" reference`);
   }
   const definition = CHART_TYPES[widget.chart_type];
   if (!definition) {
