@@ -415,7 +415,8 @@ function MyApprovalsPageContent() {
 
               {/* max-h controls how many rows are visible (~44px header + ~48px per row) - scrolling inside reveals the next batch */}
               <div key="table" ref={table_scroll_ref} onScroll={handle_table_scroll} className="dcs-view-swap mt-3 mb-0 overflow-x-auto overflow-y-auto max-h-[60vh] lg:max-h-none bg-white border-2 min-[760px]:border-[5px] min-[760px]:rounded-[5px] lg:flex-1 lg:min-h-0" style={{ borderColor: CARD_BORDER }}>
-                <table className="w-full text-left" style={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
+                {/* Auto layout + max-content width: every column keeps its own minimum width, so the table is read in full by scrolling sideways instead of squeezing columns to fit */}
+                <table className="text-left" style={{ borderCollapse: "collapse", tableLayout: "auto", width: "max-content", minWidth: "100%" }}>
                   <thead>
                     {/* Sticky on the th (not the tr) so the header survives vertical scrolling */}
                     <tr style={{ backgroundColor: PRIMARY }}>
@@ -431,7 +432,7 @@ function MyApprovalsPageContent() {
                       <tr key={record.id} className={`border-t ${row_index % 2 === 0 ? "dcs-approvals-row-odd" : "dcs-approvals-row-even"}`} style={{ borderColor: BORDER }}>
                         {field_columns.map((field) => (
                           <td key={field.id} className="dcs-approvals-cell px-4 py-3 text-sm align-top" style={{ color: NEUTRAL_DARK, ...column_width_for(field) }}>
-                            <div className="dcs-approvals-cell-content">
+                            <div className="dcs-approvals-cell-content is-full" style={column_width_for(field)}>
                               {render_answer_cell(field, record.data ? record.data[field.id] : undefined) || <span style={{ color: GRAY }}>-</span>}
                             </div>
                           </td>

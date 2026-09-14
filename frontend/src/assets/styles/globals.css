@@ -2310,6 +2310,14 @@ background-color: #056daa;
   -webkit-box-orient: vertical;
 }
 
+/* The approver's own dashboard shows every answer in full - the row grows
+   and the table scrolls instead of clipping the text after a few lines. */
+.dcs-approvals-cell-content.is-full {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
 .dcs-approvals-cell-content img,
 .dcs-approvals-cell-content video,
 .dcs-approvals-cell-content canvas {
