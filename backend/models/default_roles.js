@@ -21,10 +21,13 @@ const role_schema = new mongoose.Schema({
     // Custom-role navigation: toggled links from the shared link catalog
     // (configurations/Default_Roles.json). Each entry: { id, children: [childId] }.
     // Default roles keep this empty; their links come from the JSON file.
+    // children: omitted or empty = every child of that catalog link; a
+    // non-empty list = only those children. default undefined keeps an
+    // omitted list from being stored as [] (which reads the same anyway).
     nav_links: [
         {
             id: { type: String, required: true },
-            children: [{ type: String }]
+            children: { type: [String], default: undefined }
         }
     ],
     // Where a user with this role lands after login ({roleSlug} placeholder allowed)

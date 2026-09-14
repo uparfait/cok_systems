@@ -73,8 +73,12 @@ function resolveCatalogLinks(navLinks) {
         const id = typeof entry === 'string' ? entry : entry?.id;
         const link = byId.get(id);
         if (!link) return;
+        // An explicit non-empty children list narrows the group; a missing or
+        // EMPTY list keeps every child. Empty must mean "all" because Mongoose
+        // stores an omitted array as [] - a role saved with every child ticked
+        // used to come back with no children at all because of that.
         let children = link.children || [];
-        if (entry && typeof entry === 'object' && Array.isArray(entry.children)) {
+        if (entry && typeof entry === 'object' && Array.isArray(entry.children) && entry.children.length > 0) {
             const wanted = new Set(entry.children);
             children = children.filter((c) => wanted.has(c.id));
         }

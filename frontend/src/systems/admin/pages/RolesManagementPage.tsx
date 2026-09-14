@@ -58,7 +58,7 @@ function selectionFromCatalog(catalog: NavLink[], existing?: RoleNavLink[]): Sel
     const children: Record<string, boolean> = {};
     (link.children || []).forEach((c) => {
       children[c.id] = found
-        ? !found.children || found.children.includes(c.id)
+        ? !found.children || found.children.length === 0 || found.children.includes(c.id)
         : true;
     });
     sel[link.id] = {
@@ -78,11 +78,7 @@ function selectionToNavLinks(catalog: NavLink[], sel: Selection): RoleNavLink[] 
     const allChildren = (link.children || []).map((c) => c.id);
     const chosen = allChildren.filter((cid) => s.children[cid]);
     if (allChildren.length > 0 && chosen.length === 0) return; // group with nothing inside
-    links.push(
-      allChildren.length > 0 && chosen.length < allChildren.length
-        ? { id: link.id, children: chosen }
-        : { id: link.id },
-    );
+    links.push(allChildren.length > 0 ? { id: link.id, children: chosen } : { id: link.id });
   });
   return links;
 }
@@ -284,7 +280,7 @@ const RolesManagementPage: React.FC = () => {
     (role.nav_links || []).forEach((entry) => {
       const link = byId.get(entry.id);
       if (!link) return;
-      const children = entry.children
+      const children = entry.children && entry.children.length > 0
         ? (link.children || []).filter((c) => entry.children!.includes(c.id))
         : link.children || [];
       out.push({ ...link, children });
