@@ -10,6 +10,7 @@ import RegenerateDialog from "./RegenerateDialog.jsx";
 import GeneratedWidgetsReview from "./GeneratedWidgetsReview.jsx";
 import AddKpiDialog from "./AddKpiDialog.jsx";
 import SkippedDetailsModal from "./SkippedDetailsModal.jsx";
+import IconPickerPanel from "./icons/IconPickerPanel.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
@@ -56,6 +57,8 @@ export default function DashboardPage({ form }) {
   const [review_focus, setReviewFocus] = useState(null);
   const [kpi_dialog, setKpiDialog] = useState(false);
   const [skipped_widget, setSkippedWidget] = useState(null);
+  // The KPI card whose icon is being set or changed in the right-hand picker.
+  const [icon_widget, setIconWidget] = useState(null);
 
   const [data_by_widget, setDataByWidget] = useState({});
   const [data_loading, setDataLoading] = useState(false);
@@ -413,6 +416,7 @@ export default function DashboardPage({ form }) {
             onRemoveWidget={(widget) => setWidgetToRemove(widget)}
             onRetryWidget={retry_widget}
             onShowSkipped={(target) => setSkippedWidget(target)}
+            onPickIcon={(target) => setIconWidget(target)}
           />
         </div>
       )}
@@ -429,6 +433,21 @@ export default function DashboardPage({ form }) {
       )}
       {regen_dialog && <RegenerateDialog onPick={handle_generate} onCancel={() => setRegenDialog(false)} />}
       {kpi_dialog && <AddKpiDialog form={form} widgets={widgets} onAdded={handle_kpi_added} onCancel={() => setKpiDialog(false)} />}
+      {icon_widget && (
+        <IconPickerPanel
+          widget={widgets.find((widget) => widget.id === icon_widget.id) || icon_widget}
+          saving={saving_widget_id === icon_widget.id}
+          onPick={async (name) => {
+            await handle_update_widget(icon_widget.id, { icon: name });
+            setIconWidget(null);
+          }}
+          onRemove={async () => {
+            await handle_update_widget(icon_widget.id, { icon: null });
+            setIconWidget(null);
+          }}
+          onClose={() => setIconWidget(null)}
+        />
+      )}
       {skipped_widget && (
         <SkippedDetailsModal
           form={form}

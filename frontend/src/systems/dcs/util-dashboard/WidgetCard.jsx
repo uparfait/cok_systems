@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import WidgetChart from "./WidgetChart.jsx";
+import TablerIcon from "./icons/TablerIcon.jsx";
 import { chart_definition, convertible_types } from "./chartCatalog.js";
 
 const PRIMARY = "#056daa";
@@ -226,12 +227,39 @@ function widget_total(widget, data) {
 }
 
 /**
+ * A KPI card's icon slot, left of its title: the chosen Tabler icon, or -
+ * for editors only - a dashed placeholder inviting one. Clicking it (like
+ * clicking the card's number) opens the icon picker.
+ */
+function KpiIconSlot({ icon, onPick, hint }) {
+  if (!icon && !onPick) return null;
+  const content = icon ? <TablerIcon name={icon} size={22} color={PRIMARY} /> : <span style={{ fontSize: 16, lineHeight: 1, color: "#9E9E9E" }}>+</span>;
+  const style = {
+    width: 32,
+    height: 32,
+    border: icon ? "1px solid rgba(5,109,170,0.35)" : "1px dashed #C7C7C7",
+    backgroundColor: icon ? "#EAF3F8" : "#FFFFFF",
+    cursor: onPick ? "pointer" : "default",
+  };
+  if (!onPick) {
+    return <span className="flex items-center justify-center flex-shrink-0" style={style}>{content}</span>;
+  }
+  return (
+    <button type="button" title={hint} aria-label={hint} className="flex items-center justify-center flex-shrink-0" style={style} onClick={onPick}>
+      {content}
+    </button>
+  );
+}
+
+/**
  * The frame of every dashboard widget: a title bar (title and description
  * are click-to-edit for users allowed to edit the form, with a spinner
  * while the change saves, the widget's grand total, and a three-dots menu
  * on the top right) and the loading / error states around the chart itself.
+ * A KPI card also carries an optional icon; editors click the card's number
+ * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onShowSkipped }) {
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onShowSkipped, onPickIcon }) {
   const { translate } = useDcsLanguage();
   const definition = chart_definition(widget.chart_type);
   const type_label = definition ? translate(definition.labelKey) : widget.chart_type;
@@ -250,6 +278,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
   return (
     <div className="bg-white border-2 flex flex-col h-full" style={{ borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : "#E0E0E0" }}>
       <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
+        {is_kpi && <KpiIconSlot icon={widget.icon} onPick={onPickIcon} hint={translate("DCS_DB_ICON_CARD_HINT")} />}
         <div className="min-w-0 flex-1">
           <EditableText
             value={widget.title}
@@ -282,7 +311,12 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
         )}
       </div>
 
-      <div className={`px-2 ${is_kpi ? "pb-2" : "pb-3"} flex-1`}>
+      <div
+        className={`px-2 ${is_kpi ? "pb-2" : "pb-3"} flex-1`}
+        title={is_kpi && onPickIcon ? translate("DCS_DB_ICON_CARD_HINT") : undefined}
+        style={is_kpi && onPickIcon ? { cursor: "pointer" } : undefined}
+        onClick={is_kpi && onPickIcon ? onPickIcon : undefined}
+      >
         {loading ? (
           <div className="flex items-center justify-center" style={{ height: state_height }}>
             <SpiralLoader />

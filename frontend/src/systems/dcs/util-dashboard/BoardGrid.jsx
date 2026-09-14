@@ -33,6 +33,7 @@ export default function BoardGrid({
   onRemoveWidget,
   onRetryWidget,
   onShowSkipped,
+  onPickIcon,
 }) {
   const kpi_widgets = widgets.filter((widget) => widget.chart_type === "kpi");
   const chart_widgets = widgets.filter((widget) => widget.chart_type !== "kpi");
@@ -50,6 +51,7 @@ export default function BoardGrid({
       onChangeType={editable ? (next_type) => onUpdateWidget(widget.id, { chart_type: next_type }) : undefined}
       onRetry={() => onRetryWidget(widget)}
       onShowSkipped={onShowSkipped}
+      onPickIcon={editable && onPickIcon ? () => onPickIcon(widget) : undefined}
     />
   );
 

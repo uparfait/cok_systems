@@ -13,6 +13,9 @@ const {
 } = require("./constants.js");
 const { build_field_catalog, is_categorical, is_numeric, is_time_source } = require("./field_catalog.js");
 
+// A KPI card's icon is stored as a Tabler React component name ("IconChartBar").
+const ICON_NAME_PATTERN = /^Icon[A-Za-z0-9]{1,80}$/;
+
 /**
  * Validates a dashboard's widget list against the real schemas of the forms
  * it charts. Every rule the builder enforces visually is re-checked here so
@@ -150,6 +153,9 @@ function validate_widget(widget, index, form_versions_by_group, project_id, erro
     if (typeof widget.description !== "string" || widget.description.length > 300) {
       errors.push(`${describe}: description must stay under 300 characters`);
     }
+  }
+  if (widget.icon !== null && widget.icon !== undefined && !ICON_NAME_PATTERN.test(widget.icon)) {
+    errors.push(`${describe}: icon must be a Tabler icon name`);
   }
   const definition = CHART_TYPES[widget.chart_type];
   if (!definition) {
