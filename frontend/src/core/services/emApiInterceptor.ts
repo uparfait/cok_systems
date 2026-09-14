@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { forceLogout, isForbiddenResponse, isPublicPath, SESSION_EXPIRED_MESSAGE } from './accessControl';
+import { forceLogout, isForbiddenResponse, isPublicPath, sessionEndedNotice } from './accessControl';
 
 const EM_API_PREFIX = '/cok/api/v1';
 
@@ -25,7 +25,7 @@ axios.interceptors.response.use(
       if (status === 403 && isForbiddenResponse(data)) {
         forceLogout(data.message);
       } else if (status === 401 && data?.goto_login && !isPublicPath(window.location.pathname)) {
-        forceLogout(SESSION_EXPIRED_MESSAGE);
+        forceLogout(sessionEndedNotice(data));
       }
     }
     return Promise.reject(error);

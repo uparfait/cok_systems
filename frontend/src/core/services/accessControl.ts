@@ -5,6 +5,7 @@ import type { User } from '../contexts/AuthContext';
 export const UI_FORBIDDEN_MESSAGE = 'UI::: YOU ARE NOT ALLOWED TO USE THIS RESOURCE';
 export const BC_FORBIDDEN_MESSAGE = 'BC::: YOU ARE NOT ALLOWED TO USE THIS RESOURCE';
 export const SESSION_EXPIRED_MESSAGE = 'YOUR SESSION HAS EXPIRED. LOGIN AGAIN.';
+export const SESSION_REJECTED_MESSAGE = 'YOUR SESSION WAS NOT ACCEPTED. LOGIN AGAIN.';
 
 export const FORCED_LOGOUT_NOTICE_KEY = 'forced_logout_notice';
 export const FORCED_LOGOUT_EVENT = 'auth:forced-logout';
@@ -36,6 +37,33 @@ export const isForbiddenResponse = (data: any): boolean => {
   if (!data || typeof data !== 'object') return false;
   if (data.forbidden_resource === true) return true;
   return typeof data.message === 'string' && data.message.startsWith('BC:::');
+};
+
+const readTokenExpiry = (token: string | null): number | null => {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+export const isStoredTokenExpired = (): boolean => {
+  try {
+    const expiry = readTokenExpiry(localStorage.getItem('accessToken'));
+    return expiry === null || expiry <= Date.now();
+  } catch {
+    return true;
+  }
+};
+
+export const sessionEndedNotice = (data: any): string => {
+  if (isStoredTokenExpired()) return SESSION_EXPIRED_MESSAGE;
+  const detail = [data?.message, data?.error]
+    .filter((part) => typeof part === 'string' && part.trim().length > 0)
+    .join(' - ');
+  return detail ? `${SESSION_REJECTED_MESSAGE} ${detail}` : SESSION_REJECTED_MESSAGE;
 };
 
 export const consumeForcedLogoutNotice = (): string | null => {

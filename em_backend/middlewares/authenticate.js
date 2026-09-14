@@ -11,6 +11,10 @@ const { cokCollection } = require('../utilities/cokDb');
  * { ok: true, user } or { ok: false, status, body }; never throws.
  */
 
+if (!process.env.JWT_SECRET) {
+  console.warn('[AUTH] JWT_SECRET is not set in em_backend/.env - using the development default. Tokens issued by the main backend are accepted only when it uses the very same secret.');
+}
+
 function refusal(status, message, error, gotoLogin) {
   return { ok: false, status, body: { success: false, type: 'warning', goto_login: gotoLogin !== false, message, error } };
 }

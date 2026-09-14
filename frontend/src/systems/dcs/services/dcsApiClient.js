@@ -1,5 +1,5 @@
 import axios from "axios";
-import { forceLogout, isForbiddenResponse } from "../../../core/services/accessControl.ts";
+import { forceLogout, isForbiddenResponse, sessionEndedNotice } from "../../../core/services/accessControl.ts";
 
 const DCS_API_BASE_URL = "/dcs/api";
 const LANGUAGE_STORAGE_KEY = "dcs_language";
@@ -22,19 +22,6 @@ dcs_api_client.interceptors.request.use((config) => {
   return config;
 });
 
-/**
- * Clears the shared auth session and sends the browser to the login page,
- * mirroring the main app's redirectToLogin behavior for a rejected session.
- */
-function redirect_to_login() {
-  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
-  window.localStorage.removeItem("refreshToken");
-  window.localStorage.removeItem("userData");
-  window.localStorage.removeItem("isAuthenticated");
-  window.dispatchEvent(new CustomEvent("auth:logout", { detail: { reason: "unauthorized" } }));
-  window.location.href = "/login";
-}
-
 dcs_api_client.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -53,8 +40,10 @@ dcs_api_client.interceptors.response.use(
     // the spot and the backend's own message is shown on the login page.
     if (error.response.status === 403 && isForbiddenResponse(response_data)) {
       forceLogout(response_data.message);
-    } else if (response_data.goto_login) {
-      redirect_to_login();
+    } else if (error.response.status === 401 && response_data.goto_login) {
+      // The session itself was refused: end it and tell the login page why
+      // (an expired token, or a token this service could not verify).
+      forceLogout(sessionEndedNotice(response_data));
     }
     return Promise.reject(
       Object.assign({ success: false, message: response_data.message || "Request failed" }, response_data, {

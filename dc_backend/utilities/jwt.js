@@ -1,6 +1,10 @@
 const jwt = require("jsonwebtoken");
 const config = require("../configurations/config.js");
 
+if (!process.env.JWT_SECRET) {
+  console.warn("[AUTH] JWT_SECRET is not set in dc_backend/.env - using the development default. Tokens issued by the main backend are accepted only when it uses the very same secret.");
+}
+
 /**
  * Verifies an access token minted by the main backend's login flow.
  * dc_backend never issues tokens of its own, it only verifies them, so the
