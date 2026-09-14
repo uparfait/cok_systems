@@ -61,7 +61,7 @@ const authenticate = require('../middlewares/authenticate');
  *       500:
  *         description: Internal server error
  */
-Router.get('/visitors/status/:status', authenticate, getVisitorsByStatus);
+Router.get('/visitors/status/:status',getVisitorsByStatus);
 
 /**
  * @swagger
@@ -102,7 +102,7 @@ Router.get('/visitors/status/:status', authenticate, getVisitorsByStatus);
  *       500:
  *         description: Internal server error
  */
-Router.get('/visitors/provider/:providerId', authenticate, getVisitorsByProvider);
+Router.get('/visitors/provider/:providerId',getVisitorsByProvider);
 
 /**
  * @swagger
@@ -148,7 +148,7 @@ Router.get('/visitors/provider/:providerId', authenticate, getVisitorsByProvider
  *       500:
  *         description: Internal server error
  */
-Router.get('/visitors/department/:departmentId', authenticate, getVisitorsByDepartment);
+Router.get('/visitors/department/:departmentId',getVisitorsByDepartment);
 
 /**
  * @swagger
@@ -165,7 +165,7 @@ Router.get('/visitors/department/:departmentId', authenticate, getVisitorsByDepa
  *       500:
  *         description: Internal server error
  */
-Router.get('/departments', authenticate, getManagedDepartments);
+Router.get('/departments',getManagedDepartments);
 
 /**
  * @swagger
@@ -205,7 +205,7 @@ Router.get('/departments', authenticate, getManagedDepartments);
  *       500:
  *         description: Internal server error
  */
-Router.put('/departments/:departmentId', authenticate, updateDepartment);
+Router.put('/departments/:departmentId',updateDepartment);
 
 /**
  * @swagger
@@ -242,7 +242,7 @@ Router.put('/departments/:departmentId', authenticate, updateDepartment);
  *       500:
  *         description: Internal server error
  */
-Router.get('/feedback', authenticate, getDepartmentFeedback);
+Router.get('/feedback',getDepartmentFeedback);
 
 /**
  * Head of Department feature routes.
@@ -251,23 +251,23 @@ Router.get('/feedback', authenticate, getDepartmentFeedback);
  */
 
 // Team members of the managed departments
-Router.get('/team', authenticate, getTeamMembers);
+Router.get('/team',getTeamMembers);
 
 // Task assignment and monitoring for department members
-Router.get('/team-tasks', authenticate, getTeamTasks);
-Router.post('/team-tasks', authenticate, createTeamTask);
+Router.get('/team-tasks',getTeamTasks);
+Router.post('/team-tasks',createTeamTask);
 
 // Announcements, notices, and directives
-Router.get('/announcements', authenticate, listAnnouncements);
-Router.post('/announcements', authenticate, createAnnouncement);
-Router.delete('/announcements/:id', authenticate, deleteAnnouncement);
+Router.get('/announcements',listAnnouncements);
+Router.post('/announcements',createAnnouncement);
+Router.delete('/announcements/:id',deleteAnnouncement);
 
 // Department-scoped audit trail and compliance summary
-Router.get('/audit/logs', authenticate, getDepartmentAuditLogs);
-Router.get('/audit/stats', authenticate, getDepartmentAuditStats);
+Router.get('/audit/logs',getDepartmentAuditLogs);
+Router.get('/audit/stats',getDepartmentAuditStats);
 
 // Departmental KPI dashboard (parking data intentionally excluded)
-Router.get('/analytics/kpis', authenticate, getDepartmentKpis);
-Router.get('/analytics/response-time', authenticate, getResponseTimeAnalytics);
+Router.get('/analytics/kpis',getDepartmentKpis);
+Router.get('/analytics/response-time',getResponseTimeAnalytics);
 
 module.exports = Router;

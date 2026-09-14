@@ -14,6 +14,13 @@ const getByPhoneController = require('../../controllers/feedback/get_by_phone');
 const submitUnservicedFeedbackController = require('../../controllers/feedback/submit_unserviced_feedback');
 const searchUnservicedController = require('../../controllers/feedback/search_unserviced');
 const listFeedbacksController = require('../../controllers/feedback/list_feedbacks');
+const authenticate = require('../../middlewares/authenticate');
+const { authorize } = require('../../middlewares/authorize');
+const { GROUPS } = require('../../utilities/access_policy');
+
+// Visitors submit and check their own feedback anonymously; browsing,
+// searching and deleting the collected feedback is a management action.
+const manageFeedback = [authenticate, authorize(GROUPS.FEEDBACK_READ)];
 
 /**
  * @swagger
@@ -236,7 +243,7 @@ Router.post('/submit', submitFeedbackController);
  *       500:
  *         description: Internal server error
  */
-Router.get('/search-by-department', searchByDepartmentController);
+Router.get('/search-by-department', manageFeedback, searchByDepartmentController);
 
 /**
  * @swagger
@@ -268,7 +275,7 @@ Router.get('/search-by-department', searchByDepartmentController);
  *       500:
  *         description: Internal server error
  */
-Router.get('/search', searchAllController);
+Router.get('/search', manageFeedback, searchAllController);
 
 /**
  * @swagger
@@ -298,7 +305,7 @@ Router.get('/search', searchAllController);
  *       500:
  *         description: Internal server error
  */
-Router.get('/search-unserviced', searchUnservicedController);
+Router.get('/search-unserviced', manageFeedback, searchUnservicedController);
 
 /**
  * @swagger
@@ -345,7 +352,7 @@ Router.get('/search-unserviced', searchUnservicedController);
  *       500:
  *         description: Internal server error
  */
-Router.get('/list', listFeedbacksController);
+Router.get('/list', manageFeedback, listFeedbacksController);
 
 /**
  * @swagger
@@ -373,7 +380,7 @@ Router.get('/list', listFeedbacksController);
  *       500:
  *         description: Internal server error
  */
-Router.get('/:id', getByIdController);
+Router.get('/:id', manageFeedback, getByIdController);
 
 /**
  * @swagger
@@ -447,6 +454,6 @@ Router.get('/:id', getByIdController);
  */
 Router.post('/submit-unserviced', submitUnservicedFeedbackController);
 
-Router.delete('/:id', deleteFeedbackController);
+Router.delete('/:id', manageFeedback, deleteFeedbackController);
 
 module.exports = Router;

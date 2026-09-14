@@ -55,34 +55,11 @@ export const clearNavigation = (): void => {
   try { localStorage.removeItem(NAV_KEY); } catch { /* ignore */ }
 };
 
-const FORCED_LOGOUT_NOTICE_KEY = 'forced_logout_notice';
-export const FORCED_LOGOUT_EVENT = 'auth:forced-logout';
-
-// Clears every stored credential and asks the app to navigate to the login
-// page (client-side, no page refresh) with a notice shown there as a toast.
-// Used when the navigation contract between frontend and backend no longer
-// matches (system configurations changed).
-export const forceLogout = (notice: string): void => {
-  try { sessionStorage.setItem(FORCED_LOGOUT_NOTICE_KEY, notice); } catch { /* ignore */ }
-  try {
-    localStorage.removeItem('userData');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem(NAV_KEY);
-  } catch { /* ignore */ }
-  window.dispatchEvent(new CustomEvent(FORCED_LOGOUT_EVENT, { detail: { notice } }));
-};
-
-// The login page reads (and clears) the notice left by forceLogout
-export const consumeForcedLogoutNotice = (): string | null => {
-  try {
-    const notice = sessionStorage.getItem(FORCED_LOGOUT_NOTICE_KEY);
-    if (notice) sessionStorage.removeItem(FORCED_LOGOUT_NOTICE_KEY);
-    return notice;
-  } catch {
-    return null;
-  }
-};
+// Forced logout (credentials cleared, notice shown as a toast on the login
+// page) lives in accessControl.ts so every API client and the route guard
+// share one implementation; re-exported here for existing callers.
+import { forceLogout } from './accessControl';
+export { FORCED_LOGOUT_EVENT, forceLogout, consumeForcedLogoutNotice } from './accessControl';
 
 const isRoleFormatFailure = (value: any): boolean => {
   const msg = String(value?.message || value?.error || '');

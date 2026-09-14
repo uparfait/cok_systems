@@ -20,7 +20,7 @@ const LoginPage = () => {
 
   const { login } = useAuth();
   
-  const { showSuccess, showError, showInfo } = useToast();
+  const { showSuccess, showError, showWarning } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -47,10 +47,11 @@ const LoginPage = () => {
   const cityHallImage = '/cok_hall.jpg';
   const logoImage = '/LOGO_COK.png';
 
-  // A forced logout (system configurations changed) leaves a notice to show
+  // A forced logout (resource not allowed for the role, or system
+  // configurations changed) leaves a notice to show as a warning
   useEffect(() => {
     const notice = consumeForcedLogoutNotice();
-    if (notice) showInfo(notice);
+    if (notice) showWarning(notice, 8000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

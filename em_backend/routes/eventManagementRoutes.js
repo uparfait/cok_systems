@@ -1,6 +1,9 @@
 const Router = require('express').Router();
 const CancelEventController = require('../controllers/CancelEventController');
 const PostponeEventController = require('../controllers/PostponeEventController');
+const rbac = require('../middlewares/rbac');
+
+const manageEvents = rbac.requireLinks('events');
 
 /**
  * @swagger
@@ -39,7 +42,7 @@ const PostponeEventController = require('../controllers/PostponeEventController'
  *       404:
  *         description: Event not found
  */
-Router.put('/cancel', CancelEventController.handle);
+Router.put('/cancel', manageEvents, CancelEventController.handle);
 
 /**
  * @swagger
@@ -81,6 +84,6 @@ Router.put('/cancel', CancelEventController.handle);
  *       404:
  *         description: Event not found
  */
-Router.put('/postpone', PostponeEventController.handle);
+Router.put('/postpone', manageEvents, PostponeEventController.handle);
 
 module.exports = Router;

@@ -22,18 +22,24 @@ const upload = multer({
   },
 });
 
+const rbac = require('../middlewares/rbac');
+
 const router = express.Router();
 
+// Organizers invite from the public event pages (no bearer); a signed-in
+// caller must be an event manager.
+const manageInvitesIfSignedIn = rbac.requireLinksIfSignedIn('events');
+
 // POST /events/:eventSpecialId/invite
-router.post('/:eventSpecialId/invite', upload.single('file'), InviteController.handleInvite);
+router.post('/:eventSpecialId/invite', manageInvitesIfSignedIn, upload.single('file'), InviteController.handleInvite);
 
 // GET /events/:eventSpecialId/invited
 router.get('/:eventSpecialId/invited', InviteController.handleGetInvited);
 
 // DELETE /events/invited/:inviteId
-router.delete('/invited/:inviteId', InviteController.handleRemoveInvited);
+router.delete('/invited/:inviteId', manageInvitesIfSignedIn, InviteController.handleRemoveInvited);
 
 // PATCH /events/invited/:inviteId/reactivate
-router.patch('/invited/:inviteId/reactivate', InviteController.handleReactivate);
+router.patch('/invited/:inviteId/reactivate', manageInvitesIfSignedIn, InviteController.handleReactivate);
 
 module.exports = router;

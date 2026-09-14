@@ -6,6 +6,15 @@ const Router = require('express').Router()
 
 // Import audit logging middleware
 const { auditSuccess, auditError } = require('../../middlewares/audit')
+const { authorize, authorizeOwnOr } = require('../../middlewares/authorize')
+const { GROUPS } = require('../../utilities/access_policy')
+
+// Listing/reading employees serves every role (visitor assignment, task
+// follow-ups, requests). Creating and deleting them is an admin action;
+// updating is allowed to admins and to the employee editing their own profile.
+const manageEmployees = authorize(GROUPS.ADMIN_EMPLOYEES)
+const manageOwnOrEmployees = authorizeOwnOr('id', GROUPS.ADMIN_EMPLOYEES)
+const manageStaffVehicles = authorize(GROUPS.SMART_PARKING.concat(GROUPS.ADMIN_EMPLOYEES))
 
 /**
  * import all routes
@@ -175,7 +184,7 @@ Router.get('/', auditSuccess('READ', 'employees'), list_all_employees)
  *       500:
  *         description: Internal server error
  */
-Router.post('/', auditSuccess('CREATE', 'employees', (req, res, data) => `Created new employee: ${data?.data?.full_name || req.body.full_name || 'unknown'}`), create_employee)
+Router.post('/', manageEmployees, auditSuccess('CREATE', 'employees', (req, res, data) => `Created new employee: ${data?.data?.full_name || req.body.full_name || 'unknown'}`), create_employee)
 
 /**
  * @swagger
@@ -336,7 +345,7 @@ Router.get('/:id', auditSuccess('READ', 'employees'), get_employee_by_id)
  *       500:
  *         description: Internal server error
  */
-Router.post('/register-car', auditSuccess('CREATE', 'vehicles', (req, res, data) => `Registered staff vehicle: ${req.body.plate_number || 'unknown'}`), registerSingleStaffCar)
+Router.post('/register-car', manageStaffVehicles, auditSuccess('CREATE', 'vehicles', (req, res, data) => `Registered staff vehicle: ${req.body.plate_number || 'unknown'}`), registerSingleStaffCar)
 
 /**
  * @swagger
@@ -366,7 +375,7 @@ Router.post('/register-car', auditSuccess('CREATE', 'vehicles', (req, res, data)
  *       500:
  *         description: Internal server error
  */
-Router.post('/bulk-upload-cars', auditSuccess('CREATE', 'vehicles', (req, res, data) => `Bulk uploaded staff vehicles`), bulkUploadStaffCars)
+Router.post('/bulk-upload-cars', manageStaffVehicles, auditSuccess('CREATE', 'vehicles', (req, res, data) => `Bulk uploaded staff vehicles`), bulkUploadStaffCars)
 
 /**
  * @swagger
@@ -421,7 +430,7 @@ Router.post('/bulk-upload-cars', auditSuccess('CREATE', 'vehicles', (req, res, d
  *       500:
  *         description: Internal server error
  */
-Router.put('/:id', auditSuccess('UPDATE', 'employees', (req, res, data) => `Updated employee: ${data?.data?.full_name || req.body.full_name || req.params.id}`), update_employee)
+Router.put('/:id', manageOwnOrEmployees, auditSuccess('UPDATE', 'employees', (req, res, data) => `Updated employee: ${data?.data?.full_name || req.body.full_name || req.params.id}`), update_employee)
 
 /**
  * @swagger
@@ -450,7 +459,7 @@ Router.put('/:id', auditSuccess('UPDATE', 'employees', (req, res, data) => `Upda
  *       500:
  *         description: Internal server error
  */
-Router.delete('/:id', auditSuccess('DELETE', 'employees', (req, res, data) => `Deleted employee: ${data?.data?.full_name || req.params.id}`), delete_employee)
+Router.delete('/:id', manageEmployees, auditSuccess('DELETE', 'employees', (req, res, data) => `Deleted employee: ${data?.data?.full_name || req.params.id}`), delete_employee)
 
 // Add error logging middleware
 Router.use(auditError('employees'))

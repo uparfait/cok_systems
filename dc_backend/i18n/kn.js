@@ -7,6 +7,7 @@ module.exports = {
   AUTH_ACCOUNT_NOT_ACTIVATED: "Nyamuneka fungura konti yawe mbere",
   ACCESS_DENIED: "Ntabwo wemerewe gukoresha iyi serivisi",
   SERVER_ERROR: "Habaye ikibazo, ongera ugerageze nyuma",
+  ACCESS_CHECK_UNAVAILABLE: "Uburenganzira bwawe ntibwashoboye kugenzurwa ubu, ongera ugerageze mu kanya",
   NOT_FOUND: "Ibyo usaba ntibyabonetse",
   ROUTE_NOT_FOUND: "Iyi serivisi ntibashije kuboneka",
   VALIDATION_FAILED: "Hari amakuru atujuje ibisabwa",

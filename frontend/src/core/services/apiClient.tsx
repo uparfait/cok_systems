@@ -2,6 +2,7 @@
 // Provides a flexible endpoint-based API caller with automatic auth token attachment
 
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosError } from 'axios';
+import { forceLogout, isForbiddenResponse } from './accessControl';
 
 // Custom events for toast notifications from API client
 // These events are listened to by ToastContext
@@ -171,6 +172,21 @@ apiClient.interceptors.response.use(
    
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
     const isLoginRequest = originalRequest?.url?.includes('/auth/login');
+
+    // The backend refused the resource for this ROLE (RBAC): the session is
+    // ended on the spot and the backend's own message is shown on the login page.
+    const forbiddenData = error.response?.data as { message?: string } | undefined;
+    if (error.response?.status === 403 && isForbiddenResponse(forbiddenData)) {
+      forceLogout(forbiddenData?.message || 'BC::: YOU ARE NOT ALLOWED TO USE THIS RESOURCE');
+      return Promise.reject({
+        status: false,
+        error: forbiddenData?.message,
+        message: forbiddenData?.message,
+        errors: [],
+        type: 'warning',
+        forbidden_resource: true,
+      });
+    }
 
     // If 401 and haven't tried to refresh yet, and it's NOT a login request
     if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {

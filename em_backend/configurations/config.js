@@ -31,6 +31,9 @@ module.exports = {
   jwt: {
     secret: process.env.JWT_SECRET || uuid.v4(),
   },
+  // Base URL of the main backend API - the caller's bearer token is forwarded
+  // there (GET /roles/navigation) to learn which systems their role may use.
+  cokApiUrl: (process.env.COK_API_URL || 'http://localhost:2026/cok/api').replace(/\/$/, ''),
   email: {
     host: process.env.EMAIL_HOST || 'mail.kigalicity.gov.rw',
     port: parseInt(process.env.EMAIL_PORT, 10) || 25,

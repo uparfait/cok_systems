@@ -1,8 +1,11 @@
 const Router = require('express').Router();
 const GetDashboardStatsController = require('../controllers/GetDashboardStatsController');
 const GetCalendarEventsController = require('../controllers/GetCalendarEventsController');
+const rbac = require('../middlewares/rbac');
 
-Router.get('/stats', GetDashboardStatsController.handle);
+// The dashboard figures belong to the event-manager dashboard; the calendar
+// feeds every signed-in role's calendar page and the public booking form.
+Router.get('/stats', rbac.requireLinks('events', 'rooms', 'booking-requests'), GetDashboardStatsController.handle);
 Router.get('/calendar', GetCalendarEventsController.handle);
 Router.get('/calendar/availability', GetCalendarEventsController.availability);
 

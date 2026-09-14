@@ -1,5 +1,12 @@
 const roles_managment = require('../../controllers/roles_managment/roles_managment.js')
 const Router = require('express').Router()
+const { authorize } = require('../../middlewares/authorize.js')
+const { GROUPS } = require('../../utilities/access_policy.js')
+
+// Reading roles backs the employee/user forms as well as roles management;
+// changing them is roles management alone.
+const canReadRoles = authorize(GROUPS.ADMIN_ROLES_READ)
+const canWriteRoles = authorize(GROUPS.ADMIN_ROLES_WRITE)
 
 /**
  * @swagger
@@ -35,13 +42,13 @@ const Router = require('express').Router()
  *       500:
  *         description: Internal server error
  */
-Router.get('/', roles_managment.getAllRoles)
+Router.get('/', canReadRoles, roles_managment.getAllRoles)
 
 // New navigation endpoints (registered before /:id so the names are not
 // swallowed by the id matcher)
 Router.get('/navigation', roles_managment.getNavigation)
-Router.get('/defaults', roles_managment.getDefaultRoles)
-Router.get('/links-catalog', roles_managment.getLinksCatalog)
+Router.get('/defaults', canReadRoles, roles_managment.getDefaultRoles)
+Router.get('/links-catalog', canReadRoles, roles_managment.getLinksCatalog)
 
 /**
  * @swagger
@@ -92,7 +99,7 @@ Router.get('/links-catalog', roles_managment.getLinksCatalog)
  *       500:
  *         description: Internal server error
  */
-Router.post('/', roles_managment.createRole)
+Router.post('/', canWriteRoles, roles_managment.createRole)
 
 /**
  * @swagger
@@ -109,7 +116,7 @@ Router.post('/', roles_managment.createRole)
  *       500:
  *         description: Internal server error
  */
-Router.get('/resources/available', roles_managment.getAvailableResources)
+Router.get('/resources/available', canReadRoles, roles_managment.getAvailableResources)
 
 /**
  * @swagger
@@ -136,7 +143,7 @@ Router.get('/resources/available', roles_managment.getAvailableResources)
  *       500:
  *         description: Internal server error
  */
-Router.get('/:id', roles_managment.getRoleById)
+Router.get('/:id', canReadRoles, roles_managment.getRoleById)
 
 /**
  * @swagger
@@ -163,7 +170,7 @@ Router.get('/:id', roles_managment.getRoleById)
  *       500:
  *         description: Internal server error
  */
-Router.get('/name/:name', roles_managment.getRoleByName)
+Router.get('/name/:name', canReadRoles, roles_managment.getRoleByName)
 
 /**
  * @swagger
@@ -202,7 +209,7 @@ Router.get('/name/:name', roles_managment.getRoleByName)
  *       500:
  *         description: Internal server error
  */
-Router.put('/:id', roles_managment.updateRole)
+Router.put('/:id', canWriteRoles, roles_managment.updateRole)
 
 /**
  * @swagger
@@ -244,7 +251,7 @@ Router.put('/:id', roles_managment.updateRole)
  *       500:
  *         description: Internal server error
  */
-Router.put('/:id/permissions/toggle', roles_managment.togglePermission)
+Router.put('/:id/permissions/toggle', canWriteRoles, roles_managment.togglePermission)
 
 /**
  * @swagger
@@ -283,7 +290,7 @@ Router.put('/:id/permissions/toggle', roles_managment.togglePermission)
  *       500:
  *         description: Internal server error
  */
-Router.put('/:id/permissions/bulk', roles_managment.bulkUpdatePermissions)
+Router.put('/:id/permissions/bulk', canWriteRoles, roles_managment.bulkUpdatePermissions)
 
 /**
  * @swagger
@@ -310,6 +317,6 @@ Router.put('/:id/permissions/bulk', roles_managment.bulkUpdatePermissions)
  *       500:
  *         description: Internal server error
  */
-Router.delete('/:id', roles_managment.deleteRole)
+Router.delete('/:id', canWriteRoles, roles_managment.deleteRole)
 
 module.exports = Router

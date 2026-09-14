@@ -7,6 +7,7 @@ module.exports = {
   AUTH_ACCOUNT_NOT_ACTIVATED: "Please activate your account first",
   ACCESS_DENIED: "You do not have permission to access this resource",
   SERVER_ERROR: "Something went wrong, please try again later",
+  ACCESS_CHECK_UNAVAILABLE: "Access rights could not be verified right now, please try again shortly",
   NOT_FOUND: "Requested resource was not found",
   ROUTE_NOT_FOUND: "Requested service was not found",
   VALIDATION_FAILED: "Some fields did not pass validation",

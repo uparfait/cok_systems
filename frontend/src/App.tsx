@@ -7,6 +7,7 @@ import {
   useParams,
 } from "react-router-dom";
 import { getStoredNavigation } from "./core/services/navigationService";
+import "./core/services/emApiInterceptor";
 import { getRoleSlug } from "./core/components/Layout/layoutUtils";
 import LoginPage from "./pages/auth/LoginPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";

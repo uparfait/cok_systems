@@ -18,19 +18,26 @@ const eventAccessRoutes = require('./routes/eventAccessRoutes');
 const GenerateRoomQrCodeController = require('./controllers/GenerateRoomQrCodeController');
 const SectionUpdate = require('./controllers/EventSectionUpdateController');
 const eventAccessAuth = require('./middlewares/eventAccessAuth');
+const rbac = require('./middlewares/rbac');
+
+// Role-based access (see middlewares/rbac.js): a signed-in caller's bearer
+// must always be a valid session; dashboard-only management routes require
+// the events/rooms/booking-requests links; routes shared with the public
+// organizer flows enforce the links only when a bearer is actually sent.
+Router.use(rbac.validateBearerIfPresent);
 
 // Co-organizer routes (before the /events routers so the specific path wins)
 const CoOrganizerController = require('./controllers/CoOrganizerController');
 Router.get('/events/:eventSpecialId/co-organizers', CoOrganizerController.list);
-Router.post('/events/:eventSpecialId/co-organizers', CoOrganizerController.add);
-Router.put('/events/:eventSpecialId/co-organizers/:email', CoOrganizerController.update);
-Router.delete('/events/:eventSpecialId/co-organizers/:email', CoOrganizerController.remove);
+Router.post('/events/:eventSpecialId/co-organizers', rbac.requireLinksIfSignedIn('events'), CoOrganizerController.add);
+Router.put('/events/:eventSpecialId/co-organizers/:email', rbac.requireLinksIfSignedIn('events'), CoOrganizerController.update);
+Router.delete('/events/:eventSpecialId/co-organizers/:email', rbac.requireLinksIfSignedIn('events'), CoOrganizerController.remove);
 
 // Mount all routes
 Router.use('/rooms/available', availableRoomRoutes);
 
 // Room QR code route must come before catch-all /rooms/:id
-Router.get('/rooms/:roomName/qrcode', GenerateRoomQrCodeController.handle);
+Router.get('/rooms/:roomName/qrcode', rbac.requireLinks('rooms', 'events'), GenerateRoomQrCodeController.handle);
 
 Router.use('/rooms', roomRetrievalRoutes);
 Router.use('/rooms', roomRoutes);
@@ -45,11 +52,11 @@ Router.use('/events/past', pastEventRoutes);
 Router.use('/attendance', eventAccessAuth, attendanceRoutes);
 Router.use('/event-actions', eventActionRoutes);
 Router.use('/events', eventManagementRoutes);
-Router.put('/events/section-update', SectionUpdate.handle);
+Router.put('/events/section-update', rbac.requireLinksIfSignedIn('events'), SectionUpdate.handle);
 
-// Attendance export
+// Attendance export (event-manager dashboard only)
 const ExportAttendanceController = require('./controllers/ExportAttendanceController');
-Router.get('/attendance/export', ExportAttendanceController.handle);
+Router.get('/attendance/export', rbac.requireLinks('events'), ExportAttendanceController.handle);
 
 // Dashboard routes
 const dashboardRoutes = require('./routes/dashboardRoutes');

@@ -2,6 +2,11 @@
 const Router = require('express').Router();
 const PostMeetingMinutesController = require('../controllers/PostMeetingMinutesController');
 const MinutesFilesController = require('../controllers/MinutesFilesController');
+const rbac = require('../middlewares/rbac');
+
+// Minutes are written by organizers on the public event pages (no bearer);
+// a signed-in caller must be an event manager.
+const writeMinutesIfSignedIn = rbac.requireLinksIfSignedIn('events');
 
 /**
  * @swagger
@@ -103,12 +108,12 @@ const MinutesFilesController = require('../controllers/MinutesFilesController');
  *       500:
  *         description: Server error
  */
-Router.post('/:eventSpecialId/minutes/files', MinutesFilesController.uploadMiddleware, MinutesFilesController.uploadFiles);
-Router.put('/:eventSpecialId/minutes/files/:fileId', MinutesFilesController.updateMiddleware, MinutesFilesController.updateFile);
-Router.delete('/:eventSpecialId/minutes/files/:fileId', MinutesFilesController.deleteFile);
-Router.post('/:eventSpecialId/minutes', PostMeetingMinutesController.saveMinutes);
+Router.post('/:eventSpecialId/minutes/files', writeMinutesIfSignedIn, MinutesFilesController.uploadMiddleware, MinutesFilesController.uploadFiles);
+Router.put('/:eventSpecialId/minutes/files/:fileId', writeMinutesIfSignedIn, MinutesFilesController.updateMiddleware, MinutesFilesController.updateFile);
+Router.delete('/:eventSpecialId/minutes/files/:fileId', writeMinutesIfSignedIn, MinutesFilesController.deleteFile);
+Router.post('/:eventSpecialId/minutes', writeMinutesIfSignedIn, PostMeetingMinutesController.saveMinutes);
 Router.get('/:eventSpecialId/minutes', PostMeetingMinutesController.getMinutes);
 Router.get('/:eventSpecialId/minutes/series', PostMeetingMinutesController.getSeriesMinutes);
-Router.post('/:eventSpecialId/minutes/designate', PostMeetingMinutesController.designateMinutes);
+Router.post('/:eventSpecialId/minutes/designate', writeMinutesIfSignedIn, PostMeetingMinutesController.designateMinutes);
 
 module.exports = Router;

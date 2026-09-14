@@ -1,4 +1,5 @@
 import axios from "axios";
+import { forceLogout, isForbiddenResponse } from "../../../core/services/accessControl.ts";
 
 const DCS_API_BASE_URL = "/dcs/api";
 const LANGUAGE_STORAGE_KEY = "dcs_language";
@@ -48,7 +49,11 @@ dcs_api_client.interceptors.response.use(
       });
     }
     const response_data = error.response.data || {};
-    if (response_data.goto_login) {
+    // The backend refused DCS for this ROLE (RBAC): the session is ended on
+    // the spot and the backend's own message is shown on the login page.
+    if (error.response.status === 403 && isForbiddenResponse(response_data)) {
+      forceLogout(response_data.message);
+    } else if (response_data.goto_login) {
       redirect_to_login();
     }
     return Promise.reject(

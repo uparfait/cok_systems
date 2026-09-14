@@ -5,6 +5,7 @@ const GetRoomByNameController = require('../controllers/GetRoomByNameController'
 const GetActiveRoomsController = require('../controllers/GetActiveRoomsController');
 const GetRoomAvailabilityController = require('../controllers/GetRoomAvailabilityController');
 const GetRoomsStatisticsController = require('../controllers/GetRoomsStatisticsController');
+const rbac = require('../middlewares/rbac');
 
 
 /**
@@ -522,7 +523,7 @@ Router.get('/availability', GetRoomAvailabilityController.handle);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-Router.get('/statistics', GetRoomsStatisticsController.handle);
+Router.get('/statistics', rbac.requireLinks('rooms', 'events'), GetRoomsStatisticsController.handle);
 
 /**
  * @swagger

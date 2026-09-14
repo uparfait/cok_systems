@@ -214,6 +214,7 @@ class RoleController {
             });
 
             const savedRole = await newRole.save();
+            navigation.invalidateNavigationCache();
 
             return res.status(201).json({
                 success: true,
@@ -421,6 +422,7 @@ class RoleController {
             }
 
             const updatedRole = await role.save();
+            navigation.invalidateNavigationCache();
 
             return res.status(200).json({
                 success: true,
@@ -476,6 +478,7 @@ class RoleController {
             }
 
             await role_model.findByIdAndDelete(id);
+            navigation.invalidateNavigationCache();
 
             return res.status(200).json({
                 success: true,

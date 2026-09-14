@@ -15,18 +15,18 @@ const getOutgoingByRequest = require('../../controllers/outgoing/get_outgoing_by
 const getOutgoingTotal = require('../../controllers/outgoing/get_outgoing_total.js');
 const exportOutgoing = require('../../controllers/outgoing/export_outgoing.js');
 
-Router.post('/create', authenticate, createRequest);
-Router.put('/:id', authenticate, updateRequest);
-Router.post('/:id/archive', authenticate, archiveRequest);
-Router.get('/', authenticate, getRequests);
-Router.get('/statistics', authenticate, getStatistics);
-Router.get('/export', authenticate, exportExcel);
+Router.post('/create',createRequest);
+Router.put('/:id',updateRequest);
+Router.post('/:id/archive',archiveRequest);
+Router.get('/',getRequests);
+Router.get('/statistics',getStatistics);
+Router.get('/export',exportExcel);
 
-Router.post('/outgoing/create', authenticate, createOutgoing);
-Router.put('/outgoing/:id', authenticate, updateOutgoing);
-Router.get('/outgoing', authenticate, getOutgoing);
-Router.get('/outgoing/by-request/:requestId', authenticate, getOutgoingByRequest);
-Router.get('/outgoing/total', authenticate, getOutgoingTotal);
-Router.get('/outgoing/export', authenticate, exportOutgoing);
+Router.post('/outgoing/create',createOutgoing);
+Router.put('/outgoing/:id',updateOutgoing);
+Router.get('/outgoing',getOutgoing);
+Router.get('/outgoing/by-request/:requestId',getOutgoingByRequest);
+Router.get('/outgoing/total',getOutgoingTotal);
+Router.get('/outgoing/export',exportOutgoing);
 
 module.exports = Router;

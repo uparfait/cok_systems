@@ -2,26 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
+import ForbiddenResourceScreen from './ForbiddenResourceScreen';
+import { evaluateRouteAccess } from '../services/accessControl';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   const [isReady, setIsReady] = useState(false);
 
-  // Wait for auth to be ready before making any decisions
   useEffect(() => {
-    // Give a small delay to ensure auth state is initialized
     const timer = setTimeout(() => {
       setIsReady(true);
     }, 100);
     return () => clearTimeout(timer);
   }, []);
 
-  // Show loading spinner while auth is initializing or not ready
   if (isLoading || !isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -35,9 +34,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    // Losing authentication on a protected page always lands on the login
-    // form directly, never on the public home page
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  const access = evaluateRouteAccess(location.pathname, user);
+  if (!access.allowed) {
+    console.warn('[RBAC] route denied:', location.pathname, access.reason);
+    return <ForbiddenResourceScreen />;
   }
 
   return <>{children}</>;

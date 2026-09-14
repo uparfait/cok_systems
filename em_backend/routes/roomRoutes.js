@@ -2,6 +2,10 @@ const Router = require('express').Router();
 const CreateRoomController = require('../controllers/CreateRoomController');
 const UpdateRoomController = require('../controllers/UpdateRoomController');
 const DeleteRoomController = require('../controllers/DeleteRoomController');
+const rbac = require('../middlewares/rbac');
+
+// Rooms are managed from the event-manager dashboard only.
+const manageRooms = rbac.requireLinks('rooms');
 
 /**
  * @swagger
@@ -150,7 +154,7 @@ const DeleteRoomController = require('../controllers/DeleteRoomController');
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-Router.post('/', CreateRoomController.handle);
+Router.post('/', manageRooms, CreateRoomController.handle);
 
 /**
  * @swagger
@@ -248,7 +252,7 @@ Router.post('/', CreateRoomController.handle);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-Router.put('/:id', UpdateRoomController.handle);
+Router.put('/:id', manageRooms, UpdateRoomController.handle);
 
 /**
  * @swagger
@@ -304,6 +308,6 @@ Router.put('/:id', UpdateRoomController.handle);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-Router.delete('/:id', DeleteRoomController.handle);
+Router.delete('/:id', manageRooms, DeleteRoomController.handle);
 
 module.exports = Router;

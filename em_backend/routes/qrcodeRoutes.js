@@ -1,5 +1,6 @@
 const Router = require('express').Router();
 const GenerateQrCodeController = require('../controllers/GenerateQrCodeController');
+const rbac = require('../middlewares/rbac');
 
 /**
  * @swagger
@@ -18,6 +19,6 @@ const GenerateQrCodeController = require('../controllers/GenerateQrCodeControlle
  *       200:
  *         description: QR code generated successfully
  */
-Router.get('/:eventId/qrcode', GenerateQrCodeController.handle);
+Router.get('/:eventId/qrcode', rbac.requireLinksIfSignedIn('events'), GenerateQrCodeController.handle);
 
 module.exports = Router;

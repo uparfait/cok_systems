@@ -170,6 +170,25 @@ async function resolveNavigation(roleName) {
     };
 }
 
+// Role navigation is asked for on nearly every authorized request, so the
+// resolved answer is kept per role name for a short while. Any role edit
+// clears the whole cache (see controllers/roles_managment).
+const NAV_CACHE_TTL_MS = 60 * 1000;
+const navCache = new Map();
+
+async function resolveNavigationCached(roleName) {
+    const key = String(roleName || '').trim().toLowerCase();
+    const hit = navCache.get(key);
+    if (hit && hit.expires > Date.now()) return hit.nav;
+    const nav = await resolveNavigation(roleName);
+    navCache.set(key, { nav, expires: Date.now() + NAV_CACHE_TTL_MS });
+    return nav;
+}
+
+function invalidateNavigationCache() {
+    navCache.clear();
+}
+
 /**
  * The full role set: database roles plus any default roles that have no
  * database document yet, deduplicated by slug (so e.g. "Mayor" and "mayor"
@@ -222,6 +241,8 @@ module.exports = {
     slugify,
     matchDefaultSlug,
     resolveNavigation,
+    resolveNavigationCached,
+    invalidateNavigationCache,
     resolveCatalogLinks,
     validateNavLinks,
     applyPlaceholders,

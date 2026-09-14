@@ -4,6 +4,10 @@ const UpdateLiveEventController = require('../controllers/UpdateLiveEventControl
 const UpdateUpcomingEventController = require('../controllers/UpdateUpcomingEventController');
 const UpdateRecurringEventController = require('../controllers/UpdateRecurringEventController');
 const ChangeEventRoomController = require('../controllers/ChangeEventRoomController');
+const rbac = require('../middlewares/rbac');
+
+// Events are created and rescheduled from the event-manager dashboard only.
+const manageEvents = rbac.requireLinks('events');
 
 /**
  * @swagger
@@ -350,7 +354,7 @@ const ChangeEventRoomController = require('../controllers/ChangeEventRoomControl
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-Router.post('/', CreateEventController.handle);
+Router.post('/', manageEvents, CreateEventController.handle);
 
 /**
  * @swagger
@@ -441,7 +445,7 @@ Router.post('/', CreateEventController.handle);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-Router.put('/live/:id', UpdateLiveEventController.handle);
+Router.put('/live/:id', manageEvents, UpdateLiveEventController.handle);
 
 /**
  * @swagger
@@ -532,7 +536,7 @@ Router.put('/live/:id', UpdateLiveEventController.handle);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-Router.put('/upcoming/:id', UpdateUpcomingEventController.handle);
+Router.put('/upcoming/:id', manageEvents, UpdateUpcomingEventController.handle);
 
 /**
  * @swagger
@@ -646,7 +650,7 @@ Router.put('/upcoming/:id', UpdateUpcomingEventController.handle);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-Router.put('/recurring/:id', UpdateRecurringEventController.handle);
+Router.put('/recurring/:id', manageEvents, UpdateRecurringEventController.handle);
 
 /**
  * @swagger
@@ -705,6 +709,6 @@ Router.put('/recurring/:id', UpdateRecurringEventController.handle);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-Router.put('/change-room', ChangeEventRoomController.handle);
+Router.put('/change-room', manageEvents, ChangeEventRoomController.handle);
 
 module.exports = Router;

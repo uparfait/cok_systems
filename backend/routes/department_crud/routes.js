@@ -6,6 +6,12 @@ const Router = require('express').Router()
 
 // Import audit logging middleware
 const { auditSuccess, auditError } = require('../../middlewares/audit')
+const { authorize } = require('../../middlewares/authorize')
+const { GROUPS } = require('../../utilities/access_policy')
+
+// Every signed-in user reads departments (dropdowns, visitor assignment);
+// only the admin departments page changes them.
+const manageDepartments = authorize(GROUPS.ADMIN_DEPARTMENTS)
 
 /**
  * import all routes
@@ -167,7 +173,7 @@ Router.get('/', auditSuccess('READ', 'departments'), list_all_departments)
  *       500:
  *         description: Internal server error
  */
-Router.post('/', auditSuccess('CREATE', 'departments', (req, res, data) => `Created new department: ${data?.data?.department_name || req.body.department_name || 'unknown'}`), create_department)
+Router.post('/', manageDepartments, auditSuccess('CREATE', 'departments', (req, res, data) => `Created new department: ${data?.data?.department_name || req.body.department_name || 'unknown'}`), create_department)
 
 /**
  * @swagger
@@ -329,7 +335,7 @@ Router.get('/:departmentId/sub-departments', auditSuccess('READ', 'departments')
  *       500:
  *         description: Internal server error
  */
-Router.put('/:id', auditSuccess('UPDATE', 'departments', (req, res, data) => `Updated department: ${data?.data?.department_name || req.body.department_name || req.params.id}`), update_department)
+Router.put('/:id', manageDepartments, auditSuccess('UPDATE', 'departments', (req, res, data) => `Updated department: ${data?.data?.department_name || req.body.department_name || req.params.id}`), update_department)
 
 /**
  * @swagger
@@ -358,7 +364,7 @@ Router.put('/:id', auditSuccess('UPDATE', 'departments', (req, res, data) => `Up
  *       500:
  *         description: Internal server error
  */
-Router.delete('/:id', auditSuccess('DELETE', 'departments', (req, res, data) => `Deleted department: ${data?.data?.department_name || req.params.id}`), delete_department)
+Router.delete('/:id', manageDepartments, auditSuccess('DELETE', 'departments', (req, res, data) => `Deleted department: ${data?.data?.department_name || req.params.id}`), delete_department)
 
 /**
  * @swagger
@@ -402,7 +408,7 @@ Router.delete('/:id', auditSuccess('DELETE', 'departments', (req, res, data) => 
  *       500:
  *         description: Internal server error
  */
-Router.post('/:departmentId/services', auditSuccess('CREATE', 'department_services', (req, res, data) => `Added service ${req.body.name ? `"${req.body.name}" ` : ''}to department: ${data?.data?.department_name || req.params.departmentId}`), addService)
+Router.post('/:departmentId/services', manageDepartments, auditSuccess('CREATE', 'department_services', (req, res, data) => `Added service ${req.body.name ? `"${req.body.name}" ` : ''}to department: ${data?.data?.department_name || req.params.departmentId}`), addService)
 
 /**
  * @swagger
@@ -444,7 +450,7 @@ Router.post('/:departmentId/services', auditSuccess('CREATE', 'department_servic
  *       500:
  *         description: Internal server error
  */
-Router.put('/:departmentId/services/:serviceId', auditSuccess('UPDATE', 'department_services', (req, res, data) => `Updated service: ${req.body.name || req.params.serviceId}`), updateService)
+Router.put('/:departmentId/services/:serviceId', manageDepartments, auditSuccess('UPDATE', 'department_services', (req, res, data) => `Updated service: ${req.body.name || req.params.serviceId}`), updateService)
 
 /**
  * @swagger
@@ -474,7 +480,7 @@ Router.put('/:departmentId/services/:serviceId', auditSuccess('UPDATE', 'departm
  *       500:
  *         description: Internal server error
  */
-Router.delete('/:departmentId/services/:serviceId', auditSuccess('DELETE', 'department_services', (req, res, data) => `Deleted service: ${data?.data?.name || req.params.serviceId}`), deleteService)
+Router.delete('/:departmentId/services/:serviceId', manageDepartments, auditSuccess('DELETE', 'department_services', (req, res, data) => `Deleted service: ${data?.data?.name || req.params.serviceId}`), deleteService)
 
 // Add error logging middleware
 Router.use(auditError('departments'))

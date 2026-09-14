@@ -1,5 +1,12 @@
 const Router = require("express").Router();
 const BookingRequestController = require("../controllers/BookingRequestController");
+const rbac = require("../middlewares/rbac");
+
+// Submitting, tracking, editing and cancelling one's own request is the
+// public booking flow; reviewing the whole list and deciding on requests
+// is the event-manager dashboard.
+const manageBookings = rbac.requireLinks("booking-requests");
+const manageBookingsIfSignedIn = rbac.requireLinksIfSignedIn("booking-requests");
 
 /**
  * @swagger
@@ -198,7 +205,7 @@ Router.post("/", BookingRequestController.handleCreate);
  *             schema:
  *               $ref: '#/components/schemas/BookingRequestListResponse'
  */
-Router.get("/", BookingRequestController.handleList);
+Router.get("/", manageBookings, BookingRequestController.handleList);
 
 /**
  * @swagger
@@ -220,7 +227,7 @@ Router.get("/", BookingRequestController.handleList);
  */
 // Bulk delete by status + date range (requests only — never their events).
 // Registered before the /:id routes so "bulk" is not treated as an id.
-Router.delete("/bulk", BookingRequestController.handleBulkDelete);
+Router.delete("/bulk", manageBookings, BookingRequestController.handleBulkDelete);
 
 Router.get("/tracking/:trackingCode", BookingRequestController.handleGetByTrackingCode);
 
@@ -264,7 +271,7 @@ Router.put("/tracking/:trackingCode/request-water", BookingRequestController.han
  *       404:
  *         description: Booking request not found
  */
-Router.get("/:id", BookingRequestController.handleGetById);
+Router.get("/:id", manageBookings, BookingRequestController.handleGetById);
 
 /**
  * @swagger
@@ -286,7 +293,7 @@ Router.get("/:id", BookingRequestController.handleGetById);
  *       404:
  *         description: Booking request not found
  */
-Router.put("/:id/accept", BookingRequestController.handleAccept);
+Router.put("/:id/accept", manageBookings, BookingRequestController.handleAccept);
 
 /**
  * @swagger
@@ -320,7 +327,7 @@ Router.put("/:id/accept", BookingRequestController.handleAccept);
  *       404:
  *         description: Booking request not found
  */
-Router.put("/:id/reject", BookingRequestController.handleReject);
+Router.put("/:id/reject", manageBookings, BookingRequestController.handleReject);
 
 /**
  * @swagger
@@ -342,7 +349,7 @@ Router.put("/:id/reject", BookingRequestController.handleReject);
  *       404:
  *         description: Booking request not found
  */
-Router.put("/:id/cancel", BookingRequestController.handleCancel);
+Router.put("/:id/cancel", manageBookingsIfSignedIn, BookingRequestController.handleCancel);
 
 /**
  * @swagger
@@ -391,6 +398,6 @@ Router.put("/:id/cancel", BookingRequestController.handleCancel);
  *       404:
  *         description: Booking request not found
  */
-Router.put("/:id", BookingRequestController.handleUpdate);
+Router.put("/:id", manageBookingsIfSignedIn, BookingRequestController.handleUpdate);
 
 module.exports = Router;
