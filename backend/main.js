@@ -54,8 +54,6 @@ const InitialiseAllRealtimeServices = require("./services/reatime_service/initia
 const taskNotificationScheduler = require("./services/task_notification_scheduler.js");
 const parkingMonitor = require("./utilities/parkingMonitor.js");
 const overdueMonitor = require("./utilities/overdueMonitor.js");
-const Audit = require("./models/audit.js");
-const User = require("./models/user.js");
 
 const ParkingSlot = require("./models/parking_slots.js");
 
@@ -72,53 +70,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const path = require("path");
-const expressMung = require("express-mung");
-
-async function LogSystemAuditEvent(req, data) {
-  console.log(data);
-  try {
-    const auditData = {
-      action: data.action,
-      description: data.description,
-      user_id: req.user?.id || req.user?._id || null,
-      error: data.error || null,
-      ip_address:
-        req.connection?.remoteAddress ||
-        req.socket?.remoteAddress ||
-        req.ip ||
-        null,
-      user_agent: req.get("User-Agent") || null,
-      method: req.method,
-      endpoint: req.originalUrl || req.url,
-      status_code: data.status_code || null,
-      old_values: data.old_values || null,
-      new_values: data.new_values || null,
-      error_message: data.error_message || null,
-      metadata: null,
-    };
-
-    if (auditData.user_id) {
-      try {
-        const user = await User.findById(auditData.user_id).select(
-          "full_name email",
-        );
-        if (user) {
-          auditData.user_name = user.full_name;
-          auditData.user_email = user.email;
-        }
-      } catch (userError) {
-        console.warn(
-          "Could not fetch user details for audit log:",
-          userError.message,
-        );
-      }
-    }
-
-    await Audit.create(auditData);
-  } catch (error) {
-    console.log("Error occurred while logging audit event:", error);
-  }
-}
+const auditResponse = require("./middlewares/audit_response.js");
 
 /**
  * Import the central routes
@@ -138,72 +90,8 @@ const web_socket_service = new WebSocketService(server);
  * Defines allowed origins and enables credential support (cookies/auth headers)
  */
 
-// Automatically intercepts and modifies JSON responses
-app.use(
-  expressMung.json(
-    (body, req, res) => {
-      try {
-        /**
-         * We are only going to skip logging audits for success status btn 200-209
-         */
-
-        if (res.statusCode > 300) {
-          const action =
-            body?.error?.toUpperCase() === "ERROR"
-              ? req.method.toUpperCase()
-              : req.method.toUpperCase();
-          const description = body?.message || body?.error || "";
-          const error_message = body?.error || "";
-          const endpoint = req.originalUrl || req.url || "";
-          const status_code = res.statusCode;
-
-          LogSystemAuditEvent(
-            req,
-
-            {
-              action: action,
-              description: description,
-              error: error_message,
-              error_message: error_message,
-              status_code: status_code,
-              endpoint: endpoint,
-            },
-          );
-        }
-
-        return body;
-      } catch (error) {
-        if (res.statusCode > 300) {
-          const action =
-            body?.error?.toUpperCase() === "ERROR"
-              ? req.method.toUpperCase()
-              : req.method.toUpperCase();
-          const description = body?.message || body?.error || "";
-          const error_message = body?.error || "";
-          const endpoint = req.originalUrl || req.url || "";
-          const status_code = res.statusCode;
-
-          LogSystemAuditEvent(
-            req,
-
-            {
-              action: action,
-              description: description,
-              error: error_message,
-              error_message: error_message,
-              status_code: status_code,
-              endpoint: endpoint,
-            },
-          );
-        }
-        return body;
-      }
-    },
-    {
-      mungError: true,
-    },
-  ),
-);
+// Stores an audit row for every response that is not a 200/201 (see middlewares/audit_response.js)
+app.use(auditResponse);
 
 app.use(
   cors({

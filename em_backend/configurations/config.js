@@ -10,6 +10,9 @@ module.exports = {
     url: process.env.DATABASE_URL2 || 'mongodb://localhost:27017/COK_EVENT_MNG',
     name: process.env.DATABASE_NAME2 || 'COK_EVENT_MNG',
   },
+  // The main system's database on the same cluster - audit rows of every
+  // backend are stored in its shared "audits" collection.
+  cokDbName: process.env.COK_DB_NAME || 'cok',
   cors: {
     origin: process.env.CORS_ORIGIN || '*',
     methods: process.env.CORS_METHODS || 'GET,POST,PUT,DELETE',

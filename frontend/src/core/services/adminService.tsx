@@ -459,10 +459,10 @@ export const departmentManagerService = {
   createAnnouncement: (data: { title: string; message: string; a_type?: string; department_id?: string }) =>
     post('/department-manager/announcements', data),
   deleteAnnouncement: (id: string) => del(`/department-manager/announcements/${id}`),
-  getAuditLogs: (page: number = 1, limit: number = 20, filters?: { action?: string; resource?: string; start_date?: string; end_date?: string }) => {
+  getAuditLogs: (page: number = 1, limit: number = 20, filters?: { status?: string; method?: string; start_date?: string; end_date?: string }) => {
     let url = `/department-manager/audit/logs?page=${page}&limit=${limit}`;
-    if (filters?.action) url += `&action=${encodeURIComponent(filters.action)}`;
-    if (filters?.resource) url += `&resource=${encodeURIComponent(filters.resource)}`;
+    if (filters?.status) url += `&status=${encodeURIComponent(filters.status)}`;
+    if (filters?.method) url += `&method=${encodeURIComponent(filters.method)}`;
     if (filters?.start_date) url += `&start_date=${encodeURIComponent(filters.start_date)}`;
     if (filters?.end_date) url += `&end_date=${encodeURIComponent(filters.end_date)}`;
     return get(url);

@@ -45,6 +45,9 @@ const {
 const language_middleware =
     require("./middlewares/language.js");
 
+const audit_response =
+    require("./middlewares/audit_response.js");
+
 const {
     not_found_handler,
     global_error_handler
@@ -105,6 +108,16 @@ app.use(cookieParser());
 // ============================================================
 
 app.use(language_middleware);
+
+
+// ============================================================
+// RESPONSE AUDIT
+//
+// Every response that is not a 200/201 is stored in the main
+// system's shared "audits" collection (see middlewares/audit_response.js).
+// ============================================================
+
+app.use(audit_response);
 
 
 // ============================================================

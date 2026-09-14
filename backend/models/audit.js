@@ -1,29 +1,29 @@
 const mongoose = require('mongoose');
 
+/**
+ * One audit row per HTTP response that was NOT a plain success (every
+ * status except 200 and 201), captured by the response-audit middleware of
+ * each backend (main backend, dc_backend, em_backend) and stored in this
+ * shared collection of the main "cok" database. Nothing else writes here.
+ */
 const audit_schema = new mongoose.Schema({
-    action: { type: String, required: true},
-    time: { type: Date, default: Date.now },
-    description: { type: String, required: true },
-    user_id: { type: String },
-    user_name: { type: String }, // Populated from user data
-    user_email: { type: String }, // Populated from user data
-    resource: { type: String }, // What resource was affected (users, vehicles, visitors, etc.)
-    error: { type: String }, // ID of the affected resource
-    ip_address: { type: String }, // Client IP address
-    user_agent: { type: String }, // Browser/device info
-  method: { type: String }, // HTTP method (GET, POST, PUT, DELETE)
-  endpoint: { type: String }, // API endpoint accessed
-  status_code: { type: Number }, // HTTP response status
-  old_values: { type: mongoose.Schema.Types.Mixed }, // For updates - what changed from
-  new_values: { type: mongoose.Schema.Types.Mixed }, // For updates - what changed to
-  error_message: { type: String }, // For error logs
-  metadata: { type: mongoose.Schema.Types.Mixed }, // Additional data
-  un_deletable: { type: Boolean, default: false }
-},{
-    versionKey: false, // removes __v automatically
+    time: { type: Date, default: Date.now, index: true },
+    status: { type: Number, required: true, index: true },
+    method: { type: String },
+    user_id: { type: String, index: true },
+    user_email: { type: String, index: true },
+    user_name: { type: String },
+    description: { type: String },
+    message: { type: String },
+    error: { type: String },
+    endpoint: { type: String },
+    ip_address: { type: String },
+    source: { type: String, default: 'backend' },
+}, {
+    versionKey: false,
     toJSON: {
         transform: function (doc, ret) {
-            delete ret.__v; // just in case
+            delete ret.__v;
             return ret;
         }
     },

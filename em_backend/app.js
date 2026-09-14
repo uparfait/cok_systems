@@ -7,9 +7,13 @@ const compression = require("compression");
 const cors = require("cors");
 // const rateLimit = require("express-rate-limit");
 const Router = require("./Router");
+const auditResponse = require("./middlewares/auditResponse");
 
 const path = require("path");
 const app = express();
+
+// Stores an audit row for every response that is not a 200/201 (see middlewares/auditResponse.js)
+app.use(auditResponse);
 
 // Serve uploaded documents
 

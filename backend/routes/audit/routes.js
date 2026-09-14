@@ -1,496 +1,230 @@
 const Router = require('express').Router();
 const Audit = require('../../models/audit');
-const User = require('../../models/user');
-
-const authenticate = require('../../middlewares/authenticate');
-
-// Persist an audit event; never throws so it can't break the main request flow
-const logAudit = async (action, description, req, additionalData = {}) => {
-    try {
-        const { resource, status_code, old_values, new_values, error_message, metadata } = additionalData;
-
-        await Audit.create({
-            action,
-            description,
-            user_id: (req?.user?.userId || req?.user?._id)?.toString(),
-            user_name: req?.user?.full_name || req?.user?.name,
-            user_email: req?.user?.email,
-            resource,
-            ip_address: req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req?.ip,
-            user_agent: req?.headers?.['user-agent'],
-            method: req?.method,
-            endpoint: req?.originalUrl,
-            status_code,
-            old_values,
-            new_values,
-            error_message,
-            metadata
-        });
-    } catch (error) {
-        console.error('logAudit failed:', error.message);
-    }
-};
-
-// Export the logAudit function for use in other routes
-Router.logAudit = logAudit;
 
 /**
- * @swagger
- * /audit/logs:
- *   get:
- *     summary: "Get audit logs"
- *     description: "Retrieve paginated audit logs with filtering by action, user, resource, and date range. Requires authentication."
- *     tags: [Audit Logs]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: "Page number"
- *         example: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 20
- *           maximum: 100
- *         description: "Records per page"
- *         example: 20
- *       - in: query
- *         name: action
- *         schema:
- *           type: string
- *         description: "Filter by action type (e.g., CREATE, UPDATE, DELETE, LOGIN, ERROR)"
- *         example: "LOGIN"
- *       - in: query
- *         name: user_id
- *         schema:
- *           type: string
- *         description: "Filter by user ID"
- *         example: "64f1a2b3c4d5e6f7a8b9c0d1"
- *       - in: query
- *         name: resource
- *         schema:
- *           type: string
- *         description: "Filter by resource type (e.g., users, vehicles, visitors)"
- *         example: "users"
- *       - in: query
- *         name: start_date
- *         schema:
- *           type: string
- *           format: date
- *         description: "Start date (YYYY-MM-DD)"
- *         example: "2026-01-01"
- *       - in: query
- *         name: end_date
- *         schema:
- *           type: string
- *           format: date
- *         description: "End date (YYYY-MM-DD)"
- *         example: "2026-12-31"
- *       - in: query
- *         name: sort
- *         schema:
- *           type: string
- *           default: "-time"
- *         description: "Sort order (prefix with - for descending)"
- *         example: "-time"
- *     responses:
- *       200:
- *         description: Audit logs retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Audit logs retrieved successfully"
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       _id:
- *                         type: string
- *                       action:
- *                         type: string
- *                         example: "LOGIN"
- *                       description:
- *                         type: string
- *                         example: "User logged in: john.doe@cok.gov.rw"
- *                       user_name:
- *                         type: string
- *                         example: "John Doe"
- *                       user_email:
- *                         type: string
- *                         example: "john.doe@cok.gov.rw"
- *                       resource:
- *                         type: string
- *                         example: "auth"
- *                       method:
- *                         type: string
- *                         example: "POST"
- *                       endpoint:
- *                         type: string
- *                         example: "/cok/api/auth/login/verify"
- *                       status_code:
- *                         type: integer
- *                         example: 200
- *                       ip_address:
- *                         type: string
- *                         example: "192.168.1.100"
- *                       time:
- *                         type: string
- *                         format: date-time
- *                 pagination:
- *                   $ref: '#/components/schemas/PaginationInfo'
- *       500:
- *         description: Internal server error
+ * System audit API. Rows are written only by the response-audit middleware
+ * of each backend (every response that is not a 200/201), so this router
+ * only reads, exports and cleans up. Mounted behind authenticate +
+ * authorize(ADMIN_AUDIT) in routes/routes.js.
  */
+
+// Documents written by the previous audit design (action/resource/
+// status_code fields, success rows included) - offered for a one-time
+// clean-up from the audit page.
+const LEGACY_FILTER = { $or: [{ action: { $exists: true } }, { status: { $exists: false } }] };
+
+const SEARCH_FIELDS = ['user_email', 'user_name', 'endpoint', 'description', 'message', 'error', 'ip_address'];
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function dayEnd(value) {
+  const end = new Date(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) end.setHours(23, 59, 59, 999);
+  return end;
+}
+
+/**
+ * Builds the Mongo filter shared by the list and the export: exact status,
+ * method, source, free-text search over the row's text fields, date range.
+ */
+function buildFilter(query) {
+  const { status, method, source, search, start_date, end_date } = query;
+  const filter = {};
+  if (status !== undefined && status !== '') {
+    const code = parseInt(status, 10);
+    if (!Number.isNaN(code)) filter.status = code;
+  }
+  if (method) filter.method = String(method).toUpperCase();
+  if (source) filter.source = String(source);
+  if (search && String(search).trim()) {
+    const regex = new RegExp(escapeRegex(String(search).trim()), 'i');
+    filter.$or = SEARCH_FIELDS.map((field) => ({ [field]: regex }));
+  }
+  if (start_date || end_date) {
+    filter.time = {};
+    if (start_date) filter.time.$gte = new Date(start_date);
+    if (end_date) filter.time.$lte = dayEnd(end_date);
+  }
+  return filter;
+}
+
 Router.get('/logs', async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 20,
-      action,
-      user_id,
-      resource,
-      start_date,
-      end_date,
-      sort = '-time'
-    } = req.query;
-
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const { page = 1, limit = 20, sort = '-time' } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     const skip = (pageNum - 1) * limitNum;
+    const filter = buildFilter(req.query);
 
-    // Build filter object
-    const filter = {};
-
-    if (action) filter.action = action;
-    if (user_id) filter.user_id = user_id;
-    if (resource) filter.resource = resource;
-
-    // Date range filter
-    if (start_date || end_date) {
-      filter.time = {};
-      if (start_date) filter.time.$gte = new Date(start_date);
-      if (end_date) filter.time.$lte = new Date(end_date);
-    }
-
-    // Get total count
-    const total = await Audit.countDocuments(filter);
-
-    // Get audit logs with user population
-    const audits = await Audit.find(filter)
-      .sort(sort)
-      .skip(skip)
-      .limit(limitNum)
-      .populate('user_id', 'full_name email')
-      .lean();
-
-    // Transform the data to include user info
-    const transformedAudits = audits.map(audit => ({
-      ...audit,
-      user_name: audit.user_name || (audit.user_id?.full_name) || 'None',
-      user_email: audit.user_email || (audit.user_id?.email) || null
-    }));
+    const [total, audits] = await Promise.all([
+      Audit.countDocuments(filter),
+      Audit.find(filter).sort(sort).skip(skip).limit(limitNum).lean(),
+    ]);
 
     return res.status(200).json({
       success: true,
       message: 'Audit logs retrieved successfully',
-      data: transformedAudits,
+      data: audits,
       pagination: {
         current_page: pageNum,
         per_page: limitNum,
         total,
         total_pages: Math.ceil(total / limitNum),
         has_next: pageNum * limitNum < total,
-        has_prev: pageNum > 1
-      }
+        has_prev: pageNum > 1,
+      },
     });
-
   } catch (error) {
     console.error('Error fetching audit logs:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve audit logs',
-      error: error.message
-    });
+    return res.status(500).json({ success: false, message: 'Failed to retrieve audit logs', error: error.message });
   }
 });
 
-// Export audit logs for a date range as a downloadable CSV file
+// Every status code that actually occurs in the stored rows, with counts -
+// the page's status filter lists exactly these.
+Router.get('/statuses', async (req, res) => {
+  try {
+    const rows = await Audit.aggregate([
+      { $match: { status: { $exists: true } } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]);
+    return res.status(200).json({
+      success: true,
+      message: 'Audit statuses retrieved successfully',
+      data: rows.map((row) => ({ status: row._id, count: row.count })),
+    });
+  } catch (error) {
+    console.error('Error fetching audit statuses:', error);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve audit statuses', error: error.message });
+  }
+});
+
 Router.get('/export', async (req, res) => {
   try {
-    const { start_date, end_date, action } = req.query;
-
+    const { start_date, end_date } = req.query;
     if (!start_date || !end_date) {
-      return res.status(400).json({
-        success: false,
-        message: 'Both start_date and end_date are required for export'
-      });
+      return res.status(400).json({ success: false, message: 'Both start_date and end_date are required for export' });
     }
-
     const start = new Date(start_date);
-    const end = new Date(end_date);
-    end.setHours(23, 59, 59, 999);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    const end = dayEnd(end_date);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       return res.status(400).json({ success: false, message: 'Invalid date range provided' });
     }
     if (end < start) {
       return res.status(400).json({ success: false, message: 'End date must be after the start date' });
     }
 
-    const filter = { time: { $gte: start, $lte: end } };
-    if (action) filter.action = action;
-
+    const filter = buildFilter(req.query);
+    filter.time = { $gte: start, $lte: end };
     const audits = await Audit.find(filter).sort('-time').limit(50000).lean();
-
     if (!audits.length) {
       return res.status(404).json({ success: false, message: 'No audit logs found in the selected date range' });
     }
 
-    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const header = ['Time', 'Action', 'User', 'Email', 'Description', 'Error', 'IP Address', 'Method', 'Endpoint', 'Status Code'];
+    const esc = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const header = ['Time', 'Status', 'Method', 'User Email', 'Description', 'Message', 'Error', 'Endpoint', 'IP Address', 'Source'];
     const lines = [header.map(esc).join(',')];
-    for (const a of audits) {
+    for (const row of audits) {
       lines.push([
-        a.time ? new Date(a.time).toISOString().replace('T', ' ').slice(0, 19) : '',
-        a.action || '',
-        a.user_name || 'System',
-        a.user_email || '',
-        a.description || '',
-        a.error || a.error_message || '',
-        a.ip_address || '',
-        a.method || '',
-        a.endpoint || '',
-        a.status_code ?? '',
+        row.time ? new Date(row.time).toISOString().replace('T', ' ').slice(0, 19) : '',
+        row.status ?? '',
+        row.method || '',
+        row.user_email || '',
+        row.description || '',
+        row.message || '',
+        row.error || '',
+        row.endpoint || '',
+        row.ip_address || '',
+        row.source || '',
       ].map(esc).join(','));
     }
     const csv = '﻿' + lines.join('\r\n');
-
     const fileName = `audit_logs_${String(start_date).slice(0, 10)}_to_${String(end_date).slice(0, 10)}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     return res.status(200).send(csv);
   } catch (error) {
     console.error('Error exporting audit logs:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to export audit logs',
-      error: error.message
-    });
+    return res.status(500).json({ success: false, message: 'Failed to export audit logs', error: error.message });
   }
 });
 
-/**
- * @swagger
- * /audit/stats:
- *   get:
- *     summary: "Get audit statistics"
- *     description: "Retrieve aggregated audit statistics including total logs, action breakdown, top users, and recent errors."
- *     tags: [Audit Logs]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: query
- *         name: days
- *         schema:
- *           type: integer
- *           default: 30
- *         description: "Number of days to look back"
- *         example: 30
- *     responses:
- *       200:
- *         description: Audit statistics retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     total_logs:
- *                       type: integer
- *                       example: 1500
- *                     action_breakdown:
- *                       type: array
- *                       items:
- *                         type: object
- *                     top_users:
- *                       type: array
- *                     recent_errors:
- *                       type: array
- *       500:
- *         description: Internal server error
- */
 Router.get('/stats', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
+    const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - parseInt(days));
+    startDate.setDate(startDate.getDate() - days);
+    const match = { time: { $gte: startDate }, status: { $exists: true } };
 
-    const [
-      totalLogs,
-      actionStats,
-      userStats,
-      recentErrors
-    ] = await Promise.all([
-      Audit.countDocuments({ time: { $gte: startDate } }),
-
+    const [totalLogs, statusStats, userStats, recentServerErrors] = await Promise.all([
+      Audit.countDocuments(match),
+      Audit.aggregate([{ $match: match }, { $group: { _id: '$status', count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
       Audit.aggregate([
-        { $match: { time: { $gte: startDate } } },
-        { $group: { _id: '$action', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
-      ]),
-
-      Audit.aggregate([
-        { $match: { time: { $gte: startDate }, user_id: { $ne: null } } },
-        { $group: { _id: '$user_id', count: { $sum: 1 } } },
-        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-        { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-        { $project: { _id: 1, count: 1, user_name: '$user.full_name', user_email: '$user.email' } },
+        { $match: Object.assign({}, match, { user_email: { $nin: [null, ''] } }) },
+        { $group: { _id: '$user_email', user_name: { $last: '$user_name' }, count: { $sum: 1 } } },
         { $sort: { count: -1 } },
-        { $limit: 10 }
+        { $limit: 10 },
       ]),
-
-      Audit.find({
-        action: 'ERROR',
-        time: { $gte: startDate }
-      })
-      .sort({ time: -1 })
-      .limit(5)
-      .select('description time user_name error_message')
+      Audit.find(Object.assign({}, match, { status: { $gte: 500 } })).sort({ time: -1 }).limit(5).lean(),
     ]);
 
     return res.status(200).json({
       success: true,
       message: 'Audit statistics retrieved successfully',
       data: {
+        period_days: days,
         total_logs: totalLogs,
-        action_breakdown: actionStats,
-        top_users: userStats,
-        recent_errors: recentErrors
-      }
+        status_breakdown: statusStats.map((row) => ({ status: row._id, count: row.count })),
+        top_users: userStats.map((row) => ({ user_email: row._id, user_name: row.user_name, count: row.count })),
+        recent_server_errors: recentServerErrors,
+      },
     });
-
   } catch (error) {
     console.error('Error fetching audit stats:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve audit statistics',
-      error: error.message
-    });
+    return res.status(500).json({ success: false, message: 'Failed to retrieve audit statistics', error: error.message });
   }
 });
 
-/**
- * @swagger
- * /audit/logs/{id}:
- *   delete:
- *     summary: "Delete an audit log"
- *     description: "Delete a specific audit log by its MongoDB ObjectId. Requires admin privileges."
- *     tags: [Audit Logs]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: "Audit log MongoDB ObjectId"
- *         example: "64f1a2b3c4d5e6f7a8b9c0d1"
- *     responses:
- *       200:
- *         description: Audit log deleted successfully
- *       404:
- *         description: Audit log not found
- *       500:
- *         description: Internal server error
- */
+// How many rows still follow the previous audit structure (the page only
+// shows its clean-up button when this is above zero).
+Router.get('/legacy', async (req, res) => {
+  try {
+    const count = await Audit.collection.countDocuments(LEGACY_FILTER);
+    return res.status(200).json({ success: true, message: 'Legacy audit rows counted', data: { legacy_count: count } });
+  } catch (error) {
+    console.error('Error counting legacy audit rows:', error);
+    return res.status(500).json({ success: false, message: 'Failed to count legacy audit rows', error: error.message });
+  }
+});
+
+Router.delete('/legacy', async (req, res) => {
+  try {
+    const result = await Audit.collection.deleteMany(LEGACY_FILTER);
+    return res.status(200).json({
+      success: true,
+      message: `Removed ${result.deletedCount} old-format audit rows`,
+      data: { deleted_count: result.deletedCount },
+    });
+  } catch (error) {
+    console.error('Error deleting legacy audit rows:', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete legacy audit rows', error: error.message });
+  }
+});
+
 Router.delete('/logs/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const auditLog = await Audit.findById(id);
+    const auditLog = await Audit.findById(req.params.id);
     if (!auditLog) {
-      return res.status(404).json({
-        success: false,
-        message: 'Audit log not found'
-      });
+      return res.status(404).json({ success: false, message: 'Audit log not found' });
     }
-
-    if (auditLog.un_deletable) {
-      return res.status(403).json({
-        success: false,
-        message: 'This audit log cannot be deleted'
-      });
-    }
-
-    await Audit.findByIdAndDelete(id);
-
-    await logAudit('DELETE', `Deleted audit log: ${auditLog.description}`, req, {
-      resource: 'audit_logs',
-      resource_id: id
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: 'Audit log deleted successfully'
-    });
-
+    await Audit.findByIdAndDelete(req.params.id);
+    return res.status(200).json({ success: true, message: 'Audit log deleted successfully' });
   } catch (error) {
     console.error('Error deleting audit log:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to delete audit log',
-      error: error.message
-    });
-  }
-});
-
-/**
- * @swagger
- * /audit/test:
- *   post:
- *     summary: "Test audit endpoint"
- *     description: "Test endpoint to verify audit functionality is working."
- *     tags: [Audit Logs]
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: Audit system is working
- *       500:
- *         description: Internal server error
- */
-Router.post('/test', async (req, res) => {
-  try {
-    return res.status(200).json({
-      success: true,
-      message: `Working fine`,
-      data: {}
-    });
-  } catch (error) {
-    console.error('Error creating test audit logs:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to create test audit logs',
-      error: error.message
-    });
+    return res.status(500).json({ success: false, message: 'Failed to delete audit log', error: error.message });
   }
 });
 

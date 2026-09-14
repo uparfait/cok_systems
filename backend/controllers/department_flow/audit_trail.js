@@ -16,13 +16,19 @@ const getAuditScopeUserIds = async (userId) => {
     return { departmentIds, userIds };
 };
 
+const dayEnd = (value) => {
+    const end = new Date(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) end.setHours(23, 59, 59, 999);
+    return end;
+};
+
 /**
  * GET /department-manager/audit/logs
- * Audit trail limited to activity of the managed departments' members.
+ * Audit trail (non-success responses) limited to the managed departments' members.
  */
 const getDepartmentAuditLogs = async (req, res, next) => {
     try {
-        let { limit = 20, page = 1, action, resource, start_date, end_date } = req.query;
+        let { limit = 20, page = 1, status, method, start_date, end_date } = req.query;
 
         const limit_val = Math.min(parseInt(limit) || 20, 100);
         const skip_val = ((parseInt(page) || 1) - 1) * limit_val;
@@ -36,28 +42,24 @@ const getDepartmentAuditLogs = async (req, res, next) => {
             });
         }
 
-        const filter = { user_id: { $in: userIds } };
+        const filter = { user_id: { $in: userIds }, status: { $exists: true } };
 
-        if (action) filter.action = action;
-        if (resource) filter.resource = resource;
+        if (status !== undefined && status !== '') {
+            const code = parseInt(status, 10);
+            if (!Number.isNaN(code)) filter.status = code;
+        }
+        if (method) filter.method = String(method).toUpperCase();
 
         if (start_date || end_date) {
             filter.time = {};
             if (start_date) filter.time.$gte = new Date(start_date);
-            if (end_date) {
-                const end = new Date(end_date);
-                // Date-only input means "through the end of that day"
-                if (/^\d{4}-\d{2}-\d{2}$/.test(end_date)) end.setHours(23, 59, 59, 999);
-                filter.time.$lte = end;
-            }
+            if (end_date) filter.time.$lte = dayEnd(end_date);
         }
 
-        const logs = await Audit.find(filter)
-            .limit(limit_val)
-            .skip(skip_val)
-            .sort({ time: -1 });
-
-        const total_count = await Audit.countDocuments(filter);
+        const [logs, total_count] = await Promise.all([
+            Audit.find(filter).limit(limit_val).skip(skip_val).sort({ time: -1 }).lean(),
+            Audit.countDocuments(filter),
+        ]);
 
         return res.status(200).json({
             success: true,
@@ -82,8 +84,8 @@ const getDepartmentAuditLogs = async (req, res, next) => {
 
 /**
  * GET /department-manager/audit/stats
- * Compliance summary (action/resource breakdown, most active members, recent errors)
- * for the managed departments over the last N days.
+ * Compliance summary (status breakdown, most active members, recent server
+ * errors) for the managed departments over the last N days.
  */
 const getDepartmentAuditStats = async (req, res, next) => {
     try {
@@ -99,18 +101,13 @@ const getDepartmentAuditStats = async (req, res, next) => {
             });
         }
 
-        const match = { user_id: { $in: userIds }, time: { $gte: since } };
+        const match = { user_id: { $in: userIds }, time: { $gte: since }, status: { $exists: true } };
 
-        const [total_logs, actionBreakdown, resourceBreakdown, topUsers, recentErrors] = await Promise.all([
+        const [total_logs, statusBreakdown, topUsers, recentErrors] = await Promise.all([
             Audit.countDocuments(match),
             Audit.aggregate([
                 { $match: match },
-                { $group: { _id: '$action', count: { $sum: 1 } } },
-                { $sort: { count: -1 } }
-            ]),
-            Audit.aggregate([
-                { $match: match },
-                { $group: { _id: '$resource', count: { $sum: 1 } } },
+                { $group: { _id: '$status', count: { $sum: 1 } } },
                 { $sort: { count: -1 } }
             ]),
             Audit.aggregate([
@@ -119,7 +116,7 @@ const getDepartmentAuditStats = async (req, res, next) => {
                 { $sort: { count: -1 } },
                 { $limit: 10 }
             ]),
-            Audit.find({ ...match, action: 'ERROR' }).sort({ time: -1 }).limit(5)
+            Audit.find({ ...match, status: { $gte: 500 } }).sort({ time: -1 }).limit(5).lean()
         ]);
 
         return res.status(200).json({
@@ -129,8 +126,7 @@ const getDepartmentAuditStats = async (req, res, next) => {
             data: {
                 period_days: days,
                 total_logs,
-                action_breakdown: actionBreakdown,
-                resource_breakdown: resourceBreakdown,
+                status_breakdown: statusBreakdown.map((row) => ({ status: row._id, count: row.count })),
                 top_users: topUsers,
                 recent_errors: recentErrors
             }
