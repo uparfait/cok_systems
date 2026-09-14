@@ -1192,6 +1192,7 @@ const kn = {
   DCS_MYAPPROVALS_SETTINGS: "Igenamiterere ryo kureba",
   DCS_MYAPPROVALS_VIEW_LABEL: "Uko inyandiko zigaragara",
   DCS_MYAPPROVALS_FORM_LABEL: "Ifishi",
+  DCS_MYAPPROVALS_FORMS_LABEL: "Amafishi wahawe",
   DCS_MYAPPROVALS_LOAD_FAILED: "Amakuru ntiyashoboye kuboneka.",
   DCS_APPROVAL_DONE_APPROVED: "Wemeje iki cyifuzo",
   DCS_APPROVAL_DONE_REJECTED: "Wanze iki cyifuzo",

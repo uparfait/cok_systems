@@ -1192,6 +1192,7 @@ const en = {
   DCS_MYAPPROVALS_SETTINGS: "View settings",
   DCS_MYAPPROVALS_VIEW_LABEL: "How to show records",
   DCS_MYAPPROVALS_FORM_LABEL: "Form",
+  DCS_MYAPPROVALS_FORMS_LABEL: "Forms assigned to you",
   DCS_MYAPPROVALS_LOAD_FAILED: "The records could not be loaded.",
   DCS_APPROVAL_DONE_APPROVED: "You approved this request",
   DCS_APPROVAL_DONE_REJECTED: "You rejected this request",

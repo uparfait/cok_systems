@@ -1192,6 +1192,7 @@ const fr = {
   DCS_MYAPPROVALS_SETTINGS: "Parametres d affichage",
   DCS_MYAPPROVALS_VIEW_LABEL: "Comment afficher les enregistrements",
   DCS_MYAPPROVALS_FORM_LABEL: "Formulaire",
+  DCS_MYAPPROVALS_FORMS_LABEL: "Formulaires qui vous sont attribues",
   DCS_MYAPPROVALS_LOAD_FAILED: "Les enregistrements n ont pas pu etre charges.",
   DCS_APPROVAL_DONE_APPROVED: "Vous avez approuvé cette demande",
   DCS_APPROVAL_DONE_REJECTED: "Vous avez rejeté cette demande",

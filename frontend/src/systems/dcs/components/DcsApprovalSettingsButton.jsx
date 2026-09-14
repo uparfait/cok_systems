@@ -55,21 +55,39 @@ export default function DcsApprovalSettingsButton({ view, onViewChange, formOpti
           {formOptions.length > 1 && (
             <>
               <p className="text-xs font-bold uppercase mb-2" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>
-                {translate("DCS_MYAPPROVALS_FORM_LABEL")}
+                {translate("DCS_MYAPPROVALS_FORMS_LABEL")} ({formOptions.length})
               </p>
-              <select
-                value={activeFormKey || ""}
-                onChange={(event) => onFormChange(event.target.value)}
-                disabled={busy}
-                className="cok-auth-input w-full pr-3 py-2 text-sm cursor-pointer mb-4"
-                style={{ backgroundColor: "#FFFFFF" }}
-              >
-                {formOptions.map((option) => (
-                  <option key={option.form_key} value={option.form_key}>
-                    {option.form_name} ({option.count})
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-col border-2 mb-4 w-full overflow-y-auto" style={{ borderColor: "rgba(5,109,170,0.35)", maxHeight: 220 }}>
+                {formOptions.map((option) => {
+                  const active = option.form_key === activeFormKey;
+                  return (
+                    <button
+                      key={option.form_key}
+                      type="button"
+                      aria-pressed={active}
+                      disabled={busy || active}
+                      onClick={() => onFormChange(option.form_key)}
+                      title={option.form_name}
+                      className="w-full cursor-pointer text-xs font-bold uppercase px-3 py-2.5 text-left flex items-center justify-between gap-2 disabled:cursor-default"
+                      style={{
+                        fontFamily: fontHeading,
+                        letterSpacing: 0.5,
+                        backgroundColor: active ? PRIMARY : "transparent",
+                        color: active ? "#FFFFFF" : GRAY,
+                        opacity: busy && !active ? 0.6 : 1,
+                      }}
+                    >
+                      <span className="truncate">{option.form_name}</span>
+                      <span
+                        className="flex-shrink-0 text-[11px] px-1.5 py-0.5"
+                        style={{ backgroundColor: active ? "rgba(255,255,255,0.2)" : "rgba(5,109,170,0.08)", color: active ? "#FFFFFF" : PRIMARY }}
+                      >
+                        {option.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </>
           )}
 
