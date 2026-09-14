@@ -95,9 +95,9 @@ const Table: React.FC<TableProps> = ({
       {/* Table Container with Scrolling */}
       <div
         className="overflow-x-auto overflow-y-auto"
-        style={{ maxHeight, minWidth }}
+        style={{ maxHeight }}
       >
-        <table className="w-full">
+        <table className="w-full" style={{ minWidth }}>
           {/* Header */}
           <thead className={`${headerClassName || ''} text-white sticky top-0 z-10 shadow-sm`} style={headerStyle}>
             <tr>

@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Table from '../../../core/components/Table';
 import { useToast } from '../../../core/contexts/ToastContext';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { get, del } from '../../../core/services/apiClient';
+import AuditDetailsModal from '../components/AuditDetailsModal';
 
 const PRIMARY = '#056daa';
 const DANGER = '#E74C3C';
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';
 const PAGE_SIZE = 20;
+const REFRESH_INTERVAL_MS = 10000;
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
 interface AuditLog {
@@ -76,35 +78,52 @@ const SystemAuditPage: React.FC = () => {
   const [exportTo, setExportTo] = useState('');
   const [exporting, setExporting] = useState(false);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const currentPageRef = useRef(1);
+  const refreshingRef = useRef(false);
 
-  const fetchAuditLogs = useCallback(async (page = 1) => {
-    setLoading(true);
+  const fetchAuditLogs = useCallback(async (page = 1, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const data = await get(`/audit/logs?${buildQuery(applied, page)}`);
       setAuditLogs(data.data || []);
-      setCurrentPage(data.pagination?.current_page || 1);
+      const resolvedPage = data.pagination?.current_page || 1;
+      currentPageRef.current = resolvedPage;
+      setCurrentPage(resolvedPage);
       setTotalPages(data.pagination?.total_pages || 1);
       setTotalCount(data.pagination?.total || 0);
     } catch (error: any) {
-      showError(error?.message || 'Failed to fetch audit logs');
+      if (!silent) showError(error?.message || 'Failed to fetch audit logs');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [applied, showError]);
 
-  const fetchSummary = useCallback(async () => {
+  const fetchSummary = useCallback(async (silent = false) => {
     try {
       const [statsRes, statusRes, legacyRes] = await Promise.all([get('/audit/stats'), get('/audit/statuses'), get('/audit/legacy')]);
       setStats(statsRes.data || null);
       setStatuses(statusRes.data || []);
       setLegacyCount(legacyRes.data?.legacy_count || 0);
     } catch (error: any) {
-      showError(error?.message || 'Failed to load audit summary');
+      if (!silent) showError(error?.message || 'Failed to load audit summary');
     }
   }, [showError]);
 
   useEffect(() => { fetchAuditLogs(1); }, [fetchAuditLogs]);
   useEffect(() => { fetchSummary(); }, [fetchSummary]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(async () => {
+      if (refreshingRef.current || document.hidden) return;
+      refreshingRef.current = true;
+      try {
+        await Promise.all([fetchAuditLogs(currentPageRef.current, true), fetchSummary(true)]);
+      } finally {
+        refreshingRef.current = false;
+      }
+    }, REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(intervalId);
+  }, [fetchAuditLogs, fetchSummary]);
 
   const applyFilters = () => { setApplied({ ...filters }); };
   const clearFilters = () => { setFilters(EMPTY_FILTERS); setApplied(EMPTY_FILTERS); };
@@ -253,7 +272,7 @@ const SystemAuditPage: React.FC = () => {
           data={auditLogs}
           loading={loading}
           emptyMessage="No audit records match these filters."
-          maxHeight="600px"
+          maxHeight="62vh"
           minWidth="1300px"
           headerStyle={{ backgroundColor: PRIMARY }}
           onRowClick={(row) => setSelectedLog(row)}
@@ -274,35 +293,7 @@ const SystemAuditPage: React.FC = () => {
           pagination={{ currentPage, totalPages, totalCount, itemsPerPage: PAGE_SIZE, onPageChange: (page) => fetchAuditLogs(page), loading }}
         />
 
-        {selectedLog && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedLog(null)}>
-            <div className="bg-white w-full max-w-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
-                <h2 className="text-sm font-bold text-gray-900" style={{ fontFamily: fontHeading }}>Audit record</h2>
-                <button type="button" onClick={() => setSelectedLog(null)} className="text-xs font-semibold cursor-pointer" style={{ color: PRIMARY }}>Close</button>
-              </div>
-              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                {[
-                  ['Time', new Date(selectedLog.time).toLocaleString()],
-                  ['Status', String(selectedLog.status)],
-                  ['Method', selectedLog.method || '-'],
-                  ['User email', selectedLog.user_email || 'Anonymous'],
-                  ['IP address', selectedLog.ip_address || '-'],
-                  ['Source', selectedLog.source || '-'],
-                  ['Endpoint', selectedLog.endpoint || '-'],
-                  ['Description', selectedLog.description || '-'],
-                  ['Message sent to user', selectedLog.message || '-'],
-                  ['Actual error', selectedLog.error || '-'],
-                ].map(([label, value]) => (
-                  <div key={label} className={label === 'Endpoint' || label === 'Description' || label === 'Message sent to user' || label === 'Actual error' ? 'sm:col-span-2' : ''}>
-                    <p className="font-semibold text-gray-500 uppercase" style={{ fontFamily: fontHeading, letterSpacing: '0.5px' }}>{label}</p>
-                    <p className="text-gray-900 break-words whitespace-pre-wrap">{value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        {selectedLog && <AuditDetailsModal record={selectedLog} onClose={() => setSelectedLog(null)} />}
 
         {showLegacyConfirm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
