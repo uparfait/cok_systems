@@ -57,12 +57,8 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, p
             <button
               type="button"
               onClick={() => navigate("/dcs-system")}
-              className="dcs-sub-header-home-link text-sm font-semibold cursor-pointer flex-shrink-0"
-              style={{
-                color: "#056daa",
-                fontFamily: "'Montserrat', sans-serif",
-                textDecoration: is_home_active ? "underline" : "none",
-              }}
+              className={`dcs-sub-header-home-link ${is_home_active ? "is-active" : ""} text-sm font-semibold cursor-pointer flex-shrink-0`}
+              style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}
             >
               {translate("DCS_BTN_HOME")}
             </button>
@@ -70,12 +66,8 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, p
             <button
               type="button"
               onClick={() => navigate("/dcs-system/templates")}
-              className="text-sm font-semibold cursor-pointer flex-shrink-0"
-              style={{
-                color: "#056daa",
-                fontFamily: "'Montserrat', sans-serif",
-                textDecoration: is_templates_active ? "underline" : "none",
-              }}
+              className={`dcs-sub-header-home-link ${is_templates_active ? "is-active" : ""} text-sm font-semibold cursor-pointer flex-shrink-0`}
+              style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}
             >
               {translate("DCS_BTN_TEMPLATES")}
             </button>
@@ -83,11 +75,8 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, p
             <button
               type="button"
               onClick={() => navigate("/dcs-my-approvals")}
-              className="text-sm font-semibold cursor-pointer flex-shrink-0"
-              style={{
-                color: "#056daa",
-                fontFamily: "'Montserrat', sans-serif",
-              }}
+              className="dcs-sub-header-home-link text-sm font-semibold cursor-pointer flex-shrink-0"
+              style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}
             >
               {translate("DCS_BTN_APPROVE_DATA")}
             </button>

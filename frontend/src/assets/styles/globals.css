@@ -1664,7 +1664,8 @@ background-color: #056daa;
   transition: color 0.2s ease;
 }
 
-.dcs-sub-header-home-link:hover {
+.dcs-sub-header-home-link:hover,
+.dcs-sub-header-home-link.is-active {
   text-decoration: underline;
 }
 
