@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../core/contexts/AuthContext';
 import MainLayout from '../../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../../core/components/LoadingSpinner';
 import type { AppliedFilter, PeriodValue } from '../components/FeedbackFeed';
-import MayorDeptServicesSection from './MayorDeptServicesSection';
+import MayorDeptServicesSection, { DeptServicesTotals, useDeptServices } from './MayorDeptServicesSection';
 import MayorRequestsSection from './MayorRequestsSection';
-import MayorRatingSection from './MayorRatingSection';
+import MayorRatingSection, { DepartmentSentimentPanel, useRatingData } from './MayorRatingSection';
 import MayorActivitySection from './MayorActivitySection';
 import MayorOccupancySection from './MayorOccupancySection';
 
 const PRIMARY = '#056daa';
 const PRIMARY_HOVER = '#045d94';
+const BORDER = '#E0E0E0';
 const fontHeading = "'Montserrat', sans-serif";
 
 const PERIOD_OPTIONS: Array<{ value: PeriodValue; label: string }> = [
@@ -32,6 +33,11 @@ const MayorDashboardPage: React.FC = () => {
   const [rangeTo, setRangeTo] = useState('');
   const [applied, setApplied] = useState<AppliedFilter>({ period: 'month' });
   const [refreshTick, setRefreshTick] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const boardRef = useRef<HTMLDivElement>(null);
+
+  const deptServices = useDeptServices(applied, refreshTick);
+  const rating = useRatingData(applied, refreshTick);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) navigate('/login');
@@ -40,6 +46,24 @@ const MayorDashboardPage: React.FC = () => {
   useEffect(() => {
     const id = window.setInterval(() => setRefreshTick((t) => t + 1), 10000);
     return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else if (boardRef.current) {
+        await boardRef.current.requestFullscreen();
+      }
+    } catch {
+      setIsFullscreen(!!document.fullscreenElement);
+    }
   }, []);
 
   const handlePeriodChange = (value: PeriodValue) => {
@@ -60,11 +84,40 @@ const MayorDashboardPage: React.FC = () => {
     );
   }
 
-  return (
-    <MainLayout>
+  const board = (
+    <div
+      ref={boardRef}
+      className={isFullscreen ? 'overflow-y-auto p-4 sm:p-6' : ''}
+      style={{ backgroundColor: isFullscreen ? '#F7F9FB' : undefined, minHeight: isFullscreen ? '100vh' : undefined }}
+    >
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        title={isFullscreen ? 'Exit full screen' : 'View in full screen'}
+        className="fixed z-40 text-xs font-semibold uppercase cursor-pointer shadow-lg transition-colors"
+        style={{
+          top: isFullscreen ? 16 : 76,
+          right: 16,
+          padding: '0.5rem 0.9rem',
+          backgroundColor: PRIMARY,
+          color: '#FFFFFF',
+          border: `1px solid ${PRIMARY}`,
+          borderRadius: 0,
+          letterSpacing: '1px',
+          fontFamily: fontHeading,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+      >
+        {isFullscreen ? 'Exit full screen' : 'Full screen'}
+      </button>
+
       <div className="space-y-3">
-        <div className="bg-white border border-[#E0E0E0] p-4">
+        <DeptServicesTotals totals={deptServices.totals} loading={deptServices.loading} />
+
+        <div className="bg-white p-3" style={{ border: `1px solid ${BORDER}` }}>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 shrink-0" style={{ fontFamily: fontHeading }}>Period</span>
             <select
               value={period}
               onChange={(e) => handlePeriodChange(e.target.value as PeriodValue)}
@@ -94,7 +147,7 @@ const MayorDashboardPage: React.FC = () => {
                 <button
                   onClick={handleApplyRange}
                   disabled={!rangeFrom}
-                  className="w-full sm:w-auto px-4 py-2 text-white text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto px-4 py-2 text-white text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, letterSpacing: '1px', textTransform: 'uppercase' }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
@@ -106,14 +159,20 @@ const MayorDashboardPage: React.FC = () => {
           </div>
         </div>
 
-        <MayorDeptServicesSection applied={applied} refreshTick={refreshTick} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
+          <MayorDeptServicesSection data={deptServices} />
+          <DepartmentSentimentPanel data={rating} />
+        </div>
+
         <MayorRequestsSection applied={applied} refreshTick={refreshTick} />
-        <MayorRatingSection applied={applied} refreshTick={refreshTick} />
+        <MayorRatingSection applied={applied} data={rating} />
         <MayorActivitySection applied={applied} refreshTick={refreshTick} />
         <MayorOccupancySection applied={applied} refreshTick={refreshTick} />
       </div>
-    </MainLayout>
+    </div>
   );
+
+  return <MainLayout>{board}</MainLayout>;
 };
 
 export default MayorDashboardPage;
