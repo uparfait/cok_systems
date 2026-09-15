@@ -350,6 +350,7 @@ export function build_form_creation_guide(selected_types) {
       "NEVER put a 'label' on a 'group' or a 'section'. Those two types are containers, not questions - they ask nothing, so a label on one would render to the respondent as a question with no answer. To title a set of fields, add a separate 'header' component above the group/section. Any label found on a group or section is stripped out automatically when the JSON is pasted in, and the author is told how many were removed.",
       "After pasting, choose 'Add pasted fields' to append them after whatever is already on the canvas, or 'Overwrite with pasted fields' to replace the canvas entirely.",
       "Instead of writing every field of a saved template out by hand, one entry in 'fields' can be a template placeholder (see template_placeholder_shape) referencing it by id - it is expanded into real fields automatically.",
+      "To fix a data field to one answer without asking the respondent (for example a form that only ever concerns Kigali), give it a default_config (see default_config): the field is hidden, always submitted with that answer, and everything that depends on it only offers what that answer allows.",
     ],
     top_level_form_shape: {
       fields: "Array of field objects, in the order they should render top to bottom. This is the entire schema - there is no other top-level key.",
@@ -405,6 +406,19 @@ export function build_form_creation_guide(selected_types) {
     visibility_condition: {
       description: "A JSONLogic object evaluated against all of the form's current answers (by field id) - when it evaluates to a value other than false, the field is shown; null means always shown.",
       example: { "==": [{ var: "single_select_ab12cd" }, "option_1" ] },
+    },
+    default_config: {
+      description:
+        "A preset default for a DATA-COLLECTION field. Whenever it resolves, the field is never shown to respondents, is never mandatory, has none of its validation_rules checked, and every submission stores the default as its answer. Everything downstream follows that answer: a cascading child only offers the options under it, approval routing and approver conditions only see the reachable options, generated test data and test approvals always carry it, and dashboards leave the field out (it never varies).",
+      rules: [
+        "Set on data fields only - never on paragraph, header, file, image_block, horizontal_line, section, group or hidden.",
+        "mode 'constant': 'value' is the stored answer (string for a select/cascading/text field, number for number/likert, an array of option values for multi_select/ranking, a stored location NAME such as 'Kigali' for an API-sourced location field).",
+        "mode 'by_parent': 'parent_field_id' names the deciding field (defaults to a cascading field's own parent_field_id), and 'by_parent' maps each of that field's stored answers to this field's default. A parent answer with no entry leaves the field asked as usual.",
+        "The default must be one of the field's own option values (for a cascading child, one valid under the mapped parent answer).",
+        "A preset parent plus by_parent children is how a whole cascade is fixed: Province constant 'Kigali', District by_parent { Kigali: 'Gasabo' }, and so on.",
+      ],
+      example_constant: { id: "cascading_select_prov01", type: "cascading_select", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Province" }), data_source: { type: "api", level: "provinces" }, mandatory: false, validation_rules: [], default_config: { enabled: true, mode: "constant", value: "Kigali" }, design: { spacing_below_px: 16 } },
+      example_by_parent: { id: "cascading_select_dist01", type: "cascading_select", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "District" }), parent_field_id: "cascading_select_prov01", options: [{ id: "opt_gasabo", value: "Gasabo", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Gasabo" }), parent_value: "Kigali" }, { id: "opt_musanze", value: "Musanze", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Musanze" }), parent_value: "North" }], mandatory: false, validation_rules: [], default_config: { enabled: true, mode: "by_parent", parent_field_id: "cascading_select_prov01", by_parent: { Kigali: "Gasabo", North: "Musanze" } }, design: { spacing_below_px: 16 } },
     },
     validation_operators_reference: DCS_VALIDATION_OPERATORS.map((operator) => ({
       id: operator.id,
