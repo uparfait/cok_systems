@@ -1245,7 +1245,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
             <ValidationRuleEditor field={draft} allFields={other_fields} onChange={(rules) => update({ validation_rules: rules })} ruleErrors={rule_errors_by_index} />
           )}
 
-          {active_tab === "default" && <DefaultValueTab draft={draft} update={update} otherFields={other_fields} />}
+          {active_tab === "default" && <DefaultValueTab draft={draft} update={update} otherFields={other_fields} resolveFullFieldOptions={resolveFullFieldOptions} />}
 
           {active_tab === "designs" && (
             <div className="space-y-4">

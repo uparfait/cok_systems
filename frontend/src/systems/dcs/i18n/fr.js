@@ -150,6 +150,9 @@ const fr = {
 
   DCS_SETTINGS_TITLE: "Paramètres du champ",
   DCS_SETTINGS_TAB_LABELS: "Libellés",
+  DCS_DEFAULT_PICK_LOCATION: "Choisir un lieu (tout le pays)",
+  DCS_DEFAULT_LOCATION_TYPE_NAME: "Nom du lieu, exactement tel que stocke",
+  DCS_DEFAULT_LOCATIONS_FAILED: "Les lieux n'ont pas pu etre charges ; saisissez le nom ou reessayez.",
   DCS_SETTINGS_TAB_DEFAULT: "Valeur par defaut",
   DCS_DEFAULT_TAB_INTRO: "Un champ avec une valeur par defaut n'est jamais montre aux repondants : il est rempli automatiquement, n'est jamais obligatoire, et tout ce qui en depend (champs en cascade, approbations, donnees de test, tableaux de bord) ne voit que ce que cette valeur permet.",
   DCS_DEFAULT_ENABLE: "Donner a ce champ une valeur par defaut (cache aux repondants)",
@@ -162,7 +165,7 @@ const fr = {
   DCS_DEFAULT_NO_MAPPING: "Une reponse parente sans valeur par defaut laisse le champ pose normalement.",
   DCS_DEFAULT_ADD_MAPPING: "Ajouter une reponse parente",
   DCS_DEFAULT_PARENT_VALUE_PLACEHOLDER: "Reponse parente, exactement telle que stockee",
-  DCS_DEFAULT_FREE_TEXT_HINT: "Saisissez la valeur exactement telle qu'elle est stockee - pour un lieu, son nom (ex. Kigali)",
+  DCS_DEFAULT_FREE_TEXT_HINT: "Saisissez la valeur exactement telle qu'elle est stockee",
   DCS_DEFAULT_SUMMARY_CONSTANT: "Les repondants ne verront pas ce champ ; chaque soumission enregistre \"{{value}}\".",
   DCS_DEFAULT_SUMMARY_BY_PARENT: "Cache des que {{parent}} a une reponse associee ; pose normalement sinon.",
   DCS_DEFAULT_PICK: "Choisir une valeur",

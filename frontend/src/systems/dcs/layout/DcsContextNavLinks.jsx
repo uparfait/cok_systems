@@ -41,20 +41,32 @@ function LinkGrid({ children }) {
   return <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1.5">{children}</div>;
 }
 
+// Projects already shown in the panel this session, by id - so reopening
+// the panel shows the project at once while a silent refresh updates it.
+const project_cache = new Map();
+
 /**
  * The right half of the panel on a FORM page: the form's project, its name
  * linking to the project overview and the project's pages (Access control
- * only when this viewer may manage it) - fetched when the panel opens.
+ * only when this viewer may manage it). Shown instantly from the session
+ * cache when known, and refreshed quietly each time the panel opens; the
+ * loader appears only the very first time.
  */
 function ProjectColumn({ project_id, onNavigate }) {
   const { translate } = useDcsLanguage();
-  const [project, setProject] = useState(null);
+  const [project, setProject] = useState(() => project_cache.get(project_id) || null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let is_mounted = true;
+    setProject(project_cache.get(project_id) || null);
+    setFailed(false);
     get_project(project_id)
-      .then((response) => is_mounted && setProject(response.data || null))
-      .catch(() => is_mounted && setFailed(true));
+      .then((response) => {
+        const next = response.data || null;
+        if (next) project_cache.set(project_id, next);
+        if (is_mounted && next) setProject(next);
+      })
+      .catch(() => is_mounted && !project_cache.has(project_id) && setFailed(true));
     return () => {
       is_mounted = false;
     };
@@ -179,7 +191,7 @@ export default function DcsContextNavLinks() {
   const is_project = nav.kind === "project";
 
   return (
-    <div ref={holder_ref} className="relative flex-1 min-w-0 flex items-center justify-center gap-4">
+    <div ref={holder_ref} className="dcs-context-nav-holder relative flex-1 min-w-0 flex items-center justify-center gap-4">
       <div ref={measure_ref} aria-hidden="true" className="absolute flex gap-4 invisible pointer-events-none" style={{ left: 0, top: 0 }}>
         {items.map((item) => (
           <span key={item.key} className="text-xs font-bold uppercase tracking-wide whitespace-nowrap" style={{ fontFamily: FONT }}>

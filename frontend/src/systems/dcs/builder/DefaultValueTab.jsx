@@ -1,29 +1,41 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_field_text } from "../fields/fieldText.js";
 import { preset_parent_id, child_options_for_parent, flatten_field_options } from "../fields/presetFields.js";
+import { is_api_location_field, useLocationOptions } from "../fields/locationOptions.js";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import DefaultLocationSelect from "./DefaultLocationSelect.jsx";
 
 const CHOICE_TYPES = ["single_select", "select_group", "cascading_select"];
 const MULTI_TYPES = ["multi_select", "ranking"];
 const INPUT_TYPES = { number: "number", date: "date", date_time: "datetime-local", time: "time" };
 const EMPTY_CONFIG = { enabled: false, mode: "constant", value: null, parent_field_id: null, by_parent: {} };
+// Above this many parent answers the editor lists only the mapped ones.
+const MAX_INLINE_KEYS = 40;
 
-const is_api_sourced = (field) => !!(field && field.data_source && field.data_source.type === "api");
-const option_text = (option) => get_field_text(option.label, "en") || String(option.value);
+const option_text = (option) => (typeof option.label === "string" ? option.label : get_field_text(option.label, "en")) || String(option.value);
+const is_blank = (value) => value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0);
+
+/** The constant preset another field carries, if any - it narrows a location list to what that answer allows. */
+function constant_preset(field) {
+  const config = field && field.default_config;
+  if (!config || !config.enabled || config.mode !== "constant" || is_blank(config.value)) return undefined;
+  return config.value;
+}
 
 /**
- * One default-value editor shaped by the field's type: a dropdown of the
- * field's own options (or the options under one parent answer), a
- * checkbox list for multi-value fields, a numbered pick for a likert
- * scale, and a typed input otherwise. API-sourced locations have no inline
- * options, so their default is typed as the stored location name.
+ * One default-value editor shaped by the field's type: real locations
+ * fetched for an API-sourced field, a dropdown of the field's own options
+ * (or the options under one parent answer), a checkbox list for
+ * multi-value fields, a numbered pick for a likert scale, and a typed
+ * input otherwise.
  */
-function DefaultValueInput({ field, options, value, onChange }) {
+function DefaultValueInput({ field, options, value, onChange, ancestor }) {
   const { translate } = useDcsLanguage();
-  if (CHOICE_TYPES.includes(field.type) && !is_api_sourced(field) && options.length > 0) {
+  if (is_api_location_field(field)) return <DefaultLocationSelect field={field} ancestor={ancestor} value={value} onChange={onChange} />;
+  if (CHOICE_TYPES.includes(field.type) && options.length > 0) {
     return (
-      <select className="cok-auth-input w-full py-2" value={value === undefined || value === null ? "" : String(value)} onChange={(event) => onChange(event.target.value || null)}>
+      <select className="cok-auth-input w-full py-2" value={is_blank(value) ? "" : String(value)} onChange={(event) => onChange(event.target.value || null)}>
         <option value="">{translate("DCS_DEFAULT_PICK")}</option>
         {options.map((option) => (
           <option key={option.id || option.value} value={option.value}>
@@ -53,7 +65,7 @@ function DefaultValueInput({ field, options, value, onChange }) {
   if (field.type === "likert_scale") {
     const size = Number(field.scale_size) || 5;
     return (
-      <select className="cok-auth-input w-full py-2" value={value === undefined || value === null ? "" : String(value)} onChange={(event) => onChange(event.target.value ? Number(event.target.value) : null)}>
+      <select className="cok-auth-input w-full py-2" value={is_blank(value) ? "" : String(value)} onChange={(event) => onChange(event.target.value ? Number(event.target.value) : null)}>
         <option value="">{translate("DCS_DEFAULT_PICK")}</option>
         {Array.from({ length: size }, (_, index) => index + 1).map((step) => (
           <option key={step} value={step}>
@@ -65,8 +77,8 @@ function DefaultValueInput({ field, options, value, onChange }) {
   }
   return (
     <div>
-      <input type={INPUT_TYPES[field.type] || "text"} className="cok-auth-input w-full py-2" value={value === undefined || value === null ? "" : value} onChange={(event) => onChange(event.target.value === "" ? null : field.type === "number" ? Number(event.target.value) : event.target.value)} />
-      {(is_api_sourced(field) || CHOICE_TYPES.includes(field.type)) && (
+      <input type={INPUT_TYPES[field.type] || "text"} className="cok-auth-input w-full py-2" value={is_blank(value) ? "" : value} onChange={(event) => onChange(event.target.value === "" ? null : field.type === "number" ? Number(event.target.value) : event.target.value)} />
+      {CHOICE_TYPES.includes(field.type) && (
         <p className="text-xs mt-1" style={{ color: "#9E9E9E" }}>
           {translate("DCS_DEFAULT_FREE_TEXT_HINT")}
         </p>
@@ -76,38 +88,87 @@ function DefaultValueInput({ field, options, value, onChange }) {
 }
 
 /**
+ * The answers of the deciding field the by_parent editor keys on: its own
+ * options, a lazy field's full options fetched on demand, or every real
+ * location of an API-sourced parent's level (under its own preset parent
+ * when it has one) - so a key is always picked, never typed, whenever the
+ * system knows the answers.
+ */
+function useParentAnswers(parent, otherFields, resolveFullFieldOptions) {
+  const [fetched, setFetched] = useState({ id: null, options: [] });
+  const parent_id = parent ? parent.id : null;
+  const needs_fetch = !!(parent && parent.lazy_options && flatten_field_options(parent).length === 0 && resolveFullFieldOptions);
+  useEffect(() => {
+    if (!needs_fetch) return undefined;
+    let is_mounted = true;
+    resolveFullFieldOptions(parent_id)
+      .then((data) => is_mounted && data && setFetched({ id: parent_id, options: flatten_field_options(Object.assign({}, parent, data)) }))
+      .catch(() => {});
+    return () => {
+      is_mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needs_fetch, parent_id, resolveFullFieldOptions]);
+  const grandparent = parent && parent.parent_field_id ? otherFields.find((field) => field.id === parent.parent_field_id) : null;
+  const location = useLocationOptions(parent, constant_preset(grandparent));
+  if (!parent) return { options: [], loading: false };
+  if (is_api_location_field(parent)) return { options: location.options, loading: location.loading };
+  if (needs_fetch) return { options: fetched.id === parent_id ? fetched.options : [], loading: fetched.id !== parent_id };
+  return { options: flatten_field_options(parent), loading: false };
+}
+
+/**
  * The "Default value" tab of a data-collection field: switch the preset
  * on, choose whether it is one constant value or decided by another
  * field's answer, and pick the value(s). A preset field is hidden from
  * respondents and always submitted with its default.
  */
-export default function DefaultValueTab({ draft, update, otherFields }) {
+export default function DefaultValueTab({ draft, update, otherFields, resolveFullFieldOptions }) {
   const { translate } = useDcsLanguage();
   const config = Object.assign({}, EMPTY_CONFIG, draft.default_config || {});
   const set = (patch) => update({ default_config: Object.assign({}, config, patch) });
   const [new_key, setNewKey] = useState("");
+  const fields = otherFields || [];
 
   const parent_id = config.parent_field_id || preset_parent_id(draft) || "";
-  const parent = (otherFields || []).find((field) => field.id === parent_id) || null;
+  const parent = fields.find((field) => field.id === parent_id) || null;
   const parent_label = parent ? get_field_text(parent.label, "en") || parent.id : "";
-  const parent_options = parent && !is_api_sourced(parent) ? flatten_field_options(parent) : [];
+  const parent_answers = useParentAnswers(parent, fields, resolveFullFieldOptions);
+  const parent_options = parent_answers.options;
   const mapped_keys = Object.keys(config.by_parent || {});
-  const keys = parent_options.length > 0 ? parent_options.map((option) => String(option.value)) : mapped_keys;
+  const show_all_keys = parent_options.length > 0 && parent_options.length <= MAX_INLINE_KEYS;
+  const keys = show_all_keys ? parent_options.map((option) => String(option.value)) : mapped_keys;
+  const unmapped_options = parent_options.filter((option) => !mapped_keys.includes(String(option.value)));
+  const key_label = (key) => {
+    const option = parent_options.find((entry) => String(entry.value) === key);
+    return option ? option_text(option) : key;
+  };
   const all_options = flatten_field_options(draft);
+  // A location field's list is narrowed to what its own cascade parent
+  // already fixes: the parent answer being mapped, or that parent's preset.
+  const cascade_parent = draft.parent_field_id ? fields.find((field) => field.id === draft.parent_field_id) : null;
+  const constant_ancestor = constant_preset(cascade_parent);
+  const ancestor_for = (key) => (parent && cascade_parent && parent.id === cascade_parent.id ? key : constant_ancestor);
 
   const set_mapping = (key, value) => {
     const next = Object.assign({}, config.by_parent || {});
-    if (value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) delete next[key];
+    if (is_blank(value)) delete next[key];
     else next[key] = value;
     set({ by_parent: next });
+  };
+  const add_key = (key) => {
+    const trimmed = String(key || "").trim();
+    if (!trimmed) return;
+    set({ by_parent: Object.assign({}, config.by_parent || {}, { [trimmed]: config.by_parent && config.by_parent[trimmed] !== undefined ? config.by_parent[trimmed] : "" }) });
+    setNewKey("");
   };
 
   const summary = !config.enabled
     ? ""
     : config.mode === "constant"
-      ? config.value !== null && config.value !== undefined && config.value !== ""
-        ? translate("DCS_DEFAULT_SUMMARY_CONSTANT", { value: Array.isArray(config.value) ? config.value.join(", ") : String(config.value) })
-        : ""
+      ? is_blank(config.value)
+        ? ""
+        : translate("DCS_DEFAULT_SUMMARY_CONSTANT", { value: Array.isArray(config.value) ? config.value.join(", ") : String(config.value) })
       : parent
         ? translate("DCS_DEFAULT_SUMMARY_BY_PARENT", { parent: parent_label })
         : "";
@@ -137,7 +198,7 @@ export default function DefaultValueTab({ draft, update, otherFields }) {
           {config.mode === "constant" && (
             <div>
               <label className="cok-auth-label">{translate("DCS_DEFAULT_VALUE")}</label>
-              <DefaultValueInput field={draft} options={all_options} value={config.value} onChange={(value) => set({ value })} />
+              <DefaultValueInput field={draft} options={all_options} value={config.value} onChange={(value) => set({ value })} ancestor={constant_ancestor} />
             </div>
           )}
 
@@ -147,7 +208,7 @@ export default function DefaultValueTab({ draft, update, otherFields }) {
                 <label className="cok-auth-label">{translate("DCS_DEFAULT_PARENT")}</label>
                 <select className="cok-auth-input w-full py-2" value={parent_id} onChange={(event) => set({ parent_field_id: event.target.value || null, by_parent: {} })}>
                   <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
-                  {(otherFields || []).map((field) => (
+                  {fields.map((field) => (
                     <option key={field.id} value={field.id}>
                       {get_field_text(field.label, "en") || field.id}
                     </option>
@@ -157,29 +218,38 @@ export default function DefaultValueTab({ draft, update, otherFields }) {
 
               {parent && (
                 <div className="space-y-2">
+                  {parent_answers.loading && (
+                    <p className="text-xs" style={{ color: "#9E9E9E" }}>
+                      {translate("DCS_FIELD_OPTIONS_LOADING")}
+                    </p>
+                  )}
                   {keys.map((key) => (
                     <div key={key} className="border p-3 space-y-1" style={{ borderColor: config.by_parent && config.by_parent[key] !== undefined ? "rgba(5,109,170,0.45)" : "#E0E0E0" }}>
                       <p className="text-xs font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-                        {translate("DCS_DEFAULT_WHEN_PARENT_IS", { parent: parent_label })} <span style={{ color: "#056daa" }}>{key}</span> {translate("DCS_DEFAULT_THEN")}
+                        {translate("DCS_DEFAULT_WHEN_PARENT_IS", { parent: parent_label })} <span style={{ color: "#056daa" }}>{key_label(key)}</span> {translate("DCS_DEFAULT_THEN")}
                       </p>
-                      <DefaultValueInput field={draft} options={child_options_for_parent(draft, key)} value={config.by_parent ? config.by_parent[key] : undefined} onChange={(value) => set_mapping(key, value)} />
-                      {parent_options.length === 0 && (
+                      <DefaultValueInput field={draft} options={child_options_for_parent(draft, key)} value={config.by_parent ? config.by_parent[key] : undefined} onChange={(value) => set_mapping(key, value)} ancestor={ancestor_for(key)} />
+                      {!show_all_keys && (
                         <button type="button" className="text-xs font-semibold cursor-pointer" style={{ color: "#E74C3C", background: "none", border: "none", padding: 0 }} onClick={() => set_mapping(key, null)}>
                           {translate("DCS_SETTINGS_REMOVE")}
                         </button>
                       )}
                     </div>
                   ))}
-                  {parent_options.length === 0 && (
+                  {!show_all_keys && parent_options.length > 0 && unmapped_options.length > 0 && (
+                    <select className="cok-auth-input w-full py-2" value="" onChange={(event) => add_key(event.target.value)}>
+                      <option value="">{translate("DCS_DEFAULT_ADD_MAPPING")}</option>
+                      {unmapped_options.map((option) => (
+                        <option key={option.id || option.value} value={option.value}>
+                          {option_text(option)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {!show_all_keys && parent_options.length === 0 && !parent_answers.loading && (
                     <div className="flex gap-2">
                       <input className="cok-auth-input flex-1 py-2" placeholder={translate("DCS_DEFAULT_PARENT_VALUE_PLACEHOLDER")} value={new_key} onChange={(event) => setNewKey(event.target.value)} />
-                      <DcsButtonOutline
-                        disabled={!new_key.trim()}
-                        onClick={() => {
-                          set({ by_parent: Object.assign({}, config.by_parent || {}, { [new_key.trim()]: config.by_parent && config.by_parent[new_key.trim()] !== undefined ? config.by_parent[new_key.trim()] : "" }) });
-                          setNewKey("");
-                        }}
-                      >
+                      <DcsButtonOutline disabled={!new_key.trim()} onClick={() => add_key(new_key)}>
                         {translate("DCS_DEFAULT_ADD_MAPPING")}
                       </DcsButtonOutline>
                     </div>

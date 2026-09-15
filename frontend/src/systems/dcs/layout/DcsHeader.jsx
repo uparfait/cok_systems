@@ -35,7 +35,7 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, p
       />
       <div className={`dcs-sub-header ${subHeaderVisible ? "" : "is-hidden"}`}>
         <div
-          className="flex items-center justify-between gap-4 px-4 lg:px-6 py-2 border-b"
+          className="dcs-sub-header-row flex items-center justify-between gap-4 px-4 lg:px-6 py-2 border-b"
           style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}
         >
           <div className="flex items-center gap-3 flex-shrink-0">

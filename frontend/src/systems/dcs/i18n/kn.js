@@ -150,6 +150,9 @@ const kn = {
 
   DCS_SETTINGS_TITLE: "Igenamiterere ry'ikibazo",
   DCS_SETTINGS_TAB_LABELS: "Amagambo",
+  DCS_DEFAULT_PICK_LOCATION: "Hitamo ahantu (igihugu cyose)",
+  DCS_DEFAULT_LOCATION_TYPE_NAME: "Izina ry'ahantu, nk'uko ribitswe",
+  DCS_DEFAULT_LOCATIONS_FAILED: "Ahantu ntihashoboye gutangwa; andika izina cyangwa wongere ugerageze.",
   DCS_SETTINGS_TAB_DEFAULT: "Agaciro gasanzwe",
   DCS_DEFAULT_TAB_INTRO: "Umwanya ufite agaciro gasanzwe ntugaragarizwa abasubiza: wuzuzwa mu buryo bwikora, ntuba itegeko, kandi ibiwushingiyeho byose (imyanya ikurikirana, kwemeza, amakuru y'igerageza, imbonerahamwe) bibona gusa ibyo ako gaciro kemera.",
   DCS_DEFAULT_ENABLE: "Ha uyu mwanya agaciro gasanzwe (uhishwe abasubiza)",
@@ -162,7 +165,7 @@ const kn = {
   DCS_DEFAULT_NO_MAPPING: "Igisubizo cy'umubyeyi kidafite agaciro gasanzwe gisiga umwanya ubazwa nk'uko bisanzwe.",
   DCS_DEFAULT_ADD_MAPPING: "Ongeraho igisubizo cy'umubyeyi",
   DCS_DEFAULT_PARENT_VALUE_PLACEHOLDER: "Igisubizo cy'umubyeyi, nk'uko kibitswe",
-  DCS_DEFAULT_FREE_TEXT_HINT: "Andika agaciro nk'uko kabitswe - ku hantu, izina ryaho (urugero Kigali)",
+  DCS_DEFAULT_FREE_TEXT_HINT: "Andika agaciro nk'uko kabitswe",
   DCS_DEFAULT_SUMMARY_CONSTANT: "Abasubiza ntibazabona uyu mwanya; buri nyandiko ibika \"{{value}}\".",
   DCS_DEFAULT_SUMMARY_BY_PARENT: "Uhishwa iyo {{parent}} ifite igisubizo cyashyizweho; ubazwa nk'uko bisanzwe ubundi.",
   DCS_DEFAULT_PICK: "Hitamo agaciro",

@@ -150,6 +150,9 @@ const en = {
 
   DCS_SETTINGS_TITLE: "Field settings",
   DCS_SETTINGS_TAB_LABELS: "Labels",
+  DCS_DEFAULT_PICK_LOCATION: "Choose a location (whole country)",
+  DCS_DEFAULT_LOCATION_TYPE_NAME: "Location name, exactly as stored",
+  DCS_DEFAULT_LOCATIONS_FAILED: "Locations could not be loaded; type the name or retry.",
   DCS_SETTINGS_TAB_DEFAULT: "Default value",
   DCS_DEFAULT_TAB_INTRO: "A field with a default value is never shown to respondents: it is filled with that value automatically, is never mandatory, and everything that depends on it (cascading fields, approvals, test data, dashboards) only sees what that value allows.",
   DCS_DEFAULT_ENABLE: "Give this field a default value (hidden from respondents)",
@@ -162,7 +165,7 @@ const en = {
   DCS_DEFAULT_NO_MAPPING: "A parent answer with no default leaves the field asked as usual.",
   DCS_DEFAULT_ADD_MAPPING: "Add parent answer",
   DCS_DEFAULT_PARENT_VALUE_PLACEHOLDER: "Parent answer, exactly as stored",
-  DCS_DEFAULT_FREE_TEXT_HINT: "Type the value exactly as it is stored - for a location, its name (e.g. Kigali)",
+  DCS_DEFAULT_FREE_TEXT_HINT: "Type the value exactly as it is stored",
   DCS_DEFAULT_SUMMARY_CONSTANT: "Respondents will not see this field; every submission stores \"{{value}}\".",
   DCS_DEFAULT_SUMMARY_BY_PARENT: "Hidden whenever {{parent}} has a mapped answer; asked normally otherwise.",
   DCS_DEFAULT_PICK: "Choose a value",

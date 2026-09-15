@@ -1688,6 +1688,40 @@ background-color: #056daa;
   transform: translateY(-12px);
 }
 
+/* On narrow screens the bar's links do not all fit, so the row itself
+   scrolls sideways (thin scrollbar, touch friendly) instead of wrapping or
+   squeezing; the centered context links keep enough room for "More". */
+.dcs-sub-header-row {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #C9D3DC transparent;
+}
+
+.dcs-sub-header-row::-webkit-scrollbar {
+  height: 4px;
+}
+
+.dcs-sub-header-row::-webkit-scrollbar-thumb {
+  background: #C9D3DC;
+}
+
+@media (max-width: 767px) {
+  .dcs-sub-header-row {
+    gap: 12px;
+  }
+
+  .dcs-sub-header-row > * {
+    flex-shrink: 0;
+  }
+
+  .dcs-sub-header-row .dcs-context-nav-holder {
+    flex: 1 0 auto;
+    min-width: 120px;
+  }
+}
+
 @keyframes dcs-home-float {
   0%, 100% {
     transform: translateY(0);
