@@ -58,18 +58,22 @@ export function public_dashboard_url(token) {
 
 /**
  * The public, read-only dashboard behind a share token: no sign-in, the
- * same data endpoints shape as the signed-in board, nothing writable.
+ * same data endpoints shape as the signed-in board, nothing writable. The
+ * shared page carries no language control, so every server message it can
+ * show (an expired or unknown link) is asked for in English.
  */
+const PUBLIC_CONFIG = { headers: { "X-Language": "en" } };
+
 export function get_public_dashboard(token) {
-  return dcs_request(`/public/dashboard/${token}`, "GET");
+  return dcs_request(`/public/dashboard/${token}`, "GET", undefined, PUBLIC_CONFIG);
 }
 
 export function get_public_dashboard_data(token, widgets, period) {
-  return dcs_request(`/public/dashboard/${token}/data`, "POST", { widgets, period: period || null });
+  return dcs_request(`/public/dashboard/${token}/data`, "POST", { widgets, period: period || null }, PUBLIC_CONFIG);
 }
 
 export function get_public_kpi_skipped(token, widget, period, offset, limit) {
-  return dcs_request(`/public/dashboard/${token}/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20 });
+  return dcs_request(`/public/dashboard/${token}/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20 }, PUBLIC_CONFIG);
 }
 
 /**

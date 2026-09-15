@@ -1,13 +1,16 @@
 import React from "react";
-import { CHART_HEIGHT } from "./chartTheme.js";
 import { build_palette, with_alpha } from "../appearance.js";
+import { chart_density } from "./density.js";
 import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
 
 /**
- * The two grid-based renderers that Recharts has no primitive for, drawn
- * with plain elements: the heatmap (rows x series matrix, color intensity
+ * The two grid-based renderers Recharts has no primitive for, drawn with
+ * plain elements: the heatmap (rows x series matrix, color intensity
  * carries the value) and the waffle (one hundred cells, each one percent).
- * The heatmap tints with the widget's number color; the waffle uses its
+ * Both size their cells, fonts and label widths from the card's own width
+ * (see density.js): a heatmap wider than its card scrolls INSIDE the card
+ * rather than stretching it, and a waffle's squares shrink to fit. The
+ * heatmap tints with the widget's number color; the waffle uses its
  * per-value colors; text follows the light or dark mode.
  */
 
@@ -17,20 +20,23 @@ function heat_color(value, max, palette) {
   return with_alpha(palette.accent, intensity);
 }
 
-export function HeatmapChart({ rows, series, fitMode, palette }) {
+export function HeatmapChart({ rows, series, fitMode, palette, density }) {
   const colors = palette || build_palette(null);
+  const size = density || chart_density();
   const max = rows.reduce((best, row) => series.reduce((inner, key) => Math.max(inner, row[key] || 0), best), 0);
+  const label_width = Math.round(Math.max(56, Math.min(size.y_max, size.width * 0.28)));
+  const cell_height = Math.max(22, Math.round(size.cell_px / 2.2));
   return (
-    <div style={{ overflowX: fitMode ? "hidden" : "auto" }}>
-      <table className="border-collapse w-full" style={{ minWidth: fitMode ? undefined : Math.max(240, series.length * 72 + 120) }}>
+    <div style={{ maxWidth: "100%", overflowX: fitMode ? "hidden" : "auto" }}>
+      <table className="border-collapse w-full" style={{ minWidth: fitMode ? undefined : series.length * size.cell_px + label_width }}>
         <thead>
           <tr>
-            <th />
+            <th style={{ width: label_width }} />
             {series.map((key) => {
               const column_total = rows.reduce((sum, row) => sum + (row[key] || 0), 0);
               return (
-                <th key={key} className="px-1 pb-1 text-xs font-semibold text-center align-bottom" style={{ color: colors.muted, minWidth: 72 }}>
-                  <span className="block break-words" style={{ maxWidth: 140 }}>{`${key} (${column_total})`}</span>
+                <th key={key} className="px-1 pb-1 font-semibold text-center align-bottom" style={{ color: colors.muted, minWidth: size.cell_px, fontSize: size.font }}>
+                  <span className="block break-words">{`${key} (${column_total})`}</span>
                 </th>
               );
             })}
@@ -39,16 +45,17 @@ export function HeatmapChart({ rows, series, fitMode, palette }) {
         <tbody>
           {rows.map((row) => (
             <tr key={row.label}>
-              <td className="pr-2 py-0.5 text-xs text-right" style={{ color: colors.muted, maxWidth: 180 }}>
+              <td className="pr-2 py-0.5 text-right" style={{ color: colors.muted, width: label_width, maxWidth: label_width, fontSize: size.font }}>
                 <span className="block break-words">{row.label}</span>
               </td>
               {series.map((key) => (
                 <td key={key} className="p-0.5">
                   <div
-                    className="flex items-center justify-center text-xs font-semibold"
+                    className="flex items-center justify-center font-semibold"
                     title={`${row.label} / ${key}: ${row[key] || 0}`}
                     style={{
-                      height: 34,
+                      height: cell_height,
+                      fontSize: size.font,
                       transition: "background-color 600ms ease, color 600ms ease",
                       backgroundColor: heat_color(row[key] || 0, max, colors),
                       color: (row[key] || 0) / (max || 1) > 0.55 ? "#FFFFFF" : colors.text,
@@ -67,11 +74,13 @@ export function HeatmapChart({ rows, series, fitMode, palette }) {
 }
 
 /**
- * Waffle: one hundred squares filled clockwise-by-row, each category
- * claiming its rounded share of cells; the legend carries the exact values.
+ * Waffle: one hundred squares filled row by row, each category claiming its
+ * rounded share of cells; the legend carries the exact values. The square
+ * size follows the card, so ten of them always fit across it.
  */
-export function WaffleChart({ rows, palette }) {
+export function WaffleChart({ rows, palette, density }) {
   const colors = palette || build_palette(null);
+  const size = density || chart_density();
   const total = rows.reduce((sum, row) => sum + (row.value || 0), 0) || 1;
   const cells = [];
   let used = 0;
@@ -82,6 +91,8 @@ export function WaffleChart({ rows, palette }) {
     used += count;
   });
   while (cells.length < 100) cells.push(-1);
+  // Ten squares plus their gaps must fit the card, and stay tappable.
+  const square = Math.max(8, Math.min(16, Math.floor((Math.min(size.width, 320) - 40) / 10) - 3));
 
   const legend = (
     <LegendRow
@@ -96,15 +107,15 @@ export function WaffleChart({ rows, palette }) {
   );
 
   return (
-    <LegendFrame position={colors.legend_position} legend={legend}>
-      <div className="flex justify-center" style={{ minHeight: CHART_HEIGHT - 80 }}>
-        <div className="grid flex-shrink-0" style={{ gridTemplateColumns: "repeat(10, 16px)", gap: 3 }}>
+    <LegendFrame position={colors.legend_position} density={size} legend={legend}>
+      <div className="flex justify-center" style={{ minHeight: Math.max(120, size.height - 80) }}>
+        <div className="grid flex-shrink-0" style={{ gridTemplateColumns: `repeat(10, ${square}px)`, gap: 3 }}>
           {cells.map((series_index, cell_index) => (
             <div
               key={cell_index}
               style={{
-                width: 16,
-                height: 16,
+                width: square,
+                height: square,
                 transition: "background-color 500ms ease",
                 backgroundColor: series_index === -1 ? colors.empty : colors.color_for(rows[series_index].label, series_index),
               }}

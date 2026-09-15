@@ -1714,9 +1714,20 @@ background-color: #056daa;
   color-scheme: dark;
 }
 
-.dcs-board-root:not(.dcs-board-fullscreen).dcs-board-dark {
+/* Inside the signed-in shell the dark board bleeds into the page gutter;
+   the public page IS the page, so it keeps its own padding and never grows
+   wider than the screen. */
+.dcs-board-root:not(.dcs-board-fullscreen):not(.dcs-board-public).dcs-board-dark {
   padding: 12px;
   margin: -12px;
+}
+
+.dcs-board-public {
+  overflow-x: hidden;
+}
+
+.dcs-board-public .dcs-widget-card {
+  max-width: 100%;
 }
 
 .dcs-board-chrome {

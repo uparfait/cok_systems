@@ -81,5 +81,5 @@ export function WrappedTick({ x, y, payload, fill, maxChars, anchor, fontSize })
   );
 }
 
-/** Tick renderer factory bound to a palette and wrapping width. */
-export const wrapped_tick = (palette, max_chars, anchor) => (props) => <WrappedTick {...props} fill={palette.text} maxChars={max_chars} anchor={anchor} />;
+/** Tick renderer factory bound to a palette, wrapping width and font size. */
+export const wrapped_tick = (palette, max_chars, anchor, font_size) => (props) => <WrappedTick {...props} fill={palette.text} maxChars={max_chars} anchor={anchor} fontSize={font_size} />;

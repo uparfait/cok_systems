@@ -8,8 +8,6 @@ import { BoardThemeProvider, useBoardTheme } from "../util-dashboard/boardTheme.
 import BoardHeader from "../util-dashboard/BoardHeader.jsx";
 import BoardGrid from "../util-dashboard/BoardGrid.jsx";
 import SkippedDetailsModal from "../util-dashboard/SkippedDetailsModal.jsx";
-import DcsLogoMark from "../components/DcsLogoMark.jsx";
-import DcsLanguageSwitcher from "../components/DcsLanguageSwitcher.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 
@@ -79,29 +77,9 @@ function PublicBoard() {
   return (
     <div
       ref={container_ref}
-      className={`dcs-board-root dcs-board-no-select relative select-none flex-1 ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "p-3 sm:p-5 space-y-4"}`}
+      className={`dcs-board-root dcs-board-public dcs-board-no-select relative select-none flex-1 min-w-0 max-w-full ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "p-3 sm:p-5 space-y-4"}`}
       style={{ backgroundColor: "var(--board-bg, #F4F7F9)", ...(is_fullscreen ? { width: "100%", height: "100%", overflowY: fs_mode === "fit" ? "hidden" : "auto" } : {}) }}
     >
-      {!is_fullscreen && (
-        <div className="dcs-board-chrome border-2 px-3 py-2 sm:px-4 flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-sm font-bold break-words" style={{ color: "var(--board-text, #333333)", ...FONT }}>
-              {info.link.title}
-            </p>
-            {info.link.description && (
-              <p className="text-xs mt-0.5 break-words" style={{ color: "var(--board-muted, #9E9E9E)" }}>
-                {info.link.description}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--board-muted, #9E9E9E)", ...FONT }}>
-            <span className="font-bold uppercase" style={{ letterSpacing: "0.4px" }}>
-              {translate("DCS_DB_PUBLIC_VIEW_ONLY")}
-            </span>
-            {info.link.expires_at && <span>{translate("DCS_DB_PUBLIC_EXPIRES_ON", { date: new Date(info.link.expires_at).toLocaleDateString("en-GB", { dateStyle: "medium" }) })}</span>}
-          </div>
-        </div>
-      )}
       <BoardHeader
         form={form}
         widgets_count={widgets.length}
@@ -162,35 +140,22 @@ function PublicBoard() {
   );
 }
 
-/** Standalone public route: its own language provider, no authenticated shell. */
+/**
+ * Standalone public route: no authenticated shell and no page header - the
+ * board and its filter bar are the page. The page carries no language
+ * control, so it is pinned to English rather than following whatever the
+ * viewer once chose elsewhere. Nothing may ever be wider than the screen.
+ */
 export default function PublicDashboardPage() {
-  const { translate } = { translate: (key) => key };
-  void translate;
   return (
     <DcsErrorBoundary>
-      <DcsLanguageProvider>
+      <DcsLanguageProvider fixedLanguage="en">
         <BoardThemeProvider>
-          <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#F4F7F9" }}>
-            <PublicTopBar />
+          <div className="min-h-screen flex flex-col overflow-x-hidden" style={{ backgroundColor: "#F4F7F9", maxWidth: "100vw" }}>
             <PublicBoard />
           </div>
         </BoardThemeProvider>
       </DcsLanguageProvider>
     </DcsErrorBoundary>
-  );
-}
-
-function PublicTopBar() {
-  const { translate } = useDcsLanguage();
-  return (
-    <div className="cok-bg-primary px-4 py-2 flex items-center justify-between gap-3 flex-shrink-0">
-      <div className="flex items-center gap-3 min-w-0">
-        <DcsLogoMark title={translate("DCS_HEADER_TITLE")} />
-        <span className="text-white text-xs font-semibold uppercase tracking-wide truncate" style={FONT}>
-          {translate("DCS_DB_PUBLIC_SHARED")}
-        </span>
-      </div>
-      <DcsLanguageSwitcher />
-    </div>
   );
 }

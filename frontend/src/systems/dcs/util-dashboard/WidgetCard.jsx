@@ -20,6 +20,29 @@ const SURFACE = "var(--board-surface, #FFFFFF)";
 const SURFACE_BORDER = "var(--board-border, #E0E0E0)";
 const SURFACE_TEXT = "var(--board-text, #333333)";
 
+/**
+ * The live inner width of the card's chart area. Charts size everything
+ * they draw from it (see charts/density.js), so a widget set to "small"
+ * really draws a small chart instead of stretching its card open.
+ */
+function useCardWidth(element_ref) {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const element = element_ref.current;
+    if (!element) return undefined;
+    const measure = () => setWidth(element.clientWidth);
+    measure();
+    if (typeof window.ResizeObserver !== "function") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const observer = new window.ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element_ref]);
+  return width;
+}
+
 function StateMessage({ children, tone, height }) {
   return (
     <div className="flex items-center justify-center text-center text-xs px-4" style={{ height: height || 180, color: tone || "#9E9E9E" }}>
@@ -317,12 +340,14 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
   // vanish and reappear on the card.
   const drawn_ref = useRef(false);
   const animate = !drawn_ref.current;
+  const chart_ref = useRef(null);
+  const chart_width = useCardWidth(chart_ref);
   useEffect(() => {
     if (data && !data.error && !data.locked) drawn_ref.current = true;
   }, [data]);
 
   return (
-    <div className="dcs-widget-card relative border-2 flex flex-col h-full" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
+    <div className="dcs-widget-card relative border-2 flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
       {selectable && (
         // The selection mode's click surface: covers the whole card so no
         // inner control fires, and carries the tick that marks a selection.
@@ -379,7 +404,10 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
         )}
       </div>
 
-      <div className={`px-2 ${is_kpi ? "pb-2" : "pb-3"} flex-1 min-w-0`} style={{ overflowX: "auto", overflowY: "hidden" }}>
+      {/* The chart area never widens the card: it is the measured box the
+          chart sizes itself to, and anything still wider than it (a long
+          time range, a wide heatmap) scrolls inside here instead. */}
+      <div ref={chart_ref} className={`px-2 ${is_kpi ? "pb-2" : "pb-3"} flex-1 min-w-0 max-w-full`} style={{ overflowX: "auto", overflowY: "hidden" }}>
         {loading ? (
           <div className="flex items-center justify-center" style={{ height: state_height }}>
             <SpiralLoader />
@@ -408,7 +436,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
             )}
           </div>
         ) : (
-          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} />
+          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_width} />
         )}
       </div>
 

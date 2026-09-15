@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { build_palette } from "../appearance.js";
+import { chart_density } from "./density.js";
 
 const GOOD = "#27AE60";
 const BAD = "#E74C3C";
@@ -58,18 +59,22 @@ function AnimatedNumber({ value, style, className }) {
  * the top of the board, several per row. The number draws in the widget's
  * number color, the rest follows its light or dark mode.
  */
-export default function KpiCard({ value, changePct, legend, totalLabel, palette }) {
+export default function KpiCard({ value, changePct, legend, totalLabel, palette, density }) {
   const colors = palette || build_palette(null);
+  const size = density || chart_density();
+  // The number is the card's whole point, so it takes as much of the card's
+  // width as it can without ever spilling out of a narrow one.
+  const number_font = Math.max(17, Math.min(28, Math.round(size.width / 8)));
   const direction = changePct === null || changePct === undefined ? null : changePct >= 0 ? "up" : "down";
   const has_legend = Array.isArray(legend) && legend.length > 0;
   return (
-    <div className="flex flex-col items-center justify-center text-center py-2">
+    <div className="flex flex-col items-center justify-center text-center py-2 min-w-0">
       {has_legend && (
         <span className="text-[10px] font-semibold uppercase" style={{ color: colors.muted, fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.5px" }}>
           {totalLabel}
         </span>
       )}
-      <AnimatedNumber value={value} className="font-bold" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif", fontSize: 26, lineHeight: 1.1 }} />
+      <AnimatedNumber value={value} className="font-bold break-all" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif", fontSize: number_font, lineHeight: 1.1, maxWidth: "100%" }} />
       {has_legend && (
         <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0 }}>
           {legend.map((row, index) => (

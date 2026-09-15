@@ -18,7 +18,11 @@ dcs_api_client.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  config.headers["X-Language"] = window.localStorage.getItem(LANGUAGE_STORAGE_KEY) || "kn";
+  // A request that pinned its own language (the publicly shared dashboard,
+  // which has no language control of its own) keeps it.
+  if (!config.headers["X-Language"]) {
+    config.headers["X-Language"] = window.localStorage.getItem(LANGUAGE_STORAGE_KEY) || "kn";
+  }
   return config;
 });
 

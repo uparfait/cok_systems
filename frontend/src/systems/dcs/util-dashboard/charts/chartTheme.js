@@ -1,10 +1,10 @@
 /**
- * Shared look of every dashboard chart: the system palette (primary blue
- * first, then clearly distinguishable companions) and the common Recharts
- * props, so all widgets read as one family.
+ * The system palette every chart falls back to: primary blue first, then
+ * clearly distinguishable companions. A widget's own per-value colors
+ * override these (see appearance.js), and every other measurement a chart
+ * makes - height, fonts, bar sizes, label room - comes from the card it
+ * was given (see density.js), never from a shared constant.
  */
-
-export const PRIMARY = "#056daa";
 
 export const SERIES_COLORS = [
   "#056daa",
@@ -20,13 +20,3 @@ export const SERIES_COLORS = [
   "#828282",
   "#219653",
 ];
-
-export const series_color = (index) => SERIES_COLORS[index % SERIES_COLORS.length];
-
-export const TOOLTIP_STYLE = { borderRadius: 0, border: "1px solid #E0E0E0", fontSize: 12 };
-
-export const AXIS_TICK = { fontSize: 11 };
-
-export const GRID_STROKE = "#E0E0E0";
-
-export const CHART_HEIGHT = 260;

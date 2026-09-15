@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useToast } from "../../../../core/contexts/ToastContext.tsx";
 import { list_dashboard_links, create_dashboard_link, update_dashboard_link, delete_dashboard_link, public_dashboard_url, request_error_text } from "../dashboardService.js";
-import { IconButton, CLOSE_SVG, PLUS_SVG } from "../BoardIcons.jsx";
+import { IconButton, CLOSE_SVG } from "../BoardIcons.jsx";
+import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../../components/DcsConfirmDialog.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
 import LinkForm from "./LinkForm.jsx";
@@ -124,16 +125,9 @@ export default function ShareLinksDialog({ form, onClose }) {
               {form.form_name || form.form_group_id}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {editing === null && (
-              <IconButton title={translate("DCS_DB_SHARE_NEW")} onClick={() => setEditing("new")} onDark disabled={saving || loading}>
-                {PLUS_SVG}
-              </IconButton>
-            )}
-            <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger disabled={saving}>
-              {CLOSE_SVG}
-            </IconButton>
-          </div>
+          <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger disabled={saving}>
+            {CLOSE_SVG}
+          </IconButton>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
@@ -141,18 +135,15 @@ export default function ShareLinksDialog({ form, onClose }) {
             {translate("DCS_DB_SHARE_INTRO")}
           </p>
 
-          {editing === "new" && <LinkForm saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} />}
-
           {loading ? (
             <div className="flex justify-center py-8">
               <SpiralLoader />
             </div>
           ) : links.length === 0 && editing !== "new" ? (
             <div className="border-2 p-6 text-center" style={{ borderColor: BORDER }}>
-              <p className="text-sm font-semibold mb-3" style={{ color: TEXT_DARK, ...FONT }}>
+              <p className="text-sm font-semibold" style={{ color: TEXT_DARK, ...FONT }}>
                 {translate("DCS_DB_SHARE_NO_LINKS")}
               </p>
-              <TextButton onClick={() => setEditing("new")}>{translate("DCS_DB_SHARE_NEW")}</TextButton>
             </div>
           ) : (
             <ul className="space-y-3" style={{ listStyle: "none", margin: 0, padding: 0 }}>
@@ -199,6 +190,15 @@ export default function ShareLinksDialog({ form, onClose }) {
                 ),
               )}
             </ul>
+          )}
+
+          {!loading && editing === "new" && <LinkForm saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} />}
+          {!loading && editing === null && (
+            <div className="w-full sm:w-64">
+              <DcsButtonPrimary type="button" onClick={() => setEditing("new")} disabled={saving}>
+                {translate("DCS_DB_SHARE_NEW")}
+              </DcsButtonPrimary>
+            </div>
           )}
         </div>
       </div>

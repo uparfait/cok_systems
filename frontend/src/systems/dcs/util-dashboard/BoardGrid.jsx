@@ -1,20 +1,21 @@
 import React, { useState } from "react";
 import WidgetCard from "./WidgetCard.jsx";
 
-// Flexible auto-grow grid: every card carries a size-based flex-basis, and
-// `grow` lets the items of an incomplete last row stretch over the leftover
-// width instead of leaving an empty gap. A chart's own size (changed from
-// its menu) decides its base width: small is a quarter of the board (a
-// third on a tablet) so up to FOUR small charts share one row, medium
-// half, large two thirds - so a large and a small card fill one row too. Mobile is always one column, and a
-// lone chart always spans the whole board. Static class strings so
-// Tailwind keeps them.
+// Flexible auto-grow grid: a chart's own size (changed from its menu) is
+// the FRACTION OF A ROW it claims, and neighbours that still fit share
+// that row - small is a third (three small charts in a row on a laptop),
+// medium a half (two in a row), and large a whole row to itself. A small
+// beside a medium therefore fills one row between them, and `grow` widens
+// whatever a row ends up holding so no gap is ever left. Mobile is always
+// one column, and a lone chart always spans the board. The basis subtracts
+// its share of the 0.75rem gaps so the intended count really fits. Static
+// class strings so Tailwind keeps them.
 const HALF_ROW = "grow basis-full sm:basis-[calc(50%-0.75rem)]";
 const SIZE_CLASSES = {
-  small: `${HALF_ROW} md:basis-[calc(33.333%-0.75rem)] lg:basis-[calc(25%-0.75rem)]`,
+  small: `${HALF_ROW} lg:basis-[calc(33.333%-0.75rem)]`,
   medium: HALF_ROW,
-  large: `grow basis-full sm:basis-[calc(66.666%-0.75rem)]`,
-  full: HALF_ROW,
+  large: "grow basis-full",
+  full: "grow basis-full",
 };
 
 /**
@@ -97,15 +98,18 @@ export default function BoardGrid({
         }
       : {};
 
+  // min-w-0 is what makes a chosen size stick: without it a flex item
+  // refuses to shrink below its content, so one wide chart would drag its
+  // whole card past the width its size asked for.
   const item_class = (widget) =>
-    `${selecting ? "dcs-selectable" : ""} ${selecting && selection.selected.has(widget.id) ? "is-selected" : ""} ${dragging_id === widget.id ? "is-dragging" : ""} ${over_id === widget.id && dragging_id && dragging_id !== widget.id ? "is-drop-target" : ""}`;
+    `min-w-0 max-w-full ${selecting ? "dcs-selectable" : ""} ${selecting && selection.selected.has(widget.id) ? "is-selected" : ""} ${dragging_id === widget.id ? "is-dragging" : ""} ${over_id === widget.id && dragging_id && dragging_id !== widget.id ? "is-drop-target" : ""}`;
 
   return (
     <>
       {kpi_widgets.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 mb-3">
           {kpi_widgets.map((widget) => (
-            <div key={widget.id} className={item_class(widget)} {...drag_props(widget)}>
+            <div key={widget.id} className={`min-w-0 ${item_class(widget)}`} {...drag_props(widget)}>
               {render_card(widget)}
             </div>
           ))}

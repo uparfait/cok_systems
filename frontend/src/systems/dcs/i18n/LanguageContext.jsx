@@ -18,15 +18,26 @@ function read_stored_language() {
  * Provides the active DCS language and a translate() helper to the whole
  * data collection system module. Every label anywhere under /dcs-system
  * and /dcs-form flows through this context - there is no hardcoded text.
+ *
+ * fixedLanguage pins the whole subtree to one language and drops the
+ * switcher's effect: a page with no language control of its own (the
+ * publicly shared dashboard) always reads the same way, whatever the
+ * viewer's own stored choice is - and that stored choice is left alone.
  */
-export function DcsLanguageProvider({ children }) {
-  const [language, setLanguageState] = useState(read_stored_language);
+export function DcsLanguageProvider({ children, fixedLanguage }) {
+  const pinned = dcs_supported_languages.includes(fixedLanguage) ? fixedLanguage : null;
+  const [chosen_language, setLanguageState] = useState(read_stored_language);
+  const language = pinned || chosen_language;
 
-  const set_language = useCallback((next_language) => {
-    const safe_language = dcs_supported_languages.includes(next_language) ? next_language : dcs_default_language;
-    window.localStorage.setItem(STORAGE_KEY, safe_language);
-    setLanguageState(safe_language);
-  }, []);
+  const set_language = useCallback(
+    (next_language) => {
+      if (pinned) return;
+      const safe_language = dcs_supported_languages.includes(next_language) ? next_language : dcs_default_language;
+      window.localStorage.setItem(STORAGE_KEY, safe_language);
+      setLanguageState(safe_language);
+    },
+    [pinned],
+  );
 
   const translate = useCallback((key, vars) => dcs_translate(key, language, vars), [language]);
 

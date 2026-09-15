@@ -67,14 +67,19 @@ export function SplitLegend({ display, totals, palette, splitTitle, patternTitle
   );
 }
 
-/** Chart plus legend, arranged by the widget's legend position. */
-export function LegendFrame({ position, legend, children }) {
+/**
+ * Chart plus legend, arranged by the widget's legend position - except on
+ * a card too narrow to carry a legend beside the chart (see density.js),
+ * where a left or right legend falls back under it rather than squeezing
+ * the chart into nothing.
+ */
+export function LegendFrame({ position, legend, children, density }) {
   if (!legend) return children;
-  const side = position === "left" || position === "right";
+  const side = (position === "left" || position === "right") && (!density || density.side_legend);
   if (side) {
     return (
-      <div className={`flex gap-3 items-start ${position === "left" ? "flex-row" : "flex-row-reverse"}`}>
-        <div className="flex-shrink-0" style={{ width: "clamp(110px, 30%, 170px)", paddingTop: 8 }}>
+      <div className={`flex gap-3 items-start min-w-0 ${position === "left" ? "flex-row" : "flex-row-reverse"}`}>
+        <div className="flex-shrink-0" style={{ width: "clamp(110px, 28%, 170px)", paddingTop: 8 }}>
           {legend}
         </div>
         <div className="flex-1 min-w-0">{children}</div>
@@ -82,10 +87,10 @@ export function LegendFrame({ position, legend, children }) {
     );
   }
   return (
-    <div className="flex flex-col gap-2">
-      {position === "top" && <div className="px-1">{legend}</div>}
+    <div className="flex flex-col gap-2 min-w-0">
+      {position === "top" && <div className="px-1 min-w-0">{legend}</div>}
       {children}
-      {position !== "top" && <div className="px-1">{legend}</div>}
+      {position !== "top" && <div className="px-1 min-w-0">{legend}</div>}
     </div>
   );
 }
