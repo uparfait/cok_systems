@@ -4,6 +4,7 @@ import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import WidgetChart from "./WidgetChart.jsx";
 import LibraryIcon from "./icons/LibraryIcon.jsx";
 import { chart_definition, convertible_types } from "./chartCatalog.js";
+import { build_palette, has_custom_appearance } from "./appearance.js";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -114,7 +115,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
  * multi-series line form - see convertible_types), and remove the widget.
  * Closes on outside click.
  */
-function CardMenu({ widget, onChangeType, onRemove }) {
+function CardMenu({ widget, onChangeType, onRemove, onAppearance }) {
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
   const menu_ref = useRef(null);
@@ -196,6 +197,11 @@ function CardMenu({ widget, onChangeType, onRemove }) {
               </div>
             </>
           )}
+          {onAppearance && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: "1px solid #E0E0E0", color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onAppearance)}>
+              {translate("DCS_DB_COLOR_SETTINGS")}
+            </button>
+          )}
           {onRemove && (
             <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(true)} onClick={() => pick(onRemove)}>
               {translate("DCS_DB_REMOVE_WIDGET")}
@@ -259,9 +265,12 @@ function KpiIconSlot({ icon, onPick, hint }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onShowSkipped, onPickIcon }) {
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onShowSkipped, onPickIcon, onAppearance }) {
   const { translate } = useDcsLanguage();
   const definition = chart_definition(widget.chart_type);
+  // The card paints itself from the widget's own appearance: light or dark
+  // mode with its background, text and number colors.
+  const palette = build_palette(widget.appearance);
   const type_label = definition ? translate(definition.labelKey) : widget.chart_type;
   const total = widget_total(widget, data);
   // A failed or timed-out widget is marked in red - it likely causes errors
@@ -276,7 +285,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
   const state_height = is_kpi ? 90 : 180;
 
   return (
-    <div className="bg-white border-2 flex flex-col h-full" style={{ borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : "#E0E0E0" }}>
+    <div className="dcs-widget-card border-2 flex flex-col h-full" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
       <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
         {is_kpi && <KpiIconSlot icon={widget.icon} onPick={onPickIcon} hint={translate("DCS_DB_ICON_CARD_HINT")} />}
         <div className="min-w-0 flex-1">
@@ -287,7 +296,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
             saving={savingText}
             hint={translate("DCS_DB_CLICK_TO_EDIT")}
             maxLength={120}
-            textStyle={{ color: "#333333", fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: is_kpi ? 12 : 14 }}
+            textStyle={{ color: palette.text, fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: is_kpi ? 12 : 14 }}
             onCommit={(next) => {
               // A widget must keep a title - an emptied one falls back.
               if (next) onUpdateText({ title: next });
@@ -301,13 +310,13 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
             hint={translate("DCS_DB_CLICK_TO_EDIT")}
             maxLength={300}
             wrap={is_kpi}
-            textStyle={{ color: "#9E9E9E", fontSize: is_kpi ? 11 : 12 }}
+            textStyle={{ color: palette.muted, fontSize: is_kpi ? 11 : 12 }}
             onCommit={(next) => onUpdateText({ description: next || null })}
           />
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
-        {editable && !savingText && (onRemove || onChangeType) && (
-          <CardMenu widget={widget} onChangeType={onChangeType} onRemove={onRemove} />
+        {editable && !savingText && (onRemove || onChangeType || onAppearance) && (
+          <CardMenu widget={widget} onChangeType={onChangeType} onRemove={onRemove} onAppearance={onAppearance} />
         )}
       </div>
 
@@ -361,8 +370,13 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
       )}
 
       {total !== null && (
-        <p className="px-3 pb-2 text-xs font-semibold" style={{ color: PRIMARY, fontFamily: "'Montserrat', sans-serif" }}>
+        <p className="px-3 pb-2 text-xs font-semibold" style={{ color: palette.number, fontFamily: "'Montserrat', sans-serif" }}>
           {translate("DCS_DB_TOTAL")}: {total.toLocaleString("en-US")}
+        </p>
+      )}
+      {editable && has_custom_appearance(widget.appearance) && (
+        <p className="px-3 pb-2 text-[10px] font-bold uppercase" style={{ color: palette.muted, letterSpacing: "0.4px", fontFamily: "'Montserrat', sans-serif" }}>
+          {translate("DCS_DB_COLOR_SET_TAG")}
         </p>
       )}
     </div>

@@ -1,0 +1,2428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
+<title>Kigali Interactive Map</title>
+
+<!-- =====================================================
+     LEAFLET
+===================================================== -->
+
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+
+<style>
+
+/* =====================================================
+   RESET
+===================================================== */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+}
+
+body {
+    overflow: hidden;
+    background: #07111f;
+}
+
+
+/* =====================================================
+   MAP
+===================================================== */
+
+#map {
+    width: 100%;
+    height: 100%;
+}
+
+
+/* =====================================================
+   TOP LEFT PANEL
+===================================================== */
+
+.dashboard {
+
+    position: absolute;
+
+    z-index: 1000;
+
+    top: 20px;
+    left: 20px;
+
+    width: 340px;
+
+    padding: 20px;
+
+    border-radius: 20px;
+
+    background:
+        rgba(7, 17, 31, 0.92);
+
+    backdrop-filter:
+        blur(18px);
+
+    -webkit-backdrop-filter:
+        blur(18px);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.12);
+
+    box-shadow:
+        0 20px 60px
+        rgba(0,0,0,0.35);
+
+    color: white;
+
+    animation:
+        panelIn 0.8s ease;
+}
+
+
+@keyframes panelIn {
+
+    from {
+        opacity: 0;
+        transform:
+            translateY(-25px)
+            scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform:
+            translateY(0)
+            scale(1);
+    }
+}
+
+
+/* =====================================================
+   HEADER
+===================================================== */
+
+.title-row {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    margin-bottom: 4px;
+}
+
+
+.flag {
+
+    font-size: 28px;
+}
+
+
+.title {
+
+    font-size: 23px;
+
+    font-weight: 800;
+
+    letter-spacing: -0.5px;
+}
+
+
+.subtitle {
+
+    color: #94a3b8;
+
+    font-size: 13px;
+
+    margin-left: 40px;
+
+    margin-bottom: 18px;
+}
+
+
+/* =====================================================
+   STATS
+===================================================== */
+
+.stats {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 8px;
+}
+
+
+.stat {
+
+    padding: 12px 8px;
+
+    border-radius: 12px;
+
+    background:
+        rgba(255,255,255,0.06);
+
+    text-align: center;
+}
+
+
+.stat-number {
+
+    font-size: 22px;
+
+    font-weight: 800;
+
+    color: #38bdf8;
+}
+
+
+.stat-label {
+
+    font-size: 10px;
+
+    color: #94a3b8;
+
+    margin-top: 2px;
+}
+
+
+/* =====================================================
+   SEARCH
+===================================================== */
+
+.search-container {
+
+    margin-top: 15px;
+
+    position: relative;
+}
+
+
+#search {
+
+    width: 100%;
+
+    padding: 12px 14px;
+
+    border: none;
+
+    outline: none;
+
+    border-radius: 12px;
+
+    background:
+        rgba(255,255,255,0.08);
+
+    color: white;
+
+    font-size: 13px;
+}
+
+
+#search::placeholder {
+
+    color: #94a3b8;
+}
+
+
+.search-results {
+
+    position: absolute;
+
+    top: 48px;
+
+    left: 0;
+
+    right: 0;
+
+    max-height: 230px;
+
+    overflow-y: auto;
+
+    background:
+        rgba(7,17,31,0.98);
+
+    border-radius: 12px;
+
+    display: none;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.1);
+
+    box-shadow:
+        0 15px 40px
+        rgba(0,0,0,0.4);
+}
+
+
+.search-result {
+
+    padding: 11px 13px;
+
+    cursor: pointer;
+
+    border-bottom:
+        1px solid
+        rgba(255,255,255,0.05);
+
+    transition:
+        background 0.2s ease;
+}
+
+
+.search-result:hover {
+
+    background:
+        rgba(56,189,248,0.15);
+}
+
+
+.result-sector {
+
+    font-weight: 700;
+
+    font-size: 13px;
+}
+
+
+.result-district {
+
+    color: #94a3b8;
+
+    font-size: 11px;
+
+    margin-top: 2px;
+}
+
+
+/* =====================================================
+   BUTTON
+===================================================== */
+
+.reset-button {
+
+    width: 100%;
+
+    margin-top: 10px;
+
+    padding: 11px;
+
+    border: none;
+
+    border-radius: 12px;
+
+    cursor: pointer;
+
+    background:
+        #38bdf8;
+
+    color:
+        #06111d;
+
+    font-weight: 800;
+
+    transition:
+        transform 0.2s ease,
+        filter 0.2s ease;
+}
+
+
+.reset-button:hover {
+
+    transform:
+        translateY(-2px);
+
+    filter:
+        brightness(1.1);
+}
+
+
+/* =====================================================
+   BOTTOM RIGHT INFO
+===================================================== */
+
+.info-card {
+
+    position: absolute;
+
+    z-index: 1000;
+
+    right: 20px;
+
+    bottom: 20px;
+
+    min-width: 260px;
+
+    padding: 18px;
+
+    border-radius: 18px;
+
+    background:
+        rgba(7,17,31,0.94);
+
+    backdrop-filter:
+        blur(18px);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.12);
+
+    box-shadow:
+        0 20px 50px
+        rgba(0,0,0,0.35);
+
+    color: white;
+
+    transform:
+        translateY(130px);
+
+    opacity: 0;
+
+    transition:
+        transform 0.5s ease,
+        opacity 0.5s ease;
+}
+
+
+.info-card.visible {
+
+    transform:
+        translateY(0);
+
+    opacity: 1;
+}
+
+
+.info-title {
+
+    font-size: 20px;
+
+    font-weight: 800;
+
+    margin-bottom: 5px;
+}
+
+
+.info-district {
+
+    color: #38bdf8;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    margin-bottom: 8px;
+}
+
+
+.info-description {
+
+    color: #94a3b8;
+
+    font-size: 12px;
+
+    line-height: 1.5;
+}
+
+
+/* =====================================================
+   DISTRICT LEGEND
+===================================================== */
+
+.legend {
+
+    position: absolute;
+
+    z-index: 1000;
+
+    left: 20px;
+
+    bottom: 20px;
+
+    padding: 14px 16px;
+
+    border-radius: 15px;
+
+    background:
+        rgba(7,17,31,0.92);
+
+    backdrop-filter:
+        blur(15px);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.1);
+
+    color: white;
+
+    box-shadow:
+        0 15px 40px
+        rgba(0,0,0,0.3);
+}
+
+
+.legend-title {
+
+    font-size: 12px;
+
+    font-weight: 800;
+
+    margin-bottom: 9px;
+
+    color: #cbd5e1;
+}
+
+
+.legend-item {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    font-size: 11px;
+
+    color: #cbd5e1;
+
+    margin: 6px 0;
+}
+
+
+.legend-color {
+
+    width: 13px;
+
+    height: 13px;
+
+    border-radius: 4px;
+}
+
+
+/* =====================================================
+   KIGALI LABEL
+===================================================== */
+
+.kigali-label {
+
+    background: transparent !important;
+
+    border: none !important;
+}
+
+
+/* =====================================================
+   LEAFLET POPUP
+===================================================== */
+
+.leaflet-popup-content-wrapper {
+
+    background:
+        #07111f;
+
+    color: white;
+
+    border-radius: 14px;
+
+    box-shadow:
+        0 15px 40px
+        rgba(0,0,0,0.35);
+}
+
+
+.leaflet-popup-tip {
+
+    background:
+        #07111f;
+}
+
+
+.popup {
+
+    min-width: 160px;
+}
+
+
+.popup h3 {
+
+    margin: 0 0 5px;
+
+    font-size: 17px;
+}
+
+
+.popup p {
+
+    margin: 3px 0;
+
+    color: #94a3b8;
+
+    font-size: 12px;
+}
+
+
+/* =====================================================
+   LOADING SCREEN
+===================================================== */
+
+.loading {
+
+    position: absolute;
+
+    inset: 0;
+
+    z-index: 2000;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        #07111f;
+
+    color: white;
+
+    transition:
+        opacity 0.6s ease;
+}
+
+
+.loading.hidden {
+
+    opacity: 0;
+
+    pointer-events: none;
+}
+
+
+.loader-content {
+
+    text-align: center;
+}
+
+
+.spinner {
+
+    width: 45px;
+
+    height: 45px;
+
+    border-radius: 50%;
+
+    border:
+        3px solid
+        rgba(255,255,255,0.1);
+
+    border-top-color:
+        #38bdf8;
+
+    animation:
+        spin 0.9s linear infinite;
+
+    margin:
+        0 auto 15px;
+}
+
+
+@keyframes spin {
+
+    to {
+        transform:
+            rotate(360deg);
+    }
+}
+
+
+/* =====================================================
+   MOBILE
+===================================================== */
+
+@media (max-width: 700px) {
+
+    .dashboard {
+
+        top: 10px;
+        left: 10px;
+        right: 10px;
+
+        width: auto;
+
+        padding: 15px;
+    }
+
+
+    .title {
+
+        font-size: 19px;
+    }
+
+
+    .legend {
+
+        display: none;
+    }
+
+
+    .info-card {
+
+        left: 10px;
+        right: 10px;
+
+        bottom: 10px;
+
+        min-width: 0;
+    }
+
+}
+
+</style>
+</head>
+
+
+<body>
+
+
+<!-- =====================================================
+     LOADING
+===================================================== -->
+
+<div
+    id="loading"
+    class="loading"
+>
+
+    <div class="loader-content">
+
+        <div class="spinner"></div>
+
+        <div>
+            Loading Kigali map...
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     MAP
+===================================================== -->
+
+<div id="map"></div>
+
+
+<!-- =====================================================
+     DASHBOARD
+===================================================== -->
+
+<div class="dashboard">
+
+    <div class="title-row">
+
+        <div class="flag">
+            🇷🇼
+        </div>
+
+        <div class="title">
+            Kigali City
+        </div>
+
+    </div>
+
+
+    <div class="subtitle">
+        Interactive district & sector map
+    </div>
+
+
+    <div class="stats">
+
+        <div class="stat">
+
+            <div
+                id="districtCount"
+                class="stat-number"
+            >
+                3
+            </div>
+
+            <div class="stat-label">
+                DISTRICTS
+            </div>
+
+        </div>
+
+
+        <div class="stat">
+
+            <div
+                id="sectorCount"
+                class="stat-number"
+            >
+                35
+            </div>
+
+            <div class="stat-label">
+                SECTORS
+            </div>
+
+        </div>
+
+
+        <div class="stat">
+
+            <div
+                id="selectedCount"
+                class="stat-number"
+            >
+                0
+            </div>
+
+            <div class="stat-label">
+                SELECTED
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SEARCH -->
+
+    <div class="search-container">
+
+        <input
+            id="search"
+            type="text"
+            placeholder="Search sector..."
+            autocomplete="off"
+        >
+
+        <div
+            id="searchResults"
+            class="search-results"
+        ></div>
+
+    </div>
+
+
+    <!-- RESET -->
+
+    <button
+        id="resetButton"
+        class="reset-button"
+    >
+        ⌖ Back to Kigali
+    </button>
+
+</div>
+
+
+<!-- =====================================================
+     LEGEND
+===================================================== -->
+
+<div class="legend">
+
+    <div class="legend-title">
+        KIGALI DISTRICTS
+    </div>
+
+
+    <div class="legend-item">
+
+        <div
+            class="legend-color"
+            style="background:#38bdf8"
+        ></div>
+
+        <span>
+            Gasabo — 15 sectors
+        </span>
+
+    </div>
+
+
+    <div class="legend-item">
+
+        <div
+            class="legend-color"
+            style="background:#a78bfa"
+        ></div>
+
+        <span>
+            Kicukiro — 10 sectors
+        </span>
+
+    </div>
+
+
+    <div class="legend-item">
+
+        <div
+            class="legend-color"
+            style="background:#fb7185"
+        ></div>
+
+        <span>
+            Nyarugenge — 10 sectors
+        </span>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     INFORMATION CARD
+===================================================== -->
+
+<div
+    id="infoCard"
+    class="info-card"
+>
+
+    <div
+        id="infoTitle"
+        class="info-title"
+    >
+        Kigali
+    </div>
+
+
+    <div
+        id="infoDistrict"
+        class="info-district"
+    >
+        Rwanda
+    </div>
+
+
+    <div
+        id="infoDescription"
+        class="info-description"
+    >
+        Hover over a sector to see its information.
+    </div>
+
+</div>
+
+
+
+<script>
+
+/* =====================================================
+   CONFIGURATION
+===================================================== */
+
+
+/*
+   Kigali center
+*/
+
+const KIGALI_CENTER = [
+    -1.9441,
+    30.0619
+];
+
+
+/*
+   Kigali approximate radius
+*/
+
+const KIGALI_RADIUS = 11500;
+
+
+/*
+   Official Rwanda GIS sector layer.
+
+   Layer 1 = Sector Boundary.
+*/
+
+const SECTOR_API =
+    "https://moegis.environment.gov.rw/server/rest/services/Hosted/Administrative_boundaries/FeatureServer/1/query";
+
+
+/*
+   Only request Kigali districts.
+*/
+
+const queryParams = new URLSearchParams({
+
+    where:
+        "district IN ('Gasabo','Kicukiro','Nyarugenge')",
+
+    outFields:
+        "province,district,sector,district_id,sector_id",
+
+    returnGeometry:
+        "true",
+
+    outSR:
+        "4326",
+
+    returnIdsOnly:
+        "false",
+
+    f:
+        "geojson"
+
+});
+
+
+const SECTOR_URL =
+    SECTOR_API +
+    "?" +
+    queryParams.toString();
+
+
+
+/* =====================================================
+   DISTRICT INFORMATION
+===================================================== */
+
+const DISTRICTS = {
+
+    Gasabo: {
+        sectors: 15,
+        color: "#38bdf8"
+    },
+
+    Kicukiro: {
+        sectors: 10,
+        color: "#a78bfa"
+    },
+
+    Nyarugenge: {
+        sectors: 10,
+        color: "#fb7185"
+    }
+
+};
+
+
+
+/* =====================================================
+   SECTOR COLORS
+===================================================== */
+
+const SECTOR_COLORS = [
+
+    "#38bdf8",
+    "#22c55e",
+    "#f59e0b",
+    "#ef4444",
+    "#a78bfa",
+    "#ec4899",
+    "#14b8a6",
+    "#f97316",
+    "#84cc16",
+    "#06b6d4",
+
+    "#8b5cf6",
+    "#eab308",
+    "#10b981",
+    "#f43f5e",
+    "#6366f1",
+    "#d946ef",
+    "#0ea5e9",
+    "#65a30d",
+    "#dc2626",
+    "#9333ea",
+
+    "#0891b2",
+    "#ca8a04",
+    "#059669",
+    "#db2777",
+    "#7c3aed",
+    "#ea580c",
+    "#16a34a",
+    "#2563eb",
+    "#c026d3",
+    "#0284c7",
+
+    "#e11d48",
+    "#4f46e5",
+    "#15803d",
+    "#b45309",
+    "#be123c"
+
+];
+
+
+
+/* =====================================================
+   MAP
+===================================================== */
+
+const map = L.map(
+    "map",
+    {
+
+        zoomControl: true,
+
+        minZoom: 9,
+
+        maxZoom: 19,
+
+        zoomAnimation: true,
+
+        fadeAnimation: true,
+
+        markerZoomAnimation: true
+
+    }
+);
+
+
+
+/* =====================================================
+   ARC GIS BASE MAP
+===================================================== */
+
+/*
+   IMPORTANT:
+
+   We are NOT using:
+
+   tile.openstreetmap.org
+
+   because your screenshot showed
+   OpenStreetMap returning 403.
+
+   Instead we use ArcGIS tiles.
+*/
+
+L.tileLayer(
+
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+
+    {
+
+        maxZoom: 19,
+
+        attribution:
+            "Tiles &copy; Esri — Sources: Esri, TomTom, Garmin, FAO, NOAA, USGS, OpenStreetMap contributors"
+
+    }
+
+).addTo(map);
+
+
+
+/* =====================================================
+   START POSITION
+===================================================== */
+
+map.setView(
+    KIGALI_CENTER,
+    11
+);
+
+
+
+/* =====================================================
+   KIGALI CIRCLE
+===================================================== */
+
+const kigaliCircle = L.circle(
+
+    KIGALI_CENTER,
+
+    {
+
+        radius:
+            KIGALI_RADIUS,
+
+        color:
+            "#38bdf8",
+
+        weight:
+            3,
+
+        opacity:
+            0.9,
+
+        fillColor:
+            "#38bdf8",
+
+        fillOpacity:
+            0.05,
+
+        dashArray:
+            "10 10",
+
+        interactive:
+            false
+
+    }
+
+).addTo(map);
+
+
+
+/* =====================================================
+   ANIMATED CIRCLE
+===================================================== */
+
+let pulseDirection = 1;
+
+let pulseOpacity = 0.05;
+
+
+setInterval(
+    () => {
+
+        pulseOpacity +=
+            0.003 *
+            pulseDirection;
+
+
+        if (
+            pulseOpacity >= 0.12
+        ) {
+
+            pulseDirection = -1;
+
+        }
+
+
+        if (
+            pulseOpacity <= 0.03
+        ) {
+
+            pulseDirection = 1;
+
+        }
+
+
+        kigaliCircle.setStyle({
+
+            fillOpacity:
+                pulseOpacity
+
+        });
+
+    },
+    60
+);
+
+
+
+/* =====================================================
+   KIGALI LABEL
+===================================================== */
+
+const kigaliLabel =
+    L.marker(
+
+        KIGALI_CENTER,
+
+        {
+
+            icon:
+                L.divIcon({
+
+                    className:
+                        "kigali-label",
+
+                    html: `
+
+                        <div style="
+                            background:
+                                rgba(7,17,31,.92);
+
+                            color:
+                                white;
+
+                            padding:
+                                8px 15px;
+
+                            border-radius:
+                                30px;
+
+                            border:
+                                1px solid #38bdf8;
+
+                            font-weight:
+                                800;
+
+                            font-size:
+                                13px;
+
+                            box-shadow:
+                                0 8px 25px
+                                rgba(0,0,0,.4);
+
+                            white-space:
+                                nowrap;
+                        ">
+                            🇷🇼 KIGALI
+                        </div>
+
+                    `,
+
+                    iconSize:
+                        [100, 35],
+
+                    iconAnchor:
+                        [50, 17]
+
+                }),
+
+            interactive:
+                false
+
+        }
+
+    ).addTo(map);
+
+
+
+/* =====================================================
+   LAYERS
+===================================================== */
+
+let sectorLayer = null;
+
+let districtLayers = {};
+
+let sectorFeatures = [];
+
+let selectedLayer = null;
+
+
+
+/* =====================================================
+   UI ELEMENTS
+===================================================== */
+
+const infoCard =
+    document.getElementById(
+        "infoCard"
+    );
+
+const infoTitle =
+    document.getElementById(
+        "infoTitle"
+    );
+
+const infoDistrict =
+    document.getElementById(
+        "infoDistrict"
+    );
+
+const infoDescription =
+    document.getElementById(
+        "infoDescription"
+    );
+
+const selectedCount =
+    document.getElementById(
+        "selectedCount"
+    );
+
+const searchInput =
+    document.getElementById(
+        "search"
+    );
+
+const searchResults =
+    document.getElementById(
+        "searchResults"
+    );
+
+
+
+/* =====================================================
+   SHOW INFO
+===================================================== */
+
+function showInfo(
+    sector,
+    district
+) {
+
+    infoTitle.textContent =
+        sector;
+
+    infoDistrict.textContent =
+        district + " District";
+
+    infoDescription.textContent =
+        "Click this sector to zoom in and explore the area.";
+
+    infoCard.classList.add(
+        "visible"
+    );
+
+}
+
+
+
+/* =====================================================
+   HIDE INFO
+===================================================== */
+
+function hideInfo() {
+
+    infoCard.classList.remove(
+        "visible"
+    );
+
+}
+
+
+
+/* =====================================================
+   GET SECTOR COLOR
+===================================================== */
+
+const sectorColorMap = {};
+
+let colorIndex = 0;
+
+
+
+/* =====================================================
+   CREATE SECTOR COLOR
+===================================================== */
+
+function getSectorColor(
+    sector
+) {
+
+    if (
+        !sectorColorMap[sector]
+    ) {
+
+        sectorColorMap[sector] =
+            SECTOR_COLORS[
+                colorIndex %
+                SECTOR_COLORS.length
+            ];
+
+        colorIndex++;
+
+    }
+
+    return sectorColorMap[
+        sector
+    ];
+
+}
+
+
+
+/* =====================================================
+   SECTOR STYLE
+===================================================== */
+
+function sectorStyle(
+    feature
+) {
+
+    const props =
+        feature.properties || {};
+
+    const sector =
+        props.sector ||
+        "Unknown";
+
+    const district =
+        props.district ||
+        "Kigali";
+
+
+    return {
+
+        color:
+            DISTRICTS[district]?.color ||
+            "#ffffff",
+
+        weight:
+            1.5,
+
+        opacity:
+            0.9,
+
+        fillColor:
+            getSectorColor(
+                sector
+            ),
+
+        fillOpacity:
+            0.68
+
+    };
+
+}
+
+
+
+/* =====================================================
+   HOVER STYLE
+===================================================== */
+
+function hoverStyle(
+    layer
+) {
+
+    layer.setStyle({
+
+        weight:
+            4,
+
+        color:
+            "#ffffff",
+
+        fillOpacity:
+            0.92
+
+    });
+
+}
+
+
+
+/* =====================================================
+   NORMAL STYLE
+===================================================== */
+
+function normalStyle(
+    layer
+) {
+
+    if (
+        sectorLayer
+    ) {
+
+        sectorLayer.resetStyle(
+            layer
+        );
+
+    }
+
+}
+
+
+
+/* =====================================================
+   SELECT SECTOR
+===================================================== */
+
+function selectSector(
+    layer
+) {
+
+    const props =
+        layer.feature.properties ||
+        {};
+
+    const sector =
+        props.sector ||
+        "Unknown";
+
+    const district =
+        props.district ||
+        "Kigali";
+
+
+    /*
+       Remove previous selection.
+    */
+
+    if (
+        selectedLayer &&
+        selectedLayer !== layer
+    ) {
+
+        normalStyle(
+            selectedLayer
+        );
+
+    }
+
+
+    selectedLayer =
+        layer;
+
+
+    /*
+       Highlight selected sector.
+    */
+
+    layer.setStyle({
+
+        weight:
+            5,
+
+        color:
+            "#ffffff",
+
+        fillOpacity:
+            0.95
+
+    });
+
+
+    /*
+       Smooth zoom.
+    */
+
+    map.fitBounds(
+
+        layer.getBounds(),
+
+        {
+
+            padding:
+                [70, 70],
+
+            animate:
+                true,
+
+            duration:
+                1.2
+
+        }
+
+    );
+
+
+    /*
+       Show popup.
+    */
+
+    L.popup({
+
+        closeButton:
+            true,
+
+        autoPan:
+            true
+
+    })
+
+    .setLatLng(
+        layer.getBounds()
+            .getCenter()
+    )
+
+    .setContent(`
+
+        <div class="popup">
+
+            <h3>
+                ${sector}
+            </h3>
+
+            <p>
+                District:
+                <strong>
+                    ${district}
+                </strong>
+            </p>
+
+            <p>
+                Sector ID:
+                ${props.sector_id || "N/A"}
+            </p>
+
+        </div>
+
+    `)
+
+    .openOn(map);
+
+
+    showInfo(
+        sector,
+        district
+    );
+
+
+    selectedCount.textContent =
+        "1";
+
+}
+
+
+
+/* =====================================================
+   SECTOR EVENTS
+===================================================== */
+
+function onEachSector(
+    feature,
+    layer
+) {
+
+    const props =
+        feature.properties ||
+        {};
+
+    const sector =
+        props.sector ||
+        "Unknown";
+
+    const district =
+        props.district ||
+        "Kigali";
+
+
+    /*
+       Save for search.
+    */
+
+    sectorFeatures.push({
+
+        name:
+            sector,
+
+        district:
+            district,
+
+        layer:
+            layer,
+
+        feature:
+            feature
+
+    });
+
+
+    /*
+       Mouse enters.
+    */
+
+    layer.on(
+
+        "mouseover",
+
+        function() {
+
+            hoverStyle(
+                layer
+            );
+
+            layer.bringToFront();
+
+            showInfo(
+                sector,
+                district
+            );
+
+        }
+
+    );
+
+
+    /*
+       Mouse leaves.
+    */
+
+    layer.on(
+
+        "mouseout",
+
+        function() {
+
+            if (
+                selectedLayer !==
+                layer
+            ) {
+
+                normalStyle(
+                    layer
+                );
+
+            }
+
+        }
+
+    );
+
+
+    /*
+       Click.
+    */
+
+    layer.on(
+
+        "click",
+
+        function(e) {
+
+            L.DomEvent.stopPropagation(
+                e
+            );
+
+            selectSector(
+                layer
+            );
+
+        }
+
+    );
+
+
+
+    /*
+       Tooltip.
+    */
+
+    layer.bindTooltip(
+
+        `<strong>${sector}</strong><br>${district} District`,
+
+        {
+
+            sticky:
+                true,
+
+            direction:
+                "top",
+
+            opacity:
+                0.95
+
+        }
+
+    );
+
+}
+
+
+
+/* =====================================================
+   LOAD REAL RWANDA SECTOR DATA
+===================================================== */
+
+fetch(
+    SECTOR_URL
+)
+
+.then(
+    response => {
+
+        if (
+            !response.ok
+        ) {
+
+            throw new Error(
+                "GIS server returned " +
+                response.status
+            );
+
+        }
+
+        return response.json();
+
+    }
+)
+
+.then(
+    data => {
+
+        console.log(
+            "Kigali GIS data:",
+            data
+        );
+
+
+        /*
+           Create GeoJSON.
+        */
+
+        sectorLayer =
+            L.geoJSON(
+
+                data,
+
+                {
+
+                    style:
+                        sectorStyle,
+
+                    onEachFeature:
+                        onEachSector
+
+                }
+
+            ).addTo(map);
+
+
+        /*
+           Store features.
+        */
+
+        const features =
+            data.features || [];
+
+
+        /*
+           Update sector count
+           based on actual returned data.
+        */
+
+        if (
+            features.length > 0
+        ) {
+
+            document
+                .getElementById(
+                    "sectorCount"
+                )
+                .textContent =
+                    features.length;
+
+        }
+
+
+        /*
+           Smoothly zoom to Kigali.
+        */
+
+        setTimeout(
+            () => {
+
+                const bounds =
+                    sectorLayer
+                        .getBounds();
+
+
+                if (
+                    bounds.isValid()
+                ) {
+
+                    map.flyToBounds(
+
+                        bounds,
+
+                        {
+
+                            padding:
+                                [80, 80],
+
+                            duration:
+                                2.0,
+
+                            easeLinearity:
+                                0.25
+
+                        }
+
+                    );
+
+                }
+
+            },
+            500
+        );
+
+
+        /*
+           Hide loading screen.
+        */
+
+        setTimeout(
+            () => {
+
+                document
+                    .getElementById(
+                        "loading"
+                    )
+                    .classList.add(
+                        "hidden"
+                    );
+
+            },
+            800
+        );
+
+    }
+)
+
+.catch(
+    error => {
+
+        console.error(
+            "Could not load GIS data:",
+            error
+        );
+
+
+        document
+            .getElementById(
+                "loading"
+            )
+            .innerHTML = `
+
+                <div
+                    class="loader-content"
+                    style="
+                        max-width:400px;
+                        padding:30px;
+                    "
+                >
+
+                    <div
+                        style="
+                            font-size:45px;
+                            margin-bottom:15px;
+                        "
+                    >
+                        ⚠️
+                    </div>
+
+                    <div
+                        style="
+                            font-size:20px;
+                            font-weight:800;
+                            margin-bottom:10px;
+                        "
+                    >
+                        Map data could not load
+                    </div>
+
+                    <div
+                        style="
+                            color:#94a3b8;
+                            font-size:13px;
+                            line-height:1.6;
+                        "
+                    >
+                        Please check your internet
+                        connection and reload the page.
+                    </div>
+
+                </div>
+
+            `;
+
+    }
+);
+
+
+
+/* =====================================================
+   SEARCH
+===================================================== */
+
+searchInput.addEventListener(
+
+    "input",
+
+    function() {
+
+        const value =
+            this.value
+                .trim()
+                .toLowerCase();
+
+
+        searchResults.innerHTML =
+            "";
+
+
+        if (
+            !value
+        ) {
+
+            searchResults.style.display =
+                "none";
+
+            return;
+
+        }
+
+
+        const matches =
+            sectorFeatures
+                .filter(
+                    item =>
+                        item.name
+                            .toLowerCase()
+                            .includes(value)
+                        ||
+                        item.district
+                            .toLowerCase()
+                            .includes(value)
+                )
+                .slice(
+                    0,
+                    8
+                );
+
+
+        if (
+            matches.length === 0
+        ) {
+
+            searchResults.innerHTML = `
+
+                <div
+                    class="search-result"
+                    style="color:#94a3b8"
+                >
+                    No sector found
+                </div>
+
+            `;
+
+        }
+
+
+        matches.forEach(
+            item => {
+
+                const div =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                div.className =
+                    "search-result";
+
+
+                div.innerHTML = `
+
+                    <div class="result-sector">
+                        ${item.name}
+                    </div>
+
+                    <div class="result-district">
+                        ${item.district} District
+                    </div>
+
+                `;
+
+
+                div.addEventListener(
+
+                    "click",
+
+                    () => {
+
+                        searchInput.value =
+                            item.name;
+
+                        searchResults.style.display =
+                            "none";
+
+
+                        selectSector(
+                            item.layer
+                        );
+
+                    }
+
+                );
+
+
+                searchResults.appendChild(
+                    div
+                );
+
+            }
+        );
+
+
+        searchResults.style.display =
+            "block";
+
+    }
+
+);
+
+
+
+/* =====================================================
+   CLICK OUTSIDE SEARCH
+===================================================== */
+
+document.addEventListener(
+
+    "click",
+
+    function(event) {
+
+        if (
+            !event.target.closest(
+                ".search-container"
+            )
+        ) {
+
+            searchResults.style.display =
+                "none";
+
+        }
+
+    }
+
+);
+
+
+
+/* =====================================================
+   RESET KIGALI
+===================================================== */
+
+document
+    .getElementById(
+        "resetButton"
+    )
+    .addEventListener(
+
+        "click",
+
+        function() {
+
+            /*
+               Remove selection.
+            */
+
+            if (
+                selectedLayer
+            ) {
+
+                normalStyle(
+                    selectedLayer
+                );
+
+            }
+
+
+            selectedLayer =
+                null;
+
+
+            selectedCount.textContent =
+                "0";
+
+
+            /*
+               Close popup.
+            */
+
+            map.closePopup();
+
+
+            /*
+               Hide info.
+            */
+
+            hideInfo();
+
+
+            /*
+               Clear search.
+            */
+
+            searchInput.value =
+                "";
+
+            searchResults.style.display =
+                "none";
+
+
+            /*
+               Zoom back to Kigali.
+            */
+
+            if (
+                sectorLayer &&
+                sectorLayer
+                    .getBounds()
+                    .isValid()
+            ) {
+
+                map.flyToBounds(
+
+                    sectorLayer
+                        .getBounds(),
+
+                    {
+
+                        padding:
+                            [80, 80],
+
+                        duration:
+                            1.8,
+
+                        easeLinearity:
+                            0.25
+
+                    }
+
+                );
+
+            } else {
+
+                map.flyTo(
+
+                    KIGALI_CENTER,
+
+                    11,
+
+                    {
+
+                        duration:
+                            1.5
+
+                    }
+
+                );
+
+            }
+
+        }
+
+    );
+
+
+
+/* =====================================================
+   MAP CLICK
+===================================================== */
+
+map.on(
+
+    "click",
+
+    function() {
+
+        /*
+           If user clicks empty map,
+           remove selection.
+        */
+
+        if (
+            selectedLayer
+        ) {
+
+            normalStyle(
+                selectedLayer
+            );
+
+        }
+
+
+        selectedLayer =
+            null;
+
+
+        selectedCount.textContent =
+            "0";
+
+
+        map.closePopup();
+
+    }
+
+);
+
+
+
+/* =====================================================
+   ZOOM BEHAVIOR
+===================================================== */
+
+map.on(
+
+    "zoomend",
+
+    function() {
+
+        const zoom =
+            map.getZoom();
+
+
+        /*
+           At close zoom, make
+           Kigali circle subtle.
+        */
+
+        if (
+            zoom >= 14
+        ) {
+
+            kigaliCircle.setStyle({
+
+                opacity:
+                    0.25,
+
+                fillOpacity:
+                    0.015
+
+            });
+
+
+            kigaliLabel.setOpacity(
+                0
+            );
+
+        } else {
+
+            kigaliCircle.setStyle({
+
+                opacity:
+                    0.9,
+
+                fillOpacity:
+                    pulseOpacity
+
+            });
+
+
+            kigaliLabel.setOpacity(
+                1
+            );
+
+        }
+
+    }
+
+);
+
+</script>
+
+</body>
+</html>

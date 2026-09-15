@@ -13,6 +13,7 @@ const { CHART_TYPES, CHART_KINDS, LIMITS } = require("./constants.js");
 
 const OTHER_KEY = "__other__";
 const MAX_SERIES = 12;
+const LEGEND_LIMIT = 12;
 
 function slice_limit(widget) {
   const definition = CHART_TYPES[widget.chart_type] || {};
@@ -215,7 +216,19 @@ async function compute_widget_data(widget, form_version, period_override) {
         : Math.round(((result.current - result.previous) / Math.abs(result.previous)) * 1000) / 10;
     // skipped: answers inside the window the numeric formula could not read
     // as numbers - the card flags them and can list them in full.
-    return { kind, value: result.current || 0, previous: result.previous, change_pct, skipped: result.skipped || 0 };
+    const data = { kind, value: result.current || 0, previous: result.previous, change_pct, skipped: result.skipped || 0 };
+    // The legend: the same measure, grouped by the legend field over the
+    // very same records (filters and window included) - "count of status
+    // in Nyagatare" lists live / sold / dead under the total.
+    if (widget.legend_by && widget.legend_by.field_id) {
+      const legend_rows = await pipelines.category_rows(
+        Object.assign({}, widget, { group_by: { field_id: widget.legend_by.field_id }, sort: "value_desc" }),
+        bounds,
+        catalog,
+      );
+      data.legend = legend_rows.slice(0, LEGEND_LIMIT).map((row) => ({ label: String(row._id), value: row.value }));
+    }
+    return data;
   }
   if (kind === CHART_KINDS.POINT) {
     const points = await pipelines.point_rows(widget, bounds);

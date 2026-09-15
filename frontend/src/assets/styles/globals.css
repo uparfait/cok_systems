@@ -2071,6 +2071,140 @@ background-color: #056daa;
   animation: dcs-view-fade-in 0.32s ease both;
 }
 
+/* Dashboard builder: the overlay pops in, drafts slide in from the right,
+   chips and tabs answer the pointer, and the KPI switch glides. */
+@keyframes dcs-builder-pop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dcs-draft-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.dcs-builder-pop {
+  animation: dcs-builder-pop 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.dcs-draft-in {
+  animation: dcs-draft-in 0.26s ease both;
+}
+
+.dcs-builder-step {
+  animation: dcs-view-fade-in 0.3s ease both;
+}
+
+.dcs-builder-chip {
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms ease;
+}
+
+.dcs-builder-chip:hover:not(:disabled) {
+  border-color: #056daa !important;
+  transform: translateY(-1px);
+}
+
+.dcs-builder-tab {
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+
+.dcs-builder-tab:hover:not(:disabled) {
+  color: #056daa !important;
+}
+
+.dcs-builder-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  flex-shrink: 0;
+  transition: background-color 180ms ease;
+  cursor: pointer;
+}
+
+.dcs-builder-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dcs-builder-aside {
+  border-top: 1px solid #e0e0e0;
+  max-height: 40vh;
+}
+
+@media (min-width: 1024px) {
+  .dcs-builder-aside {
+    border-top: none;
+    border-left: 1px solid #e0e0e0;
+    max-height: none;
+  }
+}
+
+.dcs-kpi-legend li {
+  animation: dcs-view-fade-in 0.3s ease both;
+}
+
+.dcs-builder-select {
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.dcs-builder-select:hover:not(:disabled) {
+  border-color: #056daa !important;
+}
+
+@keyframes dcs-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dcs-builder-popover {
+  animation: dcs-popover-in 0.16s ease both;
+}
+
+.dcs-draft-row {
+  transition: border-color 160ms ease, background-color 160ms ease, transform 120ms ease;
+}
+
+/* A widget switching between light and dark mode glides instead of snapping. */
+.dcs-widget-card {
+  transition: background-color 260ms ease, border-color 260ms ease, color 260ms ease;
+}
+
+.dcs-draft-row:hover {
+  border-color: #056daa !important;
+  transform: translateX(-2px);
+}
+
 .dcs-pager-button {
   width: 38px;
   height: 38px;

@@ -13,6 +13,43 @@ function sanitize_field_ref(value) {
   return { field_id: value.field_id.trim() };
 }
 
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+const MODE_COLOR_KEYS = ["background", "text", "number"];
+const MAX_VALUE_COLORS = 100;
+
+function sanitize_mode(mode) {
+  if (!mode || typeof mode !== "object") return null;
+  const out = {};
+  MODE_COLOR_KEYS.forEach((key) => {
+    if (typeof mode[key] === "string" && HEX_COLOR.test(mode[key].trim())) out[key] = mode[key].trim().toLowerCase();
+  });
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/**
+ * A widget's look: its mode, the colors of each mode and one color per
+ * legend / category value - every color must be a six-digit hex.
+ */
+function sanitize_appearance(appearance) {
+  if (!appearance || typeof appearance !== "object") return null;
+  const out = { theme: appearance.theme === "dark" ? "dark" : "light" };
+  const light = sanitize_mode(appearance.light);
+  const dark = sanitize_mode(appearance.dark);
+  if (light) out.light = light;
+  if (dark) out.dark = dark;
+  if (appearance.value_colors && typeof appearance.value_colors === "object") {
+    const value_colors = {};
+    Object.keys(appearance.value_colors)
+      .slice(0, MAX_VALUE_COLORS)
+      .forEach((key) => {
+        const color = appearance.value_colors[key];
+        if (key.length <= 120 && typeof color === "string" && HEX_COLOR.test(color.trim())) value_colors[key] = color.trim().toLowerCase();
+      });
+    if (Object.keys(value_colors).length > 0) out.value_colors = value_colors;
+  }
+  return out;
+}
+
 function sanitize_widget(widget) {
   if (!widget || typeof widget !== "object") return null;
   const group_by = sanitize_field_ref(widget.group_by);
@@ -33,6 +70,7 @@ function sanitize_widget(widget) {
     description: clean_string(widget.description) || null,
     // A KPI card's optional icon, stored as "<library>:<icon name>".
     icon: clean_string(widget.icon) || null,
+    appearance: sanitize_appearance(widget.appearance),
     form_group_id: clean_string(widget.form_group_id),
     chart_type: clean_string(widget.chart_type),
     metric: {
@@ -41,6 +79,9 @@ function sanitize_widget(widget) {
     },
     group_by,
     split_by: sanitize_field_ref(widget.split_by),
+    // KPI cards only: the choice field whose per-value counts are listed
+    // under the number as a legend.
+    legend_by: sanitize_field_ref(widget.legend_by),
     x_field_id: clean_string(widget.x_field_id) || null,
     y_field_id: clean_string(widget.y_field_id) || null,
     size_field_id: clean_string(widget.size_field_id) || null,

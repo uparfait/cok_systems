@@ -7,9 +7,9 @@ import PointCharts from "./charts/PointCharts.jsx";
 import { HeatmapChart, WaffleChart } from "./charts/GridCharts.jsx";
 import TreemapChart from "./charts/TreemapChart.jsx";
 import KpiCard from "./charts/KpiCard.jsx";
+import { build_palette } from "./appearance.js";
 
 const OTHER_KEY = "__other__";
-const PRIMARY = "#056daa";
 
 /**
  * Renders one widget's data with the right chart component. The backend
@@ -21,6 +21,7 @@ const PRIMARY = "#056daa";
 export default function WidgetChart({ widget, data, fitMode }) {
   const { translate } = useDcsLanguage();
   const [show_other, setShowOther] = useState(false);
+  const palette = build_palette(widget.appearance);
 
   if (!data) return null;
 
@@ -30,7 +31,7 @@ export default function WidgetChart({ widget, data, fitMode }) {
   const is_empty = data.kind === "kpi" ? false : !(has_rows || has_points || has_nodes);
   if (is_empty) {
     return (
-      <div className="flex items-center justify-center text-xs" style={{ height: 180, color: "#9E9E9E" }}>
+      <div className="flex items-center justify-center text-xs" style={{ height: 180, color: palette.muted }}>
         {translate("DCS_DB_NO_DATA")}
       </div>
     );
@@ -53,24 +54,27 @@ export default function WidgetChart({ widget, data, fitMode }) {
         previous={data.previous}
         changePct={data.change_pct}
         previousLabel={translate("DCS_DB_PREVIOUS_PERIOD")}
+        legend={data.legend}
+        totalLabel={translate("DCS_DB_TOTAL")}
+        palette={palette}
       />
     );
   }
   if (data.kind === "point") {
-    return <PointCharts chartType={widget.chart_type} points={data.points} xLabel="x" yLabel="y" />;
+    return <PointCharts chartType={widget.chart_type} points={data.points} xLabel="x" yLabel="y" palette={palette} />;
   }
   if (data.kind === "tree") {
-    return <TreemapChart nodes={data.nodes} />;
+    return <TreemapChart nodes={data.nodes} palette={palette} />;
   }
   if (data.kind === "time") {
-    return <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} />;
+    return <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} />;
   }
 
   const toggle_link = (label_key, next_state, vars) => (
     <button
       type="button"
       className="block text-xs px-1"
-      style={{ color: PRIMARY, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "'Montserrat', sans-serif" }}
+      style={{ color: palette.number, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "'Montserrat', sans-serif" }}
       onClick={() => setShowOther(next_state)}
     >
       {translate(label_key, vars)}
@@ -83,7 +87,7 @@ export default function WidgetChart({ widget, data, fitMode }) {
     return (
       <div>
         {toggle_link("DCS_DB_OTHER_BACK", false)}
-        <CategoryCharts chartType="bar" rows={other_rows.map((row) => ({ label: String(row.label), value: row.value }))} series={[]} />
+        <CategoryCharts chartType="bar" rows={other_rows.map((row) => ({ label: String(row.label), value: row.value }))} series={[]} palette={palette} />
         {toggle_link("DCS_DB_OTHER_BACK", false)}
       </div>
     );
@@ -94,15 +98,15 @@ export default function WidgetChart({ widget, data, fitMode }) {
     // A category chart flipped into a line/area look: the categories run
     // along the X axis (with one line per split value when the data is
     // split) - same rows/series shape the time renderer already draws.
-    chart = <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} />;
+    chart = <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} />;
   } else if (widget.chart_type === "pie" || widget.chart_type === "donut") {
-    chart = <PieCharts chartType={widget.chart_type} rows={rows} totalLabel={translate("DCS_DB_TOTAL")} onItemClick={handle_item_click} />;
+    chart = <PieCharts chartType={widget.chart_type} rows={rows} totalLabel={translate("DCS_DB_TOTAL")} onItemClick={handle_item_click} palette={palette} />;
   } else if (widget.chart_type === "waffle") {
-    chart = <WaffleChart rows={rows} />;
+    chart = <WaffleChart rows={rows} palette={palette} />;
   } else if (widget.chart_type === "heatmap") {
-    chart = <HeatmapChart rows={rows} series={data.series || []} fitMode={fitMode} />;
+    chart = <HeatmapChart rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} />;
   } else {
-    chart = <CategoryCharts chartType={widget.chart_type} rows={rows} series={data.series || []} onItemClick={handle_item_click} />;
+    chart = <CategoryCharts chartType={widget.chart_type} rows={rows} series={data.series || []} onItemClick={handle_item_click} palette={palette} />;
   }
 
   return (

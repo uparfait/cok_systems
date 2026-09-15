@@ -83,6 +83,17 @@ function validate_shape_for_kind(widget, definition, catalog, errors, describe) 
     }
   }
 
+  const legend_field = widget.legend_by && widget.legend_by.field_id;
+  if (legend_field) {
+    if (kind !== CHART_KINDS.KPI) {
+      errors.push(`${describe}: only KPI cards take a legend field`);
+    } else if (!is_categorical(catalog, legend_field)) {
+      errors.push(`${describe}: the legend field must be a choice field of the form`);
+    } else if (KPI_ONLY_AGGREGATIONS.includes((widget.metric || {}).aggregation)) {
+      errors.push(`${describe}: ${widget.metric.aggregation} cannot be split into a legend`);
+    }
+  }
+
   const split_field = widget.split_by && widget.split_by.field_id;
   if (definition.split === "required" && !split_field) {
     errors.push(`${describe}: this chart type needs a split field`);

@@ -6,6 +6,7 @@ import { get_dashboard, request_error_text } from "./dashboardService.js";
 import { generate_and_save } from "./autoGenerate.js";
 import GenerationProgress from "./GenerationProgress.jsx";
 import GeneratedWidgetsReview from "./GeneratedWidgetsReview.jsx";
+import DashboardBuilder from "./builder/DashboardBuilder.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
@@ -34,6 +35,7 @@ export default function FormDashboardControls({ projectId, form }) {
   const [progress, setProgress] = useState({ percent: 0, message_key: "" });
   const [review_widgets, setReviewWidgets] = useState(null);
   const [review_loading, setReviewLoading] = useState(false);
+  const [builder_open, setBuilderOpen] = useState(false);
 
   useEffect(() => {
     let is_mounted = true;
@@ -71,7 +73,9 @@ export default function FormDashboardControls({ projectId, form }) {
     }
   };
 
+  // The automatic generation, still reachable from the builder's footer.
   const handle_generate = async () => {
+    setBuilderOpen(false);
     setGenerating(true);
     setProgress({ percent: 5, message_key: "DCS_DB_GEN_PROGRESS_ANALYZE" });
     try {
@@ -111,7 +115,7 @@ export default function FormDashboardControls({ projectId, form }) {
           <div className="flex flex-col sm:flex-row flex-wrap gap-2">
             {!exists && can_edit && (
               <div className="w-full sm:w-56">
-                <DcsButtonPrimary type="button" onClick={handle_generate}>
+                <DcsButtonPrimary type="button" onClick={() => setBuilderOpen(true)}>
                   {translate("DCS_DB_BTN_GENERATE")}
                 </DcsButtonPrimary>
               </div>
@@ -141,6 +145,21 @@ export default function FormDashboardControls({ projectId, form }) {
             )}
           </div>
         </>
+      )}
+
+      {builder_open && (
+        <DashboardBuilder
+          form={form}
+          existingWidgets={[]}
+          initialTab="kpi"
+          onClose={() => setBuilderOpen(false)}
+          onSaved={(saved_widgets) => {
+            setBuilderOpen(false);
+            setExists(saved_widgets.length > 0);
+            navigate(dashboard_path);
+          }}
+          onAutoGenerate={handle_generate}
+        />
       )}
 
       {review_widgets && (

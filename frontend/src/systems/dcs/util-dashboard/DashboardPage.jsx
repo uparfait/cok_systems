@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_dashboard, save_dashboard, get_dashboard_data, request_error_text } from "./dashboardService.js";
@@ -6,9 +6,10 @@ import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
 import { fold_family, widgets_data_signature } from "./chartCatalog.js";
 import BoardHeader from "./BoardHeader.jsx";
-import RegenerateDialog from "./RegenerateDialog.jsx";
 import GeneratedWidgetsReview from "./GeneratedWidgetsReview.jsx";
-import AddKpiDialog from "./AddKpiDialog.jsx";
+import DashboardBuilder from "./builder/DashboardBuilder.jsx";
+import AppearanceDialog from "./builder/AppearanceDialog.jsx";
+import { builder_fields, appearance_values_field } from "./builder/composeWidgets.js";
 import SkippedDetailsModal from "./SkippedDetailsModal.jsx";
 import IconPickerPanel from "./icons/IconPickerPanel.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
@@ -18,9 +19,7 @@ import BoardGrid from "./BoardGrid.jsx";
 
 const REFRESH_INTERVAL_MS = 30000;
 
-// CSS zoom reflows the layout and keeps text crisp at the target size -
-// transform scaling only shrinks pixels, which reads blurry. Zoom is used
-// whenever the browser supports it; transform stays as the fallback.
+// CSS zoom keeps text crisp when fitting the board; transform is the fallback.
 const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "2");
 
 /**
@@ -48,17 +47,19 @@ export default function DashboardPage({ form }) {
   const [progress, setProgress] = useState({ percent: 0, message_key: "" });
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState(null);
-  const [regen_dialog, setRegenDialog] = useState(false);
+  // The builder overlay's open tab ("kpi" | "charts" | "diagrams"), null while closed.
+  const [builder_tab, setBuilderTab] = useState(null);
   // While review_widgets is set the board is FROZEN behind the review list:
   // the grid is not rendered and no widget may fetch or refresh data.
   // review_focus narrows the review to just-added widgets (a manual KPI's
   // card and breakdowns); null reviews the whole board.
   const [review_widgets, setReviewWidgets] = useState(null);
   const [review_focus, setReviewFocus] = useState(null);
-  const [kpi_dialog, setKpiDialog] = useState(false);
   const [skipped_widget, setSkippedWidget] = useState(null);
-  // The KPI card whose icon is being set or changed in the right-hand picker.
+  // The widgets whose icon / colors are being edited in their dialogs.
   const [icon_widget, setIconWidget] = useState(null);
+  const [appearance_widget, setAppearanceWidget] = useState(null);
+  const form_fields = useMemo(() => builder_fields(form.schema), [form.schema]);
 
   const [data_by_widget, setDataByWidget] = useState({});
   const [data_loading, setDataLoading] = useState(false);
@@ -73,7 +74,7 @@ export default function DashboardPage({ form }) {
   const widgets_ref = useRef([]);
   widgets_ref.current = widgets;
   const frozen_ref = useRef(false);
-  frozen_ref.current = generating || review_widgets !== null;
+  frozen_ref.current = generating || review_widgets !== null || builder_tab !== null;
 
   // Browser-native full screen with two viewing modes ("fit" zooms the whole
   // board onto one screen, "scroll" keeps natural size), the self-fitting
@@ -277,11 +278,11 @@ export default function DashboardPage({ form }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
-  // "update" adds only the widgets that do not exist yet; "overwrite"
-  // replaces the whole board. Either way the fresh board opens in the
+  // The automatic generation, still reachable from the builder's footer:
+  // "overwrite" replaces the whole board, and the fresh board opens in the
   // review list (no data loads there) instead of fetching right away.
   const handle_generate = async (mode) => {
-    setRegenDialog(false);
+    setBuilderTab(null);
     setGenerating(true);
     setProgress({ percent: 5, message_key: "DCS_DB_GEN_PROGRESS_ANALYZE" });
     try {
@@ -314,13 +315,11 @@ export default function DashboardPage({ form }) {
     setReviewFocus(null);
   };
 
-  // A manual KPI was saved (card plus automatic breakdowns): the review
-  // opens focused on just those new widgets, freezing the board meanwhile.
-  const handle_kpi_added = (final_widgets, new_ids) => {
-    setKpiDialog(false);
+  // The builder saved the dashboard (drafts appended or replacing the
+  // board): the new widget list loads through the signature effect.
+  const handle_built = (final_widgets) => {
+    setBuilderTab(null);
     setWidgets(final_widgets);
-    setReviewFocus(new_ids);
-    setReviewWidgets(final_widgets);
   };
 
   const handle_delete = async () => {
@@ -373,8 +372,8 @@ export default function DashboardPage({ form }) {
         to={to}
         setTo={setTo}
         onApplyPeriod={handle_period_apply}
-        onAddKpi={() => setKpiDialog(true)}
-        onRegenerate={() => setRegenDialog(true)}
+        onAddKpi={() => setBuilderTab("kpi")}
+        onRegenerate={() => setBuilderTab("kpi")}
         onDelete={() => setConfirming("delete")}
       />
 
@@ -388,7 +387,7 @@ export default function DashboardPage({ form }) {
           </p>
           {can_edit && (
             <div className="w-full sm:w-56 mx-auto">
-              <DcsButtonPrimary type="button" onClick={() => handle_generate("overwrite")}>
+              <DcsButtonPrimary type="button" onClick={() => setBuilderTab("kpi")}>
                 {translate("DCS_DB_BTN_GENERATE")}
               </DcsButtonPrimary>
             </div>
@@ -417,6 +416,7 @@ export default function DashboardPage({ form }) {
             onRetryWidget={retry_widget}
             onShowSkipped={(target) => setSkippedWidget(target)}
             onPickIcon={(target) => setIconWidget(target)}
+            onAppearance={(target) => setAppearanceWidget(target)}
           />
         </div>
       )}
@@ -431,8 +431,29 @@ export default function DashboardPage({ form }) {
           onWidgetsChange={setWidgets}
         />
       )}
-      {regen_dialog && <RegenerateDialog onPick={handle_generate} onCancel={() => setRegenDialog(false)} />}
-      {kpi_dialog && <AddKpiDialog form={form} widgets={widgets} onAdded={handle_kpi_added} onCancel={() => setKpiDialog(false)} />}
+      {builder_tab !== null && (
+        <DashboardBuilder
+          form={form}
+          existingWidgets={widgets}
+          initialTab={builder_tab}
+          onClose={() => setBuilderTab(null)}
+          onSaved={handle_built}
+          onAutoGenerate={() => handle_generate("overwrite")}
+        />
+      )}
+      {appearance_widget && (
+        <AppearanceDialog
+          form={form}
+          title={appearance_widget.title}
+          valuesField={appearance_values_field(appearance_widget, form_fields)}
+          appearance={appearance_widget.appearance}
+          onClose={() => setAppearanceWidget(null)}
+          onApply={async (appearance) => {
+            setAppearanceWidget(null);
+            await handle_update_widget(appearance_widget.id, { appearance });
+          }}
+        />
+      )}
       {icon_widget && (
         <IconPickerPanel
           widget={widgets.find((widget) => widget.id === icon_widget.id) || icon_widget}
