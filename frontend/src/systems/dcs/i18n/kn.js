@@ -487,6 +487,8 @@ const kn = {
   DCS_TRANSFER_CONFIRM_MESSAGE: "Umukozi wahiswemo aba nyiri byose kandi ushobora gutakaza uburenganzira. Ibi ntibishobora gusubizwa inyuma na wowe.",
   DCS_TOAST_OWNERSHIP_TRANSFERRED: "Ubunyiri bwimuriwe {{name}}",
   DCS_DB_TITLE: "Imbonerahamwe y'ibanze",
+  DCS_DB_THEME_DARK: "Uburyo bw'umwijima (kuri iyi mushakisha gusa)",
+  DCS_DB_THEME_LIGHT: "Uburyo bw'urumuri (kuri iyi mushakisha gusa)",
   DCS_BTN_BROWSE_FILE: "Shakisha",
   DCS_DB_CODE_TOOLS: "Ibikoresho bya kode y'imbonerahamwe (Ctrl+6)",
   DCS_DB_CODE_TITLE: "Ibikoresho bya kode y'imbonerahamwe",

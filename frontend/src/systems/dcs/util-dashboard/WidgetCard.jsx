@@ -5,10 +5,20 @@ import WidgetChart from "./WidgetChart.jsx";
 import LibraryIcon from "./icons/LibraryIcon.jsx";
 import { chart_definition, convertible_types } from "./chartCatalog.js";
 import { build_palette } from "./appearance.js";
+import { useBoardTheme } from "./boardTheme.jsx";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
 const ORANGE = "#E67E22";
+// The widths a chart can take on the board (KPI cards keep their own dense grid).
+const SIZE_OPTIONS = [
+  { id: "small", labelKey: "DCS_DB_SIZE_SMALL" },
+  { id: "medium", labelKey: "DCS_DB_SIZE_MEDIUM" },
+  { id: "large", labelKey: "DCS_DB_SIZE_LARGE" },
+];
+const SURFACE = "var(--board-surface, #FFFFFF)";
+const SURFACE_BORDER = "var(--board-border, #E0E0E0)";
+const SURFACE_TEXT = "var(--board-text, #333333)";
 
 function StateMessage({ children, tone, height }) {
   return (
@@ -46,7 +56,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
     height: 26,
     border: `1px solid ${color}`,
     color,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: SURFACE,
     cursor: "pointer",
     flexShrink: 0,
   });
@@ -57,7 +67,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
         <input
           autoFocus
           className="min-w-0 flex-1 text-sm px-1 py-0.5"
-          style={{ border: `1px solid ${PRIMARY}`, outline: "none", fontFamily: "'Montserrat', sans-serif" }}
+          style={{ border: `1px solid ${PRIMARY}`, outline: "none", fontFamily: "'Montserrat', sans-serif", backgroundColor: SURFACE, color: SURFACE_TEXT }}
           value={draft}
           maxLength={maxLength}
           onChange={(event) => setDraft(event.target.value)}
@@ -115,7 +125,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
  * multi-series line form - see convertible_types), and remove the widget.
  * Closes on outside click.
  */
-function CardMenu({ widget, onChangeType, onRemove, onAppearance, onPickIcon }) {
+function CardMenu({ widget, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon }) {
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
   const menu_ref = useRef(null);
@@ -136,12 +146,17 @@ function CardMenu({ widget, onChangeType, onRemove, onAppearance, onPickIcon }) 
     padding: "0.5rem 0.75rem",
     fontSize: 12,
     fontFamily: "'Montserrat', sans-serif",
-    color: danger ? DANGER : "#333333",
+    color: danger ? DANGER : SURFACE_TEXT,
     background: "none",
     border: "none",
     cursor: "pointer",
     whiteSpace: "nowrap",
   });
+  const section_title = (key) => (
+    <p className="px-3 pt-2 pb-1 text-xs font-semibold uppercase" style={{ color: "var(--board-muted, #9E9E9E)", fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.4px", margin: 0 }}>
+      {translate(key)}
+    </p>
+  );
 
   const pick = (action) => {
     setOpen(false);
@@ -158,7 +173,7 @@ function CardMenu({ widget, onChangeType, onRemove, onAppearance, onPickIcon }) 
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         className="flex items-center justify-center"
-        style={{ width: 26, height: 26, border: "1px solid #E0E0E0", color: "#555555", backgroundColor: open ? "#F0F7FB" : "#FFFFFF", cursor: "pointer" }}
+        style={{ width: 26, height: 26, border: `1px solid ${SURFACE_BORDER}`, color: "var(--board-muted, #555555)", backgroundColor: open ? "var(--board-surface-hover, #F0F7FB)" : SURFACE, cursor: "pointer" }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="12" cy="5" r="2" />
@@ -167,15 +182,33 @@ function CardMenu({ widget, onChangeType, onRemove, onAppearance, onPickIcon }) 
         </svg>
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-40 bg-white border-2 shadow-lg" style={{ top: "100%", marginTop: 4, borderColor: "#E0E0E0", minWidth: 190 }}>
+        <div role="menu" className="absolute right-0 z-40 border-2 shadow-lg" style={{ top: "100%", marginTop: 4, backgroundColor: SURFACE, borderColor: SURFACE_BORDER, minWidth: 190 }}>
+          {onChangeSize && (
+            <>
+              {section_title("DCS_DB_SIZE")}
+              <div className="flex gap-1 px-3 pb-2">
+                {SIZE_OPTIONS.map((option) => {
+                  const current = (widget.size || "medium") === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={current}
+                      className="dcs-db-menu-item flex-1 text-xs font-semibold py-1 px-2"
+                      style={{ border: `1px solid ${current ? PRIMARY : SURFACE_BORDER}`, color: current ? "#FFFFFF" : PRIMARY, backgroundColor: current ? PRIMARY : "transparent", cursor: current ? "default" : "pointer", fontFamily: "'Montserrat', sans-serif" }}
+                      onClick={() => !current && pick(() => onChangeSize(option.id))}
+                    >
+                      {translate(option.labelKey)}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
           {onChangeType && convertible_types(widget).filter((type) => type !== widget.chart_type).length > 0 && (
             <>
-              <p
-                className="px-3 pt-2 pb-1 text-xs font-semibold uppercase"
-                style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.4px", margin: 0 }}
-              >
-                {translate("DCS_DB_TURN_INTO")}
-              </p>
+              {section_title("DCS_DB_TURN_INTO")}
               <div style={{ maxHeight: 220, overflowY: "auto" }}>
                 {convertible_types(widget)
                   .filter((type) => type !== widget.chart_type)
@@ -212,7 +245,7 @@ function CardMenu({ widget, onChangeType, onRemove, onAppearance, onPickIcon }) 
               {translate("DCS_DB_REMOVE_WIDGET")}
             </button>
           )}
-          <style>{`.dcs-db-menu-item:hover { background-color: #F0F7FB !important; }`}</style>
+          <style>{`.dcs-db-menu-item:hover { background-color: var(--board-surface-hover, #F0F7FB) !important; }`}</style>
         </div>
       )}
     </div>
@@ -259,12 +292,14 @@ function KpiIconSlot({ icon, color }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect }) {
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect }) {
   const { translate } = useDcsLanguage();
+  const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
-  // The card paints itself from the widget's own appearance: light or dark
-  // mode with its background, text and number colors.
-  const palette = build_palette(widget.appearance);
+  // The card paints itself from the widget's own appearance (light or dark
+  // mode with its background, text and number colors) - unless the viewer
+  // switched the whole board to dark mode, which paints every card dark.
+  const palette = build_palette(widget.appearance, board.theme);
   const type_label = definition ? translate(definition.labelKey) : widget.chart_type;
   const total = widget_total(widget, data);
   // A failed or timed-out widget is marked in red - it likely causes errors
@@ -332,7 +367,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
         {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon) && (
-          <CardMenu widget={widget} onChangeType={onChangeType} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi ? onPickIcon : undefined} />
+          <CardMenu widget={widget} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi ? onPickIcon : undefined} />
         )}
       </div>
 
@@ -357,7 +392,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
               <button
                 type="button"
                 className="text-xs font-semibold uppercase px-2 py-1"
-                style={{ color: PRIMARY, border: `1px solid ${PRIMARY}`, fontFamily: "'Montserrat', sans-serif", cursor: "pointer", background: "#FFFFFF" }}
+                style={{ color: PRIMARY, border: `1px solid ${PRIMARY}`, fontFamily: "'Montserrat', sans-serif", cursor: "pointer", background: palette.background }}
                 onClick={onRetry}
               >
                 {translate("DCS_DB_RETRY")}

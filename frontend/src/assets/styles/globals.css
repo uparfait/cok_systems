@@ -1688,6 +1688,56 @@ background-color: #056daa;
   transform: translateY(-12px);
 }
 
+/* The dashboard's page chrome (header bar, menus, empty state, inputs)
+   reads its colors from these variables, so the viewer's dark mode (a
+   browser-only preference, see util-dashboard/boardTheme.jsx) only has to
+   swap them - widgets themselves paint from their own palettes. */
+.dcs-board-root {
+  --board-bg: #F4F7F9;
+  --board-surface: #FFFFFF;
+  --board-surface-hover: #F0F7FB;
+  --board-border: #E0E0E0;
+  --board-text: #333333;
+  --board-muted: #9E9E9E;
+  transition: background-color 0.25s ease;
+}
+
+.dcs-board-root.dcs-board-dark {
+  --board-bg: #0F171F;
+  --board-surface: #16202A;
+  --board-surface-hover: #1F2B37;
+  --board-border: #2E3B48;
+  --board-text: #F2F5F8;
+  --board-muted: #A9B4C0;
+  background-color: var(--board-bg);
+  color: var(--board-text);
+  color-scheme: dark;
+}
+
+.dcs-board-root:not(.dcs-board-fullscreen).dcs-board-dark {
+  padding: 12px;
+  margin: -12px;
+}
+
+.dcs-board-chrome {
+  background-color: var(--board-surface, #FFFFFF);
+  border-color: var(--board-border, #E0E0E0);
+  color: var(--board-text, #333333);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+.dcs-board-dark .dcs-board-chrome select,
+.dcs-board-dark .dcs-board-chrome input {
+  background-color: var(--board-surface);
+  color: var(--board-text);
+  border-color: var(--board-border);
+}
+
+.dcs-board-dark .dcs-board-chrome .text-xs,
+.dcs-board-dark .dcs-board-chrome label {
+  color: var(--board-text);
+}
+
 /* A media field's trigger drawn as an input: same box as every text input,
    a pointer cursor, and the border and browse hint turning system blue on
    hover or focus so it reads as "click here to pick a file". */

@@ -3,16 +3,17 @@ import WidgetCard from "./WidgetCard.jsx";
 
 // Flexible auto-grow grid: every card carries a size-based flex-basis, and
 // `grow` lets the items of an incomplete last row stretch over the leftover
-// width instead of leaving an empty gap. NO widget may claim a full row of
-// its own - every base width is at most half the board, so something can
-// always sit next to it; a widget only ever spans the full width when
-// nothing else shares its row (the odd one out, or a one-widget board).
-// Static class strings so Tailwind keeps them; mobile is one column.
+// width instead of leaving an empty gap. A chart's own size (changed from
+// its menu) decides its base width: small is a quarter of a wide board (a
+// third on a laptop), medium half, large two thirds - so a large and a
+// small card fill one row together. Mobile is always one column, and a
+// lone chart always spans the whole board. Static class strings so
+// Tailwind keeps them.
 const HALF_ROW = "grow basis-full sm:basis-[calc(50%-0.75rem)]";
 const SIZE_CLASSES = {
-  small: `${HALF_ROW} xl:basis-[calc(25%-0.75rem)]`,
+  small: `${HALF_ROW} lg:basis-[calc(33.333%-0.75rem)] xl:basis-[calc(25%-0.75rem)]`,
   medium: HALF_ROW,
-  large: HALF_ROW,
+  large: `grow basis-full sm:basis-[calc(66.666%-0.75rem)]`,
   full: HALF_ROW,
 };
 
@@ -55,6 +56,7 @@ export default function BoardGrid({
       onUpdateText={(changes) => onUpdateWidget(widget.id, changes)}
       onRemove={editable ? () => onRemoveWidget(widget) : undefined}
       onChangeType={editable ? (next_type) => onUpdateWidget(widget.id, { chart_type: next_type }) : undefined}
+      onChangeSize={editable && widget.chart_type !== "kpi" ? (next_size) => onUpdateWidget(widget.id, { size: next_size }) : undefined}
       onRetry={() => onRetryWidget(widget)}
       onShowSkipped={onShowSkipped}
       onPickIcon={editable && onPickIcon ? () => onPickIcon(widget) : undefined}

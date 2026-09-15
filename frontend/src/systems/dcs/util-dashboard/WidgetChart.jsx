@@ -8,6 +8,7 @@ import { HeatmapChart, WaffleChart } from "./charts/GridCharts.jsx";
 import TreemapChart from "./charts/TreemapChart.jsx";
 import KpiCard from "./charts/KpiCard.jsx";
 import { build_palette } from "./appearance.js";
+import { useBoardTheme } from "./boardTheme.jsx";
 
 const OTHER_KEY = "__other__";
 
@@ -21,7 +22,8 @@ const OTHER_KEY = "__other__";
 export default function WidgetChart({ widget, data, fitMode }) {
   const { translate } = useDcsLanguage();
   const [show_other, setShowOther] = useState(false);
-  const palette = build_palette(widget.appearance);
+  const board = useBoardTheme();
+  const palette = build_palette(widget.appearance, board.theme);
 
   if (!data) return null;
 

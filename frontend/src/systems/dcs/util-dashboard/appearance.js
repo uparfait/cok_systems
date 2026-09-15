@@ -62,9 +62,15 @@ export function resolve_appearance(raw) {
   return { theme, legend_position, light: mode("light"), dark: mode("dark"), value_colors: { ...(source.value_colors || {}) } };
 }
 
-/** Everything a card or chart needs to paint itself. */
-export function build_palette(raw) {
+/**
+ * Everything a card or chart needs to paint itself. board_theme is the
+ * viewer's page-wide mode (see boardTheme.jsx): "dark" paints every widget
+ * with its dark color set regardless of its own saved mode; anything else
+ * leaves the widget's own choice in charge.
+ */
+export function build_palette(raw, board_theme) {
   const appearance = resolve_appearance(raw);
+  if (board_theme === "dark") appearance.theme = "dark";
   const mode = appearance[appearance.theme];
   const extras = MODE_EXTRAS[appearance.theme];
   const value_colors = appearance.value_colors;

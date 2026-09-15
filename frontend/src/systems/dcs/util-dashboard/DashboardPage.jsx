@@ -15,6 +15,7 @@ import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import BoardWithSelection from "./selection/BoardWithSelection.jsx";
 import DashboardCodeOverlay, { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
+import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
 
 const REFRESH_INTERVAL_MS = 30000;
 
@@ -36,8 +37,17 @@ const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports
  * review is finished or canceled.
  */
 export default function DashboardPage({ form }) {
+  return (
+    <BoardThemeProvider>
+      <DashboardBoard form={form} />
+    </BoardThemeProvider>
+  );
+}
+
+function DashboardBoard({ form }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
+  const board = useBoardTheme();
 
   const [loading, setLoading] = useState(true);
   const [can_edit, setCanEdit] = useState(false);
@@ -344,10 +354,10 @@ export default function DashboardPage({ form }) {
   return (
     <div
       ref={container_ref}
-      className={`dcs-board-no-select relative select-none ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "p-2 sm:p-4" : "pb-16 space-y-4"}`}
+      className={`dcs-board-root dcs-board-no-select relative select-none ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "pb-16 space-y-4"}`}
       style={
         is_fullscreen
-          ? { backgroundColor: "#F4F7F9", width: "100%", height: "100%", overflowY: fs_mode === "fit" ? "hidden" : "auto" }
+          ? { backgroundColor: "var(--board-bg, #F4F7F9)", width: "100%", height: "100%", overflowY: fs_mode === "fit" ? "hidden" : "auto" }
           : undefined
       }
     >
@@ -375,16 +385,15 @@ export default function DashboardPage({ form }) {
         setTo={setTo}
         onApplyPeriod={handle_period_apply}
         onAddKpi={() => setBuilderTab("kpi")}
-        onCode={() => setCodeOpen(true)}
         onDelete={() => setConfirming("delete")}
       />
 
       {review_widgets !== null ? null : widgets.length === 0 && !generating ? (
-        <div className="bg-white border-2 p-8 text-center" style={{ borderColor: "#E0E0E0" }}>
-          <p className="text-sm font-semibold mb-1" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
+        <div className="dcs-board-chrome border-2 p-8 text-center">
+          <p className="text-sm font-semibold mb-1" style={{ color: "var(--board-text, #333333)", fontFamily: "'Montserrat', sans-serif" }}>
             {translate("DCS_DB_EMPTY_TITLE")}
           </p>
-          <p className="text-xs mb-4" style={{ color: "#9E9E9E" }}>
+          <p className="text-xs mb-4" style={{ color: "var(--board-muted, #9E9E9E)" }}>
             {translate(can_edit ? "DCS_DB_EMPTY_HINT" : "DCS_DB_EMPTY_HINT_VIEWER")}
           </p>
           {can_edit && (

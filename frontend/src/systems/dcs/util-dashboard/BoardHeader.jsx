@@ -1,6 +1,7 @@
 import React from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { IconButton, FULLSCREEN_SVG, EXIT_SVG, FIT_SVG, SCROLL_SVG, PLUS_SVG, CODE_SVG, TRASH_SVG } from "./BoardIcons.jsx";
+import { IconButton, FULLSCREEN_SVG, EXIT_SVG, FIT_SVG, SCROLL_SVG, PLUS_SVG, MOON_SVG, SUN_SVG, TRASH_SVG } from "./BoardIcons.jsx";
+import { useBoardTheme } from "./boardTheme.jsx";
 import GenerationProgress from "./GenerationProgress.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 
@@ -39,10 +40,10 @@ export default function BoardHeader({
   setTo,
   onApplyPeriod,
   onAddKpi,
-  onCode,
   onDelete,
 }) {
   const { translate } = useDcsLanguage();
+  const board = useBoardTheme();
   const busy = generating || reviewing;
 
   return (
@@ -61,11 +62,10 @@ export default function BoardHeader({
         />
       )}
       <div
-        className="bg-white border-2 px-3 py-2 sm:px-4 flex flex-col gap-2"
+        className="dcs-board-chrome border-2 px-3 py-2 sm:px-4 flex flex-col gap-2"
         onMouseEnter={is_fullscreen ? show_header : undefined}
         onMouseLeave={is_fullscreen ? () => schedule_header_hide(100) : undefined}
         style={{
-          borderColor: "#E0E0E0",
           ...(is_fullscreen
             ? {
                 position: "fixed",
@@ -85,11 +85,16 @@ export default function BoardHeader({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2
             className="min-w-0 truncate"
-            style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 15, color: "#333333", textTransform: "uppercase", letterSpacing: "0.3px" }}
+            style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 15, color: "var(--board-text, #333333)", textTransform: "uppercase", letterSpacing: "0.3px" }}
           >
             {translate("DCS_DB_BOARD_TITLE", { name: form.form_name || form.form_group_id })}
           </h2>
           <div className="flex flex-wrap items-center gap-2">
+            {/* The viewer's own light / dark mode - a browser preference,
+                never saved to the dashboard, so it is offered to everyone. */}
+            <IconButton title={translate(board.is_dark ? "DCS_DB_THEME_LIGHT" : "DCS_DB_THEME_DARK")} onClick={board.toggle} active={board.is_dark}>
+              {board.is_dark ? SUN_SVG : MOON_SVG}
+            </IconButton>
             {is_fullscreen && !busy && (
               <IconButton title={translate("DCS_DB_FIT_MODE")} onClick={() => setFsMode("fit")} active={fs_mode === "fit"}>
                 {FIT_SVG}
@@ -112,9 +117,6 @@ export default function BoardHeader({
               <>
                 <IconButton title={translate("DCS_DB_ADD_KPI")} onClick={onAddKpi} disabled={deleting}>
                   {PLUS_SVG}
-                </IconButton>
-                <IconButton title={translate("DCS_DB_CODE_TOOLS")} onClick={onCode} disabled={deleting}>
-                  {CODE_SVG}
                 </IconButton>
                 <IconButton title={translate("DCS_DB_BTN_DELETE")} onClick={onDelete} danger disabled={deleting}>
                   {TRASH_SVG}
