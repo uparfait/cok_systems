@@ -12,10 +12,10 @@ import React from "react";
  */
 export default function DcsLogoMark({ title }) {
   return (
-    <svg className="dcs-logo-mark" viewBox="0 0 80 36" width="64" height="30" role="img" aria-label={title}>
+    <svg className="dcs-logo-mark" viewBox="0 0 120 36" width="96" height="30" role="img" aria-label={title}>
       <title>{title}</title>
-      <text x="2" y="27" className="dcs-logo-mark-write" fontFamily="'Montserrat', sans-serif" fontWeight="800" fontSize="26">
-        DCS
+      <text x="2" y="27" className="dcs-logo-mark-write" fontFamily="'Montserrat', sans-serif" fontWeight="800" fontSize="24">
+        {"DC&MS"}
       </text>
     </svg>
   );

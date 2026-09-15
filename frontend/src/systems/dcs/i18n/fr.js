@@ -1,6 +1,6 @@
 const fr = {
-  DCS_NAV_LABEL: "DCS",
-  DCS_HEADER_TITLE: "Système de Collecte de Données",
+  DCS_NAV_LABEL: "DC&MS",
+  DCS_HEADER_TITLE: "Système de Collecte & Suivi de Données",
   DCS_LANGUAGE_LABEL: "Langue",
   DCS_LANGUAGE_EN: "Anglais",
   DCS_LANGUAGE_KN: "Kinyarwanda",
@@ -27,7 +27,7 @@ const fr = {
 
   DCS_HOME_ABOUT_EYEBROW: "À propos du système",
   DCS_HOME_ABOUT_TITLE: "Un espace unique pour chaque projet de collecte de données",
-  DCS_HOME_ABOUT_BODY: "Le Système de Collecte de Données permet à vos équipes d'organiser la collecte de données par projet, de concevoir des questionnaires versionnés avec un éditeur visuel, de contrôler précisément qui peut voir chaque projet, et de collecter des réponses qui continuent de fonctionner même sans connexion internet.",
+  DCS_HOME_ABOUT_BODY: "Le Système de Collecte & Suivi de Données permet à vos équipes d'organiser la collecte de données par projet, de concevoir des questionnaires versionnés avec un éditeur visuel, de contrôler précisément qui peut voir chaque projet, et de collecter des réponses qui continuent de fonctionner même sans connexion internet.",
   DCS_HOME_ABOUT_STAT_1_VALUE: "20+",
   DCS_HOME_ABOUT_STAT_1_LABEL: "Types de questions disponibles",
   DCS_HOME_ABOUT_STAT_2_VALUE: "100%",

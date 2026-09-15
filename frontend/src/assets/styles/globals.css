@@ -1882,14 +1882,14 @@ background-color: #056daa;
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-dasharray: 260;
-  stroke-dashoffset: 260;
+  stroke-dasharray: 440;
+  stroke-dashoffset: 440;
   animation: dcs-logo-handwrite 3.2s ease-in-out infinite;
 }
 
 @keyframes dcs-logo-handwrite {
   0% {
-    stroke-dashoffset: 260;
+    stroke-dashoffset: 440;
   }
   55%, 100% {
     stroke-dashoffset: 0;

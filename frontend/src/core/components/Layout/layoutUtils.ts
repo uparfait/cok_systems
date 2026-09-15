@@ -151,7 +151,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
           { id: 'follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
         ]
       },
-      { id: 'dcs', label: 'DCS', path: `/dcs-system`, icon: 'FiDatabase' },
+      { id: 'dcs', label: 'DC&MS', path: `/dcs-system`, icon: 'FiDatabase' },
     ];
   }
 
@@ -173,7 +173,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       },
       { id: 'history', label: 'Service History', path: `/${slug}/dashboard?tab=history`, icon: 'FiFileText' },
       { id: 'queue', label: 'Department Queue', path: `/${slug}/dashboard?tab=queue`, icon: 'FiList' },
-      { id: 'dcs', label: 'DCS', path: `/dcs-system`, icon: 'FiDatabase' },
+      { id: 'dcs', label: 'DC&MS', path: `/dcs-system`, icon: 'FiDatabase' },
     ];
   }
 
@@ -227,7 +227,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
           { id: 'all-requests', label: 'All Requests', path: `/${slug}/booking-requests/all`, icon: 'FiList' }
         ]
       },
-      { id: 'dcs', label: 'DCS', path: `/dcs-system`, icon: 'FiDatabase' },
+      { id: 'dcs', label: 'DC&MS', path: `/dcs-system`, icon: 'FiDatabase' },
     ];
   }
 
@@ -252,7 +252,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'feedback', label: 'Feedback', path: `/${slug}/hod/feedback`, icon: 'FiStar' },
       { id: 'history', label: 'Service History', path: `/${slug}/dashboard?tab=history`, icon: 'FiFileText' },
       { id: 'queue', label: 'Department Queue', path: `/${slug}/dashboard?tab=queue`, icon: 'FiUsers' },
-      { id: 'dcs', label: 'DCS', path: `/dcs-system`, icon: 'FiDatabase' },
+      { id: 'dcs', label: 'DC&MS', path: `/dcs-system`, icon: 'FiDatabase' },
     ];
   }
 
@@ -281,7 +281,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
           { id: 'checkout-person', label: 'Person', path: `/${slug}/checkout-person`, icon: 'FiUser' }
         ]
       },
-      // { id: 'dcs', label: 'DCS', path: `/dcs-system`, icon: 'FiDatabase' },
+      // { id: 'dcs', label: 'DC&MS', path: `/dcs-system`, icon: 'FiDatabase' },
     ];
   }
 
@@ -304,7 +304,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
         ]
       },
       { id: 'reports', label: 'Reports', path: `/${slug}/dashboard?tab=reports`, icon: 'FiFile' },
-      { id: 'dcs', label: 'DCS', path: `/dcs-system`, icon: 'FiDatabase' },
+      { id: 'dcs', label: 'DC&MS', path: `/dcs-system`, icon: 'FiDatabase' },
     ];
   }
 
@@ -328,7 +328,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
           { id: 'follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
         ]
       },
-      { id: 'dcs', label: 'DCS', path: `/dcs-system`, icon: 'FiDatabase' },
+      { id: 'dcs', label: 'DC&MS', path: `/dcs-system`, icon: 'FiDatabase' },
     ];
   }
 
@@ -412,7 +412,7 @@ const hasAdminAccess = hasPermission(user, 'admin') || hasPermission(user, 'depa
     }
   }
 
-  navigation.push({ id: 'dcs', label: 'DCS', path: `/dcs-system`, icon: 'FiDatabase' });
+  navigation.push({ id: 'dcs', label: 'DC&MS', path: `/dcs-system`, icon: 'FiDatabase' });
 
   // Calender is always the first link, for every role
   navigation.unshift({ id: 'calender', label: 'Calender', path: `/calendar`, icon: 'FiCalendar' });

@@ -1,6 +1,6 @@
 const kn = {
-  DCS_NAV_LABEL: "DCS",
-  DCS_HEADER_TITLE: "Sisiteme yo Gukusanya Amakuru",
+  DCS_NAV_LABEL: "DC&MS",
+  DCS_HEADER_TITLE: "Sisiteme yo Gukusanya no Gukurikirana Amakuru",
   DCS_LANGUAGE_LABEL: "Ururimi",
   DCS_LANGUAGE_EN: "Icyongereza",
   DCS_LANGUAGE_KN: "Ikinyarwanda",
@@ -27,7 +27,7 @@ const kn = {
 
   DCS_HOME_ABOUT_EYEBROW: "Ibijyanye na sisiteme",
   DCS_HOME_ABOUT_TITLE: "Ahantu hamwe ku mishinga yose yo gukusanya amakuru",
-  DCS_HOME_ABOUT_BODY: "Sisiteme yo Gukusanya Amakuru ituma amatsinda yawe atunganya gukusanya amakuru ku buryo bw'imishinga (poroje), agakora amafishi afite verisiyo zitandukanye hifashishijwe igikoresho cyo kubaka, agenzura neza abemerewe kubona buri poroje, no gukusanya ibisubizo bikomeza gukora n'igihe nta murandasi uhari.",
+  DCS_HOME_ABOUT_BODY: "Sisiteme yo Gukusanya no Gukurikirana Amakuru ituma amatsinda yawe atunganya gukusanya amakuru ku buryo bw'imishinga (poroje), agakora amafishi afite verisiyo zitandukanye hifashishijwe igikoresho cyo kubaka, agenzura neza abemerewe kubona buri poroje, no gukusanya ibisubizo bikomeza gukora n'igihe nta murandasi uhari.",
   DCS_HOME_ABOUT_STAT_1_VALUE: "20+",
   DCS_HOME_ABOUT_STAT_1_LABEL: "Ubwoko bw'ibibazo wakoresha",
   DCS_HOME_ABOUT_STAT_2_VALUE: "100%",

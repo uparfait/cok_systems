@@ -1,6 +1,6 @@
 const en = {
-  DCS_NAV_LABEL: "DCS",
-  DCS_HEADER_TITLE: "Data Collection System",
+  DCS_NAV_LABEL: "DC&MS",
+  DCS_HEADER_TITLE: "Data Collection & Monitoring System",
   DCS_LANGUAGE_LABEL: "Language",
   DCS_LANGUAGE_EN: "English",
   DCS_LANGUAGE_KN: "Kinyarwanda",
@@ -27,7 +27,7 @@ const en = {
 
   DCS_HOME_ABOUT_EYEBROW: "About the system",
   DCS_HOME_ABOUT_TITLE: "A single home for every data collection project",
-  DCS_HOME_ABOUT_BODY: "The Data Collection System lets your teams organize field data collection by project, design rich versioned questionnaires with a visual builder, control exactly who can see each project, and collect responses that keep working even without an internet connection.",
+  DCS_HOME_ABOUT_BODY: "The Data Collection & Monitoring System lets your teams organize field data collection by project, design rich versioned questionnaires with a visual builder, control exactly who can see each project, and collect responses that keep working even without an internet connection.",
   DCS_HOME_ABOUT_STAT_1_VALUE: "20+",
   DCS_HOME_ABOUT_STAT_1_LABEL: "Question types to build with",
   DCS_HOME_ABOUT_STAT_2_VALUE: "100%",

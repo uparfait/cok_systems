@@ -26,7 +26,7 @@ interface AuditDetailsModalProps {
 
 const SOURCE_LABELS: Record<string, string> = {
   backend: 'Main system',
-  dcs: 'Data Collection System',
+  dcs: 'Data Collection & Monitoring System',
   events: 'Event Management',
 };
 
