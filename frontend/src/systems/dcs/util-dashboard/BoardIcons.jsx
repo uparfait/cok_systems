@@ -104,6 +104,13 @@ export const REFRESH_SVG = (
   </>
 );
 
+export const CODE_SVG = (
+  <>
+    <polyline points="16 18 22 12 16 6" />
+    <polyline points="8 6 2 12 8 18" />
+  </>
+);
+
 export const TRASH_SVG = (
   <>
     <polyline points="3 6 5 6 21 6" />

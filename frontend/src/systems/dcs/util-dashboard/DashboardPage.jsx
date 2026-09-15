@@ -14,6 +14,7 @@ import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import BoardWithSelection from "./selection/BoardWithSelection.jsx";
+import DashboardCodeOverlay, { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
 
 const REFRESH_INTERVAL_MS = 30000;
 
@@ -47,6 +48,8 @@ export default function DashboardPage({ form }) {
   const [confirming, setConfirming] = useState(null);
   // The builder overlay's open tab ("kpi" | "charts" | "diagrams"), null while closed.
   const [builder_tab, setBuilderTab] = useState(null);
+  // The Ctrl+6 code tools overlay (copy rules / paste a dashboard).
+  const [code_open, setCodeOpen] = useState(false);
   // While review_widgets is set the board is FROZEN behind the review list:
   // the grid is not rendered and no widget may fetch or refresh data.
   // review_focus narrows the review to just-added widgets (a manual KPI's
@@ -72,7 +75,8 @@ export default function DashboardPage({ form }) {
   const widgets_ref = useRef([]);
   widgets_ref.current = widgets;
   const frozen_ref = useRef(false);
-  frozen_ref.current = generating || review_widgets !== null || builder_tab !== null;
+  frozen_ref.current = generating || review_widgets !== null || builder_tab !== null || code_open;
+  useDashboardCodeShortcut(can_edit && !loading && !generating && review_widgets === null && builder_tab === null, () => setCodeOpen(true));
 
   // Browser-native full screen with two viewing modes ("fit" zooms the whole
   // board onto one screen, "scroll" keeps natural size), the self-fitting
@@ -371,6 +375,7 @@ export default function DashboardPage({ form }) {
         setTo={setTo}
         onApplyPeriod={handle_period_apply}
         onAddKpi={() => setBuilderTab("kpi")}
+        onCode={() => setCodeOpen(true)}
         onDelete={() => setConfirming("delete")}
       />
 
@@ -448,6 +453,7 @@ export default function DashboardPage({ form }) {
           onAutoGenerate={() => handle_generate("overwrite")}
         />
       )}
+      {code_open && <DashboardCodeOverlay form={form} widgets={widgets} onClose={() => setCodeOpen(false)} onSaved={(final_widgets) => { setCodeOpen(false); setWidgets(final_widgets); }} />}
       <BoardWidgetDialogs
         form={form}
         fields={form_fields}
