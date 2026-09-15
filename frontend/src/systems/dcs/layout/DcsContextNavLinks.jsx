@@ -71,12 +71,9 @@ function ProjectColumn({ project_id, onNavigate }) {
       )}
       {project && (
         <>
-          <button type="button" className={link_class(false, "block mb-0.5 text-base")} style={{ ...link_style, color: TEXT_DARK }} onClick={() => onNavigate(base)}>
+          <button type="button" className={link_class(false, "block mb-2 text-base")} style={{ ...link_style, color: TEXT_DARK }} onClick={() => onNavigate(base)}>
             {project.name}
           </button>
-          <p className="text-xs mb-2" style={{ color: TEXT_MUTED }}>
-            {translate("DCS_HEADER_FORMS_COUNT", { count: project.forms_count || 0 })}
-          </p>
           <LinkGrid>
             {PROJECT_LINKS.filter((link) => !link.needs_access || project.viewer_can_manage_access === true).map((link) => (
               <button key={link.key} type="button" className={link_class(false, "truncate")} style={link_style} onClick={() => onNavigate(link.path ? `${base}/${link.path}` : base)}>
@@ -157,9 +154,13 @@ export default function DcsContextNavLinks() {
   const show_panel = () => {
     window.clearTimeout(close_timer.current);
     if (more_ref.current) {
+      // The panel hangs from the bottom edge of the header bar itself,
+      // horizontally centered on the More button.
       const box = more_ref.current.getBoundingClientRect();
+      const bar = more_ref.current.closest(".dcs-sub-header");
+      const bar_bottom = bar ? bar.getBoundingClientRect().bottom : box.bottom;
       const centered = box.left + box.width / 2 - panel_width / 2;
-      setRect({ top: box.bottom + 6, left: Math.max(8, Math.min(centered, window.innerWidth - panel_width - 8)) });
+      setRect({ top: bar_bottom + 4, left: Math.max(8, Math.min(centered, window.innerWidth - panel_width - 8)) });
     }
     setOpen(true);
   };
@@ -219,15 +220,9 @@ export default function DcsContextNavLinks() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="min-w-0">
                 <PanelLabel>{translate(is_project ? "DCS_HEADER_PANEL_PROJECT" : "DCS_HEADER_PANEL_FORM")}</PanelLabel>
-                <p className="text-base font-bold mb-0.5 break-words" style={{ color: TEXT_DARK, fontFamily: FONT }}>
+                <p className="text-base font-bold mb-2 break-words" style={{ color: TEXT_DARK, fontFamily: FONT }}>
                   {nav.title || "..."}
                 </p>
-                {is_project && (
-                  <p className="text-xs mb-2" style={{ color: TEXT_MUTED }}>
-                    {translate("DCS_HEADER_FORMS_COUNT", { count: nav.forms_count || 0 })}
-                  </p>
-                )}
-                {!is_project && <div className="mb-2" />}
                 <LinkGrid>
                   {items.map((item) => (
                     <button key={item.key} type="button" role="menuitem" aria-current={item.key === nav.active_key ? "page" : undefined} className={link_class(item.key === nav.active_key, "truncate")} style={link_style} onClick={() => { setOpen(false); nav.select(item); }}>

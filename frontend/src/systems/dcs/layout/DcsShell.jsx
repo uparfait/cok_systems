@@ -168,12 +168,14 @@ export default function DcsShell() {
             </button>
           </div>
 
+          {/* The sub-header always stays in view - it now carries the open
+              project's or form's own links, which must never slide away. */}
           <DcsHeader
-            subHeaderVisible={is_sub_header_visible}
+            subHeaderVisible
             onMainMenuToggle={() => setIsMainSidebarOpen((previous) => !previous)}
             projects={projects}
           />
-          <DcsSidebarShell onMainScroll={handle_main_scroll} projects={projects} projectsLoading={projects_loading}>
+          <DcsSidebarShell projects={projects} projectsLoading={projects_loading}>
             <Outlet />
           </DcsSidebarShell>
         </div>
