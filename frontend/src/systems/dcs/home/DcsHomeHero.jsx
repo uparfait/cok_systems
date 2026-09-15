@@ -61,7 +61,10 @@ export default function DcsHomeHero() {
         className="dcs-home-hero-enter relative z-10 w-full flex flex-col lg:flex-row items-center justify-center lg:justify-between gap-10 lg:gap-16 px-4 sm:px-8"
         style={{ maxWidth: 1180, margin: "0 auto" }}
       >
-        <div className="flex flex-col items-center lg:items-start gap-3 text-center lg:text-left" style={{ maxWidth: 380 }}>
+        {/* The title wraps onto as many lines as it needs (never one long
+            line) so a long system name stays readable beside the card
+            stack instead of running underneath it. */}
+        <div className="flex flex-col items-center lg:items-start gap-3 text-center lg:text-left min-w-0" style={{ maxWidth: 440, flex: "1 1 auto" }}>
           <span
             className="uppercase"
             style={{
@@ -69,8 +72,9 @@ export default function DcsHomeHero() {
               fontFamily: "'Montserrat', sans-serif",
               fontWeight: 800,
               letterSpacing: "0.02em",
-              fontSize: "clamp(1.2rem, 3.6vw, 2.4rem)",
-              whiteSpace: "nowrap",
+              fontSize: "clamp(1.2rem, 3.2vw, 2.2rem)",
+              lineHeight: 1.15,
+              overflowWrap: "break-word",
             }}
           >
             {translate("DCS_HEADER_TITLE")}
