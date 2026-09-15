@@ -187,13 +187,34 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
             onChange={handle_file_selected}
           />
           <div className="flex items-center gap-3 flex-wrap">
-            <DcsButtonOutline disabled={is_builder || is_busy} onClick={() => input_ref.current && input_ref.current.click()}>
-              {is_deleting_old
-                ? translate("DCS_WAITING_GENERIC")
-                : is_uploading
-                  ? translate("DCS_UPLOADING_PERCENT", { percent: upload_percent })
-                  : translate("DCS_RENDERER_UPLOAD_PROMPT")}
-            </DcsButtonOutline>
+            {/* Looks and behaves like a text input: the whole box is the
+                trigger, the file dialog opens on click or Enter/Space, and
+                the chosen file's name sits where typed text would. */}
+            <div
+              role="button"
+              tabIndex={is_builder || is_busy ? -1 : 0}
+              aria-disabled={is_builder || is_busy}
+              className={`dcs-file-input cok-auth-input flex-1 min-w-0 py-3 flex items-center justify-between gap-3 ${is_builder || is_busy ? "is-disabled" : ""}`}
+              onClick={() => !is_builder && !is_busy && input_ref.current && input_ref.current.click()}
+              onKeyDown={(event) => {
+                if (is_builder || is_busy || (event.key !== "Enter" && event.key !== " ")) return;
+                event.preventDefault();
+                if (input_ref.current) input_ref.current.click();
+              }}
+            >
+              <span className={`truncate ${value ? "" : "dcs-file-input-placeholder"}`} title={value ? value.name : undefined}>
+                {is_deleting_old
+                  ? translate("DCS_WAITING_GENERIC")
+                  : is_uploading
+                    ? translate("DCS_UPLOADING_PERCENT", { percent: upload_percent })
+                    : value
+                      ? value.name
+                      : translate("DCS_RENDERER_UPLOAD_PROMPT")}
+              </span>
+              <span className="dcs-file-input-browse text-xs font-semibold uppercase flex-shrink-0" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                {translate("DCS_BTN_BROWSE_FILE")}
+              </span>
+            </div>
             {field.allow_link_input && !is_builder && !value && (
               <button type="button" className="text-xs underline cursor-pointer" style={{ color: "#056daa" }} onClick={() => setIsLinkMode(true)}>
                 {translate("DCS_BTN_USE_LINK_INSTEAD")}

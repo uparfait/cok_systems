@@ -1688,6 +1688,41 @@ background-color: #056daa;
   transform: translateY(-12px);
 }
 
+/* A media field's trigger drawn as an input: same box as every text input,
+   a pointer cursor, and the border and browse hint turning system blue on
+   hover or focus so it reads as "click here to pick a file". */
+.dcs-file-input {
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.dcs-file-input:hover:not(.is-disabled),
+.dcs-file-input:focus-visible:not(.is-disabled) {
+  border-color: #056daa !important;
+  box-shadow: 0 0 0 3px rgba(5, 109, 170, 0.12);
+  background-color: rgba(5, 109, 170, 0.03);
+  outline: none;
+}
+
+.dcs-file-input.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.dcs-file-input-placeholder {
+  color: #9E9E9E;
+}
+
+.dcs-file-input-browse {
+  color: #056daa;
+  letter-spacing: 0.5px;
+}
+
+.dcs-file-input:hover:not(.is-disabled) .dcs-file-input-browse {
+  text-decoration: underline;
+}
+
 /* On narrow screens the bar's links do not all fit, so the row itself
    scrolls sideways (thin scrollbar, touch friendly) instead of wrapping or
    squeezing; the centered context links keep enough room for "More". */
