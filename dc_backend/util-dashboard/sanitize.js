@@ -87,6 +87,17 @@ function sanitize_widget(widget) {
     // Split charts only: a third choice field drawn as a pattern inside
     // each split segment's color.
     pattern_by: sanitize_field_ref(widget.pattern_by),
+    // "Count occurrences" only: the fields whose values label each counted
+    // value (joined with " - "), the count threshold, and whether only the
+    // values meeting it are shown.
+    display_fields: Array.isArray(widget.display_fields)
+      ? widget.display_fields.filter((id) => typeof id === "string" && id.trim()).map((id) => id.trim()).slice(0, 5)
+      : [],
+    occurrence_rule:
+      widget.occurrence_rule && typeof widget.occurrence_rule === "object" && clean_string(widget.occurrence_rule.operator)
+        ? { operator: clean_string(widget.occurrence_rule.operator), value: Number(widget.occurrence_rule.value) }
+        : null,
+    occurrence_scope: clean_string(widget.occurrence_scope) || undefined,
     x_field_id: clean_string(widget.x_field_id) || null,
     y_field_id: clean_string(widget.y_field_id) || null,
     size_field_id: clean_string(widget.size_field_id) || null,

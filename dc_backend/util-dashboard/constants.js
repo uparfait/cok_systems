@@ -49,7 +49,16 @@ const AGGREGATIONS = [
   "stddev",
   "cumulative_sum",
   "moving_average",
+  // How many times each value of a field occurs: one row per value, with
+  // the value (or chosen display fields) as its label - see
+  // pipelines.occurrence_rows.
+  "occurrences",
 ];
+
+// The threshold a "occurrences" widget may apply to each value's count,
+// and whether it shows only the values that meet it or every value.
+const OCCURRENCE_OPERATORS = ["gt", "gte", "eq", "lte", "lt"];
+const OCCURRENCE_SCOPES = ["matching", "all"];
 
 // Aggregations only a KPI card can compute - they have no meaningful (or no
 // efficient) per-category grouped form, so category/split/time/tree widgets
@@ -82,6 +91,7 @@ const LIMITS = {
   MAX_TITLE_LENGTH: 120,
   MAX_FILTERS: 10,
   MAX_CATEGORY_LIMIT: 50,
+  MAX_DISPLAY_FIELDS: 5,
   DEFAULT_CATEGORY_LIMIT: 12,
   MAX_POINTS: 500,
   MAX_TIME_BUCKETS: 400,
@@ -91,6 +101,8 @@ module.exports = {
   CHART_KINDS,
   CHART_TYPES,
   AGGREGATIONS,
+  OCCURRENCE_OPERATORS,
+  OCCURRENCE_SCOPES,
   KPI_ONLY_AGGREGATIONS,
   NUMERIC_AGGREGATIONS,
   FILTER_OPERATORS,

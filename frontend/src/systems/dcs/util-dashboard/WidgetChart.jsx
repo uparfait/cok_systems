@@ -59,7 +59,7 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth 
         value={data.value}
         changePct={data.change_pct}
         legend={data.legend}
-        totalLabel={translate("DCS_DB_TOTAL")}
+        totalLabel={translate(data.occurrences ? (data.occurrences.has_rule ? "DCS_DB_OCC_VALUES_MATCHING" : "DCS_DB_OCC_VALUES") : "DCS_DB_TOTAL")}
         palette={palette}
         density={density}
       />

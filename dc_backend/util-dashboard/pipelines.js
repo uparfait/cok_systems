@@ -176,6 +176,49 @@ async function point_rows(widget, bounds) {
 }
 
 /**
+ * How many times each value of ONE field occurs: [{_id: <value>, value:
+ * <times>, display: {<field>: <its answer>}, matches: <bool>}]. Every record
+ * that answered the field is grouped by that answer; the display fields
+ * ride along from the newest record of each group so a value can be shown
+ * as, say, "name - phone" instead of its raw id. The rule marks each group
+ * (matches) and, with scope "matching", drops the groups that fail it
+ * inside the database. Sorted by occurrences, most first.
+ */
+async function occurrence_rows(widget, bounds, catalog) {
+  const key_field = widget.metric.field_id;
+  const display_fields = Array.isArray(widget.display_fields) ? widget.display_fields.filter((id) => id && id !== key_field) : [];
+  const group = { _id: `$data.${key_field}`, value: { $sum: 1 } };
+  display_fields.forEach((field_id, index) => {
+    group[`d${index}`] = { $first: `$data.${field_id}` };
+  });
+  const rule = widget.occurrence_rule && widget.occurrence_rule.operator ? widget.occurrence_rule : null;
+  const operator = rule ? { gt: "$gt", gte: "$gte", eq: "$eq", lte: "$lte", lt: "$lt" }[rule.operator] : null;
+  const matches = operator ? { [operator]: ["$value", Number(rule.value)] } : true;
+  const scope = widget.occurrence_scope === "all" ? "all" : "matching";
+  const sort = widget.sort === "label_asc" ? { _id: 1 } : widget.sort === "value_asc" ? { value: 1, _id: 1 } : { value: -1, _id: 1 };
+  const pipeline = [
+    build_match_stage(widget, bounds),
+    ...unwind_stages(catalog, [key_field]),
+    { $match: { [`data.${key_field}`]: { $nin: [null, ""] } } },
+    // Newest first, so $first picks the latest answer of each display field.
+    { $sort: { submitted_at: -1 } },
+    { $group: group },
+    { $set: { matches } },
+    ...(operator && scope === "matching" ? [{ $match: { matches: true } }] : []),
+    { $sort: sort },
+    { $limit: LIMITS.MAX_CATEGORY_LIMIT * 4 },
+  ];
+  const rows = await run_pipeline(pipeline);
+  return rows.map((row) => {
+    const display = {};
+    display_fields.forEach((field_id, index) => {
+      display[field_id] = row[`d${index}`];
+    });
+    return { _id: row._id, value: row.value, display, matches: row.matches === true };
+  });
+}
+
+/**
  * Treemap rows: the chosen field grouped together with its cascade parent
  * (when it has one), so children nest under their own parent value.
  */
@@ -197,6 +240,7 @@ async function tree_rows(widget, bounds, catalog, parent_field_id) {
 
 module.exports = {
   category_rows,
+  occurrence_rows,
   split_rows,
   time_rows,
   time_extent,

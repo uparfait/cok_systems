@@ -221,6 +221,55 @@ function nest_tree(raw_rows, has_parent) {
   }));
 }
 
+/** One stored answer as the text it is shown as in an occurrence label. */
+function answer_text(value) {
+  if (value === undefined || value === null || value === "") return "";
+  if (Array.isArray(value)) return value.map(answer_text).filter(Boolean).join(", ");
+  if (typeof value === "object") {
+    // A location answer reads as its address, an uploaded file as its name.
+    if (value.full_address) return String(value.full_address);
+    if (value.name) return String(value.name);
+    if (value.url) return String(value.url);
+    return "";
+  }
+  return String(value);
+}
+
+/**
+ * "Count occurrences": how many times each value of a field occurs, each
+ * value labelled by its display fields joined with " - " (or by the value
+ * itself). A KPI card shows how many DIFFERENT values met the rule (every
+ * value, without one) and lists them under the number; a chart draws one
+ * mark per value; a treemap one tile per value. Rows carry a matches flag
+ * so a card showing every value can still point out the ones that met
+ * the rule.
+ */
+async function compute_occurrences(widget, kind, bounds, catalog) {
+  const raw = await pipelines.occurrence_rows(widget, bounds, catalog);
+  const display_fields = Array.isArray(widget.display_fields) ? widget.display_fields : [];
+  const rows = raw.map((row) => {
+    const parts = display_fields.map((field_id) => answer_text(row.display[field_id])).filter(Boolean);
+    return { label: parts.length > 0 ? parts.join(" - ") : answer_text(row._id) || "-", value: row.value || 0, matches: row.matches };
+  });
+  const has_rule = !!(widget.occurrence_rule && widget.occurrence_rule.operator);
+  const matching = rows.filter((row) => row.matches);
+  const occurrences = {
+    values: rows.length,
+    matching: has_rule ? matching.length : rows.length,
+    total: rows.reduce((sum, row) => sum + row.value, 0),
+    has_rule,
+    scope: widget.occurrence_scope === "all" ? "all" : "matching",
+  };
+  if (kind === CHART_KINDS.KPI) {
+    return { kind, value: occurrences.matching, previous: null, change_pct: null, skipped: 0, occurrences, legend: rows.slice(0, LEGEND_LIMIT) };
+  }
+  const limit = slice_limit(widget);
+  if (kind === CHART_KINDS.TREE) {
+    return { kind, occurrences, nodes: rows.slice(0, limit).map((row) => ({ name: row.label, value: row.value, matches: row.matches })) };
+  }
+  return { kind: CHART_KINDS.CATEGORY, occurrences, rows: rows.slice(0, limit), series: [], other_folded: false, other_rows: [] };
+}
+
 /**
  * The complete data of one widget. The caller has already verified access
  * and resolved the form's active version (for its field catalog).
@@ -229,6 +278,9 @@ async function compute_widget_data(widget, form_version, period_override) {
   const catalog = build_field_catalog(form_version.schema);
   const bounds = effective_bounds(widget, period_override);
   let kind = (CHART_TYPES[widget.chart_type] || {}).kind;
+  if (((widget.metric && widget.metric.aggregation) || "count") === "occurrences") {
+    return compute_occurrences(widget, kind, bounds, catalog);
+  }
   // A line/area chart grouped by a CHOICE field charts categories, not
   // time - any category chart can be flipped into a line/area look and
   // back, so its data comes from the category pipelines.

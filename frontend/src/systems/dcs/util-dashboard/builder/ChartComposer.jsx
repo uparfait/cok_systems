@@ -7,10 +7,14 @@ import { SUBMITTED_AT_FIELD } from "../chartCatalog.js";
 import { Step, ChipGrid, Problem, Preview, FieldSelect, TitleFields, TEXT_MUTED } from "./builderUi.jsx";
 import InEachValues from "./InEachValues.jsx";
 import ColorSettingsButton from "./ColorSettingsButton.jsx";
+import OccurrenceOptions from "./OccurrenceOptions.jsx";
 import {
   CHART_FORMULAS,
   CHART_TAB_TYPES,
   DIAGRAM_TAB_TYPES,
+  OCCURRENCE_CHART_TYPES,
+  OCCURRENCE_DIAGRAM_TYPES,
+  is_occurrences,
   field_options,
   type_rules,
   type_label,
@@ -37,6 +41,12 @@ export const EMPTY_CHART_SPEC = {
   size_id: "",
   in_each_id: "",
   in_each_mode: "combined",
+  // "Count occurrences" only: how each counted value is named, and the
+  // threshold its count is held to.
+  display_ids: [],
+  rule_operator: "",
+  rule_value: "",
+  rule_scope: "matching",
   title: "",
   title_touched: false,
   description: "",
@@ -59,7 +69,10 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
   const { showSuccess } = useToast();
   const [spec, setSpec] = useState(initialSpec || EMPTY_CHART_SPEC);
 
-  const types = kind === "diagrams" ? DIAGRAM_TAB_TYPES : CHART_TAB_TYPES;
+  // Counting occurrences draws its values as the categories, so only the
+  // single-series looks of the tab are offered.
+  const counting_occurrences = is_occurrences(spec.aggregation);
+  const types = kind === "diagrams" ? (counting_occurrences ? OCCURRENCE_DIAGRAM_TYPES : DIAGRAM_TAB_TYPES) : counting_occurrences ? OCCURRENCE_CHART_TYPES : CHART_TAB_TYPES;
   const rules = type_rules(spec.chart_type);
   const type_chips = useMemo(() => types.map((chart_type) => ({ id: chart_type, label: type_label(chart_type, translate), hintKey: type_hint_key(chart_type) })), [types, translate]);
   const formula_chips = useMemo(() => CHART_FORMULAS.map((formula) => ({ id: formula.id, label: translate(formula.labelKey), hintKey: formula.hintKey })), [translate]);
@@ -143,6 +156,8 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
     { id: "separate", label: translate("DCS_DB_IN_EACH_SEPARATE"), hintKey: "DCS_DB_IN_EACH_SEPARATE_HINT" },
   ];
   const data_step = rules.kind === "point" ? 2 : 3;
+  // Without a data step (occurrences) the later steps close the gap.
+  const next_step = counting_occurrences ? data_step - 1 : data_step;
 
   return (
     <div className="dcs-view-swap flex flex-col gap-5">
@@ -167,11 +182,12 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
               <FieldSelect options={all_options} value={spec.field_id} onChange={(field_id) => patch({ field_id })} placeholder={translate("DCS_DB_NEED_MEASURE_FIELD")} disabled={disabled} />
             )}
             {spec.aggregation === "count" && (!spec.field_id || spec.field_id === ALL_SUBMISSIONS_ID) && <Preview>{translate("DCS_DB_ALL_SUBMISSIONS_HINT")}</Preview>}
+            {counting_occurrences && spec.field_id && <OccurrenceOptions fields={fields} keyId={spec.field_id} spec={spec} onPatch={patch} disabled={disabled} />}
           </div>
         </Step>
       )}
 
-      {spec.chart_type && (
+      {spec.chart_type && !counting_occurrences && (
         <Step number={data_step} titleKey="DCS_DB_STEP_DATA" hintKey={rules.kind === "point" ? "DCS_DB_STEP_DATA_POINT_HINT" : rules.kind === "time" ? "DCS_DB_STEP_DATA_TIME_HINT" : "DCS_DB_GROUP_HINT"}>
           {(rules.kind === "category" || rules.kind === "tree") && (
             <>
@@ -222,7 +238,7 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
       )}
 
       {spec.chart_type && (
-        <Step number={data_step + 1} titleKey="DCS_DB_STEP_IN_EACH_CHART" hintKey="DCS_DB_IN_EACH_CHART_HINT">
+        <Step number={next_step + 1} titleKey="DCS_DB_STEP_IN_EACH_CHART" hintKey="DCS_DB_IN_EACH_CHART_HINT">
           <FieldSelect options={in_each_options} value={in_each ? in_each.id : ""} onChange={(in_each_id) => patch({ in_each_id })} placeholder={translate("DCS_DB_IN_EACH_CHART_PLACEHOLDER")} disabled={disabled} allowClear />
           <InEachValues field={in_each} values={values} />
           {in_each && layout && (
@@ -240,7 +256,7 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
       )}
 
       {spec.chart_type && (
-        <Step number={data_step + 2} titleKey="DCS_DB_STEP_DETAILS">
+        <Step number={next_step + 2} titleKey="DCS_DB_STEP_DETAILS">
           <TitleFields title={spec.title} description={spec.description} onTitle={(title) => patch({ title, title_touched: true })} onDescription={(description) => patch({ description })} disabled={disabled} />
           {rules.kind !== "time" && (
             <div className="mt-2">
@@ -252,7 +268,7 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
       )}
 
       {spec.chart_type && (
-        <Step number={data_step + 3} titleKey="DCS_DB_STEP_COLORS" hintKey="DCS_DB_STEP_COLORS_HINT">
+        <Step number={next_step + 3} titleKey="DCS_DB_STEP_COLORS" hintKey="DCS_DB_STEP_COLORS_HINT">
           <ColorSettingsButton
             form={form}
             title={spec.title}

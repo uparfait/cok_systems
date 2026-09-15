@@ -78,10 +78,11 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
       {has_legend && (
         <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0 }}>
           {legend.map((row, index) => (
-            <li key={`${row.label}-${index}`} className="flex items-center justify-between gap-2 text-xs min-w-0">
+            <li key={`${row.label}-${index}`} className="flex items-center justify-between gap-2 text-xs min-w-0" style={{ opacity: row.matches === false ? 0.6 : 1 }}>
               <span className="flex items-center gap-1.5 min-w-0">
                 <span className="flex-shrink-0" style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: colors.color_for(row.label, index), transition: "background-color 300ms ease" }} />
-                <span className="break-words min-w-0" style={{ color: colors.text }}>
+                {/* An occurrence card showing every value marks the ones that met its rule. */}
+                <span className={`break-words min-w-0 ${row.matches === true ? "font-semibold" : ""}`} style={{ color: colors.text }}>
                   {row.label}
                 </span>
               </span>

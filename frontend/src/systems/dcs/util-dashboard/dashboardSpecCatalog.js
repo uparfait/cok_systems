@@ -29,6 +29,8 @@ const FORMULA_TEXT = {
   stddev: "Standard deviation of the numeric answers.",
   cumulative_sum: "Running total of the numeric answers over time - KPI cards only.",
   moving_average: "Rolling average of the numeric answers over time - KPI cards only.",
+  occurrences:
+    "How many times each value of metric.field_id occurs - one row per value. Label each value with display_fields (their answers joined with ' - ', e.g. a name and a phone instead of a bare id), hold every value's count to occurrence_rule, and choose with occurrence_scope whether only the values meeting the rule are shown. A KPI card shows how many DIFFERENT values met the rule and lists them underneath; a chart draws one mark per value. Needs no group_by, takes no split_by or legend_by; allowed looks: kpi, bar, column, lollipop, dot_plot, pie, donut, waffle, treemap, line, area.",
 };
 
 const CHART_TEXT = {
@@ -100,7 +102,10 @@ function widget_shape() {
     group_by: "{ field_id } for category and tree charts (a choice field); { field_id, granularity } for time charts where field_id is 'submitted_at' or a date field and granularity is one of the time_granularities. null for KPI and point charts.",
     split_by: "{ field_id } of a second choice field (different from group_by) - required by grouped/stacked/heatmap types, optional on line, forbidden elsewhere.",
     pattern_by: "{ field_id } of a third choice field drawn as a texture inside each split color - grouped/stacked bar and column charts only. Usually null.",
-    legend_by: "{ field_id } of a choice field - KPI cards only: lists the count per value under the number. Not with median, cumulative_sum or moving_average.",
+    legend_by: "{ field_id } of a choice field - KPI cards only: lists the count per value under the number. Not with median, cumulative_sum, moving_average or occurrences.",
+    display_fields: "occurrences only: array of up to 5 field ids whose answers label each counted value, joined with ' - ' (e.g. [<name field>, <phone field>]). Empty: the counted value itself is the label.",
+    occurrence_rule: "occurrences only: { operator, value } or null. operator is one of gt (more than), gte (at least), eq (exactly), lte (at most), lt (fewer than); value is the number of occurrences compared against. null applies no threshold.",
+    occurrence_scope: "occurrences only: 'matching' shows only the values whose count meets occurrence_rule; 'all' shows every value and marks the ones that meet it. Ignored without a rule.",
     x_field_id: "Numeric field on the x axis - scatter and bubble only, otherwise null.",
     y_field_id: "Numeric field on the y axis - scatter and bubble only, otherwise null.",
     size_field_id: "Numeric field sizing the bubbles - bubble only, otherwise null.",
@@ -184,6 +189,7 @@ export function build_dashboard_creation_guide(form) {
       one_chart_instead_of_many: "Put the field in group_by (one bar, column or slice per value), or in split_by alongside another group_by for a grouped or stacked chart. One chart then carries every value.",
       one_widget_per_value: "Only then: repeat the widget once per value, each with filters: [{ field_id: <the field>, operator: 'eq', value: <one answer> }] and the value named in its title.",
       example_one_card: { id: "w_by_district", title: "Beneficiaries by district", chart_type: "kpi", size: "small", metric: { aggregation: "count", field_id: null }, group_by: null, legend_by: { field_id: "<a choice field>" }, filters: [] },
+      example_count_occurrences: { id: "w_repeat_ids", title: "People registered more than once", chart_type: "kpi", size: "small", metric: { aggregation: "occurrences", field_id: "<an id field>" }, display_fields: ["<a name field>", "<a phone field>"], occurrence_rule: { operator: "gt", value: 1 }, occurrence_scope: "matching", group_by: null, filters: [] },
       example_many_cards: [
         { id: "w_gasabo", title: "Beneficiaries - Gasabo", chart_type: "kpi", size: "small", metric: { aggregation: "count", field_id: null }, group_by: null, filters: [{ field_id: "<a choice field>", operator: "eq", value: "Gasabo" }] },
         { id: "w_kicukiro", title: "Beneficiaries - Kicukiro", chart_type: "kpi", size: "small", metric: { aggregation: "count", field_id: null }, group_by: null, filters: [{ field_id: "<a choice field>", operator: "eq", value: "Kicukiro" }] },
@@ -242,6 +248,9 @@ export function normalize_pasted_widgets(form, pasted) {
     [source.x_field_id, source.y_field_id, source.size_field_id].forEach(check);
     const filters = Array.isArray(source.filters) ? source.filters : [];
     filters.forEach((filter) => filter && check(filter.field_id));
+    const display_fields = Array.isArray(source.display_fields) ? source.display_fields.filter((id) => typeof id === "string" && id).slice(0, 5) : [];
+    display_fields.forEach(check);
+    const rule = source.occurrence_rule && typeof source.occurrence_rule === "object" && source.occurrence_rule.operator ? { operator: source.occurrence_rule.operator, value: Number(source.occurrence_rule.value) } : null;
     return {
       id,
       form_group_id: form.form_group_id,
@@ -254,6 +263,9 @@ export function normalize_pasted_widgets(form, pasted) {
       split_by: ref(source.split_by),
       pattern_by: ref(source.pattern_by),
       legend_by: ref(source.legend_by),
+      display_fields,
+      occurrence_rule: rule,
+      occurrence_scope: source.occurrence_scope === "all" ? "all" : rule ? "matching" : "all",
       appearance: source.appearance && typeof source.appearance === "object" ? source.appearance : null,
       x_field_id: source.x_field_id || null,
       y_field_id: source.y_field_id || null,

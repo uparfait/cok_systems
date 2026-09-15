@@ -2660,3 +2660,22 @@ background-color: #056daa;
 .dcs-details-panel a {
   overflow-wrap: anywhere;
 }
+
+/* Text actions in the share links dialog (copy, open, edit, delete) read
+   as links: system blue, underlined on hover like every other link. */
+.dcs-link-action {
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.dcs-link-action:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.dcs-share-link-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.dcs-share-link-card:hover {
+  box-shadow: 0 4px 14px rgba(5, 109, 170, 0.12);
+}

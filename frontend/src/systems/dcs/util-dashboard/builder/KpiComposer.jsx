@@ -6,6 +6,7 @@ import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import { Step, ChipGrid, Switch, Problem, Preview, FieldSelect, TitleFields, TEXT_MUTED } from "./builderUi.jsx";
 import InEachValues from "./InEachValues.jsx";
 import ColorSettingsButton from "./ColorSettingsButton.jsx";
+import OccurrenceOptions from "./OccurrenceOptions.jsx";
 import {
   BUILDER_FORMULAS,
   ALL_SUBMISSIONS_ID,
@@ -16,10 +17,29 @@ import {
   build_kpi_drafts,
   type_label,
   type_hint_key,
+  is_occurrences,
+  occurrence_problem,
 } from "./composeWidgets.js";
 import { useFanOutValues } from "./useFanOutValues.js";
 
-export const EMPTY_KPI_SPEC = { formula_id: "", field_id: "", in_each_id: "", in_each_mode: "combined", title: "", title_touched: false, description: "", chart_enabled: false, chart_type: "", appearance: null };
+export const EMPTY_KPI_SPEC = {
+  formula_id: "",
+  field_id: "",
+  in_each_id: "",
+  in_each_mode: "combined",
+  // "Count occurrences" only: how each counted value is named, and the
+  // threshold its count is held to.
+  display_ids: [],
+  rule_operator: "",
+  rule_value: "",
+  rule_scope: "matching",
+  title: "",
+  title_touched: false,
+  description: "",
+  chart_enabled: false,
+  chart_type: "",
+  appearance: null,
+};
 
 /**
  * The KPI tab: formula, field, an optional "in each" field, then the card's
@@ -42,6 +62,7 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
   // Count may read "All submissions" - every record in the selected time -
   // offered first; the real fields follow.
   const is_count = spec.formula_id === "count";
+  const counting_occurrences = is_occurrences(spec.formula_id);
   const field_choices = useMemo(
     () => (is_count ? [{ id: ALL_SUBMISSIONS_ID, name: translate("DCS_DB_GEN_TOTAL"), badge: translate("DCS_DB_FT_TOTAL") }].concat(options) : options),
     [is_count, options, translate],
@@ -93,11 +114,13 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
     ? translate("DCS_DB_KPI_PICK_FORMULA")
     : !shape.measure
       ? translate("DCS_DB_KPI_PICK_FIELD")
-      : shape.in_each && !shape.combined && !values.loading && values.list.length === 0
-        ? translate("DCS_DB_IN_EACH_NONE")
-        : !spec.title.trim()
-          ? translate("DCS_DB_NEED_TITLE")
-          : "";
+      : occurrence_problem(spec, translate)
+        ? occurrence_problem(spec, translate)
+        : shape.in_each && !shape.combined && !values.loading && values.list.length === 0
+          ? translate("DCS_DB_IN_EACH_NONE")
+          : !spec.title.trim()
+            ? translate("DCS_DB_NEED_TITLE")
+            : "";
 
   const preview = !ready
     ? ""
@@ -142,6 +165,7 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
         <FieldSelect options={field_choices} value={spec.field_id} onChange={(field_id) => patch({ field_id, in_each_id: spec.in_each_id === field_id ? "" : spec.in_each_id })} placeholder={translate("DCS_DB_KPI_PICK_FIELD")} disabled={disabled} />
         {shape.legend && <Preview>{translate("DCS_DB_LEGEND_HINT", { field: shape.legend.label })}</Preview>}
         {shape.measure && shape.measure.is_total && <Preview>{translate("DCS_DB_ALL_SUBMISSIONS_HINT")}</Preview>}
+        {counting_occurrences && shape.measure && <OccurrenceOptions fields={fields} keyId={shape.measure.id} spec={spec} onPatch={patch} disabled={disabled} />}
       </Step>
 
       <Step number={3} titleKey="DCS_DB_STEP_IN_EACH" hintKey="DCS_DB_IN_EACH_HINT">

@@ -34,7 +34,7 @@ function StatusChip({ link, translate, language }) {
 
 function TextButton({ children, onClick, danger, disabled }) {
   return (
-    <button type="button" disabled={disabled} className="text-xs font-semibold cursor-pointer" style={{ color: danger ? "#E74C3C" : PRIMARY, background: "none", border: "none", padding: 0, opacity: disabled ? 0.5 : 1, ...FONT }} onClick={onClick}>
+    <button type="button" disabled={disabled} className="dcs-link-action text-xs font-bold uppercase tracking-wide cursor-pointer" style={{ color: danger ? "#E74C3C" : PRIMARY, background: "none", border: "none", padding: 0, opacity: disabled ? 0.5 : 1, ...FONT }} onClick={onClick}>
       {children}
     </button>
   );
@@ -153,38 +153,40 @@ export default function ShareLinksDialog({ form, onClose }) {
                     <LinkForm initial={link} saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} />
                   </li>
                 ) : (
-                  <li key={link.id} className="border-2 p-3 sm:p-4" style={{ borderColor: link.expired ? "rgba(231,76,60,0.5)" : BORDER, opacity: link.expired ? 0.8 : 1 }}>
-                    <div className="flex flex-wrap items-start justify-between gap-2">
+                  <li key={link.id} className="dcs-share-link-card border-2 bg-white" style={{ borderColor: link.expired ? "rgba(231,76,60,0.5)" : BORDER, borderLeft: `4px solid ${link.expired ? "#E74C3C" : PRIMARY}`, opacity: link.expired ? 0.85 : 1 }}>
+                    <div className="px-4 pt-3 pb-2 flex flex-wrap items-start justify-between gap-2" style={{ borderBottom: `1px solid ${BORDER}` }}>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold break-words" style={{ color: TEXT_DARK, ...FONT }}>
+                        <p className="text-sm font-bold uppercase break-words" style={{ color: TEXT_DARK, letterSpacing: "0.3px", ...FONT }}>
                           {link.title}
                         </p>
                         {link.description && (
-                          <p className="text-xs mt-0.5 break-words" style={{ color: "#555555" }}>
+                          <p className="text-xs mt-1 break-words" style={{ color: "#555555" }}>
                             {link.description}
                           </p>
                         )}
                       </div>
                       <StatusChip link={link} translate={translate} language={language} />
                     </div>
-                    <p className="text-[11px] mt-2 break-all" style={{ color: TEXT_MUTED }}>
-                      {public_dashboard_url(link.token)}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
-                      <TextButton onClick={() => copy(link)}>{translate("DCS_DB_SHARE_COPY")}</TextButton>
-                      <a href={public_dashboard_url(link.token)} target="_blank" rel="noreferrer" className="text-xs font-semibold" style={{ color: PRIMARY, ...FONT }}>
-                        {translate("DCS_DB_SHARE_OPEN")}
-                      </a>
-                      <TextButton onClick={() => setEditing(link.id)} disabled={saving}>
-                        {translate("DCS_DB_SHARE_EDIT")}
-                      </TextButton>
-                      <TextButton onClick={() => setDeleting(link)} danger disabled={saving}>
-                        {translate("DCS_DB_SHARE_DELETE")}
-                      </TextButton>
-                      <span className="text-[11px]" style={{ color: TEXT_MUTED }}>
-                        {translate("DCS_DB_SHARE_VIEWS", { count: link.views || 0 })}
-                        {link.created_by_name ? ` - ${translate("DCS_DB_SHARE_CREATED_BY", { name: link.created_by_name })}` : ""}
-                      </span>
+                    <div className="px-4 py-3 space-y-3">
+                      <p className="text-[11px] break-all px-2.5 py-2" style={{ color: TEXT_DARK, backgroundColor: "#F7F9FB", border: `1px solid ${BORDER}`, fontFamily: "monospace" }}>
+                        {public_dashboard_url(link.token)}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                        <TextButton onClick={() => copy(link)}>{translate("DCS_DB_SHARE_COPY")}</TextButton>
+                        <a href={public_dashboard_url(link.token)} target="_blank" rel="noreferrer" className="dcs-link-action text-xs font-bold uppercase tracking-wide" style={{ color: PRIMARY, ...FONT }}>
+                          {translate("DCS_DB_SHARE_OPEN")}
+                        </a>
+                        <TextButton onClick={() => setEditing(link.id)} disabled={saving}>
+                          {translate("DCS_DB_SHARE_EDIT")}
+                        </TextButton>
+                        <TextButton onClick={() => setDeleting(link)} danger disabled={saving}>
+                          {translate("DCS_DB_SHARE_DELETE")}
+                        </TextButton>
+                        <span className="text-[11px] ml-auto" style={{ color: TEXT_MUTED }}>
+                          {translate("DCS_DB_SHARE_VIEWS", { count: link.views || 0 })}
+                          {link.created_by_name ? ` - ${translate("DCS_DB_SHARE_CREATED_BY", { name: link.created_by_name })}` : ""}
+                        </span>
+                      </div>
                     </div>
                   </li>
                 ),
@@ -192,9 +194,13 @@ export default function ShareLinksDialog({ form, onClose }) {
             </ul>
           )}
 
-          {!loading && editing === "new" && <LinkForm saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} />}
+          {!loading && editing === "new" && (
+            <div className="pt-2">
+              <LinkForm saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} />
+            </div>
+          )}
           {!loading && editing === null && (
-            <div className="w-full sm:w-64">
+            <div className="w-full sm:w-64 pt-3">
               <DcsButtonPrimary type="button" onClick={() => setEditing("new")} disabled={saving}>
                 {translate("DCS_DB_SHARE_NEW")}
               </DcsButtonPrimary>

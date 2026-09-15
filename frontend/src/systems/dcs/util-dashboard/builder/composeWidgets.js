@@ -35,6 +35,32 @@ export const CHART_FORMULAS = BUILDER_FORMULAS.filter((formula) => !KPI_ONLY.inc
 export const formula_of = (id) => BUILDER_FORMULAS.find((formula) => formula.id === id) || null;
 
 export const SINGLE_CHART_TYPES = ["column", "bar", "donut", "pie", "lollipop", "dot_plot", "waffle", "treemap"];
+
+// "Count occurrences": the counted values ARE the categories, so the
+// formula only ever draws a KPI card or a single-series chart.
+export const OCCURRENCES = "occurrences";
+export const is_occurrences = (aggregation) => aggregation === OCCURRENCES;
+export const OCCURRENCE_CHART_TYPES = ["column", "bar", "lollipop", "dot_plot", "pie", "donut", "line", "area"];
+export const OCCURRENCE_DIAGRAM_TYPES = ["treemap", "waffle"];
+
+/** The occurrence options of a spec as the widget keys they are stored under. */
+export function occurrence_extra(spec) {
+  const has_rule = !!spec.rule_operator;
+  return {
+    display_fields: Array.isArray(spec.display_ids) ? spec.display_ids.filter(Boolean).slice(0, 5) : [],
+    occurrence_rule: has_rule ? { operator: spec.rule_operator, value: Number(spec.rule_value) } : null,
+    occurrence_scope: has_rule ? spec.rule_scope || "matching" : "all",
+  };
+}
+
+/** Why an occurrence choice cannot be built yet: a threshold picked without a number. */
+export function occurrence_problem(spec, translate) {
+  if (!is_occurrences(spec.formula_id || spec.aggregation)) return "";
+  if (spec.rule_operator && !(Number.isFinite(Number(spec.rule_value)) && String(spec.rule_value).trim() !== "" && Number(spec.rule_value) >= 0)) {
+    return translate("DCS_DB_OCC_NEED_VALUE");
+  }
+  return "";
+}
 export const SPLIT_CHART_TYPES = ["stacked_column", "grouped_column", "stacked_100", "stacked_bar", "grouped_bar", "stacked_bar_100", "heatmap"];
 export const CHART_TAB_TYPES = ["column", "bar", "lollipop", "dot_plot", "grouped_column", "grouped_bar", "stacked_column", "stacked_bar", "stacked_100", "stacked_bar_100", "pie", "donut", "line", "area"];
 export const DIAGRAM_TAB_TYPES = ["treemap", "heatmap", "waffle", "scatter", "bubble"];
@@ -143,6 +169,9 @@ function make_widget(form, extra) {
     split_by: null,
     pattern_by: null,
     legend_by: null,
+    display_fields: [],
+    occurrence_rule: null,
+    occurrence_scope: "all",
     appearance: null,
     x_field_id: null,
     y_field_id: null,
@@ -170,10 +199,13 @@ function make_widget(form, extra) {
  * sum and moving average always fan out.
  */
 export function kpi_shape(spec, fields) {
-  const measure = fields.find((field) => field.id === spec.field_id) || null;
+  const occurrences = is_occurrences(spec.formula_id);
+  // Occurrences count a REAL field's values - never whole submissions.
+  const measure = fields.find((field) => field.id === spec.field_id && !(occurrences && field.is_total)) || null;
   const in_each = fields.find((field) => field.id === spec.in_each_id && field.id !== spec.field_id) || null;
-  const groupable = !!spec.formula_id && !KPI_ONLY.includes(spec.formula_id);
-  // The legend a choice MEASURE gives every card on its own.
+  const groupable = !!spec.formula_id && !KPI_ONLY.includes(spec.formula_id) && !occurrences;
+  // The legend a choice MEASURE gives every card on its own. An occurrence
+  // card lists its counted values itself, so it never takes a legend field.
   const measure_legend = measure && measure.is_choice && groupable ? measure : null;
   const can_combine = !!in_each && in_each.is_choice && groupable;
   const combined = can_combine && (spec.in_each_mode || "combined") === "combined";
@@ -181,8 +213,10 @@ export function kpi_shape(spec, fields) {
   // measure's own values, when it is a choice field.
   const legend = combined ? in_each : measure_legend;
   const split = !!(in_each && measure_legend);
-  const chart_field = in_each || (measure && measure.is_choice ? measure : null);
-  return { measure, in_each, can_combine, combined, legend, measure_legend, split, chart_field, chart_types: chart_field ? (split ? SPLIT_CHART_TYPES : SINGLE_CHART_TYPES) : [] };
+  // An occurrence chart draws the counted values themselves.
+  const chart_field = occurrences ? measure : in_each || (measure && measure.is_choice ? measure : null);
+  const chart_types = !chart_field ? [] : occurrences ? OCCURRENCE_CHART_TYPES.concat(OCCURRENCE_DIAGRAM_TYPES) : split ? SPLIT_CHART_TYPES : SINGLE_CHART_TYPES;
+  return { measure, in_each, occurrences, can_combine, combined, legend, measure_legend, split, chart_field, chart_types };
 }
 
 export function measure_label(formula_id, field, translate) {
@@ -210,6 +244,8 @@ export function build_kpi_drafts(form, spec, values, translate) {
   const metric = { aggregation: spec.formula_id, field_id: measure_id };
   const legend_by = shape.legend ? { field_id: shape.legend.id } : null;
   const appearance = spec.appearance || null;
+  // The occurrence options ride on every widget the choice produces.
+  const extra = shape.occurrences ? occurrence_extra(spec) : {};
   const widgets = [];
 
   if (shape.in_each && !shape.combined) {
@@ -224,26 +260,30 @@ export function build_kpi_drafts(form, spec, values, translate) {
           legend_by,
           appearance,
           filters: [{ field_id: shape.in_each.id, operator: "eq", value }],
+          ...extra,
         }),
       );
     });
   } else {
-    widgets.push(make_widget(form, { title, description, chart_type: "kpi", size: "small", metric, legend_by, appearance }));
+    widgets.push(make_widget(form, { title, description, chart_type: "kpi", size: "small", metric, legend_by, appearance, ...extra }));
   }
 
   if (spec.chart_enabled && shape.chart_field && shape.chart_types.includes(spec.chart_type)) {
     const rules = type_rules(spec.chart_type);
     widgets.push(
       make_widget(form, {
-        title: shape.in_each ? translate("DCS_DB_GEN_VS", { a: title, b: shape.in_each.label }) : title,
+        title: shape.in_each && !shape.occurrences ? translate("DCS_DB_GEN_VS", { a: title, b: shape.in_each.label }) : title,
         description,
         chart_type: spec.chart_type,
-        metric: { aggregation: GROUPED_EQUIVALENT[spec.formula_id] || spec.formula_id, field_id: measure_id },
-        group_by: { field_id: shape.chart_field.id },
+        // An occurrence chart keeps the very same metric: the counted values
+        // are its categories, so it groups by nothing else.
+        metric: shape.occurrences ? metric : { aggregation: GROUPED_EQUIVALENT[spec.formula_id] || spec.formula_id, field_id: measure_id },
+        group_by: shape.occurrences ? null : { field_id: shape.chart_field.id },
         split_by: shape.split ? { field_id: shape.measure_legend.id } : null,
         limit: rules.slices || (spec.chart_type === "treemap" ? 50 : 12),
         size: shape.split ? "large" : "medium",
         appearance,
+        ...extra,
       }),
     );
   }
@@ -265,6 +305,15 @@ export function chart_spec_problems(spec, fields, translate) {
     if (!formula) problems.push(translate("DCS_DB_KPI_PICK_FORMULA"));
     else if (formula.id !== "count" && !field(spec.field_id)) problems.push(translate("DCS_DB_NEED_MEASURE_FIELD"));
     else if (formula.id === "count" && spec.field_id && spec.field_id !== ALL_SUBMISSIONS_ID && !field(spec.field_id)) problems.push(translate("DCS_DB_NEED_MEASURE_FIELD"));
+  }
+  // Occurrences group by their own counted field and take a single-series
+  // look: nothing else to pick, only a threshold that needs its number.
+  if (is_occurrences(spec.aggregation)) {
+    if (!OCCURRENCE_CHART_TYPES.concat(OCCURRENCE_DIAGRAM_TYPES).includes(spec.chart_type)) problems.push(translate("DCS_DB_OCC_TYPE_UNAVAILABLE"));
+    const rule_problem = occurrence_problem(spec, translate);
+    if (rule_problem) problems.push(rule_problem);
+    if (!(spec.title || "").trim()) problems.push(translate("DCS_DB_NEED_TITLE"));
+    return problems;
   }
   if (rules.kind === "category" || rules.kind === "tree") {
     const group = field(spec.group_id);
@@ -305,6 +354,7 @@ export function default_chart_title(spec, fields, translate) {
   const counts_all = spec.aggregation === "count" && (!spec.field_id || spec.field_id === ALL_SUBMISSIONS_ID);
   const measure = counts_all ? translate("DCS_DB_GEN_TOTAL") : measure_label(spec.aggregation, field(spec.field_id), translate);
   if (!measure) return "";
+  if (is_occurrences(spec.aggregation)) return measure;
   const in_each = is_combined(spec) ? field(spec.in_each_id) : null;
   const with_in_each = (text) => (in_each ? `${text} - ${translate("DCS_DB_DRAFT_IN_EACH", { field: in_each.label })}` : text);
   if (rules.kind === "time") return with_in_each(translate("DCS_DB_OVER_TIME_TITLE", { measure }));
@@ -340,7 +390,9 @@ const COMBINED_TYPE = {
 export function combined_layout(spec) {
   if (!spec.in_each_id || !spec.chart_type) return null;
   const rules = type_rules(spec.chart_type);
-  if (rules.kind === "point") return null;
+  // Point charts only filter, and an occurrence chart's axis is already
+  // taken by the counted values - both fan out instead.
+  if (rules.kind === "point" || is_occurrences(spec.aggregation)) return null;
   if (rules.kind === "time") return { chart_type: "line", group_id: spec.group_id, split_id: spec.in_each_id, pattern_id: "", time: true };
   const has_split = rules.split !== "none" && !!spec.split_id;
   // Three fields on one chart: the "in each" values on the axis, the split
@@ -380,6 +432,10 @@ function chart_widget_extra(spec) {
   // - counting only the records that answered it.
   const counts_all = spec.aggregation === "count" && (!spec.field_id || spec.field_id === ALL_SUBMISSIONS_ID);
   extra.metric = { aggregation: spec.aggregation, field_id: counts_all ? null : spec.field_id };
+  // Occurrences: the counted field's values are the categories.
+  if (is_occurrences(spec.aggregation)) {
+    return Object.assign(extra, { group_by: null, split_by: null, pattern_by: null }, occurrence_extra(spec));
+  }
   if (rules.kind === "time") {
     extra.group_by = { field_id: spec.time_source || SUBMITTED_AT_FIELD, granularity: spec.granularity || "auto" };
     extra.split_by = rules.split === "optional" && spec.split_id ? { field_id: spec.split_id } : null;

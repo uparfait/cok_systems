@@ -9,6 +9,8 @@ const {
   SORT_OPTIONS,
   WIDGET_SIZES,
   TIME_GRANULARITIES,
+  OCCURRENCE_OPERATORS,
+  OCCURRENCE_SCOPES,
   LIMITS,
 } = require("./constants.js");
 const { build_field_catalog, is_categorical, is_numeric, is_time_source } = require("./field_catalog.js");
@@ -54,10 +56,54 @@ function validate_metric(widget, catalog, errors, describe) {
   if (metric.aggregation === "count" && metric.field_id && !catalog.fields_by_id.has(metric.field_id)) {
     errors.push(`${describe}: unknown count field`);
   }
+  if (metric.aggregation === "occurrences" && !catalog.fields_by_id.has(metric.field_id)) {
+    errors.push(`${describe}: count occurrences needs a field of the form`);
+  }
+}
+
+const is_occurrences = (widget) => ((widget.metric && widget.metric.aggregation) || "count") === "occurrences";
+// The looks a "count occurrences" widget can take: a KPI card, or any chart
+// with ONE series - the counted values are the categories, so nothing is
+// left to group, split or plot over time.
+const OCCURRENCE_CHART_TYPES = ["kpi", "bar", "column", "lollipop", "dot_plot", "pie", "donut", "waffle", "treemap", "line", "area"];
+
+/**
+ * The options of a "count occurrences" widget: every display field must be
+ * a field of the form (at most MAX_DISPLAY_FIELDS), the threshold a known
+ * operator with a number, the scope one of the two, and the chart a
+ * single-series look.
+ */
+function validate_occurrences(widget, catalog, errors, describe) {
+  if (!is_occurrences(widget)) return;
+  if (!OCCURRENCE_CHART_TYPES.includes(widget.chart_type)) {
+    errors.push(`${describe}: count occurrences draws a KPI card or a single-series chart only`);
+  }
+  if (widget.split_by && widget.split_by.field_id) errors.push(`${describe}: count occurrences takes no split field`);
+  if (widget.legend_by && widget.legend_by.field_id) errors.push(`${describe}: count occurrences lists its own values - it takes no legend field`);
+  const display = Array.isArray(widget.display_fields) ? widget.display_fields : [];
+  if (display.length > LIMITS.MAX_DISPLAY_FIELDS) errors.push(`${describe}: at most ${LIMITS.MAX_DISPLAY_FIELDS} display fields`);
+  display.forEach((id, index) => {
+    if (!catalog.fields_by_id.has(id)) errors.push(`${describe}: display field ${index + 1} is unknown`);
+  });
+  const rule = widget.occurrence_rule;
+  if (rule) {
+    if (!OCCURRENCE_OPERATORS.includes(rule.operator)) errors.push(`${describe}: unknown occurrence operator`);
+    if (!Number.isFinite(Number(rule.value)) || Number(rule.value) < 0) errors.push(`${describe}: the occurrence threshold must be a number of zero or more`);
+  }
+  if (widget.occurrence_scope !== undefined && !OCCURRENCE_SCOPES.includes(widget.occurrence_scope)) {
+    errors.push(`${describe}: unknown occurrence scope`);
+  }
 }
 
 function validate_shape_for_kind(widget, definition, catalog, errors, describe) {
   const kind = definition.kind;
+  // Occurrences group by their own counted field: group_by is not needed
+  // (and ignored), whatever look the widget takes.
+  if (is_occurrences(widget) && kind !== CHART_KINDS.KPI) {
+    validate_occurrences(widget, catalog, errors, describe);
+    return;
+  }
+  if (is_occurrences(widget)) validate_occurrences(widget, catalog, errors, describe);
 
   if (kind === CHART_KINDS.CATEGORY || kind === CHART_KINDS.TREE) {
     if (!widget.group_by || !is_categorical(catalog, widget.group_by.field_id)) {

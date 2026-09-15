@@ -51,6 +51,9 @@ export function convertible_types(widget) {
   if (["scatter", "bubble"].includes(widget.chart_type)) {
     return widget.size_field_id ? ["scatter", "bubble"] : ["scatter"];
   }
+  // An occurrence widget's categories are its counted values: every
+  // single-series look is reachable, whatever it groups by.
+  if (widget.metric && widget.metric.aggregation === "occurrences") return SINGLE_CATEGORY_TYPES;
   const group = widget.group_by || null;
   if (!group || !group.field_id) return [];
   // A time source is submitted_at, or any group that carries a granularity
@@ -96,6 +99,9 @@ export function widgets_data_signature(widget_list) {
       widget.period,
       widget.sort,
       widget.limit,
+      widget.display_fields,
+      widget.occurrence_rule,
+      widget.occurrence_scope,
     ]),
   );
 }

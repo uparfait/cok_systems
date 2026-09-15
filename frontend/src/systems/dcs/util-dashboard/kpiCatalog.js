@@ -25,6 +25,9 @@ export const KPI_FORMULAS = [
   { id: "stddev", labelKey: "DCS_DB_F_STDDEV", hintKey: "DCS_DB_F_STDDEV_HINT", numeric: true },
   { id: "cumulative_sum", labelKey: "DCS_DB_F_CUMSUM", hintKey: "DCS_DB_F_CUMSUM_HINT", numeric: true },
   { id: "moving_average", labelKey: "DCS_DB_F_MOVAVG", hintKey: "DCS_DB_F_MOVAVG_HINT", numeric: true },
+  // How many times each value of a field occurs - one row per value,
+  // labelled by chosen display fields, held to an optional threshold.
+  { id: "occurrences", labelKey: "DCS_DB_F_OCCURRENCES", hintKey: "DCS_DB_F_OCCURRENCES_HINT", numeric: false },
 ];
 
 export const formula_definition = (formula_id) => KPI_FORMULAS.find((entry) => entry.id === formula_id) || null;
