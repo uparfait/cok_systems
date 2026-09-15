@@ -51,12 +51,15 @@ export function random_color() {
   return `#${to_hex_pair((r + m) * 255)}${to_hex_pair((g + m) * 255)}${to_hex_pair((b + m) * 255)}`;
 }
 
+export const LEGEND_POSITIONS = ["bottom", "top", "right", "left"];
+
 /** The stored appearance completed with defaults; null when nothing was customized. */
 export function resolve_appearance(raw) {
   const source = raw && typeof raw === "object" ? raw : {};
   const theme = source.theme === "dark" ? "dark" : "light";
   const mode = (name) => ({ ...MODE_DEFAULTS[name], ...(source[name] && typeof source[name] === "object" ? source[name] : {}) });
-  return { theme, light: mode("light"), dark: mode("dark"), value_colors: { ...(source.value_colors || {}) } };
+  const legend_position = LEGEND_POSITIONS.includes(source.legend_position) ? source.legend_position : "bottom";
+  return { theme, legend_position, light: mode("light"), dark: mode("dark"), value_colors: { ...(source.value_colors || {}) } };
 }
 
 /** Everything a card or chart needs to paint itself. */
@@ -69,6 +72,7 @@ export function build_palette(raw) {
   return {
     theme: appearance.theme,
     is_dark: appearance.theme === "dark",
+    legend_position: appearance.legend_position,
     background: mode.background,
     text: mode.text,
     number: mode.number,
@@ -89,6 +93,7 @@ export function build_palette(raw) {
 export function has_custom_appearance(raw) {
   if (!raw || typeof raw !== "object") return false;
   if (raw.theme === "dark") return true;
+  if (raw.legend_position && raw.legend_position !== "bottom") return true;
   if (raw.value_colors && Object.keys(raw.value_colors).length > 0) return true;
   return ["light", "dark"].some((name) => raw[name] && Object.keys(raw[name]).some((key) => raw[name][key] && raw[name][key] !== MODE_DEFAULTS[name][key]));
 }

@@ -15,7 +15,7 @@ import IconPickerPanel from "./icons/IconPickerPanel.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
-import BoardGrid from "./BoardGrid.jsx";
+import BoardWithSelection from "./selection/BoardWithSelection.jsx";
 
 const REFRESH_INTERVAL_MS = 30000;
 
@@ -404,7 +404,9 @@ export default function DashboardPage({ form }) {
               : undefined
           }
         >
-          <BoardGrid
+          <BoardWithSelection
+            form={form}
+            fields={form_fields}
             widgets={widgets}
             dataByWidget={data_by_widget}
             dataLoading={data_loading}
@@ -417,6 +419,14 @@ export default function DashboardPage({ form }) {
             onShowSkipped={(target) => setSkippedWidget(target)}
             onPickIcon={(target) => setIconWidget(target)}
             onAppearance={(target) => setAppearanceWidget(target)}
+            onSaved={(final_widgets) => {
+              // Reordering, bulk edits and deletions never change what the
+              // surviving widgets chart - keep their data, drop the rest.
+              data_signature_ref.current = widgets_data_signature(final_widgets);
+              setWidgets(final_widgets);
+              const kept = new Set(final_widgets.map((widget) => widget.id));
+              setDataByWidget((current) => Object.fromEntries(Object.entries(current).filter(([id]) => kept.has(id))));
+            }}
           />
         </div>
       )}

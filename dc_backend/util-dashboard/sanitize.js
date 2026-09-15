@@ -16,6 +16,7 @@ function sanitize_field_ref(value) {
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const MODE_COLOR_KEYS = ["background", "text", "number"];
 const MAX_VALUE_COLORS = 100;
+const LEGEND_POSITIONS = ["bottom", "top", "right", "left"];
 
 function sanitize_mode(mode) {
   if (!mode || typeof mode !== "object") return null;
@@ -33,6 +34,7 @@ function sanitize_mode(mode) {
 function sanitize_appearance(appearance) {
   if (!appearance || typeof appearance !== "object") return null;
   const out = { theme: appearance.theme === "dark" ? "dark" : "light" };
+  if (LEGEND_POSITIONS.includes(appearance.legend_position)) out.legend_position = appearance.legend_position;
   const light = sanitize_mode(appearance.light);
   const dark = sanitize_mode(appearance.dark);
   if (light) out.light = light;
@@ -82,6 +84,9 @@ function sanitize_widget(widget) {
     // KPI cards only: the choice field whose per-value counts are listed
     // under the number as a legend.
     legend_by: sanitize_field_ref(widget.legend_by),
+    // Split charts only: a third choice field drawn as a pattern inside
+    // each split segment's color.
+    pattern_by: sanitize_field_ref(widget.pattern_by),
     x_field_id: clean_string(widget.x_field_id) || null,
     y_field_id: clean_string(widget.y_field_id) || null,
     size_field_id: clean_string(widget.size_field_id) || null,

@@ -81,20 +81,25 @@ async function category_rows(widget, bounds, catalog) {
 async function split_rows(widget, bounds, catalog) {
   const group_field = widget.group_by.field_id;
   const split_field = widget.split_by.field_id;
+  // An optional THIRD choice field: each split segment is further divided
+  // by it (drawn as a pattern inside the segment's color).
+  const pattern_field = widget.pattern_by && widget.pattern_by.field_id;
+  const fields = [group_field, split_field].concat(pattern_field ? [pattern_field] : []);
+  const answered = {};
+  fields.forEach((field) => {
+    answered[`data.${field}`] = { $nin: [null, ""] };
+  });
+  const id = { g: `$data.${group_field}`, s: `$data.${split_field}` };
+  if (pattern_field) id.p = `$data.${pattern_field}`;
   const pipeline = [
     build_match_stage(widget, bounds),
-    ...unwind_stages(catalog, [group_field, split_field]),
-    { $match: { [`data.${group_field}`]: { $nin: [null, ""] }, [`data.${split_field}`]: { $nin: [null, ""] } } },
-    {
-      $group: {
-        _id: { g: `$data.${group_field}`, s: `$data.${split_field}` },
-        value: metric_accumulator(widget.metric),
-      },
-    },
+    ...unwind_stages(catalog, fields),
+    { $match: answered },
+    { $group: { _id: id, value: metric_accumulator(widget.metric) } },
     ...metric_post_stages(widget.metric),
     { $match: { value: { $ne: null } } },
-    { $sort: { "_id.g": 1, "_id.s": 1 } },
-    { $limit: LIMITS.MAX_CATEGORY_LIMIT * LIMITS.MAX_CATEGORY_LIMIT },
+    { $sort: { "_id.g": 1, "_id.s": 1, "_id.p": 1 } },
+    { $limit: LIMITS.MAX_CATEGORY_LIMIT * LIMITS.MAX_CATEGORY_LIMIT * (pattern_field ? 8 : 1) },
   ];
   return run_pipeline(pipeline);
 }

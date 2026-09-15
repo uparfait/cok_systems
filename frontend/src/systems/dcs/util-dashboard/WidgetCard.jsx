@@ -4,7 +4,7 @@ import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import WidgetChart from "./WidgetChart.jsx";
 import LibraryIcon from "./icons/LibraryIcon.jsx";
 import { chart_definition, convertible_types } from "./chartCatalog.js";
-import { build_palette, has_custom_appearance } from "./appearance.js";
+import { build_palette } from "./appearance.js";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -265,7 +265,7 @@ function KpiIconSlot({ icon, onPick, hint }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onShowSkipped, onPickIcon, onAppearance }) {
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect }) {
   const { translate } = useDcsLanguage();
   const definition = chart_definition(widget.chart_type);
   // The card paints itself from the widget's own appearance: light or dark
@@ -285,7 +285,29 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
   const state_height = is_kpi ? 90 : 180;
 
   return (
-    <div className="dcs-widget-card border-2 flex flex-col h-full" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
+    <div className="dcs-widget-card relative border-2 flex flex-col h-full" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
+      {selectable && (
+        // The selection mode's click surface: covers the whole card so no
+        // inner control fires, and carries the tick that marks a selection.
+        <button
+          type="button"
+          aria-pressed={!!selected}
+          onClick={onSelect}
+          className="dcs-select-surface absolute inset-0 z-20 cursor-pointer"
+          style={{ background: selected ? "rgba(5,109,170,0.08)" : "transparent", border: "none" }}
+        >
+          <span
+            className="absolute flex items-center justify-center"
+            style={{ top: 8, left: 8, width: 22, height: 22, border: `2px solid ${PRIMARY}`, backgroundColor: selected ? PRIMARY : "#FFFFFF" }}
+          >
+            {selected && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="4 12.5 10 18.5 20 6" />
+              </svg>
+            )}
+          </span>
+        </button>
+      )}
       <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
         {is_kpi && <KpiIconSlot icon={widget.icon} onPick={onPickIcon} hint={translate("DCS_DB_ICON_CARD_HINT")} />}
         <div className="min-w-0 flex-1">
@@ -372,11 +394,6 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
       {total !== null && (
         <p className="px-3 pb-2 text-xs font-semibold" style={{ color: palette.number, fontFamily: "'Montserrat', sans-serif" }}>
           {translate("DCS_DB_TOTAL")}: {total.toLocaleString("en-US")}
-        </p>
-      )}
-      {editable && has_custom_appearance(widget.appearance) && (
-        <p className="px-3 pb-2 text-[10px] font-bold uppercase" style={{ color: palette.muted, letterSpacing: "0.4px", fontFamily: "'Montserrat', sans-serif" }}>
-          {translate("DCS_DB_COLOR_SET_TAG")}
         </p>
       )}
     </div>

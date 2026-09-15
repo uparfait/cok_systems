@@ -97,6 +97,14 @@ export function builder_fields(schema) {
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
+// The pseudo field a Count KPI may read instead of a real one: every
+// submission of the form inside the selected time window.
+export const ALL_SUBMISSIONS_ID = "__all_submissions__";
+
+export function all_submissions_field(translate) {
+  return { id: ALL_SUBMISSIONS_ID, type: "__all__", label: translate("DCS_DB_GEN_TOTAL"), is_choice: false, is_numeric: false, is_date: false, is_total: true };
+}
+
 export function field_type_key(field) {
   if (NUMERIC_TYPES.includes(field.type)) return "DCS_DB_FT_NUMBER";
   if (DATE_TYPES.includes(field.type)) return "DCS_DB_FT_DATE";
@@ -128,6 +136,7 @@ function make_widget(form, extra) {
     metric: { aggregation: "count", field_id: null },
     group_by: null,
     split_by: null,
+    pattern_by: null,
     legend_by: null,
     appearance: null,
     x_field_id: null,
@@ -161,6 +170,7 @@ export function kpi_shape(spec, fields) {
 export function measure_label(formula_id, field, translate) {
   const formula = formula_of(formula_id);
   if (!formula) return "";
+  if (field && field.is_total) return translate("DCS_DB_GEN_TOTAL");
   if (!field) return translate(formula.labelKey);
   return translate("DCS_DB_KPI_DEFAULT_TITLE", { formula: translate(formula.labelKey), field: field.label });
 }
@@ -170,7 +180,9 @@ export function build_kpi_drafts(form, spec, values, translate) {
   const shape = kpi_shape(spec, fields_from_spec(spec, form));
   const title = (spec.title || "").trim();
   const description = (spec.description || "").trim();
-  const metric = { aggregation: spec.formula_id, field_id: shape.measure.id };
+  // "All submissions" counts records themselves: no field behind the metric.
+  const measure_id = shape.measure.is_total ? null : shape.measure.id;
+  const metric = { aggregation: spec.formula_id, field_id: measure_id };
   const legend_by = shape.legend ? { field_id: shape.legend.id } : null;
   const appearance = spec.appearance || null;
   const widgets = [];
@@ -201,7 +213,7 @@ export function build_kpi_drafts(form, spec, values, translate) {
         title: shape.in_each ? translate("DCS_DB_GEN_VS", { a: title, b: shape.in_each.label }) : title,
         description,
         chart_type: spec.chart_type,
-        metric: { aggregation: GROUPED_EQUIVALENT[spec.formula_id] || spec.formula_id, field_id: shape.measure.id },
+        metric: { aggregation: GROUPED_EQUIVALENT[spec.formula_id] || spec.formula_id, field_id: measure_id },
         group_by: { field_id: shape.chart_field.id },
         split_by: shape.split ? { field_id: shape.legend.id } : null,
         limit: rules.slices || (spec.chart_type === "treemap" ? 50 : 12),
@@ -227,6 +239,7 @@ export function chart_spec_problems(spec, fields, translate) {
     const formula = formula_of(spec.aggregation);
     if (!formula) problems.push(translate("DCS_DB_KPI_PICK_FORMULA"));
     else if (formula.id !== "count" && !field(spec.field_id)) problems.push(translate("DCS_DB_NEED_MEASURE_FIELD"));
+    else if (formula.id === "count" && spec.field_id && spec.field_id !== ALL_SUBMISSIONS_ID && !field(spec.field_id)) problems.push(translate("DCS_DB_NEED_MEASURE_FIELD"));
   }
   if (rules.kind === "category" || rules.kind === "tree") {
     const group = field(spec.group_id);
@@ -245,6 +258,11 @@ export function chart_spec_problems(spec, fields, translate) {
     if (!(field(spec.x_id) || {}).is_numeric || !(field(spec.y_id) || {}).is_numeric) problems.push(translate("DCS_DB_NEED_XY"));
     if (spec.chart_type === "bubble" && !(field(spec.size_id) || {}).is_numeric) problems.push(translate("DCS_DB_NEED_SIZE"));
   }
+  // A combined chart puts the "in each" values on an axis (or draws one
+  // line per value), which only a choice field can do.
+  if (spec.in_each_id && spec.in_each_mode === "combined" && combined_layout(spec) && !(field(spec.in_each_id) || {}).is_choice) {
+    problems.push(translate("DCS_DB_NEED_COMBINED_CHOICE"));
+  }
   if (!(spec.title || "").trim()) problems.push(translate("DCS_DB_NEED_TITLE"));
   return problems;
 }
@@ -259,14 +277,65 @@ export function default_chart_title(spec, fields, translate) {
     const y = field(spec.y_id);
     return x && y ? `${y.label} / ${x.label}` : "";
   }
-  const measure = spec.aggregation === "count" ? translate("DCS_DB_AGG_COUNT") : measure_label(spec.aggregation, field(spec.field_id), translate);
+  const counts_all = spec.aggregation === "count" && (!spec.field_id || spec.field_id === ALL_SUBMISSIONS_ID);
+  const measure = counts_all ? translate("DCS_DB_GEN_TOTAL") : measure_label(spec.aggregation, field(spec.field_id), translate);
   if (!measure) return "";
-  if (rules.kind === "time") return translate("DCS_DB_OVER_TIME_TITLE", { measure });
+  const in_each = is_combined(spec) ? field(spec.in_each_id) : null;
+  const with_in_each = (text) => (in_each ? `${text} - ${translate("DCS_DB_DRAFT_IN_EACH", { field: in_each.label })}` : text);
+  if (rules.kind === "time") return with_in_each(translate("DCS_DB_OVER_TIME_TITLE", { measure }));
   const group = field(spec.group_id);
-  if (!group) return measure;
+  if (!group) return with_in_each(measure);
   const split = field(spec.split_id);
   const base = translate("DCS_DB_GEN_VS", { a: measure, b: group.label });
-  return split && rules.split !== "none" ? translate("DCS_DB_GEN_VS", { a: base, b: split.label }) : base;
+  return with_in_each(split && rules.split !== "none" ? translate("DCS_DB_GEN_VS", { a: base, b: split.label }) : base);
+}
+
+// The look a single-series chart takes when its "in each" values are drawn
+// side by side on ONE chart: the "in each" field runs along the axis and the
+// original grouping becomes the series, so every bar carries its total.
+const COMBINED_TYPE = {
+  bar: "stacked_bar",
+  column: "stacked_column",
+  lollipop: "grouped_column",
+  dot_plot: "grouped_column",
+  pie: "stacked_column",
+  donut: "stacked_column",
+  waffle: "stacked_100",
+  treemap: "stacked_column",
+  area: "line",
+};
+
+/**
+ * How a chart with an "in each" field lays out as ONE combined chart, or
+ * null when the type cannot combine (point charts only filter). Category
+ * and tree charts put the "in each" values on the axis and keep the
+ * original grouping (or split) as the series; time charts draw one line
+ * per "in each" value.
+ */
+export function combined_layout(spec) {
+  if (!spec.in_each_id || !spec.chart_type) return null;
+  const rules = type_rules(spec.chart_type);
+  if (rules.kind === "point") return null;
+  if (rules.kind === "time") return { chart_type: "line", group_id: spec.group_id, split_id: spec.in_each_id, pattern_id: "", time: true };
+  const has_split = rules.split !== "none" && !!spec.split_id;
+  // Three fields on one chart: the "in each" values on the axis, the split
+  // as colors and the original grouping as a pattern inside each color.
+  return {
+    chart_type: COMBINED_TYPE[spec.chart_type] || (has_split && spec.chart_type === "heatmap" ? "stacked_column" : spec.chart_type),
+    group_id: spec.in_each_id,
+    split_id: has_split ? spec.split_id : spec.group_id,
+    pattern_id: has_split ? spec.group_id : "",
+    time: false,
+  };
+}
+
+export const is_combined = (spec) => spec.in_each_id && spec.in_each_mode === "combined" && combined_layout(spec) !== null;
+
+/** The spec actually charted when the "in each" values are combined on one chart. */
+function combined_spec(spec) {
+  const layout = combined_layout(spec);
+  if (!layout) return spec;
+  return { ...spec, chart_type: layout.chart_type, group_id: layout.group_id, split_id: layout.split_id, pattern_id: layout.pattern_id, in_each_id: "" };
 }
 
 /** The widget keys one chart choice produces, before ids, titles and filters. */
@@ -282,7 +351,10 @@ function chart_widget_extra(spec) {
   if (rules.kind === "point") {
     return Object.assign(extra, { x_field_id: spec.x_id, y_field_id: spec.y_id, size_field_id: spec.chart_type === "bubble" ? spec.size_id : null });
   }
-  extra.metric = { aggregation: spec.aggregation, field_id: spec.aggregation === "count" ? null : spec.field_id };
+  // Count reads "Total submissions" (no field) unless a real field was picked
+  // - counting only the records that answered it.
+  const counts_all = spec.aggregation === "count" && (!spec.field_id || spec.field_id === ALL_SUBMISSIONS_ID);
+  extra.metric = { aggregation: spec.aggregation, field_id: counts_all ? null : spec.field_id };
   if (rules.kind === "time") {
     extra.group_by = { field_id: spec.time_source || SUBMITTED_AT_FIELD, granularity: spec.granularity || "auto" };
     extra.split_by = rules.split === "optional" && spec.split_id ? { field_id: spec.split_id } : null;
@@ -291,16 +363,19 @@ function chart_widget_extra(spec) {
   }
   extra.group_by = { field_id: spec.group_id };
   extra.split_by = rules.split !== "none" && spec.split_id ? { field_id: spec.split_id } : null;
+  extra.pattern_by = extra.split_by && spec.pattern_id ? { field_id: spec.pattern_id } : null;
   return extra;
 }
 
 /**
- * One chart, or - with an "in each" field - one chart per value of it,
- * each filtered to its value and suffixed with it.
+ * One chart; or - with an "in each" field - either one COMBINED chart with
+ * the values side by side, or one chart per value, each filtered to its
+ * value and suffixed with it.
  */
 export function build_chart_drafts(form, spec, values) {
-  const extra = chart_widget_extra(spec);
   const title = spec.title.trim().slice(0, 120);
+  if (is_combined(spec)) return [make_widget(form, { ...chart_widget_extra(combined_spec(spec)), title, size: "large" })];
+  const extra = chart_widget_extra(spec);
   if (!spec.in_each_id || !Array.isArray(values) || values.length === 0) return [make_widget(form, { ...extra, title })];
   return values.map((value) =>
     make_widget(form, { ...extra, title: `${title} - ${String(value)}`.slice(0, 120), filters: [{ field_id: spec.in_each_id, operator: "eq", value }] }),

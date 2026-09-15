@@ -8,7 +8,7 @@ import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
 import { ChipGrid, PRIMARY, BORDER, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builderUi.jsx";
 import ColorInput from "./ColorInput.jsx";
 import { useFanOutValues } from "./useFanOutValues.js";
-import { resolve_appearance, build_palette, auto_color, random_color, MODE_DEFAULTS } from "../appearance.js";
+import { resolve_appearance, build_palette, auto_color, random_color, MODE_DEFAULTS, LEGEND_POSITIONS } from "../appearance.js";
 
 const MODE_KEYS = [
   { id: "background", labelKey: "DCS_DB_COLOR_BACKGROUND" },
@@ -19,6 +19,7 @@ const MODE_KEYS = [
 /** Strips defaults so only real customizations are stored. */
 function compact(appearance) {
   const out = { theme: appearance.theme };
+  if (appearance.legend_position && appearance.legend_position !== "bottom") out.legend_position = appearance.legend_position;
   ["light", "dark"].forEach((name) => {
     const mode = {};
     Object.keys(MODE_DEFAULTS[name]).forEach((key) => {
@@ -142,6 +143,18 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
                 />
               ))}
             </div>
+          </section>
+
+          <section>
+            <p className="text-xs font-bold uppercase mb-2" style={{ color: TEXT_DARK, letterSpacing: "0.5px", ...HEADING_FONT }}>
+              {translate("DCS_DB_LEGEND_POSITION")}
+            </p>
+            <ChipGrid
+              options={LEGEND_POSITIONS.map((position) => ({ id: position, label: translate(`DCS_DB_LEGEND_${position.toUpperCase()}`) }))}
+              value={draft.legend_position}
+              onChange={(legend_position) => setDraft((current) => ({ ...current, legend_position }))}
+              columns="grid-cols-2 sm:grid-cols-4"
+            />
           </section>
 
           <section>

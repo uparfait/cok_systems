@@ -17,6 +17,9 @@ const { build_field_catalog, is_categorical, is_numeric, is_time_source } = requ
 // "tabler:IconChartBar"); a bare name predates the library prefix (Tabler).
 const ICON_NAME_PATTERN = /^(?:[a-z0-9_-]{1,40}:)?[A-Za-z0-9_-]{1,100}$/;
 
+// The split charts that can texture each segment by a third choice field.
+const PATTERN_CHART_TYPES = ["grouped_column", "stacked_column", "stacked_100", "grouped_bar", "stacked_bar", "stacked_bar_100"];
+
 /**
  * Validates a dashboard's widget list against the real schemas of the forms
  * it charts. Every rule the builder enforces visually is re-checked here so
@@ -80,6 +83,19 @@ function validate_shape_for_kind(widget, definition, catalog, errors, describe) 
     }
     if (widget.chart_type === "bubble" && !is_numeric(catalog, widget.size_field_id)) {
       errors.push(`${describe}: bubble charts need a numeric size field`);
+    }
+  }
+
+  const pattern_field = widget.pattern_by && widget.pattern_by.field_id;
+  if (pattern_field) {
+    const split_id = widget.split_by && widget.split_by.field_id;
+    const group_id = widget.group_by && widget.group_by.field_id;
+    if (!PATTERN_CHART_TYPES.includes(widget.chart_type)) {
+      errors.push(`${describe}: only grouped and stacked bar or column charts take a pattern field`);
+    } else if (!is_categorical(catalog, pattern_field)) {
+      errors.push(`${describe}: the pattern field must be a choice field of the form`);
+    } else if (pattern_field === split_id || pattern_field === group_id) {
+      errors.push(`${describe}: the pattern field must differ from the group and split fields`);
     }
   }
 

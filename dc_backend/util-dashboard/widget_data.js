@@ -13,6 +13,8 @@ const { CHART_TYPES, CHART_KINDS, LIMITS } = require("./constants.js");
 
 const OTHER_KEY = "__other__";
 const MAX_SERIES = 12;
+const MAX_PATTERNS = 6;
+const SERIES_KEY_SEPARATOR = "||";
 const LEGEND_LIMIT = 12;
 
 function slice_limit(widget) {
@@ -50,6 +52,20 @@ function format_category(widget, rows) {
  * Groups are capped by total (descending) at the widget limit, split values
  * at MAX_SERIES.
  */
+/** The top values of one id part by total, capped. */
+function top_values(raw_rows, part, keep, cap) {
+  const totals = new Map();
+  raw_rows.forEach((row) => {
+    if (!keep(row)) return;
+    const value = String(row._id[part]);
+    totals.set(value, (totals.get(value) || 0) + (row.value || 0));
+  });
+  return Array.from(totals.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, cap)
+    .map((entry) => entry[0]);
+}
+
 function format_split(widget, raw_rows) {
   const totals_by_group = new Map();
   raw_rows.forEach((row) => {
@@ -61,29 +77,41 @@ function format_split(widget, raw_rows) {
     .slice(0, slice_limit(widget))
     .map((entry) => entry[0]);
   const group_set = new Set(groups);
+  const in_groups = (row) => group_set.has(String(row._id.g));
 
-  const series_totals = new Map();
-  raw_rows.forEach((row) => {
-    if (!group_set.has(String(row._id.g))) return;
-    const split = String(row._id.s);
-    series_totals.set(split, (series_totals.get(split) || 0) + (row.value || 0));
+  const splits = top_values(raw_rows, "s", in_groups, MAX_SERIES);
+  const split_set = new Set(splits);
+  const has_pattern = !!(widget.pattern_by && widget.pattern_by.field_id);
+  const patterns = has_pattern ? top_values(raw_rows, "p", (row) => in_groups(row) && split_set.has(String(row._id.s)), MAX_PATTERNS) : [];
+  const pattern_set = new Set(patterns);
+
+  // Without a pattern field a series IS a split value; with one, a series
+  // is a split/pattern pair keyed "split||pattern" and described in
+  // series_meta so the chart can color by split and texture by pattern.
+  const series_key = (split, pattern) => (has_pattern ? `${split}${SERIES_KEY_SEPARATOR}${pattern}` : split);
+  const series = [];
+  const series_meta = [];
+  splits.forEach((split) => {
+    (has_pattern ? patterns : [null]).forEach((pattern) => {
+      series.push(series_key(split, pattern));
+      if (has_pattern) series_meta.push({ key: series_key(split, pattern), split, pattern });
+    });
   });
-  const series = Array.from(series_totals.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, MAX_SERIES)
-    .map((entry) => entry[0]);
-  const series_set = new Set(series);
 
   const rows = groups.map((group) => ({ label: group }));
   const row_by_group = new Map(rows.map((row) => [row.label, row]));
   raw_rows.forEach((raw) => {
     const group = String(raw._id.g);
     const split = String(raw._id.s);
-    if (!group_set.has(group) || !series_set.has(split)) return;
-    row_by_group.get(group)[split] = raw.value || 0;
+    if (!group_set.has(group) || !split_set.has(split)) return;
+    if (has_pattern && !pattern_set.has(String(raw._id.p))) return;
+    const key = series_key(split, has_pattern ? String(raw._id.p) : null);
+    row_by_group.get(group)[key] = (row_by_group.get(group)[key] || 0) + (raw.value || 0);
   });
   rows.forEach((row) => series.forEach((key) => { if (row[key] === undefined) row[key] = 0; }));
-  return { rows, series };
+  const shaped = { rows, series };
+  if (has_pattern) Object.assign(shaped, { series_meta, splits, patterns });
+  return shaped;
 }
 
 function resolve_granularity(widget, bounds) {
@@ -244,8 +272,7 @@ async function compute_widget_data(widget, form_version, period_override) {
   }
   if (widget.split_by && widget.split_by.field_id) {
     const raw = await pipelines.split_rows(widget, bounds, catalog);
-    const shaped = format_split(widget, raw);
-    return { kind, rows: shaped.rows, series: shaped.series };
+    return Object.assign({ kind }, format_split(widget, raw));
   }
   const rows = await pipelines.category_rows(widget, bounds, catalog);
   const shaped = format_category(widget, rows);

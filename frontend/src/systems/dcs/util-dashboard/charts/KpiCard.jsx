@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { build_palette } from "../appearance.js";
 
 const GOOD = "#27AE60";
 const BAD = "#E74C3C";
+const COUNT_DURATION_MS = 650;
 
 function format_number(value) {
   if (value === null || value === undefined) return "0";
@@ -11,15 +12,53 @@ function format_number(value) {
 }
 
 /**
- * The single-number widget: the aggregated value of the current window,
- * plus the change against the equally long window right before it whenever
- * the widget's period is bounded, and - when the card carries a legend -
- * one row per value under the total, each in its own color. Deliberately
- * COMPACT - KPI cards sit in a dense grid at the top of the board, several
- * per row. The number draws in the widget's number color, the rest follows
- * its light or dark mode.
+ * Glides from the previously shown number to the new one, so a card whose
+ * value grows or shrinks on a refresh visibly counts up or down instead of
+ * snapping. Decimals are kept when the target has them.
  */
-export default function KpiCard({ value, previous, changePct, previousLabel, legend, totalLabel, palette }) {
+function useAnimatedNumber(target) {
+  const [shown, setShown] = useState(target || 0);
+  const from_ref = useRef(target || 0);
+  useEffect(() => {
+    const from = from_ref.current;
+    const to = target || 0;
+    if (from === to) return undefined;
+    const decimals = Number.isInteger(to) && Number.isInteger(from) ? 0 : 2;
+    const started = performance.now();
+    let frame = 0;
+    const step = (now) => {
+      const progress = Math.min(1, (now - started) / COUNT_DURATION_MS);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = from + (to - from) * eased;
+      setShown(decimals === 0 ? Math.round(current) : Math.round(current * 100) / 100);
+      if (progress < 1) frame = window.requestAnimationFrame(step);
+      else from_ref.current = to;
+    };
+    frame = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(frame);
+  }, [target]);
+  return shown;
+}
+
+function AnimatedNumber({ value, style, className }) {
+  const shown = useAnimatedNumber(value);
+  return (
+    <span className={className} style={style}>
+      {format_number(shown)}
+    </span>
+  );
+}
+
+/**
+ * The single-number widget: the aggregated value of the current window
+ * (counting up or down as it changes), the change against the equally long
+ * window right before it whenever the widget's period is bounded, and -
+ * when the card carries a legend - one row per value under the total, each
+ * in its own color. Deliberately COMPACT - KPI cards sit in a dense grid at
+ * the top of the board, several per row. The number draws in the widget's
+ * number color, the rest follows its light or dark mode.
+ */
+export default function KpiCard({ value, changePct, legend, totalLabel, palette }) {
   const colors = palette || build_palette(null);
   const direction = changePct === null || changePct === undefined ? null : changePct >= 0 ? "up" : "down";
   const has_legend = Array.isArray(legend) && legend.length > 0;
@@ -30,39 +69,26 @@ export default function KpiCard({ value, previous, changePct, previousLabel, leg
           {totalLabel}
         </span>
       )}
-      <span className="font-bold" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif", fontSize: 26, lineHeight: 1.1 }}>
-        {format_number(value)}
-      </span>
+      <AnimatedNumber value={value} className="font-bold" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif", fontSize: 26, lineHeight: 1.1 }} />
       {has_legend && (
-        <ul className="dcs-kpi-legend w-full mt-2 px-1 grid gap-x-3 gap-y-0.5 text-left" style={{ gridTemplateColumns: legend.length > 3 ? "1fr 1fr" : "1fr" }}>
+        <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-wrap justify-center gap-x-3 gap-y-1 text-left" style={{ listStyle: "none", margin: 0 }}>
           {legend.map((row, index) => (
-            <li key={`${row.label}-${index}`} className="flex items-center justify-between gap-2 text-xs min-w-0">
-              <span className="flex items-center gap-1.5 min-w-0">
-                <span className="flex-shrink-0" style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: colors.color_for(row.label, index) }} />
-                <span className="truncate" style={{ color: colors.text }} title={row.label}>
-                  {row.label}
-                </span>
+            <li key={`${row.label}-${index}`} className="flex items-center gap-1.5 text-xs min-w-0">
+              <span className="flex-shrink-0" style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: colors.color_for(row.label, index), transition: "background-color 300ms ease" }} />
+              <span className="break-words" style={{ color: colors.text, maxWidth: 160 }}>
+                {row.label}
               </span>
-              <span className="font-semibold flex-shrink-0" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif" }}>
-                {format_number(row.value)}
-              </span>
+              <AnimatedNumber value={row.value} className="font-semibold flex-shrink-0" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif" }} />
             </li>
           ))}
         </ul>
       )}
-      <span className="flex flex-wrap items-center justify-center gap-x-2">
-        {direction !== null && (
-          <span className="mt-1 text-xs font-semibold" style={{ color: direction === "up" ? GOOD : BAD, fontFamily: "'Montserrat', sans-serif" }}>
-            {direction === "up" ? "+" : ""}
-            {format_number(changePct)}%
-          </span>
-        )}
-        {previous !== null && previous !== undefined && (
-          <span className="mt-1 text-xs" style={{ color: colors.muted }}>
-            {previousLabel}: {format_number(previous)}
-          </span>
-        )}
-      </span>
+      {direction !== null && (
+        <span className="mt-1 text-xs font-semibold" style={{ color: direction === "up" ? GOOD : BAD, fontFamily: "'Montserrat', sans-serif" }}>
+          {direction === "up" ? "+" : ""}
+          {format_number(changePct)}%
+        </span>
+      )}
     </div>
   );
 }

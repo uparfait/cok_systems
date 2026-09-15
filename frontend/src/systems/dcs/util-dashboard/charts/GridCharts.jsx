@@ -1,6 +1,7 @@
 import React from "react";
 import { CHART_HEIGHT } from "./chartTheme.js";
 import { build_palette, with_alpha } from "../appearance.js";
+import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
 
 /**
  * The two grid-based renderers that Recharts has no primitive for, drawn
@@ -28,8 +29,8 @@ export function HeatmapChart({ rows, series, fitMode, palette }) {
             {series.map((key) => {
               const column_total = rows.reduce((sum, row) => sum + (row[key] || 0), 0);
               return (
-                <th key={key} className="px-1 pb-1 text-xs font-semibold text-center" style={{ color: colors.muted }} title={`${key} (${column_total})`}>
-                  <span className="block truncate" style={{ maxWidth: 96 }}>{`${key} (${column_total})`}</span>
+                <th key={key} className="px-1 pb-1 text-xs font-semibold text-center align-bottom" style={{ color: colors.muted, minWidth: 72 }}>
+                  <span className="block break-words" style={{ maxWidth: 140 }}>{`${key} (${column_total})`}</span>
                 </th>
               );
             })}
@@ -38,8 +39,8 @@ export function HeatmapChart({ rows, series, fitMode, palette }) {
         <tbody>
           {rows.map((row) => (
             <tr key={row.label}>
-              <td className="pr-2 py-0.5 text-xs text-right" style={{ color: colors.muted, maxWidth: 130 }} title={row.label}>
-                <span className="block truncate">{row.label}</span>
+              <td className="pr-2 py-0.5 text-xs text-right" style={{ color: colors.muted, maxWidth: 180 }}>
+                <span className="block break-words">{row.label}</span>
               </td>
               {series.map((key) => (
                 <td key={key} className="p-0.5">
@@ -48,6 +49,7 @@ export function HeatmapChart({ rows, series, fitMode, palette }) {
                     title={`${row.label} / ${key}: ${row[key] || 0}`}
                     style={{
                       height: 34,
+                      transition: "background-color 600ms ease, color 600ms ease",
                       backgroundColor: heat_color(row[key] || 0, max, colors),
                       color: (row[key] || 0) / (max || 1) > 0.55 ? "#FFFFFF" : colors.text,
                     }}
@@ -81,32 +83,35 @@ export function WaffleChart({ rows, palette }) {
   });
   while (cells.length < 100) cells.push(-1);
 
+  const legend = (
+    <LegendRow
+      items={rows.map((row, index) => ({
+        label: row.label,
+        color: colors.color_for(row.label, index),
+        value: `${Math.round(((row.value || 0) / total) * 100)}% (${row.value || 0})`,
+      }))}
+      palette={colors}
+      square
+    />
+  );
+
   return (
-    <div className="flex flex-col sm:flex-row gap-4 items-start" style={{ minHeight: CHART_HEIGHT - 40 }}>
-      <div className="grid flex-shrink-0" style={{ gridTemplateColumns: "repeat(10, 16px)", gap: 3 }}>
-        {cells.map((series_index, cell_index) => (
-          <div
-            key={cell_index}
-            style={{
-              width: 16,
-              height: 16,
-              backgroundColor: series_index === -1 ? colors.empty : colors.color_for(rows[series_index].label, series_index),
-            }}
-          />
-        ))}
+    <LegendFrame position={colors.legend_position} legend={legend}>
+      <div className="flex justify-center" style={{ minHeight: CHART_HEIGHT - 80 }}>
+        <div className="grid flex-shrink-0" style={{ gridTemplateColumns: "repeat(10, 16px)", gap: 3 }}>
+          {cells.map((series_index, cell_index) => (
+            <div
+              key={cell_index}
+              style={{
+                width: 16,
+                height: 16,
+                transition: "background-color 500ms ease",
+                backgroundColor: series_index === -1 ? colors.empty : colors.color_for(rows[series_index].label, series_index),
+              }}
+            />
+          ))}
+        </div>
       </div>
-      <div className="space-y-1.5 min-w-0">
-        {rows.map((row, index) => (
-          <div key={row.label} className="flex items-center gap-2 text-xs" style={{ color: colors.text }}>
-            <span className="flex-shrink-0" style={{ width: 12, height: 12, backgroundColor: colors.color_for(row.label, index) }} />
-            <span className="truncate" title={row.label}>{row.label}</span>
-            <span className="font-semibold flex-shrink-0" style={{ color: colors.number }}>
-              {Math.round(((row.value || 0) / total) * 100)}%
-            </span>
-            <span className="flex-shrink-0" style={{ color: colors.muted }}>({row.value || 0})</span>
-          </div>
-        ))}
-      </div>
-    </div>
+    </LegendFrame>
   );
 }

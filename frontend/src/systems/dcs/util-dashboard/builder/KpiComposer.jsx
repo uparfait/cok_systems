@@ -6,7 +6,17 @@ import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import { Step, ChipGrid, Switch, Problem, Preview, FieldSelect, TitleFields, TEXT_MUTED } from "./builderUi.jsx";
 import InEachValues from "./InEachValues.jsx";
 import ColorSettingsButton from "./ColorSettingsButton.jsx";
-import { BUILDER_FORMULAS, field_options, kpi_shape, measure_label, build_kpi_drafts, type_label, type_hint_key } from "./composeWidgets.js";
+import {
+  BUILDER_FORMULAS,
+  ALL_SUBMISSIONS_ID,
+  all_submissions_field,
+  field_options,
+  kpi_shape,
+  measure_label,
+  build_kpi_drafts,
+  type_label,
+  type_hint_key,
+} from "./composeWidgets.js";
 import { useFanOutValues } from "./useFanOutValues.js";
 
 export const EMPTY_KPI_SPEC = { formula_id: "", field_id: "", in_each_id: "", title: "", title_touched: false, description: "", chart_enabled: false, chart_type: "", appearance: null };
@@ -25,8 +35,16 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
   const [spec, setSpec] = useState(initialSpec || EMPTY_KPI_SPEC);
 
   const options = useMemo(() => field_options(fields, translate), [fields, translate]);
+  // Count may read "All submissions" - every record in the selected time -
+  // offered first; the real fields follow.
+  const is_count = spec.formula_id === "count";
+  const field_choices = useMemo(
+    () => (is_count ? [{ id: ALL_SUBMISSIONS_ID, name: translate("DCS_DB_GEN_TOTAL"), badge: translate("DCS_DB_FT_TOTAL") }].concat(options) : options),
+    [is_count, options, translate],
+  );
+  const shape_fields = useMemo(() => (is_count ? [all_submissions_field(translate)].concat(fields) : fields), [is_count, fields, translate]);
   const in_each_options = useMemo(() => options.filter((option) => option.id !== spec.field_id), [options, spec.field_id]);
-  const shape = useMemo(() => kpi_shape(spec, fields), [spec, fields]);
+  const shape = useMemo(() => kpi_shape(spec, shape_fields), [spec, shape_fields]);
   const formula_chips = useMemo(() => BUILDER_FORMULAS.map((formula) => ({ id: formula.id, label: translate(formula.labelKey), hintKey: formula.hintKey })), [translate]);
   const chart_chips = useMemo(
     () => shape.chart_types.map((chart_type) => ({ id: chart_type, label: type_label(chart_type, translate), hintKey: type_hint_key(chart_type) })),
@@ -47,6 +65,12 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
     if (shape.chart_types.length > 0 && !shape.chart_types.includes(spec.chart_type)) patch({ chart_type: shape.chart_types[0] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shape.chart_types.join("|")]);
+
+  // "All submissions" only makes sense for Count - another formula drops it.
+  useEffect(() => {
+    if (!is_count && spec.field_id === ALL_SUBMISSIONS_ID) patch({ field_id: "" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [is_count]);
 
   const ready = !!(shape.measure && spec.formula_id && spec.title.trim());
   const card_count = shape.in_each ? values.list.length : 1;
@@ -72,7 +96,7 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
 
   const handle_add = () => {
     if (!ready || problem) return;
-    const drafts = build_kpi_drafts(form, { ...spec, fields }, values.list, translate);
+    const drafts = build_kpi_drafts(form, { ...spec, fields: shape_fields }, values.list, translate);
     const cards = drafts.filter((widget) => widget.chart_type === "kpi").length;
     onAdd({
       tab: "kpi",
@@ -100,8 +124,9 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
       </Step>
 
       <Step number={2} titleKey="DCS_DB_STEP_FIELD" hintKey="DCS_DB_STEP_FIELD_HINT">
-        <FieldSelect options={options} value={spec.field_id} onChange={(field_id) => patch({ field_id, in_each_id: spec.in_each_id === field_id ? "" : spec.in_each_id })} placeholder={translate("DCS_DB_KPI_PICK_FIELD")} disabled={disabled} />
+        <FieldSelect options={field_choices} value={spec.field_id} onChange={(field_id) => patch({ field_id, in_each_id: spec.in_each_id === field_id ? "" : spec.in_each_id })} placeholder={translate("DCS_DB_KPI_PICK_FIELD")} disabled={disabled} />
         {shape.legend && <Preview>{translate("DCS_DB_LEGEND_HINT", { field: shape.legend.label })}</Preview>}
+        {shape.measure && shape.measure.is_total && <Preview>{translate("DCS_DB_ALL_SUBMISSIONS_HINT")}</Preview>}
       </Step>
 
       <Step number={3} titleKey="DCS_DB_STEP_IN_EACH" hintKey="DCS_DB_IN_EACH_HINT">

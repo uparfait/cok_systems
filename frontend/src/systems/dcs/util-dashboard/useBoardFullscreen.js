@@ -14,7 +14,8 @@ export function useBoardFullscreen() {
   const hide_timer_ref = useRef(null);
   const [is_fullscreen, setIsFullscreen] = useState(false);
   const [is_fallback, setIsFallback] = useState(false);
-  const [fs_mode, setFsMode] = useState("fit");
+  // Full screen opens in scroll mode: natural size, nothing shrunk away.
+  const [fs_mode, setFsMode] = useState("scroll");
   const [fit_scale, setFitScale] = useState(1);
   const [header_visible, setHeaderVisible] = useState(true);
 

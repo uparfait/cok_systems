@@ -2200,6 +2200,51 @@ background-color: #056daa;
   transition: background-color 260ms ease, border-color 260ms ease, color 260ms ease;
 }
 
+/* Selection mode: selectable cards lift on hover, a selected one wears a
+   blue ring, the dragged one fades and the drop target shows a dashed
+   outline; the top indicator pulses so the mode is never missed. */
+.dcs-selectable {
+  position: relative;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+  cursor: grab;
+}
+
+.dcs-selectable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.dcs-selectable.is-selected {
+  box-shadow: 0 0 0 3px #056daa;
+}
+
+.dcs-selectable.is-dragging {
+  opacity: 0.45;
+}
+
+.dcs-selectable.is-drop-target {
+  outline: 3px dashed #056daa;
+  outline-offset: 2px;
+}
+
+@keyframes dcs-selection-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.55; }
+}
+
+.dcs-selection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  animation: dcs-selection-pulse 1.4s ease-in-out infinite;
+}
+
+.dcs-selection-indicator,
+.dcs-selection-bar {
+  animation: dcs-builder-pop 0.26s ease both;
+}
+
 .dcs-draft-row:hover {
   border-color: #056daa !important;
   transform: translateX(-2px);

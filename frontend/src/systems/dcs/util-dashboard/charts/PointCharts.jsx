@@ -19,7 +19,7 @@ export default function PointCharts({ chartType, points, xLabel, yLabel, palette
         <YAxis type="number" dataKey="y" name={yLabel} tick={colors.tick} stroke={colors.grid} />
         {has_size && <ZAxis type="number" dataKey="size" range={[40, 400]} />}
         <Tooltip contentStyle={colors.tooltip} cursor={{ strokeDasharray: "3 3" }} />
-        <Scatter data={points} fill={colors.accent} fillOpacity={0.7} isAnimationActive={false} />
+        <Scatter data={points} fill={colors.accent} fillOpacity={0.7} isAnimationActive animationDuration={700} animationEasing="ease-out" />
       </ScatterChart>
     </ResponsiveContainer>
   );

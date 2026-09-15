@@ -18,6 +18,9 @@ import {
   chart_spec_problems,
   default_chart_title,
   build_chart_drafts,
+  combined_layout,
+  is_combined,
+  ALL_SUBMISSIONS_ID,
 } from "./composeWidgets.js";
 import { useFanOutValues } from "./useFanOutValues.js";
 
@@ -33,6 +36,7 @@ export const EMPTY_CHART_SPEC = {
   y_id: "",
   size_id: "",
   in_each_id: "",
+  in_each_mode: "combined",
   title: "",
   title_touched: false,
   description: "",
@@ -60,6 +64,12 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
   const type_chips = useMemo(() => types.map((chart_type) => ({ id: chart_type, label: type_label(chart_type, translate), hintKey: type_hint_key(chart_type) })), [types, translate]);
   const formula_chips = useMemo(() => CHART_FORMULAS.map((formula) => ({ id: formula.id, label: translate(formula.labelKey), hintKey: formula.hintKey })), [translate]);
   const all_options = useMemo(() => field_options(fields, translate), [fields, translate]);
+  // Count reads "Total submissions" by default - every record in the window
+  // - or the records that answered one real field.
+  const count_options = useMemo(
+    () => [{ id: ALL_SUBMISSIONS_ID, name: translate("DCS_DB_GEN_TOTAL"), badge: translate("DCS_DB_FT_TOTAL") }].concat(all_options),
+    [all_options, translate],
+  );
   const choice_options = useMemo(() => field_options(fields.filter((field) => field.is_choice), translate), [fields, translate]);
   const numeric_options = useMemo(() => field_options(fields.filter((field) => field.is_numeric), translate), [fields, translate]);
   const time_options = useMemo(
@@ -70,6 +80,9 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
   const in_each_options = useMemo(() => all_options.filter((option) => !taken.includes(option.id)), [all_options, taken.join("|")]);
   const in_each = fields.find((field) => field.id === spec.in_each_id && !taken.includes(field.id)) || null;
   const values = useFanOutValues(form, in_each);
+  const layout = in_each ? combined_layout(spec) : null;
+  const combined = !!in_each && is_combined(spec);
+  const name_of = (id) => (fields.find((field) => field.id === id) || {}).label || "";
 
   const patch = (changes) => setSpec((current) => ({ ...current, ...changes }));
 
@@ -78,28 +91,29 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
     const next = default_chart_title(spec, fields, translate);
     if (next !== spec.title) patch({ title: next });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spec.chart_type, spec.aggregation, spec.field_id, spec.group_id, spec.split_id, spec.x_id, spec.y_id, translate]);
+  }, [spec.chart_type, spec.aggregation, spec.field_id, spec.group_id, spec.split_id, spec.x_id, spec.y_id, spec.in_each_id, spec.in_each_mode, translate]);
 
   const problems = spec.chart_type ? chart_spec_problems(spec, fields, translate) : [translate("DCS_DB_NEED_TYPE")];
-  if (in_each && !values.loading && values.list.length === 0) problems.push(translate("DCS_DB_IN_EACH_NONE"));
-  const ready = problems.length === 0 && !values.loading;
-  const count = in_each ? values.list.length : 1;
+  if (in_each && !combined && !values.loading && values.list.length === 0) problems.push(translate("DCS_DB_IN_EACH_NONE"));
+  const ready = problems.length === 0 && (combined || !values.loading);
+  const count = in_each && !combined ? values.list.length : 1;
   const is_diagram = kind === "diagrams";
+  const shown_type = combined && layout ? layout.chart_type : spec.chart_type;
 
   const handle_add = () => {
     if (!ready) return;
     const widgets = build_chart_drafts(form, spec, values.list);
-    const name = (id) => (fields.find((field) => field.id === id) || {}).label || "";
     const detail =
       rules.kind === "point"
-        ? `${name(spec.y_id)} / ${name(spec.x_id)}`
+        ? `${name_of(spec.y_id)} / ${name_of(spec.x_id)}`
         : rules.kind === "time"
-          ? name(spec.time_source) || translate("DCS_DB_SUBMITTED_AT")
-          : [name(spec.group_id), name(spec.split_id)].filter(Boolean).join(" / ");
+          ? name_of(spec.time_source) || translate("DCS_DB_SUBMITTED_AT")
+          : [name_of(spec.group_id), name_of(spec.split_id)].filter(Boolean).join(" / ");
+    const in_each_note = in_each ? ` - ${translate(combined ? "DCS_DB_DRAFT_COMBINED" : "DCS_DB_DRAFT_IN_EACH", { field: in_each.label })}` : "";
     onAdd({
       tab: kind,
       summary: spec.title.trim(),
-      detail: `${type_label(spec.chart_type, translate)} - ${detail}${in_each ? ` - ${translate("DCS_DB_DRAFT_IN_EACH", { field: in_each.label })}` : ""}`,
+      detail: `${type_label(shown_type, translate)} - ${detail}${in_each_note}`,
       with_chart: "",
       widgets,
       spec,
@@ -115,9 +129,19 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
       : translate(is_diagram ? "DCS_DB_ADD_DIAGRAM" : "DCS_DB_ADD_CHART");
   const preview = !ready
     ? ""
-    : in_each
-      ? translate("DCS_DB_CHART_PREVIEW_MANY", { count, type: type_label(spec.chart_type, translate), field: in_each.label })
-      : translate("DCS_DB_CHART_PREVIEW", { type: type_label(spec.chart_type, translate) });
+    : combined && layout
+      ? layout.time
+        ? translate("DCS_DB_CHART_PREVIEW_COMBINED_TIME", { series: in_each.label })
+        : layout.pattern_id
+          ? `${translate("DCS_DB_CHART_PREVIEW", { type: type_label(layout.chart_type, translate) })}: ${translate("DCS_DB_IN_EACH_COMBINED_THREE", { axis: in_each.label, colors: name_of(layout.split_id), textures: name_of(layout.pattern_id) })}`
+          : translate("DCS_DB_CHART_PREVIEW_COMBINED", { type: type_label(layout.chart_type, translate), axis: in_each.label, series: name_of(layout.split_id) })
+      : in_each
+        ? translate("DCS_DB_CHART_PREVIEW_MANY", { count, type: type_label(spec.chart_type, translate), field: in_each.label })
+        : translate("DCS_DB_CHART_PREVIEW", { type: type_label(spec.chart_type, translate) });
+  const mode_chips = [
+    { id: "combined", label: translate("DCS_DB_IN_EACH_COMBINED"), hintKey: "DCS_DB_IN_EACH_COMBINED_HINT" },
+    { id: "separate", label: translate("DCS_DB_IN_EACH_SEPARATE"), hintKey: "DCS_DB_IN_EACH_SEPARATE_HINT" },
+  ];
   const data_step = rules.kind === "point" ? 2 : 3;
 
   return (
@@ -129,12 +153,21 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
 
       {spec.chart_type && rules.kind !== "point" && (
         <Step number={2} titleKey="DCS_DB_STEP_MEASURE" hintKey="DCS_DB_STEP_MEASURE_HINT">
-          <ChipGrid options={formula_chips} value={spec.aggregation} onChange={(aggregation) => patch({ aggregation })} disabled={disabled} columns="grid-cols-2 sm:grid-cols-4" />
-          {spec.aggregation !== "count" && (
-            <div className="dcs-view-swap mt-3">
+          <ChipGrid
+            options={formula_chips}
+            value={spec.aggregation}
+            onChange={(aggregation) => patch({ aggregation, field_id: aggregation !== "count" && spec.field_id === ALL_SUBMISSIONS_ID ? "" : spec.field_id })}
+            disabled={disabled}
+            columns="grid-cols-2 sm:grid-cols-4"
+          />
+          <div className="dcs-view-swap mt-3">
+            {spec.aggregation === "count" ? (
+              <FieldSelect options={count_options} value={spec.field_id || ALL_SUBMISSIONS_ID} onChange={(field_id) => patch({ field_id })} placeholder={translate("DCS_DB_GEN_TOTAL")} disabled={disabled} />
+            ) : (
               <FieldSelect options={all_options} value={spec.field_id} onChange={(field_id) => patch({ field_id })} placeholder={translate("DCS_DB_NEED_MEASURE_FIELD")} disabled={disabled} />
-            </div>
-          )}
+            )}
+            {spec.aggregation === "count" && (!spec.field_id || spec.field_id === ALL_SUBMISSIONS_ID) && <Preview>{translate("DCS_DB_ALL_SUBMISSIONS_HINT")}</Preview>}
+          </div>
         </Step>
       )}
 
@@ -192,6 +225,17 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
         <Step number={data_step + 1} titleKey="DCS_DB_STEP_IN_EACH_CHART" hintKey="DCS_DB_IN_EACH_CHART_HINT">
           <FieldSelect options={in_each_options} value={in_each ? in_each.id : ""} onChange={(in_each_id) => patch({ in_each_id })} placeholder={translate("DCS_DB_IN_EACH_CHART_PLACEHOLDER")} disabled={disabled} allowClear />
           <InEachValues field={in_each} values={values} />
+          {in_each && layout && (
+            <div className="dcs-view-swap mt-3">
+              <p className="text-xs mb-1" style={{ color: TEXT_MUTED }}>{translate("DCS_DB_IN_EACH_MODE")}</p>
+              <ChipGrid options={mode_chips} value={spec.in_each_mode || "combined"} onChange={(in_each_mode) => patch({ in_each_mode })} disabled={disabled} columns="grid-cols-1 sm:grid-cols-2" />
+              {combined && !layout.time && layout.chart_type !== spec.chart_type && (
+                <p className="text-xs mt-2" style={{ color: TEXT_MUTED }}>
+                  {translate("DCS_DB_IN_EACH_COMBINED_NOTE", { type: type_label(layout.chart_type, translate) })}
+                </p>
+              )}
+            </div>
+          )}
         </Step>
       )}
 

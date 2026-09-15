@@ -51,9 +51,7 @@ export default function WidgetChart({ widget, data, fitMode }) {
     return (
       <KpiCard
         value={data.value}
-        previous={data.previous}
         changePct={data.change_pct}
-        previousLabel={translate("DCS_DB_PREVIOUS_PERIOD")}
         legend={data.legend}
         totalLabel={translate("DCS_DB_TOTAL")}
         palette={palette}
@@ -106,7 +104,17 @@ export default function WidgetChart({ widget, data, fitMode }) {
   } else if (widget.chart_type === "heatmap") {
     chart = <HeatmapChart rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} />;
   } else {
-    chart = <CategoryCharts chartType={widget.chart_type} rows={rows} series={data.series || []} onItemClick={handle_item_click} palette={palette} />;
+    chart = (
+      <CategoryCharts
+        chartType={widget.chart_type}
+        rows={rows}
+        series={data.series || []}
+        seriesMeta={data.series_meta}
+        onItemClick={handle_item_click}
+        palette={palette}
+        legendLabels={{ split: translate("DCS_DB_LEGEND_COLORS"), pattern: translate("DCS_DB_LEGEND_TEXTURES") }}
+      />
+    );
   }
 
   return (
