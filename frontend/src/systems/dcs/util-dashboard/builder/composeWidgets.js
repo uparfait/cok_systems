@@ -1,5 +1,6 @@
 import { chart_definition, flatten_schema_fields, field_label_text, SUBMITTED_AT_FIELD } from "../chartCatalog.js";
 import { KPI_FORMULAS } from "../kpiCatalog.js";
+import { has_preset_config } from "../../fields/presetFields.js";
 
 /**
  * Pure helpers of the dashboard builder: the fields a form offers, the
@@ -81,10 +82,14 @@ export const type_label = (chart_type, translate) => {
 // offered in the pickers.
 const NOT_COLLECTED_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "section", "group", "hidden"];
 
-/** Every data-collection field of the form, annotated with the roles it can play. */
+/**
+ * Every data-collection field of the form, annotated with the roles it can
+ * play. A field with a preset default is never offered: it always holds
+ * the same answer, so there is nothing to compare or count on it.
+ */
 export function builder_fields(schema) {
   return flatten_schema_fields((schema && schema.fields) || [])
-    .filter((field) => field && field.id && !NOT_COLLECTED_TYPES.includes(field.type))
+    .filter((field) => field && field.id && !NOT_COLLECTED_TYPES.includes(field.type) && !has_preset_config(field))
     .map((field) => ({
       id: field.id,
       type: field.type,

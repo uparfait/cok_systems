@@ -5,6 +5,7 @@ import { DCS_FIELD_RENDERER_MAP } from "./fieldRendererMap.js";
 import { evaluate_field_visibility } from "./formEngine.js";
 import { build_design_styles, get_spacing_below_px } from "./designStyles.js";
 import { LocationDataProvider } from "../fields/CascadingSelectField.jsx";
+import { apply_preset_values, is_preset_field, resolve_preset_value } from "../fields/presetFields.js";
 
 const LANGUAGE_LABEL_KEYS = { en: "DCS_LANGUAGE_EN", kn: "DCS_LANGUAGE_KN", fr: "DCS_LANGUAGE_FR" };
 
@@ -89,6 +90,10 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
   const { language: form_language, setLanguage: setFormLanguage, translate } = useDcsLanguage();
   const [touched_fields, setTouchedFields] = useState(() => new Set());
   const { visibleFields, registerField, unregisterField } = useInViewFields();
+  // Outside the builder every preset field is answered by the form itself:
+  // its default is part of the answers the other fields (cascading
+  // children above all) read, and the field itself is never drawn.
+  const effective_values = render_mode === "builder" ? values : apply_preset_values(schema, values);
 
   const mark_touched = (field_id) => {
     setTouchedFields((previous) => (previous.has(field_id) ? previous : new Set(previous).add(field_id)));
@@ -142,11 +147,15 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
     const FieldComponent = DCS_FIELD_RENDERER_MAP[field.type];
     if (!FieldComponent) return null;
 
-    if (render_mode === "renderer" && !evaluate_field_visibility(field, values)) {
+    if (render_mode === "renderer" && !evaluate_field_visibility(field, effective_values)) {
+      return null;
+    }
+    if (render_mode !== "builder" && is_preset_field(field, effective_values)) {
       return null;
     }
 
     const is_cascading_location = field.type === "cascading_select" && field.data_source?.type === "api";
+    const builder_preset = render_mode === "builder" ? resolve_preset_value(field, effective_values) : { has: false };
 
     const element = (
       <FieldComponent
@@ -154,7 +163,7 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
         field={field}
         language={form_language}
         mode={render_mode}
-        value={values ? values[field.id] : undefined}
+        value={effective_values ? effective_values[field.id] : undefined}
         onChange={(next_value) => {
           if (is_cascading_location) {
             handle_cascading_change(field.id, next_value);
@@ -166,7 +175,7 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
         error={format_error(field.id)}
         ruleValidMessage={format_valid_message(field.id)}
         onFieldChange={onFieldChange}
-        allValues={values}
+        allValues={effective_values}
         renderChildField={render_field}
         resolveFieldOptions={resolveFieldOptions}
         allFields={flatten_fields(schema?.fields)}
@@ -175,6 +184,16 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
 
     const has_error_highlight = render_mode === "renderer" && !!format_error(field.id);
     const error_highlight_class = has_error_highlight ? "dcs-field-error-highlight" : undefined;
+
+    // In the builder a preset field stays editable but is flagged: the
+    // author sees that respondents never will.
+    const preset_note = builder_preset.has || (render_mode === "builder" && field.default_config && field.default_config.enabled) ? (
+      <p className="text-[11px] font-semibold mb-1 px-2 py-1" style={{ color: "#056daa", backgroundColor: "rgba(5,109,170,0.08)", fontFamily: "'Montserrat', sans-serif" }}>
+        {builder_preset.has
+          ? translate("DCS_PRESET_BUILDER_NOTE", { value: Array.isArray(builder_preset.value) ? builder_preset.value.join(", ") : String(builder_preset.value) })
+          : translate("DCS_PRESET_BUILDER_NOTE_PARENT")}
+      </p>
+    ) : null;
 
     const { outer_style, inner_style } = build_design_styles(field);
     const designed_element = outer_style ? (
@@ -186,7 +205,10 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
         }}
         data-field-id={field.id}
       >
-        <div style={inner_style} className={error_highlight_class}>{element}</div>
+        <div style={inner_style} className={error_highlight_class}>
+          {preset_note}
+          {element}
+        </div>
       </div>
     ) : (
       <div
@@ -198,6 +220,7 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
         }}
         data-field-id={field.id}
       >
+        {preset_note}
         {element}
       </div>
     );

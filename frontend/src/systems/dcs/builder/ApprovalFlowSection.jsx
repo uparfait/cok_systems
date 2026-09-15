@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { FiCheckCircle, FiUser, FiFilter, FiMove, FiTrash2, FiPlus, FiShield } from "react-icons/fi";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import { options_under_presets } from "../fields/presetFields.js";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -296,10 +297,15 @@ function layout_chain_tree(root) {
 const FILTER_THRESHOLD = 300;
 const MAX_SHOWN_OPTIONS = 200;
 
-export function ConditionValueControl({ field, value, onChange, resolveFullFieldOptions, language, placeholder, filterPlaceholder }) {
+export function ConditionValueControl({ field, value, onChange, resolveFullFieldOptions, language, placeholder, filterPlaceholder, allFields }) {
   const [fetched_options, set_fetched_options] = useState(null);
   const [filter_text, set_filter_text] = useState("");
-  const local_options = React.useMemo(() => flatten_option_data(field), [field]);
+  // Under the form's preset defaults (a province fixed to Kigali, say) only
+  // the options still reachable are offered as condition values.
+  const local_options = React.useMemo(
+    () => (allFields ? options_under_presets(field, { fields: allFields }) : flatten_option_data(field)),
+    [field, allFields],
+  );
   const needs_fetch = local_options.length === 0 && !!field.lazy_options && !!resolveFullFieldOptions;
 
   React.useEffect(() => {
@@ -1447,6 +1453,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                                 value={condition.value}
                                 onChange={(next_value) => handle_condition_change(index, condition_index, "value", next_value)}
                                 resolveFullFieldOptions={resolveFullFieldOptions}
+                                allFields={fields}
                                 language={language}
                                 placeholder={translate("DCS_APPROVAL_CONDITION_VALUE")}
                                 filterPlaceholder={translate("DCS_APPROVAL_LOCATION_FILTER")}

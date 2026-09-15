@@ -101,6 +101,7 @@ export function create_blank_field(field_type) {
     valid_message: { en: "", kn: "", fr: "" },
     mandatory: false,
     default_value: null,
+    default_config: null,
     visibility_condition: null,
     validation_rules: [],
     computed: { enabled: false, formula: null },

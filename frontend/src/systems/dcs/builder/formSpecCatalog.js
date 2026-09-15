@@ -371,6 +371,8 @@ export function build_form_creation_guide(selected_types) {
       required_message: "Translated text object - error shown when mandatory and left blank.",
       valid_message: "Translated text object - small confirmation shown once a valid answer is given.",
       default_value: "Optional pre-filled value, or null.",
+      default_config:
+        "Optional preset: { enabled: boolean, mode: 'constant' | 'by_parent', value: <answer>, parent_field_id: <field id>, by_parent: { '<parent answer>': <answer> } }. When enabled and resolved, the field is HIDDEN from respondents, never mandatory, and always submitted with that answer; cascading children, approvals, test data and dashboards only ever see the options reachable under it. Data-collection fields only.",
       validation_rules: "Array of validation rule objects (see validation_rule_shape) - empty array if none. Not applicable to content-only types.",
       visibility_condition: "A JSONLogic object, or null to always show the field (see visibility_condition).",
       computed: "{ enabled: boolean, formula: <JSONLogic object|null> } - only meaningfully used on 'hidden' fields (see field_types.hidden).",

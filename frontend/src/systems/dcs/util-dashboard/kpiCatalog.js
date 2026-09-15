@@ -1,5 +1,6 @@
 import { classify_fields, field_label_text, flatten_schema_fields } from "./chartCatalog.js";
 import { is_cascade_child, category_display } from "./autoGenerate.js";
+import { has_preset_config } from "../fields/presetFields.js";
 
 /**
  * The manual KPI catalog: every formula a KPI card offers, which fields may
@@ -76,7 +77,7 @@ export function kpi_field_type_key(field) {
 
 export function eligible_kpi_fields(schema) {
   return flatten_schema_fields((schema && schema.fields) || []).filter(
-    (field) => field && field.id && KPI_FIELD_TYPES.includes(field.type) && !is_cascade_child(field),
+    (field) => field && field.id && KPI_FIELD_TYPES.includes(field.type) && !is_cascade_child(field) && !has_preset_config(field),
   );
 }
 

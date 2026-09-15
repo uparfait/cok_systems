@@ -11,6 +11,7 @@ import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
 import ValidationRuleEditor from "./ValidationRuleEditor.jsx";
+import DefaultValueTab from "./DefaultValueTab.jsx";
 
 const LANGUAGES = ["en", "kn", "fr"];
 const PARENT_GROUP_OPERATOR_LABEL_KEYS = {
@@ -281,11 +282,15 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
   // separate from Labels so that tab's growing "Quick entry" + options list
   // doesn't crowd out the field's other everyday settings.
   const has_options_tab = OPTION_TYPES.includes(draft.type) || draft.type === "cascading_select";
-  const tabs = is_content_field
+  const base_tabs = is_content_field
     ? ["designs", "visibility"]
     : NO_VALIDATION_TYPES.includes(draft.type)
       ? (has_options_tab ? ["labels", "options", "designs", "visibility"] : ["labels", "designs", "visibility"])
       : (has_options_tab ? ["labels", "options", "validation", "designs", "visibility"] : ["labels", "validation", "designs", "visibility"]);
+  // Every data-collection field can carry a preset default (hidden from
+  // respondents, always submitted) - placed right after its answer options.
+  const has_default_tab = !is_content_field && !NON_INPUT_TYPES.includes(draft.type) && !["geolocation", "hidden"].includes(draft.type);
+  const tabs = has_default_tab ? base_tabs.flatMap((tab_id) => (tab_id === (has_options_tab ? "options" : "labels") ? [tab_id, "default"] : [tab_id])) : base_tabs;
   const [active_tab, setActiveTab] = useState(tabs[0]);
 
   // Errors are recomputed from the DRAFT on every change, so a message
@@ -607,6 +612,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
     labels: "DCS_SETTINGS_TAB_LABELS",
     options: "DCS_SETTINGS_TAB_OPTIONS",
     validation: "DCS_SETTINGS_TAB_VALIDATION",
+    default: "DCS_SETTINGS_TAB_DEFAULT",
     designs: "DCS_SETTINGS_TAB_DESIGNS",
     visibility: "DCS_SETTINGS_TAB_VISIBILITY",
   };
@@ -1238,6 +1244,8 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
           {active_tab === "validation" && is_input_field && (
             <ValidationRuleEditor field={draft} allFields={other_fields} onChange={(rules) => update({ validation_rules: rules })} ruleErrors={rule_errors_by_index} />
           )}
+
+          {active_tab === "default" && <DefaultValueTab draft={draft} update={update} otherFields={other_fields} />}
 
           {active_tab === "designs" && (
             <div className="space-y-4">

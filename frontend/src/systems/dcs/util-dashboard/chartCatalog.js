@@ -1,3 +1,5 @@
+import { has_preset_config } from "../fields/presetFields.js";
+
 /**
  * The frontend mirror of the backend chart vocabulary plus the field
  * classification the automatic generator works from. Dashboards are
@@ -126,7 +128,8 @@ export function field_label_text(field) {
  * for time series.
  */
 export function classify_fields(schema) {
-  const flat = flatten_schema_fields((schema && schema.fields) || []);
+  // A preset field always holds the same answer - nothing to chart on it.
+  const flat = flatten_schema_fields((schema && schema.fields) || []).filter((field) => !has_preset_config(field));
   return {
     all: flat.filter((field) => field && field.id),
     categorical: flat.filter((field) => CATEGORICAL_TYPES.includes(field.type)),

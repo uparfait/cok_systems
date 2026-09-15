@@ -1,6 +1,7 @@
 const { evaluate_rule, build_trimmed_evaluation_data } = require("../jsonlogic/engine.js");
 const { effective_rule_condition } = require("../jsonlogic/validation_condition.js");
 const { flatten_fields, build_field_parent_map, is_visible_through_ancestors } = require("../jsonlogic/dependency_graph.js");
+const { resolve_preset_value, apply_presets } = require("../jsonlogic/preset_fields.js");
 const { location_tree, PROVINCE_TRANSLATIONS } = require("../controllers/locations/get_locations.js");
 
 // Field types that never hold a respondent answer - nothing to generate.
@@ -251,6 +252,10 @@ const NUMBER_RANGES = [
  * options yet, or a type with nothing to generate).
  */
 function generate_candidate(field, data, attempt, fields_by_id) {
+  // A preset field is never random: it always carries its configured
+  // default, so every generated record respects it exactly like a real one.
+  const preset = resolve_preset_value(field, data);
+  if (preset.has) return preset.value;
   if (field.type === "cascading_select" && field.data_source && field.data_source.type === "api") {
     return generate_api_location_candidate(field, data, fields_by_id);
   }
@@ -379,6 +384,9 @@ function generate_test_record(schema) {
     });
 
     const own_visible = new Map(flat_fields.map((field) => [field.id, field_is_visible(field, data)]));
+
+    // Presets first, so children generated in this pass pick under them.
+    apply_presets(schema.fields || [], data);
 
     flat_fields.forEach((field) => {
       if (!field || !field.type || NON_ANSWER_TYPES.has(field.type)) return;

@@ -1,6 +1,7 @@
 import { evaluate_rule, build_trimmed_evaluation_data } from "../jsonlogic/engine.js";
 import { build_dependency_graph, flatten_fields, build_field_parent_map, is_visible_through_ancestors } from "../jsonlogic/dependencyGraph.js";
 import { get_field_options_state } from "../fields/fieldText.js";
+import { apply_preset_values, is_preset_field } from "../fields/presetFields.js";
 
 const PARENT_GROUP_CAPABLE_TYPES = ["single_select", "multi_select", "select_group"];
 
@@ -30,7 +31,8 @@ export function compute_derived_values(schema, values) {
   const dependency_result = build_dependency_graph(schema.fields);
   const evaluation_order = dependency_result.order.length > 0 ? dependency_result.order : [...fields_by_id.keys()];
 
-  const working_values = Object.assign({}, values);
+  // Preset fields are answered before anything else is derived from them.
+  const working_values = apply_preset_values(schema, values);
 
   evaluation_order.forEach((field_id) => {
     const field = fields_by_id.get(field_id);
@@ -75,6 +77,8 @@ export function compute_form_progress_percent(fields, values) {
 
   const answerable_fields = flat_fields.filter((field) => {
     if (PROGRESS_EXCLUDED_TYPES.has(field.type)) return false;
+    // A preset field is filled by the form itself - never something to answer.
+    if (is_preset_field(field, values)) return false;
     if (!own_visible_by_id.get(field.id) || !is_visible_through_ancestors(field.id, parent_map, own_visible_by_id)) return false;
     // A select-family field split into parent-driven condition groups
     // renders nothing at all once no group currently matches - it was

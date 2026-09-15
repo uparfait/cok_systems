@@ -25,7 +25,7 @@ const PROJECT_LINKS = [
   { key: "dashboard", labelKey: "DCS_SECTION_BUILD_DASHBOARD", path: "dashboard" },
 ];
 
-const link_class = (active, extra) => `dcs-sub-header-home-link ${active ? "is-active" : ""} text-sm font-semibold cursor-pointer ${extra || ""}`;
+const link_class = (active, extra) => `dcs-sub-header-home-link ${active ? "is-active" : ""} text-xs font-bold uppercase tracking-wide cursor-pointer ${extra || ""}`;
 const link_style = { color: PRIMARY, fontFamily: FONT, background: "none", border: "none", padding: 0, textAlign: "left" };
 
 function PanelLabel({ children }) {
@@ -182,7 +182,7 @@ export default function DcsContextNavLinks() {
     <div ref={holder_ref} className="relative flex-1 min-w-0 flex items-center justify-center gap-4">
       <div ref={measure_ref} aria-hidden="true" className="absolute flex gap-4 invisible pointer-events-none" style={{ left: 0, top: 0 }}>
         {items.map((item) => (
-          <span key={item.key} className="text-sm font-semibold whitespace-nowrap" style={{ fontFamily: FONT }}>
+          <span key={item.key} className="text-xs font-bold uppercase tracking-wide whitespace-nowrap" style={{ fontFamily: FONT }}>
             {translate(item.labelKey)}
           </span>
         ))}

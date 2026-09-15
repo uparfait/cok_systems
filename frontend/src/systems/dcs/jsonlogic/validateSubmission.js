@@ -2,6 +2,7 @@ import { evaluate_rule, build_trimmed_evaluation_data } from "./engine.js";
 import { flatten_fields, build_dependency_graph, build_field_parent_map, is_visible_through_ancestors } from "./dependencyGraph.js";
 import { build_validation_condition } from "../builder/validationOperators.js";
 import { get_field_text, get_field_options_state } from "../fields/fieldText.js";
+import { resolve_preset_value } from "../fields/presetFields.js";
 
 const PARENT_GROUP_CAPABLE_TYPES = ["single_select", "multi_select", "select_group"];
 
@@ -30,6 +31,7 @@ function is_empty_value(value) {
  */
 function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_order, parent_map, submitted_data) {
   const working_data = Object.assign({}, submitted_data);
+  const preset_ids = new Set();
   let own_visible_by_id = new Map();
   let own_locked_by_id = new Map();
   let changed = true;
@@ -48,6 +50,15 @@ function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_orde
       if (field.computed && field.computed.enabled && field.computed.formula) {
         const computed_result = evaluate_rule(field.computed.formula, build_trimmed_evaluation_data(working_data));
         working_data[field_id] = computed_result.value;
+      }
+
+      // A preset field's answer is the form's own, whatever was submitted.
+      const preset = resolve_preset_value(field, working_data);
+      if (preset.has) {
+        working_data[field_id] = preset.value;
+        preset_ids.add(field_id);
+      } else {
+        preset_ids.delete(field_id);
       }
 
       // Evaluated against a trimmed snapshot so a respondent's accidental
@@ -84,7 +95,7 @@ function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_orde
     });
   }
 
-  return { working_data, own_visible_by_id, own_locked_by_id };
+  return { working_data, own_visible_by_id, own_locked_by_id, preset_ids };
 }
 
 /**
@@ -117,7 +128,7 @@ export function validate_submission_client_side(schema, submitted_data, language
       ? dependency_result.order.concat(dependency_result.cyclic_fields)
       : [...fields_by_id.keys()];
 
-  const { working_data, own_visible_by_id, own_locked_by_id } = resolve_effective_form_state(
+  const { working_data, own_visible_by_id, own_locked_by_id, preset_ids } = resolve_effective_form_state(
     flat_fields,
     fields_by_id,
     evaluation_order,
@@ -137,7 +148,8 @@ export function validate_submission_client_side(schema, submitted_data, language
     const is_effectively_visible =
       own_visible_by_id.get(field_id) !== false && is_visible_through_ancestors(field_id, parent_map, own_visible_by_id);
 
-    if (!is_effectively_visible || own_locked_by_id.get(field_id)) return;
+    // A preset field was answered by the form, never asked: nothing to check.
+    if (!is_effectively_visible || own_locked_by_id.get(field_id) || preset_ids.has(field_id)) return;
 
     if (field.mandatory && is_empty_value(working_data[field_id])) {
       field_errors[field_id] = (field_errors[field_id] || []).concat([

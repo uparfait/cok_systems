@@ -226,6 +226,29 @@ function collect_all_field_ids(fields, accumulator) {
  * front, so a forward-referencing cascading_select parent (or any other
  * cross-field reference) resolves correctly regardless of array order.
  */
+/**
+ * A preset default (field.default_config) must name a valid mode, carry a
+ * value in constant mode, and point at an existing other field in
+ * by_parent mode. Mirrors the frontend's validateSchema.js.
+ */
+function validate_default_config(field, path, errors, all_ids) {
+  const config = field.default_config;
+  if (!config || typeof config !== "object" || !config.enabled) return;
+  const known = (id) => (all_ids && typeof all_ids.has === "function" ? all_ids.has(id) : Array.isArray(all_ids) && all_ids.includes(id));
+  if (!["constant", "by_parent"].includes(config.mode)) {
+    errors.push({ path, reason: "default_config_mode_invalid" });
+    return;
+  }
+  if (config.mode === "constant") {
+    const empty = config.value === undefined || config.value === null || config.value === "" || (Array.isArray(config.value) && config.value.length === 0);
+    if (empty) errors.push({ path, reason: "default_config_value_required" });
+    return;
+  }
+  const group = (field.parent_option_groups || []).find((entry) => entry && entry.parent_field_id);
+  const parent_id = config.parent_field_id || field.parent_field_id || (group ? group.parent_field_id : null);
+  if (!parent_id || parent_id === field.id || !known(parent_id)) errors.push({ path, reason: "default_config_parent_missing" });
+}
+
 function validate_field(field, path, depth, errors, seen_ids, all_ids) {
   if (depth > MAX_NESTING_DEPTH) {
     errors.push({ path, reason: "nesting_too_deep" });
@@ -273,6 +296,8 @@ function validate_field(field, path, depth, errors, seen_ids, all_ids) {
     const check = is_valid_rule_structure(field.computed.formula);
     if (!check.valid) errors.push({ path, reason: `computed_formula_${check.reason}` });
   }
+
+  validate_default_config(field, path, errors, all_ids);
 
   (field.validation_rules || []).forEach((validation_rule, index) => {
     const rule_path = `${path}.validation_rules[${index}]`;

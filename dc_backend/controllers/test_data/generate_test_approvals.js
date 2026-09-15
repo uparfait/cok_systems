@@ -7,6 +7,7 @@ const project_access = require("../../utilities/project_access.js");
 const test_jobs = require("../../utilities/test_jobs.js");
 const { flatten_fields } = require("../../jsonlogic/dependency_graph.js");
 const { locations_at_level } = require("../../utilities/test_data_generator.js");
+const { resolve_preset_value } = require("../../jsonlogic/preset_fields.js");
 const { is_test_approver } = require("../../utilities/approval.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -104,7 +105,17 @@ function enumerate_chain_pool(chain_fields, counter) {
     if (counter.total >= MAX_POOL_NODES) return;
     const field = chain_fields[level_index];
     let values;
-    if (is_api_field(field)) {
+    // A preset level (e.g. Province always "Kigali", or a district decided
+    // by its province) collapses to that one value: the pool never grows
+    // approvers for places the form can no longer reach.
+    const trail_data = {};
+    trail.forEach((value, index) => {
+      if (chain_fields[index]) trail_data[chain_fields[index].id] = value;
+    });
+    const preset = resolve_preset_value(field, trail_data);
+    if (preset.has) {
+      values = [String(preset.value)];
+    } else if (is_api_field(field)) {
       values = locations_at_level(field.data_source.level || "provinces", trail).map((item) =>
         typeof item === "string" ? item : item.name,
       );
