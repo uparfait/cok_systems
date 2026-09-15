@@ -7,6 +7,7 @@ import { DcsLanguageProvider } from "../i18n/LanguageContext.jsx";
 import { useSilentPolling } from "../hooks/useSilentPolling.js";
 import { list_projects } from "../services/projectsService.js";
 import DcsHeader from "./DcsHeader.jsx";
+import { DcsContextNavProvider } from "./contextNav.jsx";
 import DcsSidebarShell from "./DcsSidebarShell.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 
@@ -126,6 +127,7 @@ export default function DcsShell() {
   return (
     <DcsErrorBoundary>
       <DcsLanguageProvider>
+        <DcsContextNavProvider>
         <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
           {is_main_sidebar_open && (
             <div className="dcs-main-sidebar-backdrop fixed inset-0 z-30" onClick={() => setIsMainSidebarOpen(false)} />
@@ -175,6 +177,7 @@ export default function DcsShell() {
             <Outlet />
           </DcsSidebarShell>
         </div>
+        </DcsContextNavProvider>
       </DcsLanguageProvider>
     </DcsErrorBoundary>
   );

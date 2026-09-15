@@ -1,6 +1,6 @@
-import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import DcsPageNav, { find_active_nav_key } from "./DcsPageNav.jsx";
+import { find_active_nav_key } from "./DcsPageNav.jsx";
+import { useDcsContextNav } from "../layout/contextNav.jsx";
 
 const OVERVIEW_KEY = "overview";
 
@@ -18,24 +18,27 @@ const FORM_NAV_ITEMS = [
   { key: "ownership", labelKey: "DCS_FORM_NAV_OWNERSHIP", path: "ownership" },
 ];
 
-export default function DcsFormNav({ projectId, formGroupId, onBeforeNavigate }) {
+/**
+ * Publishes the form's links to the shared sub-header (see contextNav);
+ * renders nothing of its own. Pages keep mounting it exactly as before.
+ */
+export default function DcsFormNav({ projectId, formGroupId, formName, onBeforeNavigate }) {
   const location = useLocation();
   const navigate = useNavigate();
 
   const base_path = `/dcs-system/project/${projectId}/forms/${formGroupId}`;
   const active_key = find_active_nav_key(FORM_NAV_ITEMS, base_path, location.pathname, OVERVIEW_KEY);
 
-  const handle_select = (item) => {
-    if (onBeforeNavigate) onBeforeNavigate(item);
-    navigate(item.path ? `${base_path}/${item.path}` : base_path);
-  };
-
-  return (
-    <DcsPageNav
-      items={FORM_NAV_ITEMS}
-      activeKey={active_key}
-      labelKey="DCS_FORM_NAV_LABEL"
-      onSelect={handle_select}
-    />
+  useDcsContextNav(
+    FORM_NAV_ITEMS,
+    base_path,
+    active_key,
+    (item) => {
+      if (onBeforeNavigate) onBeforeNavigate(item);
+      navigate(item.path ? `${base_path}/${item.path}` : base_path);
+    },
+    { kind: "form", title: formName || "", project_id: projectId },
   );
+
+  return null;
 }

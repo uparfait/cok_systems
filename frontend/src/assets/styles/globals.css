@@ -2245,6 +2245,20 @@ background-color: #056daa;
   animation: dcs-builder-pop 0.26s ease both;
 }
 
+/* The dashboard is a viewing surface: no stray text selection, except
+   inside the inputs used to rename a widget. */
+.dcs-board-no-select,
+.dcs-board-no-select * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.dcs-board-no-select input,
+.dcs-board-no-select textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .dcs-draft-row:hover {
   border-color: #056daa !important;
   transform: translateX(-2px);

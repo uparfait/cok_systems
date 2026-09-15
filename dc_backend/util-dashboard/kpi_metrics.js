@@ -205,12 +205,13 @@ async function kpi_metric_result(widget, bounds, catalog) {
  * window: when each was submitted and exactly what was entered, newest
  * first, capped - plus the true total. A non-numeric formula skips nothing.
  */
-async function kpi_skipped_rows(widget, bounds, limit, catalog) {
+async function kpi_skipped_rows(widget, bounds, limit, catalog, offset) {
   const aggregation = (widget.metric && widget.metric.aggregation) || "count";
   const field_id = widget.metric && widget.metric.field_id;
   if (!NUMERIC_AGGREGATIONS.includes(aggregation) || !field_id || is_count_based(aggregation, field_id, catalog)) {
     return { total: 0, rows: [] };
   }
+  const skip = Number.isInteger(offset) && offset > 0 ? offset : 0;
   const windows = kpi_windows(aggregation, bounds);
   const pipeline = [
     build_match_stage(widget, null),
@@ -221,7 +222,7 @@ async function kpi_skipped_rows(widget, bounds, limit, catalog) {
     {
       $facet: {
         total: [{ $count: "value" }],
-        rows: [{ $sort: { submitted_at: -1 } }, { $limit: limit }, { $project: { _id: 0, submitted_at: 1, raw: 1 } }],
+        rows: [{ $sort: { submitted_at: -1 } }, { $skip: skip }, { $limit: limit }, { $project: { _id: 0, submitted_at: 1, raw: 1 } }],
       },
     },
   ];

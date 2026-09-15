@@ -115,7 +115,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
  * multi-series line form - see convertible_types), and remove the widget.
  * Closes on outside click.
  */
-function CardMenu({ widget, onChangeType, onRemove, onAppearance }) {
+function CardMenu({ widget, onChangeType, onRemove, onAppearance, onPickIcon }) {
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
   const menu_ref = useRef(null);
@@ -197,8 +197,13 @@ function CardMenu({ widget, onChangeType, onRemove, onAppearance }) {
               </div>
             </>
           )}
+          {onPickIcon && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: "1px solid #E0E0E0", color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onPickIcon)}>
+              {translate(widget.icon ? "DCS_DB_ICON_CHANGE" : "DCS_DB_ICON_SET")}
+            </button>
+          )}
           {onAppearance && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: "1px solid #E0E0E0", color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onAppearance)}>
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: onPickIcon ? "none" : "1px solid #E0E0E0", color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onAppearance)}>
               {translate("DCS_DB_COLOR_SETTINGS")}
             </button>
           )}
@@ -237,23 +242,12 @@ function widget_total(widget, data) {
  * for editors only - a dashed placeholder inviting one. Clicking it (like
  * clicking the card's number) opens the icon picker.
  */
-function KpiIconSlot({ icon, onPick, hint }) {
-  if (!icon && !onPick) return null;
-  const content = icon ? <LibraryIcon icon={icon} size={22} color={PRIMARY} /> : <span style={{ fontSize: 16, lineHeight: 1, color: "#9E9E9E" }}>+</span>;
-  const style = {
-    width: 32,
-    height: 32,
-    border: icon ? "1px solid rgba(5,109,170,0.35)" : "1px dashed #C7C7C7",
-    backgroundColor: icon ? "#EAF3F8" : "#FFFFFF",
-    cursor: onPick ? "pointer" : "default",
-  };
-  if (!onPick) {
-    return <span className="flex items-center justify-center flex-shrink-0" style={style}>{content}</span>;
-  }
+function KpiIconSlot({ icon, color }) {
+  if (!icon) return null;
   return (
-    <button type="button" title={hint} aria-label={hint} className="flex items-center justify-center flex-shrink-0" style={style} onClick={onPick}>
-      {content}
-    </button>
+    <span className="flex items-center justify-center flex-shrink-0" style={{ width: 40, height: 40 }}>
+      <LibraryIcon icon={icon} size={34} color={color} />
+    </span>
   );
 }
 
@@ -309,7 +303,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
         </button>
       )}
       <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
-        {is_kpi && <KpiIconSlot icon={widget.icon} onPick={onPickIcon} hint={translate("DCS_DB_ICON_CARD_HINT")} />}
+        {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} />}
         <div className="min-w-0 flex-1">
           <EditableText
             value={widget.title}
@@ -337,17 +331,12 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
           />
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
-        {editable && !savingText && (onRemove || onChangeType || onAppearance) && (
-          <CardMenu widget={widget} onChangeType={onChangeType} onRemove={onRemove} onAppearance={onAppearance} />
+        {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon) && (
+          <CardMenu widget={widget} onChangeType={onChangeType} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi ? onPickIcon : undefined} />
         )}
       </div>
 
-      <div
-        className={`px-2 ${is_kpi ? "pb-2" : "pb-3"} flex-1`}
-        title={is_kpi && onPickIcon ? translate("DCS_DB_ICON_CARD_HINT") : undefined}
-        style={is_kpi && onPickIcon ? { cursor: "pointer" } : undefined}
-        onClick={is_kpi && onPickIcon ? onPickIcon : undefined}
-      >
+      <div className={`px-2 ${is_kpi ? "pb-2" : "pb-3"} flex-1`}>
         {loading ? (
           <div className="flex items-center justify-center" style={{ height: state_height }}>
             <SpiralLoader />

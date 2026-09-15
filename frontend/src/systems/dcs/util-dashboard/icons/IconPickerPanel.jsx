@@ -52,12 +52,9 @@ export default function IconPickerPanel({ widget, saving, onPick, onRemove, onCl
   const count_of = (id) => (loaded[id] ? loaded[id].names.length : null);
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex justify-end">
-      <div className="absolute inset-0 bg-black/30" onClick={saving ? undefined : onClose} />
-      <aside
-        className="relative h-full w-full flex flex-col bg-white"
-        style={{ maxWidth: 420, borderLeft: `2px solid ${PRIMARY}`, boxShadow: "-8px 0 24px rgba(0,0,0,0.12)" }}
-      >
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-5">
+      <div className="absolute inset-0 bg-black/40" onClick={saving ? undefined : onClose} />
+      <aside className="dcs-builder-pop relative w-full flex flex-col bg-white border-2" style={{ maxWidth: 860, height: "90vh", borderColor: PRIMARY }}>
         <div className="flex items-center justify-between gap-2 flex-shrink-0 px-4 py-2" style={{ backgroundColor: PRIMARY }}>
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...HEADING_FONT }}>
@@ -100,9 +97,9 @@ export default function IconPickerPanel({ widget, saving, onPick, onRemove, onCl
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 mt-3">
+          <div className="flex flex-col gap-2 mt-3">
             <select
-              className="cok-auth-input w-full sm:w-44 py-2 flex-shrink-0"
+              className="cok-auth-input w-full py-2"
               value={library}
               onChange={(event) => {
                 setLibrary(event.target.value);
@@ -148,7 +145,7 @@ export default function IconPickerPanel({ widget, saving, onPick, onRemove, onCl
               {Object.keys(failed).length === wanted_ids.length ? translate("DCS_DB_ICON_LOAD_FAILED") : translate("DCS_DB_ICON_NONE")}
             </p>
           ) : (
-            <div className="grid grid-cols-6 gap-1">
+            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1.5">
               {visible.map((entry) => {
                 const selected = entry.id === current;
                 const source = loaded[entry.library];
@@ -161,14 +158,14 @@ export default function IconPickerPanel({ widget, saving, onPick, onRemove, onCl
                     aria-pressed={selected}
                     className="dcs-db-icon-choice flex items-center justify-center cursor-pointer"
                     style={{
-                      height: 48,
+                      height: 60,
                       border: `1px solid ${selected ? PRIMARY : BORDER}`,
                       backgroundColor: selected ? PRIMARY : "#FFFFFF",
                       color: selected ? "#FFFFFF" : TEXT_DARK,
                     }}
                     onClick={() => onPick(entry.id)}
                   >
-                    {source ? source.render(entry.name, { size: 22, color: selected ? "#FFFFFF" : TEXT_DARK }) : null}
+                    {source ? source.render(entry.name, { size: 28, color: selected ? "#FFFFFF" : TEXT_DARK }) : null}
                   </button>
                 );
               })}

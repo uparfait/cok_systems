@@ -8,10 +8,8 @@ import { fold_family, widgets_data_signature } from "./chartCatalog.js";
 import BoardHeader from "./BoardHeader.jsx";
 import GeneratedWidgetsReview from "./GeneratedWidgetsReview.jsx";
 import DashboardBuilder from "./builder/DashboardBuilder.jsx";
-import AppearanceDialog from "./builder/AppearanceDialog.jsx";
-import { builder_fields, appearance_values_field } from "./builder/composeWidgets.js";
-import SkippedDetailsModal from "./SkippedDetailsModal.jsx";
-import IconPickerPanel from "./icons/IconPickerPanel.jsx";
+import BoardWidgetDialogs from "./BoardWidgetDialogs.jsx";
+import { builder_fields } from "./builder/composeWidgets.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
@@ -342,7 +340,7 @@ export default function DashboardPage({ form }) {
   return (
     <div
       ref={container_ref}
-      className={`relative ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "p-2 sm:p-4" : "pb-16 space-y-4"}`}
+      className={`dcs-board-no-select relative select-none ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "p-2 sm:p-4" : "pb-16 space-y-4"}`}
       style={
         is_fullscreen
           ? { backgroundColor: "#F4F7F9", width: "100%", height: "100%", overflowY: fs_mode === "fit" ? "hidden" : "auto" }
@@ -373,7 +371,6 @@ export default function DashboardPage({ form }) {
         setTo={setTo}
         onApplyPeriod={handle_period_apply}
         onAddKpi={() => setBuilderTab("kpi")}
-        onRegenerate={() => setBuilderTab("kpi")}
         onDelete={() => setConfirming("delete")}
       />
 
@@ -451,42 +448,20 @@ export default function DashboardPage({ form }) {
           onAutoGenerate={() => handle_generate("overwrite")}
         />
       )}
-      {appearance_widget && (
-        <AppearanceDialog
-          form={form}
-          title={appearance_widget.title}
-          valuesField={appearance_values_field(appearance_widget, form_fields)}
-          appearance={appearance_widget.appearance}
-          onClose={() => setAppearanceWidget(null)}
-          onApply={async (appearance) => {
-            setAppearanceWidget(null);
-            await handle_update_widget(appearance_widget.id, { appearance });
-          }}
-        />
-      )}
-      {icon_widget && (
-        <IconPickerPanel
-          widget={widgets.find((widget) => widget.id === icon_widget.id) || icon_widget}
-          saving={saving_widget_id === icon_widget.id}
-          onPick={async (name) => {
-            await handle_update_widget(icon_widget.id, { icon: name });
-            setIconWidget(null);
-          }}
-          onRemove={async () => {
-            await handle_update_widget(icon_widget.id, { icon: null });
-            setIconWidget(null);
-          }}
-          onClose={() => setIconWidget(null)}
-        />
-      )}
-      {skipped_widget && (
-        <SkippedDetailsModal
-          form={form}
-          widget={skipped_widget}
-          period={applied_period_ref.current}
-          onClose={() => setSkippedWidget(null)}
-        />
-      )}
+      <BoardWidgetDialogs
+        form={form}
+        fields={form_fields}
+        widgets={widgets}
+        savingWidgetId={saving_widget_id}
+        appearanceWidget={appearance_widget}
+        iconWidget={icon_widget}
+        skippedWidget={skipped_widget}
+        period={applied_period_ref.current}
+        onUpdate={handle_update_widget}
+        onCloseAppearance={() => setAppearanceWidget(null)}
+        onCloseIcon={() => setIconWidget(null)}
+        onCloseSkipped={() => setSkippedWidget(null)}
+      />
       {confirming === "delete" && (
         <DcsConfirmDialog
           titleKey="DCS_DB_DEL_CONFIRM_TITLE"

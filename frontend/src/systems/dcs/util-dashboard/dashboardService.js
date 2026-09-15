@@ -30,8 +30,8 @@ export function get_dashboard_data(form_group_id, widgets, period) {
  * numbers) inside its current window, honoring the same period the
  * dashboard shows: { total, rows: [{submitted_at, raw}] }.
  */
-export function get_kpi_skipped(form_group_id, widget, period) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", { widget, period: period || null });
+export function get_kpi_skipped(form_group_id, widget, period, offset, limit) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20 });
 }
 
 /**

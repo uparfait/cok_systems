@@ -65,7 +65,7 @@ export default function FormDetailPage() {
       {/* The nav stays put while the form is still loading - only a form
           that could not be read at all has no header to show. */}
       {!form_error && (
-        <DcsFormNav projectId={project_id} formGroupId={form_group_id} onBeforeNavigate={handle_before_navigate} />
+        <DcsFormNav projectId={project_id} formGroupId={form_group_id} formName={form && !is_showing_wrong_form ? form.form_name : ""} onBeforeNavigate={handle_before_navigate} />
       )}
 
       {is_loading_form && <DcsProjectDetailSkeleton />}

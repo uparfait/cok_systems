@@ -36,7 +36,7 @@ export default function FormDashboardPage() {
 
   return (
     <div className="w-full px-3 sm:px-6 pb-16">
-      <DcsFormNav projectId={project_id} formGroupId={form_group_id} />
+      <DcsFormNav projectId={project_id} formGroupId={form_group_id} formName={form ? form.form_name : ""} />
       {loading ? <DcsLoadingState /> : form ? <DashboardPage form={form} /> : null}
     </div>
   );

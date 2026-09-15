@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useToast } from "../../../../core/contexts/ToastContext.tsx";
 import { save_dashboard, request_error_text } from "../dashboardService.js";
@@ -7,24 +8,72 @@ import DcsConfirmDialog from "../../components/DcsConfirmDialog.jsx";
 import BoardGrid from "../BoardGrid.jsx";
 import SelectionToolbar from "./SelectionToolbar.jsx";
 import BulkEditDialog from "./BulkEditDialog.jsx";
-import { useBoardSelection, SHORTCUT_LABEL } from "./useBoardSelection.js";
+import { useBoardSelection } from "./useBoardSelection.js";
+
+const PRIMARY = "#056daa";
+const HEADING_FONT = { fontFamily: "'Montserrat', sans-serif" };
+
+/** The small menu a right-click on the board opens: one entry, enable or disable the selection mode. */
+function BoardContextMenu({ x, y, active, onToggle, onClose }) {
+  const { translate } = useDcsLanguage();
+  useEffect(() => {
+    const close = () => onClose();
+    document.addEventListener("mousedown", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [onClose]);
+  const left = Math.min(x, window.innerWidth - 240);
+  const top = Math.min(y, window.innerHeight - 60);
+  return createPortal(
+    <div className="dcs-builder-popover fixed bg-white border-2" role="menu" style={{ left, top, zIndex: 10040, borderColor: PRIMARY, minWidth: 220, boxShadow: "0 12px 32px rgba(0,0,0,0.18)" }} onMouseDown={(event) => event.stopPropagation()}>
+      <button
+        type="button"
+        role="menuitem"
+        className="dcs-db-menu-item block w-full text-left px-3 py-2 text-xs font-semibold cursor-pointer"
+        style={{ color: active ? "#E74C3C" : PRIMARY, background: "none", border: "none", ...HEADING_FONT }}
+        onClick={onToggle}
+      >
+        {translate(active ? "DCS_DB_SEL_DISABLE" : "DCS_DB_SEL_ENABLE")}
+      </button>
+    </div>,
+    document.body,
+  );
+}
 
 /**
- * The board grid plus its selection mode. While the mode is off this is
- * the plain grid with a discreet shortcut tip for editors; while it is on,
- * the grid shows the working copy (reordered by drag, edited or pruned in
- * bulk), the toolbar floats at the bottom and nothing is saved until the
- * user asks - then the whole reordered list is stored in one save.
+ * The board grid plus its selection mode. A right-click anywhere on the
+ * board offers to enable the mode (or disable it - after asking when
+ * changes are unsaved). While it is on, the grid shows the working copy
+ * (reordered by drag, edited or pruned in bulk) and the toolbar floats at
+ * the bottom; nothing is saved until the user asks, then the whole list
+ * is stored in one save.
  */
 export default function BoardWithSelection({ form, fields, widgets, editable, onSaved, ...grid_props }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
+  const [menu, setMenu] = useState(null);
   const [confirm_exit, setConfirmExit] = useState(false);
   const [confirm_delete, setConfirmDelete] = useState(false);
   const [bulk_open, setBulkOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const selection = useBoardSelection(widgets, { enabled: editable, onRequestExit: () => setConfirmExit(true) });
+  const selection = useBoardSelection(widgets);
   const shown = selection.active ? selection.working : widgets;
+
+  const request_exit = () => {
+    if (selection.dirty) setConfirmExit(true);
+    else selection.exit();
+  };
+
+  const handle_context_menu = (event) => {
+    if (!editable) return;
+    event.preventDefault();
+    setMenu({ x: event.clientX, y: event.clientY });
+  };
 
   const handle_save = async () => {
     setSaving(true);
@@ -43,20 +92,28 @@ export default function BoardWithSelection({ form, fields, widgets, editable, on
   };
 
   return (
-    <>
-      {editable && !selection.active && widgets.length > 1 && (
-        <p className="text-[11px] mb-2 text-right" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}>
-          {translate("DCS_DB_SEL_SHORTCUT_TIP", { shortcut: SHORTCUT_LABEL })}
-        </p>
-      )}
+    <div onContextMenu={handle_context_menu}>
       <BoardGrid
         {...grid_props}
         widgets={shown}
         editable={editable && !selection.active}
         selection={selection.active ? { selected: selection.selected, onToggle: selection.toggle, onMove: selection.move } : null}
       />
+      {menu && (
+        <BoardContextMenu
+          x={menu.x}
+          y={menu.y}
+          active={selection.active}
+          onClose={() => setMenu(null)}
+          onToggle={() => {
+            setMenu(null);
+            if (selection.active) request_exit();
+            else selection.enter();
+          }}
+        />
+      )}
       {selection.active && (
-        <SelectionToolbar selection={selection} saving={saving} onEdit={() => setBulkOpen(true)} onDelete={() => setConfirmDelete(true)} onSave={handle_save} />
+        <SelectionToolbar selection={selection} saving={saving} onEdit={() => setBulkOpen(true)} onDelete={() => setConfirmDelete(true)} onSave={handle_save} onExit={request_exit} />
       )}
       {bulk_open && (
         <BulkEditDialog
@@ -93,6 +150,6 @@ export default function BoardWithSelection({ form, fields, widgets, editable, on
           }}
         />
       )}
-    </>
+    </div>
   );
 }

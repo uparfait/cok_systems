@@ -251,9 +251,11 @@ export default function FormAllDataPage() {
       ]
     : null;
 
+  const named_version = versions.find((entry) => entry.is_active) || versions[0];
+
   return (
     <div className="h-full flex flex-col pb-4">
-      <DcsFormNav projectId={project_id} formGroupId={form_group_id} />
+      <DcsFormNav projectId={project_id} formGroupId={form_group_id} formName={named_version ? named_version.form_name : ""} />
       <div className="flex-shrink-0 mb-3 px-3 sm:px-4 flex flex-row items-center gap-2 overflow-x-auto">
         <DcsPeriodFilter period={table.period} onPeriodChange={table.setPeriod} from={table.from} onFromChange={table.setFrom} to={table.to} onToChange={table.setTo} onApply={table.handle_apply} includeAll />
         <DcsTableSearchSort search={table.search} onSearchChange={table.setSearch} onSearchSubmit={table.handle_apply} sort={table.sort} onSortChange={table.setSort} />

@@ -5,18 +5,17 @@ import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "../../components/DcsButtonOutlineDanger.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
-import { SHORTCUT_LABEL } from "./useBoardSelection.js";
 
 const PRIMARY = "#056daa";
 const HEADING_FONT = { fontFamily: "'Montserrat', sans-serif" };
 
 /**
  * What the selection mode shows while it is on: a pulsing indicator at the
- * top with the shortcut and Esc hint, and a floating bar at the bottom with
- * the selection count, select-all / clear, edit and delete for the
- * selection, save for the pending changes and exit.
+ * top and a floating bar at the bottom with the selection count, select-all
+ * / clear, edit and delete for the selection, save for the pending changes
+ * and exit (which asks first when changes are unsaved).
  */
-export default function SelectionToolbar({ selection, saving, onEdit, onDelete, onSave }) {
+export default function SelectionToolbar({ selection, saving, onEdit, onDelete, onSave, onExit }) {
   const { translate } = useDcsLanguage();
   const count = selection.selected.size;
   const total = selection.working.length;
@@ -29,7 +28,7 @@ export default function SelectionToolbar({ selection, saving, onEdit, onDelete, 
           {translate("DCS_DB_SEL_ON")}
         </span>
         <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.85)" }}>
-          {translate("DCS_DB_SEL_HINT", { shortcut: SHORTCUT_LABEL })}
+          {translate("DCS_DB_SEL_HINT")}
         </span>
       </div>
 
@@ -53,7 +52,7 @@ export default function SelectionToolbar({ selection, saving, onEdit, onDelete, 
             <DcsButtonPrimary className="px-3 py-1.5" disabled={!selection.dirty} onClick={onSave} style={{ minHeight: 34 }}>
               {translate("DCS_DB_SEL_SAVE")}
             </DcsButtonPrimary>
-            <button type="button" className="text-xs font-semibold cursor-pointer px-2 py-1" style={{ color: "#555555", background: "none", border: "none", textDecoration: "underline", ...HEADING_FONT }} onClick={selection.request_exit}>
+            <button type="button" className="text-xs font-semibold cursor-pointer px-2 py-1" style={{ color: "#555555", background: "none", border: "none", textDecoration: "underline", ...HEADING_FONT }} onClick={onExit}>
               {translate("DCS_DB_SEL_EXIT")}
             </button>
           </>

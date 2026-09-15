@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_kpi_skipped } from "./dashboardService.js";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const ORANGE = "#E67E22";
+const PRIMARY = "#056daa";
 const TEXT_DARK = "#333333";
 const TEXT_MUTED = "#9E9E9E";
 const HEADING_FONT = { fontFamily: "'Montserrat', sans-serif" };
+const PAGE_SIZE = 20;
 
 function format_date(value) {
   const date = new Date(value);
@@ -23,32 +25,49 @@ function format_raw(raw) {
 /**
  * The full detail behind an orange KPI card: every answer inside the
  * selected date range the numeric formula could not read as a number, as a
- * table of when it was submitted and exactly what was entered (newest
- * first, capped server-side at 200 with the true total shown).
+ * table of when it was submitted and exactly what was entered, newest
+ * first. Rows arrive twenty at a time: scrolling to the bottom fetches the
+ * next twenty until the true total is reached, and a failed page offers a
+ * retry link right where the next rows would have appeared.
  */
 export default function SkippedDetailsModal({ form, widget, period, onClose }) {
   const { translate } = useDcsLanguage();
+  const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [has_more, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [total, setTotal] = useState(0);
-  const [rows, setRows] = useState([]);
+  const fetching_ref = useRef(false);
+
+  const load = (offset) => {
+    if (fetching_ref.current) return;
+    fetching_ref.current = true;
+    setLoading(true);
+    setFailed(false);
+    get_kpi_skipped(form.form_group_id, widget, period, offset, PAGE_SIZE)
+      .then((response) => {
+        const data = response.data || {};
+        setTotal(data.total || 0);
+        setHasMore(Boolean(data.has_more));
+        setRows((current) => (offset === 0 ? data.rows || [] : current.concat(data.rows || [])));
+      })
+      .catch(() => setFailed(true))
+      .finally(() => {
+        fetching_ref.current = false;
+        setLoading(false);
+      });
+  };
 
   useEffect(() => {
-    let is_mounted = true;
-    setLoading(true);
-    get_kpi_skipped(form.form_group_id, widget, period)
-      .then((response) => {
-        if (!is_mounted) return;
-        setTotal((response.data && response.data.total) || 0);
-        setRows((response.data && response.data.rows) || []);
-      })
-      .catch(() => is_mounted && setFailed(true))
-      .finally(() => is_mounted && setLoading(false));
-    return () => {
-      is_mounted = false;
-    };
+    load(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widget.id]);
+
+  const handle_scroll = (event) => {
+    const element = event.currentTarget;
+    if (!has_more || loading || failed) return;
+    if (element.scrollTop + element.clientHeight >= element.scrollHeight - 80) load(rows.length);
+  };
 
   const th_style = {
     color: TEXT_MUTED,
@@ -64,6 +83,11 @@ export default function SkippedDetailsModal({ form, widget, period, onClose }) {
     backgroundColor: "#FFFFFF",
   };
   const td_style = { color: TEXT_DARK, fontSize: 12, padding: "0.4rem 0.6rem", borderBottom: "1px solid #F0F0F0" };
+  const retry_link = (
+    <button type="button" onClick={() => load(rows.length)} className="text-xs font-semibold cursor-pointer" style={{ color: PRIMARY, background: "none", border: "none", textDecoration: "underline", ...HEADING_FONT }}>
+      {translate("DCS_DB_RETRY")}
+    </button>
+  );
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
@@ -79,13 +103,13 @@ export default function SkippedDetailsModal({ form, widget, period, onClose }) {
           {translate("DCS_DB_SKIPPED_HINT")}
         </p>
 
-        {loading ? (
+        {rows.length === 0 && loading ? (
           <div className="flex items-center justify-center py-8">
             <SpiralLoader />
           </div>
-        ) : failed ? (
-          <p className="text-xs py-4" style={{ color: "#E74C3C" }}>
-            {translate("DCS_ERROR_GENERIC")}
+        ) : rows.length === 0 && failed ? (
+          <p className="text-xs py-4 flex items-center gap-2" style={{ color: "#E74C3C" }}>
+            {translate("DCS_ERROR_GENERIC")} {retry_link}
           </p>
         ) : rows.length === 0 ? (
           <p className="text-xs py-4" style={{ color: TEXT_MUTED }}>
@@ -93,7 +117,7 @@ export default function SkippedDetailsModal({ form, widget, period, onClose }) {
           </p>
         ) : (
           <>
-            <div className="overflow-auto border" style={{ maxHeight: "50vh", borderColor: "#E0E0E0" }}>
+            <div className="overflow-auto border" style={{ maxHeight: "50vh", borderColor: "#E0E0E0" }} onScroll={handle_scroll}>
               <table className="w-full" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
@@ -112,9 +136,21 @@ export default function SkippedDetailsModal({ form, widget, period, onClose }) {
                   ))}
                 </tbody>
               </table>
+              {loading && (
+                <div className="flex items-center justify-center gap-2 py-3">
+                  <SpiralLoader padded={false} size={16} />
+                  <span className="text-xs" style={{ color: TEXT_MUTED }}>{translate("DCS_MYAPPROVALS_LOADING_MORE")}</span>
+                </div>
+              )}
+              {!loading && failed && (
+                <div className="flex items-center justify-center gap-2 py-3">
+                  <span className="text-xs" style={{ color: "#E74C3C" }}>{translate("DCS_MYAPPROVALS_LOAD_FAILED")}</span>
+                  {retry_link}
+                </div>
+              )}
             </div>
             <p className="text-xs font-semibold mt-2" style={{ color: ORANGE, ...HEADING_FONT }}>
-              {translate("DCS_DB_SKIPPED_TOTAL", { count: total })}
+              {translate("DCS_DB_SKIPPED_SHOWN", { shown: rows.length, count: total })}
             </p>
           </>
         )}

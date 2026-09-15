@@ -9,7 +9,8 @@ import { get_project } from "../services/projectsService.js";
 import { get_forms_by_project } from "../services/formsService.js";
 import { AGE_UNITS } from "../constants/ageUnits.js";
 import DcsProjectDetailSkeleton from "../components/DcsProjectDetailSkeleton.jsx";
-import DcsPageNav, { find_active_nav_key } from "../components/DcsPageNav.jsx";
+import { find_active_nav_key } from "../components/DcsPageNav.jsx";
+import { DcsContextNavRegistrar } from "../layout/contextNav.jsx";
 import DcsAgeChip from "../components/DcsAgeChip.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
 import ProjectsIllustration from "../home/illustrations/ProjectsIllustration.jsx";
@@ -111,7 +112,19 @@ export default function ProjectDetailPage() {
       {/* The nav stays put while the project is still loading - only a
           project that could not be read at all has no header to show. */}
       {!project_error && (
-        <DcsPageNav items={nav_items} activeKey={active_nav_key} labelKey="DCS_PROJECT_NAV_LABEL" onSelect={handle_nav_select} />
+        <DcsContextNavRegistrar
+          items={nav_items}
+          basePath={base_path}
+          activeKey={active_nav_key}
+          onSelect={handle_nav_select}
+          meta={{
+            kind: "project",
+            title: project ? project.name : "",
+            project_id,
+            forms_count: forms ? forms.length : project ? project.forms_count || 0 : 0,
+            forms: (forms || []).map((form) => ({ form_group_id: form.form_group_id, form_name: form.form_name })),
+          }}
+        />
       )}
 
       {is_loading_project && <DcsProjectDetailSkeleton />}

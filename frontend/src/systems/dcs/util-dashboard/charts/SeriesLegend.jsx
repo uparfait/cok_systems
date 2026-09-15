@@ -2,12 +2,12 @@ import React from "react";
 import { PatternSwatch } from "./patterns.jsx";
 
 /**
- * The one legend every chart shares: entries flow in ROWS (wrapping onto
- * the next row, never one per line), each with a round color marker, its
- * full label and its value. A chart with a third dimension shows two
- * groups - the colors of the split values and the textures of the pattern
- * values. LegendFrame places the legend under, above, left or right of the
- * chart as the widget's appearance asks.
+ * The one legend every chart shares: entries stack in a COLUMN, one per
+ * line, each with a round color marker, its full label and its value. A
+ * chart with a third dimension shows two groups - the colors of the split
+ * values and the textures of the pattern values. LegendFrame places the
+ * legend under, above, left or right of the chart as the widget's
+ * appearance asks.
  */
 
 const LEGEND_FONT = { fontFamily: "'Montserrat', sans-serif" };
@@ -25,11 +25,13 @@ export function LegendRow({ items, palette, square, title }) {
           {title}
         </p>
       )}
-      <ul className="dcs-legend-row flex flex-wrap gap-x-3 gap-y-1" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+      <ul className="dcs-legend-column flex flex-col gap-1" style={{ listStyle: "none", margin: 0, padding: 0 }}>
         {items.map((item, index) => (
-          <li key={`${item.label}-${index}`} className="flex items-center gap-1.5 text-xs min-w-0" style={{ color: palette.text }}>
-            {item.pattern_index !== undefined && item.pattern_index > 0 ? <PatternSwatch index={item.pattern_index} color={item.color} size={12} /> : <Marker color={item.color} square={square} />}
-            <span className="break-words" style={{ maxWidth: 260 }}>
+          <li key={`${item.label}-${index}`} className="flex items-start gap-1.5 text-xs min-w-0" style={{ color: palette.text }}>
+            <span className="flex-shrink-0" style={{ marginTop: 3 }}>
+              {item.pattern_index !== undefined && item.pattern_index > 0 ? <PatternSwatch index={item.pattern_index} color={item.color} size={12} /> : <Marker color={item.color} square={square} />}
+            </span>
+            <span className="break-words min-w-0 flex-1">
               {item.label}
             </span>
             {item.value !== undefined && item.value !== null && (

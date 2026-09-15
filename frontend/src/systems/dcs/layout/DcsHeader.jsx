@@ -4,14 +4,15 @@ import Header from "../../../core/components/Layout/Header.tsx";
 import DcsLanguageSwitcher from "../components/DcsLanguageSwitcher.jsx";
 import DcsLogoMark from "../components/DcsLogoMark.jsx";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { build_dcs_breadcrumb_path } from "./dcsBreadcrumbPath.js";
+import DcsContextNavLinks from "./DcsContextNavLinks.jsx";
 
 /**
  * Reuses the same authenticated header every other system uses (profile,
  * notifications, logout), with no sidebar next to it. A slim translated
- * bar underneath carries a back icon, a Home link, a plain-text (never
- * clickable) breadcrumb of the current route template with real ids
- * swapped for their param name, and the language switcher.
+ * bar underneath carries a back icon and the Home, Templates and Approve
+ * data links on the left, the links of the open project or form in the
+ * center (as many as fit, the rest behind "More"), and the totals plus
+ * the language switcher on the right.
  */
 export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, projects }) {
   const navigate = useNavigate();
@@ -19,10 +20,6 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, p
   const { translate } = useDcsLanguage();
   const is_home_active = location.pathname === "/dcs-system";
   const is_templates_active = location.pathname.startsWith("/dcs-system/templates");
-  // The breadcrumb exists to show where you are within a project/form -
-  // on Home or Templates themselves there is nothing more specific than
-  // the tab already being shown (and underlined) for it to say.
-  const breadcrumb_path = is_home_active || is_templates_active ? "" : build_dcs_breadcrumb_path(location.pathname);
   const total_projects = projects ? projects.length : 0;
   const total_forms = projects ? projects.reduce((sum, project) => sum + (project.forms_count || 0), 0) : 0;
 
@@ -38,10 +35,10 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, p
       />
       <div className={`dcs-sub-header ${subHeaderVisible ? "" : "is-hidden"}`}>
         <div
-          className="flex items-center justify-between px-4 lg:px-6 py-2 border-b"
+          className="flex items-center justify-between gap-4 px-4 lg:px-6 py-2 border-b"
           style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}
         >
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 flex-shrink-0">
             <button
               type="button"
               onClick={() => navigate(-1)}
@@ -80,17 +77,9 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, p
             >
               {translate("DCS_BTN_APPROVE_DATA")}
             </button>
-
-            {breadcrumb_path && (
-              <span
-                className="text-xs truncate"
-                style={{ color: "#9E9E9E", fontFamily: "Consolas, monospace" }}
-                title={breadcrumb_path}
-              >
-                /{breadcrumb_path}
-              </span>
-            )}
           </div>
+
+          <DcsContextNavLinks />
           <div className="flex items-center gap-4 flex-shrink-0">
             <div className="hidden sm:flex items-center gap-3">
               <span className="text-xs" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif" }}>
