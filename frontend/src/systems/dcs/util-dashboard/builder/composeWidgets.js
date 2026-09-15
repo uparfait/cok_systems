@@ -48,6 +48,11 @@ export function occurrence_extra(spec) {
   const has_rule = !!spec.rule_operator;
   return {
     display_fields: Array.isArray(spec.display_ids) ? spec.display_ids.filter(Boolean).slice(0, 5) : [],
+    display_separator: typeof spec.display_separator === "string" ? spec.display_separator.slice(0, 10) : " - ",
+    same_fields: (Array.isArray(spec.same_rules) ? spec.same_rules : [])
+      .filter((entry) => entry && entry.field_id)
+      .map((entry) => ({ field_id: entry.field_id, value: entry.value === undefined || entry.value === null || String(entry.value).trim() === "" ? null : entry.value }))
+      .slice(0, 5),
     occurrence_rule: has_rule ? { operator: spec.rule_operator, value: Number(spec.rule_value) } : null,
     occurrence_scope: has_rule ? spec.rule_scope || "matching" : "all",
   };
@@ -170,6 +175,8 @@ function make_widget(form, extra) {
     pattern_by: null,
     legend_by: null,
     display_fields: [],
+    display_separator: " - ",
+    same_fields: [],
     occurrence_rule: null,
     occurrence_scope: "all",
     appearance: null,

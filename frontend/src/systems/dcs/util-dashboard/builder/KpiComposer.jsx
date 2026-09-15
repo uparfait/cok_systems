@@ -30,6 +30,8 @@ export const EMPTY_KPI_SPEC = {
   // "Count occurrences" only: how each counted value is named, and the
   // threshold its count is held to.
   display_ids: [],
+  display_separator: " - ",
+  same_rules: [],
   rule_operator: "",
   rule_value: "",
   rule_scope: "matching",

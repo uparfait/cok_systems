@@ -93,6 +93,16 @@ function sanitize_widget(widget) {
     display_fields: Array.isArray(widget.display_fields)
       ? widget.display_fields.filter((id) => typeof id === "string" && id.trim()).map((id) => id.trim()).slice(0, 5)
       : [],
+    // Kept untrimmed: a separator is usually spaces around a dash.
+    display_separator: typeof widget.display_separator === "string" ? widget.display_separator.slice(0, 10) : " - ",
+    // "Count occurrences" only: the fields whose value must be shared for
+    // two records to count together - any shared value, or one fixed value.
+    same_fields: Array.isArray(widget.same_fields)
+      ? widget.same_fields
+          .filter((entry) => entry && typeof entry === "object" && typeof entry.field_id === "string" && entry.field_id.trim())
+          .map((entry) => ({ field_id: entry.field_id.trim(), value: ["string", "number", "boolean"].includes(typeof entry.value) && String(entry.value).trim() !== "" ? entry.value : null }))
+          .slice(0, 5)
+      : [],
     occurrence_rule:
       widget.occurrence_rule && typeof widget.occurrence_rule === "object" && clean_string(widget.occurrence_rule.operator)
         ? { operator: clean_string(widget.occurrence_rule.operator), value: Number(widget.occurrence_rule.value) }

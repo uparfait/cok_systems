@@ -100,6 +100,8 @@ export function widgets_data_signature(widget_list) {
       widget.sort,
       widget.limit,
       widget.display_fields,
+      widget.display_separator,
+      widget.same_fields,
       widget.occurrence_rule,
       widget.occurrence_scope,
     ]),

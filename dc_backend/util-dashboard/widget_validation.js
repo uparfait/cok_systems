@@ -85,6 +85,15 @@ function validate_occurrences(widget, catalog, errors, describe) {
   display.forEach((id, index) => {
     if (!catalog.fields_by_id.has(id)) errors.push(`${describe}: display field ${index + 1} is unknown`);
   });
+  const same = Array.isArray(widget.same_fields) ? widget.same_fields : [];
+  if (same.length > LIMITS.MAX_DISPLAY_FIELDS) errors.push(`${describe}: at most ${LIMITS.MAX_DISPLAY_FIELDS} "same" conditions`);
+  same.forEach((entry, index) => {
+    if (!entry || !catalog.fields_by_id.has(entry.field_id)) errors.push(`${describe}: "same" condition ${index + 1} uses an unknown field`);
+    else if (entry.field_id === (widget.metric && widget.metric.field_id)) errors.push(`${describe}: "same" condition ${index + 1} repeats the counted field`);
+  });
+  if (widget.display_separator !== undefined && (typeof widget.display_separator !== "string" || widget.display_separator.length > 10)) {
+    errors.push(`${describe}: the label separator must be text of at most 10 characters`);
+  }
   const rule = widget.occurrence_rule;
   if (rule) {
     if (!OCCURRENCE_OPERATORS.includes(rule.operator)) errors.push(`${describe}: unknown occurrence operator`);

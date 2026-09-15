@@ -187,7 +187,21 @@ async function point_rows(widget, bounds) {
 async function occurrence_rows(widget, bounds, catalog) {
   const key_field = widget.metric.field_id;
   const display_fields = Array.isArray(widget.display_fields) ? widget.display_fields.filter((id) => id && id !== key_field) : [];
-  const group = { _id: `$data.${key_field}`, value: { $sum: 1 } };
+  // "Same" conditions: a FIXED value narrows the records like a filter; an
+  // open one ("the same status, whatever it is") joins the grouping key, so
+  // two records count together only when they share it.
+  const same = (Array.isArray(widget.same_fields) ? widget.same_fields : []).filter((entry) => entry && entry.field_id && entry.field_id !== key_field);
+  const is_open = (entry) => entry.value === null || entry.value === undefined || entry.value === "";
+  const open_same = same.filter(is_open);
+  const fixed_same = same.filter((entry) => !is_open(entry));
+  const scoped = fixed_same.length > 0 ? Object.assign({}, widget, { filters: (widget.filters || []).concat(fixed_same.map((entry) => ({ field_id: entry.field_id, operator: "eq", value: entry.value }))) }) : widget;
+  const answered = { [`data.${key_field}`]: { $nin: [null, ""] } };
+  const group_id = { k: `$data.${key_field}` };
+  open_same.forEach((entry, index) => {
+    group_id[`s${index}`] = `$data.${entry.field_id}`;
+    answered[`data.${entry.field_id}`] = { $nin: [null, ""] };
+  });
+  const group = { _id: group_id, value: { $sum: 1 } };
   display_fields.forEach((field_id, index) => {
     group[`d${index}`] = { $first: `$data.${field_id}` };
   });
@@ -195,11 +209,11 @@ async function occurrence_rows(widget, bounds, catalog) {
   const operator = rule ? { gt: "$gt", gte: "$gte", eq: "$eq", lte: "$lte", lt: "$lt" }[rule.operator] : null;
   const matches = operator ? { [operator]: ["$value", Number(rule.value)] } : true;
   const scope = widget.occurrence_scope === "all" ? "all" : "matching";
-  const sort = widget.sort === "label_asc" ? { _id: 1 } : widget.sort === "value_asc" ? { value: 1, _id: 1 } : { value: -1, _id: 1 };
+  const sort = widget.sort === "label_asc" ? { "_id.k": 1 } : widget.sort === "value_asc" ? { value: 1, "_id.k": 1 } : { value: -1, "_id.k": 1 };
   const pipeline = [
-    build_match_stage(widget, bounds),
-    ...unwind_stages(catalog, [key_field]),
-    { $match: { [`data.${key_field}`]: { $nin: [null, ""] } } },
+    build_match_stage(scoped, bounds),
+    ...unwind_stages(catalog, [key_field].concat(open_same.map((entry) => entry.field_id))),
+    { $match: answered },
     // Newest first, so $first picks the latest answer of each display field.
     { $sort: { submitted_at: -1 } },
     { $group: group },
@@ -214,7 +228,11 @@ async function occurrence_rows(widget, bounds, catalog) {
     display_fields.forEach((field_id, index) => {
       display[field_id] = row[`d${index}`];
     });
-    return { _id: row._id, value: row.value, display, matches: row.matches === true };
+    const shared = {};
+    open_same.forEach((entry, index) => {
+      shared[entry.field_id] = row._id[`s${index}`];
+    });
+    return { _id: row._id.k, value: row.value, display, shared, matches: row.matches === true };
   });
 }
 

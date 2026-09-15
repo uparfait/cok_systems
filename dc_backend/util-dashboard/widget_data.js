@@ -247,9 +247,14 @@ function answer_text(value) {
 async function compute_occurrences(widget, kind, bounds, catalog) {
   const raw = await pipelines.occurrence_rows(widget, bounds, catalog);
   const display_fields = Array.isArray(widget.display_fields) ? widget.display_fields : [];
+  const separator = typeof widget.display_separator === "string" && widget.display_separator !== "" ? widget.display_separator : " - ";
   const rows = raw.map((row) => {
+    // The label: the display answers, then whatever "same" values this
+    // group shares (a status, a gender), so two groups of one id read apart.
     const parts = display_fields.map((field_id) => answer_text(row.display[field_id])).filter(Boolean);
-    return { label: parts.length > 0 ? parts.join(" - ") : answer_text(row._id) || "-", value: row.value || 0, matches: row.matches };
+    const shared = Object.keys(row.shared || {}).map((field_id) => answer_text(row.shared[field_id])).filter(Boolean);
+    const head = parts.length > 0 ? parts.join(separator) : answer_text(row._id) || "-";
+    return { label: [head].concat(shared).join(separator), value: row.value || 0, matches: row.matches };
   });
   const has_rule = !!(widget.occurrence_rule && widget.occurrence_rule.operator);
   const matching = rows.filter((row) => row.matches);
