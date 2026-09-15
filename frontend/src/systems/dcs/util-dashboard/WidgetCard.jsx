@@ -6,6 +6,7 @@ import LibraryIcon from "./icons/LibraryIcon.jsx";
 import { chart_definition, convertible_types } from "./chartCatalog.js";
 import { build_palette } from "./appearance.js";
 import { useBoardTheme } from "./boardTheme.jsx";
+import MenuPopover from "./MenuPopover.jsx";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -57,7 +58,7 @@ function StateMessage({ children, tone, height }) {
  * saves and Escape cancels too. The buttons prevent the input's blur on
  * mousedown so a click on Cancel can never be swallowed by a blur-save.
  */
-function EditableText({ value, placeholder, editable, saving, onCommit, textStyle, maxLength, hint, wrap }) {
+function EditableText({ value, placeholder, editable, saving, onCommit, textStyle, maxLength, hint }) {
   const { translate } = useDcsLanguage();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -130,7 +131,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
   }
   return (
     <p
-      className={wrap ? "" : "truncate"}
+      className="break-words"
       style={{ ...textStyle, cursor: editable ? "pointer" : "default" }}
       title={editable ? hint : value || placeholder}
       onClick={start}
@@ -151,16 +152,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
 function CardMenu({ widget, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon }) {
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
-  const menu_ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const handle_outside = (event) => {
-      if (menu_ref.current && !menu_ref.current.contains(event.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handle_outside);
-    return () => document.removeEventListener("mousedown", handle_outside);
-  }, [open]);
+  const button_ref = useRef(null);
 
   const item_style = (danger) => ({
     display: "block",
@@ -187,8 +179,9 @@ function CardMenu({ widget, onChangeType, onChangeSize, onRemove, onAppearance, 
   };
 
   return (
-    <div ref={menu_ref} className="relative flex-shrink-0">
+    <div className="flex-shrink-0">
       <button
+        ref={button_ref}
         type="button"
         title={translate("DCS_DB_MENU")}
         aria-label={translate("DCS_DB_MENU")}
@@ -204,8 +197,8 @@ function CardMenu({ widget, onChangeType, onChangeSize, onRemove, onAppearance, 
           <circle cx="12" cy="19" r="2" />
         </svg>
       </button>
-      {open && (
-        <div role="menu" className="absolute right-0 z-40 border-2 shadow-lg" style={{ top: "100%", marginTop: 4, backgroundColor: SURFACE, borderColor: SURFACE_BORDER, minWidth: 190 }}>
+      <MenuPopover open={open} anchorRef={button_ref} onClose={() => setOpen(false)} minWidth={200}>
+        <>
           {onChangeSize && (
             <>
               {section_title("DCS_DB_SIZE")}
@@ -269,8 +262,8 @@ function CardMenu({ widget, onChangeType, onChangeSize, onRemove, onAppearance, 
             </button>
           )}
           <style>{`.dcs-db-menu-item:hover { background-color: var(--board-surface-hover, #F0F7FB) !important; }`}</style>
-        </div>
-      )}
+        </>
+      </MenuPopover>
     </div>
   );
 }
@@ -393,7 +386,6 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
             saving={savingText}
             hint={translate("DCS_DB_CLICK_TO_EDIT")}
             maxLength={300}
-            wrap={is_kpi}
             textStyle={{ color: palette.muted, fontSize: is_kpi ? 11 : 12 }}
             onCommit={(next) => onUpdateText({ description: next || null })}
           />

@@ -1,20 +1,22 @@
 import React from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { IconButton, FULLSCREEN_SVG, EXIT_SVG, FIT_SVG, SCROLL_SVG, PLUS_SVG, LINK_SVG, MOON_SVG, SUN_SVG, TRASH_SVG } from "./BoardIcons.jsx";
+import { FULLSCREEN_SVG, EXIT_SVG, FIT_SVG, SCROLL_SVG, PLUS_SVG, LINK_SVG, MOON_SVG, SUN_SVG, TRASH_SVG } from "./BoardIcons.jsx";
+import BoardActionsMenu from "./BoardActionsMenu.jsx";
 import { useBoardTheme } from "./boardTheme.jsx";
 import GenerationProgress from "./GenerationProgress.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 
 /**
- * The dashboard page's header: the uppercase board title, every control as
- * an icon button with a hover title (fit/scroll modes and exit in full
- * screen, full screen, regenerate and delete otherwise), the generation
- * progress readout and the board-wide period filter. In full screen it is
- * fixed to the top, hides itself shortly after the pointer leaves and
- * slides back in when the top strip is hovered. While the board is busy
- * (generating, or the post-generation review is open) every action and the
- * period filter disappear - nothing may trigger a data fetch until the
- * review is finished or canceled.
+ * The dashboard page's header: the uppercase board title, one "Actions"
+ * dropdown holding every control the viewer may use (the light / dark
+ * mode, the fit and scroll views, full screen, the builder, share links
+ * and deletion - each with its icon and name), the generation progress
+ * readout and the board-wide period filter. In full screen it is fixed to
+ * the top, hides itself shortly after the pointer leaves and slides back
+ * in when the top strip is hovered. While the board is busy (generating,
+ * or the post-generation review is open) the actions and the period filter
+ * disappear - nothing may trigger a data fetch until the review is
+ * finished or canceled.
  */
 export default function BoardHeader({
   form,
@@ -46,6 +48,17 @@ export default function BoardHeader({
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const busy = generating || reviewing;
+  // The viewer's own light / dark mode is always offered; the viewing modes
+  // follow full screen, and the editing actions the viewer's rights.
+  const actions = [
+    { key: "theme", label: translate(board.is_dark ? "DCS_DB_THEME_LIGHT" : "DCS_DB_THEME_DARK"), icon: board.is_dark ? SUN_SVG : MOON_SVG, onClick: board.toggle, active: board.is_dark },
+    is_fullscreen && !busy && { key: "fit", label: translate("DCS_DB_FIT_MODE"), icon: FIT_SVG, onClick: () => setFsMode("fit"), active: fs_mode === "fit" },
+    is_fullscreen && !busy && { key: "scroll", label: translate("DCS_DB_SCROLL_MODE"), icon: SCROLL_SVG, onClick: () => setFsMode("scroll"), active: fs_mode === "scroll" },
+    widgets_count > 0 && !busy && { key: "fullscreen", label: translate(is_fullscreen ? "DCS_DB_EXIT_FULLSCREEN" : "DCS_DB_FULLSCREEN"), icon: is_fullscreen ? EXIT_SVG : FULLSCREEN_SVG, onClick: is_fullscreen ? exit : enter },
+    can_edit && widgets_count > 0 && !busy && !is_fullscreen && { key: "build", label: translate("DCS_DB_ADD_KPI"), icon: PLUS_SVG, onClick: onAddKpi, disabled: deleting },
+    can_edit && widgets_count > 0 && !busy && !is_fullscreen && onShare && { key: "share", label: translate("DCS_DB_SHARE_LINKS"), icon: LINK_SVG, onClick: onShare, disabled: deleting },
+    can_edit && widgets_count > 0 && !busy && !is_fullscreen && { key: "delete", label: translate("DCS_DB_BTN_DELETE"), icon: TRASH_SVG, onClick: onDelete, danger: true, disabled: deleting },
+  ];
 
   return (
     <>
@@ -90,46 +103,7 @@ export default function BoardHeader({
           >
             {translate("DCS_DB_BOARD_TITLE", { name: form.form_name || form.form_group_id })}
           </h2>
-          <div className="flex flex-wrap items-center gap-2">
-            {/* The viewer's own light / dark mode - a browser preference,
-                never saved to the dashboard, so it is offered to everyone. */}
-            <IconButton title={translate(board.is_dark ? "DCS_DB_THEME_LIGHT" : "DCS_DB_THEME_DARK")} onClick={board.toggle} active={board.is_dark}>
-              {board.is_dark ? SUN_SVG : MOON_SVG}
-            </IconButton>
-            {is_fullscreen && !busy && (
-              <IconButton title={translate("DCS_DB_FIT_MODE")} onClick={() => setFsMode("fit")} active={fs_mode === "fit"}>
-                {FIT_SVG}
-              </IconButton>
-            )}
-            {is_fullscreen && !busy && (
-              <IconButton title={translate("DCS_DB_SCROLL_MODE")} onClick={() => setFsMode("scroll")} active={fs_mode === "scroll"}>
-                {SCROLL_SVG}
-              </IconButton>
-            )}
-            {widgets_count > 0 && !busy && (
-              <IconButton
-                title={translate(is_fullscreen ? "DCS_DB_EXIT_FULLSCREEN" : "DCS_DB_FULLSCREEN")}
-                onClick={is_fullscreen ? exit : enter}
-              >
-                {is_fullscreen ? EXIT_SVG : FULLSCREEN_SVG}
-              </IconButton>
-            )}
-            {can_edit && widgets_count > 0 && !busy && !is_fullscreen && (
-              <>
-                <IconButton title={translate("DCS_DB_ADD_KPI")} onClick={onAddKpi} disabled={deleting}>
-                  {PLUS_SVG}
-                </IconButton>
-                {onShare && (
-                  <IconButton title={translate("DCS_DB_SHARE_LINKS")} onClick={onShare} disabled={deleting}>
-                    {LINK_SVG}
-                  </IconButton>
-                )}
-                <IconButton title={translate("DCS_DB_BTN_DELETE")} onClick={onDelete} danger disabled={deleting}>
-                  {TRASH_SVG}
-                </IconButton>
-              </>
-            )}
-          </div>
+          <BoardActionsMenu items={actions} />
           <style>{`.dcs-db-iconbtn { transition: background-color 160ms ease, color 160ms ease, transform 120ms ease; } .dcs-db-iconbtn:hover:not(:disabled) { transform: translateY(-1px); }`}</style>
         </div>
         {generating && <GenerationProgress percent={progress.percent} messageKey={progress.message_key} />}

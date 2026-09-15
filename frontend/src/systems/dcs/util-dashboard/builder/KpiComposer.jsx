@@ -19,15 +19,19 @@ import {
 } from "./composeWidgets.js";
 import { useFanOutValues } from "./useFanOutValues.js";
 
-export const EMPTY_KPI_SPEC = { formula_id: "", field_id: "", in_each_id: "", title: "", title_touched: false, description: "", chart_enabled: false, chart_type: "", appearance: null };
+export const EMPTY_KPI_SPEC = { formula_id: "", field_id: "", in_each_id: "", in_each_mode: "combined", title: "", title_touched: false, description: "", chart_enabled: false, chart_type: "", appearance: null };
 
 /**
  * The KPI tab: formula, field, an optional "in each" field, then the card's
- * words and an optional chart. One "in each" value becomes one card, each
- * filtered to its value; a choice measure adds a legend of its values under
- * every card's total; the chart spreads the same measure across the "in
- * each" field (split by the choice measure when there is one). With
- * initialSpec it reopens an existing draft for editing.
+ * words and an optional chart.
+ *
+ * An "in each" field can go two ways, and the composer says which before
+ * anything is added: ONE card (the default) listing every value as its
+ * legend under the total, or one card per value, each filtered to its own.
+ * A choice measure adds a legend of its own values instead when the card
+ * is not already carrying the "in each" ones. The chart spreads the same
+ * measure across the "in each" field (split by the choice measure when
+ * there is one). With initialSpec it reopens an existing draft for editing.
  */
 export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec, editing, onCancelEdit }) {
   const { translate } = useDcsLanguage();
@@ -50,7 +54,16 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
     () => shape.chart_types.map((chart_type) => ({ id: chart_type, label: type_label(chart_type, translate), hintKey: type_hint_key(chart_type) })),
     [shape.chart_types, translate],
   );
-  const values = useFanOutValues(form, shape.in_each);
+  // Only a fanned-out choice needs its values listed; a combined card asks
+  // the server for them at view time, as its legend.
+  const values = useFanOutValues(form, shape.combined ? null : shape.in_each);
+  const mode_chips = useMemo(
+    () => [
+      { id: "combined", label: translate("DCS_DB_KPI_ONE_CARD"), hintKey: "DCS_DB_KPI_ONE_CARD_HINT" },
+      { id: "separate", label: translate("DCS_DB_KPI_MANY_CARDS"), hintKey: "DCS_DB_KPI_MANY_CARDS_HINT" },
+    ],
+    [translate],
+  );
 
   const patch = (changes) => setSpec((current) => ({ ...current, ...changes }));
 
@@ -73,14 +86,14 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
   }, [is_count]);
 
   const ready = !!(shape.measure && spec.formula_id && spec.title.trim());
-  const card_count = shape.in_each ? values.list.length : 1;
-  const busy = disabled || values.loading;
+  const card_count = shape.in_each && !shape.combined ? values.list.length : 1;
+  const busy = disabled || (!shape.combined && values.loading);
 
   const problem = !spec.formula_id
     ? translate("DCS_DB_KPI_PICK_FORMULA")
     : !shape.measure
       ? translate("DCS_DB_KPI_PICK_FIELD")
-      : shape.in_each && !values.loading && values.list.length === 0
+      : shape.in_each && !shape.combined && !values.loading && values.list.length === 0
         ? translate("DCS_DB_IN_EACH_NONE")
         : !spec.title.trim()
           ? translate("DCS_DB_NEED_TITLE")
@@ -88,11 +101,13 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
 
   const preview = !ready
     ? ""
-    : shape.in_each
-      ? values.loading
-        ? translate("DCS_DB_IN_EACH_LOADING")
-        : translate("DCS_DB_KPI_PREVIEW_MANY", { count: values.list.length, field: shape.in_each.label })
-      : translate("DCS_DB_KPI_PREVIEW_SINGLE");
+    : shape.combined
+      ? translate("DCS_DB_KPI_PREVIEW_COMBINED", { field: shape.in_each.label })
+      : shape.in_each
+        ? values.loading
+          ? translate("DCS_DB_IN_EACH_LOADING")
+          : translate("DCS_DB_KPI_PREVIEW_MANY", { count: values.list.length, field: shape.in_each.label })
+        : translate("DCS_DB_KPI_PREVIEW_SINGLE");
 
   const handle_add = () => {
     if (!ready || problem) return;
@@ -101,7 +116,7 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
     onAdd({
       tab: "kpi",
       summary: spec.title.trim(),
-      detail: shape.in_each ? translate("DCS_DB_DRAFT_IN_EACH", { field: shape.in_each.label }) : measure_label(spec.formula_id, shape.measure, translate),
+      detail: shape.in_each ? translate(shape.combined ? "DCS_DB_DRAFT_COMBINED" : "DCS_DB_DRAFT_IN_EACH", { field: shape.in_each.label }) : measure_label(spec.formula_id, shape.measure, translate),
       with_chart: spec.chart_enabled && shape.chart_field ? type_label(spec.chart_type, translate) : "",
       widgets: drafts,
       spec,
@@ -131,7 +146,18 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
 
       <Step number={3} titleKey="DCS_DB_STEP_IN_EACH" hintKey="DCS_DB_IN_EACH_HINT">
         <FieldSelect options={in_each_options} value={spec.in_each_id} onChange={(in_each_id) => patch({ in_each_id })} placeholder={translate("DCS_DB_IN_EACH_PLACEHOLDER")} disabled={disabled || !shape.measure} allowClear />
-        <InEachValues field={shape.in_each} values={values} />
+        {shape.in_each && shape.can_combine && (
+          <div className="dcs-view-swap mt-3">
+            <p className="text-xs mb-1" style={{ color: TEXT_MUTED }}>
+              {translate("DCS_DB_KPI_IN_EACH_MODE")}
+            </p>
+            <ChipGrid options={mode_chips} value={shape.combined ? "combined" : "separate"} onChange={(in_each_mode) => patch({ in_each_mode })} disabled={disabled} columns="grid-cols-1 sm:grid-cols-2" />
+          </div>
+        )}
+        {shape.in_each && !shape.can_combine && (
+          <Preview>{translate("DCS_DB_KPI_CANNOT_COMBINE")}</Preview>
+        )}
+        {!shape.combined && <InEachValues field={shape.in_each} values={values} />}
       </Step>
 
       <Step number={4} titleKey="DCS_DB_STEP_DETAILS">

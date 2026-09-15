@@ -159,17 +159,30 @@ function make_widget(form, extra) {
 
 /**
  * What a KPI choice means before anything is built: the measure field, the
- * optional "in each" field, whether the cards carry a legend, and whether a
- * chart can accompany them (and in which shape).
+ * optional "in each" field, whether that field makes ONE card or one per
+ * value, which field the card's legend lists, and whether a chart can
+ * accompany it (and in which shape).
+ *
+ * An "in each" field normally fans out into one card per value. Combined
+ * (the default) it stays a SINGLE card instead, with those values listed
+ * as its legend under the total - the same numbers, one widget. Only a
+ * formula that can be grouped supports that legend, so median, cumulative
+ * sum and moving average always fan out.
  */
 export function kpi_shape(spec, fields) {
   const measure = fields.find((field) => field.id === spec.field_id) || null;
   const in_each = fields.find((field) => field.id === spec.in_each_id && field.id !== spec.field_id) || null;
   const groupable = !!spec.formula_id && !KPI_ONLY.includes(spec.formula_id);
-  const legend = measure && measure.is_choice && groupable ? measure : null;
-  const split = !!(in_each && legend);
+  // The legend a choice MEASURE gives every card on its own.
+  const measure_legend = measure && measure.is_choice && groupable ? measure : null;
+  const can_combine = !!in_each && in_each.is_choice && groupable;
+  const combined = can_combine && (spec.in_each_mode || "combined") === "combined";
+  // One card carrying the "in each" values as its legend; otherwise the
+  // measure's own values, when it is a choice field.
+  const legend = combined ? in_each : measure_legend;
+  const split = !!(in_each && measure_legend);
   const chart_field = in_each || (measure && measure.is_choice ? measure : null);
-  return { measure, in_each, legend, split, chart_field, chart_types: chart_field ? (split ? SPLIT_CHART_TYPES : SINGLE_CHART_TYPES) : [] };
+  return { measure, in_each, can_combine, combined, legend, measure_legend, split, chart_field, chart_types: chart_field ? (split ? SPLIT_CHART_TYPES : SINGLE_CHART_TYPES) : [] };
 }
 
 export function measure_label(formula_id, field, translate) {
@@ -178,6 +191,13 @@ export function measure_label(formula_id, field, translate) {
   if (field && field.is_total) return translate("DCS_DB_GEN_TOTAL");
   if (!field) return translate(formula.labelKey);
   return translate("DCS_DB_KPI_DEFAULT_TITLE", { formula: translate(formula.labelKey), field: field.label });
+}
+
+/** How many KPI cards a choice produces before it is built. */
+export function kpi_card_count(spec, fields, values) {
+  const shape = kpi_shape(spec, fields);
+  if (!shape.in_each || shape.combined) return 1;
+  return (values || []).length;
 }
 
 /** The KPI cards (one per "in each" value, or a single one) plus the optional chart. */
@@ -192,7 +212,7 @@ export function build_kpi_drafts(form, spec, values, translate) {
   const appearance = spec.appearance || null;
   const widgets = [];
 
-  if (shape.in_each) {
+  if (shape.in_each && !shape.combined) {
     values.forEach((value) => {
       widgets.push(
         make_widget(form, {
@@ -220,7 +240,7 @@ export function build_kpi_drafts(form, spec, values, translate) {
         chart_type: spec.chart_type,
         metric: { aggregation: GROUPED_EQUIVALENT[spec.formula_id] || spec.formula_id, field_id: measure_id },
         group_by: { field_id: shape.chart_field.id },
-        split_by: shape.split ? { field_id: shape.legend.id } : null,
+        split_by: shape.split ? { field_id: shape.measure_legend.id } : null,
         limit: rules.slices || (spec.chart_type === "treemap" ? 50 : 12),
         size: shape.split ? "large" : "medium",
         appearance,

@@ -1,7 +1,7 @@
 import React, { useId } from "react";
 import { ResponsiveContainer, BarChart, Bar, Cell, ComposedChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, LabelList } from "recharts";
 import { build_palette } from "../appearance.js";
-import { wrapped_tick, x_axis_height, y_axis_width, bar_row_height, chars_for_width } from "./chartLabels.jsx";
+import { wrapped_tick, x_axis_height, y_axis_width, y_label_room, value_axis_width, number_room, bar_row_height, widest_word } from "./chartLabels.jsx";
 import { chart_density, tick_style, value_style } from "./density.js";
 import { PatternDefs, pattern_fill, series_display } from "./patterns.jsx";
 import { SplitLegend, LegendFrame } from "./SeriesLegend.jsx";
@@ -9,28 +9,47 @@ import { SplitLegend, LegendFrame } from "./SeriesLegend.jsx";
 /**
  * Every category-comparison renderer: bar (horizontal), column (vertical),
  * lollipop, dot plot, grouped columns, stacked columns and the 100 percent
- * stacked variation. Category labels wrap onto several lines rather than
- * being cut, and every mark carries its value - unless the card is too
- * narrow to read one, in which case the value stays in the tooltip.
- * Everything is sized from the card's own width (see density.js), so a
- * small card draws a small chart instead of stretching its card. Colors
- * come from the widget's palette - one per category value or per series -
- * and a third field (series_meta) draws as a texture inside each series
- * color. Marks grow in and glide to new values.
+ * stacked variation.
+ *
+ * Nothing is ever cut: the numeric axis reserves room for the largest
+ * number it will print, a value written beside a bar reserves room for the
+ * longest of them, the top margin fits a value written above a column, and
+ * a category name wraps over as many lines as it needs - across as many
+ * characters per line as its own share of the width allows. Every one of
+ * those measurements starts from the card's measured width (see
+ * density.js), so a small widget draws a small, complete chart instead of
+ * stretching its card. Colors come from the widget's palette - one per
+ * category value or per series - and a third field (series_meta) draws as
+ * a texture inside each series color. Marks grow in and glide to values.
  */
 
-const common_margin = { top: 18, right: 18, left: 0, bottom: 5 };
-const horizontal_margin = { top: 12, right: 44, left: 0, bottom: 5 };
-// Marks grow in only on their first appearance; a silent refresh keeps
-// them in place and just moves them to their new values.
 const animation = (animate) => ({ isAnimationActive: animate !== false, animationDuration: 700, animationEasing: "ease-out" });
 
 const show_value = (value) => (value ? value : "");
 const clicked_row = (entry) => (entry && entry.payload ? entry.payload : entry);
 const labels_of = (rows) => rows.map((row) => row.label);
+const values_of = (rows) => rows.map((row) => row.value || 0);
 const value_cells = (rows, palette) => rows.map((row, index) => <Cell key={`${row.label}-${index}`} fill={palette.color_for(row.label, index)} />);
+// Room above a column for the value written on top of it, and beside a bar
+// for the value written after it.
+const top_room = (density) => (density.show_values ? density.value_font + 12 : 10);
+const right_room = (density, values) => (density.show_values ? number_room(values, density.value_font) + 10 : 12);
 
-/** A value written on a mark, left out entirely when the card is too narrow. */
+/**
+ * How wide a category axis may grow: normally under half the card, but
+ * never so narrow that the longest single word of a label has to be
+ * broken - a name like "Nyarugenge" is shown whole or not at all.
+ */
+function category_axis_cap(labels, density) {
+  const widest = labels.reduce((best, label) => Math.max(best, widest_word(label, density.font)), 0);
+  const comfortable = Math.min(density.y_max, density.width * 0.45);
+  return Math.min(Math.max(comfortable, Math.ceil(widest) + 18), Math.max(80, density.width * 0.62));
+}
+
+/** The text room one category gets under an X axis. */
+const category_room = (count, plot_width) => Math.max(28, plot_width / Math.max(1, count) - 6);
+
+/** A value written on a mark, left out entirely when the card is too narrow to read one. */
 function ValueLabels({ density, palette, dataKey, position, formatter, size }) {
   if (!density.show_values) return null;
   return <LabelList dataKey={dataKey} position={position} formatter={formatter || show_value} style={value_style(palette, density, size)} />;
@@ -38,14 +57,17 @@ function ValueLabels({ density, palette, dataKey, position, formatter, size }) {
 
 function HorizontalBars({ rows, onItemClick, palette, animate, density }) {
   const labels = labels_of(rows);
-  const width = y_axis_width(labels, density.y_max);
-  const height = Math.max(density.height, rows.length * bar_row_height(labels, density.y_max, density.row_base));
+  const cap = category_axis_cap(labels, density);
+  const width = y_axis_width(labels, cap, density.font);
+  const room = y_label_room(width);
+  const height = Math.max(density.height, rows.length * bar_row_height(labels, room, density.row_base, density.font));
+  const margin = { top: 10, right: right_room(density, values_of(rows)), left: 0, bottom: 5 };
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} layout="vertical" margin={density.show_values ? horizontal_margin : common_margin}>
+      <BarChart data={rows} layout="vertical" margin={margin}>
         <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} horizontal={false} />
-        <XAxis type="number" tick={tick_style(palette, density)} allowDecimals={false} stroke={palette.grid} />
-        <YAxis type="category" dataKey="label" width={width} interval={0} stroke={palette.grid} tick={wrapped_tick(palette, chars_for_width(width), "end", density.font)} />
+        <XAxis type="number" tick={tick_style(palette, density)} allowDecimals={false} stroke={palette.grid} height={density.font * 2} />
+        <YAxis type="category" dataKey="label" width={width} interval={0} stroke={palette.grid} tick={wrapped_tick(palette, room, "end", density.font)} />
         <Tooltip contentStyle={palette.tooltip} />
         <Bar dataKey="value" {...animation(animate)} maxBarSize={density.bar} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
           {value_cells(rows, palette)}
@@ -56,36 +78,42 @@ function HorizontalBars({ rows, onItemClick, palette, animate, density }) {
   );
 }
 
-function VerticalColumns({ rows, onItemClick, palette, animate, density }) {
+/** Columns and the lollipop / dot variations - one mark per category. */
+function VerticalMarks({ rows, onItemClick, palette, animate, density, shape }) {
   const labels = labels_of(rows);
-  const axis_height = x_axis_height(labels, density.x_chars);
-  return (
-    <ResponsiveContainer width="100%" height={density.height + axis_height - 30}>
-      <BarChart data={rows} margin={common_margin}>
-        <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
-        <XAxis dataKey="label" interval={0} height={axis_height} stroke={palette.grid} tick={wrapped_tick(palette, density.x_chars, "middle", density.font)} />
-        <YAxis tick={tick_style(palette, density)} allowDecimals={false} stroke={palette.grid} width={density.font * 3} />
-        <Tooltip contentStyle={palette.tooltip} />
-        <Bar dataKey="value" {...animation(animate)} maxBarSize={density.column_bar} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
-          {value_cells(rows, palette)}
-          <ValueLabels density={density} palette={palette} dataKey="value" position="top" />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+  const values = values_of(rows);
+  const y_width = value_axis_width(values, density.font);
+  const margin = { top: top_room(density), right: 14, left: 0, bottom: 5 };
+  const plot_width = Math.max(80, density.width - y_width - margin.right - 8);
+  const x_room = category_room(rows.length, plot_width);
+  const axis_height = x_axis_height(labels, x_room, density.font);
+  const height = density.height + axis_height - 30;
+  const axes = (
+    <>
+      <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
+      <XAxis dataKey="label" interval={0} height={axis_height} stroke={palette.grid} tick={wrapped_tick(palette, x_room, "middle", density.font)} />
+      <YAxis tick={tick_style(palette, density)} allowDecimals={false} stroke={palette.grid} width={y_width} />
+      <Tooltip contentStyle={palette.tooltip} />
+    </>
   );
-}
-
-/** Lollipop: a hair-thin stick with a dot on top; the dot plot keeps only the dot. */
-function LollipopOrDots({ rows, with_stick, palette, animate, density }) {
-  const axis_height = x_axis_height(labels_of(rows), density.x_chars);
+  if (shape === "column") {
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={rows} margin={margin}>
+          {axes}
+          <Bar dataKey="value" {...animation(animate)} maxBarSize={density.column_bar} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
+            {value_cells(rows, palette)}
+            <ValueLabels density={density} palette={palette} dataKey="value" position="top" />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
   return (
-    <ResponsiveContainer width="100%" height={density.height + axis_height - 30}>
-      <ComposedChart data={rows} margin={common_margin}>
-        <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
-        <XAxis dataKey="label" interval={0} height={axis_height} stroke={palette.grid} tick={wrapped_tick(palette, density.x_chars, "middle", density.font)} />
-        <YAxis tick={tick_style(palette, density)} allowDecimals={false} stroke={palette.grid} width={density.font * 3} />
-        <Tooltip contentStyle={palette.tooltip} />
-        {with_stick && (
+    <ResponsiveContainer width="100%" height={height}>
+      <ComposedChart data={rows} margin={margin}>
+        {axes}
+        {shape === "lollipop" && (
           <Bar dataKey="value" barSize={3} {...animation(animate)}>
             {value_cells(rows, palette)}
           </Bar>
@@ -109,10 +137,11 @@ function LollipopOrDots({ rows, with_stick, palette, animate, density }) {
 function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, labels, animate, density }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const display = series_display(series, seriesMeta, palette);
+  const row_total = (row) => series.reduce((sum, key) => sum + (row[key] || 0), 0);
   const data =
     mode === "stacked_100"
       ? rows.map((row) => {
-          const total = series.reduce((sum, key) => sum + (row[key] || 0), 0) || 1;
+          const total = row_total(row) || 1;
           const scaled = { label: row.label };
           series.forEach((key) => {
             scaled[key] = Math.round(((row[key] || 0) / total) * 1000) / 10;
@@ -126,28 +155,36 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
     totals[key] = rows.reduce((sum, row) => sum + (row[key] || 0), 0);
   });
   const row_labels = labels_of(rows);
-  const y_width = y_axis_width(row_labels, density.y_max);
-  const axis_height = x_axis_height(row_labels, density.x_chars);
+  // The biggest number any axis or label will have to print.
+  const peak = mode === "stacked_100" ? [100] : rows.map((row) => (stacked ? row_total(row) : Math.max(0, ...series.map((key) => row[key] || 0))));
+  const segment_font = Math.max(8, density.value_font - 1);
+  const y_width = horizontal ? y_axis_width(row_labels, category_axis_cap(row_labels, density), density.font) : value_axis_width(peak, density.font);
+  const y_room = y_label_room(y_width);
+  const margin = horizontal
+    ? { top: 10, right: right_room(density, peak), left: 0, bottom: 5 }
+    : { top: top_room(density), right: 14, left: 0, bottom: 5 };
+  const plot_width = Math.max(80, density.width - y_width - margin.right - 8);
+  const x_room = category_room(rows.length, plot_width);
+  const axis_height = x_axis_height(row_labels, x_room, density.font);
   const height = horizontal
-    ? Math.max(density.height, rows.length * bar_row_height(row_labels, density.y_max, stacked ? density.row_base + 2 : Math.max(density.row_base - 8, series.length * (density.font + 7))))
+    ? Math.max(density.height, rows.length * bar_row_height(row_labels, y_room, stacked ? density.row_base + 2 : Math.max(density.row_base - 8, series.length * (density.font + 7)), density.font))
     : density.height + axis_height - 30;
   const split_colors = display.splits.map((split, index) => palette.color_for(split, index));
-  const segment_font = Math.max(8, density.value_font - 1);
 
   const chart = (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} layout={horizontal ? "vertical" : "horizontal"} margin={horizontal && density.show_values ? horizontal_margin : common_margin}>
+      <BarChart data={data} layout={horizontal ? "vertical" : "horizontal"} margin={margin}>
         <PatternDefs uid={uid} colors={split_colors} patternCount={display.patterns.length} />
         <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={horizontal} horizontal={!horizontal} />
         {horizontal ? (
           <>
-            <XAxis type="number" tick={tick_style(palette, density)} allowDecimals={mode === "stacked_100"} unit={mode === "stacked_100" ? "%" : undefined} stroke={palette.grid} />
-            <YAxis type="category" dataKey="label" width={y_width} interval={0} stroke={palette.grid} tick={wrapped_tick(palette, chars_for_width(y_width), "end", density.font)} />
+            <XAxis type="number" tick={tick_style(palette, density)} allowDecimals={mode === "stacked_100"} unit={mode === "stacked_100" ? "%" : undefined} stroke={palette.grid} height={density.font * 2} />
+            <YAxis type="category" dataKey="label" width={y_width} interval={0} stroke={palette.grid} tick={wrapped_tick(palette, y_room, "end", density.font)} />
           </>
         ) : (
           <>
-            <XAxis dataKey="label" interval={0} height={axis_height} stroke={palette.grid} tick={wrapped_tick(palette, density.x_chars, "middle", density.font)} />
-            <YAxis tick={tick_style(palette, density)} allowDecimals={mode === "stacked_100"} unit={mode === "stacked_100" ? "%" : undefined} stroke={palette.grid} width={density.font * 3.5} />
+            <XAxis dataKey="label" interval={0} height={axis_height} stroke={palette.grid} tick={wrapped_tick(palette, x_room, "middle", density.font)} />
+            <YAxis tick={tick_style(palette, density)} allowDecimals={mode === "stacked_100"} unit={mode === "stacked_100" ? "%" : undefined} stroke={palette.grid} width={y_width} />
           </>
         )}
         <Tooltip contentStyle={palette.tooltip} formatter={(value, name) => [value, display.items.find((item) => item.key === name)?.label || name]} />
@@ -157,10 +194,10 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
               (stacked ? (
                 <LabelList dataKey={item.key} position="center" formatter={(value) => (value ? (mode === "stacked_100" ? `${value}%` : value) : "")} style={{ fontSize: segment_font, fontWeight: 600, fill: "#FFFFFF" }} />
               ) : (
-                <LabelList dataKey={item.key} position={horizontal ? "right" : "top"} formatter={(value) => (value ? value : "")} style={value_style(palette, density, segment_font)} />
+                <LabelList dataKey={item.key} position={horizontal ? "right" : "top"} formatter={show_value} style={value_style(palette, density, segment_font)} />
               ))}
             {mode === "stacked" && density.show_values && index === display.items.length - 1 && (
-              <LabelList dataKey={(entry) => series.reduce((sum, key) => sum + (entry[key] || 0), 0)} position={horizontal ? "right" : "top"} formatter={show_value} style={value_style(palette, density)} />
+              <LabelList dataKey={(entry) => row_total(entry)} position={horizontal ? "right" : "top"} formatter={show_value} style={value_style(palette, density)} />
             )}
           </Bar>
         ))}
@@ -189,10 +226,9 @@ export default function CategoryCharts({ chartType, rows, series, seriesMeta, on
   const size = density || chart_density();
   const shared = { rows, palette: colors, animate, density: size };
   if (chartType === "bar") return <HorizontalBars {...shared} onItemClick={onItemClick} />;
-  if (chartType === "column") return <VerticalColumns {...shared} onItemClick={onItemClick} />;
-  if (chartType === "lollipop") return <LollipopOrDots {...shared} with_stick />;
-  if (chartType === "dot_plot") return <LollipopOrDots {...shared} with_stick={false} />;
+  if (chartType === "lollipop") return <VerticalMarks {...shared} shape="lollipop" />;
+  if (chartType === "dot_plot") return <VerticalMarks {...shared} shape="dots" />;
   const multi = MULTI_SERIES_TYPES[chartType];
   if (multi) return <SeriesColumns {...shared} series={series} seriesMeta={seriesMeta} mode={multi.mode} horizontal={multi.horizontal} labels={legendLabels} />;
-  return <VerticalColumns {...shared} onItemClick={onItemClick} />;
+  return <VerticalMarks {...shared} shape="column" onItemClick={onItemClick} />;
 }
