@@ -19,7 +19,7 @@ const OTHER_KEY = "__other__";
  * expander line under the chart) swaps the card to a bar view of everything
  * folded inside it, with a way back.
  */
-export default function WidgetChart({ widget, data, fitMode }) {
+export default function WidgetChart({ widget, data, fitMode, animate }) {
   const { translate } = useDcsLanguage();
   const [show_other, setShowOther] = useState(false);
   const board = useBoardTheme();
@@ -61,13 +61,13 @@ export default function WidgetChart({ widget, data, fitMode }) {
     );
   }
   if (data.kind === "point") {
-    return <PointCharts chartType={widget.chart_type} points={data.points} xLabel="x" yLabel="y" palette={palette} />;
+    return <PointCharts chartType={widget.chart_type} points={data.points} xLabel="x" yLabel="y" palette={palette} animate={animate} />;
   }
   if (data.kind === "tree") {
-    return <TreemapChart nodes={data.nodes} palette={palette} />;
+    return <TreemapChart nodes={data.nodes} palette={palette} animate={animate} />;
   }
   if (data.kind === "time") {
-    return <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} />;
+    return <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} animate={animate} />;
   }
 
   const toggle_link = (label_key, next_state, vars) => (
@@ -98,9 +98,9 @@ export default function WidgetChart({ widget, data, fitMode }) {
     // A category chart flipped into a line/area look: the categories run
     // along the X axis (with one line per split value when the data is
     // split) - same rows/series shape the time renderer already draws.
-    chart = <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} />;
+    chart = <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} animate={animate} />;
   } else if (widget.chart_type === "pie" || widget.chart_type === "donut") {
-    chart = <PieCharts chartType={widget.chart_type} rows={rows} totalLabel={translate("DCS_DB_TOTAL")} onItemClick={handle_item_click} palette={palette} />;
+    chart = <PieCharts chartType={widget.chart_type} rows={rows} totalLabel={translate("DCS_DB_TOTAL")} onItemClick={handle_item_click} palette={palette} animate={animate} />;
   } else if (widget.chart_type === "waffle") {
     chart = <WaffleChart rows={rows} palette={palette} />;
   } else if (widget.chart_type === "heatmap") {
@@ -114,6 +114,7 @@ export default function WidgetChart({ widget, data, fitMode }) {
         seriesMeta={data.series_meta}
         onItemClick={handle_item_click}
         palette={palette}
+        animate={animate}
         legendLabels={{ split: translate("DCS_DB_LEGEND_COLORS"), pattern: translate("DCS_DB_LEGEND_TEXTURES") }}
       />
     );

@@ -22,6 +22,26 @@ module.exports = {
   PROJECT_FETCHED: "Project fetched successfully",
   PROJECT_OWNER_TRANSFERRED: "Project ownership transferred successfully",
   DASHBOARD_FETCHED: "Dashboard fetched successfully",
+
+  DASHBOARD_LINKS_FETCHED: "Share links fetched successfully",
+
+  DASHBOARD_LINK_CREATED: "Share link created successfully",
+
+  DASHBOARD_LINK_UPDATED: "Share link updated successfully",
+
+  DASHBOARD_LINK_DELETED: "Share link deleted successfully",
+
+  DASHBOARD_LINK_NOT_FOUND: "This dashboard link does not exist or was removed",
+
+  DASHBOARD_LINK_EXPIRED: "This dashboard link has expired",
+
+  DASHBOARD_LINK_TITLE_REQUIRED: "A link title is required (max 120 characters)",
+
+  DASHBOARD_LINK_DESCRIPTION_TOO_LONG: "The link description must stay under 300 characters",
+
+  DASHBOARD_LINK_EXPIRY_INVALID: "The expiry date is not valid",
+
+  DASHBOARD_LINK_EXPIRY_PAST: "The expiry date must be in the future",
   DASHBOARD_SAVED: "Dashboard saved successfully",
   DASHBOARD_DATA_FETCHED: "Dashboard data fetched successfully",
   DASHBOARD_INVALID: "The dashboard configuration is not valid",

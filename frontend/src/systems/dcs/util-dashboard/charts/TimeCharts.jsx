@@ -8,7 +8,7 @@ import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
 const common_margin = { top: 20, right: 20, left: 0, bottom: 5 };
 const MIN_POINT_WIDTH_PX = 44;
 const X_LABEL_CHARS = 14;
-const ANIMATION = { isAnimationActive: true, animationDuration: 700, animationEasing: "ease-out" };
+const animation = (animate) => ({ isAnimationActive: animate !== false, animationDuration: 700, animationEasing: "ease-out" });
 
 const show_value = (value) => (value ? value : "");
 
@@ -20,7 +20,7 @@ const show_value = (value) => (value ? value : "");
  * series draws in the widget's number color, split series in their own
  * value colors with the shared row legend placed by the appearance.
  */
-export default function TimeCharts({ chartType, rows, series, fitMode, palette }) {
+export default function TimeCharts({ chartType, rows, series, fitMode, palette, animate }) {
   const colors = palette || build_palette(null);
   const tick_interval = fitMode ? "preserveStartEnd" : 0;
   const accent = colors.accent;
@@ -33,7 +33,7 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette }
         <XAxis dataKey="label" interval={tick_interval} height={axis_height} stroke={colors.grid} tick={wrapped_tick(colors, X_LABEL_CHARS, "middle")} />
         <YAxis tick={colors.tick} allowDecimals={false} stroke={colors.grid} />
         <Tooltip contentStyle={colors.tooltip} />
-        <Area type="monotone" dataKey="value" stroke={accent} fill={accent} fillOpacity={0.18} strokeWidth={2.5} {...ANIMATION}>
+        <Area type="monotone" dataKey="value" stroke={accent} fill={accent} fillOpacity={0.18} strokeWidth={2.5} {...animation(animate)}>
           <LabelList dataKey="value" position="top" formatter={show_value} style={{ fontSize: 11, fontWeight: 600, fill: accent }} />
         </Area>
       </AreaChart>
@@ -47,13 +47,13 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette }
           series.map((key, index) => {
             const color = colors.color_for(key, index);
             return (
-              <Line key={key} type="monotone" dataKey={key} stroke={color} strokeWidth={2.5} dot={{ r: 2.5, fill: color }} {...ANIMATION}>
+              <Line key={key} type="monotone" dataKey={key} stroke={color} strokeWidth={2.5} dot={{ r: 2.5, fill: color }} {...animation(animate)}>
                 <LabelList dataKey={key} position="top" formatter={show_value} style={{ fontSize: 10, fontWeight: 600, fill: color }} />
               </Line>
             );
           })
         ) : (
-          <Line type="monotone" dataKey="value" stroke={accent} strokeWidth={2.5} dot={{ r: 2.5, fill: accent }} {...ANIMATION}>
+          <Line type="monotone" dataKey="value" stroke={accent} strokeWidth={2.5} dot={{ r: 2.5, fill: accent }} {...animation(animate)}>
             <LabelList dataKey="value" position="top" formatter={show_value} style={{ fontSize: 11, fontWeight: 600, fill: accent }} />
           </Line>
         )}

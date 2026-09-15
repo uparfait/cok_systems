@@ -4,6 +4,7 @@ const get_dashboard = require("./controllers/get_dashboard.js");
 const save_dashboard = require("./controllers/save_dashboard.js");
 const dashboard_data = require("./controllers/dashboard_data.js");
 const kpi_skipped = require("./controllers/kpi_skipped.js");
+const { list_dashboard_links, create_dashboard_link, update_dashboard_link, delete_dashboard_link } = require("./controllers/dashboard_links.js");
 
 /**
  * @swagger
@@ -60,5 +61,39 @@ Router.post("/:form_group_id/dashboard/data", dashboard_data);
  *         description: Skipped entries fetched successfully
  */
 Router.post("/:form_group_id/dashboard/kpi-skipped", kpi_skipped);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/dashboard/links:
+ *   get:
+ *     summary: List the form dashboard's public share links (form editors only)
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ *   post:
+ *     summary: Create a public share link (title, description, optional expiry) for the form's dashboard
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ */
+Router.get("/:form_group_id/dashboard/links", list_dashboard_links);
+Router.post("/:form_group_id/dashboard/links", create_dashboard_link);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/dashboard/links/{link_id}:
+ *   patch:
+ *     summary: Edit a share link's title, description or expiry
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ *   delete:
+ *     summary: Delete a share link - the public page stops opening at once
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ */
+Router.patch("/:form_group_id/dashboard/links/:link_id", update_dashboard_link);
+Router.delete("/:form_group_id/dashboard/links/:link_id", delete_dashboard_link);
 
 module.exports = Router;

@@ -1,8 +1,5 @@
 const { load_form_dashboard_context } = require("../form_context.js");
-const { sanitize_widgets, sanitize_period_override } = require("../sanitize.js");
-const { validate_dashboard } = require("../widget_validation.js");
-const { compute_widget_data } = require("../widget_data.js");
-const { LIMITS } = require("../constants.js");
+const { compute_dashboard_results } = require("../compute_results.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -12,7 +9,8 @@ const { success_response, warning_response, error_response } = require("../../ut
  * data included, same as the submissions chart), and every widget is pinned
  * to this form no matter what the payload claims. A broken widget comes
  * back as a per-widget error so one bad chart never takes the whole
- * dashboard down.
+ * dashboard down. The computation itself lives in compute_results.js,
+ * shared with the public share-link endpoint.
  */
 async function dashboard_data(req, res) {
   try {
@@ -30,28 +28,7 @@ async function dashboard_data(req, res) {
       return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     }
 
-    const body = req.body || {};
-    const widgets = sanitize_widgets(body.widgets)
-      .slice(0, LIMITS.MAX_WIDGETS)
-      .map((widget) => Object.assign(widget, { form_group_id }));
-    const period_override = sanitize_period_override(body.period);
-    const form_versions = new Map([[form_group_id, context.form_version]]);
-
-    const results = [];
-    for (const widget of widgets) {
-      const check = validate_dashboard([widget], form_versions, context.project._id);
-      if (!check.valid) {
-        results.push({ widget_id: widget.id, error: "INVALID", messages: check.errors });
-        continue;
-      }
-      try {
-        const data = await compute_widget_data(widget, context.form_version, period_override);
-        results.push(Object.assign({ widget_id: widget.id }, data));
-      } catch (widget_error) {
-        results.push({ widget_id: widget.id, error: "FAILED", messages: [widget_error.message] });
-      }
-    }
-
+    const results = await compute_dashboard_results(req.body || {}, form_group_id, context.form_version, context.project._id);
     return res.status(200).json(success_response(req, "DASHBOARD_DATA_FETCHED", { results }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));

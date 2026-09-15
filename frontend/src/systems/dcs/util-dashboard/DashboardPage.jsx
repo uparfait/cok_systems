@@ -4,7 +4,8 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_dashboard, save_dashboard, get_dashboard_data, request_error_text } from "./dashboardService.js";
 import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
-import { fold_family, widgets_data_signature } from "./chartCatalog.js";
+import { useBoardData } from "./useBoardData.js";
+import { fold_family } from "./chartCatalog.js";
 import BoardHeader from "./BoardHeader.jsx";
 import GeneratedWidgetsReview from "./GeneratedWidgetsReview.jsx";
 import DashboardBuilder from "./builder/DashboardBuilder.jsx";
@@ -15,26 +16,19 @@ import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import BoardWithSelection from "./selection/BoardWithSelection.jsx";
 import DashboardCodeOverlay, { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
+import ShareLinksDialog from "./share/ShareLinksDialog.jsx";
 import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
-
-const REFRESH_INTERVAL_MS = 30000;
 
 // CSS zoom keeps text crisp when fitting the board; transform is the fallback.
 const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "2");
 
 /**
- * The form's dashboard, fully automatic: every widget was generated from
- * the form's own fields, so there is nothing to configure - the page only
- * views (live data, silently refreshed every 30 seconds, with a
- * dashboard-wide period filter). Users allowed to edit the form can
- * regenerate the dashboard - choosing between "generate and update" (only
- * widgets that do not exist yet are added, everything kept stays untouched)
- * and "overwrite" (a fresh board replaces the current one) - or delete it.
- * A regeneration NEVER shows data right away: the result opens in the
- * review list where widgets can be deleted (one by one, or every widget of
- * a field at once) and retitled first, and while that review is open NO
- * widget fetches or refreshes anything - fetching resumes only once the
- * review is finished or canceled.
+ * The form's dashboard: live data (silently refreshed every 30 seconds,
+ * with a dashboard-wide period filter - see useBoardData), and for users
+ * allowed to edit the form: the builder, per-card edits, the selection
+ * mode, the Ctrl+6 code tools, public share links and deletion. A
+ * regeneration NEVER shows data right away: the result opens in the review
+ * list first, and while that review is open NO widget fetches anything.
  */
 export default function DashboardPage({ form }) {
   return (
@@ -58,12 +52,12 @@ function DashboardBoard({ form }) {
   const [confirming, setConfirming] = useState(null);
   // The builder overlay's open tab ("kpi" | "charts" | "diagrams"), null while closed.
   const [builder_tab, setBuilderTab] = useState(null);
-  // The Ctrl+6 code tools overlay (copy rules / paste a dashboard).
+  // The Ctrl+6 code tools overlay and the share links dialog.
   const [code_open, setCodeOpen] = useState(false);
+  const [share_open, setShareOpen] = useState(false);
   // While review_widgets is set the board is FROZEN behind the review list:
   // the grid is not rendered and no widget may fetch or refresh data.
-  // review_focus narrows the review to just-added widgets (a manual KPI's
-  // card and breakdowns); null reviews the whole board.
+  // review_focus narrows the review to just-added widgets; null reviews all.
   const [review_widgets, setReviewWidgets] = useState(null);
   const [review_focus, setReviewFocus] = useState(null);
   const [skipped_widget, setSkippedWidget] = useState(null);
@@ -72,39 +66,23 @@ function DashboardBoard({ form }) {
   const [appearance_widget, setAppearanceWidget] = useState(null);
   const form_fields = useMemo(() => builder_fields(form.schema), [form.schema]);
 
-  const [data_by_widget, setDataByWidget] = useState({});
-  const [data_loading, setDataLoading] = useState(false);
-  // The dashboard opens on the current year by default - "all" stays one
-  // click away in the period filter.
-  const [period, setPeriod] = useState("this_year");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-
-  const run_seq_ref = useRef(0);
-  const applied_period_ref = useRef({ preset: "this_year", from: null, to: null });
-  const widgets_ref = useRef([]);
-  widgets_ref.current = widgets;
   const frozen_ref = useRef(false);
-  frozen_ref.current = generating || review_widgets !== null || builder_tab !== null || code_open;
+  frozen_ref.current = generating || review_widgets !== null || builder_tab !== null || code_open || share_open;
   useDashboardCodeShortcut(can_edit && !loading && !generating && review_widgets === null && builder_tab === null, () => setCodeOpen(true));
+
+  const data = useBoardData({
+    scope_key: form.form_group_id,
+    widgets,
+    loading,
+    blocked: review_widgets !== null,
+    frozen_ref,
+    fetch_batch: (batch, period) => get_dashboard_data(form.form_group_id, batch, period),
+  });
 
   // Browser-native full screen with two viewing modes ("fit" zooms the whole
   // board onto one screen, "scroll" keeps natural size), the self-fitting
   // zoom and the hover-driven fixed header all live in the hook.
-  const {
-    container_ref,
-    grid_ref,
-    is_fullscreen,
-    is_fallback,
-    enter,
-    exit,
-    fs_mode,
-    setFsMode,
-    fit_scale,
-    header_visible,
-    show_header,
-    schedule_header_hide,
-  } = useBoardFullscreen();
+  const { container_ref, grid_ref, is_fullscreen, is_fallback, enter, exit, fs_mode, setFsMode, fit_scale, header_visible, show_header, schedule_header_hide } = useBoardFullscreen();
 
   useEffect(() => {
     let is_mounted = true;
@@ -123,105 +101,21 @@ function DashboardBoard({ form }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.form_group_id]);
 
-  // Every widget fetches IN PARALLEL - one request per widget, all fired at
-  // once, each card rendering the moment its own data lands. One widget's
-  // failure never blocks any other, and a request that drags past three
-  // minutes is cut off and its card marked red - such a widget likely causes
-  // errors or heavy computation and should be removed.
-  const WIDGET_TIMEOUT_MS = 180000;
-  const data_ref = useRef({});
-  data_ref.current = data_by_widget;
-
-  const fetch_one = (widget, applied_period, run_id, silent) =>
-    Promise.race([
-      get_dashboard_data(form.form_group_id, [widget], applied_period),
-      new Promise((resolve, reject) => setTimeout(() => reject(new Error("TIMEOUT")), WIDGET_TIMEOUT_MS)),
-    ])
-      .then((response) => {
-        if (run_seq_ref.current !== run_id) return;
-        const result = ((response.data && response.data.results) || [])[0];
-        if (result) setDataByWidget((current) => ({ ...current, [widget.id]: result }));
-      })
-      .catch((error) => {
-        if (run_seq_ref.current !== run_id) return;
-        // A silent refresh keeps whatever the card already shows; a
-        // user-driven load marks just this card, never the others.
-        if (!silent) {
-          const code = error && error.message === "TIMEOUT" ? "TIMEOUT" : "FAILED";
-          setDataByWidget((current) => ({ ...current, [widget.id]: { widget_id: widget.id, error: code } }));
-        }
-      });
-
-  const fetch_data = (widget_list, applied_period, silent) => {
-    if (!widget_list || widget_list.length === 0) {
-      setDataByWidget({});
-      return;
-    }
-    // A silent update only ever starts once EVERY widget already has its
-    // data - while the first load is still filling the board, it skips.
-    if (silent && widget_list.some((widget) => !data_ref.current[widget.id])) return;
-    const run_id = run_seq_ref.current + 1;
-    run_seq_ref.current = run_id;
-    applied_period_ref.current = applied_period;
-    if (!silent) {
-      setDataByWidget({});
-      setDataLoading(true);
-    }
-    Promise.allSettled(widget_list.map((widget) => fetch_one(widget, applied_period, run_id, silent))).then(() => {
-      if (run_seq_ref.current === run_id && !silent) setDataLoading(false);
-    });
-  };
-
-  // Retrying one failed card refetches ONLY that card - never the whole
-  // board. The result is dropped if a newer full run started meanwhile.
-  const retry_widget = (widget) => {
-    const run_id = run_seq_ref.current;
-    setDataByWidget((current) => {
-      const next = { ...current };
-      delete next[widget.id];
-      return next;
-    });
-    fetch_one(widget, applied_period_ref.current, run_id, false);
-  };
-
-  // Text edits (title/description) also update the widgets state - only a
-  // change to what a widget actually CHARTS refetches its data. Removing a
-  // widget updates the signature by hand so the survivors never refetch,
-  // and same-family look flips (see fold_family) never refetch at all.
-  // While the post-regeneration review is open NOTHING fetches: the effect
-  // re-runs the moment the review closes and only then compares signatures,
-  // so the regenerated board loads exactly once, after the user is done.
-  const data_signature_ref = useRef("");
-  useEffect(() => {
-    if (loading || review_widgets !== null) return;
-    const signature = widgets_data_signature(widgets);
-    if (signature === data_signature_ref.current) return;
-    data_signature_ref.current = signature;
-    fetch_data(widgets, applied_period_ref.current, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, widgets, review_widgets]);
-
-  // The generated board is deliberately large (every field categorized by
-  // every other) - each card can be removed on its own, after a warning.
+  // The generated board is deliberately large - each card can be removed on
+  // its own, after a warning. Removing never refetches the survivors.
   const [widget_to_remove, setWidgetToRemove] = useState(null);
   const [removing, setRemoving] = useState(false);
   const handle_remove_widget = async () => {
     const target = widget_to_remove;
     if (!target) return;
-    const next_widgets = widgets
-      .filter((widget) => widget.id !== target.id)
-      .map((widget, index) => ({ ...widget, position: index }));
+    const next_widgets = widgets.filter((widget) => widget.id !== target.id).map((widget, index) => ({ ...widget, position: index }));
     setRemoving(true);
     try {
       const saved = await save_dashboard(form.form_group_id, next_widgets);
       const final_widgets = (saved.data && saved.data.widgets) || next_widgets;
-      data_signature_ref.current = widgets_data_signature(final_widgets);
+      data.settle(final_widgets);
       setWidgets(final_widgets);
-      setDataByWidget((current) => {
-        const next = { ...current };
-        delete next[target.id];
-        return next;
-      });
+      data.keep_only(final_widgets);
       showSuccess(translate("DCS_DB_WIDGET_REMOVED"));
     } catch (error) {
       showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
@@ -231,8 +125,10 @@ function DashboardBoard({ form }) {
     }
   };
 
-  // Click-to-edit on a card's title/description: the change is saved into
-  // the form's dashboard right away, with a per-card spinner and a toast.
+  // Click-to-edit on a card (title, description, look, size, icon, colors):
+  // saved right away with a per-card spinner. Only a switch that changes
+  // the data's folding family (donut to bar, for example) refreshes THAT
+  // one card; nothing else refetches.
   const [saving_widget_id, setSavingWidgetId] = useState(null);
   const handle_update_widget = async (widget_id, changes) => {
     const previous = widgets.find((widget) => widget.id === widget_id);
@@ -241,14 +137,11 @@ function DashboardBoard({ form }) {
     try {
       const saved = await save_dashboard(form.form_group_id, next_widgets);
       const final_widgets = (saved.data && saved.data.widgets) || next_widgets;
-      // The signature is settled by hand so the board never refetches as a
-      // whole; only a switch that changes the data's folding family (donut
-      // to bar, for example) refreshes THAT one card.
-      data_signature_ref.current = widgets_data_signature(final_widgets);
+      data.settle(final_widgets);
       setWidgets(final_widgets);
       if (changes.chart_type && previous && fold_family(changes.chart_type) !== fold_family(previous.chart_type)) {
         const updated = final_widgets.find((widget) => widget.id === widget_id);
-        if (updated) retry_widget(updated);
+        if (updated) data.retry_widget(updated);
       }
       showSuccess(translate("DCS_DB_WIDGET_UPDATED"));
     } catch (error) {
@@ -258,38 +151,6 @@ function DashboardBoard({ form }) {
     }
   };
 
-  useEffect(() => {
-    const interval_id = window.setInterval(() => {
-      // A regeneration in progress or under review freezes the board - the
-      // silent refresh sits out until the review is finished or canceled.
-      if (frozen_ref.current) return;
-      fetch_data(widgets_ref.current, applied_period_ref.current, true);
-    }, REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(interval_id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.form_group_id]);
-
-  // The custom popup hands the picked dates directly - state updates are
-  // asynchronous, so reading from/to here would apply the PREVIOUS range.
-  const handle_period_apply = (applied_from, applied_to) => {
-    const next_from = typeof applied_from === "string" ? applied_from : from;
-    const next_to = typeof applied_to === "string" ? applied_to : to;
-    if (period === "custom" && !next_from) return;
-    const applied = period === "all" ? null : { preset: period, from: next_from || null, to: next_to || null };
-    fetch_data(widgets, applied, false);
-  };
-
-  useEffect(() => {
-    if (loading || frozen_ref.current) return;
-    if (period !== "custom") {
-      setFrom("");
-      setTo("");
-      const applied = period === "all" ? null : { preset: period, from: null, to: null };
-      fetch_data(widgets, applied, false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period]);
-
   // The automatic generation, still reachable from the builder's footer:
   // "overwrite" replaces the whole board, and the fresh board opens in the
   // review list (no data loads there) instead of fetching right away.
@@ -298,18 +159,12 @@ function DashboardBoard({ form }) {
     setGenerating(true);
     setProgress({ percent: 5, message_key: "DCS_DB_GEN_PROGRESS_ANALYZE" });
     try {
-      const result = await regenerate_and_save(form, translate, mode, widgets, (percent, message_key) =>
-        setProgress({ percent, message_key }),
-      );
+      const result = await regenerate_and_save(form, translate, mode, widgets, (percent, message_key) => setProgress({ percent, message_key }));
       setWidgets(result.widgets);
       setReviewFocus(null);
       setReviewWidgets(result.widgets);
       if (mode === "update") {
-        showSuccess(
-          result.added > 0
-            ? translate("DCS_DB_REGEN_UPDATED_TOAST", { count: result.added })
-            : translate("DCS_DB_REGEN_NO_NEW_TOAST"),
-        );
+        showSuccess(result.added > 0 ? translate("DCS_DB_REGEN_UPDATED_TOAST", { count: result.added }) : translate("DCS_DB_REGEN_NO_NEW_TOAST"));
       } else {
         showSuccess(translate("DCS_DB_GENERATED_TOAST", { count: result.widgets.length }));
       }
@@ -327,19 +182,12 @@ function DashboardBoard({ form }) {
     setReviewFocus(null);
   };
 
-  // The builder saved the dashboard (drafts appended or replacing the
-  // board): the new widget list loads through the signature effect.
-  const handle_built = (final_widgets) => {
-    setBuilderTab(null);
-    setWidgets(final_widgets);
-  };
-
   const handle_delete = async () => {
     setDeleting(true);
     try {
       await save_dashboard(form.form_group_id, []);
       setWidgets([]);
-      setDataByWidget({});
+      data.clear();
       showSuccess(translate("DCS_DB_DELETED_TOAST"));
     } catch (error) {
       showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
@@ -355,11 +203,7 @@ function DashboardBoard({ form }) {
     <div
       ref={container_ref}
       className={`dcs-board-root dcs-board-no-select relative select-none ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "pb-16 space-y-4"}`}
-      style={
-        is_fullscreen
-          ? { backgroundColor: "var(--board-bg, #F4F7F9)", width: "100%", height: "100%", overflowY: fs_mode === "fit" ? "hidden" : "auto" }
-          : undefined
-      }
+      style={is_fullscreen ? { backgroundColor: "var(--board-bg, #F4F7F9)", width: "100%", height: "100%", overflowY: fs_mode === "fit" ? "hidden" : "auto" } : undefined}
     >
       <BoardHeader
         form={form}
@@ -377,14 +221,15 @@ function DashboardBoard({ form }) {
         header_visible={header_visible}
         show_header={show_header}
         schedule_header_hide={schedule_header_hide}
-        period={period}
-        setPeriod={setPeriod}
-        from={from}
-        setFrom={setFrom}
-        to={to}
-        setTo={setTo}
-        onApplyPeriod={handle_period_apply}
+        period={data.period}
+        setPeriod={data.setPeriod}
+        from={data.from}
+        setFrom={data.setFrom}
+        to={data.to}
+        setTo={data.setTo}
+        onApplyPeriod={data.handle_period_apply}
         onAddKpi={() => setBuilderTab("kpi")}
+        onShare={() => setShareOpen(true)}
         onDelete={() => setConfirming("delete")}
       />
 
@@ -419,38 +264,30 @@ function DashboardBoard({ form }) {
             form={form}
             fields={form_fields}
             widgets={widgets}
-            dataByWidget={data_by_widget}
-            dataLoading={data_loading}
+            dataByWidget={data.data_by_widget}
+            dataLoading={data.data_loading}
             fitMode={is_fullscreen && fs_mode === "fit"}
             editable={can_edit && !generating}
             savingWidgetId={saving_widget_id}
             onUpdateWidget={handle_update_widget}
             onRemoveWidget={(widget) => setWidgetToRemove(widget)}
-            onRetryWidget={retry_widget}
+            onRetryWidget={data.retry_widget}
             onShowSkipped={(target) => setSkippedWidget(target)}
             onPickIcon={(target) => setIconWidget(target)}
             onAppearance={(target) => setAppearanceWidget(target)}
             onSaved={(final_widgets) => {
               // Reordering, bulk edits and deletions never change what the
               // surviving widgets chart - keep their data, drop the rest.
-              data_signature_ref.current = widgets_data_signature(final_widgets);
+              data.settle(final_widgets);
               setWidgets(final_widgets);
-              const kept = new Set(final_widgets.map((widget) => widget.id));
-              setDataByWidget((current) => Object.fromEntries(Object.entries(current).filter(([id]) => kept.has(id))));
+              data.keep_only(final_widgets);
             }}
           />
         </div>
       )}
 
       {review_widgets !== null && (
-        <GeneratedWidgetsReview
-          form={form}
-          initialWidgets={review_widgets}
-          focusIds={review_focus}
-          onOpenDashboard={close_review}
-          onClose={close_review}
-          onWidgetsChange={setWidgets}
-        />
+        <GeneratedWidgetsReview form={form} initialWidgets={review_widgets} focusIds={review_focus} onOpenDashboard={close_review} onClose={close_review} onWidgetsChange={setWidgets} />
       )}
       {builder_tab !== null && (
         <DashboardBuilder
@@ -458,11 +295,25 @@ function DashboardBoard({ form }) {
           existingWidgets={widgets}
           initialTab={builder_tab}
           onClose={() => setBuilderTab(null)}
-          onSaved={handle_built}
+          onSaved={(final_widgets) => {
+            setBuilderTab(null);
+            setWidgets(final_widgets);
+          }}
           onAutoGenerate={() => handle_generate("overwrite")}
         />
       )}
-      {code_open && <DashboardCodeOverlay form={form} widgets={widgets} onClose={() => setCodeOpen(false)} onSaved={(final_widgets) => { setCodeOpen(false); setWidgets(final_widgets); }} />}
+      {code_open && (
+        <DashboardCodeOverlay
+          form={form}
+          widgets={widgets}
+          onClose={() => setCodeOpen(false)}
+          onSaved={(final_widgets) => {
+            setCodeOpen(false);
+            setWidgets(final_widgets);
+          }}
+        />
+      )}
+      {share_open && <ShareLinksDialog form={form} onClose={() => setShareOpen(false)} />}
       <BoardWidgetDialogs
         form={form}
         fields={form_fields}
@@ -471,29 +322,17 @@ function DashboardBoard({ form }) {
         appearanceWidget={appearance_widget}
         iconWidget={icon_widget}
         skippedWidget={skipped_widget}
-        period={applied_period_ref.current}
+        period={data.applied_period_ref.current}
         onUpdate={handle_update_widget}
         onCloseAppearance={() => setAppearanceWidget(null)}
         onCloseIcon={() => setIconWidget(null)}
         onCloseSkipped={() => setSkippedWidget(null)}
       />
       {confirming === "delete" && (
-        <DcsConfirmDialog
-          titleKey="DCS_DB_DEL_CONFIRM_TITLE"
-          messageKey="DCS_DB_DEL_CONFIRM_MESSAGE"
-          confirming={deleting}
-          onConfirm={handle_delete}
-          onCancel={() => setConfirming(null)}
-        />
+        <DcsConfirmDialog titleKey="DCS_DB_DEL_CONFIRM_TITLE" messageKey="DCS_DB_DEL_CONFIRM_MESSAGE" confirming={deleting} onConfirm={handle_delete} onCancel={() => setConfirming(null)} />
       )}
       {widget_to_remove && (
-        <DcsConfirmDialog
-          titleKey="DCS_DB_REMOVE_TITLE"
-          messageKey="DCS_DB_REMOVE_MESSAGE"
-          confirming={removing}
-          onConfirm={handle_remove_widget}
-          onCancel={() => setWidgetToRemove(null)}
-        />
+        <DcsConfirmDialog titleKey="DCS_DB_REMOVE_TITLE" messageKey="DCS_DB_REMOVE_MESSAGE" confirming={removing} onConfirm={handle_remove_widget} onCancel={() => setWidgetToRemove(null)} />
       )}
     </div>
   );

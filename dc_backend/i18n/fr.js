@@ -22,6 +22,26 @@ module.exports = {
   PROJECT_FETCHED: "Projet récupéré avec succès",
   PROJECT_OWNER_TRANSFERRED: "Propriété du projet transférée avec succès",
   DASHBOARD_FETCHED: "Tableau de bord récupéré avec succès",
+
+  DASHBOARD_LINKS_FETCHED: "Liens de partage récupérés avec succès",
+
+  DASHBOARD_LINK_CREATED: "Lien de partage créé avec succès",
+
+  DASHBOARD_LINK_UPDATED: "Lien de partage mis à jour avec succès",
+
+  DASHBOARD_LINK_DELETED: "Lien de partage supprimé avec succès",
+
+  DASHBOARD_LINK_NOT_FOUND: "Ce lien de tableau de bord n'existe pas ou a été supprimé",
+
+  DASHBOARD_LINK_EXPIRED: "Ce lien de tableau de bord a expiré",
+
+  DASHBOARD_LINK_TITLE_REQUIRED: "Un titre de lien est requis (120 caractères max)",
+
+  DASHBOARD_LINK_DESCRIPTION_TOO_LONG: "La description du lien doit rester sous 300 caractères",
+
+  DASHBOARD_LINK_EXPIRY_INVALID: "La date d'expiration n'est pas valide",
+
+  DASHBOARD_LINK_EXPIRY_PAST: "La date d'expiration doit être dans le futur",
   DASHBOARD_SAVED: "Tableau de bord enregistré avec succès",
   DASHBOARD_DATA_FETCHED: "Données du tableau de bord récupérées avec succès",
   DASHBOARD_INVALID: "La configuration du tableau de bord n'est pas valide",

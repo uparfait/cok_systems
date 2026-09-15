@@ -30,11 +30,11 @@ function TreemapCell(props) {
   );
 }
 
-export default function TreemapChart({ nodes, palette }) {
+export default function TreemapChart({ nodes, palette, animate }) {
   const colors = palette || build_palette(null);
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-      <Treemap data={nodes} dataKey="value" nameKey="name" isAnimationActive animationDuration={700} animationEasing="ease-out" content={<TreemapCell palette={colors} />}>
+      <Treemap data={nodes} dataKey="value" nameKey="name" isAnimationActive={animate !== false} animationDuration={700} animationEasing="ease-out" content={<TreemapCell palette={colors} />}>
         <Tooltip contentStyle={colors.tooltip} formatter={(value, name) => [value, name]} />
       </Treemap>
     </ResponsiveContainer>

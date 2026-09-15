@@ -17,9 +17,12 @@ import { SplitLegend, LegendFrame } from "./SeriesLegend.jsx";
  */
 
 const common_margin = { top: 18, right: 24, left: 0, bottom: 5 };
+const horizontal_margin = { top: 12, right: 56, left: 0, bottom: 5 };
 const Y_AXIS_MAX_PX = 240;
 const X_LABEL_CHARS = 16;
-const ANIMATION = { isAnimationActive: true, animationDuration: 700, animationEasing: "ease-out" };
+// Marks grow in only on their first appearance; a silent refresh keeps
+// them in place and just moves them to their new values.
+const animation = (animate) => ({ isAnimationActive: animate !== false, animationDuration: 700, animationEasing: "ease-out" });
 
 const show_value = (value) => (value ? value : "");
 const value_label = (palette) => ({ fontSize: 11, fontWeight: 600, fill: palette.text });
@@ -27,18 +30,18 @@ const clicked_row = (entry) => (entry && entry.payload ? entry.payload : entry);
 const labels_of = (rows) => rows.map((row) => row.label);
 const value_cells = (rows, palette) => rows.map((row, index) => <Cell key={`${row.label}-${index}`} fill={palette.color_for(row.label, index)} />);
 
-function HorizontalBars({ rows, onItemClick, palette }) {
+function HorizontalBars({ rows, onItemClick, palette, animate }) {
   const labels = labels_of(rows);
   const width = y_axis_width(labels, Y_AXIS_MAX_PX);
   const height = Math.max(CHART_HEIGHT, rows.length * bar_row_height(labels, Y_AXIS_MAX_PX, 34));
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} layout="vertical" margin={common_margin}>
+      <BarChart data={rows} layout="vertical" margin={horizontal_margin}>
         <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} horizontal={false} />
         <XAxis type="number" tick={palette.tick} allowDecimals={false} stroke={palette.grid} />
         <YAxis type="category" dataKey="label" width={width} interval={0} stroke={palette.grid} tick={wrapped_tick(palette, chars_for_width(width), "end")} />
         <Tooltip contentStyle={palette.tooltip} />
-        <Bar dataKey="value" {...ANIMATION} maxBarSize={22} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
+        <Bar dataKey="value" {...animation(animate)} maxBarSize={22} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
           {value_cells(rows, palette)}
           <LabelList dataKey="value" position="right" formatter={show_value} style={value_label(palette)} />
         </Bar>
@@ -47,7 +50,7 @@ function HorizontalBars({ rows, onItemClick, palette }) {
   );
 }
 
-function VerticalColumns({ rows, onItemClick, palette }) {
+function VerticalColumns({ rows, onItemClick, palette, animate }) {
   const labels = labels_of(rows);
   const axis_height = x_axis_height(labels, X_LABEL_CHARS);
   return (
@@ -57,7 +60,7 @@ function VerticalColumns({ rows, onItemClick, palette }) {
         <XAxis dataKey="label" interval={0} height={axis_height} stroke={palette.grid} tick={wrapped_tick(palette, X_LABEL_CHARS, "middle")} />
         <YAxis tick={palette.tick} allowDecimals={false} stroke={palette.grid} />
         <Tooltip contentStyle={palette.tooltip} />
-        <Bar dataKey="value" {...ANIMATION} maxBarSize={40} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
+        <Bar dataKey="value" {...animation(animate)} maxBarSize={40} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
           {value_cells(rows, palette)}
           <LabelList dataKey="value" position="top" formatter={show_value} style={value_label(palette)} />
         </Bar>
@@ -67,7 +70,7 @@ function VerticalColumns({ rows, onItemClick, palette }) {
 }
 
 /** Lollipop: a hair-thin stick with a dot on top; the dot plot keeps only the dot. */
-function LollipopOrDots({ rows, with_stick, palette }) {
+function LollipopOrDots({ rows, with_stick, palette, animate }) {
   const axis_height = x_axis_height(labels_of(rows), X_LABEL_CHARS);
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHT + axis_height - 30}>
@@ -77,11 +80,11 @@ function LollipopOrDots({ rows, with_stick, palette }) {
         <YAxis tick={palette.tick} allowDecimals={false} stroke={palette.grid} />
         <Tooltip contentStyle={palette.tooltip} />
         {with_stick && (
-          <Bar dataKey="value" barSize={3} {...ANIMATION}>
+          <Bar dataKey="value" barSize={3} {...animation(animate)}>
             {value_cells(rows, palette)}
           </Bar>
         )}
-        <Scatter dataKey="value" {...ANIMATION}>
+        <Scatter dataKey="value" {...animation(animate)}>
           {value_cells(rows, palette)}
           <LabelList dataKey="value" position="top" formatter={show_value} style={value_label(palette)} />
         </Scatter>
@@ -96,7 +99,7 @@ function LollipopOrDots({ rows, with_stick, palette }) {
  * (series_meta) textures each series inside its split color. The legend is
  * drawn by SeriesLegend in rows, where the appearance places it.
  */
-function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, labels }) {
+function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, labels, animate }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const display = series_display(series, seriesMeta, palette);
   const data =
@@ -125,7 +128,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
 
   const chart = (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} layout={horizontal ? "vertical" : "horizontal"} margin={common_margin}>
+      <BarChart data={data} layout={horizontal ? "vertical" : "horizontal"} margin={horizontal ? horizontal_margin : common_margin}>
         <PatternDefs uid={uid} colors={split_colors} patternCount={display.patterns.length} />
         <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={horizontal} horizontal={!horizontal} />
         {horizontal ? (
@@ -141,7 +144,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
         )}
         <Tooltip contentStyle={palette.tooltip} formatter={(value, name) => [value, display.items.find((item) => item.key === name)?.label || name]} />
         {display.items.map((item, index) => (
-          <Bar key={item.key} dataKey={item.key} stackId={stacked ? "stack" : undefined} fill={pattern_fill(uid, item.split_index, item.pattern_index, item.color)} {...ANIMATION} maxBarSize={horizontal ? 22 : 40}>
+          <Bar key={item.key} dataKey={item.key} stackId={stacked ? "stack" : undefined} fill={pattern_fill(uid, item.split_index, item.pattern_index, item.color)} {...animation(animate)} maxBarSize={horizontal ? 22 : 40}>
             <LabelList
               dataKey={item.key}
               position={stacked ? "center" : horizontal ? "right" : "top"}
@@ -173,13 +176,13 @@ const MULTI_SERIES_TYPES = {
   stacked_bar_100: { mode: "stacked_100", horizontal: true },
 };
 
-export default function CategoryCharts({ chartType, rows, series, seriesMeta, onItemClick, palette, legendLabels }) {
+export default function CategoryCharts({ chartType, rows, series, seriesMeta, onItemClick, palette, legendLabels, animate }) {
   const colors = palette || build_palette(null);
-  if (chartType === "bar") return <HorizontalBars rows={rows} onItemClick={onItemClick} palette={colors} />;
-  if (chartType === "column") return <VerticalColumns rows={rows} onItemClick={onItemClick} palette={colors} />;
-  if (chartType === "lollipop") return <LollipopOrDots rows={rows} with_stick palette={colors} />;
-  if (chartType === "dot_plot") return <LollipopOrDots rows={rows} with_stick={false} palette={colors} />;
+  if (chartType === "bar") return <HorizontalBars rows={rows} onItemClick={onItemClick} palette={colors} animate={animate} />;
+  if (chartType === "column") return <VerticalColumns rows={rows} onItemClick={onItemClick} palette={colors} animate={animate} />;
+  if (chartType === "lollipop") return <LollipopOrDots rows={rows} with_stick palette={colors} animate={animate} />;
+  if (chartType === "dot_plot") return <LollipopOrDots rows={rows} with_stick={false} palette={colors} animate={animate} />;
   const multi = MULTI_SERIES_TYPES[chartType];
-  if (multi) return <SeriesColumns rows={rows} series={series} seriesMeta={seriesMeta} mode={multi.mode} horizontal={multi.horizontal} palette={colors} labels={legendLabels} />;
-  return <VerticalColumns rows={rows} onItemClick={onItemClick} palette={colors} />;
+  if (multi) return <SeriesColumns rows={rows} series={series} seriesMeta={seriesMeta} mode={multi.mode} horizontal={multi.horizontal} palette={colors} labels={legendLabels} animate={animate} />;
+  return <VerticalColumns rows={rows} onItemClick={onItemClick} palette={colors} animate={animate} />;
 }

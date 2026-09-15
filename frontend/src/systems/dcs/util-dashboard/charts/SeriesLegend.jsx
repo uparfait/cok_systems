@@ -12,8 +12,10 @@ import { PatternSwatch } from "./patterns.jsx";
 
 const LEGEND_FONT = { fontFamily: "'Montserrat', sans-serif" };
 
+// The marker sits inside a plain (inline) span, so it must be a block-level
+// box itself or its width and height are ignored and no color shows.
 function Marker({ color, square }) {
-  return <span className="flex-shrink-0" style={{ width: 10, height: 10, borderRadius: square ? 0 : "50%", backgroundColor: color, transition: "background-color 300ms ease" }} />;
+  return <span className="flex-shrink-0" style={{ display: "inline-block", width: 10, height: 10, borderRadius: square ? 0 : "50%", backgroundColor: color, transition: "background-color 300ms ease" }} />;
 }
 
 export function LegendRow({ items, palette, square, title }) {
@@ -72,7 +74,7 @@ export function LegendFrame({ position, legend, children }) {
   if (side) {
     return (
       <div className={`flex gap-3 items-start ${position === "left" ? "flex-row" : "flex-row-reverse"}`}>
-        <div className="flex-shrink-0" style={{ width: 170, paddingTop: 8 }}>
+        <div className="flex-shrink-0" style={{ width: "clamp(110px, 30%, 170px)", paddingTop: 8 }}>
           {legend}
         </div>
         <div className="flex-1 min-w-0">{children}</div>

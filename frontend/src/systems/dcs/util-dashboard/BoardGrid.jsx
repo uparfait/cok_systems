@@ -4,14 +4,14 @@ import WidgetCard from "./WidgetCard.jsx";
 // Flexible auto-grow grid: every card carries a size-based flex-basis, and
 // `grow` lets the items of an incomplete last row stretch over the leftover
 // width instead of leaving an empty gap. A chart's own size (changed from
-// its menu) decides its base width: small is a quarter of a wide board (a
-// third on a laptop), medium half, large two thirds - so a large and a
-// small card fill one row together. Mobile is always one column, and a
+// its menu) decides its base width: small is a quarter of the board (a
+// third on a tablet) so up to FOUR small charts share one row, medium
+// half, large two thirds - so a large and a small card fill one row too. Mobile is always one column, and a
 // lone chart always spans the whole board. Static class strings so
 // Tailwind keeps them.
 const HALF_ROW = "grow basis-full sm:basis-[calc(50%-0.75rem)]";
 const SIZE_CLASSES = {
-  small: `${HALF_ROW} lg:basis-[calc(33.333%-0.75rem)] xl:basis-[calc(25%-0.75rem)]`,
+  small: `${HALF_ROW} md:basis-[calc(33.333%-0.75rem)] lg:basis-[calc(25%-0.75rem)]`,
   medium: HALF_ROW,
   large: `grow basis-full sm:basis-[calc(66.666%-0.75rem)]`,
   full: HALF_ROW,

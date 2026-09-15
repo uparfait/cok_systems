@@ -10,7 +10,7 @@ import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
  * it. The donut shows the total in its hole. Slice colors follow the
  * widget's per-value colors, text its light or dark mode.
  */
-export default function PieCharts({ chartType, rows, totalLabel, onItemClick, palette }) {
+export default function PieCharts({ chartType, rows, totalLabel, onItemClick, palette, animate }) {
   const colors = palette || build_palette(null);
   const total = rows.reduce((sum, row) => sum + (row.value || 0), 0);
   const is_donut = chartType === "donut";
@@ -29,12 +29,13 @@ export default function PieCharts({ chartType, rows, totalLabel, onItemClick, pa
               dataKey="value"
               nameKey="label"
               innerRadius={is_donut ? "55%" : 0}
-              outerRadius="80%"
+              outerRadius="66%"
               paddingAngle={rows.length > 1 ? 2 : 0}
-              isAnimationActive
+              isAnimationActive={animate !== false}
               animationDuration={700}
               animationEasing="ease-out"
               label={({ value, percent }) => `${value} (${Math.round(percent * 100)}%)`}
+              labelLine={{ strokeWidth: 1 }}
               stroke={colors.background}
               cursor={handle_click ? "pointer" : undefined}
               onClick={handle_click}

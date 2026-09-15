@@ -312,6 +312,14 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
   // areas, so a row of them stays low - only a description adds height.
   const is_kpi = widget.chart_type === "kpi";
   const state_height = is_kpi ? 90 : 180;
+  // Charts animate in once, on their first data; the silent refresh every
+  // 30 seconds then only moves marks to their new values, so numbers never
+  // vanish and reappear on the card.
+  const drawn_ref = useRef(false);
+  const animate = !drawn_ref.current;
+  useEffect(() => {
+    if (data && !data.error && !data.locked) drawn_ref.current = true;
+  }, [data]);
 
   return (
     <div className="dcs-widget-card relative border-2 flex flex-col h-full" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
@@ -371,7 +379,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
         )}
       </div>
 
-      <div className={`px-2 ${is_kpi ? "pb-2" : "pb-3"} flex-1`}>
+      <div className={`px-2 ${is_kpi ? "pb-2" : "pb-3"} flex-1 min-w-0`} style={{ overflowX: "auto", overflowY: "hidden" }}>
         {loading ? (
           <div className="flex items-center justify-center" style={{ height: state_height }}>
             <SpiralLoader />
@@ -400,7 +408,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
             )}
           </div>
         ) : (
-          <WidgetChart widget={widget} data={data} fitMode={fitMode} />
+          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} />
         )}
       </div>
 
@@ -416,7 +424,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
       )}
 
       {total !== null && (
-        <p className="px-3 pb-2 text-xs font-semibold" style={{ color: palette.number, fontFamily: "'Montserrat', sans-serif" }}>
+        <p className="px-3 pb-2 text-xs font-semibold text-right mt-auto" style={{ color: palette.number, fontFamily: "'Montserrat', sans-serif" }}>
           {translate("DCS_DB_TOTAL")}: {total.toLocaleString("en-US")}
         </p>
       )}

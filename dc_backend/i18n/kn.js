@@ -21,6 +21,26 @@ module.exports = {
   PROJECTS_FETCHED: "Poroje zabonetse neza",
   PROJECT_OWNER_TRANSFERRED: "Ubunyiri bwa poroje bwimuriwe undi neza",
   DASHBOARD_FETCHED: "Imbonerahamwe yabonetse neza",
+
+  DASHBOARD_LINKS_FETCHED: "Amahuza yo gusangira yabonetse neza",
+
+  DASHBOARD_LINK_CREATED: "Ihuza ryo gusangira ryakozwe neza",
+
+  DASHBOARD_LINK_UPDATED: "Ihuza ryo gusangira ryavuguruwe neza",
+
+  DASHBOARD_LINK_DELETED: "Ihuza ryo gusangira ryasibwe neza",
+
+  DASHBOARD_LINK_NOT_FOUND: "Iri huza ry'imbonerahamwe ntiribaho cyangwa ryakuweho",
+
+  DASHBOARD_LINK_EXPIRED: "Iri huza ry'imbonerahamwe ryarangiye",
+
+  DASHBOARD_LINK_TITLE_REQUIRED: "Umutwe w'ihuza urakenewe (inyuguti 120 ntarengwa)",
+
+  DASHBOARD_LINK_DESCRIPTION_TOO_LONG: "Ibisobanuro by'ihuza ntibigomba kurenza inyuguti 300",
+
+  DASHBOARD_LINK_EXPIRY_INVALID: "Itariki yo kurangira si yo",
+
+  DASHBOARD_LINK_EXPIRY_PAST: "Itariki yo kurangira igomba kuba mu gihe kizaza",
   DASHBOARD_SAVED: "Imbonerahamwe yabitswe neza",
   DASHBOARD_DATA_FETCHED: "Amakuru y'imbonerahamwe yabonetse neza",
   DASHBOARD_INVALID: "Imiterere y'imbonerahamwe ntiyemewe",

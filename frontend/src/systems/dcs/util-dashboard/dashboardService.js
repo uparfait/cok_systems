@@ -34,6 +34,44 @@ export function get_kpi_skipped(form_group_id, widget, period, offset, limit) {
   return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20 });
 }
 
+/** The form dashboard's public share links (form editors only). */
+export function list_dashboard_links(form_group_id) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/links`, "GET");
+}
+
+export function create_dashboard_link(form_group_id, link) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/links`, "POST", link);
+}
+
+export function update_dashboard_link(form_group_id, link_id, link) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/links/${link_id}`, "PATCH", link);
+}
+
+export function delete_dashboard_link(form_group_id, link_id) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/links/${link_id}`, "DELETE");
+}
+
+/** The URL a share link opens - the public, read-only dashboard page. */
+export function public_dashboard_url(token) {
+  return `${window.location.origin}/dcs-dashboard/${token}`;
+}
+
+/**
+ * The public, read-only dashboard behind a share token: no sign-in, the
+ * same data endpoints shape as the signed-in board, nothing writable.
+ */
+export function get_public_dashboard(token) {
+  return dcs_request(`/public/dashboard/${token}`, "GET");
+}
+
+export function get_public_dashboard_data(token, widgets, period) {
+  return dcs_request(`/public/dashboard/${token}/data`, "POST", { widgets, period: period || null });
+}
+
+export function get_public_kpi_skipped(token, widget, period, offset, limit) {
+  return dcs_request(`/public/dashboard/${token}/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20 });
+}
+
 /**
  * The human-readable reason a dashboard request failed: the server's own
  * translated message plus the first concrete violation when the response

@@ -17,6 +17,34 @@ const upload_approval_file_controller = require("../../controllers/approvals/upl
 const upload_batch_approval_file_controller = require("../../controllers/approvals/upload_batch_approval_file.js");
 const { get_locations, get_all_locations } = require("../../controllers/locations/get_locations.js");
 const { upload_submission_file, upload_approval_file } = require("../../utilities/upload.js");
+const { get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped } = require("../../util-dashboard/controllers/public_dashboard.js");
+
+/**
+ * @swagger
+ * /dcs/api/public/dashboard/{token}:
+ *   get:
+ *     summary: A form dashboard shared through a public link - its widgets, read-only, no auth (404 unknown token, 410 expired)
+ *     tags: [Public]
+ */
+Router.get("/dashboard/:token", get_public_dashboard);
+
+/**
+ * @swagger
+ * /dcs/api/public/dashboard/{token}/data:
+ *   post:
+ *     summary: Live data of the shared dashboard's widgets under an optional period, no auth
+ *     tags: [Public]
+ */
+Router.post("/dashboard/:token/data", get_public_dashboard_data);
+
+/**
+ * @swagger
+ * /dcs/api/public/dashboard/{token}/kpi-skipped:
+ *   post:
+ *     summary: The skipped answers behind a KPI card of the shared dashboard, no auth
+ *     tags: [Public]
+ */
+Router.post("/dashboard/:token/kpi-skipped", get_public_kpi_skipped);
 
 /**
  * @swagger
