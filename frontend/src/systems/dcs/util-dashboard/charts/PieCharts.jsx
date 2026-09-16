@@ -21,7 +21,7 @@ export default function PieCharts({ chartType, rows, totalLabel, onItemClick, pa
   // Outside labels need room around the ring; a narrow card has none.
   const with_labels = size.show_values && size.width >= 340;
 
-  const legend = <LegendRow items={rows.map((row, index) => ({ label: row.label, color: colors.color_for(row.label, index), value: row.value || 0 }))} palette={colors} />;
+  const legend = <LegendRow items={rows.map((row, index) => ({ label: row.label, color: colors.color_for(row.label, index), value: row.value || 0 }))} palette={colors} onItemClick={onItemClick ? (label) => onItemClick({ label }) : undefined} />;
 
   return (
     <LegendFrame position={colors.legend_position} density={size} legend={legend}>

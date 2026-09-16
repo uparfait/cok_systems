@@ -79,4 +79,5 @@ module.exports = {
   build_match_stage,
   effective_bounds,
   numeric_expr,
+  value_candidates,
 };

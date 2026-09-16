@@ -10,9 +10,9 @@ const TEXT_DARK = "#333333";
 const TEXT_MUTED = "#9E9E9E";
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 
-export const DEFAULT_LINK_CONFIG = { filter_mode: "free", locked_filters: [], locked_period: null, show_title: false };
+export const DEFAULT_LINK_CONFIG = { filter_mode: "free", locked_filters: [], locked_period: null, show_title: false, allow_records: false };
 
-const is_default = (config) => !config || (config.filter_mode !== "locked" && !config.show_title);
+const is_default = (config) => !config || (config.filter_mode !== "locked" && !config.show_title && !config.allow_records);
 
 function Radio({ checked, label, onPick }) {
   return (
@@ -98,6 +98,15 @@ export default function LinkConfigFields({ config, onChange, filters, fields, fe
                 ))}
               </div>
             ))}
+          <label className="flex items-start gap-2 text-sm cursor-pointer" style={FONT}>
+            <input type="checkbox" className="mt-0.5" checked={current.allow_records === true} style={{ accentColor: PRIMARY }} onChange={(event) => onChange({ ...current, allow_records: event.target.checked })} />
+            <span>
+              {translate("DCS_DB_SHARE_ALLOW_RECORDS")}
+              <span className="block text-xs" style={{ color: TEXT_MUTED }}>
+                {translate("DCS_DB_SHARE_ALLOW_RECORDS_HINT")}
+              </span>
+            </span>
+          </label>
           <label className="flex items-start gap-2 text-sm cursor-pointer" style={FONT}>
             <input type="checkbox" className="mt-0.5" checked={current.show_title === true} style={{ accentColor: PRIMARY }} onChange={(event) => onChange({ ...current, show_title: event.target.checked })} />
             <span>

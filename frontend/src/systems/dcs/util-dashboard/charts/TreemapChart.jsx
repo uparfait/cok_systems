@@ -12,7 +12,9 @@ import { fit_text } from "./chartLabels.jsx";
  * over a neighbouring tile.
  */
 function TreemapCell(props) {
-  const { x, y, width, height, name, value, root, index, palette, fontSize } = props;
+  const { x, y, width, height, name, value, root, index, palette, fontSize, onPick } = props;
+  const parent = root && root.name !== undefined && root.name !== name ? root.name : null;
+  const click = onPick && name !== undefined ? () => onPick({ name, parent }) : undefined;
   const color_index = root && typeof root.index === "number" ? root.index : index || 0;
   const color_label = root && root.name !== undefined ? root.name : name;
   // Measured, so a name is either shown whole or trimmed to what truly
@@ -20,7 +22,7 @@ function TreemapCell(props) {
   const label = fit_text(name, width - 10, fontSize);
   const show_label = height > fontSize * 2.2 && label !== "";
   return (
-    <g>
+    <g onClick={click} style={click ? { cursor: "pointer" } : undefined}>
       <rect x={x} y={y} width={width} height={height} style={{ fill: palette.color_for(color_label, color_index), stroke: palette.background, strokeWidth: 2 }} />
       {show_label && (
         <text x={x + 5} y={y + fontSize + 3} fill="#FFFFFF" fontSize={fontSize} fontWeight={600}>
@@ -36,12 +38,12 @@ function TreemapCell(props) {
   );
 }
 
-export default function TreemapChart({ nodes, palette, animate, density }) {
+export default function TreemapChart({ nodes, palette, animate, density, onItemClick }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
   return (
     <ResponsiveContainer width="100%" height={size.height}>
-      <Treemap data={nodes} dataKey="value" nameKey="name" isAnimationActive={animate !== false} animationDuration={700} animationEasing="ease-out" content={<TreemapCell palette={colors} fontSize={Math.max(9, size.font)} />}>
+      <Treemap data={nodes} dataKey="value" nameKey="name" isAnimationActive={animate !== false} animationDuration={700} animationEasing="ease-out" content={<TreemapCell palette={colors} fontSize={Math.max(9, size.font)} onPick={onItemClick} />}>
         <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} formatter={(value, name) => [value, name]} />
       </Treemap>
     </ResponsiveContainer>

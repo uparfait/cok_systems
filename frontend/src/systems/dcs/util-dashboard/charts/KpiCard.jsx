@@ -59,7 +59,7 @@ function AnimatedNumber({ value, style, className }) {
  * the top of the board, several per row. The number draws in the widget's
  * number color, the rest follows its light or dark mode.
  */
-export default function KpiCard({ value, changePct, legend, totalLabel, palette, density }) {
+export default function KpiCard({ value, changePct, legend, totalLabel, palette, density, onLegendClick }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
   // The number is the card's whole point, so it takes as much of the card's
@@ -78,7 +78,7 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
       {has_legend && (
         <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0, maxHeight: legend.length > 12 ? 280 : undefined, overflowY: legend.length > 12 ? "auto" : "visible" }}>
           {legend.map((row, index) => (
-            <li key={`${row.label}-${index}`} className="flex items-center justify-between gap-2 text-xs min-w-0" style={{ opacity: row.matches === false ? 0.6 : 1 }}>
+            <li key={`${row.label}-${index}`} className={`flex items-center justify-between gap-2 text-xs min-w-0 ${onLegendClick ? "dcs-legend-clickable" : ""}`} style={{ opacity: row.matches === false ? 0.6 : 1 }} onClick={onLegendClick ? () => onLegendClick(row.label) : undefined}>
               <span className="flex items-center gap-1.5 min-w-0">
                 <span className="flex-shrink-0" style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: colors.color_for(row.label, index), transition: "background-color 300ms ease" }} />
                 {/* An occurrence card showing every value marks the ones that met its rule. */}

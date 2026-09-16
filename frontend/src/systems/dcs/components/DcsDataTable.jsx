@@ -12,6 +12,7 @@ const PAGE_WINDOW_SIZE = 10;
 const TINT_CELL_COLORS = {
   green: "rgba(76,175,80,0.10)",
   red: "rgba(231,76,60,0.10)",
+  blue: "rgba(5,109,170,0.10)",
 };
 
 let measure_context = null;
@@ -340,9 +341,9 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
         <div className="flex flex-wrap items-center gap-2">
           {legendItems &&
             legendItems.map((item) => (
-              <span key={item.labelKey} className="flex items-center gap-1" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif", fontSize: 11 }}>
+              <span key={item.labelKey || item.label} className="flex items-center gap-1" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif", fontSize: 11 }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: item.color, flexShrink: 0 }} />
-                {translate(item.labelKey)}
+                {item.label !== undefined ? item.label : translate(item.labelKey)}
               </span>
             ))}
         </div>

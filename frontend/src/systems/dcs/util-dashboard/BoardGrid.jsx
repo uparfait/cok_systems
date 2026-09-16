@@ -46,6 +46,7 @@ export default function BoardGrid({
   onPickIcon,
   onAppearance,
   selection,
+  onOpenRecords,
 }) {
   const [dragging_id, setDraggingId] = useState(null);
   const [over_id, setOverId] = useState(null);
@@ -90,6 +91,7 @@ export default function BoardGrid({
       selected={selecting && selection.selected.has(widget.id)}
       onSelect={selecting ? () => selection.onToggle(widget.id) : undefined}
       expanded={expanded_id === widget.id}
+      onOpenRecords={onOpenRecords ? (pick) => onOpenRecords(widget, pick) : undefined}
     />
     </ExpandableSlot>
   );

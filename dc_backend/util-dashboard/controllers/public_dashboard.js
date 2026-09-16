@@ -2,6 +2,7 @@ const dashboards_model = require("../dashboards_model.js");
 const dashboard_links_model = require("../dashboard_links_model.js");
 const { load_public_dashboard_context } = require("../public_link_context.js");
 const { compute_dashboard_results, compute_skipped_page, compute_filter_values } = require("../compute_results.js");
+const { compute_widget_records } = require("../widget_records.js");
 const { build_field_catalog, field_label_text, parent_field_id_of } = require("../field_catalog.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -25,6 +26,7 @@ function link_config(link) {
     locked_filters: Array.isArray(config.locked_filters) ? config.locked_filters : [],
     locked_period: config.locked_period || null,
     show_title: config.show_title === true,
+    allow_records: config.allow_records === true,
   };
 }
 
@@ -145,7 +147,23 @@ async function get_public_filter_values(req, res) {
   }
 }
 
+/** The records behind a widget - only when the link allows viewers to open them. */
+async function get_public_widget_records(req, res) {
+  try {
+    const context = await resolve(req, res);
+    if (!context) return undefined;
+    if (!link_config(context.link).allow_records) return res.status(403).json(warning_response(req, "DASHBOARD_RECORDS_FORBIDDEN"));
+    const body = viewer_body(req, context.link);
+    const result = await compute_widget_records(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link));
+    if (result.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: result.invalid }));
+    return res.status(200).json(success_response(req, "DASHBOARD_RECORDS_FETCHED", result));
+  } catch (error) {
+    return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
+  }
+}
+
 module.exports = {
+  get_public_widget_records,
   get_public_dashboard,
   get_public_dashboard_data,
   get_public_kpi_skipped,

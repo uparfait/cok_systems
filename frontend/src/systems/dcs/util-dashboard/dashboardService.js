@@ -54,6 +54,14 @@ export function get_dashboard_data(form_group_id, widgets, period, filters) {
 }
 
 /**
+ * The paged records behind one widget: its own filters, the board's period
+ * and filters, and what was clicked (pick). body: { widget, period, filters, pick, page, limit }.
+ */
+export function get_widget_records(form_group_id, body) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/records`, "POST", body);
+}
+
+/**
  * The values one board filter field can take right now: the distinct
  * answers under the period and the other applied filters, with counts.
  */
@@ -112,6 +120,10 @@ export function get_public_dashboard_data(token, widgets, period, filters) {
 
 export function get_public_kpi_skipped(token, widget, period, offset, limit, filters) {
   return dcs_request(`/public/dashboard/${token}/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20, filters: filters || [] }, PUBLIC_CONFIG);
+}
+
+export function get_public_widget_records(token, body) {
+  return dcs_request(`/public/dashboard/${token}/records`, "POST", body, PUBLIC_CONFIG);
 }
 
 export function get_public_filter_values(token, field_id, filters, period) {

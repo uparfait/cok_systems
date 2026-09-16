@@ -167,6 +167,29 @@ function enumerate_buckets(bounds, granularity) {
   return buckets;
 }
 
+/**
+ * The [start, end] of the time bucket a chart labelled `label` - resolved
+ * exactly as compute_time bucketed the widget, so a click on a point of a
+ * line finds the very records that made it.
+ */
+async function time_bucket_range(widget, bounds, label) {
+  const effective = bounds || (await pipelines.time_extent(widget));
+  if (!effective) return null;
+  const granularity = resolve_granularity(widget, effective);
+  const buckets = enumerate_buckets(effective, granularity);
+  const index = buckets.findIndex((bucket) => bucket.label === label);
+  if (index < 0) return null;
+  const bucket_ms = { hour: 3600000, day: 86400000, week: 604800000 }[granularity];
+  if (bucket_ms) {
+    const start = new Date(effective.start.getTime() + index * bucket_ms);
+    return { start, end: new Date(Math.min(effective.end.getTime(), start.getTime() + bucket_ms - 1)) };
+  }
+  const [year, month] = String(buckets[index].key).split("-").map(Number);
+  const start = granularity === "month" ? new Date(year, month - 1, 1) : new Date(year, 0, 1);
+  const next = granularity === "month" ? new Date(year, month, 1) : new Date(year + 1, 0, 1);
+  return { start, end: new Date(next.getTime() - 1) };
+}
+
 async function compute_time(widget, bounds, catalog) {
   const effective = bounds || (await pipelines.time_extent(widget));
   if (!effective) return { kind: CHART_KINDS.TIME, rows: [], series: [], granularity: "day" };
@@ -338,5 +361,6 @@ async function compute_widget_data(widget, form_version, period_override) {
 
 module.exports = {
   compute_widget_data,
+  time_bucket_range,
   OTHER_KEY,
 };

@@ -122,7 +122,7 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
  * preset dropdown that opens a popup when "custom" is selected, keeping
  * the filter compact and responsive on every screen size.
  */
-export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromChange, to, onToChange, onApply, includeAll, allowWrap, locked }) {
+export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromChange, to, onToChange, onApply, includeAll, allowWrap, locked, plain }) {
   const { translate } = useDcsLanguage();
   const [is_custom_open, setIsCustomOpen] = useState(false);
   const [is_menu_open, setIsMenuOpen] = useState(false);
@@ -170,10 +170,14 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
           onClick={locked ? undefined : () => setIsMenuOpen((previous) => !previous)}
           disabled={locked}
           title={locked ? translate("DCS_DB_FILTER_LOCKED") : undefined}
-          className={`cok-auth-input text-sm inline-flex items-center justify-between gap-2 ${locked ? "cursor-default" : "cursor-pointer"}`}
-          style={{ fontFamily: "'Montserrat', sans-serif", height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX, minWidth: 150, backgroundColor: "transparent", color: TEXT, borderColor: is_menu_open ? "#056daa" : BORDER, borderStyle: locked ? "dashed" : "solid" }}
+          className={
+            plain
+              ? `dcs-board-filter dcs-board-filter-period ${is_menu_open ? "is-open" : ""} ${locked ? "is-locked" : ""} ${period && period !== "this_year" && !locked ? "is-active" : ""}`
+              : `cok-auth-input text-sm inline-flex items-center justify-between gap-2 ${locked ? "cursor-default" : "cursor-pointer"}`
+          }
+          style={plain ? { minWidth: 150 } : { fontFamily: "'Montserrat', sans-serif", height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX, minWidth: 150, backgroundColor: "transparent", color: TEXT, borderColor: is_menu_open ? "#056daa" : BORDER, borderStyle: locked ? "dashed" : "solid" }}
         >
-          <span className="truncate">{period === "custom" && from ? get_selected_label() : selected_option ? option_label(selected_option) : ""}</span>
+          <span className={plain ? "dcs-board-filter-value" : "truncate"}>{period === "custom" && from ? get_selected_label() : selected_option ? option_label(selected_option) : ""}</span>
           {!locked && <svg
             width="10"
             height="6"

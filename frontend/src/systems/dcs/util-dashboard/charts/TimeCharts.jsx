@@ -19,7 +19,7 @@ const show_value = (value) => (value ? value : "");
  * draws in the widget's number color, split series in their own value
  * colors with the shared legend placed by the appearance.
  */
-export default function TimeCharts({ chartType, rows, series, fitMode, palette, animate, density }) {
+export default function TimeCharts({ chartType, rows, series, fitMode, palette, animate, density, onItemClick, onLegendClick }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
   const tick_interval = fitMode ? "preserveStartEnd" : 0;
@@ -35,19 +35,22 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
   const x_room = Math.max(28, Math.max(80, inner_width - y_width - margin.right - 8) / Math.max(1, rows.length) - 6);
   const axis_height = x_axis_height(rows.map((row) => row.label), x_room, size.font);
   const chart_height = size.height + axis_height - 30;
+  // Recharts reports the hovered category as activeLabel: that is the bucket clicked.
+  const on_chart_click = onItemClick ? (state) => state && state.activeLabel !== undefined && onItemClick(String(state.activeLabel)) : undefined;
+  const active_dot = onItemClick ? { r: 6, cursor: "pointer" } : undefined;
   const chart =
     chartType === "area" ? (
-      <AreaChart data={rows} margin={margin}>
+      <AreaChart data={rows} margin={margin} onClick={on_chart_click} style={onItemClick ? { cursor: "pointer" } : undefined}>
         <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
         <XAxis dataKey="label" interval={tick_interval} height={axis_height} stroke={colors.grid} tick={wrapped_tick(colors, x_room, "middle", size.font)} />
         <YAxis tick={tick_style(colors, size)} allowDecimals={false} stroke={colors.grid} width={y_width} />
         <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} />
-        <Area type="monotone" dataKey="value" stroke={accent} fill={accent} fillOpacity={0.18} strokeWidth={2.5} {...animation(animate)}>
+        <Area type="monotone" dataKey="value" stroke={accent} fill={accent} fillOpacity={0.18} strokeWidth={2.5} activeDot={active_dot} {...animation(animate)}>
           {size.show_values && <LabelList dataKey="value" position="top" formatter={show_value} style={{ fontSize: value_font, fontWeight: 600, fill: accent }} />}
         </Area>
       </AreaChart>
     ) : (
-      <LineChart data={rows} margin={margin}>
+      <LineChart data={rows} margin={margin} onClick={on_chart_click} style={onItemClick ? { cursor: "pointer" } : undefined}>
         <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
         <XAxis dataKey="label" interval={tick_interval} height={axis_height} stroke={colors.grid} tick={wrapped_tick(colors, x_room, "middle", size.font)} />
         <YAxis tick={tick_style(colors, size)} allowDecimals={false} stroke={colors.grid} width={y_width} />
@@ -56,13 +59,13 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
           series.map((key, index) => {
             const color = colors.color_for(key, index);
             return (
-              <Line key={key} type="monotone" dataKey={key} stroke={color} strokeWidth={2.5} dot={{ r: 2.5, fill: color }} {...animation(animate)}>
+              <Line key={key} type="monotone" dataKey={key} stroke={color} strokeWidth={2.5} dot={{ r: 2.5, fill: color }} activeDot={active_dot} {...animation(animate)}>
                 {size.show_values && <LabelList dataKey={key} position="top" formatter={show_value} style={{ fontSize: Math.max(8, value_font - 1), fontWeight: 600, fill: color }} />}
               </Line>
             );
           })
         ) : (
-          <Line type="monotone" dataKey="value" stroke={accent} strokeWidth={2.5} dot={{ r: 2.5, fill: accent }} {...animation(animate)}>
+          <Line type="monotone" dataKey="value" stroke={accent} strokeWidth={2.5} dot={{ r: 2.5, fill: accent }} activeDot={active_dot} {...animation(animate)}>
             {size.show_values && <LabelList dataKey="value" position="top" formatter={show_value} style={{ fontSize: value_font, fontWeight: 600, fill: accent }} />}
           </Line>
         )}
@@ -70,7 +73,7 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
     );
 
   const legend = has_series ? (
-    <LegendRow items={series.map((key, index) => ({ label: key, color: colors.color_for(key, index), value: rows.reduce((sum, row) => sum + (row[key] || 0), 0) }))} palette={colors} />
+    <LegendRow items={series.map((key, index) => ({ label: key, color: colors.color_for(key, index), value: rows.reduce((sum, row) => sum + (row[key] || 0), 0) }))} palette={colors} onItemClick={onLegendClick} />
   ) : null;
 
   return (

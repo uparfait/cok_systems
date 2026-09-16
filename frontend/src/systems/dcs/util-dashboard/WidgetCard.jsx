@@ -7,7 +7,6 @@ import { chart_definition, convertible_types } from "./chartCatalog.js";
 import { build_palette } from "./appearance.js";
 import { useBoardTheme } from "./boardTheme.jsx";
 import MenuPopover from "./MenuPopover.jsx";
-import { FilterStrip, TitleContext } from "./WidgetContext.jsx";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -132,7 +131,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
   }
   return (
     <p
-      className="break-words"
+      className={`break-words ${editable ? "dcs-no-drill" : ""}`}
       style={{ ...textStyle, cursor: editable ? "pointer" : "default" }}
       title={editable ? hint : value || placeholder}
       onClick={start}
@@ -309,7 +308,7 @@ function KpiIconSlot({ icon, color }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded }) {
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -343,8 +342,30 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
     if (data && !data.error && !data.locked) drawn_ref.current = true;
   }, [data]);
 
+  // Opening the records: a bar, slice, point, cell or legend entry picks its
+  // own; a click anywhere else on the card (not on a control) opens them
+  // all. The specific pick runs first and marks the click consumed so the
+  // card's own handler, reached next as the event bubbles, stays quiet.
+  const consumed_ref = useRef(false);
+  const can_drill = !!onOpenRecords && !!data && !data.error && !data.locked && !selectable;
+  const pick_records = can_drill
+    ? (pick) => {
+        consumed_ref.current = true;
+        window.setTimeout(() => {
+          consumed_ref.current = false;
+        }, 0);
+        onOpenRecords(pick);
+      }
+    : undefined;
+  const handle_card_click = (event) => {
+    if (!can_drill) return;
+    if (consumed_ref.current) return;
+    if (event.target.closest("button, input, a, textarea, select, .dcs-no-drill, .recharts-tooltip-wrapper")) return;
+    onOpenRecords(null);
+  };
+
   return (
-    <div data-widget-id={widget.id} className="dcs-widget-card relative border-2 flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
+    <div data-widget-id={widget.id} onClick={handle_card_click} className="dcs-widget-card relative border-2 flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
       {selectable && (
         // The selection mode's click surface: covers the whole card so no
         // inner control fires, and carries the tick that marks a selection.
@@ -367,7 +388,6 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
           </span>
         </button>
       )}
-      <FilterStrip context={data && data.board_context} color={palette.muted} />
       <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
         {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} />}
         <div className="min-w-0 flex-1">
@@ -385,7 +405,6 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
               if (next) onUpdateText({ title: next });
             }}
           />
-          <TitleContext context={data && data.board_context} color={palette.number} />
           </div>
           <EditableText
             value={widget.description || ""}
@@ -436,7 +455,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
             )}
           </div>
         ) : (
-          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_size.width} fillHeight={fill_height} />
+          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_size.width} fillHeight={fill_height} onPick={pick_records} />
         )}
       </div>
 

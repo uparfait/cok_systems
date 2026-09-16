@@ -2944,24 +2944,35 @@ background-color: #056daa;
   height: 40px;
   max-width: 280px;
   padding: 0 10px 0 12px;
-  border: 2px solid var(--board-border, #E0E0E0);
+  border: none;
   background-color: transparent;
   color: var(--board-text, #333333);
   cursor: pointer;
   font-family: 'Montserrat', sans-serif;
-  transition: border-color 160ms ease, background-color 160ms ease;
+  box-shadow: 0 0 0 0 rgba(5, 109, 170, 0);
+  transition: box-shadow 180ms ease, color 160ms ease;
 }
 .dcs-board-filter:hover:not(:disabled),
-.dcs-board-filter.is-open {
-  border-color: #056daa;
-}
+.dcs-board-filter.is-open,
 .dcs-board-filter.is-active {
-  border-color: #056daa;
-  box-shadow: inset 3px 0 0 #056daa;
+  box-shadow: 0 6px 18px rgba(5, 109, 170, 0.18), 0 0 0 1px rgba(5, 109, 170, 0.12);
 }
 .dcs-board-filter.is-locked {
   cursor: default;
-  border-style: dashed;
+  box-shadow: 0 0 0 1px rgba(5, 109, 170, 0.18);
+}
+.dcs-board-filter-period {
+  height: 40px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  justify-content: space-between;
+}
+.dcs-board-filter-period svg path {
+  stroke: currentColor;
+}
+.dcs-board-actions-trigger {
+  height: 40px;
 }
 .dcs-board-filter.is-waiting .dcs-board-filter-value {
   color: var(--board-muted, #9E9E9E);
@@ -3000,7 +3011,6 @@ background-color: #056daa;
   color: var(--board-muted, #9E9E9E);
 }
 .dcs-board-filter-add {
-  border-style: dashed;
   color: #056daa;
 }
 .dcs-board-filter-add .dcs-board-filter-value {
@@ -3085,15 +3095,20 @@ background-color: #056daa;
 
 /* Screenshot studio: free boxes on a canvas, moved and resized by hand. */
 .dcs-studio-scroll {
-  background-color: #1B2733;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-color: var(--board-bg, #F4F7F9);
+  background-image: linear-gradient(rgba(5, 109, 170, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(5, 109, 170, 0.06) 1px, transparent 1px);
   background-size: 24px 24px;
+}
+.dcs-studio-toolbar {
+  background-color: var(--board-surface, #FFFFFF);
+  border-bottom: 1px solid var(--board-border, #E0E0E0);
 }
 .dcs-studio-canvas {
   position: relative;
   overflow: hidden;
   transform-origin: top left;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--board-border, #E0E0E0);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14);
 }
 .dcs-studio-item {
   position: absolute;
@@ -3180,14 +3195,6 @@ background-color: #056daa;
 }
 .dcs-studio-guide.is-x { top: 0; bottom: 0; width: 1px; }
 .dcs-studio-guide.is-y { left: 0; right: 0; height: 1px; }
-.dcs-studio-outline-btn {
-  border-color: #FFFFFF !important;
-  color: #FFFFFF !important;
-  background: transparent !important;
-}
-.dcs-studio-save-btn {
-  border: 2px solid #FFFFFF !important;
-}
 
 /* Filters reorder by their grip; a widget's filter strip sits above its title. */
 .dcs-board-filter-slot {
@@ -3222,4 +3229,38 @@ background-color: #056daa;
 }
 .dcs-widget-filter-strip {
   flex: none;
+}
+
+/* Legend entries that open records; charts never draw a focus ring. */
+.dcs-legend-clickable {
+  cursor: pointer;
+}
+.dcs-legend-clickable:hover {
+  text-decoration: underline;
+}
+.dcs-widget-card .recharts-wrapper,
+.dcs-widget-card .recharts-wrapper *:focus,
+.dcs-widget-card .recharts-surface:focus,
+.dcs-widget-card .recharts-wrapper:focus,
+.dcs-widget-card:focus,
+.dcs-widget-card:focus-within {
+  outline: none !important;
+}
+.dcs-widget-card .recharts-sector:focus,
+.dcs-widget-card .recharts-rectangle:focus,
+.dcs-widget-card .recharts-layer:focus {
+  outline: none !important;
+}
+
+/* The criteria chips above the records table. */
+.dcs-records-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #056daa;
+  background-color: rgba(5, 109, 170, 0.10);
+  border: 1px solid rgba(5, 109, 170, 0.35);
 }

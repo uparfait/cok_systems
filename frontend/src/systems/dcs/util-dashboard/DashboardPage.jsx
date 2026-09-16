@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_dashboard, save_dashboard, get_dashboard_data, get_filter_values, request_error_text } from "./dashboardService.js";
+import { get_dashboard, save_dashboard, get_dashboard_data, get_filter_values, get_widget_records, request_error_text } from "./dashboardService.js";
 import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
 import { useBoardData } from "./useBoardData.js";
@@ -21,6 +21,7 @@ import BoardWithSelection from "./selection/BoardWithSelection.jsx";
 import DashboardCodeOverlay, { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
 import ShareLinksDialog from "./share/ShareLinksDialog.jsx";
 import ScreenshotStudio from "./screenshot/ScreenshotStudio.jsx";
+import RecordsOverlay from "./records/RecordsOverlay.jsx";
 import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
@@ -91,7 +92,11 @@ function DashboardBoard({ form }) {
   const loading = library.list_loading || widgets_loading;
   const frozen_ref = useRef(false);
   const [shot_open_flag, setShotOpenFlag] = useState(false);
-  frozen_ref.current = generating || review_widgets !== null || builder_tab !== null || code_open || share_open || naming || shot_open_flag;
+  // The records overlay: { widget, pick } while open; and whether the
+  // selection mode is on (filters reorder only then).
+  const [records, setRecords] = useState(null);
+  const [selecting, setSelecting] = useState(false);
+  frozen_ref.current = generating || review_widgets !== null || builder_tab !== null || code_open || share_open || naming || shot_open_flag || records !== null;
   useDashboardCodeShortcut(can_edit && !!active_id && !loading && !generating && review_widgets === null && builder_tab === null, () => setCodeOpen(true));
 
   const data = useBoardData({
@@ -367,7 +372,7 @@ function DashboardBoard({ form }) {
         filterValues={data.filter_values}
         onFilterValue={data.set_filter_value}
         onFilterValues={data.set_filter_values}
-        onChangeFilters={can_edit && has_board ? handle_change_filters : undefined}
+        onChangeFilters={can_edit && has_board && selecting ? handle_change_filters : undefined}
         fetchFilterValues={fetch_filter_values}
         onAddKpi={() => setBuilderTab("kpi")}
         onShare={() => setShareOpen(true)}
@@ -407,6 +412,8 @@ function DashboardBoard({ form }) {
             onShowSkipped={(target) => setSkippedWidget(target)}
             onPickIcon={(target) => setIconWidget(target)}
             onAppearance={(target) => setAppearanceWidget(target)}
+            onOpenRecords={(widget, pick) => setRecords({ widget, pick })}
+            onSelectionChange={setSelecting}
             onSaved={(final_widgets) => {
               // Reordering, bulk edits and deletions never change what the
               // surviving widgets chart - keep their data, drop the rest.
@@ -448,6 +455,15 @@ function DashboardBoard({ form }) {
         />
       )}
       {share_open && <ShareLinksDialog form={scoped_form} filters={filters} fields={form_fields} fetchFilterValues={fetch_filter_values} onClose={() => setShareOpen(false)} />}
+      {records && (
+        <RecordsOverlay
+          title={records.widget.title}
+          subtitle={library.active ? library.active.name : ""}
+          schema={form.schema}
+          fetchPage={(page) => get_widget_records(form.form_group_id, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick, page, limit: 20 })}
+          onClose={() => setRecords(null)}
+        />
+      )}
       {shot && <ScreenshotStudio form={scoped_form} widgets={widgets} dataByWidget={shot.data} rects={shot.rects} base={shot.base} onClose={() => setShot(null)} />}
       {naming && <DashboardNameDialog formName={form.form_name} saving={name_saving} onSubmit={submit_name} onCancel={() => setNaming(false)} />}
       <BoardWidgetDialogs

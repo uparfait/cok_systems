@@ -20,7 +20,7 @@ function heat_color(value, max, palette) {
   return with_alpha(palette.accent, intensity);
 }
 
-export function HeatmapChart({ rows, series, fitMode, palette, density }) {
+export function HeatmapChart({ rows, series, fitMode, palette, density, onItemClick }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
   const max = rows.reduce((best, row) => series.reduce((inner, key) => Math.max(inner, row[key] || 0), best), 0);
@@ -53,7 +53,9 @@ export function HeatmapChart({ rows, series, fitMode, palette, density }) {
                   <div
                     className="flex items-center justify-center font-semibold"
                     title={`${row.label} / ${key}: ${row[key] || 0}`}
+                    onClick={onItemClick ? () => onItemClick(row.label, key) : undefined}
                     style={{
+                      cursor: onItemClick ? "pointer" : undefined,
                       height: cell_height,
                       fontSize: size.font,
                       transition: "background-color 600ms ease, color 600ms ease",

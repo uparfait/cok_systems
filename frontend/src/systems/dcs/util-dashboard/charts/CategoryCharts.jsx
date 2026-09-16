@@ -170,7 +170,7 @@ function VerticalMarks({ rows, onItemClick, palette, animate, density, shape, fi
  * drawn by SeriesLegend where the appearance places it - under the chart
  * whenever the card is too narrow to carry one beside it.
  */
-function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, labels, animate, density, fitMode }) {
+function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, labels, animate, density, fitMode, onItemClick, onLegendClick }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const display = series_display(series, seriesMeta, palette);
   const row_total = (row) => series.reduce((sum, key) => sum + (row[key] || 0), 0);
@@ -226,7 +226,16 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
         )}
         <Tooltip contentStyle={palette.tooltip} itemStyle={palette.tooltip_text} labelStyle={palette.tooltip_text} formatter={(value, name) => [value, display.items.find((item) => item.key === name)?.label || name]} />
         {display.items.map((item, index) => (
-          <Bar key={item.key} dataKey={item.key} stackId={stacked ? "stack" : undefined} fill={pattern_fill(uid, item.split_index, item.pattern_index, item.color)} {...animation(animate)} maxBarSize={horizontal ? density.bar : density.column_bar}>
+          <Bar
+            key={item.key}
+            dataKey={item.key}
+            stackId={stacked ? "stack" : undefined}
+            fill={pattern_fill(uid, item.split_index, item.pattern_index, item.color)}
+            {...animation(animate)}
+            maxBarSize={horizontal ? density.bar : density.column_bar}
+            cursor={onItemClick ? "pointer" : undefined}
+            onClick={onItemClick ? (entry) => onItemClick({ label: clicked_row(entry).label, series: item.split || item.key, pattern: item.pattern }) : undefined}
+          >
             {density.show_values &&
               (stacked ? (
                 <LabelList dataKey={item.key} position="center" formatter={(value) => (value ? (mode === "stacked_100" ? `${value}%` : value) : "")} style={{ fontSize: segment_font, fontWeight: 600, fill: "#FFFFFF" }} />
@@ -244,7 +253,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
   );
 
   return (
-    <LegendFrame position={palette.legend_position} density={density} legend={<SplitLegend display={display} totals={totals} palette={palette} splitTitle={labels && labels.split} patternTitle={labels && labels.pattern} />}>
+    <LegendFrame position={palette.legend_position} density={density} legend={<SplitLegend display={display} totals={totals} palette={palette} splitTitle={labels && labels.split} patternTitle={labels && labels.pattern} onItemClick={onLegendClick} />}>
       {chart}
     </LegendFrame>
   );
@@ -259,14 +268,14 @@ const MULTI_SERIES_TYPES = {
   stacked_bar_100: { mode: "stacked_100", horizontal: true },
 };
 
-export default function CategoryCharts({ chartType, rows, series, seriesMeta, onItemClick, palette, legendLabels, animate, density, fitMode }) {
+export default function CategoryCharts({ chartType, rows, series, seriesMeta, onItemClick, onLegendClick, palette, legendLabels, animate, density, fitMode }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
   const shared = { rows, palette: colors, animate, density: size, fitMode };
   if (chartType === "bar") return <HorizontalBars {...shared} onItemClick={onItemClick} />;
-  if (chartType === "lollipop") return <VerticalMarks {...shared} shape="lollipop" />;
-  if (chartType === "dot_plot") return <VerticalMarks {...shared} shape="dots" />;
+  if (chartType === "lollipop") return <VerticalMarks {...shared} shape="lollipop" onItemClick={onItemClick} />;
+  if (chartType === "dot_plot") return <VerticalMarks {...shared} shape="dots" onItemClick={onItemClick} />;
   const multi = MULTI_SERIES_TYPES[chartType];
-  if (multi) return <SeriesColumns {...shared} series={series} seriesMeta={seriesMeta} mode={multi.mode} horizontal={multi.horizontal} labels={legendLabels} />;
+  if (multi) return <SeriesColumns {...shared} series={series} seriesMeta={seriesMeta} mode={multi.mode} horizontal={multi.horizontal} labels={legendLabels} onItemClick={onItemClick} onLegendClick={onLegendClick} />;
   return <VerticalMarks {...shared} shape="column" onItemClick={onItemClick} />;
 }

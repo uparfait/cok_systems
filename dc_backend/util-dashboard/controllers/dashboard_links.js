@@ -47,6 +47,7 @@ function link_config(link) {
     locked_filters: Array.isArray(config.locked_filters) ? config.locked_filters : [],
     locked_period: config.locked_period || null,
     show_title: config.show_title === true,
+    allow_records: config.allow_records === true,
   };
 }
 
@@ -67,6 +68,7 @@ function read_config(body) {
     locked_filters: filter_mode === "locked" ? sanitize_applied_filters(raw.locked_filters) : [],
     locked_period: filter_mode === "locked" ? read_period(raw.locked_period) : null,
     show_title: raw.show_title === true,
+    allow_records: raw.allow_records === true,
   };
 }
 

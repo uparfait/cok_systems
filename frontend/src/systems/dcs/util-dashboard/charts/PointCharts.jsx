@@ -9,7 +9,7 @@ import { chart_density, tick_style } from "./density.js";
  * numeric field. Height, axis fonts and bubble sizes all follow the card's
  * own width (see density.js). Points draw in the widget's number color.
  */
-export default function PointCharts({ chartType, points, xLabel, yLabel, palette, animate, density }) {
+export default function PointCharts({ chartType, points, xLabel, yLabel, palette, animate, density, onItemClick }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
   const has_size = chartType === "bubble";
@@ -22,7 +22,7 @@ export default function PointCharts({ chartType, points, xLabel, yLabel, palette
         <YAxis type="number" dataKey="y" name={yLabel} tick={tick_style(colors, size)} stroke={colors.grid} width={size.font * 3} />
         {has_size && <ZAxis type="number" dataKey="size" range={[30, bubble_max]} />}
         <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} cursor={{ strokeDasharray: "3 3" }} />
-        <Scatter data={points} fill={colors.accent} fillOpacity={0.7} isAnimationActive={animate !== false} animationDuration={700} animationEasing="ease-out" />
+        <Scatter data={points} fill={colors.accent} fillOpacity={0.7} isAnimationActive={animate !== false} animationDuration={700} animationEasing="ease-out" cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(entry && entry.payload ? entry.payload : entry) : undefined} />
       </ScatterChart>
     </ResponsiveContainer>
   );

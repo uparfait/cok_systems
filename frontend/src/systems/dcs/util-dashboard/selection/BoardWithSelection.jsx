@@ -54,12 +54,17 @@ function BoardContextMenu({ x, y, active, onToggle, onClose }) {
  * the bottom; nothing is saved until the user asks, then the whole list
  * is stored in one save.
  */
-export default function BoardWithSelection({ form, fields, widgets, editable, onSaved, ...grid_props }) {
+export default function BoardWithSelection({ form, fields, widgets, editable, onSaved, onSelectionChange, ...grid_props }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const [menu, setMenu] = useState(null);
   const [confirm_exit, setConfirmExit] = useState(false);
   const [confirm_delete, setConfirmDelete] = useState(false);
+  // The page follows the mode: filters, for one, only reorder while it is on.
+  useEffect(() => {
+    if (onSelectionChange) onSelectionChange(selection.active);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection.active]);
   const [bulk_open, setBulkOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const selection = useBoardSelection(widgets);

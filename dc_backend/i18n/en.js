@@ -23,6 +23,10 @@ module.exports = {
   PROJECT_OWNER_TRANSFERRED: "Project ownership transferred successfully",
   DASHBOARD_FETCHED: "Dashboard fetched successfully",
 
+  DASHBOARD_RECORDS_FORBIDDEN: "This link does not allow opening the records behind the widgets",
+
+  DASHBOARD_RECORDS_FETCHED: "Records fetched successfully",
+
   DASHBOARD_FILTER_VALUES_FETCHED: "Filter values fetched successfully",
 
   DASHBOARD_FILTER_INVALID: "This field cannot be used as a dashboard filter",

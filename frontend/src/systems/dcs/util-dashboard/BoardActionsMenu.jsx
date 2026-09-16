@@ -35,7 +35,7 @@ export default function BoardActionsMenu({ items, onDark }) {
 
   const trigger_style = onDark
     ? { border: "1px solid rgba(255, 255, 255, 0.55)", color: "#FFFFFF", backgroundColor: open ? "rgba(255, 255, 255, 0.22)" : "transparent" }
-    : { border: `2px solid ${open ? PRIMARY : SURFACE_BORDER}`, color: open ? "#FFFFFF" : SURFACE_TEXT, backgroundColor: open ? PRIMARY : "transparent" };
+    : { color: open ? PRIMARY : SURFACE_TEXT };
 
   return (
     <div className="flex-shrink-0">
@@ -45,8 +45,8 @@ export default function BoardActionsMenu({ items, onDark }) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="dcs-db-iconbtn flex items-center gap-2 px-3 text-xs font-bold uppercase cursor-pointer"
-        style={{ height: 40, letterSpacing: "0.5px", ...FONT, ...trigger_style }}
+        className={`dcs-board-filter dcs-board-actions-trigger flex items-center gap-2 px-3 text-xs font-bold uppercase cursor-pointer ${open ? "is-open" : ""}`}
+        style={{ letterSpacing: "0.5px", ...FONT, ...trigger_style }}
       >
         {translate("DCS_DB_ACTIONS")}
         {CHEVRON}

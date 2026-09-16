@@ -18,7 +18,7 @@ function Marker({ color, square }) {
   return <span className="flex-shrink-0" style={{ display: "inline-block", width: 10, height: 10, borderRadius: square ? 0 : "50%", backgroundColor: color, transition: "background-color 300ms ease" }} />;
 }
 
-export function LegendRow({ items, palette, square, title }) {
+export function LegendRow({ items, palette, square, title, onItemClick }) {
   if (!items || items.length === 0) return null;
   return (
     <div className="min-w-0">
@@ -29,7 +29,12 @@ export function LegendRow({ items, palette, square, title }) {
       )}
       <ul className="dcs-legend-column flex flex-col gap-1" style={{ listStyle: "none", margin: 0, padding: items.length > 12 ? "0 6px 0 0" : 0, maxHeight: items.length > 12 ? 260 : undefined, overflowY: items.length > 12 ? "auto" : "visible" }}>
         {items.map((item, index) => (
-          <li key={`${item.label}-${index}`} className="flex items-start gap-1.5 text-xs min-w-0" style={{ color: palette.text }}>
+          <li
+            key={`${item.label}-${index}`}
+            className={`flex items-start gap-1.5 text-xs min-w-0 ${onItemClick ? "dcs-legend-clickable" : ""}`}
+            style={{ color: palette.text }}
+            onClick={onItemClick ? () => onItemClick(item.pick_label !== undefined ? item.pick_label : item.label) : undefined}
+          >
             <span className="flex-shrink-0" style={{ marginTop: 3 }}>
               {item.pattern_index !== undefined && item.pattern_index > 0 ? <PatternSwatch index={item.pattern_index} color={item.color} size={12} /> : <Marker color={item.color} square={square} />}
             </span>
@@ -49,9 +54,9 @@ export function LegendRow({ items, palette, square, title }) {
 }
 
 /** Legend of a split chart: colors per split, plus textures per pattern when there is a third field. */
-export function SplitLegend({ display, totals, palette, splitTitle, patternTitle }) {
+export function SplitLegend({ display, totals, palette, splitTitle, patternTitle, onItemClick }) {
   if (display.patterns.length === 0) {
-    return <LegendRow items={display.items.map((item) => ({ label: item.label, color: item.color, value: totals ? totals[item.key] : undefined }))} palette={palette} />;
+    return <LegendRow items={display.items.map((item) => ({ label: item.label, color: item.color, value: totals ? totals[item.key] : undefined }))} palette={palette} onItemClick={onItemClick} />;
   }
   const by_split = display.splits.map((split, index) => {
     const color = palette.color_for(split, index);
@@ -61,7 +66,7 @@ export function SplitLegend({ display, totals, palette, splitTitle, patternTitle
   const by_pattern = display.patterns.map((pattern, index) => ({ label: pattern, color: "#8A94A0", pattern_index: Math.min(5, index) }));
   return (
     <div className="flex flex-col gap-1.5">
-      <LegendRow items={by_split} palette={palette} title={splitTitle} />
+      <LegendRow items={by_split} palette={palette} title={splitTitle} onItemClick={onItemClick} />
       <LegendRow items={by_pattern} palette={palette} title={patternTitle} />
     </div>
   );

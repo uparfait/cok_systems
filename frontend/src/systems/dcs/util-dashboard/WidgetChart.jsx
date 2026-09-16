@@ -20,7 +20,7 @@ const OTHER_KEY = "__other__";
  * expander line under the chart) swaps the card to a bar view of everything
  * folded inside it, with a way back.
  */
-export default function WidgetChart({ widget, data, fitMode, animate, cardWidth, fillHeight }) {
+export default function WidgetChart({ widget, data, fitMode, animate, cardWidth, fillHeight, onPick }) {
   const { translate } = useDcsLanguage();
   const [show_other, setShowOther] = useState(false);
   const board = useBoardTheme();
@@ -49,11 +49,20 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
   const rows = (data.rows || []).map((row) => (row.label === OTHER_KEY ? { ...row, label: other_label } : row));
   const other_rows = Array.isArray(data.other_rows) ? data.other_rows : [];
   const can_expand_other = data.other_folded === true && other_rows.length > 0;
-  const handle_item_click = can_expand_other
-    ? (row) => {
-        if (row && row.label === other_label) setShowOther(true);
-      }
-    : undefined;
+  // A click on a category (bar, column, slice, tile, legend entry): the
+  // folded "Other" opens instead of picking; anything else picks those records.
+  const handle_item_click =
+    can_expand_other || onPick
+      ? (row) => {
+          if (!row) return;
+          if (can_expand_other && row.label === other_label) {
+            setShowOther(true);
+            return;
+          }
+          if (onPick) onPick({ kind: "category", label: row.label, series: row.series, pattern: row.pattern });
+        }
+      : undefined;
+  const legend_pick = onPick ? (label) => onPick({ kind: "legend", label }) : undefined;
 
   if (data.kind === "kpi") {
     return (
@@ -64,17 +73,18 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
         totalLabel={translate(data.occurrences ? (data.occurrences.has_rule ? "DCS_DB_OCC_VALUES_MATCHING" : "DCS_DB_OCC_VALUES") : "DCS_DB_TOTAL")}
         palette={palette}
         density={density}
+        onLegendClick={legend_pick}
       />
     );
   }
   if (data.kind === "point") {
-    return <PointCharts chartType={widget.chart_type} points={data.points} xLabel="x" yLabel="y" palette={palette} animate={animate} density={density} />;
+    return <PointCharts chartType={widget.chart_type} points={data.points} xLabel="x" yLabel="y" palette={palette} animate={animate} density={density} onItemClick={onPick ? (point) => onPick({ kind: "point", x: point.x, y: point.y }) : undefined} />;
   }
   if (data.kind === "tree") {
-    return <TreemapChart nodes={data.nodes} palette={palette} animate={animate} density={density} />;
+    return <TreemapChart nodes={data.nodes} palette={palette} animate={animate} density={density} onItemClick={onPick ? (node) => onPick({ kind: "tree", name: node.name, parent: node.parent }) : undefined} />;
   }
   if (data.kind === "time") {
-    return <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} animate={animate} density={density} />;
+    return <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} animate={animate} density={density} onItemClick={onPick ? (label) => onPick({ kind: "time", label }) : undefined} onLegendClick={legend_pick} />;
   }
 
   const toggle_link = (label_key, next_state, vars) => (
@@ -105,13 +115,13 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
     // A category chart flipped into a line/area look: the categories run
     // along the X axis (with one line per split value when the data is
     // split) - same rows/series shape the time renderer already draws.
-    chart = <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} animate={animate} density={density} />;
+    chart = <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} animate={animate} density={density} onItemClick={handle_item_click ? (label) => handle_item_click({ label }) : undefined} onLegendClick={legend_pick} />;
   } else if (widget.chart_type === "pie" || widget.chart_type === "donut") {
     chart = <PieCharts chartType={widget.chart_type} rows={rows} totalLabel={translate("DCS_DB_TOTAL")} onItemClick={handle_item_click} palette={palette} animate={animate} density={density} />;
   } else if (widget.chart_type === "waffle") {
     chart = <WaffleChart rows={rows} palette={palette} density={density} />;
   } else if (widget.chart_type === "heatmap") {
-    chart = <HeatmapChart rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} density={density} />;
+    chart = <HeatmapChart rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} density={density} onItemClick={handle_item_click ? (label, key) => handle_item_click({ label, series: key }) : undefined} />;
   } else {
     chart = (
       <CategoryCharts
@@ -120,6 +130,7 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
         series={data.series || []}
         seriesMeta={data.series_meta}
         onItemClick={handle_item_click}
+        onLegendClick={legend_pick}
         palette={palette}
         animate={animate}
         density={density}

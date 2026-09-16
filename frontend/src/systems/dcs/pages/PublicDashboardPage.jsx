@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped, get_public_filter_values, request_error_text } from "../util-dashboard/dashboardService.js";
+import { get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped, get_public_filter_values, get_public_widget_records, request_error_text } from "../util-dashboard/dashboardService.js";
+import RecordsOverlay from "../util-dashboard/records/RecordsOverlay.jsx";
 import { applied_filter_map } from "../util-dashboard/boardFilters.js";
 import { useBoardFullscreen } from "../util-dashboard/useBoardFullscreen.js";
 import { useBoardData } from "../util-dashboard/useBoardData.js";
@@ -35,6 +36,7 @@ function PublicBoard() {
   const [failure, setFailure] = useState("");
   const [info, setInfo] = useState(null);
   const [skipped_widget, setSkippedWidget] = useState(null);
+  const [records, setRecords] = useState(null);
   const frozen_ref = useRef(false);
 
   useEffect(() => {
@@ -82,7 +84,7 @@ function PublicBoard() {
     });
     setShot({ rects, base: { w: grid.offsetWidth, h: grid.offsetHeight }, data: { ...data.data_by_widget } });
   };
-  frozen_ref.current = shot !== null;
+  frozen_ref.current = shot !== null || records !== null;
 
   if (loading) return <DcsLoadingState />;
 
@@ -163,8 +165,17 @@ function PublicBoard() {
             onRetryWidget={data.retry_widget}
             onShowSkipped={(target) => setSkippedWidget(target)}
             selection={null}
+            onOpenRecords={config.allow_records ? (widget, pick) => setRecords({ widget, pick }) : undefined}
           />
         </div>
+      )}
+      {records && (
+        <RecordsOverlay
+          title={records.widget.title}
+          subtitle={info.dashboard_name || ""}
+          fetchPage={(page) => get_public_widget_records(token, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick, page, limit: 20 })}
+          onClose={() => setRecords(null)}
+        />
       )}
       {skipped_widget && (
         <SkippedDetailsModal

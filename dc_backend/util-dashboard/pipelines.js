@@ -257,6 +257,7 @@ async function tree_rows(widget, bounds, catalog, parent_field_id) {
 }
 
 module.exports = {
+  time_source_expr,
   category_rows,
   occurrence_rows,
   split_rows,

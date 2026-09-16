@@ -126,7 +126,7 @@ export default function ScreenshotStudio({ form, widgets, dataByWidget, rects, b
   };
 
   return createPortal(
-    <div className={`dcs-studio-root fixed inset-0 z-[10000] flex flex-col ${board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`} style={{ backgroundColor: "#0B1219" }}>
+    <div className={`dcs-studio-root fixed inset-0 z-[10000] flex flex-col ${board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`} style={{ backgroundColor: background }}>
       <div className="flex items-center justify-between gap-3 flex-shrink-0 px-4 sm:px-5 py-2" style={{ backgroundColor: PRIMARY }}>
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...FONT }}>
@@ -136,38 +136,37 @@ export default function ScreenshotStudio({ form, widgets, dataByWidget, rects, b
             {form.dashboard_name || form.form_name || ""}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="hidden sm:block w-40">
-            <DcsButtonOutline type="button" onClick={reset} disabled={exporting} className="dcs-studio-outline-btn">
+        <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger disabled={exporting}>
+          {CLOSE_SVG}
+        </IconButton>
+      </div>
+      <div className="dcs-studio-toolbar flex-shrink-0 px-4 sm:px-5 py-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs font-semibold" style={{ color: "var(--board-muted, #9E9E9E)", ...FONT }}>
+          {translate("DCS_DB_WIDGETS_COUNT", { count: items.length })}
+        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="w-36 sm:w-40">
+            <DcsButtonOutline type="button" onClick={reset} disabled={exporting}>
               {translate("DCS_DB_SHOT_RESET")}
             </DcsButtonOutline>
           </div>
-          <div className="w-32 sm:w-40">
-            <DcsButtonPrimary type="button" onClick={() => save("png")} disabled={exporting || items.length === 0} className="dcs-studio-save-btn">
+          <div className="w-36 sm:w-40">
+            <DcsButtonPrimary type="button" onClick={() => save("png")} disabled={exporting || items.length === 0}>
               {exporting ? translate("DCS_DB_SHOT_EXPORTING") : translate("DCS_DB_SHOT_SAVE_PNG")}
             </DcsButtonPrimary>
           </div>
-          <div className="w-32 sm:w-40">
-            <DcsButtonPrimary type="button" onClick={() => save("pdf")} disabled={exporting || items.length === 0} className="dcs-studio-save-btn">
+          <div className="w-36 sm:w-40">
+            <DcsButtonPrimary type="button" onClick={() => save("pdf")} disabled={exporting || items.length === 0}>
               {exporting ? translate("DCS_DB_SHOT_EXPORTING") : translate("DCS_DB_SHOT_SAVE_PDF")}
             </DcsButtonPrimary>
           </div>
-          <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger disabled={exporting}>
-            {CLOSE_SVG}
-          </IconButton>
         </div>
       </div>
-      <p className="flex-shrink-0 px-4 sm:px-5 py-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.7)", backgroundColor: "#12202C", ...FONT }}>
-        {translate("DCS_DB_SHOT_HINT")}
-        <button type="button" className="dcs-link-action sm:hidden ml-2 font-bold uppercase" style={{ color: "#FFFFFF", background: "none", border: "none", padding: 0 }} onClick={reset}>
-          {translate("DCS_DB_SHOT_RESET")}
-        </button>
-      </p>
 
       <div ref={scroll_ref} className="dcs-studio-scroll flex-1 min-h-0 overflow-auto p-4">
         {items.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-center" style={{ color: "rgba(255,255,255,0.75)", ...FONT }}>
+            <p className="text-sm text-center" style={{ color: "var(--board-text, #333333)", ...FONT }}>
               {translate("DCS_DB_SHOT_EMPTY")}
             </p>
           </div>

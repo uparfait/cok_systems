@@ -140,6 +140,7 @@ export default function BoardHeader({
               onApply={onApplyPeriod}
               includeAll={!!lockedPeriod}
               locked={!!lockedPeriod}
+              plain
             />
             {fetchFilterValues && (
               <BoardFilters
