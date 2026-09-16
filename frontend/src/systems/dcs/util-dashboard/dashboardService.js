@@ -17,9 +17,13 @@ export function get_dashboard(scope) {
   return dcs_request(dashboard_path(scope), "GET");
 }
 
-/** Saves one dashboard's whole widget list (validated server-side against the form's real schema). */
-export function save_dashboard(scope, widgets) {
-  return dcs_request(dashboard_path(scope), "PUT", { widgets });
+/**
+ * Saves one dashboard's whole widget list (validated server-side against
+ * the form's real schema) and, when a list is given, its board filter
+ * fields; callers that only touch widgets leave the filters as they are.
+ */
+export function save_dashboard(scope, widgets, filters) {
+  return dcs_request(dashboard_path(scope), "PUT", Array.isArray(filters) ? { widgets, filters } : { widgets });
 }
 
 /** The form's named dashboards: { dashboards: [{id, name, widgets_count}], can_edit }. */
@@ -45,8 +49,16 @@ export function delete_dashboard(form_group_id, dashboard_id) {
  * also used by the builder's preview with a single draft widget. The
  * optional period overrides every widget's own window.
  */
-export function get_dashboard_data(form_group_id, widgets, period) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/data`, "POST", { widgets, period: period || null });
+export function get_dashboard_data(form_group_id, widgets, period, filters) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/data`, "POST", { widgets, period: period || null, filters: filters || [] });
+}
+
+/**
+ * The values one board filter field can take right now: the distinct
+ * answers under the period and the other applied filters, with counts.
+ */
+export function get_filter_values(form_group_id, field_id, filters, period) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/filter-values`, "POST", { field_id, filters: filters || [], period: period || null });
 }
 
 /**
@@ -54,8 +66,8 @@ export function get_dashboard_data(form_group_id, widgets, period) {
  * numbers) inside its current window, honoring the same period the
  * dashboard shows: { total, rows: [{submitted_at, raw}] }.
  */
-export function get_kpi_skipped(form_group_id, widget, period, offset, limit) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20 });
+export function get_kpi_skipped(form_group_id, widget, period, offset, limit, filters) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20, filters: filters || [] });
 }
 
 /** The public share links of ONE dashboard (form editors only); all of the form's when no dashboard id is given. */
@@ -94,12 +106,16 @@ export function get_public_dashboard(token) {
   return dcs_request(`/public/dashboard/${token}`, "GET", undefined, PUBLIC_CONFIG);
 }
 
-export function get_public_dashboard_data(token, widgets, period) {
-  return dcs_request(`/public/dashboard/${token}/data`, "POST", { widgets, period: period || null }, PUBLIC_CONFIG);
+export function get_public_dashboard_data(token, widgets, period, filters) {
+  return dcs_request(`/public/dashboard/${token}/data`, "POST", { widgets, period: period || null, filters: filters || [] }, PUBLIC_CONFIG);
 }
 
-export function get_public_kpi_skipped(token, widget, period, offset, limit) {
-  return dcs_request(`/public/dashboard/${token}/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20 }, PUBLIC_CONFIG);
+export function get_public_kpi_skipped(token, widget, period, offset, limit, filters) {
+  return dcs_request(`/public/dashboard/${token}/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20, filters: filters || [] }, PUBLIC_CONFIG);
+}
+
+export function get_public_filter_values(token, field_id, filters, period) {
+  return dcs_request(`/public/dashboard/${token}/filter-values`, "POST", { field_id, filters: filters || [], period: period || null }, PUBLIC_CONFIG);
 }
 
 /**

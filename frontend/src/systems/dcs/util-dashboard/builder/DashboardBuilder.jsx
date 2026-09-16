@@ -12,6 +12,8 @@ import KpiComposer from "./KpiComposer.jsx";
 import ChartComposer from "./ChartComposer.jsx";
 import DraftList from "./DraftList.jsx";
 import { TABS, MAX_WIDGETS, builder_fields, finalize_widgets } from "./composeWidgets.js";
+import FiltersTab from "./FiltersTab.jsx";
+import { same_filter_defs } from "../boardFilters.js";
 import { PRIMARY, BORDER, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builderUi.jsx";
 import { portal_root } from "../portalRoot.js";
 
@@ -24,13 +26,16 @@ let draft_sequence = 0;
  * right. Nothing touches the saved dashboard until "Save": drafts are then
  * appended to the current board or replace it, as chosen in the footer.
  */
-export default function DashboardBuilder({ form, existingWidgets, initialTab, onClose, onSaved, onAutoGenerate }) {
+export default function DashboardBuilder({ form, existingWidgets, existingFilters, initialTab, onClose, onSaved, onAutoGenerate }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const existing = existingWidgets || [];
 
   const [tab, setTab] = useState(initialTab || "kpi");
   const [drafts, setDrafts] = useState([]);
+  // The board's filter fields (Filters tab), saved together with the widgets.
+  const [filter_defs, setFilterDefs] = useState(existingFilters || []);
+  const filters_changed = !same_filter_defs(filter_defs, existingFilters || []);
   const [mode, setMode] = useState(existing.length > 0 ? "append" : "replace");
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -74,23 +79,26 @@ export default function DashboardBuilder({ form, existingWidgets, initialTab, on
 
   const request_close = () => {
     if (saving) return;
-    if (drafts.length > 0) setConfirmClose(true);
+    if (drafts.length > 0 || filters_changed) setConfirmClose(true);
     else onClose();
   };
 
+  const can_save = (draft_widgets > 0 || filters_changed) && !over_limit;
+
   const handle_save = async () => {
-    if (draft_widgets === 0 || over_limit) return;
+    if (!can_save) return;
     setSaving(true);
     setProgress(20);
     try {
       const fresh = drafts.flatMap((draft) => draft.widgets);
-      const merged = finalize_widgets(mode === "append" ? existing.concat(fresh) : fresh);
+      // Filters alone can be saved too: the widgets then stay as they are.
+      const merged = draft_widgets === 0 ? existing : finalize_widgets(mode === "append" ? existing.concat(fresh) : fresh);
       setProgress(60);
-      const saved = await save_dashboard(form, merged);
+      const saved = await save_dashboard(form, merged, filter_defs);
       const final_widgets = (saved.data && saved.data.widgets) || merged;
       setProgress(100);
       showSuccess(translate("DCS_DB_BUILDER_SAVED", { count: final_widgets.length }));
-      onSaved(final_widgets);
+      onSaved(final_widgets, (saved.data && saved.data.filters) || filter_defs);
     } catch (error) {
       showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
       setSaving(false);
@@ -98,7 +106,7 @@ export default function DashboardBuilder({ form, existingWidgets, initialTab, on
     }
   };
 
-  const tab_count = (tab_id) => drafts.filter((draft) => draft.tab === tab_id).reduce((sum, draft) => sum + draft.widgets.length, 0);
+  const tab_count = (tab_id) => (tab_id === "filters" ? filter_defs.length : drafts.filter((draft) => draft.tab === tab_id).reduce((sum, draft) => sum + draft.widgets.length, 0));
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
@@ -155,6 +163,7 @@ export default function DashboardBuilder({ form, existingWidgets, initialTab, on
             {tab === "diagrams" && (
               <ChartComposer key={`diagrams_${composer_key}`} form={form} fields={fields} kind="diagrams" onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
             )}
+            {tab === "filters" && <FiltersTab fields={fields} widgets={(mode === "append" ? existing : []).concat(drafts.flatMap((draft) => draft.widgets))} selected={filter_defs} onChange={setFilterDefs} disabled={saving} />}
           </div>
           <aside className="dcs-builder-aside lg:w-[340px] flex-shrink-0 min-h-0 px-4 sm:px-5 py-4 flex flex-col" style={{ backgroundColor: "#FBFCFD" }}>
             <DraftList drafts={drafts} onRemove={handle_remove} onEdit={handle_edit} editingKey={editing ? editing.key : null} disabled={saving} />
@@ -200,8 +209,8 @@ export default function DashboardBuilder({ form, existingWidgets, initialTab, on
                 <DcsButtonOutline className="sm:w-32" onClick={request_close}>
                   {translate("DCS_DB_BUILDER_CANCEL")}
                 </DcsButtonOutline>
-                <DcsButtonPrimary className="sm:w-56" disabled={draft_widgets === 0 || over_limit} onClick={handle_save}>
-                  {translate("DCS_DB_BUILDER_SAVE", { count: draft_widgets })}
+                <DcsButtonPrimary className="sm:w-56" disabled={!can_save} onClick={handle_save}>
+                  {draft_widgets === 0 && filters_changed ? translate("DCS_DB_BUILDER_SAVE_FILTERS") : translate("DCS_DB_BUILDER_SAVE", { count: draft_widgets })}
                 </DcsButtonPrimary>
               </div>
             </div>

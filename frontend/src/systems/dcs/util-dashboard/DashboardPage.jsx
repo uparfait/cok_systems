@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_dashboard, save_dashboard, get_dashboard_data, request_error_text } from "./dashboardService.js";
+import { get_dashboard, save_dashboard, get_dashboard_data, get_filter_values, request_error_text } from "./dashboardService.js";
 import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
 import { useBoardData } from "./useBoardData.js";
@@ -55,6 +55,8 @@ function DashboardBoard({ form }) {
 
   const [widgets_loading, setWidgetsLoading] = useState(true);
   const [widgets, setWidgets] = useState([]);
+  // The board's filter fields (see boardFilters.js), saved with the dashboard.
+  const [filters, setFilters] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ percent: 0, message_key: "" });
   const [deleting, setDeleting] = useState(false);
@@ -96,7 +98,7 @@ function DashboardBoard({ form }) {
     loading,
     blocked: review_widgets !== null,
     frozen_ref,
-    fetch_batch: (batch, period) => get_dashboard_data(form.form_group_id, batch, period),
+    fetch_batch: (batch, period, applied) => get_dashboard_data(form.form_group_id, batch, period, applied),
   });
 
   // Browser-native full screen with two viewing modes ("fit" zooms the whole
@@ -128,7 +130,11 @@ function DashboardBoard({ form }) {
     let is_mounted = true;
     setWidgetsLoading(true);
     get_dashboard({ form_group_id: form.form_group_id, dashboard_id: active_id })
-      .then((response) => is_mounted && setWidgets((response.data && response.data.widgets) || []))
+      .then((response) => {
+        if (!is_mounted) return;
+        setWidgets((response.data && response.data.widgets) || []);
+        setFilters((response.data && response.data.filters) || []);
+      })
       .catch((error) => is_mounted && showError(request_error_text(error, translate("DCS_ERROR_GENERIC"))))
       .finally(() => is_mounted && setWidgetsLoading(false));
     return () => {
@@ -137,11 +143,31 @@ function DashboardBoard({ form }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.form_group_id, active_id]);
 
-  // Every save lands in the same place: the board and the switcher's count.
-  const commit_widgets = (final_widgets) => {
+  // Every save lands in the same place: the board and the switcher's count;
+  // a save that also carried the filter fields updates those too.
+  const commit_widgets = (final_widgets, final_filters) => {
     setWidgets(final_widgets);
     library.set_count(active_id, final_widgets.length);
+    if (Array.isArray(final_filters)) {
+      setFilters(final_filters);
+      data.prune_filters(final_filters);
+    }
   };
+
+  // Adding or removing a filter field from the bar is saved right away.
+  const handle_change_filters = async (defs) => {
+    try {
+      const saved = await save_dashboard(scoped_form, widgets, defs);
+      commit_widgets((saved.data && saved.data.widgets) || widgets, (saved.data && saved.data.filters) || defs);
+      data.settle((saved.data && saved.data.widgets) || widgets);
+    } catch (error) {
+      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
+    }
+  };
+
+  // The values a filter offers follow the period and the other filters.
+  const fetch_filter_values = (field_id, others) =>
+    get_filter_values(form.form_group_id, field_id, others || data.applied_filters_ref.current, data.applied_period_ref.current).then((response) => (response.data && response.data.values) || []);
 
   const submit_name = async (name) => {
     setNameSaving(true);
@@ -316,6 +342,13 @@ function DashboardBoard({ form }) {
         to={data.to}
         setTo={data.setTo}
         onApplyPeriod={data.handle_period_apply}
+        filters={filters}
+        fields={form_fields}
+        widgets={widgets}
+        filterValues={data.filter_values}
+        onFilterValue={data.set_filter_value}
+        onChangeFilters={can_edit && has_board ? handle_change_filters : undefined}
+        fetchFilterValues={fetch_filter_values}
         onAddKpi={() => setBuilderTab("kpi")}
         onShare={() => setShareOpen(true)}
         onDelete={() => setConfirming("delete")}
@@ -371,11 +404,12 @@ function DashboardBoard({ form }) {
         <DashboardBuilder
           form={scoped_form}
           existingWidgets={widgets}
+          existingFilters={filters}
           initialTab={builder_tab}
           onClose={() => setBuilderTab(null)}
-          onSaved={(final_widgets) => {
+          onSaved={(final_widgets, final_filters) => {
             setBuilderTab(null);
-            commit_widgets(final_widgets);
+            commit_widgets(final_widgets, final_filters);
           }}
           onAutoGenerate={() => handle_generate("overwrite")}
         />
@@ -384,14 +418,15 @@ function DashboardBoard({ form }) {
         <DashboardCodeOverlay
           form={scoped_form}
           widgets={widgets}
+          filters={filters}
           onClose={() => setCodeOpen(false)}
-          onSaved={(final_widgets) => {
+          onSaved={(final_widgets, final_filters) => {
             setCodeOpen(false);
-            commit_widgets(final_widgets);
+            commit_widgets(final_widgets, final_filters);
           }}
         />
       )}
-      {share_open && <ShareLinksDialog form={scoped_form} onClose={() => setShareOpen(false)} />}
+      {share_open && <ShareLinksDialog form={scoped_form} filters={filters} fields={form_fields} fetchFilterValues={fetch_filter_values} onClose={() => setShareOpen(false)} />}
       {naming && <DashboardNameDialog formName={form.form_name} saving={name_saving} onSubmit={submit_name} onCancel={() => setNaming(false)} />}
       <BoardWidgetDialogs
         form={scoped_form}
@@ -402,6 +437,7 @@ function DashboardBoard({ form }) {
         iconWidget={icon_widget}
         skippedWidget={skipped_widget}
         period={data.applied_period_ref.current}
+        appliedFilters={data.applied_filters_ref.current}
         onUpdate={handle_update_widget}
         onCloseAppearance={() => setAppearanceWidget(null)}
         onCloseIcon={() => setIconWidget(null)}

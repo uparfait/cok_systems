@@ -23,6 +23,10 @@ module.exports = {
   PROJECT_OWNER_TRANSFERRED: "Propriété du projet transférée avec succès",
   DASHBOARD_FETCHED: "Tableau de bord récupéré avec succès",
 
+  DASHBOARD_FILTER_VALUES_FETCHED: "Valeurs du filtre recuperees avec succes",
+
+  DASHBOARD_FILTER_INVALID: "Ce champ ne peut pas servir de filtre de tableau de bord",
+
   DASHBOARDS_FETCHED: "Tableaux de bord récupérés avec succès",
 
   DASHBOARD_CREATED: "Tableau de bord créé avec succès",

@@ -4,6 +4,7 @@ const get_dashboard = require("./controllers/get_dashboard.js");
 const save_dashboard = require("./controllers/save_dashboard.js");
 const dashboard_data = require("./controllers/dashboard_data.js");
 const kpi_skipped = require("./controllers/kpi_skipped.js");
+const filter_values = require("./controllers/filter_values.js");
 const { list_dashboard_links, create_dashboard_link, update_dashboard_link, delete_dashboard_link } = require("./controllers/dashboard_links.js");
 const { list_dashboards, create_dashboard, rename_dashboard, delete_dashboard, get_dashboard_by_id, save_dashboard_by_id } = require("./controllers/dashboards.js");
 
@@ -108,6 +109,17 @@ Router.post("/:form_group_id/dashboard/data", dashboard_data);
  *         description: Skipped entries fetched successfully
  */
 Router.post("/:form_group_id/dashboard/kpi-skipped", kpi_skipped);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/dashboard/filter-values:
+ *   post:
+ *     summary: The values a board filter field can take (distinct answers under the period and the other applied filters)
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ */
+Router.post("/:form_group_id/dashboard/filter-values", filter_values);
 
 /**
  * @swagger

@@ -142,6 +142,27 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
 }
 
 /**
+ * What the board filters did to this widget's shape, appended to its title:
+ * the picked values ("Kigali", "male"), one entry per value, in the card's
+ * accent color; hovering names the fields.
+ */
+function TitleContext({ context, color }) {
+  if (!Array.isArray(context) || context.length === 0) return null;
+  const seen = new Set();
+  const entries = context.filter((entry) => {
+    const key = String(entry.value);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return (
+    <span className="text-xs font-bold break-words" style={{ color, fontFamily: "'Montserrat', sans-serif" }} title={entries.map((entry) => `${entry.field_label}: ${entry.value}`).join(", ")}>
+      ({entries.map((entry) => String(entry.value)).join(", ")})
+    </span>
+  );
+}
+
+/**
  * The three-dots menu at each card's top right: flip the widget into ANY
  * compatible look (single-series category charts reach every bar, column,
  * lollipop, dot, slice, waffle, treemap, line and area form; split ones
@@ -369,6 +390,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
       <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
         {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} />}
         <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-1.5">
           <EditableText
             value={widget.title}
             placeholder={type_label}
@@ -382,6 +404,8 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
               if (next) onUpdateText({ title: next });
             }}
           />
+          <TitleContext context={data && data.board_context} color={palette.number} />
+          </div>
           <EditableText
             value={widget.description || ""}
             placeholder={type_label}

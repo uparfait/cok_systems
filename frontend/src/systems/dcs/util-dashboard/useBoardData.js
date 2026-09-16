@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { widgets_data_signature } from "./chartCatalog.js";
+import { applied_filter_list } from "./boardFilters.js";
 
 const REFRESH_INTERVAL_MS = 30000;
 // A request that drags past three minutes is cut off and its card marked
@@ -16,11 +17,13 @@ const WIDGET_TIMEOUT_MS = 180000;
  * (see widgets_data_signature) refetches; callers settle the signature by
  * hand after edits that change nothing about the data.
  *
- * fetch_batch(widgets, period) is whichever endpoint fits the caller -
- * authenticated or public. `blocked` pauses the signature-driven fetch
+ * fetch_batch(widgets, period, filters) is whichever endpoint fits the
+ * caller - authenticated or public; filters are the board filters' applied
+ * values, which every fetch (the silent refresh too) carries.
+ * initialFilterValues seeds them (a share link's locked values). `blocked` pauses the signature-driven fetch
  * (a review list open), frozen_ref.current pauses the silent refresh.
  */
-export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref, fetch_batch }) {
+export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref, fetch_batch, initialFilterValues }) {
   const [data_by_widget, setDataByWidget] = useState({});
   const [data_loading, setDataLoading] = useState(false);
   // The dashboard opens on the current year by default - "all" stays one
@@ -28,6 +31,9 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
   const [period, setPeriod] = useState("this_year");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  // The board filters' applied values: field_id -> value; absent means all.
+  const [filter_values, setFilterValues] = useState(initialFilterValues || {});
+  const applied_filters_ref = useRef(applied_filter_list(initialFilterValues || {}));
 
   const run_seq_ref = useRef(0);
   const applied_period_ref = useRef({ preset: "this_year", from: null, to: null });
@@ -39,7 +45,7 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
 
   const fetch_one = (widget, applied_period, run_id, silent) =>
     Promise.race([
-      fetch_batch([widget], applied_period),
+      fetch_batch([widget], applied_period, applied_filters_ref.current),
       new Promise((resolve, reject) => setTimeout(() => reject(new Error("TIMEOUT")), WIDGET_TIMEOUT_MS)),
     ])
       .then((response) => {
@@ -131,6 +137,25 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
+  /** Applies one filter value ("" clears it) and refetches the whole board under it. */
+  const set_filter_value = (field_id, value) => {
+    const next = { ...filter_values };
+    if (value === "" || value === null || value === undefined) delete next[field_id];
+    else next[field_id] = value;
+    setFilterValues(next);
+    applied_filters_ref.current = applied_filter_list(next);
+    fetch_data(widgets_ref.current, applied_period_ref.current, false);
+  };
+  /** Forgets the values of filters no longer on the board; refetches only if one was active. */
+  const prune_filters = (defs) => {
+    const keep = new Set((defs || []).map((def) => def.field_id));
+    const next = Object.fromEntries(Object.entries(filter_values).filter(([id]) => keep.has(id)));
+    if (Object.keys(next).length === Object.keys(filter_values).length) return;
+    setFilterValues(next);
+    applied_filters_ref.current = applied_filter_list(next);
+    fetch_data(widgets_ref.current, applied_period_ref.current, false);
+  };
+
   /** Marks the given widget list as already fetched (an edit that changed no data). */
   const settle = (final_widgets) => {
     data_signature_ref.current = widgets_data_signature(final_widgets);
@@ -152,6 +177,10 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     to,
     setTo,
     applied_period_ref,
+    applied_filters_ref,
+    filter_values,
+    set_filter_value,
+    prune_filters,
     fetch_data,
     retry_widget,
     handle_period_apply,

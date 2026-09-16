@@ -55,6 +55,7 @@ async function create_dashboard(form_group_id, project_id, name) {
     name: name.trim(),
     name_normalized: name.trim().toLowerCase(),
     widgets: [],
+    filters: [],
     created_at: now,
     updated_at: now,
   };
@@ -76,11 +77,17 @@ async function delete_dashboard(form_group_id, dashboard_id) {
   return result.deletedCount;
 }
 
-/** Replaces one dashboard's widgets and returns the saved copy. */
-async function save_widgets(form_group_id, dashboard_id, widgets) {
+/**
+ * Replaces one dashboard's widgets - and its board filter fields when a
+ * list is given (callers that only touch widgets leave the filters alone)
+ * - and returns the saved copy.
+ */
+async function save_widgets(form_group_id, dashboard_id, widgets, filters) {
   const object_id = to_object_id(dashboard_id);
   if (!object_id) return null;
-  await collection().updateOne({ _id: object_id, form_group_id: form_group_id.toString() }, { $set: { widgets, updated_at: new Date() } });
+  const changes = { widgets, updated_at: new Date() };
+  if (Array.isArray(filters)) changes.filters = filters;
+  await collection().updateOne({ _id: object_id, form_group_id: form_group_id.toString() }, { $set: changes });
   return get_dashboard_by_id(form_group_id, dashboard_id);
 }
 

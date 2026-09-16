@@ -9,7 +9,7 @@ import SkippedDetailsModal from "./SkippedDetailsModal.jsx";
  * picker and the skipped-answers detail - each shown for the widget the
  * page currently holds in the matching state slot.
  */
-export default function BoardWidgetDialogs({ form, fields, widgets, savingWidgetId, appearanceWidget, iconWidget, skippedWidget, period, onUpdate, onCloseAppearance, onCloseIcon, onCloseSkipped }) {
+export default function BoardWidgetDialogs({ form, fields, widgets, savingWidgetId, appearanceWidget, iconWidget, skippedWidget, period, appliedFilters, onUpdate, onCloseAppearance, onCloseIcon, onCloseSkipped }) {
   return (
     <>
       {appearanceWidget && (
@@ -40,7 +40,7 @@ export default function BoardWidgetDialogs({ form, fields, widgets, savingWidget
           onClose={onCloseIcon}
         />
       )}
-      {skippedWidget && <SkippedDetailsModal form={form} widget={skippedWidget} period={period} onClose={onCloseSkipped} />}
+      {skippedWidget && <SkippedDetailsModal form={form} widget={skippedWidget} period={period} filters={appliedFilters} onClose={onCloseSkipped} />}
     </>
   );
 }

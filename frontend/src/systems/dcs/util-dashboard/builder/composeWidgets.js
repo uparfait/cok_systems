@@ -16,6 +16,7 @@ export const TABS = [
   { id: "kpi", labelKey: "DCS_DB_TAB_KPI" },
   { id: "charts", labelKey: "DCS_DB_TAB_CHARTS" },
   { id: "diagrams", labelKey: "DCS_DB_TAB_DIAGRAMS" },
+  { id: "filters", labelKey: "DCS_DB_TAB_FILTERS" },
 ];
 
 const CHOICE_TYPES = ["single_select", "multi_select", "cascading_select", "select_group", "likert_scale"];

@@ -1,6 +1,7 @@
 import { CHART_CATALOG, flatten_schema_fields, field_label_text, SUBMITTED_AT_FIELD } from "./chartCatalog.js";
 import { BUILDER_FORMULAS, KPI_ONLY, type_rules, builder_fields, MAX_WIDGETS } from "./builder/composeWidgets.js";
 import { ICON_LIBRARIES } from "./icons/iconLibraries.js";
+import { FILTER_FIELD_TYPES, MAX_BOARD_FILTERS } from "./boardFilters.js";
 import { has_preset_config } from "../fields/presetFields.js";
 
 /**
@@ -172,7 +173,7 @@ export function build_dashboard_creation_guide(form) {
     how_to_use: [
       "This document fully describes the dashboard widgets of the Data Collection & Monitoring System (DC&MS) and the ONE form they chart.",
       "Paste this ENTIRE document into an external AI assistant together with a plain-language description of the dashboard you want (which numbers matter, which comparisons, which breakdowns).",
-      "Ask the AI to reply with ONLY one JSON object shaped like { \"widgets\": [ ... ] } - no prose, no markdown code fences - built strictly from the widget_shape, chart_types, formulas and the form's fields listed below.",
+      "Ask the AI to reply with ONLY one JSON object shaped like { \"filters\": [ ... ], \"widgets\": [ ... ] } - no prose, no markdown code fences - built strictly from the widget_shape, chart_types, formulas, board_filters and the form's fields listed below.",
       "Copy that JSON reply, paste it into the 'Paste dashboard JSON here' box of the same Ctrl+6 overlay on the dashboard, then choose to add the widgets to the board or to replace the board with them.",
       "Every field_id used anywhere in a widget MUST be one of the ids in form.fields (or 'submitted_at' for the time axis). Never invent a field. Fields marked with a preset note must not be used.",
       "Choose the chart by the data: a choice field alone -> column/bar/donut/pie/lollipop/treemap; two choice fields -> stacked_column/grouped_column/stacked_100/heatmap; a date or the submission date -> line/area; two numeric fields -> scatter (three -> bubble); a single figure -> kpi.",
@@ -183,7 +184,11 @@ export function build_dashboard_creation_guide(form) {
       `A dashboard holds at most ${MAX_WIDGETS} widgets in total, including the ones already on the board when adding.`,
       "The server validates every widget against the form; an invalid widget list is refused as a whole with the first violation shown, so follow the rules exactly.",
     ],
-    top_level_shape: { widgets: "Array of widget objects, in the order they should appear on the board (left to right, top to bottom). This is the whole document." },
+    top_level_shape: {
+      filters: "Optional. The board's filter fields: an array of { field_id } - see board_filters. Viewers pick a value in each and every widget follows.",
+      widgets: "Array of widget objects, in the order they should appear on the board (left to right, top to bottom).",
+    },
+    board_filters: board_filters_doc(),
     one_widget_or_many: {
       description:
         "Showing a measure 'for each' value of a field can be done two ways, and ONE widget is almost always the better answer. Prefer a single widget carrying the values inside it; only produce one widget per value when each value really deserves its own card on the board.",
@@ -212,12 +217,70 @@ export function build_dashboard_creation_guide(form) {
   };
 }
 
+/**
+ * How the board's filters work, for the external AI: which fields may
+ * filter, what a picked value does to every widget, and a worked example.
+ */
+function board_filters_doc() {
+  return {
+    description:
+      "A dashboard can carry FILTERS: choice fields of the form listed at top level as filters: [{ field_id }]. Viewers pick a value in each filter (or 'All') and EVERY widget of the board follows every picked value - the whole board is recomputed under them.",
+    allowed_field_types: FILTER_FIELD_TYPES.concat(["(single_select is a select or radio; cascading_select is a chain such as district -> sector -> cell; select_group is a grouped select)"]),
+    rules: [
+      `Only fields of the allowed types may be filters; at most ${MAX_BOARD_FILTERS}, each field once. Use the field_id from form.fields.`,
+      "A picked value narrows the RECORDS of every widget: 'Deaths per district' under gender = male counts male deaths only, in every district.",
+      "A widget whose group_by is the filtered field DRILLS DOWN: 'Records per district' under district = Kigali shows Kigali's SECTORS (the field whose parent is district), and its title becomes 'Records per district (Kigali)'. Picking a sector too shows that sector's cells. A field with no child (gender) simply shows the one picked value.",
+      "A KPI card whose legend_by is the filtered field loses its legend: 'People by gender' (total 200, male 90, female 110) under gender = male shows the male total alone, no legend. A legend on a cascading field moves down to the child instead.",
+      "A split_by or pattern_by on the filtered field moves to the child field, or is dropped when there is none; the chart keeps its group_by.",
+      "Prefer filters on fields the widgets read (their group_by, split_by, legend_by) so filtering reshapes the board, plus the fields readers slice by most (location chain, gender, status). Do not add a filter on a field no widget uses unless readers clearly need it.",
+      "Widgets keep their own 'filters' (fixed conditions) - board filters are added on top of them.",
+    ],
+    example: {
+      filters: [{ field_id: "<a district cascading_select field>" }, { field_id: "<a gender single_select field>" }],
+      widgets: [
+        { id: "w_by_district", title: "Records per district", chart_type: "column", size: "medium", metric: { aggregation: "count", field_id: null }, group_by: { field_id: "<a district cascading_select field>" }, filters: [] },
+        { id: "w_by_gender", title: "People by gender", chart_type: "kpi", size: "small", metric: { aggregation: "count", field_id: null }, group_by: null, legend_by: { field_id: "<a gender single_select field>" }, filters: [] },
+        { id: "w_deaths", title: "Deaths per district", chart_type: "bar", size: "medium", metric: { aggregation: "sum", field_id: "<a deaths number field>" }, group_by: { field_id: "<a district cascading_select field>" }, filters: [] },
+      ],
+    },
+    worked_example:
+      "With the example above and district = Kigali picked: 'Records per district (Kigali)' and 'Deaths per district (Kigali)' list Kigali's sectors; 'People by gender' counts Kigali only, still split male / female. Picking gender = male as well: the KPI shows the male total alone with no legend, and both charts count male records only.",
+  };
+}
+
+/** Reads { filters, widgets } (or a bare widget array) from pasted text: { widgets, filters | null }. */
+export function parse_pasted_dashboard(raw_text) {
+  const parsed = JSON.parse(raw_text);
+  if (Array.isArray(parsed)) return { widgets: parsed, filters: null };
+  if (parsed && Array.isArray(parsed.widgets)) return { widgets: parsed.widgets, filters: Array.isArray(parsed.filters) ? parsed.filters : null };
+  throw new Error("not_a_widget_array");
+}
+
 /** Reads { widgets: [...] } or a bare [...] from pasted text. */
 export function parse_pasted_widgets(raw_text) {
-  const parsed = JSON.parse(raw_text);
-  if (Array.isArray(parsed)) return parsed;
-  if (parsed && Array.isArray(parsed.widgets)) return parsed.widgets;
-  throw new Error("not_a_widget_array");
+  return parse_pasted_dashboard(raw_text).widgets;
+}
+
+/**
+ * Completes pasted board filters: { filters: [{ field_id }], unknown_fields }
+ * - fields the form lacks are reported, fields of a type that cannot filter
+ * are dropped silently, duplicates folded, the limit applied.
+ */
+export function normalize_pasted_filters(form, pasted) {
+  const fields = flatten_schema_fields((form.schema && form.schema.fields) || []);
+  const by_id = new Map(fields.map((field) => [field.id, field]));
+  const unknown = [];
+  const seen = new Set();
+  const filters = [];
+  (Array.isArray(pasted) ? pasted : []).forEach((entry) => {
+    const field_id = entry && typeof entry === "object" ? entry.field_id : entry;
+    if (typeof field_id !== "string" || !field_id || seen.has(field_id)) return;
+    seen.add(field_id);
+    const field = by_id.get(field_id);
+    if (!field) unknown.push(field_id);
+    else if (FILTER_FIELD_TYPES.includes(field.type) && filters.length < MAX_BOARD_FILTERS) filters.push({ field_id });
+  });
+  return { filters, unknown_fields: unknown };
 }
 
 /**

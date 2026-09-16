@@ -3,6 +3,8 @@ const dashboard_links_model = require("../dashboard_links_model.js");
 const { load_form_dashboard_context } = require("../form_context.js");
 const { sanitize_widgets } = require("../sanitize.js");
 const { validate_dashboard } = require("../widget_validation.js");
+const { build_field_catalog } = require("../field_catalog.js");
+const { sanitize_filter_defs, validate_filter_defs } = require("../board_filters.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 const MAX_NAME = 80;
@@ -117,6 +119,7 @@ async function get_dashboard_by_id(req, res) {
       success_response(req, "DASHBOARD_FETCHED", {
         dashboard: dashboards_model.strip_dashboard(dashboard),
         widgets: dashboard.widgets || [],
+        filters: dashboard.filters || [],
         updated_at: dashboard.updated_at,
         can_edit: context.can_edit,
       }),
@@ -141,8 +144,15 @@ async function save_dashboard_by_id(req, res) {
     const widgets = sanitize_widgets((req.body || {}).widgets).map((widget) => Object.assign(widget, { form_group_id }));
     const check = validate_dashboard(widgets, new Map([[form_group_id, context.form_version]]), context.project._id);
     if (!check.valid) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: check.errors }));
-    const saved = await dashboards_model.save_widgets(form_group_id, dashboard_id, widgets);
-    return res.status(200).json(success_response(req, "DASHBOARD_SAVED", { dashboard: dashboards_model.strip_dashboard(saved), widgets: saved.widgets, updated_at: saved.updated_at, can_edit: true }));
+    // The board's filter fields ride along when the client sends them.
+    let filters;
+    if (Array.isArray((req.body || {}).filters)) {
+      filters = sanitize_filter_defs(req.body.filters);
+      const filter_errors = validate_filter_defs(filters, build_field_catalog(context.form_version.schema));
+      if (filter_errors.length > 0) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: filter_errors }));
+    }
+    const saved = await dashboards_model.save_widgets(form_group_id, dashboard_id, widgets, filters);
+    return res.status(200).json(success_response(req, "DASHBOARD_SAVED", { dashboard: dashboards_model.strip_dashboard(saved), widgets: saved.widgets, filters: saved.filters || [], updated_at: saved.updated_at, can_edit: true }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

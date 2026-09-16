@@ -1,7 +1,8 @@
 const dashboards_model = require("../dashboards_model.js");
 const dashboard_links_model = require("../dashboard_links_model.js");
 const { load_public_dashboard_context } = require("../public_link_context.js");
-const { compute_dashboard_results, compute_skipped_page } = require("../compute_results.js");
+const { compute_dashboard_results, compute_skipped_page, compute_filter_values } = require("../compute_results.js");
+const { build_field_catalog, field_label_text } = require("../field_catalog.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -12,6 +13,34 @@ const { success_response, warning_response, error_response } = require("../../ut
  * save endpoint stays behind authentication - and an expired or unknown
  * token is refused.
  */
+
+/**
+ * The link's viewing configuration; a link saved before configurations
+ * existed lets its viewers filter freely and shows the dashboard's name.
+ */
+function link_config(link) {
+  const config = (link && link.config) || {};
+  return {
+    filter_mode: config.filter_mode === "locked" ? "locked" : "free",
+    locked_filters: Array.isArray(config.locked_filters) ? config.locked_filters : [],
+    show_title: config.show_title === true,
+  };
+}
+
+/** The board filters' fields as the public page needs them: id, type and label. */
+function filter_fields(dashboard, form_version) {
+  const catalog = build_field_catalog(form_version.schema);
+  return ((dashboard && dashboard.filters) || [])
+    .map((def) => catalog.fields_by_id.get(def.field_id))
+    .filter(Boolean)
+    .map((field) => ({ id: field.id, type: field.type, label: field_label_text(field) }));
+}
+
+/** Locked values the viewer can never change; nothing forced when filtering is free. */
+function forced_filters(link) {
+  const config = link_config(link);
+  return config.filter_mode === "locked" ? config.locked_filters : [];
+}
 
 async function resolve(req, res) {
   const context = await load_public_dashboard_context(req.params.token);
@@ -42,8 +71,10 @@ async function get_public_dashboard(req, res) {
         form_name: context.form_version.form_name,
         dashboard_name: dashboard.name || dashboards_model.FIRST_NAME,
         project_name: context.project.name || "",
-        link: { title: context.link.title, description: context.link.description || "", expires_at: context.link.expires_at || null },
+        link: { title: context.link.title, description: context.link.description || "", expires_at: context.link.expires_at || null, config: link_config(context.link) },
         widgets: (dashboard && dashboard.widgets) || [],
+        filters: (dashboard && dashboard.filters) || [],
+        filter_fields: filter_fields(dashboard, context.form_version),
         updated_at: dashboard ? dashboard.updated_at : null,
       }),
     );
@@ -56,7 +87,9 @@ async function get_public_dashboard_data(req, res) {
   try {
     const context = await resolve(req, res);
     if (!context) return undefined;
-    const results = await compute_dashboard_results(req.body || {}, context.form_version.form_group_id, context.form_version, context.project._id);
+    // Under a locked link the viewer's own filter values are ignored: only the link's count.
+    const body = Object.assign({}, req.body || {}, link_config(context.link).filter_mode === "locked" ? { filters: [] } : {});
+    const results = await compute_dashboard_results(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link));
     return res.status(200).json(success_response(req, "DASHBOARD_DATA_FETCHED", { results }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
@@ -67,7 +100,8 @@ async function get_public_kpi_skipped(req, res) {
   try {
     const context = await resolve(req, res);
     if (!context) return undefined;
-    const page = await compute_skipped_page(req.body || {}, context.form_version.form_group_id, context.form_version, context.project._id);
+    const body = Object.assign({}, req.body || {}, link_config(context.link).filter_mode === "locked" ? { filters: [] } : {});
+    const page = await compute_skipped_page(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link));
     if (page.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: page.invalid }));
     return res.status(200).json(
       success_response(req, "DASHBOARD_SKIPPED_FETCHED", {
@@ -83,8 +117,22 @@ async function get_public_kpi_skipped(req, res) {
   }
 }
 
+async function get_public_filter_values(req, res) {
+  try {
+    const context = await resolve(req, res);
+    if (!context) return undefined;
+    const body = Object.assign({}, req.body || {}, link_config(context.link).filter_mode === "locked" ? { filters: [] } : {});
+    const result = await compute_filter_values(body, context.form_version.form_group_id, context.form_version, forced_filters(context.link));
+    if (result.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_FILTER_INVALID"));
+    return res.status(200).json(success_response(req, "DASHBOARD_FILTER_VALUES_FETCHED", { values: result.values }));
+  } catch (error) {
+    return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
+  }
+}
+
 module.exports = {
   get_public_dashboard,
   get_public_dashboard_data,
   get_public_kpi_skipped,
+  get_public_filter_values,
 };

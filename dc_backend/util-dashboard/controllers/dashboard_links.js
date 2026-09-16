@@ -1,5 +1,6 @@
 const dashboard_links_model = require("../dashboard_links_model.js");
 const dashboards_model = require("../dashboards_model.js");
+const { sanitize_applied_filters } = require("../board_filters.js");
 const { load_form_dashboard_context } = require("../form_context.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -22,6 +23,7 @@ function strip_link(link) {
     title: link.title,
     description: link.description || "",
     expires_at: link.expires_at || null,
+    config: link_config(link),
     expired: dashboard_links_model.is_expired(link),
     views: link.views || 0,
     last_viewed_at: link.last_viewed_at || null,
@@ -29,6 +31,26 @@ function strip_link(link) {
     created_at: link.created_at,
     updated_at: link.updated_at,
   };
+}
+
+/**
+ * A link's viewing configuration: whether viewers may filter the board
+ * themselves ("free") or see it under filter values fixed here ("locked"),
+ * and whether the link's title replaces the dashboard's name for them.
+ */
+function link_config(link) {
+  const config = (link && link.config) || {};
+  return {
+    filter_mode: config.filter_mode === "locked" ? "locked" : "free",
+    locked_filters: Array.isArray(config.locked_filters) ? config.locked_filters : [],
+    show_title: config.show_title === true,
+  };
+}
+
+function read_config(body) {
+  const raw = body && body.config && typeof body.config === "object" ? body.config : {};
+  const filter_mode = raw.filter_mode === "locked" ? "locked" : "free";
+  return { filter_mode, locked_filters: filter_mode === "locked" ? sanitize_applied_filters(raw.locked_filters) : [], show_title: raw.show_title === true };
 }
 
 /** Reads and checks the editable fields of a link from a request body. */
@@ -44,7 +66,7 @@ function read_link_fields(body) {
     if (date.getTime() <= Date.now()) return { error: "DASHBOARD_LINK_EXPIRY_PAST" };
     expires_at = date;
   }
-  return { fields: { title, description, expires_at } };
+  return { fields: { title, description, expires_at, config: read_config(body) } };
 }
 
 async function manager_context(req, res) {

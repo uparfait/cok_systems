@@ -1,0 +1,139 @@
+import React, { useEffect, useRef, useState } from "react";
+import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
+import MenuPopover from "../MenuPopover.jsx";
+import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
+
+const CHEVRON = (
+  <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true">
+    <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const SEARCH_FROM = 8;
+
+/**
+ * One board filter as a self-made select: the field's name as its title
+ * and the picked value (or "All") in the box. Opening it fetches the values
+ * the field holds RIGHT NOW - under the period and the other filters, so a
+ * sector filter under a chosen district lists that district's sectors only
+ * - with a search box once the list is long. A locked filter (a share link
+ * that fixes it) shows its value and cannot be opened.
+ */
+export default function FilterValueSelect({ label, value, onChange, fetchValues, locked, onRemove, disabled }) {
+  const { translate } = useDcsLanguage();
+  const anchor_ref = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [values, setValues] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState("");
+  const has_value = value !== "" && value !== null && value !== undefined;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    let is_mounted = true;
+    setLoading(true);
+    setQuery("");
+    Promise.resolve(fetchValues())
+      .then((list) => is_mounted && setValues(Array.isArray(list) ? list : []))
+      .catch(() => is_mounted && setValues([]))
+      .finally(() => is_mounted && setLoading(false));
+    return () => {
+      is_mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const pick = (next) => {
+    setOpen(false);
+    if (String(next) !== String(has_value ? value : "")) onChange(next);
+  };
+
+  const shown = query.trim() ? values.filter((entry) => String(entry.value).toLowerCase().includes(query.trim().toLowerCase())) : values;
+  // The current value stays selectable even when no record carries it any more.
+  const current_listed = !has_value || values.some((entry) => String(entry.value) === String(value));
+
+  return (
+    <>
+      <button
+        ref={anchor_ref}
+        type="button"
+        className={`dcs-board-filter ${has_value ? "is-active" : ""} ${open ? "is-open" : ""} ${locked ? "is-locked" : ""}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled || locked}
+        title={locked ? translate("DCS_DB_FILTER_LOCKED") : label}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="dcs-board-filter-label">{label}</span>
+        <span className="dcs-board-filter-value">{has_value ? String(value) : translate("DCS_DB_FILTER_ALL")}</span>
+        {!locked && <span className="dcs-board-filter-chevron">{CHEVRON}</span>}
+      </button>
+      <MenuPopover open={open} anchorRef={anchor_ref} onClose={() => setOpen(false)} minWidth={240} maxHeight={400} align="start" role="listbox">
+        <div className="dcs-board-switcher-head">
+          <span>{label}</span>
+          {onRemove && (
+            <button
+              type="button"
+              className="dcs-board-switcher-rename dcs-link-action is-danger"
+              style={{ margin: 0 }}
+              onClick={() => {
+                setOpen(false);
+                onRemove();
+              }}
+            >
+              {translate("DCS_DB_FILTER_REMOVE")}
+            </button>
+          )}
+        </div>
+        {values.length >= SEARCH_FROM && (
+          <div className="dcs-board-filter-search">
+            <input value={query} autoFocus placeholder={translate("DCS_DB_FILTER_SEARCH")} onChange={(event) => setQuery(event.target.value)} />
+          </div>
+        )}
+        <ul className="dcs-board-switcher-list">
+          <li>
+            <button type="button" role="option" aria-selected={!has_value} className={`dcs-board-switcher-item ${!has_value ? "is-active" : ""}`} onClick={() => pick("")}>
+              <span className="min-w-0 flex-1">
+                <span className="dcs-board-switcher-item-name">{translate("DCS_DB_FILTER_ALL")}</span>
+              </span>
+            </button>
+          </li>
+          {loading ? (
+            <li className="flex justify-center py-4">
+              <SpiralLoader />
+            </li>
+          ) : (
+            <>
+              {!current_listed && !query.trim() && (
+                <li>
+                  <button type="button" role="option" aria-selected className="dcs-board-switcher-item is-active" onClick={() => pick(value)}>
+                    <span className="min-w-0 flex-1">
+                      <span className="dcs-board-switcher-item-name">{String(value)}</span>
+                      <span className="dcs-board-switcher-item-meta">{translate("DCS_DB_FILTER_NO_RECORDS")}</span>
+                    </span>
+                  </button>
+                </li>
+              )}
+              {shown.map((entry) => {
+                const selected = has_value && String(entry.value) === String(value);
+                return (
+                  <li key={String(entry.value)}>
+                    <button type="button" role="option" aria-selected={selected} className={`dcs-board-switcher-item ${selected ? "is-active" : ""}`} onClick={() => pick(entry.value)}>
+                      <span className="min-w-0 flex-1 flex items-baseline justify-between gap-2">
+                        <span className="dcs-board-switcher-item-name">{String(entry.value)}</span>
+                        <span className="dcs-board-switcher-item-meta" style={{ marginTop: 0, flex: "none" }}>
+                          {entry.count}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+              {shown.length === 0 && <li className="dcs-board-switcher-empty">{translate("DCS_DB_FILTER_NO_VALUES")}</li>}
+            </>
+          )}
+        </ul>
+      </MenuPopover>
+    </>
+  );
+}

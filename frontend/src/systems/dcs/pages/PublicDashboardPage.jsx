@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped, request_error_text } from "../util-dashboard/dashboardService.js";
+import { get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped, get_public_filter_values, request_error_text } from "../util-dashboard/dashboardService.js";
+import { applied_filter_map } from "../util-dashboard/boardFilters.js";
 import { useBoardFullscreen } from "../util-dashboard/useBoardFullscreen.js";
 import { useBoardData } from "../util-dashboard/useBoardData.js";
 import { BoardThemeProvider, useBoardTheme } from "../util-dashboard/boardTheme.jsx";
@@ -17,9 +18,13 @@ const FONT = { fontFamily: "'Montserrat', sans-serif" };
 /**
  * A form dashboard opened through a public share link: no sign-in, view
  * only. The same board as the signed-in page - live data refreshed every
- * 30 seconds, the period filter, the viewer's light / dark mode and full
- * screen - with nothing that edits, removes or configures. An unknown or
- * expired link shows the server's reason instead of the board.
+ * 30 seconds, the period filter, the board's filters, the viewer's light /
+ * dark mode and full screen - with nothing that edits, removes or
+ * configures. The link's configuration decides the rest: filters are
+ * either the viewer's to pick or fixed to the link's values (shown, not
+ * changeable, and enforced by the server), and the title is the link's own
+ * when the link says so. An unknown or expired link shows the server's
+ * reason instead of the board.
  */
 function PublicBoard() {
   const { token } = useParams();
@@ -53,8 +58,12 @@ function PublicBoard() {
     loading: loading || !info,
     blocked: false,
     frozen_ref,
-    fetch_batch: (batch, period) => get_public_dashboard_data(token, batch, period),
+    fetch_batch: (batch, period, applied) => get_public_dashboard_data(token, batch, period, applied),
   });
+  const config = (info && info.link && info.link.config) || { filter_mode: "free", locked_filters: [], show_title: false };
+  const locked = config.filter_mode === "locked";
+  const locked_ids = useMemo(() => new Set(locked ? ((info && info.filters) || []).map((def) => def.field_id) : []), [locked, info]);
+  const fetch_filter_values = (field_id) => get_public_filter_values(token, field_id, data.applied_filters_ref.current, data.applied_period_ref.current).then((response) => (response.data && response.data.values) || []);
   const { container_ref, grid_ref, is_fullscreen, is_fallback, enter, exit, fs_mode, setFsMode, fit_scale, header_visible, show_header, schedule_header_hide } = useBoardFullscreen();
 
   if (loading) return <DcsLoadingState />;
@@ -82,7 +91,7 @@ function PublicBoard() {
     >
       <BoardHeader
         form={form}
-        title={info.dashboard_name || info.form_name || ""}
+        title={(config.show_title && info.link && info.link.title) || info.dashboard_name || info.form_name || ""}
         widgets_count={widgets.length}
         can_edit={false}
         generating={false}
@@ -104,6 +113,13 @@ function PublicBoard() {
         to={data.to}
         setTo={data.setTo}
         onApplyPeriod={data.handle_period_apply}
+        filters={info.filters || []}
+        fields={info.filter_fields || []}
+        widgets={widgets}
+        filterValues={locked ? applied_filter_map(config.locked_filters) : data.filter_values}
+        onFilterValue={data.set_filter_value}
+        fetchFilterValues={fetch_filter_values}
+        lockedFilterIds={locked_ids}
       />
       {widgets.length === 0 ? (
         <div className="dcs-board-chrome border-2 p-8 text-center">
@@ -133,7 +149,7 @@ function PublicBoard() {
           form={form}
           widget={skipped_widget}
           period={data.applied_period_ref.current}
-          fetchSkipped={(widget, period, offset, limit) => get_public_kpi_skipped(token, widget, period, offset, limit)}
+          fetchSkipped={(widget, period, offset, limit) => get_public_kpi_skipped(token, widget, period, offset, limit, data.applied_filters_ref.current)}
           onClose={() => setSkippedWidget(null)}
         />
       )}

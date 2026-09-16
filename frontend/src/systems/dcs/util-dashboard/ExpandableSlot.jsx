@@ -2,21 +2,19 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { portal_root } from "./portalRoot.js";
+import { FULLSCREEN_SVG, EXIT_SVG } from "./BoardIcons.jsx";
 
 const MARGIN = 12;
 const DURATION = 320;
 
-const EXPAND_SVG = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+// The same marks as the board's full-screen action, drawn in the widget's own colors.
+const icon = (paths) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {paths}
   </svg>
 );
-
-const COLLAPSE_SVG = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
-  </svg>
-);
+const EXPAND_SVG = icon(FULLSCREEN_SVG);
+const COLLAPSE_SVG = icon(EXIT_SVG);
 
 /**
  * The place a widget card occupies on the board, with a corner button that
@@ -30,7 +28,7 @@ const COLLAPSE_SVG = (
  * box to the screen's edges (and back), so it works wherever the board is:
  * the page, browser full screen, or the fitted full-screen view.
  */
-export default function ExpandableSlot({ expanded, onToggle, hideButton, children }) {
+export default function ExpandableSlot({ expanded, onToggle, hideButton, palette, children }) {
   const { translate } = useDcsLanguage();
   const slot_ref = useRef(null);
   const phase_ref = useRef("idle");
@@ -91,11 +89,14 @@ export default function ExpandableSlot({ expanded, onToggle, hideButton, childre
   }, [expanded, onToggle]);
 
   const active = phase !== "idle";
+  // The button has no background: it takes the card's text color and the
+  // card's accent on hover, so it follows the widget's light or dark look.
+  const button_style = palette ? { "--expand-color": palette.text, "--expand-accent": palette.number } : undefined;
   return (
     <div ref={slot_ref} className={`dcs-expand-slot relative h-full ${active ? "is-held" : ""}`} style={active ? { height: held_height } : undefined}>
       {!active && children}
       {!active && !hideButton && (
-        <button type="button" className="dcs-expand-btn" title={translate("DCS_DB_EXPAND_WIDGET")} aria-label={translate("DCS_DB_EXPAND_WIDGET")} onClick={onToggle}>
+        <button type="button" className="dcs-expand-btn" style={button_style} title={translate("DCS_DB_EXPAND_WIDGET")} aria-label={translate("DCS_DB_EXPAND_WIDGET")} onClick={onToggle}>
           {EXPAND_SVG}
         </button>
       )}
@@ -105,7 +106,7 @@ export default function ExpandableSlot({ expanded, onToggle, hideButton, childre
             <div className={`dcs-expand-backdrop ${phase === "collapsing" ? "is-leaving" : ""}`} onClick={onToggle} />
             <div className={`dcs-expand-frame ${phase === "expanded" ? "is-open" : ""}`} style={frame || undefined}>
               {children}
-              <button type="button" className="dcs-expand-btn is-visible" title={translate("DCS_DB_COLLAPSE_WIDGET")} aria-label={translate("DCS_DB_COLLAPSE_WIDGET")} onClick={onToggle}>
+              <button type="button" className="dcs-expand-btn is-visible" style={button_style} title={translate("DCS_DB_COLLAPSE_WIDGET")} aria-label={translate("DCS_DB_COLLAPSE_WIDGET")} onClick={onToggle}>
                 {COLLAPSE_SVG}
               </button>
             </div>

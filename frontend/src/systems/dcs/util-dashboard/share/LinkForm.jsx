@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
+import LinkConfigFields, { DEFAULT_LINK_CONFIG } from "./LinkConfigFields.jsx";
 
 const TEXT_MUTED = "#9E9E9E";
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
@@ -20,13 +21,15 @@ function to_local_input(value) {
  * the expiry - a date and time, or "never expires". Used to create a link
  * and to edit an existing one.
  */
-export default function LinkForm({ initial, saving, onSubmit, onCancel }) {
+export default function LinkForm({ initial, saving, onSubmit, onCancel, filters, fields, fetchValues }) {
   const { translate } = useDcsLanguage();
   const [title, setTitle] = useState((initial && initial.title) || "");
   const [description, setDescription] = useState((initial && initial.description) || "");
   const [never, setNever] = useState(!(initial && initial.expires_at));
   const [expires_at, setExpiresAt] = useState(to_local_input(initial && initial.expires_at));
   const [problem, setProblem] = useState("");
+  // The advanced configuration: free or locked filters, title shown to viewers.
+  const [config, setConfig] = useState((initial && initial.config) || DEFAULT_LINK_CONFIG);
 
   const submit = (event) => {
     event.preventDefault();
@@ -46,7 +49,7 @@ export default function LinkForm({ initial, saving, onSubmit, onCancel }) {
         return;
       }
     }
-    onSubmit({ title: title.trim(), description: description.trim(), never_expires: never, expires_at: never ? null : new Date(expires_at).toISOString() });
+    onSubmit({ title: title.trim(), description: description.trim(), never_expires: never, expires_at: never ? null : new Date(expires_at).toISOString(), config });
   };
 
   return (
@@ -71,6 +74,7 @@ export default function LinkForm({ initial, saving, onSubmit, onCancel }) {
           </div>
         )}
       </div>
+      <LinkConfigFields config={config} onChange={setConfig} filters={filters} fields={fields} fetchValues={fetchValues} />
       <p className="text-xs" style={{ color: TEXT_MUTED }}>
         {translate("DCS_DB_SHARE_FORM_HINT")}
       </p>

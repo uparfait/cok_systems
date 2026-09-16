@@ -30,7 +30,7 @@ function format_raw(raw) {
  * next twenty until the true total is reached, and a failed page offers a
  * retry link right where the next rows would have appeared.
  */
-export default function SkippedDetailsModal({ form, widget, period, onClose, fetchSkipped }) {
+export default function SkippedDetailsModal({ form, widget, period, filters, onClose, fetchSkipped }) {
   const { translate } = useDcsLanguage();
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
@@ -45,7 +45,7 @@ export default function SkippedDetailsModal({ form, widget, period, onClose, fet
     setLoading(true);
     setFailed(false);
     // The public share-link page supplies its own token-based fetcher.
-    (fetchSkipped ? fetchSkipped(widget, period, offset, PAGE_SIZE) : get_kpi_skipped(form.form_group_id, widget, period, offset, PAGE_SIZE))
+    (fetchSkipped ? fetchSkipped(widget, period, offset, PAGE_SIZE) : get_kpi_skipped(form.form_group_id, widget, period, offset, PAGE_SIZE, filters || []))
       .then((response) => {
         const data = response.data || {};
         setTotal(data.total || 0);

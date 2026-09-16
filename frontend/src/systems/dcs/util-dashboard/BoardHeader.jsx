@@ -5,6 +5,7 @@ import BoardActionsMenu from "./BoardActionsMenu.jsx";
 import { useBoardTheme } from "./boardTheme.jsx";
 import GenerationProgress from "./GenerationProgress.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
+import BoardFilters from "./filters/BoardFilters.jsx";
 
 /**
  * The dashboard page's header: the board title - the dashboard switcher on
@@ -12,7 +13,9 @@ import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
  * dropdown holding every control the viewer may use (the light / dark
  * mode, the fit and scroll views, full screen, the builder, share links
  * and deletion - each with its icon and name), the generation progress
- * readout and the board-wide period filter. In full screen it is fixed to
+ * readout, the board-wide period filter and the board's own filters (one
+ * select per filter field, plus "Add filter" for editors - see
+ * filters/BoardFilters.jsx). In full screen it is fixed to
  * the top, hides itself shortly after the pointer leaves and slides back
  * in when the top strip is hovered. While the board is busy (generating,
  * or the post-generation review is open) the actions and the period filter
@@ -43,6 +46,14 @@ export default function BoardHeader({
   to,
   setTo,
   onApplyPeriod,
+  filters,
+  fields,
+  widgets,
+  filterValues,
+  onFilterValue,
+  onChangeFilters,
+  fetchFilterValues,
+  lockedFilterIds,
   onAddKpi,
   onShare,
   onDelete,
@@ -114,16 +125,31 @@ export default function BoardHeader({
         </div>
         {generating && <GenerationProgress percent={progress.percent} messageKey={progress.message_key} />}
         {widgets_count > 0 && !busy && (
-          <DcsPeriodFilter
-            period={period}
-            onPeriodChange={setPeriod}
-            from={from}
-            onFromChange={setFrom}
-            to={to}
-            onToChange={setTo}
-            onApply={onApplyPeriod}
-            allowWrap
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <DcsPeriodFilter
+              period={period}
+              onPeriodChange={setPeriod}
+              from={from}
+              onFromChange={setFrom}
+              to={to}
+              onToChange={setTo}
+              onApply={onApplyPeriod}
+              allowWrap
+            />
+            {fetchFilterValues && (
+              <BoardFilters
+                filters={filters}
+                fields={fields || []}
+                widgets={widgets || []}
+                values={filterValues}
+                onValue={onFilterValue}
+                onChangeFilters={onChangeFilters}
+                fetchValues={fetchFilterValues}
+                lockedIds={lockedFilterIds}
+                disabled={deleting}
+              />
+            )}
+          </div>
         )}
       </div>
     </>

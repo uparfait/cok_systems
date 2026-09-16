@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import WidgetCard from "./WidgetCard.jsx";
 import ExpandableSlot from "./ExpandableSlot.jsx";
+import { build_palette } from "./appearance.js";
+import { useBoardTheme } from "./boardTheme.jsx";
 
 // Flexible auto-grow grid: a chart's own size (changed from its menu) is
 // the FRACTION OF A ROW it claims, and neighbours that still fit share
@@ -46,12 +48,13 @@ export default function BoardGrid({
   const [dragging_id, setDraggingId] = useState(null);
   const [over_id, setOverId] = useState(null);
   const [expanded_id, setExpandedId] = useState(null);
+  const board = useBoardTheme();
   const kpi_widgets = widgets.filter((widget) => widget.chart_type === "kpi");
   const chart_widgets = widgets.filter((widget) => widget.chart_type !== "kpi");
   const selecting = !!selection;
 
   const render_card = (widget) => (
-    <ExpandableSlot expanded={expanded_id === widget.id} onToggle={() => setExpandedId((current) => (current === widget.id ? null : widget.id))} hideButton={selecting}>
+    <ExpandableSlot expanded={expanded_id === widget.id} onToggle={() => setExpandedId((current) => (current === widget.id ? null : widget.id))} hideButton={selecting} palette={build_palette(widget.appearance, board.theme)}>
       <WidgetCard
       widget={widget}
       data={dataByWidget[widget.id]}

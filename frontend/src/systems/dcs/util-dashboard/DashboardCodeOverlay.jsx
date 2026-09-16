@@ -5,7 +5,8 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { save_dashboard, request_error_text } from "./dashboardService.js";
 import { chart_definition, flatten_schema_fields, field_label_text } from "./chartCatalog.js";
 import { formula_of, MAX_WIDGETS } from "./builder/composeWidgets.js";
-import { build_dashboard_creation_guide, parse_pasted_widgets, normalize_pasted_widgets } from "./dashboardSpecCatalog.js";
+import { build_dashboard_creation_guide, parse_pasted_dashboard, normalize_pasted_widgets, normalize_pasted_filters } from "./dashboardSpecCatalog.js";
+import { MAX_BOARD_FILTERS } from "./boardFilters.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
@@ -66,7 +67,7 @@ function SelectLinks({ onAll, onNone }) {
  * that saves a widget list authored elsewhere - added to the board or
  * replacing it. The server validates the result against the form.
  */
-export default function DashboardCodeOverlay({ form, widgets, onSaved, onClose }) {
+export default function DashboardCodeOverlay({ form, widgets, filters, onSaved, onClose }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const [pasted, setPasted] = useState("");
@@ -108,22 +109,33 @@ export default function DashboardCodeOverlay({ form, widgets, onSaved, onClose }
 
   const copy_widgets = () => {
     const chosen = widgets.filter((widget) => selected.has(widget.id));
-    window.navigator.clipboard.writeText(JSON.stringify({ widgets: chosen }, null, 2));
+    window.navigator.clipboard.writeText(JSON.stringify({ filters: filters || [], widgets: chosen }, null, 2));
     showSuccess(translate("DCS_DB_TOAST_JSON_COPIED"));
   };
 
   const apply = async (mode) => {
     setProblem("");
     let normalized;
+    let pasted_filters = null;
     try {
-      normalized = normalize_pasted_widgets(form, parse_pasted_widgets(pasted));
+      const parsed = parse_pasted_dashboard(pasted);
+      normalized = normalize_pasted_widgets(form, parsed.widgets);
+      if (parsed.filters) pasted_filters = normalize_pasted_filters(form, parsed.filters);
     } catch (error) {
       setProblem(translate("DCS_DB_ERROR_INVALID_CODE"));
       return;
     }
-    if (normalized.unknown_fields.length > 0) {
-      setProblem(translate("DCS_DB_CODE_UNKNOWN_FIELDS", { ids: normalized.unknown_fields.join(", ") }));
+    const unknown = normalized.unknown_fields.concat(pasted_filters ? pasted_filters.unknown_fields : []);
+    if (unknown.length > 0) {
+      setProblem(translate("DCS_DB_CODE_UNKNOWN_FIELDS", { ids: unknown.join(", ") }));
       return;
+    }
+    // Pasted filters are added to the board's (or replace them); none pasted leaves them alone.
+    let next_filters;
+    if (pasted_filters) {
+      const base = mode === "add" ? filters || [] : [];
+      const ids = new Set(base.map((def) => def.field_id));
+      next_filters = base.concat(pasted_filters.filters.filter((def) => !ids.has(def.field_id))).slice(0, MAX_BOARD_FILTERS);
     }
     const merged = (mode === "add" ? widgets.concat(normalized.widgets) : normalized.widgets).map((widget, index) => ({ ...widget, position: index }));
     if (merged.length > MAX_WIDGETS) {
@@ -132,10 +144,10 @@ export default function DashboardCodeOverlay({ form, widgets, onSaved, onClose }
     }
     setSaving(true);
     try {
-      const saved = await save_dashboard(form, merged);
+      const saved = await save_dashboard(form, merged, next_filters);
       const final_widgets = (saved.data && saved.data.widgets) || merged;
       showSuccess(translate("DCS_DB_TOAST_CREATED_FROM_CODE", { count: final_widgets.length }));
-      onSaved(final_widgets);
+      onSaved(final_widgets, next_filters ? (saved.data && saved.data.filters) || next_filters : undefined);
     } catch (error) {
       setProblem(request_error_text(error, translate("DCS_ERROR_GENERIC")));
       showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
