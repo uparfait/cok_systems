@@ -487,6 +487,7 @@ const kn = {
   DCS_TRANSFER_CONFIRM_MESSAGE: "Umukozi wahiswemo aba nyiri byose kandi ushobora gutakaza uburenganzira. Ibi ntibishobora gusubizwa inyuma na wowe.",
   DCS_TOAST_OWNERSHIP_TRANSFERRED: "Ubunyiri bwimuriwe {{name}}",
   DCS_DB_TITLE: "Imbonerahamwe",
+  DCS_DB_MAP_CHANGE_MARKER: "Hindura ibimenyetso",
   DCS_DB_MAP_MORE_ICONS: "Hitamo indi shusho",
   DCS_DB_ADD_DESCRIPTION: "Ongeraho ibisobanuro",
   DCS_DB_MAP_ONE_PROVINCE: "Intara",

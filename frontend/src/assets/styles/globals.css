@@ -3337,9 +3337,14 @@ background-color: #056daa;
 .dcs-widget-hint {
   display: none;
 }
-.dcs-widget-hover:hover .dcs-widget-hint,
-.dcs-widget-hint:focus-within {
+.dcs-widget-hover:hover .dcs-widget-hint {
+  /* Absolute, so hovering a card never makes it taller and shifts the board. */
   display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 2;
 }
 /* The map widget: boundaries drawn in SVG, names and markers above it. */
 .dcs-map-frame {

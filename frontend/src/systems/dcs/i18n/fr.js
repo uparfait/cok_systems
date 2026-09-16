@@ -487,6 +487,7 @@ const fr = {
   DCS_TRANSFER_CONFIRM_MESSAGE: "L'employé sélectionné devient le propriétaire et vous pouvez perdre l'accès. Cette action ne peut pas être annulée de votre côté.",
   DCS_TOAST_OWNERSHIP_TRANSFERRED: "La propriété a été transférée à {{name}}",
   DCS_DB_TITLE: "Tableaux de bord",
+  DCS_DB_MAP_CHANGE_MARKER: "Changer les marqueurs",
   DCS_DB_MAP_MORE_ICONS: "Choisir une autre icone",
   DCS_DB_ADD_DESCRIPTION: "Ajouter une description",
   DCS_DB_MAP_ONE_PROVINCE: "Province",

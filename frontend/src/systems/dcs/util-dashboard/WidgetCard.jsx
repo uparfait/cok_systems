@@ -145,7 +145,8 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
 }
 
 /**
- * The three-dots menu at each card's top right: flip the widget into ANY
+ * The three-dots menu at each card's top right: pick the icon a KPI card
+ * shows or the marker a map plants, flip the widget into ANY
  * compatible look (single-series category charts reach every bar, column,
  * lollipop, dot, slice, waffle, treemap, line and area form; split ones
  * reach every grouped/clustered, stacked, 100 percent, heatmap and
@@ -251,7 +252,7 @@ function CardMenu({ widget, palette, canMap, onChangeType, onChangeSize, onRemov
           )}
           {onPickIcon && (
             <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onPickIcon)}>
-              {translate(widget.icon ? "DCS_DB_ICON_CHANGE" : "DCS_DB_ICON_SET")}
+              {translate(widget.chart_type === "map" ? "DCS_DB_MAP_CHANGE_MARKER" : widget.icon ? "DCS_DB_ICON_CHANGE" : "DCS_DB_ICON_SET")}
             </button>
           )}
           {onAppearance && (
@@ -395,7 +396,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
       )}
       <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
         {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} />}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 relative">
           <div className="flex flex-wrap items-baseline gap-x-1.5">
           <EditableText
             value={widget.title}
@@ -425,7 +426,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
         {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon) && (
-          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi ? onPickIcon : undefined} />
+          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} />
         )}
       </div>
 

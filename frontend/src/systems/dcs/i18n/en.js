@@ -487,6 +487,7 @@ const en = {
   DCS_TRANSFER_CONFIRM_MESSAGE: "The selected employee becomes the owner and you may lose access. This cannot be undone from your side.",
   DCS_TOAST_OWNERSHIP_TRANSFERRED: "Ownership was transferred to {{name}}",
   DCS_DB_TITLE: "Dashboards",
+  DCS_DB_MAP_CHANGE_MARKER: "Change markers",
   DCS_DB_MAP_MORE_ICONS: "Choose another icon",
   DCS_DB_ADD_DESCRIPTION: "Add a description",
   DCS_DB_MAP_ONE_PROVINCE: "Province",
