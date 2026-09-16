@@ -4,6 +4,7 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { IconButton, CLOSE_SVG } from "./BoardIcons.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import { portal_root } from "./portalRoot.js";
 
 const PRIMARY = "#056daa";
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
@@ -91,6 +92,6 @@ export default function DashboardNameDialog({ formName, saving, onSubmit, onCanc
         </div>
       </form>
     </div>,
-    document.body,
+    portal_root(),
   );
 }

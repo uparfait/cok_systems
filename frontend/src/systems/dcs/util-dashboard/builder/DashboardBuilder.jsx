@@ -13,6 +13,7 @@ import ChartComposer from "./ChartComposer.jsx";
 import DraftList from "./DraftList.jsx";
 import { TABS, MAX_WIDGETS, builder_fields, finalize_widgets } from "./composeWidgets.js";
 import { PRIMARY, BORDER, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builderUi.jsx";
+import { portal_root } from "../portalRoot.js";
 
 let draft_sequence = 0;
 
@@ -212,6 +213,6 @@ export default function DashboardBuilder({ form, existingWidgets, initialTab, on
         <DcsConfirmDialog titleKey="DCS_DB_BUILDER_DISCARD_TITLE" messageKey="DCS_DB_BUILDER_DISCARD_MESSAGE" onCancel={() => setConfirmClose(false)} onConfirm={onClose} />
       )}
     </div>,
-    document.body,
+    portal_root(),
   );
 }

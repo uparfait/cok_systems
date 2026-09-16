@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { portal_root } from "./portalRoot.js";
 
 const MARGIN = 8;
 
@@ -88,6 +89,6 @@ export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHei
     >
       {children}
     </div>,
-    document.body,
+    portal_root(),
   );
 }

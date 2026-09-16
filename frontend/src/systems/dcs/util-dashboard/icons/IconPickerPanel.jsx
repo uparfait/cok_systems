@@ -7,6 +7,7 @@ import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
 import LibraryIcon from "./LibraryIcon.jsx";
 import { ICON_LIBRARIES, parse_icon_id, icon_label, library_definition } from "./iconLibraries.js";
 import { useIconLibraries, useIconIndex, filter_icon_index } from "./useIconLibraries.js";
+import { portal_root } from "../portalRoot.js";
 
 const PRIMARY = "#056daa";
 const BORDER = "#E0E0E0";
@@ -183,6 +184,6 @@ export default function IconPickerPanel({ widget, saving, onPick, onRemove, onCl
         </div>
       </aside>
     </div>,
-    document.body,
+    portal_root(),
   );
 }

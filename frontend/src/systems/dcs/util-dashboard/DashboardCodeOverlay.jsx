@@ -9,6 +9,7 @@ import { build_dashboard_creation_guide, parse_pasted_widgets, normalize_pasted_
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
+import { portal_root } from "./portalRoot.js";
 
 const BORDER = "#E0E0E0";
 const TEXT_DARK = "#333333";
@@ -245,6 +246,6 @@ export default function DashboardCodeOverlay({ form, widgets, onSaved, onClose }
         </div>
       </div>
     </div>,
-    document.body,
+    portal_root(),
   );
 }

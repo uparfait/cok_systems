@@ -9,6 +9,7 @@ import { ChipGrid, PRIMARY, BORDER, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "
 import ColorInput from "./ColorInput.jsx";
 import { useFanOutValues } from "./useFanOutValues.js";
 import { resolve_appearance, build_palette, auto_color, random_color, MODE_DEFAULTS, LEGEND_POSITIONS } from "../appearance.js";
+import { portal_root } from "../portalRoot.js";
 
 const MODE_KEYS = [
   { id: "background", labelKey: "DCS_DB_COLOR_BACKGROUND" },
@@ -218,6 +219,6 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
         </div>
       </div>
     </div>,
-    document.body,
+    portal_root(),
   );
 }

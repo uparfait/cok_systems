@@ -8,6 +8,7 @@ import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../../components/DcsConfirmDialog.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
 import LinkForm from "./LinkForm.jsx";
+import { portal_root } from "../portalRoot.js";
 
 const PRIMARY = "#056daa";
 const BORDER = "#E0E0E0";
@@ -210,6 +211,6 @@ export default function ShareLinksDialog({ form, onClose }) {
       </div>
       {deleting && <DcsConfirmDialog titleKey="DCS_DB_SHARE_DELETE_TITLE" messageKey="DCS_DB_SHARE_DELETE_MESSAGE" confirming={saving} onConfirm={remove} onCancel={() => setDeleting(null)} />}
     </div>,
-    document.body,
+    portal_root(),
   );
 }

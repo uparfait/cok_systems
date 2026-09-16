@@ -9,6 +9,7 @@ import BoardGrid from "../BoardGrid.jsx";
 import SelectionToolbar from "./SelectionToolbar.jsx";
 import BulkEditDialog from "./BulkEditDialog.jsx";
 import { useBoardSelection } from "./useBoardSelection.js";
+import { portal_root } from "../portalRoot.js";
 
 const PRIMARY = "#056daa";
 const HEADING_FONT = { fontFamily: "'Montserrat', sans-serif" };
@@ -41,7 +42,7 @@ function BoardContextMenu({ x, y, active, onToggle, onClose }) {
         {translate(active ? "DCS_DB_SEL_DISABLE" : "DCS_DB_SEL_ENABLE")}
       </button>
     </div>,
-    document.body,
+    portal_root(),
   );
 }
 

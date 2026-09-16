@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
+import { portal_root } from "../portalRoot.js";
 
 const PRIMARY = "#056daa";
 const BORDER = "#E0E0E0";
@@ -216,7 +217,7 @@ export default function BuilderFieldSelect({ options, value, onChange, placehold
               )}
             </div>
           </div>,
-          document.body,
+          portal_root(),
         )}
     </>
   );

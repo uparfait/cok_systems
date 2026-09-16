@@ -10,6 +10,7 @@ import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
+import { portal_root } from "./portalRoot.js";
 
 const PRIMARY = "#056daa";
 const TEXT_DARK = "#333333";
@@ -329,6 +330,6 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, focusIds,
       </div>
       </div>
     </div>,
-    document.body,
+    portal_root(),
   );
 }

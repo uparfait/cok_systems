@@ -11,6 +11,7 @@ import { useFanOutValues } from "../builder/useFanOutValues.js";
 import { appearance_values_field } from "../builder/composeWidgets.js";
 import { auto_color, random_color, LEGEND_POSITIONS, resolve_appearance } from "../appearance.js";
 import { shared_text, apply_shared } from "./commonText.js";
+import { portal_root } from "../portalRoot.js";
 
 const KEEP = "__keep__";
 
@@ -197,6 +198,6 @@ export default function BulkEditDialog({ form, fields, widgets, onApply, onClose
         </div>
       </div>
     </div>,
-    document.body,
+    portal_root(),
   );
 }

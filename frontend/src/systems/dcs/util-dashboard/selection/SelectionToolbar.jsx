@@ -5,6 +5,7 @@ import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "../../components/DcsButtonOutlineDanger.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
+import { portal_root } from "../portalRoot.js";
 
 const PRIMARY = "#056daa";
 const HEADING_FONT = { fontFamily: "'Montserrat', sans-serif" };
@@ -59,6 +60,6 @@ export default function SelectionToolbar({ selection, saving, onEdit, onDelete, 
         )}
       </div>
     </>,
-    document.body,
+    portal_root(),
   );
 }
