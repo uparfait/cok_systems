@@ -17,6 +17,7 @@ export const TABS = [
   { id: "charts", labelKey: "DCS_DB_TAB_CHARTS" },
   { id: "diagrams", labelKey: "DCS_DB_TAB_DIAGRAMS" },
   { id: "filters", labelKey: "DCS_DB_TAB_FILTERS" },
+  { id: "map", labelKey: "DCS_DB_TAB_MAP" },
 ];
 
 const CHOICE_TYPES = ["single_select", "multi_select", "cascading_select", "select_group", "likert_scale"];
@@ -93,6 +94,8 @@ const TYPE_RULES = {
   scatter: { kind: "point", split: "none" },
   bubble: { kind: "point", split: "none" },
   treemap: { kind: "tree", split: "none" },
+  // The map colours boundaries instead of bars, from the same category data.
+  map: { kind: "category", split: "optional" },
 };
 export const type_rules = (chart_type) => TYPE_RULES[chart_type] || { kind: "category", split: "none" };
 
@@ -100,7 +103,7 @@ const HINT_KEYS = {
   bar: "DCS_DB_HINT_BAR", column: "DCS_DB_HINT_COLUMN", grouped_column: "DCS_DB_HINT_GROUPED", lollipop: "DCS_DB_HINT_LOLLIPOP",
   dot_plot: "DCS_DB_HINT_DOT", line: "DCS_DB_HINT_LINE", area: "DCS_DB_HINT_AREA", stacked_column: "DCS_DB_HINT_STACKED",
   stacked_100: "DCS_DB_HINT_STACKED_100", pie: "DCS_DB_HINT_PIE", donut: "DCS_DB_HINT_DONUT", waffle: "DCS_DB_HINT_WAFFLE",
-  treemap: "DCS_DB_HINT_TREEMAP", scatter: "DCS_DB_HINT_SCATTER", bubble: "DCS_DB_HINT_BUBBLE", heatmap: "DCS_DB_HINT_HEATMAP",
+  treemap: "DCS_DB_HINT_TREEMAP", map: "DCS_DB_HINT_MAP", scatter: "DCS_DB_HINT_SCATTER", bubble: "DCS_DB_HINT_BUBBLE", heatmap: "DCS_DB_HINT_HEATMAP",
 };
 export const type_hint_key = (chart_type) => HINT_KEYS[chart_type] || null;
 export const type_label = (chart_type, translate) => {

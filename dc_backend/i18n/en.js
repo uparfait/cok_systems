@@ -23,6 +23,10 @@ module.exports = {
   PROJECT_OWNER_TRANSFERRED: "Project ownership transferred successfully",
   DASHBOARD_FETCHED: "Dashboard fetched successfully",
 
+  DASHBOARD_MAP_FETCHED: "Map boundaries fetched successfully",
+
+  DASHBOARD_MAP_LEVEL_INVALID: "The map level is not one this system draws",
+
   DASHBOARD_RECORDS_FORBIDDEN: "This link does not allow opening the records behind the widgets",
 
   DASHBOARD_RECORDS_FETCHED: "Records fetched successfully",

@@ -1,5 +1,6 @@
 import { CHART_CATALOG, flatten_schema_fields, field_label_text, SUBMITTED_AT_FIELD } from "./chartCatalog.js";
 import { BUILDER_FORMULAS, KPI_ONLY, type_rules, builder_fields, MAX_WIDGETS } from "./builder/composeWidgets.js";
+import { map_levels_of } from "./builder/mapFields.js";
 import { ICON_LIBRARIES } from "./icons/iconLibraries.js";
 import { FILTER_FIELD_TYPES, MAX_BOARD_FILTERS } from "./boardFilters.js";
 import { has_preset_config } from "../fields/presetFields.js";
@@ -51,6 +52,7 @@ const CHART_TEXT = {
   donut: "A pie with a hole, at most 6 slices.",
   waffle: "A 10x10 grid of squares showing shares, at most 6 values.",
   treemap: "Nested rectangles sized by value, one per group_by value.",
+  map: "The City of Kigali drawn from its own boundaries, one shape per group_by value, shaded by the measure. Needs map.level and a group_by field whose answers are place names.",
   scatter: "Points from two numeric fields (x_field_id, y_field_id).",
   bubble: "A scatter whose point size comes from a third numeric field (size_field_id).",
   heatmap: "A grid of group_by values by split_by values, colored by the measure.",
@@ -101,6 +103,7 @@ function widget_shape() {
     chart_type: `One of: ${Object.keys(CHART_TEXT).join(", ")} (see chart_types).`,
     metric: "{ aggregation, field_id } - the measure. aggregation is one of the formulas; field_id is a numeric field for numeric formulas, any field (or null for whole submissions) for count, any field for count_distinct. Point charts (scatter, bubble) ignore metric.",
     group_by: "{ field_id } for category and tree charts (a choice field); { field_id, granularity } for time charts where field_id is 'submitted_at' or a date field and granularity is one of the time_granularities. null for KPI and point charts. Optional everywhere else too: with no group_by the chart draws one mark per split_by value, and with neither it draws the single total of what it selects.",
+    map: "Maps only: { level, marker, show_markers, show_labels }. level is one of province, district, sector, cell, village and must match the group_by field (a district map groups by the form's district field). marker is an icon id like \"lucide:MapPin\"; with a split_by each value gets its own marker.",
     split_by: "{ field_id } of a second choice field (different from group_by) - required by grouped/stacked/heatmap types, optional on line, forbidden elsewhere.",
     pattern_by: "{ field_id } of a third choice field drawn as a texture inside each split color - grouped/stacked bar and column charts only. Usually null.",
     legend_by: "{ field_id } of a choice field - KPI cards only: lists the count per value under the number. Not with median, cumulative_sum, moving_average or occurrences.",
@@ -160,6 +163,21 @@ function examples(form, fields) {
     if (choice[0]) out.push({ ...base, id: "w_sum_bar", title: `Total ${numeric[0].label} per ${choice[0].label}`, chart_type: "bar", size: "medium", metric: { aggregation: "sum", field_id: numeric[0].id }, group_by: { field_id: choice[0].id } });
   }
   if (numeric[1]) out.push({ ...base, id: "w_scatter", title: `${numeric[1].label} / ${numeric[0].label}`, chart_type: "scatter", size: "large", metric: { aggregation: "count", field_id: null }, group_by: null, x_field_id: numeric[0].id, y_field_id: numeric[1].id });
+  // A map, whenever the form asks where something happened.
+  const places = map_levels_of(fields).filter((entry) => entry.level !== "province");
+  if (places[0]) {
+    const place = places[0];
+    out.push({
+      ...base,
+      id: "w_map",
+      title: `Submissions per ${place.fields[0].label}`,
+      chart_type: "map",
+      size: "large",
+      metric: { aggregation: "count", field_id: null },
+      group_by: { field_id: place.fields[0].id },
+      map: { level: place.level, marker: "lucide:MapPin", show_markers: false, show_labels: true },
+    });
+  }
   if (choice[0] && Array.isArray(choice[0].raw.options) && choice[0].raw.options[0]) {
     out.push({ ...base, id: "w_filtered", title: `Total submissions - ${choice[0].raw.options[0].value}`, chart_type: "kpi", size: "small", metric: { aggregation: "count", field_id: null }, group_by: null, filters: [{ field_id: choice[0].id, operator: "eq", value: choice[0].raw.options[0].value }] });
   }
@@ -232,7 +250,7 @@ function board_filters_doc() {
       "A widget whose group_by is the filtered field DRILLS DOWN: 'Records per district' under district = Kigali shows Kigali's SECTORS (the field whose parent is district), and its title becomes 'Records per district (Kigali)'. Picking a sector too shows that sector's cells. A field with no child (gender) simply shows the one picked value.",
       "A KPI card whose legend_by is the filtered field loses its legend: 'People by gender' (total 200, male 90, female 110) under gender = male shows the male total alone, no legend. A legend on a cascading field moves down to the child instead.",
       "A split_by or pattern_by on the filtered field moves to the child field; with no child the chart keeps its group_by and simply shows the one picked segment (a stacked chart by gender under gender = male draws the male segments only).",
-      "Every widget shows the values it runs under after its title, e.g. 'Deaths per district (Kigali, male)'. A KPI card left with nothing to show under the filters is hidden from the board until they change.",
+      "A widget left with nothing to show under the filters is hidden from the board until they change; the filter bar above the board is what says which values everything runs under.",
       "Prefer filters on fields the widgets read (their group_by, split_by, legend_by) so filtering reshapes the board, plus the fields readers slice by most (location chain, gender, status). Do not add a filter on a field no widget uses unless readers clearly need it.",
       "Widgets keep their own 'filters' (fixed conditions) - board filters are added on top of them.",
     ],
@@ -341,6 +359,16 @@ export function normalize_pasted_widgets(form, pasted) {
       occurrence_rule: rule,
       occurrence_scope: source.occurrence_scope === "all" ? "all" : rule ? "matching" : "all",
       appearance: source.appearance && typeof source.appearance === "object" ? source.appearance : null,
+      // A map's own settings: which boundaries it draws and how it marks them.
+      map:
+        source.chart_type === "map" && source.map && typeof source.map === "object"
+          ? {
+              level: source.map.level,
+              marker: typeof source.map.marker === "string" ? source.map.marker : null,
+              show_markers: source.map.show_markers === true,
+              show_labels: source.map.show_labels !== false,
+            }
+          : null,
       x_field_id: source.x_field_id || null,
       y_field_id: source.y_field_id || null,
       size_field_id: source.size_field_id || null,

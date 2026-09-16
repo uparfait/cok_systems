@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped, get_public_filter_values, get_public_widget_records, export_public_widget_records, request_error_text } from "../util-dashboard/dashboardService.js";
+import { get_public_map_shapes, get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped, get_public_filter_values, get_public_widget_records, export_public_widget_records, request_error_text } from "../util-dashboard/dashboardService.js";
 import RecordsOverlay from "../util-dashboard/records/RecordsOverlay.jsx";
 import { applied_filter_map } from "../util-dashboard/boardFilters.js";
 import { useBoardFullscreen } from "../util-dashboard/useBoardFullscreen.js";
 import { useBoardData } from "../util-dashboard/useBoardData.js";
 import { BoardThemeProvider, useBoardTheme } from "../util-dashboard/boardTheme.jsx";
+import { MapScopeProvider } from "../util-dashboard/mapScope.jsx";
 import BoardHeader from "../util-dashboard/BoardHeader.jsx";
 import BoardGrid from "../util-dashboard/BoardGrid.jsx";
 import SkippedDetailsModal from "../util-dashboard/SkippedDetailsModal.jsx";
@@ -105,6 +106,7 @@ function PublicBoard() {
   }
 
   return (
+    <MapScopeProvider fetchShapes={(level, names) => get_public_map_shapes(token, level, names)}>
     <div
       ref={container_ref}
       className={`dcs-board-root dcs-board-public dcs-board-no-select relative select-none flex-1 min-w-0 max-w-full ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "p-3 sm:p-5 space-y-4"}`}
@@ -189,6 +191,7 @@ function PublicBoard() {
         />
       )}
     </div>
+    </MapScopeProvider>
   );
 }
 

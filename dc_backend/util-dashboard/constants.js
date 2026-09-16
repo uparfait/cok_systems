@@ -35,6 +35,9 @@ const CHART_TYPES = {
   scatter: { kind: CHART_KINDS.POINT, split: "none" },
   bubble: { kind: CHART_KINDS.POINT, split: "none" },
   treemap: { kind: CHART_KINDS.TREE, split: "none" },
+  // A map colours administrative boundaries instead of bars: the same
+  // category data, grouped by a location field of the form.
+  map: { kind: CHART_KINDS.CATEGORY, split: "optional" },
   kpi: { kind: CHART_KINDS.KPI, split: "none" },
 };
 
@@ -76,6 +79,9 @@ const PERIOD_PRESETS = ["all", "today", "this_week", "this_month", "last_month",
 
 const SORT_OPTIONS = ["value_desc", "value_asc", "label_asc"];
 
+// The administrative levels a map widget can draw, top down.
+const MAP_LEVELS = ["province", "district", "sector", "cell", "village"];
+
 const WIDGET_SIZES = ["small", "medium", "large", "full"];
 
 const TIME_GRANULARITIES = ["auto", "hour", "day", "week", "month", "year"];
@@ -109,6 +115,7 @@ module.exports = {
   PERIOD_PRESETS,
   SORT_OPTIONS,
   WIDGET_SIZES,
+  MAP_LEVELS,
   TIME_GRANULARITIES,
   SUBMITTED_AT_FIELD,
   LIMITS,

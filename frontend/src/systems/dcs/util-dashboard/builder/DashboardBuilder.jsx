@@ -13,6 +13,7 @@ import ChartComposer from "./ChartComposer.jsx";
 import DraftList from "./DraftList.jsx";
 import { TABS, MAX_WIDGETS, builder_fields, finalize_widgets } from "./composeWidgets.js";
 import FiltersTab from "./FiltersTab.jsx";
+import MapComposer from "./MapComposer.jsx";
 import { same_filter_defs } from "../boardFilters.js";
 import { PRIMARY, BORDER, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builderUi.jsx";
 import { portal_root } from "../portalRoot.js";
@@ -20,10 +21,10 @@ import { portal_root } from "../portalRoot.js";
 let draft_sequence = 0;
 
 /**
- * The dashboard builder: a large overlay with three tabs - KPI cards,
- * Charts, Diagrams - where the user composes each widget by hand (formula,
- * field, "in each", chart type...) and watches the draft list grow on the
- * right. Nothing touches the saved dashboard until "Save": drafts are then
+ * The dashboard builder: a large overlay of tabs - KPI cards, Charts,
+ * Diagrams, the board's Filters and a Map of the city - where the user
+ * composes each widget by hand (formula, field, "in each", chart type...)
+ * and watches the draft list grow on the right. Nothing touches the saved dashboard until "Save": drafts are then
  * appended to the current board or replace it, as chosen in the footer.
  */
 export default function DashboardBuilder({ form, existingWidgets, existingFilters, initialTab, onClose, onSaved, onAutoGenerate }) {
@@ -162,6 +163,9 @@ export default function DashboardBuilder({ form, existingWidgets, existingFilter
             )}
             {tab === "diagrams" && (
               <ChartComposer key={`diagrams_${composer_key}`} form={form} fields={fields} kind="diagrams" onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
+            )}
+            {tab === "map" && (
+              <MapComposer key={`map_${composer_key}`} form={form} fields={fields} onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
             )}
             {tab === "filters" && <FiltersTab fields={fields} widgets={(mode === "append" ? existing : []).concat(drafts.flatMap((draft) => draft.widgets))} selected={filter_defs} onChange={setFilterDefs} disabled={saving} />}
           </div>

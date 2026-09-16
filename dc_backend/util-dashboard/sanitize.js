@@ -4,6 +4,8 @@
  * and storage, so no stray data can ever be persisted or executed.
  */
 
+const { MAP_LEVELS } = require("./constants.js");
+
 function clean_string(value) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -50,6 +52,18 @@ function sanitize_appearance(appearance) {
     if (Object.keys(value_colors).length > 0) out.value_colors = value_colors;
   }
   return out;
+}
+
+/** A map widget's own settings: which administrative level it draws, and its markers. */
+function sanitize_map(widget) {
+  const raw = widget.map && typeof widget.map === "object" ? widget.map : {};
+  const marker = clean_string(raw.marker);
+  const out = {};
+  if (MAP_LEVELS.includes(clean_string(raw.level))) out.level = clean_string(raw.level);
+  if (marker) out.marker = marker;
+  if (raw.show_labels === false) out.show_labels = false;
+  if (raw.show_markers === true) out.show_markers = true;
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 function sanitize_widget(widget) {
@@ -108,6 +122,8 @@ function sanitize_widget(widget) {
         ? { operator: clean_string(widget.occurrence_rule.operator), value: Number(widget.occurrence_rule.value) }
         : null,
     occurrence_scope: clean_string(widget.occurrence_scope) || undefined,
+    // Maps only: the administrative level drawn and how it is marked.
+    map: sanitize_map(widget),
     x_field_id: clean_string(widget.x_field_id) || null,
     y_field_id: clean_string(widget.y_field_id) || null,
     size_field_id: clean_string(widget.size_field_id) || null,

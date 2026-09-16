@@ -6,6 +6,7 @@ import PieCharts from "./charts/PieCharts.jsx";
 import PointCharts from "./charts/PointCharts.jsx";
 import { HeatmapChart, WaffleChart } from "./charts/GridCharts.jsx";
 import TreemapChart from "./charts/TreemapChart.jsx";
+import MapChart from "./charts/MapChart.jsx";
 import KpiCard from "./charts/KpiCard.jsx";
 import DimensionTotals from "./charts/DimensionTotals.jsx";
 import { build_palette } from "./appearance.js";
@@ -162,6 +163,29 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
         {toggle_link("DCS_DB_OTHER_BACK", false)}
         <CategoryCharts chartType="bar" rows={other_rows.map((row) => ({ label: String(row.label), value: row.value }))} series={[]} palette={palette} density={density} fitMode={fitMode} />
         {toggle_link("DCS_DB_OTHER_BACK", false)}
+      </div>
+    );
+  }
+
+  // A map is asked for by name, so it never takes the capped rows: every
+  // place with an answer is drawn, and its own legend folds the long list.
+  if (widget.chart_type === "map") {
+    return (
+      <div>
+        <MapChart
+          rows={rows}
+          series={data.series || []}
+          level={(widget.map && widget.map.level) || "district"}
+          marker={(widget.map && widget.map.marker) || null}
+          showMarkers={!!(widget.map && widget.map.show_markers)}
+          showLabels={!(widget.map && widget.map.show_labels === false)}
+          palette={palette}
+          density={density}
+          animate={animate}
+          onItemClick={handle_item_click}
+          onLegendClick={legend_pick}
+        />
+        <DimensionTotals totals={data.totals} palette={palette} />
       </div>
     );
   }

@@ -8,6 +8,7 @@ const {
   PERIOD_PRESETS,
   SORT_OPTIONS,
   WIDGET_SIZES,
+  MAP_LEVELS,
   TIME_GRANULARITIES,
   OCCURRENCE_OPERATORS,
   OCCURRENCE_SCOPES,
@@ -106,6 +107,13 @@ function validate_occurrences(widget, catalog, errors, describe) {
 
 function validate_shape_for_kind(widget, definition, catalog, errors, describe) {
   const kind = definition.kind;
+  // A map draws named boundaries: it needs the level and the field whose
+  // answers name them.
+  if (widget.chart_type === "map") {
+    const level = widget.map && widget.map.level;
+    if (!MAP_LEVELS.includes(level)) errors.push(`${describe}: a map needs one of these levels: ${MAP_LEVELS.join(", ")}`);
+    if (!widget.group_by || !is_categorical(catalog, widget.group_by.field_id)) errors.push(`${describe}: a map groups by the form field holding the place names`);
+  }
   // Occurrences group by their own counted field: group_by is not needed
   // (and ignored), whatever look the widget takes.
   if (is_occurrences(widget) && kind !== CHART_KINDS.KPI) {

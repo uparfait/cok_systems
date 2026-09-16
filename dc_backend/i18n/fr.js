@@ -23,6 +23,10 @@ module.exports = {
   PROJECT_OWNER_TRANSFERRED: "Propriété du projet transférée avec succès",
   DASHBOARD_FETCHED: "Tableau de bord récupéré avec succès",
 
+  DASHBOARD_MAP_FETCHED: "Limites de la carte recuperees avec succes",
+
+  DASHBOARD_MAP_LEVEL_INVALID: "Le niveau de carte n'est pas un de ceux que ce systeme dessine",
+
   DASHBOARD_RECORDS_FORBIDDEN: "Ce lien ne permet pas d'ouvrir les enregistrements derriere les widgets",
 
   DASHBOARD_RECORDS_FETCHED: "Enregistrements recuperes avec succes",

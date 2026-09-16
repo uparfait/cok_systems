@@ -22,6 +22,10 @@ module.exports = {
   PROJECT_OWNER_TRANSFERRED: "Ubunyiri bwa poroje bwimuriwe undi neza",
   DASHBOARD_FETCHED: "Imbonerahamwe yabonetse neza",
 
+  DASHBOARD_MAP_FETCHED: "Imbibi z'ikarita zabonetse neza",
+
+  DASHBOARD_MAP_LEVEL_INVALID: "Urwego rw'ikarita si urwo iyi sisitemu ishushanya",
+
   DASHBOARD_RECORDS_FORBIDDEN: "Iri huza ntiryemera gufungura inyandiko ziri inyuma y'ibice",
 
   DASHBOARD_RECORDS_FETCHED: "Inyandiko zabonetse neza",

@@ -1,2428 +1,898 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
-
-<title>Kigali Interactive Map</title>
-
-<!-- =====================================================
-     LEAFLET
-===================================================== -->
-
-<link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
-
-<script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-</script>
-
-
-<style>
-
-/* =====================================================
-   RESET
-===================================================== */
-
-* {
-    box-sizing: border-box;
-}
-
-html,
-body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    font-family:
-        Inter,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-}
-
-body {
-    overflow: hidden;
-    background: #07111f;
-}
-
-
-/* =====================================================
-   MAP
-===================================================== */
-
-#map {
-    width: 100%;
-    height: 100%;
-}
-
-
-/* =====================================================
-   TOP LEFT PANEL
-===================================================== */
-
-.dashboard {
-
-    position: absolute;
-
-    z-index: 1000;
-
-    top: 20px;
-    left: 20px;
-
-    width: 340px;
-
-    padding: 20px;
-
-    border-radius: 20px;
-
-    background:
-        rgba(7, 17, 31, 0.92);
-
-    backdrop-filter:
-        blur(18px);
-
-    -webkit-backdrop-filter:
-        blur(18px);
-
-    border:
-        1px solid
-        rgba(255,255,255,0.12);
-
-    box-shadow:
-        0 20px 60px
-        rgba(0,0,0,0.35);
-
-    color: white;
-
-    animation:
-        panelIn 0.8s ease;
-}
-
-
-@keyframes panelIn {
-
-    from {
-        opacity: 0;
-        transform:
-            translateY(-25px)
-            scale(0.97);
-    }
-
-    to {
-        opacity: 1;
-        transform:
-            translateY(0)
-            scale(1);
-    }
-}
-
-
-/* =====================================================
-   HEADER
-===================================================== */
-
-.title-row {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 12px;
-
-    margin-bottom: 4px;
-}
-
-
-.flag {
-
-    font-size: 28px;
-}
-
-
-.title {
-
-    font-size: 23px;
-
-    font-weight: 800;
-
-    letter-spacing: -0.5px;
-}
-
-
-.subtitle {
-
-    color: #94a3b8;
-
-    font-size: 13px;
-
-    margin-left: 40px;
-
-    margin-bottom: 18px;
-}
-
-
-/* =====================================================
-   STATS
-===================================================== */
-
-.stats {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(3, 1fr);
-
-    gap: 8px;
-}
-
-
-.stat {
-
-    padding: 12px 8px;
-
-    border-radius: 12px;
-
-    background:
-        rgba(255,255,255,0.06);
-
-    text-align: center;
-}
-
-
-.stat-number {
-
-    font-size: 22px;
-
-    font-weight: 800;
-
-    color: #38bdf8;
-}
-
-
-.stat-label {
-
-    font-size: 10px;
-
-    color: #94a3b8;
-
-    margin-top: 2px;
-}
-
-
-/* =====================================================
-   SEARCH
-===================================================== */
-
-.search-container {
-
-    margin-top: 15px;
-
-    position: relative;
-}
-
-
-#search {
-
-    width: 100%;
-
-    padding: 12px 14px;
-
-    border: none;
-
-    outline: none;
-
-    border-radius: 12px;
-
-    background:
-        rgba(255,255,255,0.08);
-
-    color: white;
-
-    font-size: 13px;
-}
-
-
-#search::placeholder {
-
-    color: #94a3b8;
-}
-
-
-.search-results {
-
-    position: absolute;
-
-    top: 48px;
-
-    left: 0;
-
-    right: 0;
-
-    max-height: 230px;
-
-    overflow-y: auto;
-
-    background:
-        rgba(7,17,31,0.98);
-
-    border-radius: 12px;
-
-    display: none;
-
-    border:
-        1px solid
-        rgba(255,255,255,0.1);
-
-    box-shadow:
-        0 15px 40px
-        rgba(0,0,0,0.4);
-}
-
-
-.search-result {
-
-    padding: 11px 13px;
-
-    cursor: pointer;
-
-    border-bottom:
-        1px solid
-        rgba(255,255,255,0.05);
-
-    transition:
-        background 0.2s ease;
-}
-
-
-.search-result:hover {
-
-    background:
-        rgba(56,189,248,0.15);
-}
-
-
-.result-sector {
-
-    font-weight: 700;
-
-    font-size: 13px;
-}
-
-
-.result-district {
-
-    color: #94a3b8;
-
-    font-size: 11px;
-
-    margin-top: 2px;
-}
-
-
-/* =====================================================
-   BUTTON
-===================================================== */
-
-.reset-button {
-
-    width: 100%;
-
-    margin-top: 10px;
-
-    padding: 11px;
-
-    border: none;
-
-    border-radius: 12px;
-
-    cursor: pointer;
-
-    background:
-        #38bdf8;
-
-    color:
-        #06111d;
-
-    font-weight: 800;
-
-    transition:
-        transform 0.2s ease,
-        filter 0.2s ease;
-}
-
-
-.reset-button:hover {
-
-    transform:
-        translateY(-2px);
-
-    filter:
-        brightness(1.1);
-}
-
-
-/* =====================================================
-   BOTTOM RIGHT INFO
-===================================================== */
-
-.info-card {
-
-    position: absolute;
-
-    z-index: 1000;
-
-    right: 20px;
-
-    bottom: 20px;
-
-    min-width: 260px;
-
-    padding: 18px;
-
-    border-radius: 18px;
-
-    background:
-        rgba(7,17,31,0.94);
-
-    backdrop-filter:
-        blur(18px);
-
-    border:
-        1px solid
-        rgba(255,255,255,0.12);
-
-    box-shadow:
-        0 20px 50px
-        rgba(0,0,0,0.35);
-
-    color: white;
-
-    transform:
-        translateY(130px);
-
-    opacity: 0;
-
-    transition:
-        transform 0.5s ease,
-        opacity 0.5s ease;
-}
-
-
-.info-card.visible {
-
-    transform:
-        translateY(0);
-
-    opacity: 1;
-}
-
-
-.info-title {
-
-    font-size: 20px;
-
-    font-weight: 800;
-
-    margin-bottom: 5px;
-}
-
-
-.info-district {
-
-    color: #38bdf8;
-
-    font-size: 13px;
-
-    font-weight: 600;
-
-    margin-bottom: 8px;
-}
-
-
-.info-description {
-
-    color: #94a3b8;
-
-    font-size: 12px;
-
-    line-height: 1.5;
-}
-
-
-/* =====================================================
-   DISTRICT LEGEND
-===================================================== */
-
-.legend {
-
-    position: absolute;
-
-    z-index: 1000;
-
-    left: 20px;
-
-    bottom: 20px;
-
-    padding: 14px 16px;
-
-    border-radius: 15px;
-
-    background:
-        rgba(7,17,31,0.92);
-
-    backdrop-filter:
-        blur(15px);
-
-    border:
-        1px solid
-        rgba(255,255,255,0.1);
-
-    color: white;
-
-    box-shadow:
-        0 15px 40px
-        rgba(0,0,0,0.3);
-}
-
-
-.legend-title {
-
-    font-size: 12px;
-
-    font-weight: 800;
-
-    margin-bottom: 9px;
-
-    color: #cbd5e1;
-}
-
-
-.legend-item {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 8px;
-
-    font-size: 11px;
-
-    color: #cbd5e1;
-
-    margin: 6px 0;
-}
-
-
-.legend-color {
-
-    width: 13px;
-
-    height: 13px;
-
-    border-radius: 4px;
-}
-
-
-/* =====================================================
-   KIGALI LABEL
-===================================================== */
-
-.kigali-label {
-
-    background: transparent !important;
-
-    border: none !important;
-}
-
-
-/* =====================================================
-   LEAFLET POPUP
-===================================================== */
-
-.leaflet-popup-content-wrapper {
-
-    background:
-        #07111f;
-
-    color: white;
-
-    border-radius: 14px;
-
-    box-shadow:
-        0 15px 40px
-        rgba(0,0,0,0.35);
-}
-
-
-.leaflet-popup-tip {
-
-    background:
-        #07111f;
-}
-
-
-.popup {
-
-    min-width: 160px;
-}
-
-
-.popup h3 {
-
-    margin: 0 0 5px;
-
-    font-size: 17px;
-}
-
-
-.popup p {
-
-    margin: 3px 0;
-
-    color: #94a3b8;
-
-    font-size: 12px;
-}
-
-
-/* =====================================================
-   LOADING SCREEN
-===================================================== */
-
-.loading {
-
-    position: absolute;
-
-    inset: 0;
-
-    z-index: 2000;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    background:
-        #07111f;
-
-    color: white;
-
-    transition:
-        opacity 0.6s ease;
-}
-
-
-.loading.hidden {
-
-    opacity: 0;
-
-    pointer-events: none;
-}
-
-
-.loader-content {
-
-    text-align: center;
-}
-
-
-.spinner {
-
-    width: 45px;
-
-    height: 45px;
-
-    border-radius: 50%;
-
-    border:
-        3px solid
-        rgba(255,255,255,0.1);
-
-    border-top-color:
-        #38bdf8;
-
-    animation:
-        spin 0.9s linear infinite;
-
-    margin:
-        0 auto 15px;
-}
-
-
-@keyframes spin {
-
-    to {
-        transform:
-            rotate(360deg);
-    }
-}
-
-
-/* =====================================================
-   MOBILE
-===================================================== */
-
-@media (max-width: 700px) {
-
-    .dashboard {
-
-        top: 10px;
-        left: 10px;
-        right: 10px;
-
-        width: auto;
-
-        padding: 15px;
-    }
-
-
-    .title {
-
-        font-size: 19px;
-    }
-
-
-    .legend {
-
-        display: none;
-    }
-
-
-    .info-card {
-
-        left: 10px;
-        right: 10px;
-
-        bottom: 10px;
-
-        min-width: 0;
-    }
-
-}
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rwanda Boundaries · Hierarchy Viewer</title>
+    <!-- D3.js for SVG rendering (no map tiles, no Leaflet, no MapLibre) -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f4f6fa;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* header */
+        .app-header {
+            background: #0b2b4b;
+            color: white;
+            padding: 0.9rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .app-header h1 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.02em;
+        }
+        .app-header h1 i {
+            color: #4fc3f7;
+        }
+        .upload-area {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.4rem 0.8rem 0.4rem 1.2rem;
+            border-radius: 40px;
+            backdrop-filter: blur(4px);
+            flex-wrap: wrap;
+        }
+        .upload-area label {
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: #ccddee;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .upload-area input[type="file"] {
+            display: none;
+        }
+        .btn-upload {
+            background: #1e88e5;
+            border: none;
+            color: white;
+            padding: 0.5rem 1.2rem;
+            border-radius: 30px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-upload:hover {
+            background: #1565c0;
+        }
+        .status-badge {
+            font-size: 0.8rem;
+            background: #2e4a6a;
+            padding: 0.25rem 0.8rem;
+            border-radius: 40px;
+            color: #bbdefb;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* main layout */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* sidebar – boundary list */
+        .sidebar {
+            width: 380px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e0e7ef;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.02);
+            overflow: hidden;
+        }
+        .sidebar-header {
+            padding: 1.2rem 1.2rem 0.8rem;
+            border-bottom: 1px solid #edf2f9;
+        }
+        .sidebar-header h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #5b6f87;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sidebar-header .hint {
+            font-size: 0.8rem;
+            color: #7f8fa4;
+            margin-top: 4px;
+        }
+        .boundary-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.6rem 0.6rem 1.2rem;
+        }
+        .boundary-item {
+            background: #f9fcff;
+            border-radius: 14px;
+            margin-bottom: 8px;
+            padding: 0.85rem 1rem;
+            border: 1px solid #e3eaf2;
+            transition: all 0.15s;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .boundary-item:hover {
+            border-color: #b8d1e9;
+            background: #f0f7ff;
+            box-shadow: 0 2px 8px rgba(30, 136, 229, 0.08);
+        }
+        .boundary-item.active {
+            border-left: 5px solid #1e88e5;
+            background: #e9f2fd;
+            border-color: #bbd6f1;
+        }
+        .item-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .item-title {
+            font-weight: 600;
+            color: #0b2b4b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.98rem;
+        }
+        .item-title i {
+            width: 20px;
+            color: #3a7eb6;
+            font-size: 0.9rem;
+        }
+        .item-level-badge {
+            background: #d4e3f5;
+            color: #0b2b4b;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 40px;
+            letter-spacing: 0.3px;
+        }
+        .item-stats {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.8rem;
+            color: #2c4b6e;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 0.25rem 0.6rem;
+            border-radius: 30px;
+            width: fit-content;
+        }
+        .item-stats i {
+            color: #1e88e5;
+            font-size: 0.75rem;
+            margin-right: 4px;
+        }
+        .item-children-preview {
+            font-size: 0.75rem;
+            color: #5e7a9a;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+            margin-top: 4px;
+            padding-left: 4px;
+        }
+        .child-tag {
+            background: #e5eef9;
+            padding: 2px 8px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            color: #1e5a8a;
+            white-space: nowrap;
+        }
+        .no-data {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: #8a9cb0;
+            font-size: 0.9rem;
+        }
+        .no-data i {
+            font-size: 2rem;
+            margin-bottom: 0.8rem;
+            opacity: 0.5;
+        }
+
+        /* map container */
+        .map-wrapper {
+            flex: 1;
+            position: relative;
+            background: linear-gradient(135deg, #e8f0fa 0%, #d4e2f0 100%);
+            overflow: hidden;
+        }
+        #svgMap {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: grab;
+        }
+        #svgMap:active {
+            cursor: grabbing;
+        }
+        .map-overlay-info {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(10, 30, 50, 0.85);
+            backdrop-filter: blur(8px);
+            color: white;
+            padding: 0.9rem 1.4rem;
+            border-radius: 48px;
+            font-size: 0.85rem;
+            display: flex;
+            gap: 24px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            pointer-events: none;
+            z-index: 5;
+            flex-wrap: wrap;
+        }
+        .overlay-stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .overlay-stat i {
+            color: #4fc3f7;
+        }
+
+        /* zoom controls */
+        .zoom-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 5;
+        }
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: white;
+            border: 1px solid #d0ddee;
+            color: #0b2b4b;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            transition: all 0.15s;
+        }
+        .zoom-btn:hover {
+            background: #e9f2fd;
+            border-color: #1e88e5;
+        }
+        .zoom-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(10, 30, 50, 0.95);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            white-space: nowrap;
+        }
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        /* scrollbar */
+        .boundary-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .boundary-list::-webkit-scrollbar-track {
+            background: #eef3f9;
+        }
+        .boundary-list::-webkit-scrollbar-thumb {
+            background: #b8c9dd;
+            border-radius: 10px;
+        }
+        .boundary-list::-webkit-scrollbar-thumb:hover {
+            background: #9aafc7;
+        }
+
+        @media (max-width: 800px) {
+            .sidebar { width: 300px; }
+            .app-header h1 { font-size: 1.2rem; }
+        }
+    </style>
 </head>
-
-
 <body>
-
-
-<!-- =====================================================
-     LOADING
-===================================================== -->
-
-<div
-    id="loading"
-    class="loading"
->
-
-    <div class="loader-content">
-
-        <div class="spinner"></div>
-
-        <div>
-            Loading Kigali map...
+    <header class="app-header">
+        <h1><i class="fas fa-map-marked-alt"></i> Rwanda Boundaries · Hierarchy</h1>
+        <div class="upload-area">
+            <label for="fileInput">
+                <i class="fas fa-folder-open"></i> Select GeoJSON files
+            </label>
+            <input type="file" id="fileInput" accept=".geojson,.json" multiple>
+            <button class="btn-upload" id="loadBtn"><i class="fas fa-cloud-upload-alt"></i> Load</button>
+            <span class="status-badge" id="fileCount"><i class="fas fa-database"></i> 0 files</span>
         </div>
+    </header>
 
-    </div>
-
-</div>
-
-
-<!-- =====================================================
-     MAP
-===================================================== -->
-
-<div id="map"></div>
-
-
-<!-- =====================================================
-     DASHBOARD
-===================================================== -->
-
-<div class="dashboard">
-
-    <div class="title-row">
-
-        <div class="flag">
-            🇷🇼
-        </div>
-
-        <div class="title">
-            Kigali City
-        </div>
-
-    </div>
-
-
-    <div class="subtitle">
-        Interactive district & sector map
-    </div>
-
-
-    <div class="stats">
-
-        <div class="stat">
-
-            <div
-                id="districtCount"
-                class="stat-number"
-            >
-                3
+    <div class="main-container">
+        <!-- Sidebar with hierarchy list -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h3><i class="fas fa-sitemap"></i> Administrative hierarchy</h3>
+                <div class="hint">Click an item to zoom &amp; highlight</div>
             </div>
-
-            <div class="stat-label">
-                DISTRICTS
+            <div class="boundary-list" id="boundaryList">
+                <div class="no-data">
+                    <i class="fas fa-map"></i><br>
+                    No boundaries loaded.<br>
+                    <small>Select your GeoJSON files and click "Load"</small>
+                </div>
             </div>
+        </aside>
 
+        <!-- SVG Map panel (D3) -->
+        <div class="map-wrapper" id="mapWrapper">
+            <svg id="svgMap"></svg>
+            <div class="zoom-controls">
+                <button class="zoom-btn" id="zoomIn" title="Zoom in"><i class="fas fa-plus"></i></button>
+                <button class="zoom-btn" id="zoomOut" title="Zoom out"><i class="fas fa-minus"></i></button>
+                <button class="zoom-btn" id="zoomReset" title="Reset view"><i class="fas fa-expand"></i></button>
+            </div>
+            <div class="map-overlay-info" id="mapInfo">
+                <div class="overlay-stat"><i class="fas fa-layer-group"></i> <span id="totalFeatures">0</span> features</div>
+                <div class="overlay-stat"><i class="fas fa-globe"></i> <span id="levelCount">0</span> levels</div>
+            </div>
+            <div class="tooltip" id="tooltip"></div>
         </div>
-
-
-        <div class="stat">
-
-            <div
-                id="sectorCount"
-                class="stat-number"
-            >
-                35
-            </div>
-
-            <div class="stat-label">
-                SECTORS
-            </div>
-
-        </div>
-
-
-        <div class="stat">
-
-            <div
-                id="selectedCount"
-                class="stat-number"
-            >
-                0
-            </div>
-
-            <div class="stat-label">
-                SELECTED
-            </div>
-
-        </div>
-
     </div>
 
-
-    <!-- SEARCH -->
-
-    <div class="search-container">
-
-        <input
-            id="search"
-            type="text"
-            placeholder="Search sector..."
-            autocomplete="off"
-        >
-
-        <div
-            id="searchResults"
-            class="search-results"
-        ></div>
-
-    </div>
-
-
-    <!-- RESET -->
-
-    <button
-        id="resetButton"
-        class="reset-button"
-    >
-        ⌖ Back to Kigali
-    </button>
-
-</div>
-
-
-<!-- =====================================================
-     LEGEND
-===================================================== -->
-
-<div class="legend">
-
-    <div class="legend-title">
-        KIGALI DISTRICTS
-    </div>
-
-
-    <div class="legend-item">
-
-        <div
-            class="legend-color"
-            style="background:#38bdf8"
-        ></div>
-
-        <span>
-            Gasabo — 15 sectors
-        </span>
-
-    </div>
-
-
-    <div class="legend-item">
-
-        <div
-            class="legend-color"
-            style="background:#a78bfa"
-        ></div>
-
-        <span>
-            Kicukiro — 10 sectors
-        </span>
-
-    </div>
-
-
-    <div class="legend-item">
-
-        <div
-            class="legend-color"
-            style="background:#fb7185"
-        ></div>
-
-        <span>
-            Nyarugenge — 10 sectors
-        </span>
-
-    </div>
-
-</div>
-
-
-<!-- =====================================================
-     INFORMATION CARD
-===================================================== -->
-
-<div
-    id="infoCard"
-    class="info-card"
->
-
-    <div
-        id="infoTitle"
-        class="info-title"
-    >
-        Kigali
-    </div>
-
-
-    <div
-        id="infoDistrict"
-        class="info-district"
-    >
-        Rwanda
-    </div>
-
-
-    <div
-        id="infoDescription"
-        class="info-description"
-    >
-        Hover over a sector to see its information.
-    </div>
-
-</div>
-
-
-
-<script>
-
-/* =====================================================
-   CONFIGURATION
-===================================================== */
-
-
-/*
-   Kigali center
-*/
-
-const KIGALI_CENTER = [
-    -1.9441,
-    30.0619
-];
-
-
-/*
-   Kigali approximate radius
-*/
-
-const KIGALI_RADIUS = 11500;
-
-
-/*
-   Official Rwanda GIS sector layer.
-
-   Layer 1 = Sector Boundary.
-*/
-
-const SECTOR_API =
-    "https://moegis.environment.gov.rw/server/rest/services/Hosted/Administrative_boundaries/FeatureServer/1/query";
-
-
-/*
-   Only request Kigali districts.
-*/
-
-const queryParams = new URLSearchParams({
-
-    where:
-        "district IN ('Gasabo','Kicukiro','Nyarugenge')",
-
-    outFields:
-        "province,district,sector,district_id,sector_id",
-
-    returnGeometry:
-        "true",
-
-    outSR:
-        "4326",
-
-    returnIdsOnly:
-        "false",
-
-    f:
-        "geojson"
-
-});
-
-
-const SECTOR_URL =
-    SECTOR_API +
-    "?" +
-    queryParams.toString();
-
-
-
-/* =====================================================
-   DISTRICT INFORMATION
-===================================================== */
-
-const DISTRICTS = {
-
-    Gasabo: {
-        sectors: 15,
-        color: "#38bdf8"
-    },
-
-    Kicukiro: {
-        sectors: 10,
-        color: "#a78bfa"
-    },
-
-    Nyarugenge: {
-        sectors: 10,
-        color: "#fb7185"
-    }
-
-};
-
-
-
-/* =====================================================
-   SECTOR COLORS
-===================================================== */
-
-const SECTOR_COLORS = [
-
-    "#38bdf8",
-    "#22c55e",
-    "#f59e0b",
-    "#ef4444",
-    "#a78bfa",
-    "#ec4899",
-    "#14b8a6",
-    "#f97316",
-    "#84cc16",
-    "#06b6d4",
-
-    "#8b5cf6",
-    "#eab308",
-    "#10b981",
-    "#f43f5e",
-    "#6366f1",
-    "#d946ef",
-    "#0ea5e9",
-    "#65a30d",
-    "#dc2626",
-    "#9333ea",
-
-    "#0891b2",
-    "#ca8a04",
-    "#059669",
-    "#db2777",
-    "#7c3aed",
-    "#ea580c",
-    "#16a34a",
-    "#2563eb",
-    "#c026d3",
-    "#0284c7",
-
-    "#e11d48",
-    "#4f46e5",
-    "#15803d",
-    "#b45309",
-    "#be123c"
-
-];
-
-
-
-/* =====================================================
-   MAP
-===================================================== */
-
-const map = L.map(
-    "map",
-    {
-
-        zoomControl: true,
-
-        minZoom: 9,
-
-        maxZoom: 19,
-
-        zoomAnimation: true,
-
-        fadeAnimation: true,
-
-        markerZoomAnimation: true
-
-    }
-);
-
-
-
-/* =====================================================
-   ARC GIS BASE MAP
-===================================================== */
-
-/*
-   IMPORTANT:
-
-   We are NOT using:
-
-   tile.openstreetmap.org
-
-   because your screenshot showed
-   OpenStreetMap returning 403.
-
-   Instead we use ArcGIS tiles.
-*/
-
-L.tileLayer(
-
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-
-    {
-
-        maxZoom: 19,
-
-        attribution:
-            "Tiles &copy; Esri — Sources: Esri, TomTom, Garmin, FAO, NOAA, USGS, OpenStreetMap contributors"
-
-    }
-
-).addTo(map);
-
-
-
-/* =====================================================
-   START POSITION
-===================================================== */
-
-map.setView(
-    KIGALI_CENTER,
-    11
-);
-
-
-
-/* =====================================================
-   KIGALI CIRCLE
-===================================================== */
-
-const kigaliCircle = L.circle(
-
-    KIGALI_CENTER,
-
-    {
-
-        radius:
-            KIGALI_RADIUS,
-
-        color:
-            "#38bdf8",
-
-        weight:
-            3,
-
-        opacity:
-            0.9,
-
-        fillColor:
-            "#38bdf8",
-
-        fillOpacity:
-            0.05,
-
-        dashArray:
-            "10 10",
-
-        interactive:
-            false
-
-    }
-
-).addTo(map);
-
-
-
-/* =====================================================
-   ANIMATED CIRCLE
-===================================================== */
-
-let pulseDirection = 1;
-
-let pulseOpacity = 0.05;
-
-
-setInterval(
-    () => {
-
-        pulseOpacity +=
-            0.003 *
-            pulseDirection;
-
-
-        if (
-            pulseOpacity >= 0.12
-        ) {
-
-            pulseDirection = -1;
-
-        }
-
-
-        if (
-            pulseOpacity <= 0.03
-        ) {
-
-            pulseDirection = 1;
-
-        }
-
-
-        kigaliCircle.setStyle({
-
-            fillOpacity:
-                pulseOpacity
-
-        });
-
-    },
-    60
-);
-
-
-
-/* =====================================================
-   KIGALI LABEL
-===================================================== */
-
-const kigaliLabel =
-    L.marker(
-
-        KIGALI_CENTER,
-
-        {
-
-            icon:
-                L.divIcon({
-
-                    className:
-                        "kigali-label",
-
-                    html: `
-
-                        <div style="
-                            background:
-                                rgba(7,17,31,.92);
-
-                            color:
-                                white;
-
-                            padding:
-                                8px 15px;
-
-                            border-radius:
-                                30px;
-
-                            border:
-                                1px solid #38bdf8;
-
-                            font-weight:
-                                800;
-
-                            font-size:
-                                13px;
-
-                            box-shadow:
-                                0 8px 25px
-                                rgba(0,0,0,.4);
-
-                            white-space:
-                                nowrap;
-                        ">
-                            🇷🇼 KIGALI
-                        </div>
-
-                    `,
-
-                    iconSize:
-                        [100, 35],
-
-                    iconAnchor:
-                        [50, 17]
-
-                }),
-
-            interactive:
-                false
-
-        }
-
-    ).addTo(map);
-
-
-
-/* =====================================================
-   LAYERS
-===================================================== */
-
-let sectorLayer = null;
-
-let districtLayers = {};
-
-let sectorFeatures = [];
-
-let selectedLayer = null;
-
-
-
-/* =====================================================
-   UI ELEMENTS
-===================================================== */
-
-const infoCard =
-    document.getElementById(
-        "infoCard"
-    );
-
-const infoTitle =
-    document.getElementById(
-        "infoTitle"
-    );
-
-const infoDistrict =
-    document.getElementById(
-        "infoDistrict"
-    );
-
-const infoDescription =
-    document.getElementById(
-        "infoDescription"
-    );
-
-const selectedCount =
-    document.getElementById(
-        "selectedCount"
-    );
-
-const searchInput =
-    document.getElementById(
-        "search"
-    );
-
-const searchResults =
-    document.getElementById(
-        "searchResults"
-    );
-
-
-
-/* =====================================================
-   SHOW INFO
-===================================================== */
-
-function showInfo(
-    sector,
-    district
-) {
-
-    infoTitle.textContent =
-        sector;
-
-    infoDistrict.textContent =
-        district + " District";
-
-    infoDescription.textContent =
-        "Click this sector to zoom in and explore the area.";
-
-    infoCard.classList.add(
-        "visible"
-    );
-
-}
-
-
-
-/* =====================================================
-   HIDE INFO
-===================================================== */
-
-function hideInfo() {
-
-    infoCard.classList.remove(
-        "visible"
-    );
-
-}
-
-
-
-/* =====================================================
-   GET SECTOR COLOR
-===================================================== */
-
-const sectorColorMap = {};
-
-let colorIndex = 0;
-
-
-
-/* =====================================================
-   CREATE SECTOR COLOR
-===================================================== */
-
-function getSectorColor(
-    sector
-) {
-
-    if (
-        !sectorColorMap[sector]
-    ) {
-
-        sectorColorMap[sector] =
-            SECTOR_COLORS[
-                colorIndex %
-                SECTOR_COLORS.length
-            ];
-
-        colorIndex++;
-
-    }
-
-    return sectorColorMap[
-        sector
-    ];
-
-}
-
-
-
-/* =====================================================
-   SECTOR STYLE
-===================================================== */
-
-function sectorStyle(
-    feature
-) {
-
-    const props =
-        feature.properties || {};
-
-    const sector =
-        props.sector ||
-        "Unknown";
-
-    const district =
-        props.district ||
-        "Kigali";
-
-
-    return {
-
-        color:
-            DISTRICTS[district]?.color ||
-            "#ffffff",
-
-        weight:
-            1.5,
-
-        opacity:
-            0.9,
-
-        fillColor:
-            getSectorColor(
-                sector
-            ),
-
-        fillOpacity:
-            0.68
-
-    };
-
-}
-
-
-
-/* =====================================================
-   HOVER STYLE
-===================================================== */
-
-function hoverStyle(
-    layer
-) {
-
-    layer.setStyle({
-
-        weight:
-            4,
-
-        color:
-            "#ffffff",
-
-        fillOpacity:
-            0.92
-
-    });
-
-}
-
-
-
-/* =====================================================
-   NORMAL STYLE
-===================================================== */
-
-function normalStyle(
-    layer
-) {
-
-    if (
-        sectorLayer
-    ) {
-
-        sectorLayer.resetStyle(
-            layer
-        );
-
-    }
-
-}
-
-
-
-/* =====================================================
-   SELECT SECTOR
-===================================================== */
-
-function selectSector(
-    layer
-) {
-
-    const props =
-        layer.feature.properties ||
-        {};
-
-    const sector =
-        props.sector ||
-        "Unknown";
-
-    const district =
-        props.district ||
-        "Kigali";
-
-
-    /*
-       Remove previous selection.
-    */
-
-    if (
-        selectedLayer &&
-        selectedLayer !== layer
-    ) {
-
-        normalStyle(
-            selectedLayer
-        );
-
-    }
-
-
-    selectedLayer =
-        layer;
-
-
-    /*
-       Highlight selected sector.
-    */
-
-    layer.setStyle({
-
-        weight:
-            5,
-
-        color:
-            "#ffffff",
-
-        fillOpacity:
-            0.95
-
-    });
-
-
-    /*
-       Smooth zoom.
-    */
-
-    map.fitBounds(
-
-        layer.getBounds(),
-
-        {
-
-            padding:
-                [70, 70],
-
-            animate:
-                true,
-
-            duration:
-                1.2
-
-        }
-
-    );
-
-
-    /*
-       Show popup.
-    */
-
-    L.popup({
-
-        closeButton:
-            true,
-
-        autoPan:
-            true
-
-    })
-
-    .setLatLng(
-        layer.getBounds()
-            .getCenter()
-    )
-
-    .setContent(`
-
-        <div class="popup">
-
-            <h3>
-                ${sector}
-            </h3>
-
-            <p>
-                District:
-                <strong>
-                    ${district}
-                </strong>
-            </p>
-
-            <p>
-                Sector ID:
-                ${props.sector_id || "N/A"}
-            </p>
-
-        </div>
-
-    `)
-
-    .openOn(map);
-
-
-    showInfo(
-        sector,
-        district
-    );
-
-
-    selectedCount.textContent =
-        "1";
-
-}
-
-
-
-/* =====================================================
-   SECTOR EVENTS
-===================================================== */
-
-function onEachSector(
-    feature,
-    layer
-) {
-
-    const props =
-        feature.properties ||
-        {};
-
-    const sector =
-        props.sector ||
-        "Unknown";
-
-    const district =
-        props.district ||
-        "Kigali";
-
-
-    /*
-       Save for search.
-    */
-
-    sectorFeatures.push({
-
-        name:
-            sector,
-
-        district:
-            district,
-
-        layer:
-            layer,
-
-        feature:
-            feature
-
-    });
-
-
-    /*
-       Mouse enters.
-    */
-
-    layer.on(
-
-        "mouseover",
-
-        function() {
-
-            hoverStyle(
-                layer
-            );
-
-            layer.bringToFront();
-
-            showInfo(
-                sector,
-                district
-            );
-
-        }
-
-    );
-
-
-    /*
-       Mouse leaves.
-    */
-
-    layer.on(
-
-        "mouseout",
-
-        function() {
-
-            if (
-                selectedLayer !==
-                layer
-            ) {
-
-                normalStyle(
-                    layer
-                );
-
+    <script>
+        (function(){
+            // ----- GLOBAL STATE -----
+            let allFeatures = [];            // { level, name, feature, parent, childCount, _path }
+            let hierarchy = { levels: {}, childrenMap: {}, parentMap: {} };
+            let svg, g, projection, geoPath, zoomBehavior;
+            let currentWidth = 0, currentHeight = 0;
+            let featurePaths = new Map();    // name+level -> SVG path element
+
+            // ----- DOM ELEMENTS -----
+            const fileInput = document.getElementById('fileInput');
+            const loadBtn = document.getElementById('loadBtn');
+            const fileCountSpan = document.getElementById('fileCount');
+            const boundaryListDiv = document.getElementById('boundaryList');
+            const totalFeaturesSpan = document.getElementById('totalFeatures');
+            const levelCountSpan = document.getElementById('levelCount');
+            const svgEl = document.getElementById('svgMap');
+            const mapWrapper = document.getElementById('mapWrapper');
+            const tooltipEl = document.getElementById('tooltip');
+            const zoomInBtn = document.getElementById('zoomIn');
+            const zoomOutBtn = document.getElementById('zoomOut');
+            const zoomResetBtn = document.getElementById('zoomReset');
+
+            // ----- INIT SVG (D3, no map tiles) -----
+            function initSvg() {
+                svg = d3.select('#svgMap');
+                svg.selectAll('*').remove();
+
+                const rect = mapWrapper.getBoundingClientRect();
+                currentWidth = rect.width;
+                currentHeight = rect.height;
+
+                svg.attr('viewBox', `0 0 ${currentWidth} ${currentHeight}`)
+                   .attr('preserveAspectRatio', 'xMidYMid meet');
+
+                // Background
+                svg.append('rect')
+                   .attr('width', currentWidth)
+                   .attr('height', currentHeight)
+                   .attr('fill', 'url(#bgGrad)');
+
+                // Gradient def
+                const defs = svg.append('defs');
+                const grad = defs.append('linearGradient')
+                    .attr('id', 'bgGrad')
+                    .attr('x1', '0%').attr('y1', '0%')
+                    .attr('x2', '100%').attr('y2', '100%');
+                grad.append('stop').attr('offset', '0%').attr('stop-color', '#eaf2fb');
+                grad.append('stop').attr('offset', '100%').attr('stop-color', '#cfdeef');
+
+                // Group for zoom/pan
+                g = svg.append('g').attr('class', 'map-layer');
+
+                // Zoom behavior
+                zoomBehavior = d3.zoom()
+                    .scaleExtent([0.5, 20])
+                    .on('zoom', (event) => {
+                        g.attr('transform', event.transform);
+                    });
+                svg.call(zoomBehavior);
             }
 
-        }
+            // ----- PROJECTION (Mercator) -----
+            function setupProjection(features) {
+                // Build a GeoJSON FeatureCollection from all features
+                const fc = {
+                    type: 'FeatureCollection',
+                    features: features.map(f => f.feature)
+                };
+                // Use geoMercator fitted to the bounds of the data
+                projection = d3.geoMercator().fitSize([currentWidth - 40, currentHeight - 40], fc);
+                geoPath = d3.geoPath().projection(projection);
+            }
 
-    );
+            // ----- UTILS: derive level from filename -----
+            function deriveLevelFromFilename(filename) {
+                const match = filename.match(/ADM(\d+)/i);
+                if (match) return `ADM${match[1]}`;
+                const numMatch = filename.match(/(\d+)/);
+                if (numMatch) return `ADM${numMatch[1]}`;
+                return 'ADM?';
+            }
 
+            // Normalize name extraction
+            function getFeatureName(feature, level) {
+                const props = feature.properties || {};
+                const possible = ['name', 'NAME', 'Name', 'shapeName', 'shapeISO',
+                    'ADM0_EN', 'ADM1_EN', 'ADM2_EN', 'ADM3_EN', 'ADM4_EN', 'ADM5_EN'];
+                for (let key of possible) {
+                    if (props[key] && typeof props[key] === 'string' && props[key].trim() !== '') {
+                        return props[key].trim();
+                    }
+                }
+                return `Unnamed ${level}`;
+            }
 
-    /*
-       Click.
-    */
-
-    layer.on(
-
-        "click",
-
-        function(e) {
-
-            L.DomEvent.stopPropagation(
-                e
-            );
-
-            selectSector(
-                layer
-            );
-
-        }
-
-    );
-
-
-
-    /*
-       Tooltip.
-    */
-
-    layer.bindTooltip(
-
-        `<strong>${sector}</strong><br>${district} District`,
-
-        {
-
-            sticky:
-                true,
-
-            direction:
-                "top",
-
-            opacity:
-                0.95
-
-        }
-
-    );
-
-}
-
-
-
-/* =====================================================
-   LOAD REAL RWANDA SECTOR DATA
-===================================================== */
-
-fetch(
-    SECTOR_URL
-)
-
-.then(
-    response => {
-
-        if (
-            !response.ok
-        ) {
-
-            throw new Error(
-                "GIS server returned " +
-                response.status
-            );
-
-        }
-
-        return response.json();
-
-    }
-)
-
-.then(
-    data => {
-
-        console.log(
-            "Kigali GIS data:",
-            data
-        );
-
-
-        /*
-           Create GeoJSON.
-        */
-
-        sectorLayer =
-            L.geoJSON(
-
-                data,
-
-                {
-
-                    style:
-                        sectorStyle,
-
-                    onEachFeature:
-                        onEachSector
-
+            // ----- LOAD GEOJSON FILES -----
+            async function loadFiles(files) {
+                if (!files || files.length === 0) {
+                    alert('Please select one or more GeoJSON files.');
+                    return;
                 }
 
-            ).addTo(map);
+                // Reset
+                allFeatures = [];
+                hierarchy = { levels: {}, childrenMap: {}, parentMap: {} };
+                featurePaths.clear();
 
+                const filePromises = Array.from(files).map(file => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            try {
+                                const geojson = JSON.parse(e.target.result);
+                                const level = deriveLevelFromFilename(file.name);
+                                resolve({ geojson, level, filename: file.name });
+                            } catch (err) {
+                                reject(new Error(`Failed to parse ${file.name}: ${err.message}`));
+                            }
+                        };
+                        reader.onerror = () => reject(new Error(`Error reading ${file.name}`));
+                        reader.readAsText(file);
+                    });
+                });
 
-        /*
-           Store features.
-        */
+                try {
+                    const results = await Promise.all(filePromises);
 
-        const features =
-            data.features || [];
+                    results.forEach(({ geojson, level }) => {
+                        if (!geojson.features || !Array.isArray(geojson.features)) return;
+                        geojson.features.forEach(feature => {
+                            const name = getFeatureName(feature, level);
+                            allFeatures.push({
+                                level: level,
+                                name: name,
+                                feature: feature,
+                                parent: null,
+                                childCount: 0
+                            });
+                        });
+                    });
 
+                    // Sort by level
+                    allFeatures.sort((a, b) => {
+                        const numA = parseInt(a.level.replace('ADM', '')) || 0;
+                        const numB = parseInt(b.level.replace('ADM', '')) || 0;
+                        return numA - numB;
+                    });
 
-        /*
-           Update sector count
-           based on actual returned data.
-        */
+                    // Build level map
+                    const levelsMap = {};
+                    allFeatures.forEach(f => {
+                        if (!levelsMap[f.level]) levelsMap[f.level] = [];
+                        levelsMap[f.level].push(f);
+                    });
 
-        if (
-            features.length > 0
-        ) {
+                    const sortedLevels = Object.keys(levelsMap).sort((a,b) => {
+                        const numA = parseInt(a.replace('ADM','')) || 0;
+                        const numB = parseInt(b.replace('ADM','')) || 0;
+                        return numA - numB;
+                    });
 
-            document
-                .getElementById(
-                    "sectorCount"
-                )
-                .textContent =
-                    features.length;
+                    // Assign parents by centroid-in-polygon
+                    for (let i = 1; i < sortedLevels.length; i++) {
+                        const childLevel = sortedLevels[i];
+                        const parentLevel = sortedLevels[i-1];
+                        const parents = levelsMap[parentLevel] || [];
+                        const children = levelsMap[childLevel] || [];
 
-        }
+                        children.forEach(child => {
+                            const centroid = getCentroid(child.feature);
+                            if (!centroid) return;
+                            let foundParent = null;
+                            for (let p of parents) {
+                                if (pointInFeature(centroid, p.feature)) {
+                                    foundParent = p;
+                                    break;
+                                }
+                            }
+                            if (foundParent) {
+                                child.parent = foundParent.name;
+                                foundParent.childCount = (foundParent.childCount || 0) + 1;
+                                if (!hierarchy.childrenMap[foundParent.name]) hierarchy.childrenMap[foundParent.name] = [];
+                                hierarchy.childrenMap[foundParent.name].push(child.name);
+                                hierarchy.parentMap[child.name] = foundParent.name;
+                            } else {
+                                child.parent = '—';
+                            }
+                        });
+                    }
 
+                    hierarchy.levels = levelsMap;
 
-        /*
-           Smoothly zoom to Kigali.
-        */
+                    // Render everything
+                    renderAll();
 
-        setTimeout(
-            () => {
+                } catch (error) {
+                    console.error(error);
+                    alert(`Error loading files: ${error.message}`);
+                }
+            }
 
-                const bounds =
-                    sectorLayer
-                        .getBounds();
+            // ----- GEOMETRY HELPERS -----
+            function getCentroid(feature) {
+                if (!feature.geometry) return null;
+                const geom = feature.geometry;
+                let coords = null;
+                if (geom.type === 'Polygon') {
+                    coords = geom.coordinates[0];
+                } else if (geom.type === 'MultiPolygon') {
+                    coords = geom.coordinates[0][0];
+                } else {
+                    return null;
+                }
+                if (!coords || coords.length === 0) return null;
+                let sumX = 0, sumY = 0;
+                coords.forEach(coord => {
+                    sumX += coord[0];
+                    sumY += coord[1];
+                });
+                return [sumX / coords.length, sumY / coords.length];
+            }
 
+            function pointInFeature(point, feature) {
+                const geom = feature.geometry;
+                if (!geom) return false;
+                if (geom.type === 'Polygon') {
+                    return pointInPolygon(point, geom.coordinates);
+                } else if (geom.type === 'MultiPolygon') {
+                    for (let polyCoords of geom.coordinates) {
+                        if (pointInPolygon(point, polyCoords)) return true;
+                    }
+                    return false;
+                }
+                return false;
+            }
 
-                if (
-                    bounds.isValid()
-                ) {
+            function pointInPolygon(point, polygonCoords) {
+                const [x, y] = point;
+                const outerRing = polygonCoords[0];
+                if (!outerRing) return false;
+                let inside = false;
+                for (let i = 0, j = outerRing.length - 1; i < outerRing.length; j = i++) {
+                    const xi = outerRing[i][0], yi = outerRing[i][1];
+                    const xj = outerRing[j][0], yj = outerRing[j][1];
+                    const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                    if (intersect) inside = !inside;
+                }
+                return inside;
+            }
 
-                    map.flyToBounds(
+            // ----- RENDER ALL -----
+            function renderAll() {
+                initSvg();
+                if (allFeatures.length === 0) {
+                    renderSidebar([]);
+                    updateStats(0, 0);
+                    return;
+                }
 
-                        bounds,
+                setupProjection(allFeatures);
+                renderMap();
+                const levels = Object.keys(hierarchy.levels).sort((a,b) => {
+                    const numA = parseInt(a.replace('ADM','')) || 0;
+                    const numB = parseInt(b.replace('ADM','')) || 0;
+                    return numA - numB;
+                });
+                renderSidebar(levels);
+                updateStats(allFeatures.length, levels.length);
+            }
 
-                        {
+            // ----- RENDER MAP (SVG paths via D3) -----
+            function renderMap() {
+                g.selectAll('*').remove();
+                featurePaths.clear();
 
-                            padding:
-                                [80, 80],
+                // Color scale by level
+                const levels = [...new Set(allFeatures.map(f => f.level))].sort((a,b) => {
+                    const numA = parseInt(a.replace('ADM','')) || 0;
+                    const numB = parseInt(b.replace('ADM','')) || 0;
+                    return numA - numB;
+                });
+                const colorScale = d3.scaleOrdinal()
+                    .domain(levels)
+                    .range(['#1e88e5', '#43a047', '#fb8c00', '#8e24aa', '#e53935', '#00838f', '#5e35b1']);
 
-                            duration:
-                                2.0,
+                // Draw order: larger features (lower levels) behind
+                const sortedForDraw = [...allFeatures].sort((a, b) => {
+                    const numA = parseInt(a.level.replace('ADM','')) || 0;
+                    const numB = parseInt(b.level.replace('ADM','')) || 0;
+                    return numA - numB;
+                });
 
-                            easeLinearity:
-                                0.25
+                sortedForDraw.forEach(f => {
+                    const path = g.append('path')
+                        .datum(f.feature)
+                        .attr('d', geoPath)
+                        .attr('fill', colorScale(f.level))
+                        .attr('fill-opacity', 0.35)
+                        .attr('stroke', '#0b2b4b')
+                        .attr('stroke-width', 1)
+                        .attr('stroke-opacity', 0.9)
+                        .attr('data-name', f.name)
+                        .attr('data-level', f.level)
+                        .style('cursor', 'pointer')
+                        .style('transition', 'fill-opacity 0.15s, stroke-width 0.15s');
 
+                    // Tooltip + highlight
+                    path.on('mouseenter', function(event) {
+                        d3.select(this)
+                            .attr('fill-opacity', 0.65)
+                            .attr('stroke-width', 2.5);
+                        const childInfo = f.childCount > 0 ? ` · ${f.childCount} children` : '';
+                        tooltipEl.innerHTML = `<strong>${escapeHtml(f.name)}</strong><br><span style="color:#4fc3f7">${escapeHtml(f.level)}</span>${childInfo}`;
+                        tooltipEl.classList.add('visible');
+                    })
+                    .on('mousemove', function(event) {
+                        const rect = mapWrapper.getBoundingClientRect();
+                        tooltipEl.style.left = (event.clientX - rect.left + 12) + 'px';
+                        tooltipEl.style.top = (event.clientY - rect.top - 30) + 'px';
+                    })
+                    .on('mouseleave', function() {
+                        d3.select(this)
+                            .attr('fill-opacity', 0.35)
+                            .attr('stroke-width', 1);
+                        tooltipEl.classList.remove('visible');
+                    })
+                    .on('click', function(event) {
+                        event.stopPropagation();
+                        highlightFeature(f, true);
+                    });
+
+                    featurePaths.set(f.name + '::' + f.level, { path, feature: f });
+                });
+            }
+
+            // ----- HIGHLIGHT FEATURE -----
+            function highlightFeature(f, zoomTo) {
+                // Reset all paths
+                g.selectAll('path')
+                    .attr('fill-opacity', 0.35)
+                    .attr('stroke-width', 1)
+                    .attr('stroke', '#0b2b4b');
+
+                // Find and highlight this feature
+                const entry = featurePaths.get(f.name + '::' + f.level);
+                if (entry) {
+                    entry.path
+                        .attr('fill-opacity', 0.85)
+                        .attr('stroke-width', 3)
+                        .attr('stroke', '#0b2b4b')
+                        .raise();
+                }
+
+                // Zoom to feature bounds
+                if (zoomTo && entry) {
+                    const bounds = geoPath.bounds(entry.path.datum());
+                    const dx = bounds[1][0] - bounds[0][0];
+                    const dy = bounds[1][1] - bounds[0][1];
+                    const x = (bounds[0][0] + bounds[1][0]) / 2;
+                    const y = (bounds[0][1] + bounds[1][1]) / 2;
+                    const scale = Math.max(1, Math.min(8, 0.7 / Math.max(dx / currentWidth, dy / currentHeight)));
+                    const transform = d3.zoomIdentity
+                        .translate(currentWidth / 2, currentHeight / 2)
+                        .scale(scale)
+                        .translate(-x, -y);
+                    svg.transition().duration(600).call(zoomBehavior.transform, transform);
+                }
+            }
+
+            // ----- RENDER SIDEBAR -----
+            function renderSidebar(levels) {
+                if (allFeatures.length === 0) {
+                    boundaryListDiv.innerHTML = `<div class="no-data"><i class="fas fa-map"></i><br>No boundaries loaded.<br><small>Select your GeoJSON files and click "Load"</small></div>`;
+                    return;
+                }
+
+                let html = '';
+                levels.forEach(level => {
+                    const features = hierarchy.levels[level] || [];
+                    features.forEach(f => {
+                        const childCount = f.childCount || 0;
+                        const childNames = hierarchy.childrenMap[f.name] || [];
+                        const nextLevelIndex = levels.indexOf(level) + 1;
+                        const childLevelLabel = nextLevelIndex < levels.length ? levels[nextLevelIndex] : null;
+
+                        html += `<div class="boundary-item" data-level="${level}" data-name="${escapeHtml(f.name)}">`;
+                        html += `<div class="item-header">`;
+                        html += `<span class="item-title"><i class="fas ${level === 'ADM0' ? 'fa-flag' : (level === 'ADM1' ? 'fa-map' : 'fa-draw-polygon')}"></i> ${escapeHtml(f.name)}</span>`;
+                        html += `<span class="item-level-badge">${level}</span>`;
+                        html += `</div>`;
+                        if (f.parent && f.parent !== '—') {
+                            html += `<div style="font-size:0.7rem; color:#6688aa; margin-left:2px;"><i class="fas fa-arrow-up"></i> ${escapeHtml(f.parent)}</div>`;
                         }
+                        if (childCount > 0) {
+                            html += `<div class="item-stats"><i class="fas fa-layer-group"></i> ${childCount} ${childLevelLabel ? childLevelLabel : 'subdivisions'}</div>`;
+                            if (childNames.length > 0) {
+                                html += `<div class="item-children-preview">`;
+                                childNames.slice(0, 3).forEach(cn => {
+                                    html += `<span class="child-tag">${escapeHtml(cn)}</span>`;
+                                });
+                                if (childNames.length > 3) {
+                                    html += `<span class="child-tag">+${childNames.length - 3} more</span>`;
+                                }
+                                html += `</div>`;
+                            }
+                        } else {
+                            html += `<div class="item-stats" style="background:transparent; padding-left:0;"><i class="fas fa-circle" style="font-size:0.4rem;"></i> No children</div>`;
+                        }
+                        html += `</div>`;
+                    });
+                });
 
-                    );
+                boundaryListDiv.innerHTML = html;
 
+                // Click events
+                document.querySelectorAll('.boundary-item').forEach(el => {
+                    el.addEventListener('click', () => {
+                        document.querySelectorAll('.boundary-item').forEach(item => item.classList.remove('active'));
+                        el.classList.add('active');
+                        const name = el.dataset.name;
+                        const level = el.dataset.level;
+                        // Find feature
+                        const f = allFeatures.find(x => x.name === name && x.level === level);
+                        if (f) highlightFeature(f, true);
+                    });
+                });
+            }
+
+            // ----- UPDATE STATS -----
+            function updateStats(total, levels) {
+                totalFeaturesSpan.textContent = total;
+                levelCountSpan.textContent = levels;
+                fileCountSpan.innerHTML = `<i class="fas fa-database"></i> ${total} features · ${levels} levels`;
+            }
+
+            // ----- ESCAPE HTML -----
+            function escapeHtml(unsafe) {
+                if (!unsafe) return '';
+                return unsafe
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            // ----- EVENT LISTENERS -----
+            loadBtn.addEventListener('click', () => {
+                const files = fileInput.files;
+                if (files.length === 0) {
+                    alert('Please select at least one GeoJSON file.');
+                    return;
                 }
-
-            },
-            500
-        );
-
-
-        /*
-           Hide loading screen.
-        */
-
-        setTimeout(
-            () => {
-
-                document
-                    .getElementById(
-                        "loading"
-                    )
-                    .classList.add(
-                        "hidden"
-                    );
-
-            },
-            800
-        );
-
-    }
-)
-
-.catch(
-    error => {
-
-        console.error(
-            "Could not load GIS data:",
-            error
-        );
-
-
-        document
-            .getElementById(
-                "loading"
-            )
-            .innerHTML = `
-
-                <div
-                    class="loader-content"
-                    style="
-                        max-width:400px;
-                        padding:30px;
-                    "
-                >
-
-                    <div
-                        style="
-                            font-size:45px;
-                            margin-bottom:15px;
-                        "
-                    >
-                        ⚠️
-                    </div>
-
-                    <div
-                        style="
-                            font-size:20px;
-                            font-weight:800;
-                            margin-bottom:10px;
-                        "
-                    >
-                        Map data could not load
-                    </div>
-
-                    <div
-                        style="
-                            color:#94a3b8;
-                            font-size:13px;
-                            line-height:1.6;
-                        "
-                    >
-                        Please check your internet
-                        connection and reload the page.
-                    </div>
-
-                </div>
-
-            `;
-
-    }
-);
-
-
-
-/* =====================================================
-   SEARCH
-===================================================== */
-
-searchInput.addEventListener(
-
-    "input",
-
-    function() {
-
-        const value =
-            this.value
-                .trim()
-                .toLowerCase();
-
-
-        searchResults.innerHTML =
-            "";
-
-
-        if (
-            !value
-        ) {
-
-            searchResults.style.display =
-                "none";
-
-            return;
-
-        }
-
-
-        const matches =
-            sectorFeatures
-                .filter(
-                    item =>
-                        item.name
-                            .toLowerCase()
-                            .includes(value)
-                        ||
-                        item.district
-                            .toLowerCase()
-                            .includes(value)
-                )
-                .slice(
-                    0,
-                    8
-                );
-
-
-        if (
-            matches.length === 0
-        ) {
-
-            searchResults.innerHTML = `
-
-                <div
-                    class="search-result"
-                    style="color:#94a3b8"
-                >
-                    No sector found
-                </div>
-
-            `;
-
-        }
-
-
-        matches.forEach(
-            item => {
-
-                const div =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                div.className =
-                    "search-result";
-
-
-                div.innerHTML = `
-
-                    <div class="result-sector">
-                        ${item.name}
-                    </div>
-
-                    <div class="result-district">
-                        ${item.district} District
-                    </div>
-
-                `;
-
-
-                div.addEventListener(
-
-                    "click",
-
-                    () => {
-
-                        searchInput.value =
-                            item.name;
-
-                        searchResults.style.display =
-                            "none";
-
-
-                        selectSector(
-                            item.layer
-                        );
-
-                    }
-
-                );
-
-
-                searchResults.appendChild(
-                    div
-                );
-
-            }
-        );
-
-
-        searchResults.style.display =
-            "block";
-
-    }
-
-);
-
-
-
-/* =====================================================
-   CLICK OUTSIDE SEARCH
-===================================================== */
-
-document.addEventListener(
-
-    "click",
-
-    function(event) {
-
-        if (
-            !event.target.closest(
-                ".search-container"
-            )
-        ) {
-
-            searchResults.style.display =
-                "none";
-
-        }
-
-    }
-
-);
-
-
-
-/* =====================================================
-   RESET KIGALI
-===================================================== */
-
-document
-    .getElementById(
-        "resetButton"
-    )
-    .addEventListener(
-
-        "click",
-
-        function() {
-
-            /*
-               Remove selection.
-            */
-
-            if (
-                selectedLayer
-            ) {
-
-                normalStyle(
-                    selectedLayer
-                );
-
-            }
-
-
-            selectedLayer =
-                null;
-
-
-            selectedCount.textContent =
-                "0";
-
-
-            /*
-               Close popup.
-            */
-
-            map.closePopup();
-
-
-            /*
-               Hide info.
-            */
-
-            hideInfo();
-
-
-            /*
-               Clear search.
-            */
-
-            searchInput.value =
-                "";
-
-            searchResults.style.display =
-                "none";
-
-
-            /*
-               Zoom back to Kigali.
-            */
-
-            if (
-                sectorLayer &&
-                sectorLayer
-                    .getBounds()
-                    .isValid()
-            ) {
-
-                map.flyToBounds(
-
-                    sectorLayer
-                        .getBounds(),
-
-                    {
-
-                        padding:
-                            [80, 80],
-
-                        duration:
-                            1.8,
-
-                        easeLinearity:
-                            0.25
-
-                    }
-
-                );
-
-            } else {
-
-                map.flyTo(
-
-                    KIGALI_CENTER,
-
-                    11,
-
-                    {
-
-                        duration:
-                            1.5
-
-                    }
-
-                );
-
-            }
-
-        }
-
-    );
-
-
-
-/* =====================================================
-   MAP CLICK
-===================================================== */
-
-map.on(
-
-    "click",
-
-    function() {
-
-        /*
-           If user clicks empty map,
-           remove selection.
-        */
-
-        if (
-            selectedLayer
-        ) {
-
-            normalStyle(
-                selectedLayer
-            );
-
-        }
-
-
-        selectedLayer =
-            null;
-
-
-        selectedCount.textContent =
-            "0";
-
-
-        map.closePopup();
-
-    }
-
-);
-
-
-
-/* =====================================================
-   ZOOM BEHAVIOR
-===================================================== */
-
-map.on(
-
-    "zoomend",
-
-    function() {
-
-        const zoom =
-            map.getZoom();
-
-
-        /*
-           At close zoom, make
-           Kigali circle subtle.
-        */
-
-        if (
-            zoom >= 14
-        ) {
-
-            kigaliCircle.setStyle({
-
-                opacity:
-                    0.25,
-
-                fillOpacity:
-                    0.015
-
+                loadFiles(files);
             });
 
-
-            kigaliLabel.setOpacity(
-                0
-            );
-
-        } else {
-
-            kigaliCircle.setStyle({
-
-                opacity:
-                    0.9,
-
-                fillOpacity:
-                    pulseOpacity
-
+            fileInput.addEventListener('change', () => {
+                const count = fileInput.files.length;
+                fileCountSpan.innerHTML = `<i class="fas fa-file"></i> ${count} file${count !== 1 ? 's' : ''} selected`;
             });
 
+            // Zoom controls
+            zoomInBtn.addEventListener('click', () => {
+                if (svg && zoomBehavior) svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.4);
+            });
+            zoomOutBtn.addEventListener('click', () => {
+                if (svg && zoomBehavior) svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.7);
+            });
+            zoomResetBtn.addEventListener('click', () => {
+                if (svg && zoomBehavior) {
+                    svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
+                }
+            });
 
-            kigaliLabel.setOpacity(
-                1
-            );
+            // Handle resize
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    if (allFeatures.length > 0) {
+                        const rect = mapWrapper.getBoundingClientRect();
+                        currentWidth = rect.width;
+                        currentHeight = rect.height;
+                        svg.attr('viewBox', `0 0 ${currentWidth} ${currentHeight}`);
+                        // Re-fit projection and re-render map
+                        setupProjection(allFeatures);
+                        renderMap();
+                    } else {
+                        initSvg();
+                    }
+                }, 200);
+            });
 
-        }
+            // Initialize empty SVG on load
+            window.addEventListener('load', () => {
+                initSvg();
+            });
 
-    }
-
-);
-
-</script>
-
+        })();
+    </script>
 </body>
 </html>

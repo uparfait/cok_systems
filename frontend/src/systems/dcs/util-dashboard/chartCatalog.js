@@ -28,6 +28,7 @@ export const CHART_CATALOG = [
   { type: "scatter", kind: "point", labelKey: "DCS_DB_CHART_SCATTER" },
   { type: "bubble", kind: "point", labelKey: "DCS_DB_CHART_BUBBLE" },
   { type: "heatmap", kind: "category", labelKey: "DCS_DB_CHART_HEATMAP" },
+  { type: "map", kind: "category", labelKey: "DCS_DB_CHART_MAP" },
   { type: "kpi", kind: "kpi", labelKey: "DCS_DB_CHART_KPI" },
 ];
 
@@ -47,7 +48,8 @@ const SINGLE_CATEGORY_TYPES = ["bar", "column", "lollipop", "dot_plot", "pie", "
 const SPLIT_CATEGORY_TYPES = ["grouped_column", "grouped_bar", "stacked_column", "stacked_bar", "stacked_100", "stacked_bar_100", "heatmap", "line"];
 
 export function convertible_types(widget) {
-  if (!widget || widget.chart_type === "kpi") return [];
+  // A map is drawn on boundaries, not on axes: it stays a map.
+  if (!widget || widget.chart_type === "kpi" || widget.chart_type === "map") return [];
   if (["scatter", "bubble"].includes(widget.chart_type)) {
     return widget.size_field_id ? ["scatter", "bubble"] : ["scatter"];
   }

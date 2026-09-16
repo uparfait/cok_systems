@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_dashboard, save_dashboard, get_dashboard_data, get_filter_values, get_widget_records, export_widget_records, request_error_text } from "./dashboardService.js";
+import { get_dashboard, save_dashboard, get_dashboard_data, get_filter_values, get_widget_records, export_widget_records, get_map_shapes, request_error_text } from "./dashboardService.js";
 import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
 import { useBoardData } from "./useBoardData.js";
@@ -23,6 +23,7 @@ import ShareLinksDialog from "./share/ShareLinksDialog.jsx";
 import ScreenshotStudio from "./screenshot/ScreenshotStudio.jsx";
 import RecordsOverlay from "./records/RecordsOverlay.jsx";
 import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
+import { MapScopeProvider } from "./mapScope.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 // CSS zoom keeps text crisp when fitting the board; transform is the fallback.
@@ -43,7 +44,9 @@ const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports
 export default function DashboardPage({ form }) {
   return (
     <BoardThemeProvider>
-      <DashboardBoard form={form} />
+      <MapScopeProvider fetchShapes={(level, names) => get_map_shapes(form.form_group_id, level, names)}>
+        <DashboardBoard form={form} />
+      </MapScopeProvider>
     </BoardThemeProvider>
   );
 }

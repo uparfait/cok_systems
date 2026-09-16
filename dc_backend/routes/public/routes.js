@@ -17,7 +17,7 @@ const upload_approval_file_controller = require("../../controllers/approvals/upl
 const upload_batch_approval_file_controller = require("../../controllers/approvals/upload_batch_approval_file.js");
 const { get_locations, get_all_locations } = require("../../controllers/locations/get_locations.js");
 const { upload_submission_file, upload_approval_file } = require("../../utilities/upload.js");
-const { get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped, get_public_filter_values, get_public_widget_records, get_public_widget_records_export } = require("../../util-dashboard/controllers/public_dashboard.js");
+const { get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped, get_public_filter_values, get_public_widget_records, get_public_widget_records_export, get_public_map_shapes } = require("../../util-dashboard/controllers/public_dashboard.js");
 
 /**
  * @swagger
@@ -36,6 +36,15 @@ Router.get("/dashboard/:token", get_public_dashboard);
  *     tags: [Public]
  */
 Router.post("/dashboard/:token/data", get_public_dashboard_data);
+
+/**
+ * @swagger
+ * /dcs/api/public/dashboard/{token}/map-shapes:
+ *   post:
+ *     summary: The boundary outlines a shared map widget draws, no auth
+ *     tags: [Public]
+ */
+Router.post("/dashboard/:token/map-shapes", get_public_map_shapes);
 
 /**
  * @swagger
