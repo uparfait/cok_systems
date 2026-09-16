@@ -22,7 +22,6 @@ const PROJECT_LINKS = [
   { key: "settings", labelKey: "DCS_PROJECT_NAV_SETTINGS", path: "settings" },
   { key: "forms", labelKey: "DCS_PROJECT_NAV_FORMS", path: "forms" },
   { key: "access-control", labelKey: "DCS_SECTION_ACCESS_CONTROL", path: "access-control", needs_access: true },
-  { key: "dashboard", labelKey: "DCS_SECTION_BUILD_DASHBOARD", path: "dashboard" },
 ];
 
 const link_class = (active, extra) => `dcs-sub-header-home-link ${active ? "is-active" : ""} text-xs font-bold uppercase tracking-wide cursor-pointer ${extra || ""}`;

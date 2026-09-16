@@ -96,7 +96,6 @@ export default function ProjectDetailPage() {
       { key: "settings", labelKey: "DCS_PROJECT_NAV_SETTINGS", path: "settings" },
       { key: "forms", labelKey: "DCS_PROJECT_NAV_FORMS", path: "forms" },
       ...(can_manage_access ? [{ key: "access-control", labelKey: "DCS_SECTION_ACCESS_CONTROL", path: "access-control" }] : []),
-      { key: "dashboard", labelKey: "DCS_SECTION_BUILD_DASHBOARD", path: "dashboard" },
     ],
     [can_manage_access],
   );

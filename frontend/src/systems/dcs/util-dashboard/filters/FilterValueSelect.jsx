@@ -13,30 +13,35 @@ const SEARCH_FROM = 8;
 
 /**
  * One board filter as a self-made select: the field's name as its title
- * and the picked value (or "All") in the box. Opening it fetches the values
- * the field holds RIGHT NOW - under the period and the other filters, so a
- * sector filter under a chosen district lists that district's sectors only
- * - with a search box once the list is long. A locked filter (a share link
- * that fixes it) shows its value and cannot be opened.
+ * and the picked value (or "All") in the box, listing the values the field
+ * holds RIGHT NOW - under the period and the other filters, so a sector
+ * filter under a chosen district lists that district's sectors only - with
+ * a search box once the list is long. The list is either handed in
+ * (`values`, preloaded and refreshed by the bar; `onOpen` asks for a silent
+ * refresh) or fetched here on first open (`fetchValues`) and then kept, so
+ * a filter that has loaded once never shows a spinner again. A locked
+ * filter (a share link that fixes it) shows its value and cannot be opened.
  */
-export default function FilterValueSelect({ label, value, onChange, fetchValues, locked, onRemove, disabled }) {
+export default function FilterValueSelect({ label, value, onChange, values, onOpen, fetchValues, locked, disabled, waitHint }) {
   const { translate } = useDcsLanguage();
   const anchor_ref = useRef(null);
   const [open, setOpen] = useState(false);
-  const [values, setValues] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [own_values, setOwnValues] = useState(null);
   const [query, setQuery] = useState("");
   const has_value = value !== "" && value !== null && value !== undefined;
+  const list = values !== undefined ? values : own_values;
+  const loading = !Array.isArray(list);
+  const shown_values = Array.isArray(list) ? list : [];
 
   useEffect(() => {
     if (!open) return undefined;
-    let is_mounted = true;
-    setLoading(true);
     setQuery("");
+    if (onOpen) onOpen();
+    if (!fetchValues) return undefined;
+    let is_mounted = true;
     Promise.resolve(fetchValues())
-      .then((list) => is_mounted && setValues(Array.isArray(list) ? list : []))
-      .catch(() => is_mounted && setValues([]))
-      .finally(() => is_mounted && setLoading(false));
+      .then((entries) => is_mounted && setOwnValues(Array.isArray(entries) ? entries : []))
+      .catch(() => is_mounted && setOwnValues((current) => current || []));
     return () => {
       is_mounted = false;
     };
@@ -48,44 +53,32 @@ export default function FilterValueSelect({ label, value, onChange, fetchValues,
     if (String(next) !== String(has_value ? value : "")) onChange(next);
   };
 
-  const shown = query.trim() ? values.filter((entry) => String(entry.value).toLowerCase().includes(query.trim().toLowerCase())) : values;
+  const shown = query.trim() ? shown_values.filter((entry) => String(entry.value).toLowerCase().includes(query.trim().toLowerCase())) : shown_values;
   // The current value stays selectable even when no record carries it any more.
-  const current_listed = !has_value || values.some((entry) => String(entry.value) === String(value));
+  const current_listed = loading || !has_value || shown_values.some((entry) => String(entry.value) === String(value));
 
   return (
     <>
       <button
         ref={anchor_ref}
         type="button"
-        className={`dcs-board-filter ${has_value ? "is-active" : ""} ${open ? "is-open" : ""} ${locked ? "is-locked" : ""}`}
+        className={`dcs-board-filter ${has_value ? "is-active" : ""} ${open ? "is-open" : ""} ${locked ? "is-locked" : ""} ${waitHint ? "is-waiting" : ""}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         disabled={disabled || locked}
-        title={locked ? translate("DCS_DB_FILTER_LOCKED") : label}
+        title={locked ? translate("DCS_DB_FILTER_LOCKED") : waitHint || label}
         onClick={() => setOpen((current) => !current)}
       >
         <span className="dcs-board-filter-label">{label}</span>
-        <span className="dcs-board-filter-value">{has_value ? String(value) : translate("DCS_DB_FILTER_ALL")}</span>
+        <span className="dcs-board-filter-value">{has_value ? String(value) : waitHint || translate("DCS_DB_FILTER_ALL")}</span>
         {!locked && <span className="dcs-board-filter-chevron">{CHEVRON}</span>}
       </button>
       <MenuPopover open={open} anchorRef={anchor_ref} onClose={() => setOpen(false)} minWidth={240} maxHeight={400} align="start" role="listbox">
         <div className="dcs-board-switcher-head">
           <span>{label}</span>
-          {onRemove && (
-            <button
-              type="button"
-              className="dcs-board-switcher-rename dcs-link-action is-danger"
-              style={{ margin: 0 }}
-              onClick={() => {
-                setOpen(false);
-                onRemove();
-              }}
-            >
-              {translate("DCS_DB_FILTER_REMOVE")}
-            </button>
-          )}
+          <span>{shown_values.length || ""}</span>
         </div>
-        {values.length >= SEARCH_FROM && (
+        {shown_values.length >= SEARCH_FROM && (
           <div className="dcs-board-filter-search">
             <input value={query} autoFocus placeholder={translate("DCS_DB_FILTER_SEARCH")} onChange={(event) => setQuery(event.target.value)} />
           </div>

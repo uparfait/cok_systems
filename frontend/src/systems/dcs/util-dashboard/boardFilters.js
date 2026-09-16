@@ -63,4 +63,43 @@ export function toggle_filter_def(defs, field_id) {
   return current.concat([{ field_id }]);
 }
 
+/**
+ * The cascade parent of a filter field, when it has one: a cascading select
+ * points at its parent field, a parent-dependent select group at the field
+ * its option groups follow. Works on builder fields (raw schema attached)
+ * and on the public page's plain { id, type, label, parent_field_id }.
+ */
+export function parent_filter_of(field) {
+  if (!field) return null;
+  if (field.parent_field_id) return field.parent_field_id;
+  const raw = field.raw;
+  if (!raw) return null;
+  if (raw.parent_field_id) return raw.parent_field_id;
+  if (raw.type === "select_group" && raw.parent_dependency_enabled) {
+    const group = (raw.parent_option_groups || []).find((entry) => entry && entry.parent_field_id);
+    if (group) return group.parent_field_id;
+  }
+  return null;
+}
+
+/** Every filter below this one in the cascade (its child, that child's child...). */
+export function descendant_filters(defs, fields, field_id) {
+  const by_id = new Map((fields || []).map((field) => [field.id, field]));
+  const ids = new Set((defs || []).map((def) => def.field_id));
+  const out = [];
+  let frontier = [field_id];
+  while (frontier.length > 0) {
+    const next = [];
+    ids.forEach((id) => {
+      const parent = parent_filter_of(by_id.get(id));
+      if (parent && frontier.includes(parent) && !out.includes(id)) {
+        out.push(id);
+        next.push(id);
+      }
+    });
+    frontier = next;
+  }
+  return out;
+}
+
 export const same_filter_defs = (a, b) => JSON.stringify((a || []).map((def) => def.field_id)) === JSON.stringify((b || []).map((def) => def.field_id));

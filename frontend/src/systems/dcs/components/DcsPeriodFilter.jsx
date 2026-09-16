@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { portal_root } from "../util-dashboard/portalRoot.js";
 import { useBoardTheme } from "../util-dashboard/boardTheme.jsx";
+import MenuPopover from "../util-dashboard/MenuPopover.jsx";
 
 // Outside a dashboard the board theme context is light, so these resolve to the usual colors.
 const SURFACE = "var(--board-surface, #FFFFFF)";
-const SURFACE_HOVER = "var(--board-surface-hover, #F0F7FC)";
 const BORDER = "var(--board-border, #E0E0E0)";
 const TEXT = "var(--board-text, #333333)";
 const MUTED = "var(--board-muted, #6B7280)";
@@ -122,21 +122,12 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
  * preset dropdown that opens a popup when "custom" is selected, keeping
  * the filter compact and responsive on every screen size.
  */
-export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromChange, to, onToChange, onApply, includeAll, allowWrap }) {
+export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromChange, to, onToChange, onApply, includeAll, allowWrap, locked }) {
   const { translate } = useDcsLanguage();
   const [is_custom_open, setIsCustomOpen] = useState(false);
   const [is_menu_open, setIsMenuOpen] = useState(false);
   const menu_ref = useRef(null);
   const options = includeAll ? PERIOD_OPTIONS : PERIOD_OPTIONS.filter((option) => option.value !== "all");
-
-  useEffect(() => {
-    if (!is_menu_open) return undefined;
-    const handle_outside = (event) => {
-      if (menu_ref.current && !menu_ref.current.contains(event.target)) setIsMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handle_outside);
-    return () => document.removeEventListener("mousedown", handle_outside);
-  }, [is_menu_open]);
 
   // A native <select> fires nothing when the already-selected option is
   // clicked again - this custom menu fires on EVERY click, so re-picking
@@ -172,56 +163,50 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
 
   return (
     <div className={`flex items-center gap-2 ${allowWrap ? "flex-wrap" : "flex-row flex-shrink-0"}`}>
-      <div ref={menu_ref} className="relative flex-shrink-0">
+      <div className="relative flex-shrink-0">
         <button
+          ref={menu_ref}
           type="button"
-          onClick={() => setIsMenuOpen((previous) => !previous)}
-          className="cok-auth-input text-sm cursor-pointer inline-flex items-center justify-between gap-2"
-          style={{ fontFamily: "'Montserrat', sans-serif", height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX, minWidth: 150, backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
+          onClick={locked ? undefined : () => setIsMenuOpen((previous) => !previous)}
+          disabled={locked}
+          title={locked ? translate("DCS_DB_FILTER_LOCKED") : undefined}
+          className={`cok-auth-input text-sm inline-flex items-center justify-between gap-2 ${locked ? "cursor-default" : "cursor-pointer"}`}
+          style={{ fontFamily: "'Montserrat', sans-serif", height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX, minWidth: 150, backgroundColor: "transparent", color: TEXT, borderColor: is_menu_open ? "#056daa" : BORDER, borderStyle: locked ? "dashed" : "solid" }}
         >
-          <span className="truncate">{selected_option ? option_label(selected_option) : ""}</span>
-          <svg
+          <span className="truncate">{period === "custom" && from ? get_selected_label() : selected_option ? option_label(selected_option) : ""}</span>
+          {!locked && <svg
             width="10"
             height="6"
             viewBox="0 0 10 6"
             style={{ flexShrink: 0, transform: is_menu_open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms ease" }}
           >
             <path d="M1 1l4 4 4-4" fill="none" stroke="#9E9E9E" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          </svg>}
         </button>
-        {is_menu_open && (
-          <div
-            className="absolute left-0 z-50"
-            style={{ top: "calc(100% + 4px)", minWidth: "100%", backgroundColor: SURFACE, border: `1px solid ${BORDER}`, boxShadow: "0 8px 22px rgba(0,0,0,0.14)" }}
-          >
-            {options.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => handle_option_click(option.value)}
-                className="block w-full text-left text-sm cursor-pointer"
-                style={{
-                  padding: "0.5rem 0.75rem",
-                  fontFamily: "'Montserrat', sans-serif",
-                  color: option.value === period ? "#056daa" : TEXT,
-                  fontWeight: option.value === period ? 700 : 400,
-                  backgroundColor: SURFACE,
-                  border: "none",
-                }}
-                onMouseOver={(event) => (event.currentTarget.style.backgroundColor = SURFACE_HOVER)}
-                onMouseOut={(event) => (event.currentTarget.style.backgroundColor = SURFACE)}
-              >
-                {option_label(option)}
-              </button>
-            ))}
-          </div>
-        )}
+        <MenuPopover open={is_menu_open} anchorRef={menu_ref} onClose={() => setIsMenuOpen(false)} minWidth={170} align="start" role="listbox">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === period}
+              onClick={() => handle_option_click(option.value)}
+              className="dcs-db-menu-item block w-full text-left text-sm cursor-pointer"
+              style={{
+                padding: "0.5rem 0.75rem",
+                fontFamily: "'Montserrat', sans-serif",
+                color: option.value === period ? "#056daa" : TEXT,
+                fontWeight: option.value === period ? 700 : 400,
+                background: "none",
+                border: "none",
+              }}
+            >
+              {option_label(option)}
+            </button>
+          ))}
+        </MenuPopover>
       </div>
-      {period === "custom" && (
-        <span className="text-xs truncate max-w-[200px]" style={{ fontFamily: "'Montserrat', sans-serif", color: MUTED }}>
-          {get_selected_label()}
-        </span>
-      )}
+
 
       <CustomDatePopup
         open={is_custom_open}

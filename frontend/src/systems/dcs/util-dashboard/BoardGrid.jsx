@@ -3,6 +3,7 @@ import WidgetCard from "./WidgetCard.jsx";
 import ExpandableSlot from "./ExpandableSlot.jsx";
 import { build_palette } from "./appearance.js";
 import { useBoardTheme } from "./boardTheme.jsx";
+import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 // Flexible auto-grow grid: a chart's own size (changed from its menu) is
 // the FRACTION OF A ROW it claims, and neighbours that still fit share
@@ -22,8 +23,9 @@ const SIZE_CLASSES = {
 };
 
 /**
- * The board itself: KPI cards first in their own DENSE grid - 2 per row on
- * phones, 3 on tablets, 4 on large screens - then every chart in the
+ * The board itself: KPI cards first in their own DENSE row - 2 per row on
+ * phones, 3 on tablets, 4 on large screens, and fewer cards stretch to
+ * fill the row instead of huddling small - then every chart in the
  * flexible auto-grow grid below. With `selection` (the selection mode) each
  * card is clickable to select and draggable onto another card to move it
  * there; inline editing is off meanwhile. Every card sits in an
@@ -49,8 +51,22 @@ export default function BoardGrid({
   const [over_id, setOverId] = useState(null);
   const [expanded_id, setExpandedId] = useState(null);
   const board = useBoardTheme();
-  const kpi_widgets = widgets.filter((widget) => widget.chart_type === "kpi");
-  const chart_widgets = widgets.filter((widget) => widget.chart_type !== "kpi");
+  const { translate } = useDcsLanguage();
+  // A widget that the board filters leave with nothing to show (a KPI with
+  // no total and no legend, a chart with no rows, points or nodes) hides
+  // until the filters change - an empty card would only say that the
+  // filters excluded it, and a widget whose own fixed filters contradict
+  // the board's would sit there confusing everyone.
+  const emptied_by_filters = (widget) => {
+    const entry = dataByWidget[widget.id];
+    if (!entry || entry.error || entry.locked || !Array.isArray(entry.board_context) || entry.board_context.length === 0) return false;
+    if (entry.kind === "kpi") return !(Number(entry.value) > 0) && !(Array.isArray(entry.legend) && entry.legend.length > 0);
+    const has = (list) => Array.isArray(list) && list.length > 0;
+    return !has(entry.rows) && !has(entry.points) && !has(entry.nodes);
+  };
+  const hidden_count = widgets.filter(emptied_by_filters).length;
+  const kpi_widgets = widgets.filter((widget) => widget.chart_type === "kpi" && !emptied_by_filters(widget));
+  const chart_widgets = widgets.filter((widget) => widget.chart_type !== "kpi" && !emptied_by_filters(widget));
   const selecting = !!selection;
 
   const render_card = (widget) => (
@@ -116,10 +132,15 @@ export default function BoardGrid({
 
   return (
     <>
+      {hidden_count > 0 && (
+        <p className="text-[11px] font-semibold mb-2" style={{ color: "var(--board-muted, #9E9E9E)", fontFamily: "'Montserrat', sans-serif" }}>
+          {translate("DCS_DB_FILTERED_OUT", { count: hidden_count })}
+        </p>
+      )}
       {kpi_widgets.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 mb-3">
+        <div className="flex flex-wrap items-stretch gap-3 mb-3">
           {kpi_widgets.map((widget) => (
-            <div key={widget.id} className={`min-w-0 ${item_class(widget)}`} {...drag_props(widget)}>
+            <div key={widget.id} className={`grow basis-[calc(50%-0.75rem)] md:basis-[calc(33.333%-0.75rem)] xl:basis-[calc(25%-0.75rem)] ${item_class(widget)}`} {...drag_props(widget)}>
               {render_card(widget)}
             </div>
           ))}

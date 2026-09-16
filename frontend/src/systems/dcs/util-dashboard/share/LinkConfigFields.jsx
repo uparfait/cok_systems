@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import FilterValueSelect from "../filters/FilterValueSelect.jsx";
+import DcsPeriodFilter from "../../components/DcsPeriodFilter.jsx";
 import { field_label_of, applied_filter_list } from "../boardFilters.js";
 
 const PRIMARY = "#056daa";
@@ -9,7 +10,7 @@ const TEXT_DARK = "#333333";
 const TEXT_MUTED = "#9E9E9E";
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 
-export const DEFAULT_LINK_CONFIG = { filter_mode: "free", locked_filters: [], show_title: false };
+export const DEFAULT_LINK_CONFIG = { filter_mode: "free", locked_filters: [], locked_period: null, show_title: false };
 
 const is_default = (config) => !config || (config.filter_mode !== "locked" && !config.show_title);
 
@@ -39,7 +40,11 @@ export default function LinkConfigFields({ config, onChange, filters, fields, fe
   const defs = filters || [];
   const locked_map = Object.fromEntries((current.locked_filters || []).map((entry) => [entry.field_id, entry.value]));
 
-  const set_mode = (filter_mode) => onChange({ ...current, filter_mode, locked_filters: filter_mode === "locked" ? current.locked_filters || [] : [] });
+  const set_mode = (filter_mode) => onChange({ ...current, filter_mode, locked_filters: filter_mode === "locked" ? current.locked_filters || [] : [], locked_period: filter_mode === "locked" ? current.locked_period || null : null });
+  // The fixed period: a preset, or a custom range once its dates are applied.
+  const period = current.locked_period || null;
+  const set_period = (preset) => onChange({ ...current, locked_period: preset === "all" ? { preset: "all", from: null, to: null } : preset === "custom" ? { preset: "custom", from: period && period.from, to: period && period.to } : { preset, from: null, to: null } });
+  const apply_custom = (from, to) => onChange({ ...current, locked_period: { preset: "custom", from: from || null, to: to || null } });
   const set_locked = (field_id, value) => {
     const next = { ...locked_map };
     if (value === "" || value === null || value === undefined) delete next[field_id];
@@ -62,6 +67,19 @@ export default function LinkConfigFields({ config, onChange, filters, fields, fe
               <Radio checked={current.filter_mode === "locked"} label={translate("DCS_DB_SHARE_FILTER_LOCKED")} onPick={() => set_mode("locked")} />
             </div>
           </div>
+          {current.filter_mode === "locked" && (
+            <div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer" style={FONT}>
+                <input type="checkbox" checked={!!period} style={{ accentColor: PRIMARY }} onChange={(event) => onChange({ ...current, locked_period: event.target.checked ? { preset: "this_year", from: null, to: null } : null })} />
+                {translate("DCS_DB_SHARE_FIX_PERIOD")}
+              </label>
+              {period && (
+                <div className="dcs-board-root mt-2">
+                  <DcsPeriodFilter period={period.preset} onPeriodChange={set_period} from={period.from || ""} onFromChange={() => {}} to={period.to || ""} onToChange={() => {}} onApply={apply_custom} includeAll />
+                </div>
+              )}
+            </div>
+          )}
           {current.filter_mode === "locked" &&
             (defs.length === 0 ? (
               <p className="text-xs" style={{ color: TEXT_MUTED }}>

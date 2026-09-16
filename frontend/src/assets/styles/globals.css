@@ -2873,13 +2873,25 @@ background-color: #056daa;
   justify-content: center;
   width: 26px;
   height: 26px;
-  border: none;
-  background: transparent;
+  border: 1px solid var(--expand-accent, #056daa);
+  background-color: var(--expand-bg, var(--board-surface, #FFFFFF));
   color: var(--expand-color, var(--board-text, #333333));
   cursor: pointer;
   opacity: 0;
   transform: scale(0.9);
   transition: opacity 160ms ease, transform 160ms ease, color 160ms ease;
+}
+.dcs-expand-slot:hover .dcs-expand-btn,
+.dcs-expand-btn.is-visible {
+  animation: dcs-expand-pulse 1.6s ease-out infinite;
+}
+@keyframes dcs-expand-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--expand-accent, #056daa) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 9px color-mix(in srgb, var(--expand-accent, #056daa) 0%, transparent);
+  }
 }
 .dcs-expand-slot:hover .dcs-expand-btn,
 .dcs-expand-btn:focus-visible,
@@ -2932,8 +2944,8 @@ background-color: #056daa;
   height: 40px;
   max-width: 280px;
   padding: 0 10px 0 12px;
-  border: 1px solid var(--board-border, #E0E0E0);
-  background-color: var(--board-surface, #FFFFFF);
+  border: 2px solid var(--board-border, #E0E0E0);
+  background-color: transparent;
   color: var(--board-text, #333333);
   cursor: pointer;
   font-family: 'Montserrat', sans-serif;
@@ -2950,6 +2962,11 @@ background-color: #056daa;
 .dcs-board-filter.is-locked {
   cursor: default;
   border-style: dashed;
+}
+.dcs-board-filter.is-waiting .dcs-board-filter-value {
+  color: var(--board-muted, #9E9E9E);
+  font-weight: 500;
+  font-style: italic;
 }
 .dcs-board-filter:disabled:not(.is-locked) {
   cursor: not-allowed;
@@ -3045,4 +3062,164 @@ background-color: #056daa;
 }
 .dcs-filter-tab-row:hover:not(:disabled) {
   border-color: #056daa !important;
+}
+
+/* Every filter in ONE row: it scrolls sideways when there are many. */
+.dcs-board-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.dcs-board-filter-row > * {
+  flex: none;
+}
+.dcs-db-menu-item:hover:not(:disabled) {
+  background-color: var(--board-surface-hover, #F0F7FB);
+}
+
+/* Screenshot studio: free boxes on a canvas, moved and resized by hand. */
+.dcs-studio-scroll {
+  background-color: #1B2733;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.dcs-studio-canvas {
+  position: relative;
+  overflow: hidden;
+  transform-origin: top left;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+.dcs-studio-item {
+  position: absolute;
+  outline: 2px solid transparent;
+  outline-offset: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: outline-color 150ms ease, box-shadow 150ms ease;
+}
+.dcs-studio-item:hover,
+.dcs-studio-item.is-active {
+  outline-color: #056daa;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+.dcs-studio-item.is-moving {
+  cursor: grabbing;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+.dcs-studio-body {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.dcs-studio-edge {
+  position: absolute;
+  z-index: 2;
+}
+.dcs-studio-edge.is-n { top: -5px; left: 10px; right: 10px; height: 10px; cursor: ns-resize; }
+.dcs-studio-edge.is-s { bottom: -5px; left: 10px; right: 10px; height: 10px; cursor: ns-resize; }
+.dcs-studio-edge.is-e { right: -5px; top: 10px; bottom: 10px; width: 10px; cursor: ew-resize; }
+.dcs-studio-edge.is-w { left: -5px; top: 10px; bottom: 10px; width: 10px; cursor: ew-resize; }
+.dcs-studio-handle {
+  position: absolute;
+  z-index: 3;
+  width: 12px;
+  height: 12px;
+  background: #FFFFFF;
+  border: 2px solid #056daa;
+  opacity: 0;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+.dcs-studio-item:hover .dcs-studio-handle,
+.dcs-studio-item.is-active .dcs-studio-handle {
+  opacity: 1;
+}
+.dcs-studio-handle:hover {
+  transform: scale(1.25);
+}
+.dcs-studio-handle.is-n { top: -7px; left: 50%; margin-left: -6px; cursor: ns-resize; }
+.dcs-studio-handle.is-s { bottom: -7px; left: 50%; margin-left: -6px; cursor: ns-resize; }
+.dcs-studio-handle.is-e { right: -7px; top: 50%; margin-top: -6px; cursor: ew-resize; }
+.dcs-studio-handle.is-w { left: -7px; top: 50%; margin-top: -6px; cursor: ew-resize; }
+.dcs-studio-handle.is-ne { top: -7px; right: -7px; cursor: nesw-resize; }
+.dcs-studio-handle.is-sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+.dcs-studio-handle.is-nw { top: -7px; left: -7px; cursor: nwse-resize; }
+.dcs-studio-handle.is-se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+.dcs-studio-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background-color: #E74C3C;
+  color: #FFFFFF;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.dcs-studio-item:hover .dcs-studio-remove,
+.dcs-studio-item.is-active .dcs-studio-remove {
+  opacity: 1;
+}
+.dcs-studio-guide {
+  position: absolute;
+  z-index: 100000;
+  background-color: #056daa;
+  pointer-events: none;
+}
+.dcs-studio-guide.is-x { top: 0; bottom: 0; width: 1px; }
+.dcs-studio-guide.is-y { left: 0; right: 0; height: 1px; }
+.dcs-studio-outline-btn {
+  border-color: #FFFFFF !important;
+  color: #FFFFFF !important;
+  background: transparent !important;
+}
+.dcs-studio-save-btn {
+  border: 2px solid #FFFFFF !important;
+}
+
+/* Filters reorder by their grip; a widget's filter strip sits above its title. */
+.dcs-board-filter-slot {
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid transparent;
+  transition: border-color 160ms ease, opacity 160ms ease;
+}
+.dcs-board-filter-slot.is-dragging {
+  opacity: 0.45;
+}
+.dcs-board-filter-slot.is-drop-target {
+  border-color: #056daa;
+}
+.dcs-board-filter-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 40px;
+  margin-right: -2px;
+  color: var(--board-muted, #9E9E9E);
+  cursor: grab;
+  opacity: 0.7;
+}
+.dcs-board-filter-grip:hover {
+  color: #056daa;
+  opacity: 1;
+}
+.dcs-board-filter-grip:active {
+  cursor: grabbing;
+}
+.dcs-widget-filter-strip {
+  flex: none;
 }

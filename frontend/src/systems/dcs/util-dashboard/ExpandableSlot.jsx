@@ -89,9 +89,10 @@ export default function ExpandableSlot({ expanded, onToggle, hideButton, palette
   }, [expanded, onToggle]);
 
   const active = phase !== "idle";
-  // The button has no background: it takes the card's text color and the
-  // card's accent on hover, so it follows the widget's light or dark look.
-  const button_style = palette ? { "--expand-color": palette.text, "--expand-accent": palette.number } : undefined;
+  // The button sits on the card's own surface (so the title never shows
+  // through it), takes the card's text color and its accent as a pulsing
+  // ring, so it follows the widget's light, dark or custom look.
+  const button_style = palette ? { "--expand-color": palette.text, "--expand-accent": palette.number, "--expand-bg": palette.background } : undefined;
   return (
     <div ref={slot_ref} className={`dcs-expand-slot relative h-full ${active ? "is-held" : ""}`} style={active ? { height: held_height } : undefined}>
       {!active && children}

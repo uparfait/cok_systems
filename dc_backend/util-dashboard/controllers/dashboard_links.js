@@ -1,6 +1,7 @@
 const dashboard_links_model = require("../dashboard_links_model.js");
 const dashboards_model = require("../dashboards_model.js");
 const { sanitize_applied_filters } = require("../board_filters.js");
+const { PERIOD_PRESETS } = require("../constants.js");
 const { load_form_dashboard_context } = require("../form_context.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -36,21 +37,37 @@ function strip_link(link) {
 /**
  * A link's viewing configuration: whether viewers may filter the board
  * themselves ("free") or see it under filter values fixed here ("locked"),
- * and whether the link's title replaces the dashboard's name for them.
+ * (and, optionally, a fixed period), and whether the link's title replaces
+ * the dashboard's name for them.
  */
 function link_config(link) {
   const config = (link && link.config) || {};
   return {
     filter_mode: config.filter_mode === "locked" ? "locked" : "free",
     locked_filters: Array.isArray(config.locked_filters) ? config.locked_filters : [],
+    locked_period: config.locked_period || null,
     show_title: config.show_title === true,
   };
+}
+
+/** A fixed period for viewers: a known preset; "custom" needs a valid from date. */
+function read_period(raw) {
+  if (!raw || typeof raw !== "object" || !PERIOD_PRESETS.includes(raw.preset)) return null;
+  const from = typeof raw.from === "string" && raw.from ? raw.from : null;
+  const to = typeof raw.to === "string" && raw.to ? raw.to : null;
+  if (raw.preset === "custom" && (!from || Number.isNaN(new Date(from).getTime()))) return null;
+  return { preset: raw.preset, from, to };
 }
 
 function read_config(body) {
   const raw = body && body.config && typeof body.config === "object" ? body.config : {};
   const filter_mode = raw.filter_mode === "locked" ? "locked" : "free";
-  return { filter_mode, locked_filters: filter_mode === "locked" ? sanitize_applied_filters(raw.locked_filters) : [], show_title: raw.show_title === true };
+  return {
+    filter_mode,
+    locked_filters: filter_mode === "locked" ? sanitize_applied_filters(raw.locked_filters) : [],
+    locked_period: filter_mode === "locked" ? read_period(raw.locked_period) : null,
+    show_title: raw.show_title === true,
+  };
 }
 
 /** Reads and checks the editable fields of a link from a request body. */

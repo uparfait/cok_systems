@@ -9,6 +9,7 @@ import { BoardThemeProvider, useBoardTheme } from "../util-dashboard/boardTheme.
 import BoardHeader from "../util-dashboard/BoardHeader.jsx";
 import BoardGrid from "../util-dashboard/BoardGrid.jsx";
 import SkippedDetailsModal from "../util-dashboard/SkippedDetailsModal.jsx";
+import ScreenshotStudio from "../util-dashboard/screenshot/ScreenshotStudio.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 
@@ -66,6 +67,23 @@ function PublicBoard() {
   const fetch_filter_values = (field_id) => get_public_filter_values(token, field_id, data.applied_filters_ref.current, data.applied_period_ref.current).then((response) => (response.data && response.data.values) || []);
   const { container_ref, grid_ref, is_fullscreen, is_fallback, enter, exit, fs_mode, setFsMode, fit_scale, header_visible, show_header, schedule_header_hide } = useBoardFullscreen();
 
+  // The screenshot studio: the board as it stands right now - each card's
+  // place measured on screen (undoing any fit zoom) and its current data
+  // copied, so nothing in the studio ever refreshes.
+  const [shot, setShot] = useState(null);
+  const open_screenshot = () => {
+    const grid = grid_ref.current;
+    if (!grid) return;
+    const box = grid.getBoundingClientRect();
+    const ratio = grid.offsetWidth ? box.width / grid.offsetWidth : 1;
+    const rects = Array.from(grid.querySelectorAll("[data-widget-id]")).map((node) => {
+      const rect = node.getBoundingClientRect();
+      return { id: node.getAttribute("data-widget-id"), x: (rect.left - box.left) / ratio, y: (rect.top - box.top) / ratio, w: rect.width / ratio, h: rect.height / ratio };
+    });
+    setShot({ rects, base: { w: grid.offsetWidth, h: grid.offsetHeight }, data: { ...data.data_by_widget } });
+  };
+  frozen_ref.current = shot !== null;
+
   if (loading) return <DcsLoadingState />;
 
   if (failure || !info) {
@@ -118,9 +136,13 @@ function PublicBoard() {
         widgets={widgets}
         filterValues={locked ? applied_filter_map(config.locked_filters) : data.filter_values}
         onFilterValue={data.set_filter_value}
+        onFilterValues={data.set_filter_values}
         fetchFilterValues={fetch_filter_values}
         lockedFilterIds={locked_ids}
+        lockedPeriod={locked ? config.locked_period || null : null}
+        onScreenshot={open_screenshot}
       />
+      {shot && <ScreenshotStudio form={{ ...form, dashboard_name: info.dashboard_name }} widgets={widgets} dataByWidget={shot.data} rects={shot.rects} base={shot.base} onClose={() => setShot(null)} />}
       {widgets.length === 0 ? (
         <div className="dcs-board-chrome border-2 p-8 text-center">
           <p className="text-sm font-semibold" style={{ color: "var(--board-text, #333333)", ...FONT }}>

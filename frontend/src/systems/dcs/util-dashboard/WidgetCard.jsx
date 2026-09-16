@@ -7,6 +7,7 @@ import { chart_definition, convertible_types } from "./chartCatalog.js";
 import { build_palette } from "./appearance.js";
 import { useBoardTheme } from "./boardTheme.jsx";
 import MenuPopover from "./MenuPopover.jsx";
+import { FilterStrip, TitleContext } from "./WidgetContext.jsx";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -138,27 +139,6 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
     >
       {value || placeholder}
     </p>
-  );
-}
-
-/**
- * What the board filters did to this widget's shape, appended to its title:
- * the picked values ("Kigali", "male"), one entry per value, in the card's
- * accent color; hovering names the fields.
- */
-function TitleContext({ context, color }) {
-  if (!Array.isArray(context) || context.length === 0) return null;
-  const seen = new Set();
-  const entries = context.filter((entry) => {
-    const key = String(entry.value);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  return (
-    <span className="text-xs font-bold break-words" style={{ color, fontFamily: "'Montserrat', sans-serif" }} title={entries.map((entry) => `${entry.field_label}: ${entry.value}`).join(", ")}>
-      ({entries.map((entry) => String(entry.value)).join(", ")})
-    </span>
   );
 }
 
@@ -364,7 +344,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
   }, [data]);
 
   return (
-    <div className="dcs-widget-card relative border-2 flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
+    <div data-widget-id={widget.id} className="dcs-widget-card relative border-2 flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
       {selectable && (
         // The selection mode's click surface: covers the whole card so no
         // inner control fires, and carries the tick that marks a selection.
@@ -387,6 +367,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
           </span>
         </button>
       )}
+      <FilterStrip context={data && data.board_context} color={palette.muted} />
       <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
         {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} />}
         <div className="min-w-0 flex-1">

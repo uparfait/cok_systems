@@ -127,6 +127,13 @@ export const CODE_SVG = (
   </>
 );
 
+export const CAMERA_SVG = (
+  <>
+    <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </>
+);
+
 export const TRASH_SVG = (
   <>
     <polyline points="3 6 5 6 21 6" />

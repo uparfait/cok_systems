@@ -12,11 +12,13 @@ const { field_label_text, parent_field_id_of } = require("./field_catalog.js");
  * - a chart grouped by the filtered field drills down to the field's child
  *   in the cascade (district -> sector) so it keeps showing a breakdown;
  *   without a child it collapses to the one selected value;
- * - a split or pattern on the filtered field moves to the child too, or is
- *   dropped when there is none (one segment would say nothing);
+ * - a split or pattern on the filtered field moves to the child too; with
+ *   no child it simply keeps the one picked segment (the chart still draws,
+ *   showing what exists);
  * - a KPI legend on the filtered field moves to the child, or disappears.
- * Each reshaping is reported back as the widget's board_context, which the
- * card appends to its title ("Records per district (Kigali)").
+ * Every applied value is reported back as the widget's board_context (the
+ * reshapings first), which the card appends to its title ("Records per
+ * district (Kigali)") - so every widget shows the filters it runs under.
  */
 
 const FILTER_FIELD_TYPES = ["single_select", "cascading_select", "select_group"];
@@ -105,9 +107,10 @@ function apply_board_filters(widget, applied, catalog) {
       const child = child_field_of(field_id, catalog);
       const label = field_label_text(catalog.fields_by_id.get(field_id));
       if (!child) {
-        // Nothing below this field: the role collapses to the one value.
+        // Nothing below this field: a KPI legend would list one line and
+        // goes; a group, split or pattern keeps its one value and still draws.
         context.push({ role, field_id, field_label: label, value: value_of.get(field_id), child_field_id: null, child_label: null });
-        adjusted[role] = role === "group_by" ? { field_id } : null;
+        adjusted[role] = role === "legend_by" ? null : { field_id };
         return;
       }
       context.push({ role, field_id, field_label: label, value: value_of.get(field_id), child_field_id: child.id, child_label: field_label_text(child) });
@@ -119,6 +122,13 @@ function apply_board_filters(widget, applied, catalog) {
   // A split that landed on the group field would say nothing - drop it.
   if (adjusted.split_by && adjusted.group_by && adjusted.split_by.field_id === adjusted.group_by.field_id) adjusted.split_by = null;
   if (adjusted.pattern_by && adjusted.split_by && adjusted.pattern_by.field_id === adjusted.split_by.field_id) adjusted.pattern_by = null;
+
+  // Every other applied value is context too: the card names what it runs under.
+  const named = new Set(context.map((entry) => entry.field_id));
+  active.forEach((entry) => {
+    if (named.has(entry.field_id)) return;
+    context.push({ role: "filter", field_id: entry.field_id, field_label: field_label_text(catalog.fields_by_id.get(entry.field_id)), value: entry.value, child_field_id: null, child_label: null });
+  });
 
   const own = Array.isArray(widget.filters) ? widget.filters : [];
   adjusted.filters = own.concat(active.map((entry) => ({ field_id: entry.field_id, operator: "eq", value: entry.value })));

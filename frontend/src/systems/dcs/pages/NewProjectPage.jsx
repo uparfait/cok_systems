@@ -102,7 +102,6 @@ export default function NewProjectPage() {
       {current_step === 2 && project && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <DcsUnderDevelopmentPanel titleKey="DCS_SECTION_ACCESS_CONTROL" />
-          <DcsUnderDevelopmentPanel titleKey="DCS_SECTION_BUILD_DASHBOARD" />
         </div>
       )}
     </div>

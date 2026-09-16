@@ -169,7 +169,7 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
                       <span className="flex flex-wrap items-center gap-1.5 justify-end">
                         {link.config && link.config.filter_mode === "locked" && (
                           <span className="text-[10px] font-bold uppercase px-2 py-0.5" style={{ color: PRIMARY, border: `1px solid ${PRIMARY}`, letterSpacing: "0.4px", ...FONT }}>
-                            {translate("DCS_DB_SHARE_CHIP_LOCKED", { count: (link.config.locked_filters || []).length })}
+                            {translate("DCS_DB_SHARE_CHIP_LOCKED", { count: (link.config.locked_filters || []).length + (link.config.locked_period ? 1 : 0) })}
                           </span>
                         )}
                         {link.config && link.config.show_title && (

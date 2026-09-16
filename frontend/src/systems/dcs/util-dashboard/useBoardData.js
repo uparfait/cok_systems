@@ -137,15 +137,18 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
-  /** Applies one filter value ("" clears it) and refetches the whole board under it. */
-  const set_filter_value = (field_id, value) => {
+  /** Applies several filter values at once ("" clears one) and refetches the whole board under them. */
+  const set_filter_values = (patch) => {
     const next = { ...filter_values };
-    if (value === "" || value === null || value === undefined) delete next[field_id];
-    else next[field_id] = value;
+    Object.entries(patch || {}).forEach(([field_id, value]) => {
+      if (value === "" || value === null || value === undefined) delete next[field_id];
+      else next[field_id] = value;
+    });
     setFilterValues(next);
     applied_filters_ref.current = applied_filter_list(next);
     fetch_data(widgets_ref.current, applied_period_ref.current, false);
   };
+  const set_filter_value = (field_id, value) => set_filter_values({ [field_id]: value });
   /** Forgets the values of filters no longer on the board; refetches only if one was active. */
   const prune_filters = (defs) => {
     const keep = new Set((defs || []).map((def) => def.field_id));
@@ -180,6 +183,7 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     applied_filters_ref,
     filter_values,
     set_filter_value,
+    set_filter_values,
     prune_filters,
     fetch_data,
     retry_widget,

@@ -20,6 +20,7 @@ import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import BoardWithSelection from "./selection/BoardWithSelection.jsx";
 import DashboardCodeOverlay, { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
 import ShareLinksDialog from "./share/ShareLinksDialog.jsx";
+import ScreenshotStudio from "./screenshot/ScreenshotStudio.jsx";
 import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
@@ -89,7 +90,8 @@ function DashboardBoard({ form }) {
 
   const loading = library.list_loading || widgets_loading;
   const frozen_ref = useRef(false);
-  frozen_ref.current = generating || review_widgets !== null || builder_tab !== null || code_open || share_open || naming;
+  const [shot_open_flag, setShotOpenFlag] = useState(false);
+  frozen_ref.current = generating || review_widgets !== null || builder_tab !== null || code_open || share_open || naming || shot_open_flag;
   useDashboardCodeShortcut(can_edit && !!active_id && !loading && !generating && review_widgets === null && builder_tab === null, () => setCodeOpen(true));
 
   const data = useBoardData({
@@ -105,6 +107,23 @@ function DashboardBoard({ form }) {
   // board onto one screen, "scroll" keeps natural size), the self-fitting
   // zoom and the hover-driven fixed header all live in the hook.
   const { container_ref, grid_ref, is_fullscreen, is_fallback, enter, exit, fs_mode, setFsMode, fit_scale, header_visible, show_header, schedule_header_hide } = useBoardFullscreen();
+
+  // The screenshot studio: the board as it stands right now - each card's
+  // place measured on screen (undoing any fit zoom) and its current data
+  // copied, so nothing in the studio ever refreshes.
+  const [shot, setShot] = useState(null);
+  const open_screenshot = () => {
+    const grid = grid_ref.current;
+    if (!grid) return;
+    const box = grid.getBoundingClientRect();
+    const ratio = grid.offsetWidth ? box.width / grid.offsetWidth : 1;
+    const rects = Array.from(grid.querySelectorAll("[data-widget-id]")).map((node) => {
+      const rect = node.getBoundingClientRect();
+      return { id: node.getAttribute("data-widget-id"), x: (rect.left - box.left) / ratio, y: (rect.top - box.top) / ratio, w: rect.width / ratio, h: rect.height / ratio };
+    });
+    setShot({ rects, base: { w: grid.offsetWidth, h: grid.offsetHeight }, data: { ...data.data_by_widget } });
+  };
+  useEffect(() => setShotOpenFlag(shot !== null), [shot]);
 
   useEffect(() => {
     if (library.list_error) showError(request_error_text(library.list_error, translate("DCS_ERROR_GENERIC")));
@@ -347,11 +366,13 @@ function DashboardBoard({ form }) {
         widgets={widgets}
         filterValues={data.filter_values}
         onFilterValue={data.set_filter_value}
+        onFilterValues={data.set_filter_values}
         onChangeFilters={can_edit && has_board ? handle_change_filters : undefined}
         fetchFilterValues={fetch_filter_values}
         onAddKpi={() => setBuilderTab("kpi")}
         onShare={() => setShareOpen(true)}
         onDelete={() => setConfirming("delete")}
+        onScreenshot={open_screenshot}
       />
 
       {review_widgets !== null ? null : widgets_loading ? (
@@ -427,6 +448,7 @@ function DashboardBoard({ form }) {
         />
       )}
       {share_open && <ShareLinksDialog form={scoped_form} filters={filters} fields={form_fields} fetchFilterValues={fetch_filter_values} onClose={() => setShareOpen(false)} />}
+      {shot && <ScreenshotStudio form={scoped_form} widgets={widgets} dataByWidget={shot.data} rects={shot.rects} base={shot.base} onClose={() => setShot(null)} />}
       {naming && <DashboardNameDialog formName={form.form_name} saving={name_saving} onSubmit={submit_name} onCancel={() => setNaming(false)} />}
       <BoardWidgetDialogs
         form={scoped_form}

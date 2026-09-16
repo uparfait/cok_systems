@@ -2,7 +2,7 @@ const dashboards_model = require("../dashboards_model.js");
 const dashboard_links_model = require("../dashboard_links_model.js");
 const { load_public_dashboard_context } = require("../public_link_context.js");
 const { compute_dashboard_results, compute_skipped_page, compute_filter_values } = require("../compute_results.js");
-const { build_field_catalog, field_label_text } = require("../field_catalog.js");
+const { build_field_catalog, field_label_text, parent_field_id_of } = require("../field_catalog.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -23,8 +23,23 @@ function link_config(link) {
   return {
     filter_mode: config.filter_mode === "locked" ? "locked" : "free",
     locked_filters: Array.isArray(config.locked_filters) ? config.locked_filters : [],
+    locked_period: config.locked_period || null,
     show_title: config.show_title === true,
   };
+}
+
+/**
+ * The body a request really runs with under this link: a locked link
+ * ignores the viewer's filter values and, when it fixes a period, the
+ * viewer's period too.
+ */
+function viewer_body(req, link) {
+  const config = link_config(link);
+  const body = Object.assign({}, req.body || {});
+  if (config.filter_mode !== "locked") return body;
+  body.filters = [];
+  if (config.locked_period) body.period = config.locked_period;
+  return body;
 }
 
 /** The board filters' fields as the public page needs them: id, type and label. */
@@ -33,7 +48,7 @@ function filter_fields(dashboard, form_version) {
   return ((dashboard && dashboard.filters) || [])
     .map((def) => catalog.fields_by_id.get(def.field_id))
     .filter(Boolean)
-    .map((field) => ({ id: field.id, type: field.type, label: field_label_text(field) }));
+    .map((field) => ({ id: field.id, type: field.type, label: field_label_text(field), parent_field_id: parent_field_id_of(field, catalog.fields_by_id) }));
 }
 
 /** Locked values the viewer can never change; nothing forced when filtering is free. */
@@ -87,8 +102,8 @@ async function get_public_dashboard_data(req, res) {
   try {
     const context = await resolve(req, res);
     if (!context) return undefined;
-    // Under a locked link the viewer's own filter values are ignored: only the link's count.
-    const body = Object.assign({}, req.body || {}, link_config(context.link).filter_mode === "locked" ? { filters: [] } : {});
+    // Under a locked link the viewer's own filter values (and fixed period) are ignored: only the link's count.
+    const body = viewer_body(req, context.link);
     const results = await compute_dashboard_results(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link));
     return res.status(200).json(success_response(req, "DASHBOARD_DATA_FETCHED", { results }));
   } catch (error) {
@@ -100,7 +115,7 @@ async function get_public_kpi_skipped(req, res) {
   try {
     const context = await resolve(req, res);
     if (!context) return undefined;
-    const body = Object.assign({}, req.body || {}, link_config(context.link).filter_mode === "locked" ? { filters: [] } : {});
+    const body = viewer_body(req, context.link);
     const page = await compute_skipped_page(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link));
     if (page.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: page.invalid }));
     return res.status(200).json(
@@ -121,7 +136,7 @@ async function get_public_filter_values(req, res) {
   try {
     const context = await resolve(req, res);
     if (!context) return undefined;
-    const body = Object.assign({}, req.body || {}, link_config(context.link).filter_mode === "locked" ? { filters: [] } : {});
+    const body = viewer_body(req, context.link);
     const result = await compute_filter_values(body, context.form_version.form_group_id, context.form_version, forced_filters(context.link));
     if (result.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_FILTER_INVALID"));
     return res.status(200).json(success_response(req, "DASHBOARD_FILTER_VALUES_FETCHED", { values: result.values }));

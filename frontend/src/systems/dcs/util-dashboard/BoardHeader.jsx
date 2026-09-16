@@ -1,6 +1,6 @@
 import React from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { FULLSCREEN_SVG, EXIT_SVG, FIT_SVG, SCROLL_SVG, PLUS_SVG, LINK_SVG, MOON_SVG, SUN_SVG, TRASH_SVG } from "./BoardIcons.jsx";
+import { FULLSCREEN_SVG, EXIT_SVG, FIT_SVG, SCROLL_SVG, PLUS_SVG, LINK_SVG, MOON_SVG, SUN_SVG, TRASH_SVG, CAMERA_SVG } from "./BoardIcons.jsx";
 import BoardActionsMenu from "./BoardActionsMenu.jsx";
 import { useBoardTheme } from "./boardTheme.jsx";
 import GenerationProgress from "./GenerationProgress.jsx";
@@ -14,8 +14,8 @@ import BoardFilters from "./filters/BoardFilters.jsx";
  * mode, the fit and scroll views, full screen, the builder, share links
  * and deletion - each with its icon and name), the generation progress
  * readout, the board-wide period filter and the board's own filters (one
- * select per filter field, plus "Add filter" for editors - see
- * filters/BoardFilters.jsx). In full screen it is fixed to
+ * select per filter field chosen in the builder's Filters tab - see
+ * filters/BoardFilters.jsx), all in one row that scrolls sideways. In full screen it is fixed to
  * the top, hides itself shortly after the pointer leaves and slides back
  * in when the top strip is hovered. While the board is busy (generating,
  * or the post-generation review is open) the actions and the period filter
@@ -51,12 +51,15 @@ export default function BoardHeader({
   widgets,
   filterValues,
   onFilterValue,
+  onFilterValues,
   onChangeFilters,
   fetchFilterValues,
   lockedFilterIds,
+  lockedPeriod,
   onAddKpi,
   onShare,
   onDelete,
+  onScreenshot,
 }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
@@ -67,6 +70,7 @@ export default function BoardHeader({
     { key: "theme", label: translate(board.is_dark ? "DCS_DB_THEME_LIGHT" : "DCS_DB_THEME_DARK"), icon: board.is_dark ? SUN_SVG : MOON_SVG, onClick: board.toggle, active: board.is_dark },
     is_fullscreen && !busy && { key: "fit", label: translate("DCS_DB_FIT_MODE"), icon: FIT_SVG, onClick: () => setFsMode("fit"), active: fs_mode === "fit" },
     is_fullscreen && !busy && { key: "scroll", label: translate("DCS_DB_SCROLL_MODE"), icon: SCROLL_SVG, onClick: () => setFsMode("scroll"), active: fs_mode === "scroll" },
+    widgets_count > 0 && !busy && onScreenshot && { key: "screenshot", label: translate("DCS_DB_SCREENSHOT"), icon: CAMERA_SVG, onClick: onScreenshot },
     widgets_count > 0 && !busy && { key: "fullscreen", label: translate(is_fullscreen ? "DCS_DB_EXIT_FULLSCREEN" : "DCS_DB_FULLSCREEN"), icon: is_fullscreen ? EXIT_SVG : FULLSCREEN_SVG, onClick: is_fullscreen ? exit : enter },
     can_edit && widgets_count > 0 && !busy && !is_fullscreen && { key: "build", label: translate("DCS_DB_ADD_KPI"), icon: PLUS_SVG, onClick: onAddKpi, disabled: deleting },
     can_edit && widgets_count > 0 && !busy && !is_fullscreen && onShare && { key: "share", label: translate("DCS_DB_SHARE_LINKS"), icon: LINK_SVG, onClick: onShare, disabled: deleting },
@@ -125,28 +129,30 @@ export default function BoardHeader({
         </div>
         {generating && <GenerationProgress percent={progress.percent} messageKey={progress.message_key} />}
         {widgets_count > 0 && !busy && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="dcs-board-filter-row">
             <DcsPeriodFilter
-              period={period}
+              period={lockedPeriod ? lockedPeriod.preset : period}
               onPeriodChange={setPeriod}
-              from={from}
+              from={lockedPeriod ? lockedPeriod.from || "" : from}
               onFromChange={setFrom}
-              to={to}
+              to={lockedPeriod ? lockedPeriod.to || "" : to}
               onToChange={setTo}
               onApply={onApplyPeriod}
-              allowWrap
+              includeAll={!!lockedPeriod}
+              locked={!!lockedPeriod}
             />
             {fetchFilterValues && (
               <BoardFilters
                 filters={filters}
                 fields={fields || []}
-                widgets={widgets || []}
                 values={filterValues}
                 onValue={onFilterValue}
-                onChangeFilters={onChangeFilters}
+                onValues={onFilterValues}
                 fetchValues={fetchFilterValues}
                 lockedIds={lockedFilterIds}
                 disabled={deleting}
+                onReorder={onChangeFilters}
+                refreshKey={`${JSON.stringify(filterValues || {})}|${period}|${from}|${to}`}
               />
             )}
           </div>
