@@ -82,6 +82,15 @@ export function shape_width(shape, projection) {
   return Math.abs(right - left);
 }
 
+/** How tall a shape draws, in pixels. */
+export function shape_height(shape, projection) {
+  const box = bounds_of([shape]);
+  if (!box) return 0;
+  const [, top] = projection.point([box.min_x, box.max_y]);
+  const [, bottom] = projection.point([box.max_x, box.min_y]);
+  return Math.abs(bottom - top);
+}
+
 /** Names are matched the way the server matches them, so a label always finds its value. */
 export const map_key = (name) =>
   String(name || "")

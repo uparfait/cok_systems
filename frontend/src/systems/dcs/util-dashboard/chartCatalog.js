@@ -47,12 +47,14 @@ export const chart_definition = (type) => CHART_CATALOG.find((entry) => entry.ty
 const SINGLE_CATEGORY_TYPES = ["bar", "column", "lollipop", "dot_plot", "pie", "donut", "waffle", "treemap", "line", "area"];
 const SPLIT_CATEGORY_TYPES = ["grouped_column", "grouped_bar", "stacked_column", "stacked_bar", "stacked_100", "stacked_bar_100", "heatmap", "line"];
 
-export function convertible_types(widget) {
-  // A map is drawn on boundaries, not on axes: it stays a map.
-  if (!widget || widget.chart_type === "kpi" || widget.chart_type === "map") return [];
+export function convertible_types(widget, can_map) {
+  if (!widget || widget.chart_type === "kpi") return [];
   if (["scatter", "bubble"].includes(widget.chart_type)) {
     return widget.size_field_id ? ["scatter", "bubble"] : ["scatter"];
   }
+  // Any widget grouped by a field that names a place can be drawn on the
+  // city's boundaries, and a map can be turned back into any of them.
+  const with_map = (types) => (can_map ? types.concat(["map"]) : types);
   // An occurrence widget's categories are its counted values: every
   // single-series look is reachable, whatever it groups by.
   if (widget.metric && widget.metric.aggregation === "occurrences") return SINGLE_CATEGORY_TYPES;
@@ -63,7 +65,7 @@ export function convertible_types(widget) {
   if (group.field_id === SUBMITTED_AT_FIELD || group.granularity) {
     return widget.split_by && widget.split_by.field_id ? ["line"] : ["line", "area"];
   }
-  return widget.split_by && widget.split_by.field_id ? SPLIT_CATEGORY_TYPES : SINGLE_CATEGORY_TYPES;
+  return with_map(widget.split_by && widget.split_by.field_id ? SPLIT_CATEGORY_TYPES : SINGLE_CATEGORY_TYPES);
 }
 
 /**

@@ -46,6 +46,7 @@ export default function BoardGrid({
   onAppearance,
   selection,
   onOpenRecords,
+  mapLevels,
 }) {
   const [dragging_id, setDraggingId] = useState(null);
   const [over_id, setOverId] = useState(null);
@@ -67,6 +68,15 @@ export default function BoardGrid({
   const kpi_widgets = widgets.filter((widget) => widget.chart_type === "kpi" && !emptied_by_filters(widget));
   const chart_widgets = widgets.filter((widget) => widget.chart_type !== "kpi" && !emptied_by_filters(widget));
   const selecting = !!selection;
+  // A widget can become a map when the field it groups by names a place
+  // the city has boundaries for; turning into one carries that level over,
+  // and turning back leaves it in place for the next time.
+  const map_level_of = (widget) => (mapLevels && widget.group_by ? mapLevels.get(widget.group_by.field_id) : undefined);
+  const type_change = (widget, next_type) => {
+    if (next_type !== "map") return { chart_type: next_type };
+    const level = map_level_of(widget);
+    return { chart_type: "map", map: Object.assign({ show_labels: true }, widget.map || {}, level ? { level } : {}) };
+  };
 
   const render_card = (widget) => (
     <ExpandableSlot expanded={expanded_id === widget.id} onToggle={() => setExpandedId((current) => (current === widget.id ? null : widget.id))} hideButton={selecting} palette={build_palette(widget.appearance, board.theme)}>
@@ -79,7 +89,8 @@ export default function BoardGrid({
       savingText={savingWidgetId === widget.id}
       onUpdateText={(changes) => onUpdateWidget(widget.id, changes)}
       onRemove={editable ? () => onRemoveWidget(widget) : undefined}
-      onChangeType={editable ? (next_type) => onUpdateWidget(widget.id, { chart_type: next_type }) : undefined}
+      onChangeType={editable ? (next_type) => onUpdateWidget(widget.id, type_change(widget, next_type)) : undefined}
+      canMap={map_level_of(widget) !== undefined}
       onChangeSize={editable && widget.chart_type !== "kpi" ? (next_size) => onUpdateWidget(widget.id, { size: next_size }) : undefined}
       onRetry={() => onRetryWidget(widget)}
       onShowSkipped={onShowSkipped}

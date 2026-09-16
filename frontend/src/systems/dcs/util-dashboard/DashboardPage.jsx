@@ -24,6 +24,7 @@ import ScreenshotStudio from "./screenshot/ScreenshotStudio.jsx";
 import RecordsOverlay from "./records/RecordsOverlay.jsx";
 import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
 import { MapScopeProvider } from "./mapScope.jsx";
+import { location_fields } from "./builder/mapFields.js";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 // CSS zoom keeps text crisp when fitting the board; transform is the fallback.
@@ -85,6 +86,8 @@ function DashboardBoard({ form }) {
   const [icon_widget, setIconWidget] = useState(null);
   const [appearance_widget, setAppearanceWidget] = useState(null);
   const form_fields = useMemo(() => builder_fields(form.schema), [form.schema]);
+  // Which fields name a place, so any widget grouped by one can become a map.
+  const map_levels = useMemo(() => new Map(location_fields(form_fields).map((entry) => [entry.id, entry.level])), [form_fields]);
 
   // Every child that reads or saves widgets works on THIS dashboard.
   const scoped_form = useMemo(
@@ -416,6 +419,7 @@ function DashboardBoard({ form }) {
             onPickIcon={(target) => setIconWidget(target)}
             onAppearance={(target) => setAppearanceWidget(target)}
             onOpenRecords={(widget, pick) => setRecords({ widget, pick })}
+            mapLevels={map_levels}
             onSelectionChange={setSelecting}
             onSaved={(final_widgets) => {
               // Reordering, bulk edits and deletions never change what the

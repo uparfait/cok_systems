@@ -1,30 +1,47 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useMapScope } from "../mapScope.jsx";
-import { build_palette, with_alpha } from "../appearance.js";
+import { build_palette, spread_color, with_alpha } from "../appearance.js";
 import { chart_density } from "./density.js";
 import LibraryIcon from "../icons/LibraryIcon.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
-import { bounds_of, make_projection, anchor_of, shape_width, map_key } from "./mapGeometry.js";
+import { bounds_of, make_projection, anchor_of, shape_width, shape_height, map_key } from "./mapGeometry.js";
 import MapLegend from "./MapLegend.jsx";
 import { MARKER_SET } from "./mapMarkers.js";
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 14;
-// A name is only written on a shape wide enough to hold it.
-const LABEL_FROM_PX = 34;
+// Roughly how wide one letter of a place name draws, per pixel of font size.
+const LETTER_WIDTH = 0.58;
 
 /**
  * The City of Kigali, drawn from its own administrative boundaries and
- * zoomed to it: one filled shape per place the widget has data for (the
- * darker the shape, the larger its number), with every parent above them
- * outlined in its own color.
+ * zoomed to it: one filled shape per place the widget has data for, each
+ * in a color of its own so neighbours are always told apart, with every
+ * parent above them outlined behind. A place nobody answered is left pale.
+ *
+ * A map split by a field (status, gender) plants ONE MARKER PER VALUE on
+ * every place: the same icon each time, in the value's own color and
+ * carrying that value's own number, which is what the legend names - so
+ * the split is read off the map instead of hiding inside one total.
  *
  * The outlines are not part of the widget's data - they are asked for by
  * name (only the places actually answered), with a retry when that fails.
- * The map pans by dragging, zooms with the wheel or its own buttons, and
- * writes every name and marker in plain HTML above the drawing so they stay
- * readable at any zoom.
+ * The map pans by dragging (never past its own edge) and zooms on its
+ * centre from the wheel or its buttons. Names and markers are plain HTML
+ * above the drawing, at a fixed size whatever the zoom, and NEITHER is
+ * drawn unless it fits inside its own boundary - so nothing ever lands on
+ * the neighbouring place or on its text. A name is written small with no
+ * box; a marker is the widget's chosen icon with its number beside it.
+ *
+ * Every color it paints with comes from the widget's own appearance (text,
+ * numbers, background, one color per value), so the map follows the theme
+ * and anything set for this widget.
+ *
+ * A click inside the map opens the records of the place it landed on (a
+ * drag never counts as one); the whole widget's records stay behind a
+ * double click OUTSIDE the map area, so panning and zooming can never pull
+ * the table open.
  */
 export default function MapChart({ rows, series, level, marker, showMarkers, showLabels, palette, density, animate, onItemClick, onLegendClick }) {
   const { translate } = useDcsLanguage();
@@ -71,23 +88,57 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
     return make_projection(bounds_of(frame), width, height, 10);
   }, [data, width, height]);
 
+  // What one place is worth: its own number, or - when the map is split
+  // into values - the sum of them, which the split rows never carry.
   const values = useMemo(() => {
+    const keys = Array.isArray(series) ? series : [];
+    const total_of = (row) => {
+      if (row.value !== undefined && row.value !== null && Number.isFinite(Number(row.value))) return Number(row.value);
+      return keys.reduce((sum, key) => sum + (Number(row[key]) || 0), 0);
+    };
     const map = new Map();
-    (rows || []).forEach((row) => map.set(map_key(row.label), row));
+    (rows || []).forEach((row) => map.set(map_key(row.label), { ...row, value: total_of(row) }));
     return map;
-  }, [rows]);
-  const max_value = (rows || []).reduce((best, row) => Math.max(best, Number(row.value) || 0), 0);
-
-  const shade = (value) => {
-    if (!max_value || !(value > 0)) return colors.empty;
-    return with_alpha(colors.accent, Math.max(0.16, Math.min(1, value / max_value)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, (series || []).join("|")]);
+  // Split into values (status, gender): each value has its own color and
+  // marker, and a place takes the ones of the value leading it.
+  const split_values = Array.isArray(series) ? series : [];
+  const has_split = split_values.length > 0;
+  const value_color = (value) => colors.color_override(value) || colors.color_for(value, split_values.indexOf(value));
+  // Every boundary keeps a color of its own, split or not - the colors of
+  // the split belong to its markers and its legend, not to the land. A
+  // color set on the widget's appearance for that place always wins.
+  const color_of = (shape, index) => colors.color_override(shape.name) || spread_color(index);
+  // What one place is worth in each value, largest first, zeroes dropped.
+  const parts_of = (shape) => {
+    const row = values.get(map_key(shape.name));
+    if (!row || !has_split) return [];
+    return split_values
+      .map((value) => ({ value, count: Number(row[value]) || 0 }))
+      .filter((entry) => entry.count > 0)
+      .sort((a, b) => b.count - a.count);
+  };
+  const value_of = (shape) => {
+    const row = values.get(map_key(shape.name));
+    return row ? row.value : null;
   };
 
-  const move = (next) => setView((current) => ({ ...current, ...next }));
+  // Whatever the viewer does, the drawing keeps covering the frame: at rest
+  // it sits centred, and zoomed in it cannot be dragged past its own edge.
+  const clamp = (k, x, y) => ({
+    x: Math.min(0, Math.max(width * (1 - k), x)),
+    y: Math.min(0, Math.max(height * (1 - k), y)),
+  });
+  const move = (next) => setView((current) => ({ ...current, ...next, ...clamp(current.k, next.x === undefined ? current.x : next.x, next.y === undefined ? current.y : next.y) }));
+  // The buttons zoom on the middle of the frame, so the city stays put.
   const zoom_by = (factor) =>
     setView((current) => {
       const k = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, current.k * factor));
-      return { ...current, k, smooth: true };
+      const ratio = k / current.k;
+      const cx = width / 2;
+      const cy = height / 2;
+      return { k, ...clamp(k, cx - (cx - current.x) * ratio, cy - (cy - current.y) * ratio), smooth: true };
     });
 
   // React attaches wheel listeners passively, so the map registers its own
@@ -97,19 +148,19 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
     if (!frame) return undefined;
     const on_wheel = (event) => {
       event.preventDefault();
-      const box = frame.getBoundingClientRect();
-      const px = event.clientX - box.left;
-      const py = event.clientY - box.top;
+      // The wheel zooms on the middle of the frame, like the buttons, so the
+      // city grows in place instead of sliding off under the pointer.
+      const cx = width / 2;
+      const cy = height / 2;
       setView((current) => {
         const k = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, current.k * (event.deltaY < 0 ? 1.15 : 1 / 1.15)));
         const ratio = k / current.k;
-        // Keep whatever sits under the pointer exactly where it is.
-        return { k, x: px - (px - current.x) * ratio, y: py - (py - current.y) * ratio, smooth: false };
+        return { k, ...clamp(k, cx - (cx - current.x) * ratio, cy - (cy - current.y) * ratio), smooth: false };
       });
     };
     frame.addEventListener("wheel", on_wheel, { passive: false });
     return () => frame.removeEventListener("wheel", on_wheel);
-  }, [state.loading, state.error]);
+  }, [state.loading, state.error, width, height]);
 
   const on_down = (event) => {
     drag_ref.current = { x: event.clientX - view.x, y: event.clientY - view.y, moved: false };
@@ -146,29 +197,62 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
   const parents = data.parents || [];
   const parent_color = (name, index) => colors.color_for(name, index + 3);
   const transform = `translate(${view.x}px, ${view.y}px) scale(${view.k})`;
+  const tool_style = { backgroundColor: colors.background, borderColor: colors.border, color: colors.text };
   const screen = (point) => {
     const [px, py] = projection.point(point);
     return [px * view.k + view.x, py * view.k + view.y];
   };
 
-  // Names and markers ride above the drawing, at a fixed size, so zooming
-  // in never blows a place name up into the next district.
-  const labels = showLabels === false ? [] : (data.shapes || []).filter((shape) => shape_width(shape, projection) * view.k >= LABEL_FROM_PX);
+  // A name is written only where it fits inside its own boundary, both
+  // across and down, at the current zoom - zooming in reveals the rest.
+  const label_font = Math.max(8, size.font - 1);
+  const label_text = (shape) => {
+    const value = value_of(shape);
+    return showMarkers || value === null ? shape.name : `${shape.name} ${Number(value).toLocaleString("en-US")}`;
+  };
+  const fits = (shape, needed_w, needed_h) => shape_width(shape, projection) * view.k >= needed_w && shape_height(shape, projection) * view.k >= needed_h;
+  const fits_label = (shape) => fits(shape, label_text(shape).length * label_font * LETTER_WIDTH + 6, label_font * 1.5 + (showMarkers ? 20 : 0));
+  const labels = showLabels === false ? [] : (data.shapes || []).filter(fits_label);
   const markers = showMarkers ? data.shapes || [] : [];
-  const marker_of = (shape) => {
-    const row = values.get(map_key(shape.name));
-    if (!row || !Array.isArray(series) || series.length === 0) return marker;
-    // With a split, a shape carries the marker of its strongest value.
-    const best = series.reduce((top, key) => ((row[key] || 0) > (row[top] || 0) ? key : top), series[0]);
-    return MARKER_SET[series.indexOf(best) % MARKER_SET.length];
+  const mark_size = Math.max(12, Math.round(size.font * 1.3));
+  const marker_icon = marker || MARKER_SET[0];
+  // Text sits over colored land, so it carries a halo of the widget's own
+  // background - that is what keeps it readable in either theme.
+  const halo = `0 0 3px ${colors.background}, 0 0 2px ${colors.background}, 0 0 1px ${colors.background}`;
+  // What one place plants: one mark per value it holds, or its own total.
+  const marks_of = (shape, index) => {
+    const parts = parts_of(shape);
+    if (parts.length > 0) return parts.map((part) => ({ key: part.value, color: value_color(part.value), count: part.count }));
+    const total = value_of(shape);
+    return total === null ? [] : [{ key: shape.name, color: color_of(shape, index), count: total }];
+  };
+
+  // The legend: the split values and their totals, or the places themselves.
+  const legend_items = has_split
+    ? split_values.map((value) => ({
+        key: value,
+        name: value,
+        color: value_color(value),
+        icon: showMarkers ? marker_icon : null,
+        is_value: true,
+        value: (rows || []).reduce((sum, row) => sum + (Number(row[value]) || 0), 0),
+      }))
+    : (data.shapes || []).map((shape, index) => ({ key: shape.name, name: shape.name, color: color_of(shape, index), value: value_of(shape) }));
+  const pick_legend = (item) => {
+    if (item.is_value) {
+      if (onLegendClick) onLegendClick({ label: item.name });
+    } else if (onItemClick) {
+      onItemClick({ label: item.name });
+    }
   };
 
   return (
     <div>
       <div
         ref={frame_ref}
-        className="dcs-map-frame"
+        className="dcs-map-frame dcs-no-drill"
         style={{ height, borderColor: colors.border }}
+        onClick={(event) => event.stopPropagation()}
         onMouseDown={on_down}
         onMouseMove={on_move}
         onMouseUp={on_up}
@@ -194,19 +278,20 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
               )),
             )}
           {(data.shapes || []).map((shape, index) => {
-            const row = values.get(map_key(shape.name));
+            const answered = value_of(shape) !== null;
             const active = hover === shape.name;
             return (
               <path
                 key={shape.name}
                 d={projection.path(shape.rings)}
-                fill={shade(row ? row.value : 0)}
-                stroke={active ? colors.number : with_alpha(colors.text, 0.35)}
-                strokeWidth={(active ? 2.4 : 0.8) / view.k}
+                fill={with_alpha(color_of(shape, index), answered ? (active ? 0.92 : 0.7) : 0.16)}
+                stroke={active ? "#FFFFFF" : with_alpha(colors.text, 0.4)}
+                strokeWidth={(active ? 3 : 0.8) / view.k}
                 className={animate === false ? undefined : "dcs-map-shape"}
                 style={{ animationDelay: `${Math.min(index * 12, 600)}ms`, cursor: onItemClick ? "pointer" : "default" }}
                 onMouseEnter={() => setHover(shape.name)}
-                onClick={() => {
+                onClick={(event) => {
+                  event.stopPropagation();
                   if (drag_ref.current && drag_ref.current.moved) return;
                   if (onItemClick) onItemClick({ label: shape.name });
                 }}
@@ -220,34 +305,42 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
             const point = anchor_of(shape);
             if (!point) return null;
             const [px, py] = screen(point);
-            const row = values.get(map_key(shape.name));
             return (
-              <span key={shape.name} className="dcs-map-label" style={{ left: px, top: py, color: colors.text, fontSize: Math.max(9, size.font) }}>
-                {shape.name}
-                {row ? <b style={{ color: colors.number }}>{row.value}</b> : null}
+              <span key={shape.name} className={`dcs-map-label ${showMarkers ? "is-below" : ""}`} style={{ left: px, top: py, color: colors.text, fontSize: label_font, textShadow: halo }}>
+                {label_text(shape)}
               </span>
             );
           })}
-          {markers.map((shape) => {
+          {markers.map((shape, index) => {
             const point = anchor_of(shape);
             if (!point) return null;
+            const marks = marks_of(shape, index);
+            // A mark that does not fit its own boundary is left out rather
+            // than laid over the next place and its name.
+            if (marks.length === 0 || !fits(shape, marks.length * (mark_size + 20) + 4, mark_size + 4)) return null;
             const [px, py] = screen(point);
+            // Nothing but the icon and the number - no card around them.
             return (
               <span key={`marker-${shape.name}`} className="dcs-map-marker" style={{ left: px, top: py }}>
-                <LibraryIcon icon={marker_of(shape)} size={Math.max(14, Math.round(size.font * 1.6))} color={colors.number} />
+                {marks.map((mark) => (
+                  <span key={mark.key} className="dcs-map-mark">
+                    <LibraryIcon icon={marker_icon} size={mark_size} color={mark.color} />
+                    <b style={{ color: colors.text, textShadow: halo }}>{Number(mark.count).toLocaleString("en-US")}</b>
+                  </span>
+                ))}
               </span>
             );
           })}
         </div>
 
         <div className="dcs-map-tools">
-          <button type="button" title={translate("DCS_DB_MAP_ZOOM_IN")} onClick={() => zoom_by(1.4)}>
+          <button type="button" style={tool_style} title={translate("DCS_DB_MAP_ZOOM_IN")} onClick={() => zoom_by(1.4)}>
             +
           </button>
-          <button type="button" title={translate("DCS_DB_MAP_ZOOM_OUT")} onClick={() => zoom_by(1 / 1.4)}>
+          <button type="button" style={tool_style} title={translate("DCS_DB_MAP_ZOOM_OUT")} onClick={() => zoom_by(1 / 1.4)}>
             -
           </button>
-          <button type="button" className="dcs-map-reset" title={translate("DCS_DB_MAP_RESET")} onClick={() => setView({ k: 1, x: 0, y: 0, smooth: true })}>
+          <button type="button" className="dcs-map-reset" style={tool_style} title={translate("DCS_DB_MAP_RESET")} onClick={() => setView({ k: 1, x: 0, y: 0, smooth: true })}>
             {translate("DCS_DB_MAP_RESET")}
           </button>
         </div>
@@ -255,12 +348,24 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
         {hover && (
           <div className="dcs-map-tip" style={{ backgroundColor: colors.tooltip.backgroundColor, color: colors.tooltip_text.color, borderColor: colors.border }}>
             <b>{hover}</b>
-            <span>{values.has(map_key(hover)) ? values.get(map_key(hover)).value : translate("DCS_DB_MAP_NO_VALUE")}</span>
+            <span>{values.has(map_key(hover)) ? Number(values.get(map_key(hover)).value).toLocaleString("en-US") : translate("DCS_DB_MAP_NO_VALUE")}</span>
+            {has_split && values.has(map_key(hover)) && (
+              <span className="dcs-map-tip-values">
+                {split_values
+                  .filter((value) => (Number(values.get(map_key(hover))[value]) || 0) > 0)
+                  .map((value) => (
+                    <span key={value} className="dcs-map-tip-value">
+                      <span className="dcs-map-legend-swatch" style={{ borderColor: value_color(value), backgroundColor: value_color(value) }} />
+                      {value} {Number(values.get(map_key(hover))[value]).toLocaleString("en-US")}
+                    </span>
+                  ))}
+              </span>
+            )}
           </div>
         )}
       </div>
 
-      <MapLegend shapes={data.shapes || []} parents={parents} values={values} maxValue={max_value} palette={colors} parentColor={parent_color} onItemClick={onLegendClick} unknown={data.unknown || []} />
+      <MapLegend items={legend_items} palette={colors} onPick={onItemClick || onLegendClick ? pick_legend : null} unknown={data.unknown || []} />
     </div>
   );
 }

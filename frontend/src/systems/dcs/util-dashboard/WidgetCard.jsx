@@ -58,7 +58,7 @@ function StateMessage({ children, tone, height }) {
  * saves and Escape cancels too. The buttons prevent the input's blur on
  * mousedown so a click on Cancel can never be swallowed by a blur-save.
  */
-function EditableText({ value, placeholder, editable, saving, onCommit, textStyle, maxLength, hint }) {
+function EditableText({ value, placeholder, editable, saving, onCommit, textStyle, maxLength, hint, hideWhenEmpty }) {
   const { translate } = useDcsLanguage();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -129,9 +129,12 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
       </span>
     );
   }
+  // An empty line says nothing: it is left out entirely, and only an
+  // editor sees it - on hovering the card - as a place to write one.
+  if (!value && hideWhenEmpty && !editable) return null;
   return (
     <p
-      className={`break-words ${editable ? "dcs-no-drill" : ""}`}
+      className={`break-words ${editable ? "dcs-no-drill" : ""} ${!value && hideWhenEmpty ? "dcs-widget-hint" : ""}`}
       style={{ ...textStyle, cursor: editable ? "pointer" : "default" }}
       title={editable ? hint : value || placeholder}
       onClick={start}
@@ -149,7 +152,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
  * multi-series line form - see convertible_types), and remove the widget.
  * Closes on outside click.
  */
-function CardMenu({ widget, palette, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon }) {
+function CardMenu({ widget, palette, canMap, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon }) {
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
   const button_ref = useRef(null);
@@ -222,11 +225,11 @@ function CardMenu({ widget, palette, onChangeType, onChangeSize, onRemove, onApp
               </div>
             </>
           )}
-          {onChangeType && convertible_types(widget).filter((type) => type !== widget.chart_type).length > 0 && (
+          {onChangeType && convertible_types(widget, canMap).filter((type) => type !== widget.chart_type).length > 0 && (
             <>
               {section_title("DCS_DB_TURN_INTO")}
               <div style={{ maxHeight: 220, overflowY: "auto" }}>
-                {convertible_types(widget)
+                {convertible_types(widget, canMap)
                   .filter((type) => type !== widget.chart_type)
                   .map((type) => {
                     const definition = chart_definition(type);
@@ -308,7 +311,7 @@ function KpiIconSlot({ icon, color }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords }) {
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords, canMap }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -344,8 +347,10 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
 
   // Opening the records: a bar, slice, point, cell or legend entry picks its
   // own; a click anywhere else on the card (not on a control) opens them
-  // all. The specific pick runs first and marks the click consumed so the
+  // all - on a map, where a single click belongs to panning the city, that
+  // whole-widget click is a DOUBLE click outside the map itself. The specific pick runs first and marks the click consumed so the
   // card's own handler, reached next as the event bubbles, stays quiet.
+  const is_map = widget.chart_type === "map";
   const consumed_ref = useRef(false);
   const can_drill = !!onOpenRecords && !!data && !data.error && !data.locked && !selectable;
   const pick_records = can_drill
@@ -365,7 +370,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
   };
 
   return (
-    <div data-widget-id={widget.id} onClick={handle_card_click} className="dcs-widget-card relative border-2 flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
+    <div data-widget-id={widget.id} {...(is_map ? { onDoubleClick: handle_card_click } : { onClick: handle_card_click })} className="dcs-widget-card dcs-widget-hover relative border-2 flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
       {selectable && (
         // The selection mode's click surface: covers the whole card so no
         // inner control fires, and carries the tick that marks a selection.
@@ -408,7 +413,8 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
           </div>
           <EditableText
             value={widget.description || ""}
-            placeholder={type_label}
+            placeholder={translate("DCS_DB_ADD_DESCRIPTION")}
+            hideWhenEmpty
             editable={editable}
             saving={savingText}
             hint={translate("DCS_DB_CLICK_TO_EDIT")}
@@ -419,7 +425,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
         {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon) && (
-          <CardMenu widget={widget} palette={palette} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi ? onPickIcon : undefined} />
+          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi ? onPickIcon : undefined} />
         )}
       </div>
 

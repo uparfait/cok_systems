@@ -39,6 +39,38 @@ export function auto_color(index) {
   return SERIES_COLORS[Math.abs(index) % SERIES_COLORS.length];
 }
 
+/**
+ * A color per index that stays distinct over hundreds of them - the twelve
+ * system colors would repeat every twelve shapes on a map of 161 cells.
+ * The hue walks the wheel by the golden angle, so no two neighbours in the
+ * list ever land near each other, and the lightness alternates to keep
+ * even same-hue pairs apart.
+ */
+export function spread_color(index) {
+  const step = Math.abs(Number(index) || 0);
+  const hue = (step * 137.508) % 360;
+  const lightness = 42 + (step % 3) * 8;
+  return hsl_to_hex(hue, 62, lightness);
+}
+
+function hsl_to_hex(hue, saturation, lightness) {
+  const s = saturation / 100;
+  const l = lightness / 100;
+  const chroma = (1 - Math.abs(2 * l - 1)) * s;
+  const second = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const base = l - chroma / 2;
+  const sector = Math.floor(hue / 60) % 6;
+  const parts = [
+    [chroma, second, 0],
+    [second, chroma, 0],
+    [0, chroma, second],
+    [0, second, chroma],
+    [second, 0, chroma],
+    [chroma, 0, second],
+  ][sector];
+  return `#${parts.map((part) => Math.round((part + base) * 255).toString(16).padStart(2, "0")).join("")}`;
+}
+
 export function random_color() {
   // Mid-saturation, mid-lightness so any random pick stays readable.
   const hue = Math.floor(Math.random() * 360);
@@ -75,6 +107,9 @@ export function build_palette(raw, board_theme) {
   const extras = MODE_EXTRAS[appearance.theme];
   const value_colors = appearance.value_colors;
   const color_for = (label, index) => value_colors[String(label)] || auto_color(index || 0);
+  // The color this widget was told to use for one value, if any - a map
+  // spreads its own colors and only wants to know about the exceptions.
+  const color_override = (label) => value_colors[String(label)] || null;
   return {
     theme: appearance.theme,
     is_dark: appearance.theme === "dark",
@@ -89,6 +124,7 @@ export function build_palette(raw, board_theme) {
     empty: extras.empty,
     soft: extras.soft,
     color_for,
+    color_override,
     tick: { fontSize: 11, fill: mode.text },
     tooltip: { borderRadius: 0, border: `1px solid ${extras.border}`, fontSize: 12, backgroundColor: mode.background, color: mode.text },
     // Recharts paints tooltip rows black unless told otherwise - unreadable on a dark board.

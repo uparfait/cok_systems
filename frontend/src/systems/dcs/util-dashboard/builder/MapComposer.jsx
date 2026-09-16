@@ -4,6 +4,7 @@ import { useToast } from "../../../../core/contexts/ToastContext.tsx";
 import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import LibraryIcon from "../icons/LibraryIcon.jsx";
+import IconPickerPanel from "../icons/IconPickerPanel.jsx";
 import { MARKER_SET } from "../charts/mapMarkers.js";
 import { Step, ChipGrid, Switch, Problem, Preview, FieldSelect, TitleFields, TEXT_MUTED, PRIMARY, BORDER } from "./builderUi.jsx";
 import ColorSettingsButton from "./ColorSettingsButton.jsx";
@@ -43,6 +44,8 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
   const { translate } = useDcsLanguage();
   const { showSuccess } = useToast();
   const [spec, setSpec] = useState(initialSpec || EMPTY_MAP_SPEC);
+  // The whole icon library, the way a KPI card picks its icon.
+  const [picking_icon, setPickingIcon] = useState(false);
   const patch = (changes) => setSpec((current) => ({ ...current, ...changes }));
 
   const levels = useMemo(() => map_levels_of(fields), [fields]);
@@ -114,7 +117,7 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
 
   return (
     <div className="space-y-5">
-      <Step number={1} titleKey="DCS_DB_MAP_STEP_LEVEL" hintKey="DCS_DB_MAP_STEP_LEVEL_HINT">
+      <Step number={1} titleKey="DCS_DB_MAP_STEP_LEVEL">
         <ChipGrid
           options={levels.map((entry) => ({ id: entry.level, label: level_name(entry.level) }))}
           value={spec.level}
@@ -179,6 +182,25 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
             ))}
           </div>
         )}
+        {spec.show_markers && (
+          <button type="button" className="dcs-link-action text-xs font-bold uppercase" style={{ color: PRIMARY, background: "none", border: "none", padding: 0, cursor: "pointer", letterSpacing: "0.4px" }} disabled={disabled} onClick={() => setPickingIcon(true)}>
+            {translate("DCS_DB_MAP_MORE_ICONS")}
+          </button>
+        )}
+        {picking_icon && (
+          <IconPickerPanel
+            widget={{ icon: spec.marker }}
+            onPick={(icon) => {
+              patch({ marker: icon });
+              setPickingIcon(false);
+            }}
+            onRemove={() => {
+              patch({ marker: MARKER_SET[0] });
+              setPickingIcon(false);
+            }}
+            onClose={() => setPickingIcon(false)}
+          />
+        )}
         {spec.show_markers && spec.split_id && <Preview>{translate("DCS_DB_MAP_MARKER_SPLIT")}</Preview>}
         <p className="text-xs mb-1 mt-2" style={{ color: TEXT_MUTED }}>
           {translate("DCS_DB_SIZE")}
@@ -200,7 +222,7 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
         <ColorSettingsButton
           form={form}
           title={spec.title}
-          valuesField={fields.find((field) => field.id === (spec.split_id || place_id)) || null}
+          valuesField={fields.find((field) => field.id === place_id) || null}
           appearance={spec.appearance}
           onChange={(appearance) => patch({ appearance })}
           disabled={disabled}
