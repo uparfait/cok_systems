@@ -51,6 +51,9 @@ function unwind_stages(catalog, field_ids) {
     .map((field_id) => ({ $unwind: { path: `$data.${field_id}`, preserveNullAndEmptyArrays: false } }));
 }
 
+/** How many categories a widget may read at once - a map draws every place. */
+const category_cap = (widget) => (widget.chart_type === "map" ? LIMITS.MAX_MAP_CATEGORIES : LIMITS.MAX_CATEGORY_LIMIT);
+
 /**
  * Rows of one categorical field: [{_id: <value>, value: <aggregate>}],
  * already sorted by the database. Null groups (records that never answered
@@ -68,7 +71,7 @@ async function category_rows(widget, bounds, catalog) {
     ...metric_post_stages(widget.metric),
     { $match: { value: { $ne: null } } },
     { $sort: sort },
-    { $limit: LIMITS.MAX_CATEGORY_LIMIT + 1 },
+    { $limit: category_cap(widget) + 1 },
   ];
   return run_pipeline(pipeline);
 }
@@ -99,7 +102,7 @@ async function split_rows(widget, bounds, catalog) {
     ...metric_post_stages(widget.metric),
     { $match: { value: { $ne: null } } },
     { $sort: { "_id.g": 1, "_id.s": 1, "_id.p": 1 } },
-    { $limit: LIMITS.MAX_CATEGORY_LIMIT * LIMITS.MAX_CATEGORY_LIMIT * (pattern_field ? 8 : 1) },
+    { $limit: category_cap(widget) * LIMITS.MAX_CATEGORY_LIMIT * (pattern_field ? 8 : 1) },
   ];
   return run_pipeline(pipeline);
 }

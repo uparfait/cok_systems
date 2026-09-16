@@ -20,6 +20,8 @@ const SERIES_KEY_SEPARATOR = "||";
 const LEGEND_LIMIT = 12;
 
 function slice_limit(widget) {
+  // A map keeps every place: an "Other" row has no boundary to sit on.
+  if (widget.chart_type === "map") return LIMITS.MAX_MAP_CATEGORIES;
   const definition = CHART_TYPES[widget.chart_type] || {};
   const requested = Number(widget.limit) || LIMITS.DEFAULT_CATEGORY_LIMIT;
   const capped = Math.min(Math.max(1, requested), LIMITS.MAX_CATEGORY_LIMIT);

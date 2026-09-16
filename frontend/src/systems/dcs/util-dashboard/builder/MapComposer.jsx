@@ -7,7 +7,7 @@ import LibraryIcon from "../icons/LibraryIcon.jsx";
 import { MARKER_SET } from "../charts/mapMarkers.js";
 import { Step, ChipGrid, Switch, Problem, Preview, FieldSelect, TitleFields, TEXT_MUTED, PRIMARY, BORDER } from "./builderUi.jsx";
 import ColorSettingsButton from "./ColorSettingsButton.jsx";
-import { CHART_FORMULAS, formula_of, field_options, ALL_SUBMISSIONS_ID } from "./composeWidgets.js";
+import { CHART_FORMULAS, formula_of, field_options, build_map_draft, ALL_SUBMISSIONS_ID } from "./composeWidgets.js";
 import { map_levels_of } from "./mapFields.js";
 
 export const EMPTY_MAP_SPEC = {
@@ -59,6 +59,8 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
   // Only a choice field can split a place into named values.
   const split_options = useMemo(() => field_options(fields.filter((field) => field.is_choice && field.id !== place_id), translate), [fields, place_id, translate]);
   const level_name = (level) => translate(`DCS_DB_MAP_LEVEL_${level.toUpperCase()}`);
+  // "per Village" reads better in a title than "per Villages".
+  const one_level_name = (level) => translate(`DCS_DB_MAP_ONE_${level.toUpperCase()}`);
 
   // The first level the form can draw, chosen for the user.
   useEffect(() => {
@@ -71,7 +73,7 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
   useEffect(() => {
     if (spec.title_touched || !level_entry) return;
     const measure = counts_all && (!spec.field_id || spec.field_id === ALL_SUBMISSIONS_ID) ? translate("DCS_DB_GEN_TOTAL") : (options.find((option) => option.id === spec.field_id) || {}).name || "";
-    const next = translate("DCS_DB_MAP_DEFAULT_TITLE", { measure: measure || translate("DCS_DB_GEN_TOTAL"), level: level_name(spec.level) });
+    const next = translate("DCS_DB_MAP_DEFAULT_TITLE", { measure: measure || translate("DCS_DB_GEN_TOTAL"), level: one_level_name(spec.level) });
     if (next !== spec.title) patch({ title: next });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec.level, spec.aggregation, spec.field_id, translate]);
@@ -87,7 +89,7 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
 
   const add = () => {
     if (problem) return;
-    const widget = {
+    const widget = build_map_draft(form, {
       chart_type: "map",
       title: spec.title.trim().slice(0, 120),
       description: spec.description.trim().slice(0, 300) || null,
@@ -97,7 +99,7 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
       group_by: { field_id: place_id },
       split_by: spec.split_id ? { field_id: spec.split_id } : null,
       map: { level: spec.level, marker: spec.marker, show_markers: spec.show_markers, show_labels: spec.show_labels },
-    };
+    });
     onAdd({
       tab: "map",
       summary: widget.title,

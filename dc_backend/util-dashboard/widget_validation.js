@@ -268,8 +268,9 @@ function validate_widget(widget, index, form_versions_by_group, project_id, erro
   }
   if (widget.limit !== undefined) {
     const limit = Number(widget.limit);
-    if (!Number.isInteger(limit) || limit < 1 || limit > LIMITS.MAX_CATEGORY_LIMIT) {
-      errors.push(`${describe}: limit must be between 1 and ${LIMITS.MAX_CATEGORY_LIMIT}`);
+    const cap = widget.chart_type === "map" ? LIMITS.MAX_MAP_CATEGORIES : LIMITS.MAX_CATEGORY_LIMIT;
+    if (!Number.isInteger(limit) || limit < 1 || limit > cap) {
+      errors.push(`${describe}: limit must be between 1 and ${cap}`);
     }
   }
 

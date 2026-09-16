@@ -461,6 +461,11 @@ function chart_widget_extra(spec) {
   return extra;
 }
 
+/** One map widget, stamped with its id and form like every other draft. */
+export function build_map_draft(form, extra) {
+  return make_widget(form, extra);
+}
+
 /**
  * One chart; or - with an "in each" field - either one COMBINED chart with
  * the values side by side, or one chart per value, each filtered to its

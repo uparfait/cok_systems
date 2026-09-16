@@ -97,6 +97,8 @@ const LIMITS = {
   MAX_TITLE_LENGTH: 120,
   MAX_FILTERS: 10,
   MAX_CATEGORY_LIMIT: 50,
+  // A map is not a bar chart: every place it has an answer for is drawn.
+  MAX_MAP_CATEGORIES: 1500,
   MAX_DISPLAY_FIELDS: 5,
   DEFAULT_CATEGORY_LIMIT: 12,
   MAX_POINTS: 500,

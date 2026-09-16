@@ -264,20 +264,3 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
     </div>
   );
 }
-
-// The markers a map may plant on its shapes - ten to choose from in the
-// builder, and one per value when the map is split by a choice field.
-export const MARKER_SET = [
-  "lucide:MapPin",
-  "lucide:Flag",
-  "lucide:Home",
-  "lucide:Building2",
-  "lucide:Hospital",
-  "lucide:School",
-  "lucide:Star",
-  "lucide:Droplet",
-  "lucide:Users",
-  "lucide:Briefcase",
-  "lucide:Tent",
-  "lucide:TreePine",
-];
