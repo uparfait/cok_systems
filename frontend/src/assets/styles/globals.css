@@ -1714,6 +1714,19 @@ background-color: #056daa;
   color-scheme: dark;
 }
 
+/* Panels portalled outside the board (menus, the period dialog) sit
+   beside the board in the DOM, so they carry the dark variables themselves. */
+.dcs-board-dark-portal {
+  --board-bg: #0F171F;
+  --board-surface: #16202A;
+  --board-surface-hover: #1F2B37;
+  --board-border: #2E3B48;
+  --board-text: #F2F5F8;
+  --board-muted: #A9B4C0;
+  color: var(--board-text);
+  color-scheme: dark;
+}
+
 /* Inside the signed-in shell the dark board bleeds into the page gutter;
    the public page IS the page, so it keeps its own padding and never grows
    wider than the screen. */

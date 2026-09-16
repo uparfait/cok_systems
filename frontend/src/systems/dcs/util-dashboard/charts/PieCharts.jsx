@@ -48,7 +48,7 @@ export default function PieCharts({ chartType, rows, totalLabel, onItemClick, pa
                 <Cell key={row.label} fill={colors.color_for(row.label, index)} />
               ))}
             </Pie>
-            <Tooltip contentStyle={colors.tooltip} />
+            <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} />
           </PieChart>
         </ResponsiveContainer>
         {is_donut && (

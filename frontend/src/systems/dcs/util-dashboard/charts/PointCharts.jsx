@@ -21,7 +21,7 @@ export default function PointCharts({ chartType, points, xLabel, yLabel, palette
         <XAxis type="number" dataKey="x" name={xLabel} tick={tick_style(colors, size)} stroke={colors.grid} height={size.font * 2.5} />
         <YAxis type="number" dataKey="y" name={yLabel} tick={tick_style(colors, size)} stroke={colors.grid} width={size.font * 3} />
         {has_size && <ZAxis type="number" dataKey="size" range={[30, bubble_max]} />}
-        <Tooltip contentStyle={colors.tooltip} cursor={{ strokeDasharray: "3 3" }} />
+        <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} cursor={{ strokeDasharray: "3 3" }} />
         <Scatter data={points} fill={colors.accent} fillOpacity={0.7} isAnimationActive={animate !== false} animationDuration={700} animationEasing="ease-out" />
       </ScatterChart>
     </ResponsiveContainer>

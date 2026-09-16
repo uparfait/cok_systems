@@ -824,7 +824,7 @@ const en = {
   DCS_DB_RESIZE: "Resize",
   DCS_DB_EDIT: "Edit",
   DCS_DB_RETRY: "Retry",
-  DCS_DB_NO_DATA: "No data for this widget yet",
+  DCS_DB_NO_DATA: "Nothing to show at the moment",
   DCS_DB_LOCKED: "Your access does not cover this form's data",
   DCS_DB_WIDGET_ERROR: "This widget could not be loaded",
   DCS_DB_WIDGET_SLOW: "This widget took over 3 minutes and was cut off",

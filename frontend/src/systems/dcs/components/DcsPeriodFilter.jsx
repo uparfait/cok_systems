@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import { portal_root } from "../util-dashboard/portalRoot.js";
+import { useBoardTheme } from "../util-dashboard/boardTheme.jsx";
+
+// Outside a dashboard the board theme context is light, so these resolve to the usual colors.
+const SURFACE = "var(--board-surface, #FFFFFF)";
+const SURFACE_HOVER = "var(--board-surface-hover, #F0F7FC)";
+const BORDER = "var(--board-border, #E0E0E0)";
+const TEXT = "var(--board-text, #333333)";
+const MUTED = "var(--board-muted, #6B7280)";
 
 // Shared with DcsTableSearchSort's search input and sort toggle, so every
 // control across the whole filter bar lines up at exactly the same height.
@@ -23,6 +32,7 @@ function format_date(date_string) {
 }
 
 function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChange, onApply, translate }) {
+  const board = useBoardTheme();
   const [local_from, setLocalFrom] = useState(from || "");
   const [local_to, setLocalTo] = useState(to || "");
 
@@ -47,33 +57,36 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
 
   return (
     <Dialog.Root open={open} onOpenChange={handle_open_change}>
-      <Dialog.Portal>
+      <Dialog.Portal container={portal_root()}>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-full max-w-xs -translate-x-1/2 -translate-y-1/2 rounded-none bg-white p-5 shadow-xl">
-          <Dialog.Title className="text-sm font-semibold mb-3" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+        <Dialog.Content
+          className={`fixed top-1/2 left-1/2 z-50 w-full max-w-xs -translate-x-1/2 -translate-y-1/2 rounded-none p-5 shadow-xl ${board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`}
+          style={{ backgroundColor: SURFACE, color: TEXT, border: `1px solid ${BORDER}` }}
+        >
+          <Dialog.Title className="text-sm font-semibold mb-3" style={{ fontFamily: "'Montserrat', sans-serif", color: TEXT }}>
             {translate("DCS_STATS_PERIOD_CUSTOM")}
           </Dialog.Title>
 
           <div className="mb-3">
             <div className="flex flex-col gap-2">
               <div>
-                <label className="block text-xs text-gray-500 mb-0.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>From</label>
+                <label className="block text-xs mb-0.5" style={{ fontFamily: "'Montserrat', sans-serif", color: MUTED }}>From</label>
                 <input
                   type="date"
                   value={local_from}
                   onChange={(event) => setLocalFrom(event.target.value)}
-                  className="w-full border border-gray-300 rounded-none px-2 py-1.5 text-sm cursor-pointer"
-                  style={{ fontFamily: "'Montserrat', sans-serif", height: 36 }}
+                  className="w-full border rounded-none px-2 py-1.5 text-sm cursor-pointer"
+                  style={{ fontFamily: "'Montserrat', sans-serif", height: 36, backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-0.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>To</label>
+                <label className="block text-xs mb-0.5" style={{ fontFamily: "'Montserrat', sans-serif", color: MUTED }}>To</label>
                 <input
                   type="date"
                   value={local_to}
                   onChange={(event) => setLocalTo(event.target.value)}
-                  className="w-full border border-gray-300 rounded-none px-2 py-1.5 text-sm cursor-pointer"
-                  style={{ fontFamily: "'Montserrat', sans-serif", height: 36 }}
+                  className="w-full border rounded-none px-2 py-1.5 text-sm cursor-pointer"
+                  style={{ fontFamily: "'Montserrat', sans-serif", height: 36, backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
                 />
               </div>
             </div>
@@ -83,8 +96,8 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="px-3 py-1.5 text-xs border border-gray-300 rounded-none hover:bg-gray-50 cursor-pointer"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
+              className="px-3 py-1.5 text-xs border rounded-none cursor-pointer"
+              style={{ fontFamily: "'Montserrat', sans-serif", backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
             >
               {translate("DCS_BTN_CANCEL")}
             </button>
@@ -164,7 +177,7 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
           type="button"
           onClick={() => setIsMenuOpen((previous) => !previous)}
           className="cok-auth-input text-sm cursor-pointer inline-flex items-center justify-between gap-2"
-          style={{ fontFamily: "'Montserrat', sans-serif", height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX, minWidth: 150 }}
+          style={{ fontFamily: "'Montserrat', sans-serif", height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX, minWidth: 150, backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
         >
           <span className="truncate">{selected_option ? option_label(selected_option) : ""}</span>
           <svg
@@ -178,8 +191,8 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
         </button>
         {is_menu_open && (
           <div
-            className="absolute left-0 z-50 bg-white"
-            style={{ top: "calc(100% + 4px)", minWidth: "100%", border: "1px solid #E0E0E0", boxShadow: "0 8px 22px rgba(0,0,0,0.14)" }}
+            className="absolute left-0 z-50"
+            style={{ top: "calc(100% + 4px)", minWidth: "100%", backgroundColor: SURFACE, border: `1px solid ${BORDER}`, boxShadow: "0 8px 22px rgba(0,0,0,0.14)" }}
           >
             {options.map((option) => (
               <button
@@ -190,13 +203,13 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
                 style={{
                   padding: "0.5rem 0.75rem",
                   fontFamily: "'Montserrat', sans-serif",
-                  color: option.value === period ? "#056daa" : "#333333",
+                  color: option.value === period ? "#056daa" : TEXT,
                   fontWeight: option.value === period ? 700 : 400,
-                  backgroundColor: "#FFFFFF",
+                  backgroundColor: SURFACE,
                   border: "none",
                 }}
-                onMouseOver={(event) => (event.currentTarget.style.backgroundColor = "#F0F7FC")}
-                onMouseOut={(event) => (event.currentTarget.style.backgroundColor = "#FFFFFF")}
+                onMouseOver={(event) => (event.currentTarget.style.backgroundColor = SURFACE_HOVER)}
+                onMouseOut={(event) => (event.currentTarget.style.backgroundColor = SURFACE)}
               >
                 {option_label(option)}
               </button>
@@ -205,7 +218,7 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
         )}
       </div>
       {period === "custom" && (
-        <span className="text-xs text-gray-500 truncate max-w-[200px]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+        <span className="text-xs truncate max-w-[200px]" style={{ fontFamily: "'Montserrat', sans-serif", color: MUTED }}>
           {get_selected_label()}
         </span>
       )}

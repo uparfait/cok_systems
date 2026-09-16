@@ -824,7 +824,7 @@ const fr = {
   DCS_DB_RESIZE: "Taille",
   DCS_DB_EDIT: "Modifier",
   DCS_DB_RETRY: "Réessayer",
-  DCS_DB_NO_DATA: "Pas encore de données pour ce widget",
+  DCS_DB_NO_DATA: "Rien a afficher pour le moment",
   DCS_DB_LOCKED: "Votre accès ne couvre pas les données de ce formulaire",
   DCS_DB_WIDGET_ERROR: "Ce widget n'a pas pu être chargé",
   DCS_DB_WIDGET_SLOW: "Ce widget a dépassé 3 minutes et a été interrompu",

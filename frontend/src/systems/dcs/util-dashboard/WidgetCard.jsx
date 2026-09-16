@@ -247,12 +247,12 @@ function CardMenu({ widget, onChangeType, onChangeSize, onRemove, onAppearance, 
             </>
           )}
           {onPickIcon && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: "1px solid #E0E0E0", color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onPickIcon)}>
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onPickIcon)}>
               {translate(widget.icon ? "DCS_DB_ICON_CHANGE" : "DCS_DB_ICON_SET")}
             </button>
           )}
           {onAppearance && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: onPickIcon ? "none" : "1px solid #E0E0E0", color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onAppearance)}>
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: onPickIcon ? "none" : `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onAppearance)}>
               {translate("DCS_DB_COLOR_SETTINGS")}
             </button>
           )}

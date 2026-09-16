@@ -99,7 +99,7 @@ function HorizontalBars({ rows, onItemClick, palette, animate, density, fitMode 
         <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} horizontal={false} />
         <XAxis type="number" tick={tick_style(palette, density)} allowDecimals={false} stroke={palette.grid} height={density.font * 2} />
         <YAxis type="category" dataKey="label" width={width} interval={0} stroke={palette.grid} tick={wrapped_tick(palette, room, "end", density.font)} />
-        <Tooltip contentStyle={palette.tooltip} />
+        <Tooltip contentStyle={palette.tooltip} itemStyle={palette.tooltip_text} labelStyle={palette.tooltip_text} />
         <Bar dataKey="value" {...animation(animate)} maxBarSize={density.bar} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
           {value_cells(rows, palette)}
           <ValueLabels density={density} palette={palette} dataKey="value" position="right" />
@@ -125,7 +125,7 @@ function VerticalMarks({ rows, onItemClick, palette, animate, density, shape, fi
       <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
       <XAxis dataKey="label" interval={0} height={axis_height} stroke={palette.grid} tick={wrapped_tick(palette, x_room, "middle", density.font)} />
       <YAxis tick={tick_style(palette, density)} allowDecimals={false} stroke={palette.grid} width={y_width} />
-      <Tooltip contentStyle={palette.tooltip} />
+      <Tooltip contentStyle={palette.tooltip} itemStyle={palette.tooltip_text} labelStyle={palette.tooltip_text} />
     </>
   );
   if (shape === "column") {
@@ -224,7 +224,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
             <YAxis tick={tick_style(palette, density)} allowDecimals={mode === "stacked_100"} unit={mode === "stacked_100" ? "%" : undefined} stroke={palette.grid} width={y_width} />
           </>
         )}
-        <Tooltip contentStyle={palette.tooltip} formatter={(value, name) => [value, display.items.find((item) => item.key === name)?.label || name]} />
+        <Tooltip contentStyle={palette.tooltip} itemStyle={palette.tooltip_text} labelStyle={palette.tooltip_text} formatter={(value, name) => [value, display.items.find((item) => item.key === name)?.label || name]} />
         {display.items.map((item, index) => (
           <Bar key={item.key} dataKey={item.key} stackId={stacked ? "stack" : undefined} fill={pattern_fill(uid, item.split_index, item.pattern_index, item.color)} {...animation(animate)} maxBarSize={horizontal ? density.bar : density.column_bar}>
             {density.show_values &&

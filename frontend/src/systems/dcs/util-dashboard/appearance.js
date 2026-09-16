@@ -91,6 +91,8 @@ export function build_palette(raw, board_theme) {
     color_for,
     tick: { fontSize: 11, fill: mode.text },
     tooltip: { borderRadius: 0, border: `1px solid ${extras.border}`, fontSize: 12, backgroundColor: mode.background, color: mode.text },
+    // Recharts paints tooltip rows black unless told otherwise - unreadable on a dark board.
+    tooltip_text: { color: mode.text },
     legend_style: { fontSize: 11, color: mode.text },
   };
 }

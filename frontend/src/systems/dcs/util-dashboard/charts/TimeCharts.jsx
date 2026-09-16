@@ -41,7 +41,7 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
         <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
         <XAxis dataKey="label" interval={tick_interval} height={axis_height} stroke={colors.grid} tick={wrapped_tick(colors, x_room, "middle", size.font)} />
         <YAxis tick={tick_style(colors, size)} allowDecimals={false} stroke={colors.grid} width={y_width} />
-        <Tooltip contentStyle={colors.tooltip} />
+        <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} />
         <Area type="monotone" dataKey="value" stroke={accent} fill={accent} fillOpacity={0.18} strokeWidth={2.5} {...animation(animate)}>
           {size.show_values && <LabelList dataKey="value" position="top" formatter={show_value} style={{ fontSize: value_font, fontWeight: 600, fill: accent }} />}
         </Area>
@@ -51,7 +51,7 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
         <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
         <XAxis dataKey="label" interval={tick_interval} height={axis_height} stroke={colors.grid} tick={wrapped_tick(colors, x_room, "middle", size.font)} />
         <YAxis tick={tick_style(colors, size)} allowDecimals={false} stroke={colors.grid} width={y_width} />
-        <Tooltip contentStyle={colors.tooltip} />
+        <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} />
         {has_series ? (
           series.map((key, index) => {
             const color = colors.color_for(key, index);

@@ -824,7 +824,7 @@ const kn = {
   DCS_DB_RESIZE: "Ingano",
   DCS_DB_EDIT: "Hindura",
   DCS_DB_RETRY: "Ongera ugerageze",
-  DCS_DB_NO_DATA: "Nta makuru y'iki gishushanyo arahari",
+  DCS_DB_NO_DATA: "Nta kintu cyo kwerekana ubu",
   DCS_DB_LOCKED: "Uburenganzira bwawe ntibugera ku makuru y'iyi fishi",
   DCS_DB_WIDGET_ERROR: "Iki gishushanyo nticyashoboye gupakirwa",
   DCS_DB_WIDGET_SLOW: "Iki gishushanyo cyarengeje iminota 3 kirahagarikwa",

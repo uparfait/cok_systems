@@ -42,7 +42,7 @@ export default function TreemapChart({ nodes, palette, animate, density }) {
   return (
     <ResponsiveContainer width="100%" height={size.height}>
       <Treemap data={nodes} dataKey="value" nameKey="name" isAnimationActive={animate !== false} animationDuration={700} animationEasing="ease-out" content={<TreemapCell palette={colors} fontSize={Math.max(9, size.font)} />}>
-        <Tooltip contentStyle={colors.tooltip} formatter={(value, name) => [value, name]} />
+        <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} formatter={(value, name) => [value, name]} />
       </Treemap>
     </ResponsiveContainer>
   );

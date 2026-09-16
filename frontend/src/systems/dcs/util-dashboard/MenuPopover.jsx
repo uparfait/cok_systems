@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useBoardTheme } from "./boardTheme.jsx";
 import { portal_root } from "./portalRoot.js";
 
 const MARGIN = 8;
@@ -19,6 +20,7 @@ const MARGIN = 8;
 export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHeight, children, role, align }) {
   const panel_ref = useRef(null);
   const [placement, setPlacement] = useState(null);
+  const board = useBoardTheme();
 
   useLayoutEffect(() => {
     if (!open) return undefined;
@@ -74,7 +76,7 @@ export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHei
     <div
       ref={panel_ref}
       role={role || "menu"}
-      className="dcs-menu-popover fixed border-2 shadow-lg"
+      className={`dcs-menu-popover fixed border-2 shadow-lg ${board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`}
       style={{
         top: placement ? placement.top : -9999,
         left: placement ? placement.left : -9999,
