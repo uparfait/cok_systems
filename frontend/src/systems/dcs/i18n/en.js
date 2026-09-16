@@ -487,6 +487,8 @@ const en = {
   DCS_TRANSFER_CONFIRM_MESSAGE: "The selected employee becomes the owner and you may lose access. This cannot be undone from your side.",
   DCS_TOAST_OWNERSHIP_TRANSFERRED: "Ownership was transferred to {{name}}",
   DCS_DB_TITLE: "Dashboards",
+  DCS_DB_EXPAND_WIDGET: "View this widget in full",
+  DCS_DB_COLLAPSE_WIDGET: "Back to its place",
   DCS_DB_SWITCH_TITLE: "Dashboards",
   DCS_DB_SWITCH_ACTIVE: "open",
   DCS_DB_ADD_DASHBOARD: "Add dashboard",

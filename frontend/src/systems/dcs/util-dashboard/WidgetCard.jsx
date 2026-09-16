@@ -26,12 +26,12 @@ const SURFACE_TEXT = "var(--board-text, #333333)";
  * they draw from it (see charts/density.js), so a widget set to "small"
  * really draws a small chart instead of stretching its card open.
  */
-function useCardWidth(element_ref) {
-  const [width, setWidth] = useState(0);
+function useCardSize(element_ref) {
+  const [size, setSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
     const element = element_ref.current;
     if (!element) return undefined;
-    const measure = () => setWidth(element.clientWidth);
+    const measure = () => setSize({ width: element.clientWidth, height: element.clientHeight });
     measure();
     if (typeof window.ResizeObserver !== "function") {
       window.addEventListener("resize", measure);
@@ -41,7 +41,7 @@ function useCardWidth(element_ref) {
     observer.observe(element);
     return () => observer.disconnect();
   }, [element_ref]);
-  return width;
+  return size;
 }
 
 function StateMessage({ children, tone, height }) {
@@ -149,7 +149,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
  * multi-series line form - see convertible_types), and remove the widget.
  * Closes on outside click.
  */
-function CardMenu({ widget, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon }) {
+function CardMenu({ widget, palette, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon }) {
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
   const button_ref = useRef(null);
@@ -189,7 +189,7 @@ function CardMenu({ widget, onChangeType, onChangeSize, onRemove, onAppearance, 
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         className="flex items-center justify-center"
-        style={{ width: 26, height: 26, border: `1px solid ${SURFACE_BORDER}`, color: "var(--board-muted, #555555)", backgroundColor: open ? "var(--board-surface-hover, #F0F7FB)" : SURFACE, cursor: "pointer" }}
+        style={{ width: 26, height: 26, border: `1px solid ${palette ? palette.border : SURFACE_BORDER}`, color: palette ? palette.muted : "var(--board-muted, #555555)", backgroundColor: open ? (palette && palette.is_dark ? "rgba(255, 255, 255, 0.08)" : "var(--board-surface-hover, #F0F7FB)") : palette ? palette.background : SURFACE, cursor: "pointer" }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="12" cy="5" r="2" />
@@ -197,7 +197,7 @@ function CardMenu({ widget, onChangeType, onChangeSize, onRemove, onAppearance, 
           <circle cx="12" cy="19" r="2" />
         </svg>
       </button>
-      <MenuPopover open={open} anchorRef={button_ref} onClose={() => setOpen(false)} minWidth={200}>
+      <MenuPopover open={open} anchorRef={button_ref} onClose={() => setOpen(false)} minWidth={200} palette={palette}>
         <>
           {onChangeSize && (
             <>
@@ -308,7 +308,7 @@ function KpiIconSlot({ icon, color }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect }) {
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -334,7 +334,10 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
   const drawn_ref = useRef(false);
   const animate = !drawn_ref.current;
   const chart_ref = useRef(null);
-  const chart_width = useCardWidth(chart_ref);
+  const chart_size = useCardSize(chart_ref);
+  // Lifted to fill the screen, the chart grows to the room it is given
+  // (minus the axis and padding under it) instead of its usual height.
+  const fill_height = expanded ? Math.max(0, chart_size.height - 56) : 0;
   useEffect(() => {
     if (data && !data.error && !data.locked) drawn_ref.current = true;
   }, [data]);
@@ -392,7 +395,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
         {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon) && (
-          <CardMenu widget={widget} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi ? onPickIcon : undefined} />
+          <CardMenu widget={widget} palette={palette} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi ? onPickIcon : undefined} />
         )}
       </div>
 
@@ -428,7 +431,7 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
             )}
           </div>
         ) : (
-          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_width} />
+          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_size.width} fillHeight={fill_height} />
         )}
       </div>
 

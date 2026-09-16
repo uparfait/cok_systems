@@ -487,6 +487,8 @@ const fr = {
   DCS_TRANSFER_CONFIRM_MESSAGE: "L'employé sélectionné devient le propriétaire et vous pouvez perdre l'accès. Cette action ne peut pas être annulée de votre côté.",
   DCS_TOAST_OWNERSHIP_TRANSFERRED: "La propriété a été transférée à {{name}}",
   DCS_DB_TITLE: "Tableaux de bord",
+  DCS_DB_EXPAND_WIDGET: "Voir ce widget en plein ecran",
+  DCS_DB_COLLAPSE_WIDGET: "Retour a sa place",
   DCS_DB_SWITCH_TITLE: "Tableaux de bord",
   DCS_DB_SWITCH_ACTIVE: "ouvert",
   DCS_DB_ADD_DASHBOARD: "Ajouter un tableau de bord",

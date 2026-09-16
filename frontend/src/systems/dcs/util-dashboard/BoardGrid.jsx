@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import WidgetCard from "./WidgetCard.jsx";
+import ExpandableSlot from "./ExpandableSlot.jsx";
 
 // Flexible auto-grow grid: a chart's own size (changed from its menu) is
 // the FRACTION OF A ROW it claims, and neighbours that still fit share
@@ -23,7 +24,9 @@ const SIZE_CLASSES = {
  * phones, 3 on tablets, 4 on large screens - then every chart in the
  * flexible auto-grow grid below. With `selection` (the selection mode) each
  * card is clickable to select and draggable onto another card to move it
- * there; inline editing is off meanwhile.
+ * there; inline editing is off meanwhile. Every card sits in an
+ * ExpandableSlot: its hover button grows the card to fill the screen above
+ * the others and back - one card at a time.
  */
 export default function BoardGrid({
   widgets,
@@ -42,12 +45,14 @@ export default function BoardGrid({
 }) {
   const [dragging_id, setDraggingId] = useState(null);
   const [over_id, setOverId] = useState(null);
+  const [expanded_id, setExpandedId] = useState(null);
   const kpi_widgets = widgets.filter((widget) => widget.chart_type === "kpi");
   const chart_widgets = widgets.filter((widget) => widget.chart_type !== "kpi");
   const selecting = !!selection;
 
   const render_card = (widget) => (
-    <WidgetCard
+    <ExpandableSlot expanded={expanded_id === widget.id} onToggle={() => setExpandedId((current) => (current === widget.id ? null : widget.id))} hideButton={selecting}>
+      <WidgetCard
       widget={widget}
       data={dataByWidget[widget.id]}
       loading={dataLoading && !dataByWidget[widget.id]}
@@ -65,7 +70,9 @@ export default function BoardGrid({
       selectable={selecting}
       selected={selecting && selection.selected.has(widget.id)}
       onSelect={selecting ? () => selection.onToggle(widget.id) : undefined}
+      expanded={expanded_id === widget.id}
     />
+    </ExpandableSlot>
   );
 
   // Drag-and-drop reordering, active only in the selection mode.

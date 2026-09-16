@@ -487,6 +487,8 @@ const kn = {
   DCS_TRANSFER_CONFIRM_MESSAGE: "Umukozi wahiswemo aba nyiri byose kandi ushobora gutakaza uburenganzira. Ibi ntibishobora gusubizwa inyuma na wowe.",
   DCS_TOAST_OWNERSHIP_TRANSFERRED: "Ubunyiri bwimuriwe {{name}}",
   DCS_DB_TITLE: "Imbonerahamwe",
+  DCS_DB_EXPAND_WIDGET: "Reba iki gice cyuzuye",
+  DCS_DB_COLLAPSE_WIDGET: "Subiza aho cyari",
   DCS_DB_SWITCH_TITLE: "Imbonerahamwe",
   DCS_DB_SWITCH_ACTIVE: "ifunguye",
   DCS_DB_ADD_DASHBOARD: "Ongeraho imbonerahamwe",

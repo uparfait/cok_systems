@@ -15,12 +15,25 @@ const MARGIN = 8;
  * when there is more room there, and is clamped inside the viewport. It
  * follows the trigger while the page scrolls or resizes, and closes on an
  * outside click, on Escape, and whenever the trigger itself scrolls out of
- * sight.
+ * sight. Given a widget's palette it mimics THAT widget - its own light or
+ * dark look and colors - instead of the board's: the palette is written as
+ * the board variables on the panel, so every item inside follows it.
  */
-export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHeight, children, role, align }) {
+export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHeight, children, role, align, palette }) {
   const panel_ref = useRef(null);
   const [placement, setPlacement] = useState(null);
   const board = useBoardTheme();
+  const is_dark = palette ? !!palette.is_dark : board.is_dark;
+  const mimic = palette
+    ? {
+        "--board-surface": palette.background,
+        "--board-surface-hover": palette.is_dark ? "rgba(255, 255, 255, 0.08)" : "rgba(5, 109, 170, 0.08)",
+        "--board-border": palette.border,
+        "--board-text": palette.text,
+        "--board-muted": palette.muted,
+        color: palette.text,
+      }
+    : {};
 
   useLayoutEffect(() => {
     if (!open) return undefined;
@@ -76,7 +89,7 @@ export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHei
     <div
       ref={panel_ref}
       role={role || "menu"}
-      className={`dcs-menu-popover fixed border-2 shadow-lg ${board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`}
+      className={`dcs-menu-popover fixed border-2 shadow-lg ${is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`}
       style={{
         top: placement ? placement.top : -9999,
         left: placement ? placement.left : -9999,
@@ -87,6 +100,7 @@ export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHei
         backgroundColor: "var(--board-surface, #FFFFFF)",
         borderColor: "var(--board-border, #E0E0E0)",
         visibility: placement ? "visible" : "hidden",
+        ...mimic,
       }}
     >
       {children}

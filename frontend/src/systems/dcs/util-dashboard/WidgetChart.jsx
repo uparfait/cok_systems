@@ -20,14 +20,16 @@ const OTHER_KEY = "__other__";
  * expander line under the chart) swaps the card to a bar view of everything
  * folded inside it, with a way back.
  */
-export default function WidgetChart({ widget, data, fitMode, animate, cardWidth }) {
+export default function WidgetChart({ widget, data, fitMode, animate, cardWidth, fillHeight }) {
   const { translate } = useDcsLanguage();
   const [show_other, setShowOther] = useState(false);
   const board = useBoardTheme();
   const palette = build_palette(widget.appearance, board.theme);
   // Everything the chart draws is sized from the card it was given, never
   // the other way round - a small widget stays small whatever it holds.
-  const density = chart_density(cardWidth);
+  const base_density = chart_density(cardWidth);
+  // An expanded card offers more height than the profile's own: take it.
+  const density = fillHeight > base_density.height ? { ...base_density, height: fillHeight, max_height: Math.max(base_density.max_height || 0, fillHeight) } : base_density;
 
   if (!data) return null;
 
