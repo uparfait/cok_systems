@@ -60,14 +60,14 @@ export default function BoardWithSelection({ form, fields, widgets, editable, on
   const [menu, setMenu] = useState(null);
   const [confirm_exit, setConfirmExit] = useState(false);
   const [confirm_delete, setConfirmDelete] = useState(false);
+  const [bulk_open, setBulkOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const selection = useBoardSelection(widgets);
   // The page follows the mode: filters, for one, only reorder while it is on.
   useEffect(() => {
     if (onSelectionChange) onSelectionChange(selection.active);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection.active]);
-  const [bulk_open, setBulkOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const selection = useBoardSelection(widgets);
   const shown = selection.active ? selection.working : widgets;
 
   const request_exit = () => {
