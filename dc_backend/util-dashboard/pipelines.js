@@ -256,9 +256,35 @@ async function tree_rows(widget, bounds, catalog, parent_field_id) {
   return run_pipeline(pipeline);
 }
 
+/**
+ * How many DIFFERENT values each of these fields holds under the widget's
+ * own selection - its filters, the board's and the window - so a chart can
+ * say "total districts 40" under its legend. One round trip for all of
+ * them.
+ */
+async function dimension_counts(widget, bounds, catalog, field_ids) {
+  if (!Array.isArray(field_ids) || field_ids.length === 0) return [];
+  const facets = {};
+  field_ids.forEach((field_id, index) => {
+    facets[`f${index}`] = [
+      ...unwind_stages(catalog, [field_id]),
+      { $match: { [`data.${field_id}`]: { $nin: [null, ""] } } },
+      { $group: { _id: `$data.${field_id}` } },
+      { $count: "value" },
+    ];
+  });
+  const rows = await run_pipeline([build_match_stage(widget, bounds), { $facet: facets }]);
+  const facet = rows[0] || {};
+  return field_ids.map((field_id, index) => {
+    const bucket = facet[`f${index}`];
+    return { field_id, count: (bucket && bucket[0] && bucket[0].value) || 0 };
+  });
+}
+
 module.exports = {
   time_source_expr,
   category_rows,
+  dimension_counts,
   occurrence_rows,
   split_rows,
   time_rows,

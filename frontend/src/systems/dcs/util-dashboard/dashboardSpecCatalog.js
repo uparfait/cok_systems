@@ -100,7 +100,7 @@ function widget_shape() {
     description: "Optional, up to 300 characters, shown under the title.",
     chart_type: `One of: ${Object.keys(CHART_TEXT).join(", ")} (see chart_types).`,
     metric: "{ aggregation, field_id } - the measure. aggregation is one of the formulas; field_id is a numeric field for numeric formulas, any field (or null for whole submissions) for count, any field for count_distinct. Point charts (scatter, bubble) ignore metric.",
-    group_by: "{ field_id } for category and tree charts (a choice field); { field_id, granularity } for time charts where field_id is 'submitted_at' or a date field and granularity is one of the time_granularities. null for KPI and point charts.",
+    group_by: "{ field_id } for category and tree charts (a choice field); { field_id, granularity } for time charts where field_id is 'submitted_at' or a date field and granularity is one of the time_granularities. null for KPI and point charts. Optional everywhere else too: with no group_by the chart draws one mark per split_by value, and with neither it draws the single total of what it selects.",
     split_by: "{ field_id } of a second choice field (different from group_by) - required by grouped/stacked/heatmap types, optional on line, forbidden elsewhere.",
     pattern_by: "{ field_id } of a third choice field drawn as a texture inside each split color - grouped/stacked bar and column charts only. Usually null.",
     legend_by: "{ field_id } of a choice field - KPI cards only: lists the count per value under the number. Not with median, cumulative_sum, moving_average or occurrences.",
@@ -129,7 +129,7 @@ function chart_types_doc() {
     const rules = type_rules(entry.type);
     doc[entry.type] = {
       kind: entry.kind,
-      needs: entry.kind === "kpi" ? "metric only (plus optional legend_by, icon)" : entry.kind === "point" ? "x_field_id and y_field_id (numeric)" + (entry.type === "bubble" ? ", size_field_id (numeric)" : "") : entry.kind === "time" ? "metric and group_by { field_id: 'submitted_at' or a date field, granularity }" : "metric and group_by (a choice field)",
+      needs: entry.kind === "kpi" ? "metric only (plus optional legend_by, icon)" : entry.kind === "point" ? "x_field_id and y_field_id (numeric)" + (entry.type === "bubble" ? ", size_field_id (numeric)" : "") : entry.kind === "time" ? "metric and group_by { field_id: 'submitted_at' or a date field, granularity }" : "metric; group_by (a choice field) is optional",
       split_by: rules.split === "required" ? "required (a second choice field)" : rules.split === "optional" ? "optional" : "not allowed",
       max_slices: rules.slices || undefined,
       description: CHART_TEXT[entry.type] || "",

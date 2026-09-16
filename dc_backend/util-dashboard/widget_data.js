@@ -1,7 +1,7 @@
 const pipelines = require("./pipelines.js");
 const { kpi_metric_result } = require("./kpi_metrics.js");
 const { effective_bounds } = require("./match_stage.js");
-const { build_field_catalog, parent_field_id_of, is_categorical } = require("./field_catalog.js");
+const { build_field_catalog, field_label_text, parent_field_id_of, is_categorical } = require("./field_catalog.js");
 const { CHART_TYPES, CHART_KINDS, LIMITS } = require("./constants.js");
 
 /**
@@ -12,6 +12,8 @@ const { CHART_TYPES, CHART_KINDS, LIMITS } = require("./constants.js");
  */
 
 const OTHER_KEY = "__other__";
+// The one row a widget with nothing to group by draws: its own total.
+const TOTAL_KEY = "__total__";
 const MAX_SERIES = 12;
 const MAX_PATTERNS = 6;
 const SERIES_KEY_SEPARATOR = "||";
@@ -299,15 +301,57 @@ async function compute_occurrences(widget, kind, bounds, catalog) {
 }
 
 /**
+ * The "total X" line a chart carries under its legend: for every choice
+ * field the widget reads - what it groups by, splits by, patterns by, the
+ * values a KPI legends by, the field an occurrence widget counts - how
+ * many different values that field holds under the widget's own filters,
+ * the board's filters and the window. Everything the viewer filters is
+ * therefore reflected in the numbers.
+ */
+async function dimension_totals(widget, bounds, catalog) {
+  const shaped = ungrouped_widget(widget);
+  const ids = [];
+  const add = (field_id) => {
+    if (field_id && catalog.fields_by_id.has(field_id) && is_categorical(catalog, field_id) && !ids.includes(field_id)) ids.push(field_id);
+  };
+  if (((widget.metric && widget.metric.aggregation) || "count") === "occurrences") add(widget.metric && widget.metric.field_id);
+  [shaped.group_by, shaped.split_by, shaped.pattern_by, shaped.legend_by].forEach((ref) => ref && add(ref.field_id));
+  const counts = await pipelines.dimension_counts(shaped, bounds, catalog, ids);
+  return counts.map((entry) => ({ field_id: entry.field_id, label: field_label_text(catalog.fields_by_id.get(entry.field_id)), count: entry.count }));
+}
+
+/**
+ * Group by is optional. With no group field a widget draws its SPLIT
+ * field instead - one mark per split value - and with neither it is the
+ * single total of everything it selects. Shaping it in one place keeps
+ * the charts, the records behind them and the export reading the same
+ * widget.
+ */
+function ungrouped_widget(widget) {
+  if (!widget || (widget.group_by && widget.group_by.field_id)) return widget;
+  if (widget.split_by && widget.split_by.field_id) return Object.assign({}, widget, { group_by: { field_id: widget.split_by.field_id }, split_by: null, pattern_by: null });
+  return widget;
+}
+
+/**
  * The complete data of one widget. The caller has already verified access
  * and resolved the form's active version (for its field catalog).
  */
-async function compute_widget_data(widget, form_version, period_override) {
+async function widget_data_of(raw_widget, form_version, period_override) {
   const catalog = build_field_catalog(form_version.schema);
-  const bounds = effective_bounds(widget, period_override);
-  let kind = (CHART_TYPES[widget.chart_type] || {}).kind;
-  if (((widget.metric && widget.metric.aggregation) || "count") === "occurrences") {
-    return compute_occurrences(widget, kind, bounds, catalog);
+  const bounds = effective_bounds(raw_widget, period_override);
+  let kind = (CHART_TYPES[raw_widget.chart_type] || {}).kind;
+  if (((raw_widget.metric && raw_widget.metric.aggregation) || "count") === "occurrences") {
+    return compute_occurrences(raw_widget, kind, bounds, catalog);
+  }
+  const widget = kind === CHART_KINDS.KPI || kind === CHART_KINDS.POINT ? raw_widget : ungrouped_widget(raw_widget);
+  // Nothing to group by and nothing to split by: the widget is one number,
+  // drawn as the single mark of a one-row chart.
+  if (!(widget.group_by && widget.group_by.field_id) && kind !== CHART_KINDS.KPI && kind !== CHART_KINDS.POINT) {
+    const total = await kpi_metric_result(widget, bounds, catalog);
+    const rows = [{ label: TOTAL_KEY, value: total.current || 0 }];
+    if (kind === CHART_KINDS.TREE) return { kind, nodes: [{ name: TOTAL_KEY, value: total.current || 0 }] };
+    return { kind: CHART_KINDS.CATEGORY, rows, series: [], other_folded: false, other_rows: [] };
   }
   // A line/area chart grouped by a CHOICE field charts categories, not
   // time - any category chart can be flipped into a line/area look and
@@ -359,8 +403,22 @@ async function compute_widget_data(widget, form_version, period_override) {
   return { kind, rows: shaped.rows, series: [], other_folded: shaped.other_folded, other_rows: shaped.other_rows };
 }
 
+/**
+ * The complete data of one widget, plus the totals line under its legend.
+ */
+async function compute_widget_data(widget, form_version, period_override) {
+  const data = await widget_data_of(widget, form_version, period_override);
+  // A KPI card is one number with its own legend: no count line under it.
+  if (data.kind === CHART_KINDS.KPI) return data;
+  const catalog = build_field_catalog(form_version.schema);
+  data.totals = await dimension_totals(widget, effective_bounds(widget, period_override), catalog);
+  return data;
+}
+
 module.exports = {
   compute_widget_data,
+  ungrouped_widget,
   time_bucket_range,
   OTHER_KEY,
+  TOTAL_KEY,
 };

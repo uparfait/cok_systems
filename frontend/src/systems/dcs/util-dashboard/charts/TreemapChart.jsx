@@ -6,8 +6,8 @@ import { fit_text } from "./chartLabels.jsx";
 
 /**
  * Custom cell so every rectangle carries a readable label whenever it is
- * large enough for one, tinted by its root branch so siblings read as one
- * family - the branch's own value color when one was configured. A label
+ * large enough for one (and its number alone when only that fits), tinted
+ * by its root branch so siblings read as one family - the branch's own value color when one was configured. A label
  * is drawn only when its rectangle can hold it, so nothing ever spills
  * over a neighbouring tile.
  */
@@ -21,6 +21,8 @@ function TreemapCell(props) {
   // fits the tile - never drawn over its neighbour.
   const label = fit_text(name, width - 10, fontSize);
   const show_label = height > fontSize * 2.2 && label !== "";
+  // A tile too small for its name still carries its number.
+  const value_only = !show_label && height > fontSize * 1.5 && width > fontSize * 1.8;
   return (
     <g onClick={click} style={click ? { cursor: "pointer" } : undefined}>
       <rect x={x} y={y} width={width} height={height} style={{ fill: palette.color_for(color_label, color_index), stroke: palette.background, strokeWidth: 2 }} />
@@ -29,8 +31,13 @@ function TreemapCell(props) {
           {label}
         </text>
       )}
-      {show_label && height > fontSize * 3.6 && (
+      {show_label && height > fontSize * 3.2 && (
         <text x={x + 5} y={y + fontSize * 2.4 + 3} fill="rgba(255,255,255,0.85)" fontSize={fontSize}>
+          {value}
+        </text>
+      )}
+      {value_only && (
+        <text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" fontSize={fontSize} fontWeight={600} textAnchor="middle" dominantBaseline="central">
           {value}
         </text>
       )}

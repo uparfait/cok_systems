@@ -194,7 +194,7 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
           {(rules.kind === "category" || rules.kind === "tree") && (
             <>
               {choice_options.length === 0 && <Problem>{translate("DCS_DB_NO_CHOICE_FIELDS_HINT")}</Problem>}
-              <FieldSelect label={translate("DCS_DB_FIELD_GROUP")} options={choice_options} value={spec.group_id} onChange={(group_id) => patch({ group_id, split_id: spec.split_id === group_id ? "" : spec.split_id })} placeholder={translate("DCS_DB_FIELD_GROUP_PLACEHOLDER")} disabled={disabled} />
+              <FieldSelect label={translate("DCS_DB_GROUP_OPTIONAL")} options={choice_options} value={spec.group_id} onChange={(group_id) => patch({ group_id, split_id: spec.split_id === group_id ? "" : spec.split_id })} placeholder={translate("DCS_DB_FIELD_GROUP_PLACEHOLDER")} disabled={disabled} allowClear />
               {rules.split !== "none" && (
                 <FieldSelect
                   label={translate(rules.split === "required" ? "DCS_DB_FIELD_SPLIT" : "DCS_DB_SPLIT_OPTIONAL")}

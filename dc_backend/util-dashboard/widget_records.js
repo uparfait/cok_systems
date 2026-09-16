@@ -1,12 +1,12 @@
 const { get_db } = require("../db_connection/db.js");
+const forms_model = require("../models/forms_model.js");
 const { flatten_fields } = require("../jsonlogic/dependency_graph.js");
-const { TEST_DATA_FLAG } = require("../models/submissions_model.js");
 const { sanitize_widget, sanitize_period_override } = require("./sanitize.js");
 const { validate_dashboard } = require("./widget_validation.js");
 const { build_match_stage, effective_bounds, value_candidates, numeric_expr } = require("./match_stage.js");
 const { build_field_catalog, field_label_text, parent_field_id_of } = require("./field_catalog.js");
 const { sanitize_applied_filters, merge_applied, apply_board_filters } = require("./board_filters.js");
-const { time_bucket_range } = require("./widget_data.js");
+const { time_bucket_range, ungrouped_widget } = require("./widget_data.js");
 const pipelines = require("./pipelines.js");
 const { SUBMITTED_AT_FIELD } = require("./constants.js");
 
@@ -110,12 +110,41 @@ async function pick_conditions(widget, pick, bounds, catalog) {
   return { conditions, criteria };
 }
 
-/** The answerable fields of the form's active version, as table columns (labels in the asked language). */
-function columns_of(form_version, language) {
+/**
+ * The answerable fields a records table may show: the active version's own
+ * fields, in its order, then the fields only older versions carry (records
+ * submitted back then still answer them), labelled in the asked language.
+ * A share link may allow only some of them - `allowed` then lists the field
+ * ids, and nothing else ever leaves the server.
+ */
+async function table_columns(form_group_id, form_version, language, allowed) {
   const text = (label) => (label && (label[language] || label.en || label.kn || label.fr)) || "";
-  return flatten_fields((form_version.schema && form_version.schema.fields) || [])
-    .filter((field) => field && field.id && !NON_DATA_TYPES.includes(field.type))
-    .map((field) => ({ id: field.id, type: field.type, label: text(field.label) || field_label_text(field) }));
+  const versions = await forms_model.get_versions_by_group(form_group_id);
+  const ordered = [form_version].concat((versions || []).filter((entry) => entry && entry.version !== form_version.version));
+  const seen = new Set();
+  const columns = [];
+  ordered.forEach((version) => {
+    flatten_fields((version && version.schema && version.schema.fields) || [])
+      .filter((field) => field && field.id && !NON_DATA_TYPES.includes(field.type) && !seen.has(field.id))
+      .forEach((field) => {
+        seen.add(field.id);
+        columns.push({ id: field.id, type: field.type, label: text(field.label) || field_label_text(field) });
+      });
+  });
+  const keep = Array.isArray(allowed) && allowed.length > 0 ? new Set(allowed) : null;
+  return keep ? columns.filter((column) => keep.has(column.id)) : columns;
+}
+
+/** Each record cut down to the columns being sent - a hidden field never leaves the server. */
+function project_items(items, columns) {
+  const ids = columns.map((column) => column.id);
+  return items.map((item) => {
+    const data = {};
+    ids.forEach((id) => {
+      if (item.data && item.data[id] !== undefined) data[id] = item.data[id];
+    });
+    return { _id: item._id, submitted_at: item.submitted_at, version: item.version, data };
+  });
 }
 
 /**
@@ -123,7 +152,7 @@ function columns_of(form_version, language) {
  * Mongo match, the criteria the rows satisfy, the period and the columns.
  * { invalid } when the widget itself does not pass validation.
  */
-async function records_query(body, form_group_id, form_version, project_id, forced_filters) {
+async function records_query(body, form_group_id, form_version, project_id, forced_filters, allowed_fields) {
   const widget = sanitize_widget(body.widget);
   if (!widget) return { invalid: ["widget missing"] };
   widget.form_group_id = form_group_id;
@@ -132,7 +161,7 @@ async function records_query(body, form_group_id, form_version, project_id, forc
 
   const catalog = build_field_catalog(form_version.schema);
   const applied = merge_applied(sanitize_applied_filters(body.filters), forced_filters || []);
-  const shaped = apply_board_filters(widget, applied, catalog).widget;
+  const shaped = ungrouped_widget(apply_board_filters(widget, applied, catalog).widget);
   const period_override = sanitize_period_override(body.period);
   const bounds = effective_bounds(shaped, period_override);
   const base = build_match_stage(shaped, bounds).$match;
@@ -144,11 +173,12 @@ async function records_query(body, form_group_id, form_version, project_id, forc
     .filter((filter) => filter.operator === "eq" && catalog.fields_by_id.has(filter.field_id))
     .map((filter) => ({ field_id: filter.field_id, field_label: label_of(filter.field_id), value: filter.value }))
     .concat(picked.criteria);
-  return { match, criteria, period: bounds ? { start: bounds.start, end: bounds.end } : null, columns: columns_of(form_version, body.language || "en") };
+  const columns = await table_columns(form_group_id, form_version, body.language || "en", allowed_fields);
+  return { match, criteria, period: bounds ? { start: bounds.start, end: bounds.end } : null, columns };
 }
 
-async function compute_widget_records(body, form_group_id, form_version, project_id, forced_filters) {
-  const query = await records_query(body, form_group_id, form_version, project_id, forced_filters);
+async function compute_widget_records(body, form_group_id, form_version, project_id, forced_filters, allowed_fields) {
+  const query = await records_query(body, form_group_id, form_version, project_id, forced_filters, allowed_fields);
   if (query.invalid) return query;
   const page = Math.max(1, parseInt(body.page, 10) || 1);
   const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(body.limit, 10) || DEFAULT_PAGE_SIZE));
@@ -162,15 +192,12 @@ async function compute_widget_records(body, form_group_id, form_version, project
       .toArray(),
     collection.countDocuments(query.match),
   ]);
-  items.forEach((item) => {
-    delete item[TEST_DATA_FLAG];
-  });
-  return { items, total, page, limit, columns: query.columns, criteria: query.criteria, period: query.period };
+  return { items: project_items(items, query.columns), total, page, limit, columns: query.columns, criteria: query.criteria, period: query.period };
 }
 
 /** Every matching record (capped), oldest first, for the Excel export. */
-async function collect_widget_records(body, form_group_id, form_version, project_id, forced_filters) {
-  const query = await records_query(body, form_group_id, form_version, project_id, forced_filters);
+async function collect_widget_records(body, form_group_id, form_version, project_id, forced_filters, allowed_fields) {
+  const query = await records_query(body, form_group_id, form_version, project_id, forced_filters, allowed_fields);
   if (query.invalid) return query;
   const items = await get_db()
     .collection(COLLECTION)
@@ -178,10 +205,7 @@ async function collect_widget_records(body, form_group_id, form_version, project
     .sort({ submitted_at: 1, _id: 1 })
     .limit(MAX_EXPORT_ROWS)
     .toArray();
-  items.forEach((item) => {
-    delete item[TEST_DATA_FLAG];
-  });
-  return { items, columns: query.columns, criteria: query.criteria, period: query.period };
+  return { items: project_items(items, query.columns), columns: query.columns, criteria: query.criteria, period: query.period };
 }
 
 module.exports = {

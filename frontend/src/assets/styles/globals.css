@@ -3259,6 +3259,98 @@ background-color: #056daa;
   outline: none !important;
 }
 
+/* Which record fields a share link's viewers may see. */
+.dcs-record-fields-count {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9E9E9E;
+}
+.dcs-record-fields-all {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #056daa;
+}
+.dcs-record-fields-all:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.dcs-record-fields-box {
+  max-height: 190px;
+  overflow-y: auto;
+  border: 1px solid #E0E0E0;
+  background-color: #FFFFFF;
+}
+.dcs-record-fields-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #F0F0F0;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  color: #333333;
+  transition: background-color 140ms ease;
+}
+.dcs-record-fields-row:last-child {
+  border-bottom: none;
+}
+.dcs-record-fields-row:hover {
+  background-color: rgba(5, 109, 170, 0.06);
+}
+.dcs-record-fields-row.is-last {
+  cursor: default;
+}
+.dcs-record-fields-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dcs-record-fields-tag {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid #E0E0E0;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #9E9E9E;
+}
+.dcs-record-fields-empty {
+  padding: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  color: #9E9E9E;
+}
+/* The count line under a chart's legend: TOTAL DISTRICTS 40. */
+.dcs-chart-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 6px 4px 0 4px;
+}
+.dcs-chart-total {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.dcs-chart-total b {
+  margin-left: 5px;
+  font-size: 11px;
+  font-weight: 800;
+}
 /* The criteria chips above the records table. */
 .dcs-records-chip {
   display: inline-flex;
@@ -3272,9 +3364,83 @@ background-color: #056daa;
   border: 1px solid rgba(5, 109, 170, 0.35);
 }
 
-/* The records overlay's export button sits on the blue header. */
-.dcs-records-export-btn {
-  border: 2px solid #FFFFFF !important;
+/* The records overlay: a panel held a little inside the screen, so the
+   board stays visible around it, rising in when opened and sinking away
+   when closed. */
+.dcs-records-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  padding: 24px;
+  background-color: rgba(17, 24, 39, 0.45);
+  animation: dcs-records-in 200ms ease both;
+}
+.dcs-records-overlay.is-closing {
+  animation: dcs-records-out 180ms ease both;
+}
+.dcs-records-panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: #FFFFFF;
+  border: 1px solid #E0E0E0;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.30);
+  overflow: hidden;
+  animation: dcs-records-panel-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.dcs-records-overlay.is-closing .dcs-records-panel {
+  animation: dcs-records-panel-out 180ms ease both;
+}
+@keyframes dcs-records-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes dcs-records-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dcs-records-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes dcs-records-panel-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+}
+@media (max-width: 640px) {
+  .dcs-records-overlay {
+    padding: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dcs-records-overlay,
+  .dcs-records-overlay.is-closing,
+  .dcs-records-panel,
+  .dcs-records-overlay.is-closing .dcs-records-panel {
+    animation-duration: 1ms;
+  }
 }
 
 /* "Clear filters" after the filter row: every filter back to All, the period untouched. */

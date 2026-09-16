@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useToast } from "../../../../core/contexts/ToastContext.tsx";
@@ -8,6 +8,8 @@ import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../../components/DcsConfirmDialog.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
 import LinkForm from "./LinkForm.jsx";
+import { record_field_options } from "./recordFieldOptions.js";
+import { get_form_versions } from "../../services/formsService.js";
 import { portal_root } from "../portalRoot.js";
 
 const PRIMARY = "#056daa";
@@ -57,6 +59,20 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
   // "new", a link id being edited, or null.
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  // Every field a records table can show, across all versions of the form -
+  // what a link's owner picks from when viewers may open the records.
+  const [versions, setVersions] = useState([]);
+  const record_fields = useMemo(() => record_field_options(versions, language), [versions, language]);
+
+  useEffect(() => {
+    let is_mounted = true;
+    get_form_versions(form.form_group_id)
+      .then((response) => is_mounted && setVersions(response.data || []))
+      .catch(() => is_mounted && setVersions([]));
+    return () => {
+      is_mounted = false;
+    };
+  }, [form.form_group_id]);
 
   useEffect(() => {
     let is_mounted = true;
@@ -151,7 +167,7 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
               {links.map((link) =>
                 editing === link.id ? (
                   <li key={link.id}>
-                    <LinkForm initial={link} saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} filters={filters} fields={fields} fetchValues={fetchFilterValues} />
+                    <LinkForm initial={link} saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} filters={filters} fields={fields} fetchValues={fetchFilterValues} recordFields={record_fields} />
                   </li>
                 ) : (
                   <li key={link.id} className="dcs-share-link-card border-2 bg-white" style={{ borderColor: link.expired ? "rgba(231,76,60,0.5)" : BORDER, borderLeft: `4px solid ${link.expired ? "#E74C3C" : PRIMARY}`, opacity: link.expired ? 0.85 : 1 }}>
@@ -209,7 +225,7 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
 
           {!loading && editing === "new" && (
             <div className="pt-2">
-              <LinkForm saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} filters={filters} fields={fields} fetchValues={fetchFilterValues} />
+              <LinkForm saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} filters={filters} fields={fields} fetchValues={fetchFilterValues} recordFields={record_fields} />
             </div>
           )}
           {!loading && editing === null && (

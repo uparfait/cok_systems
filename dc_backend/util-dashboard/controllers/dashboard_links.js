@@ -7,6 +7,7 @@ const { success_response, warning_response, error_response } = require("../../ut
 
 const MAX_TITLE = 120;
 const MAX_DESCRIPTION = 300;
+const MAX_RECORD_FIELDS = 300;
 
 /**
  * Managing a form dashboard's public share links: list, create, edit and
@@ -37,8 +38,10 @@ function strip_link(link) {
 /**
  * A link's viewing configuration: whether viewers may filter the board
  * themselves ("free") or see it under filter values fixed here ("locked"),
- * (and, optionally, a fixed period), and whether the link's title replaces
- * the dashboard's name for them.
+ * (and, optionally, a fixed period), whether the link's title replaces the
+ * dashboard's name for them, and - when they may open the records behind a
+ * widget - which fields of a record they may see (an empty list means every
+ * field).
  */
 function link_config(link) {
   const config = (link && link.config) || {};
@@ -48,6 +51,7 @@ function link_config(link) {
     locked_period: config.locked_period || null,
     show_title: config.show_title === true,
     allow_records: config.allow_records === true,
+    record_fields: Array.isArray(config.record_fields) ? config.record_fields : [],
   };
 }
 
@@ -60,6 +64,13 @@ function read_period(raw) {
   return { preset: raw.preset, from, to };
 }
 
+/** The record fields a link may show: field ids, deduped and capped. */
+function read_record_fields(raw) {
+  if (!Array.isArray(raw)) return [];
+  const ids = raw.filter((id) => typeof id === "string" && id.trim()).map((id) => id.trim());
+  return Array.from(new Set(ids)).slice(0, MAX_RECORD_FIELDS);
+}
+
 function read_config(body) {
   const raw = body && body.config && typeof body.config === "object" ? body.config : {};
   const filter_mode = raw.filter_mode === "locked" ? "locked" : "free";
@@ -69,6 +80,7 @@ function read_config(body) {
     locked_period: filter_mode === "locked" ? read_period(raw.locked_period) : null,
     show_title: raw.show_title === true,
     allow_records: raw.allow_records === true,
+    record_fields: raw.allow_records === true ? read_record_fields(raw.record_fields) : [],
   };
 }
 

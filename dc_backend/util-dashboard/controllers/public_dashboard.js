@@ -28,6 +28,7 @@ function link_config(link) {
     locked_period: config.locked_period || null,
     show_title: config.show_title === true,
     allow_records: config.allow_records === true,
+    record_fields: Array.isArray(config.record_fields) ? config.record_fields : [],
   };
 }
 
@@ -155,7 +156,7 @@ async function get_public_widget_records(req, res) {
     if (!context) return undefined;
     if (!link_config(context.link).allow_records) return res.status(403).json(warning_response(req, "DASHBOARD_RECORDS_FORBIDDEN"));
     const body = viewer_body(req, context.link);
-    const result = await compute_widget_records(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link));
+    const result = await compute_widget_records(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link), link_config(context.link).record_fields);
     if (result.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: result.invalid }));
     return res.status(200).json(success_response(req, "DASHBOARD_RECORDS_FETCHED", result));
   } catch (error) {
@@ -170,7 +171,7 @@ async function get_public_widget_records_export(req, res) {
     if (!context) return undefined;
     if (!link_config(context.link).allow_records) return res.status(403).json(warning_response(req, "DASHBOARD_RECORDS_FORBIDDEN"));
     const body = viewer_body(req, context.link);
-    const result = await collect_widget_records(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link));
+    const result = await collect_widget_records(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link), link_config(context.link).record_fields);
     if (result.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: result.invalid }));
     const title = (body.widget && body.widget.title) || "records";
     const file = await build_records_workbook({ title, items: result.items, columns: result.columns, criteria: result.criteria, period: result.period, language: "en" });

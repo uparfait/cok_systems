@@ -7,10 +7,25 @@ import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
 /**
  * Pie and donut renderers. The ring is sized from the card's own width
  * (see density.js) so its outside labels always land inside the card - on
- * a narrow card the labels are dropped entirely and the legend carries the
- * numbers instead. The donut shows the total in its hole. Slice colors
+ * a narrow card, where there is no room around the ring, each number is
+ * written inside its own slice instead (and the legend carries them all). The donut shows the total in its hole. Slice colors
  * follow the widget's per-value colors, text its light or dark mode.
  */
+/** A number written inside its slice, for rings with no room around them. */
+function inside_label(size) {
+  return (props) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius, value, percent } = props;
+    if (!value || percent < 0.04) return null;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
+    const radians = -(midAngle * Math.PI) / 180;
+    return (
+      <text x={cx + radius * Math.cos(radians)} y={cy + radius * Math.sin(radians)} fill="#FFFFFF" textAnchor="middle" dominantBaseline="central" fontSize={Math.max(9, size.value_font || size.font)} fontWeight={700}>
+        {value}
+      </text>
+    );
+  };
+}
+
 export default function PieCharts({ chartType, rows, totalLabel, onItemClick, palette, animate, density }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
@@ -38,7 +53,7 @@ export default function PieCharts({ chartType, rows, totalLabel, onItemClick, pa
               isAnimationActive={animate !== false}
               animationDuration={700}
               animationEasing="ease-out"
-              label={with_labels ? ({ value, percent }) => `${value} (${Math.round(percent * 100)}%)` : false}
+              label={with_labels ? ({ value, percent }) => `${value} (${Math.round(percent * 100)}%)` : inside_label(size)}
               labelLine={with_labels ? { strokeWidth: 1 } : false}
               stroke={colors.background}
               cursor={handle_click ? "pointer" : undefined}

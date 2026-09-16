@@ -21,7 +21,7 @@ function to_local_input(value) {
  * the expiry - a date and time, or "never expires". Used to create a link
  * and to edit an existing one.
  */
-export default function LinkForm({ initial, saving, onSubmit, onCancel, filters, fields, fetchValues }) {
+export default function LinkForm({ initial, saving, onSubmit, onCancel, filters, fields, fetchValues, recordFields }) {
   const { translate } = useDcsLanguage();
   const [title, setTitle] = useState((initial && initial.title) || "");
   const [description, setDescription] = useState((initial && initial.description) || "");
@@ -74,7 +74,7 @@ export default function LinkForm({ initial, saving, onSubmit, onCancel, filters,
           </div>
         )}
       </div>
-      <LinkConfigFields config={config} onChange={setConfig} filters={filters} fields={fields} fetchValues={fetchValues} />
+      <LinkConfigFields config={config} onChange={setConfig} filters={filters} fields={fields} fetchValues={fetchValues} recordFields={recordFields} />
       <p className="text-xs" style={{ color: TEXT_MUTED }}>
         {translate("DCS_DB_SHARE_FORM_HINT")}
       </p>

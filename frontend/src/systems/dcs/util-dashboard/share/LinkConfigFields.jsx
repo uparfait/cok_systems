@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import FilterValueSelect from "../filters/FilterValueSelect.jsx";
+import RecordFieldsPicker from "./RecordFieldsPicker.jsx";
 import DcsPeriodFilter from "../../components/DcsPeriodFilter.jsx";
 import { field_label_of, applied_filter_list, parent_filter_of, descendant_filters } from "../boardFilters.js";
 
@@ -10,7 +11,7 @@ const TEXT_DARK = "#333333";
 const TEXT_MUTED = "#9E9E9E";
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 
-export const DEFAULT_LINK_CONFIG = { filter_mode: "free", locked_filters: [], locked_period: null, show_title: false, allow_records: false };
+export const DEFAULT_LINK_CONFIG = { filter_mode: "free", locked_filters: [], locked_period: null, show_title: false, allow_records: false, record_fields: [] };
 
 const is_default = (config) => !config || (config.filter_mode !== "locked" && !config.show_title && !config.allow_records);
 
@@ -31,12 +32,14 @@ function Radio({ checked, label, onPick }) {
  * themselves or see it under filter values fixed here (one value per board
  * filter, or "Default" to leave that one to the viewer; the values offered
  * follow the other fixed values, like on the board itself), and whether
- * the link's title replaces the dashboard's name for viewers. A cascade
+ * the link's title replaces the dashboard's name for viewers, and, when
+ * viewers may open the records behind a widget, which fields of a record
+ * they may see. A cascade
  * child (sector) cannot be fixed while its parent (district) is left on
  * "Default", and freeing a parent frees everything under it. Folded away
  * until asked for.
  */
-export default function LinkConfigFields({ config, onChange, filters, fields, fetchValues }) {
+export default function LinkConfigFields({ config, onChange, filters, fields, fetchValues, recordFields }) {
   const { translate } = useDcsLanguage();
   const current = config || DEFAULT_LINK_CONFIG;
   const [open, setOpen] = useState(!is_default(current));
@@ -113,7 +116,7 @@ export default function LinkConfigFields({ config, onChange, filters, fields, fe
               </div>
             ))}
           <label className="flex items-start gap-2 text-sm cursor-pointer" style={FONT}>
-            <input type="checkbox" className="mt-0.5" checked={current.allow_records === true} style={{ accentColor: PRIMARY }} onChange={(event) => onChange({ ...current, allow_records: event.target.checked })} />
+            <input type="checkbox" className="mt-0.5" checked={current.allow_records === true} style={{ accentColor: PRIMARY }} onChange={(event) => onChange({ ...current, allow_records: event.target.checked, record_fields: [] })} />
             <span>
               {translate("DCS_DB_SHARE_ALLOW_RECORDS")}
               <span className="block text-xs" style={{ color: TEXT_MUTED }}>
@@ -121,6 +124,7 @@ export default function LinkConfigFields({ config, onChange, filters, fields, fe
               </span>
             </span>
           </label>
+          {current.allow_records === true && <RecordFieldsPicker options={recordFields || []} value={current.record_fields || []} onChange={(record_fields) => onChange({ ...current, record_fields })} />}
           <label className="flex items-start gap-2 text-sm cursor-pointer" style={FONT}>
             <input type="checkbox" className="mt-0.5" checked={current.show_title === true} style={{ accentColor: PRIMARY }} onChange={(event) => onChange({ ...current, show_title: event.target.checked })} />
             <span>

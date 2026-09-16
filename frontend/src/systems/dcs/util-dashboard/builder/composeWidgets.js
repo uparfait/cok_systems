@@ -324,8 +324,10 @@ export function chart_spec_problems(spec, fields, translate) {
     return problems;
   }
   if (rules.kind === "category" || rules.kind === "tree") {
+    // Group by is optional: with none the split values become the
+    // categories, and with neither the chart draws the one total.
     const group = field(spec.group_id);
-    if (!group || !group.is_choice) problems.push(translate("DCS_DB_NEED_GROUP"));
+    if (spec.group_id && !(group && group.is_choice)) problems.push(translate("DCS_DB_NEED_GROUP"));
     if (rules.split === "required") {
       const split = field(spec.split_id);
       if (!split || !split.is_choice || split.id === spec.group_id) problems.push(translate("DCS_DB_NEED_SPLIT"));
@@ -450,7 +452,7 @@ function chart_widget_extra(spec) {
     extra.size = "large";
     return extra;
   }
-  extra.group_by = { field_id: spec.group_id };
+  extra.group_by = spec.group_id ? { field_id: spec.group_id } : null;
   extra.split_by = rules.split !== "none" && spec.split_id ? { field_id: spec.split_id } : null;
   extra.pattern_by = extra.split_by && spec.pattern_id ? { field_id: spec.pattern_id } : null;
   return extra;

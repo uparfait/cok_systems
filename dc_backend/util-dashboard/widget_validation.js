@@ -114,8 +114,10 @@ function validate_shape_for_kind(widget, definition, catalog, errors, describe) 
   }
   if (is_occurrences(widget)) validate_occurrences(widget, catalog, errors, describe);
 
+  // Group by is optional everywhere: without it a widget draws its split
+  // field, or - with neither - the single total of what it selects.
   if (kind === CHART_KINDS.CATEGORY || kind === CHART_KINDS.TREE) {
-    if (!widget.group_by || !is_categorical(catalog, widget.group_by.field_id)) {
+    if (widget.group_by && widget.group_by.field_id && !is_categorical(catalog, widget.group_by.field_id)) {
       errors.push(`${describe}: group by must be a choice field of the form`);
     }
   }
@@ -124,7 +126,7 @@ function validate_shape_for_kind(widget, definition, catalog, errors, describe) 
     // be flipped into a line/area look and back - the data pipeline then
     // treats it as a category chart (see compute_widget_data).
     const group_id = widget.group_by && widget.group_by.field_id;
-    if (!widget.group_by || (!is_time_source(catalog, group_id) && !is_categorical(catalog, group_id))) {
+    if (group_id && !is_time_source(catalog, group_id) && !is_categorical(catalog, group_id)) {
       errors.push(`${describe}: time charts group by submitted_at, a date field, or a choice field`);
     }
     const granularity = widget.group_by && widget.group_by.granularity;
