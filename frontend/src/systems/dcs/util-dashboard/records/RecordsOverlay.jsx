@@ -26,8 +26,9 @@ const format_when = (value, language) => {
  * a slice, a point, a cell, a legend entry) or the whole widget - twenty
  * per page with paging, in the same table as the form's data page. The
  * criteria the rows match are listed as chips and their columns are
- * highlighted in blue, with a legend saying so. A failed load says why and
- * offers a retry; the overlay closes from its Close button (or Escape).
+ * highlighted in blue, with a legend saying so. Above the table sits the
+ * Excel export, which the server builds and streams while the button
+ * counts the download up. A failed load says why and offers a retry; the overlay closes from its Close button (or Escape).
  *
  * fetchPage(page) returns the server's { items, total, limit, columns,
  * criteria, period }.
@@ -127,13 +128,6 @@ export default function RecordsOverlay({ title, subtitle, fetchPage, exportRecor
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {exportRecords && (
-            <div className="w-40 sm:w-48">
-              <DcsButtonPrimary type="button" onClick={run_export} disabled={exporting !== null || loading || !!error || total === 0} className="dcs-records-export-btn">
-                {exporting === null ? translate("DCS_DB_RECORDS_EXPORT") : translate("DCS_DB_RECORDS_EXPORTING", { percent: exporting })}
-              </DcsButtonPrimary>
-            </div>
-          )}
           <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger>
             {CLOSE_SVG}
           </IconButton>
@@ -160,6 +154,16 @@ export default function RecordsOverlay({ title, subtitle, fetchPage, exportRecor
           </span>
         )}
       </div>
+
+      {exportRecords && (
+        <div className="flex-shrink-0 px-3 sm:px-4 pt-3 flex justify-end">
+          <div className="w-40 sm:w-48">
+            <DcsButtonPrimary type="button" onClick={run_export} disabled={exporting !== null || loading || !!error || total === 0} className="dcs-records-export-btn">
+              {exporting === null ? translate("DCS_DB_RECORDS_EXPORT") : translate("DCS_DB_RECORDS_EXPORTING", { percent: exporting })}
+            </DcsButtonPrimary>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 p-3 sm:p-4">
         {error ? (

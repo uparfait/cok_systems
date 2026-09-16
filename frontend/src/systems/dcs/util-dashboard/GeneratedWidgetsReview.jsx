@@ -43,13 +43,13 @@ function reindex_positions(widget_list) {
 
 /**
  * The review step, as a FULL-SCREEN fixed overlay (its header carries the
- * icon controls: open the full basic dashboard, and close): every widget
+ * icon controls: open the full dashboard, and close): every widget
  * under review is listed WITHOUT loading any data
  * (title, description and chart type only, one scrollable list) so the user
  * deletes what they do not want - one by one, or every widget that includes
  * one field at once, picked from a SELECT so a form with dozens of fields
  * never floods the screen - and adjusts titles and descriptions before the
- * full basic dashboard loads anything. With focusIds only those widgets are
+ * full dashboard loads anything. With focusIds only those widgets are
  * listed (a manual KPI's fresh card and breakdowns) while every save still
  * persists the WHOLE board around them. Mobile first: every action stacks
  * to full width on small screens.

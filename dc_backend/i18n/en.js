@@ -162,6 +162,7 @@ module.exports = {
   TABLE_VERSION: "Version",
   TABLE_SUBMITTED_AT: "Submitted at",
   TABLE_TOTAL: "Total",
+  TABLE_DATA_IN_RANGE: "Data in Range",
   NO_DATA_TO_EXPORT: "No data to export for the selected period",
   DCS_GEO_TABLE_HEADER_LABEL: "Map Location Data",
   TEST_DATA_GENERATION_STARTED: "Test data generation started",

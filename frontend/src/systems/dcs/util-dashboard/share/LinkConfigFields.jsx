@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import FilterValueSelect from "../filters/FilterValueSelect.jsx";
 import DcsPeriodFilter from "../../components/DcsPeriodFilter.jsx";
-import { field_label_of, applied_filter_list } from "../boardFilters.js";
+import { field_label_of, applied_filter_list, parent_filter_of, descendant_filters } from "../boardFilters.js";
 
 const PRIMARY = "#056daa";
 const BORDER = "#E0E0E0";
@@ -31,7 +31,9 @@ function Radio({ checked, label, onPick }) {
  * themselves or see it under filter values fixed here (one value per board
  * filter, or "Default" to leave that one to the viewer; the values offered
  * follow the other fixed values, like on the board itself), and whether
- * the link's title replaces the dashboard's name for viewers. Folded away
+ * the link's title replaces the dashboard's name for viewers. A cascade
+ * child (sector) cannot be fixed while its parent (district) is left on
+ * "Default", and freeing a parent frees everything under it. Folded away
  * until asked for.
  */
 export default function LinkConfigFields({ config, onChange, filters, fields, fetchValues }) {
@@ -40,6 +42,7 @@ export default function LinkConfigFields({ config, onChange, filters, fields, fe
   const [open, setOpen] = useState(!is_default(current));
   const defs = filters || [];
   const locked_map = Object.fromEntries((current.locked_filters || []).map((entry) => [entry.field_id, entry.value]));
+  const def_ids = new Set(defs.map((def) => def.field_id));
 
   const set_mode = (filter_mode) => onChange({ ...current, filter_mode, locked_filters: filter_mode === "locked" ? current.locked_filters || [] : [], locked_period: filter_mode === "locked" ? current.locked_period || null : null });
   // The fixed period: a preset, or a custom range once its dates are applied.
@@ -50,6 +53,8 @@ export default function LinkConfigFields({ config, onChange, filters, fields, fe
     const next = { ...locked_map };
     if (value === "" || value === null || value === undefined) delete next[field_id];
     else next[field_id] = value;
+    // What is fixed below this filter no longer holds once it changes.
+    descendant_filters(defs, fields, field_id).forEach((child) => delete next[child]);
     onChange({ ...current, locked_filters: applied_filter_list(next) });
   };
 
@@ -88,16 +93,23 @@ export default function LinkConfigFields({ config, onChange, filters, fields, fe
               </p>
             ) : (
               <div className="dcs-board-root flex flex-wrap items-center gap-2">
-                {defs.map((def) => (
-                  <FilterValueSelect
-                    key={def.field_id}
-                    label={field_label_of(fields, def.field_id)}
-                    value={locked_map[def.field_id]}
-                    onChange={(value) => set_locked(def.field_id, value)}
-                    allLabel={translate("DCS_DB_SHARE_DEFAULT")}
-                    fetchValues={() => fetchValues(def.field_id, applied_filter_list(locked_map).filter((entry) => entry.field_id !== def.field_id))}
-                  />
-                ))}
+                {defs.map((def) => {
+                  // A cascade child waits for its parent to be fixed here.
+                  const parent = parent_filter_of((fields || []).find((entry) => entry.id === def.field_id));
+                  const waits_for = parent && def_ids.has(parent) && locked_map[parent] === undefined ? field_label_of(fields, parent) : "";
+                  return (
+                    <FilterValueSelect
+                      key={def.field_id}
+                      label={field_label_of(fields, def.field_id)}
+                      value={locked_map[def.field_id]}
+                      disabled={!!waits_for}
+                      waitHint={waits_for ? translate("DCS_DB_FILTER_PICK_PARENT", { parent: waits_for }) : ""}
+                      onChange={(value) => set_locked(def.field_id, value)}
+                      allLabel={translate("DCS_DB_SHARE_DEFAULT")}
+                      fetchValues={() => fetchValues(def.field_id, applied_filter_list(locked_map).filter((entry) => entry.field_id !== def.field_id))}
+                    />
+                  );
+                })}
               </div>
             ))}
           <label className="flex items-start gap-2 text-sm cursor-pointer" style={FONT}>

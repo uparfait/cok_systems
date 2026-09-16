@@ -5,7 +5,7 @@ import { useDcsContextNav } from "../layout/contextNav.jsx";
 const OVERVIEW_KEY = "overview";
 
 // One list for every page of a form, so the header reads the same whether
-// the form's own overview, its collected responses or its BSC dashboard is
+// the form's own overview, its collected responses or its dashboard is
 // open - the last three are routes of their own, not tabs of the overview.
 const FORM_NAV_ITEMS = [
   { key: OVERVIEW_KEY, labelKey: "DCS_FORM_NAV_OVERVIEW", path: "" },

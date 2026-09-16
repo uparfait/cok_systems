@@ -11,7 +11,7 @@ const MAX_NAME = 80;
 
 /**
  * A form's dashboards, each one named: list them, create one (a name is
- * required - there is no automatic "<form>'s basic dashboard" any more),
+ * required - there is no automatic "<form>'s dashboard" any more),
  * rename it, delete it, and read or save ONE dashboard's widgets by id.
  * Anyone allowed to see the form's data may list and read; only users
  * allowed to edit the form may create, rename, delete or save.

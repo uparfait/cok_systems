@@ -3,7 +3,6 @@ import WidgetCard from "./WidgetCard.jsx";
 import ExpandableSlot from "./ExpandableSlot.jsx";
 import { build_palette } from "./appearance.js";
 import { useBoardTheme } from "./boardTheme.jsx";
-import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 // Flexible auto-grow grid: a chart's own size (changed from its menu) is
 // the FRACTION OF A ROW it claims, and neighbours that still fit share
@@ -52,12 +51,12 @@ export default function BoardGrid({
   const [over_id, setOverId] = useState(null);
   const [expanded_id, setExpandedId] = useState(null);
   const board = useBoardTheme();
-  const { translate } = useDcsLanguage();
   // A widget that the board filters leave with nothing to show (a KPI with
   // no total and no legend, a chart with no rows, points or nodes) hides
   // until the filters change - an empty card would only say that the
   // filters excluded it, and a widget whose own fixed filters contradict
-  // the board's would sit there confusing everyone.
+  // the board's would sit there confusing everyone. Nothing is said about
+  // the hidden ones - the filter bar already says what is in view.
   const emptied_by_filters = (widget) => {
     const entry = dataByWidget[widget.id];
     if (!entry || entry.error || entry.locked || !Array.isArray(entry.board_context) || entry.board_context.length === 0) return false;
@@ -65,7 +64,6 @@ export default function BoardGrid({
     const has = (list) => Array.isArray(list) && list.length > 0;
     return !has(entry.rows) && !has(entry.points) && !has(entry.nodes);
   };
-  const hidden_count = widgets.filter(emptied_by_filters).length;
   const kpi_widgets = widgets.filter((widget) => widget.chart_type === "kpi" && !emptied_by_filters(widget));
   const chart_widgets = widgets.filter((widget) => widget.chart_type !== "kpi" && !emptied_by_filters(widget));
   const selecting = !!selection;
@@ -134,11 +132,6 @@ export default function BoardGrid({
 
   return (
     <>
-      {hidden_count > 0 && (
-        <p className="text-[11px] font-semibold mb-2" style={{ color: "var(--board-muted, #9E9E9E)", fontFamily: "'Montserrat', sans-serif" }}>
-          {translate("DCS_DB_FILTERED_OUT", { count: hidden_count })}
-        </p>
-      )}
       {kpi_widgets.length > 0 && (
         <div className="flex flex-wrap items-stretch gap-3 mb-3">
           {kpi_widgets.map((widget) => (

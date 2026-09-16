@@ -162,6 +162,7 @@ module.exports = {
   TABLE_VERSION: "Version",
   TABLE_SUBMITTED_AT: "Soumis le",
   TABLE_TOTAL: "Total",
+  TABLE_DATA_IN_RANGE: "Donnees dans la plage",
   NO_DATA_TO_EXPORT: "Aucune donnée à exporter pour la période sélectionnée",
   DCS_GEO_TABLE_HEADER_LABEL: "Données de localisation",
   TEST_DATA_GENERATION_STARTED: "La génération des données de test a commencé",

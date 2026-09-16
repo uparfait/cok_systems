@@ -21,6 +21,11 @@ function sanitize_filename(name) {
   );
 }
 
+function day_text(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+}
+
 function cell_text(value) {
   if (value === undefined || value === null || value === "") return "";
   if (Array.isArray(value)) return value.map(cell_text).filter(Boolean).join(", ");
@@ -41,7 +46,7 @@ async function build_records_workbook({ title, items, columns, criteria, period,
   const title_row = sheet.addRow([title || "Records"]);
   title_row.font = { bold: true, size: 14, color: { argb: PRIMARY_ARGB } };
   if (period) {
-    sheet.addRow([`${translate("TABLE_SUBMITTED_AT", lang)}: ${new Date(period.start).toISOString()} - ${new Date(period.end).toISOString()}`]).font = { italic: true, color: { argb: "FF555555" } };
+    sheet.addRow([`${translate("TABLE_DATA_IN_RANGE", lang)}: ${day_text(period.start)} - ${day_text(period.end)}`]).font = { italic: true, color: { argb: "FF555555" } };
   }
   (criteria || []).forEach((entry) => {
     sheet.addRow([`${entry.is_time ? translate("TABLE_SUBMITTED_AT", lang) : entry.field_label}: ${cell_text(entry.value)}`]).font = { color: { argb: "FF555555" } };

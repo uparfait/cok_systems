@@ -17,7 +17,7 @@ import FormDashboardControls from "../util-dashboard/FormDashboardControls.jsx";
  * Form overview: its name, a form age counter next to a deliberately
  * oversized "total data collected" number, and below that a
  * submissions-over-time chart (its own period selector and loading state).
- * Every area of a form - the overview itself, its collected data, its BSC
+ * Every area of a form - the overview itself, its collected data, its
  * dashboard, Settings, Approval, Versions and test data - is reached
  * through the one navigation bar pinned to the top of the page, which
  * stays in place even while the form is still loading. The overview and
