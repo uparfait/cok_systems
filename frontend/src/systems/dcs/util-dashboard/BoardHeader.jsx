@@ -7,7 +7,8 @@ import GenerationProgress from "./GenerationProgress.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 
 /**
- * The dashboard page's header: the uppercase board title, one "Actions"
+ * The dashboard page's header: the board title - the dashboard switcher on
+ * the signed-in page, the shared dashboard's name on the public one - one "Actions"
  * dropdown holding every control the viewer may use (the light / dark
  * mode, the fit and scroll views, full screen, the builder, share links
  * and deletion - each with its icon and name), the generation progress
@@ -20,6 +21,7 @@ import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
  */
 export default function BoardHeader({
   form,
+  title,
   widgets_count,
   can_edit,
   generating,
@@ -57,7 +59,7 @@ export default function BoardHeader({
     widgets_count > 0 && !busy && { key: "fullscreen", label: translate(is_fullscreen ? "DCS_DB_EXIT_FULLSCREEN" : "DCS_DB_FULLSCREEN"), icon: is_fullscreen ? EXIT_SVG : FULLSCREEN_SVG, onClick: is_fullscreen ? exit : enter },
     can_edit && widgets_count > 0 && !busy && !is_fullscreen && { key: "build", label: translate("DCS_DB_ADD_KPI"), icon: PLUS_SVG, onClick: onAddKpi, disabled: deleting },
     can_edit && widgets_count > 0 && !busy && !is_fullscreen && onShare && { key: "share", label: translate("DCS_DB_SHARE_LINKS"), icon: LINK_SVG, onClick: onShare, disabled: deleting },
-    can_edit && widgets_count > 0 && !busy && !is_fullscreen && { key: "delete", label: translate("DCS_DB_BTN_DELETE"), icon: TRASH_SVG, onClick: onDelete, danger: true, disabled: deleting },
+    can_edit && !busy && !is_fullscreen && onDelete && { key: "delete", label: translate("DCS_DB_BTN_DELETE"), icon: TRASH_SVG, onClick: onDelete, danger: true, disabled: deleting },
   ];
 
   return (
@@ -97,12 +99,16 @@ export default function BoardHeader({
         }}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2
-            className="min-w-0 truncate"
-            style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 15, color: "var(--board-text, #333333)", textTransform: "uppercase", letterSpacing: "0.3px" }}
-          >
-            {translate("DCS_DB_BOARD_TITLE", { name: form.form_name || form.form_group_id })}
-          </h2>
+          {title && typeof title !== "string" ? (
+            <div className="min-w-0 flex-1 flex items-center">{title}</div>
+          ) : (
+            <h2
+              className="min-w-0 truncate"
+              style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 15, color: "var(--board-text, #333333)", textTransform: "uppercase", letterSpacing: "0.3px" }}
+            >
+              {title || translate("DCS_DB_BOARD_TITLE", { name: form.form_name || form.form_group_id })}
+            </h2>
+          )}
           <BoardActionsMenu items={actions} />
           <style>{`.dcs-db-iconbtn { transition: background-color 160ms ease, color 160ms ease, transform 120ms ease; } .dcs-db-iconbtn:hover:not(:disabled) { transform: translateY(-1px); }`}</style>
         </div>

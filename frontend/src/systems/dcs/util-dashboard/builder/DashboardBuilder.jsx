@@ -85,7 +85,7 @@ export default function DashboardBuilder({ form, existingWidgets, initialTab, on
       const fresh = drafts.flatMap((draft) => draft.widgets);
       const merged = finalize_widgets(mode === "append" ? existing.concat(fresh) : fresh);
       setProgress(60);
-      const saved = await save_dashboard(form.form_group_id, merged);
+      const saved = await save_dashboard(form, merged);
       const final_widgets = (saved.data && saved.data.widgets) || merged;
       setProgress(100);
       showSuccess(translate("DCS_DB_BUILDER_SAVED", { count: final_widgets.length }));

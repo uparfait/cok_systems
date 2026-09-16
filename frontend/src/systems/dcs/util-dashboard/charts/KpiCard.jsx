@@ -76,7 +76,7 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
       )}
       <AnimatedNumber value={value} className="font-bold break-all" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif", fontSize: number_font, lineHeight: 1.1, maxWidth: "100%" }} />
       {has_legend && (
-        <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0 }}>
+        <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0, maxHeight: legend.length > 12 ? 280 : undefined, overflowY: legend.length > 12 ? "auto" : "visible" }}>
           {legend.map((row, index) => (
             <li key={`${row.label}-${index}`} className="flex items-center justify-between gap-2 text-xs min-w-0" style={{ opacity: row.matches === false ? 0.6 : 1 }}>
               <span className="flex items-center gap-1.5 min-w-0">

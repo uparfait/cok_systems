@@ -215,7 +215,7 @@ export async function regenerate_and_save(form, translate, mode, existing_widget
   }
   next_widgets = next_widgets.map((widget, index) => ({ ...widget, position: index }));
   on_stage(85, "DCS_DB_GEN_PROGRESS_SAVE");
-  const saved = await save_dashboard(form.form_group_id, next_widgets);
+  const saved = await save_dashboard(form, next_widgets);
   on_stage(100, "DCS_DB_GEN_DONE");
   await wait(350);
   return { widgets: (saved.data && saved.data.widgets) || next_widgets, added };

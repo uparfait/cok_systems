@@ -1,19 +1,43 @@
 import { dcs_request } from "../services/dcsApiClient.js";
 
 /**
- * Fetches the FORM's saved dashboard configuration plus whether the current
- * viewer may edit it - every form owns its own dashboard.
+ * Where a dashboard read or save goes. A form holds any number of NAMED
+ * dashboards: a form object carrying dashboard_id means exactly that one;
+ * a bare form id (or a form object without dashboard_id) means the form's
+ * first dashboard through the older single-board route.
  */
-export function get_dashboard(form_group_id) {
-  return dcs_request(`/forms/${form_group_id}/dashboard`, "GET");
+function dashboard_path(scope) {
+  const form_group_id = typeof scope === "string" ? scope : scope.form_group_id;
+  const dashboard_id = typeof scope === "string" ? "" : scope.dashboard_id || "";
+  return dashboard_id ? `/forms/${form_group_id}/dashboards/${dashboard_id}` : `/forms/${form_group_id}/dashboard`;
 }
 
-/**
- * Saves the form's whole dashboard (validated server-side against the
- * form's real schema).
- */
-export function save_dashboard(form_group_id, widgets) {
-  return dcs_request(`/forms/${form_group_id}/dashboard`, "PUT", { widgets });
+/** One dashboard's saved widgets plus whether the current viewer may edit it. */
+export function get_dashboard(scope) {
+  return dcs_request(dashboard_path(scope), "GET");
+}
+
+/** Saves one dashboard's whole widget list (validated server-side against the form's real schema). */
+export function save_dashboard(scope, widgets) {
+  return dcs_request(dashboard_path(scope), "PUT", { widgets });
+}
+
+/** The form's named dashboards: { dashboards: [{id, name, widgets_count}], can_edit }. */
+export function list_dashboards(form_group_id) {
+  return dcs_request(`/forms/${form_group_id}/dashboards`, "GET");
+}
+
+export function create_dashboard(form_group_id, name) {
+  return dcs_request(`/forms/${form_group_id}/dashboards`, "POST", { name });
+}
+
+export function rename_dashboard(form_group_id, dashboard_id, name) {
+  return dcs_request(`/forms/${form_group_id}/dashboards/${dashboard_id}`, "PATCH", { name });
+}
+
+/** Deletes one dashboard together with its share links. */
+export function delete_dashboard(form_group_id, dashboard_id) {
+  return dcs_request(`/forms/${form_group_id}/dashboards/${dashboard_id}`, "DELETE");
 }
 
 /**
@@ -34,11 +58,13 @@ export function get_kpi_skipped(form_group_id, widget, period, offset, limit) {
   return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20 });
 }
 
-/** The form dashboard's public share links (form editors only). */
-export function list_dashboard_links(form_group_id) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/links`, "GET");
+/** The public share links of ONE dashboard (form editors only); all of the form's when no dashboard id is given. */
+export function list_dashboard_links(form_group_id, dashboard_id) {
+  const query = dashboard_id ? `?dashboard_id=${encodeURIComponent(dashboard_id)}` : "";
+  return dcs_request(`/forms/${form_group_id}/dashboard/links${query}`, "GET");
 }
 
+/** Creates a link to the dashboard named by link.dashboard_id. */
 export function create_dashboard_link(form_group_id, link) {
   return dcs_request(`/forms/${form_group_id}/dashboard/links`, "POST", link);
 }
@@ -53,7 +79,7 @@ export function delete_dashboard_link(form_group_id, link_id) {
 
 /** The URL a share link opens - the public, read-only dashboard page. */
 export function public_dashboard_url(token) {
-  return `${window.location.origin}/dcs-dashboard/${token}`;
+  return `${window.location.origin}/XdP/${token}`;
 }
 
 /**

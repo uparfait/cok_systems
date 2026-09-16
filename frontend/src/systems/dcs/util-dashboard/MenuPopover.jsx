@@ -8,13 +8,14 @@ const MARGIN = 8;
  * portalled to the page and positioned against its trigger, so a menu is
  * never clipped by a small card (every widget card hides its own overflow
  * so charts cannot spill out of it) and never trapped under a neighbouring
- * card. It hangs under the trigger, right-aligned with it, flipping above
+ * card. It hangs under the trigger, right-aligned with it (left-aligned
+ * with align="start"), flipping above
  * when there is more room there, and is clamped inside the viewport. It
  * follows the trigger while the page scrolls or resizes, and closes on an
  * outside click, on Escape, and whenever the trigger itself scrolls out of
  * sight.
  */
-export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHeight, children, role }) {
+export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHeight, children, role, align }) {
   const panel_ref = useRef(null);
   const [placement, setPlacement] = useState(null);
 
@@ -31,7 +32,7 @@ export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHei
       const above = box.top - MARGIN;
       const flip = height > below && above > below;
       setPlacement({
-        left: Math.max(MARGIN, Math.min(box.right - width, window.innerWidth - width - MARGIN)),
+        left: Math.max(MARGIN, Math.min(align === "start" ? box.left : box.right - width, window.innerWidth - width - MARGIN)),
         top: flip ? Math.max(MARGIN, box.top - height - 4) : box.bottom + 4,
         room: Math.max(120, (flip ? above : below) - 4),
         width,
@@ -45,7 +46,7 @@ export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHei
       window.removeEventListener("resize", place);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, minWidth]);
+  }, [open, minWidth, align]);
 
   useEffect(() => {
     if (!open) return undefined;

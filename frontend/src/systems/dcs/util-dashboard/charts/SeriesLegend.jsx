@@ -27,7 +27,7 @@ export function LegendRow({ items, palette, square, title }) {
           {title}
         </p>
       )}
-      <ul className="dcs-legend-column flex flex-col gap-1" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+      <ul className="dcs-legend-column flex flex-col gap-1" style={{ listStyle: "none", margin: 0, padding: items.length > 12 ? "0 6px 0 0" : 0, maxHeight: items.length > 12 ? 260 : undefined, overflowY: items.length > 12 ? "auto" : "visible" }}>
         {items.map((item, index) => (
           <li key={`${item.label}-${index}`} className="flex items-start gap-1.5 text-xs min-w-0" style={{ color: palette.text }}>
             <span className="flex-shrink-0" style={{ marginTop: 3 }}>

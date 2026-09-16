@@ -27,7 +27,7 @@ export function HeatmapChart({ rows, series, fitMode, palette, density }) {
   const label_width = Math.round(Math.max(56, Math.min(size.y_max, size.width * 0.28)));
   const cell_height = Math.max(22, Math.round(size.cell_px / 2.2));
   return (
-    <div style={{ maxWidth: "100%", overflowX: fitMode ? "hidden" : "auto" }}>
+    <div style={{ maxWidth: "100%", overflowX: fitMode ? "hidden" : "auto", overflowY: fitMode ? "hidden" : "auto", maxHeight: fitMode ? undefined : size.max_height }}>
       <table className="border-collapse w-full" style={{ minWidth: fitMode ? undefined : series.length * size.cell_px + label_width }}>
         <thead>
           <tr>

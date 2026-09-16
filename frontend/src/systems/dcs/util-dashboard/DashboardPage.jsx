@@ -5,8 +5,11 @@ import { get_dashboard, save_dashboard, get_dashboard_data, request_error_text }
 import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
 import { useBoardData } from "./useBoardData.js";
+import { useDashboards } from "./useDashboards.js";
 import { fold_family } from "./chartCatalog.js";
 import BoardHeader from "./BoardHeader.jsx";
+import DashboardSwitcher from "./DashboardSwitcher.jsx";
+import DashboardNameDialog from "./DashboardNameDialog.jsx";
 import GeneratedWidgetsReview from "./GeneratedWidgetsReview.jsx";
 import DashboardBuilder from "./builder/DashboardBuilder.jsx";
 import BoardWidgetDialogs from "./BoardWidgetDialogs.jsx";
@@ -18,17 +21,22 @@ import BoardWithSelection from "./selection/BoardWithSelection.jsx";
 import DashboardCodeOverlay, { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
 import ShareLinksDialog from "./share/ShareLinksDialog.jsx";
 import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
+import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 // CSS zoom keeps text crisp when fitting the board; transform is the fallback.
 const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "2");
 
 /**
- * The form's dashboard: live data (silently refreshed every 30 seconds,
- * with a dashboard-wide period filter - see useBoardData), and for users
- * allowed to edit the form: the builder, per-card edits, the selection
- * mode, the Ctrl+6 code tools, public share links and deletion. A
- * regeneration NEVER shows data right away: the result opens in the review
- * list first, and while that review is open NO widget fetches anything.
+ * The form's dashboards: a form holds any number of NAMED boards, picked
+ * from the switcher in the header (the last one used is remembered per
+ * form in this browser). The open board shows live data (silently
+ * refreshed every 30 seconds, with a board-wide period filter - see
+ * useBoardData), and for users allowed to edit the form: the builder,
+ * per-card edits, the selection mode, the Ctrl+6 code tools, public share
+ * links of THIS board and deletion of THIS board. A form without any
+ * dashboard first asks for a name. A regeneration NEVER shows data right
+ * away: the result opens in the review list first, and while that review
+ * is open NO widget fetches anything.
  */
 export default function DashboardPage({ form }) {
   return (
@@ -42,14 +50,19 @@ function DashboardBoard({ form }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const board = useBoardTheme();
+  const library = useDashboards(form.form_group_id);
+  const { active_id, can_edit } = library;
 
-  const [loading, setLoading] = useState(true);
-  const [can_edit, setCanEdit] = useState(false);
+  const [widgets_loading, setWidgetsLoading] = useState(true);
   const [widgets, setWidgets] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ percent: 0, message_key: "" });
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState(null);
+  // The "name a new dashboard" dialog and its request.
+  const [naming, setNaming] = useState(false);
+  const [name_saving, setNameSaving] = useState(false);
+  const asked_ref = useRef(false);
   // The builder overlay's open tab ("kpi" | "charts" | "diagrams"), null while closed.
   const [builder_tab, setBuilderTab] = useState(null);
   // The Ctrl+6 code tools overlay and the share links dialog.
@@ -66,12 +79,19 @@ function DashboardBoard({ form }) {
   const [appearance_widget, setAppearanceWidget] = useState(null);
   const form_fields = useMemo(() => builder_fields(form.schema), [form.schema]);
 
+  // Every child that reads or saves widgets works on THIS dashboard.
+  const scoped_form = useMemo(
+    () => ({ ...form, dashboard_id: active_id, dashboard_name: library.active ? library.active.name : "" }),
+    [form, active_id, library.active],
+  );
+
+  const loading = library.list_loading || widgets_loading;
   const frozen_ref = useRef(false);
-  frozen_ref.current = generating || review_widgets !== null || builder_tab !== null || code_open || share_open;
-  useDashboardCodeShortcut(can_edit && !loading && !generating && review_widgets === null && builder_tab === null, () => setCodeOpen(true));
+  frozen_ref.current = generating || review_widgets !== null || builder_tab !== null || code_open || share_open || naming;
+  useDashboardCodeShortcut(can_edit && !!active_id && !loading && !generating && review_widgets === null && builder_tab === null, () => setCodeOpen(true));
 
   const data = useBoardData({
-    scope_key: form.form_group_id,
+    scope_key: `${form.form_group_id}:${active_id}`,
     widgets,
     loading,
     blocked: review_widgets !== null,
@@ -85,21 +105,66 @@ function DashboardBoard({ form }) {
   const { container_ref, grid_ref, is_fullscreen, is_fallback, enter, exit, fs_mode, setFsMode, fit_scale, header_visible, show_header, schedule_header_hide } = useBoardFullscreen();
 
   useEffect(() => {
+    if (library.list_error) showError(request_error_text(library.list_error, translate("DCS_ERROR_GENERIC")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [library.list_error]);
+
+  // A form with no dashboard yet asks its editor for the first one's name - once.
+  useEffect(() => {
+    if (library.list_loading || asked_ref.current) return;
+    if (library.dashboards.length === 0 && can_edit) {
+      asked_ref.current = true;
+      setNaming(true);
+    }
+  }, [library.list_loading, library.dashboards.length, can_edit]);
+
+  // The active dashboard's widgets, loaded whenever the switcher changes it.
+  useEffect(() => {
+    if (!active_id) {
+      setWidgets([]);
+      setWidgetsLoading(false);
+      return undefined;
+    }
     let is_mounted = true;
-    setLoading(true);
-    get_dashboard(form.form_group_id)
-      .then((response) => {
-        if (!is_mounted) return;
-        setWidgets((response.data && response.data.widgets) || []);
-        setCanEdit((response.data && response.data.can_edit) === true);
-      })
+    setWidgetsLoading(true);
+    get_dashboard({ form_group_id: form.form_group_id, dashboard_id: active_id })
+      .then((response) => is_mounted && setWidgets((response.data && response.data.widgets) || []))
       .catch((error) => is_mounted && showError(request_error_text(error, translate("DCS_ERROR_GENERIC"))))
-      .finally(() => is_mounted && setLoading(false));
+      .finally(() => is_mounted && setWidgetsLoading(false));
     return () => {
       is_mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.form_group_id]);
+  }, [form.form_group_id, active_id]);
+
+  // Every save lands in the same place: the board and the switcher's count.
+  const commit_widgets = (final_widgets) => {
+    setWidgets(final_widgets);
+    library.set_count(active_id, final_widgets.length);
+  };
+
+  const submit_name = async (name) => {
+    setNameSaving(true);
+    try {
+      const created = await library.create(name);
+      setNaming(false);
+      showSuccess(translate("DCS_DB_CREATED_TOAST", { name: created.name }));
+    } catch (error) {
+      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
+    } finally {
+      setNameSaving(false);
+    }
+  };
+
+  const rename_active = async (name) => {
+    try {
+      await library.rename(name);
+      showSuccess(translate("DCS_DB_RENAMED_TOAST"));
+    } catch (error) {
+      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
+      throw error;
+    }
+  };
 
   // The generated board is deliberately large - each card can be removed on
   // its own, after a warning. Removing never refetches the survivors.
@@ -111,10 +176,10 @@ function DashboardBoard({ form }) {
     const next_widgets = widgets.filter((widget) => widget.id !== target.id).map((widget, index) => ({ ...widget, position: index }));
     setRemoving(true);
     try {
-      const saved = await save_dashboard(form.form_group_id, next_widgets);
+      const saved = await save_dashboard(scoped_form, next_widgets);
       const final_widgets = (saved.data && saved.data.widgets) || next_widgets;
       data.settle(final_widgets);
-      setWidgets(final_widgets);
+      commit_widgets(final_widgets);
       data.keep_only(final_widgets);
       showSuccess(translate("DCS_DB_WIDGET_REMOVED"));
     } catch (error) {
@@ -135,10 +200,10 @@ function DashboardBoard({ form }) {
     const next_widgets = widgets.map((widget) => (widget.id === widget_id ? { ...widget, ...changes } : widget));
     setSavingWidgetId(widget_id);
     try {
-      const saved = await save_dashboard(form.form_group_id, next_widgets);
+      const saved = await save_dashboard(scoped_form, next_widgets);
       const final_widgets = (saved.data && saved.data.widgets) || next_widgets;
       data.settle(final_widgets);
-      setWidgets(final_widgets);
+      commit_widgets(final_widgets);
       if (changes.chart_type && previous && fold_family(changes.chart_type) !== fold_family(previous.chart_type)) {
         const updated = final_widgets.find((widget) => widget.id === widget_id);
         if (updated) data.retry_widget(updated);
@@ -159,8 +224,8 @@ function DashboardBoard({ form }) {
     setGenerating(true);
     setProgress({ percent: 5, message_key: "DCS_DB_GEN_PROGRESS_ANALYZE" });
     try {
-      const result = await regenerate_and_save(form, translate, mode, widgets, (percent, message_key) => setProgress({ percent, message_key }));
-      setWidgets(result.widgets);
+      const result = await regenerate_and_save(scoped_form, translate, mode, widgets, (percent, message_key) => setProgress({ percent, message_key }));
+      commit_widgets(result.widgets);
       setReviewFocus(null);
       setReviewWidgets(result.widgets);
       if (mode === "update") {
@@ -182,13 +247,16 @@ function DashboardBoard({ form }) {
     setReviewFocus(null);
   };
 
+  // Deleting removes THIS dashboard (and its share links); the next one in
+  // the list takes over, or the editor is asked to name a new first one.
   const handle_delete = async () => {
     setDeleting(true);
     try {
-      await save_dashboard(form.form_group_id, []);
-      setWidgets([]);
+      const remaining = await library.remove();
       data.clear();
+      setWidgets([]);
       showSuccess(translate("DCS_DB_DELETED_TOAST"));
+      if (remaining.length === 0) setNaming(true);
     } catch (error) {
       showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
     } finally {
@@ -197,7 +265,26 @@ function DashboardBoard({ form }) {
     }
   };
 
-  if (loading) return <DcsLoadingState />;
+  if (library.list_loading) return <DcsLoadingState />;
+
+  const has_board = !!active_id;
+  const empty_state = (
+    <div className="dcs-board-chrome border-2 p-8 text-center">
+      <p className="text-sm font-semibold mb-1" style={{ color: "var(--board-text, #333333)", fontFamily: "'Montserrat', sans-serif" }}>
+        {translate(has_board ? "DCS_DB_EMPTY_TITLE" : "DCS_DB_NO_DASHBOARDS_TITLE")}
+      </p>
+      <p className="text-xs mb-4" style={{ color: "var(--board-muted, #9E9E9E)" }}>
+        {translate(!can_edit ? "DCS_DB_EMPTY_HINT_VIEWER" : has_board ? "DCS_DB_EMPTY_HINT" : "DCS_DB_NO_DASHBOARDS_HINT")}
+      </p>
+      {can_edit && (
+        <div className="w-full sm:w-56 mx-auto">
+          <DcsButtonPrimary type="button" onClick={() => (has_board ? setBuilderTab("kpi") : setNaming(true))}>
+            {translate(has_board ? "DCS_DB_BTN_GENERATE" : "DCS_DB_CREATE_BTN")}
+          </DcsButtonPrimary>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div
@@ -207,8 +294,9 @@ function DashboardBoard({ form }) {
     >
       <BoardHeader
         form={form}
+        title={<DashboardSwitcher dashboards={library.dashboards} activeId={active_id} canEdit={can_edit && !generating} onSelect={library.select} onRename={rename_active} onCreate={() => setNaming(true)} />}
         widgets_count={widgets.length}
-        can_edit={can_edit}
+        can_edit={can_edit && has_board}
         generating={generating}
         reviewing={review_widgets !== null}
         deleting={deleting}
@@ -233,22 +321,12 @@ function DashboardBoard({ form }) {
         onDelete={() => setConfirming("delete")}
       />
 
-      {review_widgets !== null ? null : widgets.length === 0 && !generating ? (
-        <div className="dcs-board-chrome border-2 p-8 text-center">
-          <p className="text-sm font-semibold mb-1" style={{ color: "var(--board-text, #333333)", fontFamily: "'Montserrat', sans-serif" }}>
-            {translate("DCS_DB_EMPTY_TITLE")}
-          </p>
-          <p className="text-xs mb-4" style={{ color: "var(--board-muted, #9E9E9E)" }}>
-            {translate(can_edit ? "DCS_DB_EMPTY_HINT" : "DCS_DB_EMPTY_HINT_VIEWER")}
-          </p>
-          {can_edit && (
-            <div className="w-full sm:w-56 mx-auto">
-              <DcsButtonPrimary type="button" onClick={() => setBuilderTab("kpi")}>
-                {translate("DCS_DB_BTN_GENERATE")}
-              </DcsButtonPrimary>
-            </div>
-          )}
+      {review_widgets !== null ? null : widgets_loading ? (
+        <div className="dcs-board-chrome border-2 flex justify-center py-12">
+          <SpiralLoader />
         </div>
+      ) : widgets.length === 0 && !generating ? (
+        empty_state
       ) : (
         <div
           ref={grid_ref}
@@ -261,7 +339,7 @@ function DashboardBoard({ form }) {
           }
         >
           <BoardWithSelection
-            form={form}
+            form={scoped_form}
             fields={form_fields}
             widgets={widgets}
             dataByWidget={data.data_by_widget}
@@ -279,7 +357,7 @@ function DashboardBoard({ form }) {
               // Reordering, bulk edits and deletions never change what the
               // surviving widgets chart - keep their data, drop the rest.
               data.settle(final_widgets);
-              setWidgets(final_widgets);
+              commit_widgets(final_widgets);
               data.keep_only(final_widgets);
             }}
           />
@@ -287,35 +365,36 @@ function DashboardBoard({ form }) {
       )}
 
       {review_widgets !== null && (
-        <GeneratedWidgetsReview form={form} initialWidgets={review_widgets} focusIds={review_focus} onOpenDashboard={close_review} onClose={close_review} onWidgetsChange={setWidgets} />
+        <GeneratedWidgetsReview form={scoped_form} initialWidgets={review_widgets} focusIds={review_focus} onOpenDashboard={close_review} onClose={close_review} onWidgetsChange={commit_widgets} />
       )}
       {builder_tab !== null && (
         <DashboardBuilder
-          form={form}
+          form={scoped_form}
           existingWidgets={widgets}
           initialTab={builder_tab}
           onClose={() => setBuilderTab(null)}
           onSaved={(final_widgets) => {
             setBuilderTab(null);
-            setWidgets(final_widgets);
+            commit_widgets(final_widgets);
           }}
           onAutoGenerate={() => handle_generate("overwrite")}
         />
       )}
       {code_open && (
         <DashboardCodeOverlay
-          form={form}
+          form={scoped_form}
           widgets={widgets}
           onClose={() => setCodeOpen(false)}
           onSaved={(final_widgets) => {
             setCodeOpen(false);
-            setWidgets(final_widgets);
+            commit_widgets(final_widgets);
           }}
         />
       )}
-      {share_open && <ShareLinksDialog form={form} onClose={() => setShareOpen(false)} />}
+      {share_open && <ShareLinksDialog form={scoped_form} onClose={() => setShareOpen(false)} />}
+      {naming && <DashboardNameDialog formName={form.form_name} saving={name_saving} onSubmit={submit_name} onCancel={() => setNaming(false)} />}
       <BoardWidgetDialogs
-        form={form}
+        form={scoped_form}
         fields={form_fields}
         widgets={widgets}
         savingWidgetId={saving_widget_id}

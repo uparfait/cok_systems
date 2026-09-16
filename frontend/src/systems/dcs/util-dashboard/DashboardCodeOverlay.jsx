@@ -131,7 +131,7 @@ export default function DashboardCodeOverlay({ form, widgets, onSaved, onClose }
     }
     setSaving(true);
     try {
-      const saved = await save_dashboard(form.form_group_id, merged);
+      const saved = await save_dashboard(form, merged);
       const final_widgets = (saved.data && saved.data.widgets) || merged;
       showSuccess(translate("DCS_DB_TOAST_CREATED_FROM_CODE", { count: final_widgets.length }));
       onSaved(final_widgets);

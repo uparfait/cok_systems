@@ -23,6 +23,20 @@ module.exports = {
   PROJECT_OWNER_TRANSFERRED: "Propriété du projet transférée avec succès",
   DASHBOARD_FETCHED: "Tableau de bord récupéré avec succès",
 
+  DASHBOARDS_FETCHED: "Tableaux de bord récupérés avec succès",
+
+  DASHBOARD_CREATED: "Tableau de bord créé avec succès",
+
+  DASHBOARD_RENAMED: "Tableau de bord renommé avec succès",
+
+  DASHBOARD_DELETED: "Tableau de bord supprimé avec succès",
+
+  DASHBOARD_NOT_FOUND: "Ce tableau de bord n'existe pas ou a été supprimé",
+
+  DASHBOARD_NAME_REQUIRED: "Un nom de tableau de bord est requis (80 caractères max)",
+
+  DASHBOARD_NAME_TAKEN: "Ce formulaire a déjà un tableau de bord portant ce nom",
+
   DASHBOARD_LINKS_FETCHED: "Liens de partage récupérés avec succès",
 
   DASHBOARD_LINK_CREATED: "Lien de partage créé avec succès",

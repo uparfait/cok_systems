@@ -1,4 +1,5 @@
 const dashboard_links_model = require("../dashboard_links_model.js");
+const dashboards_model = require("../dashboards_model.js");
 const { load_form_dashboard_context } = require("../form_context.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -16,6 +17,7 @@ const MAX_DESCRIPTION = 300;
 function strip_link(link) {
   return {
     id: link._id.toString(),
+    dashboard_id: link.dashboard_id || null,
     token: link.token,
     title: link.title,
     description: link.description || "",
@@ -67,7 +69,8 @@ async function list_dashboard_links(req, res) {
   try {
     const context = await manager_context(req, res);
     if (!context) return undefined;
-    const links = await dashboard_links_model.list_links_by_form(req.params.form_group_id);
+    // Scoped to one dashboard when asked (?dashboard_id=...), the whole form otherwise.
+    const links = await dashboard_links_model.list_links_by_form(req.params.form_group_id, (req.query || {}).dashboard_id);
     return res.status(200).json(success_response(req, "DASHBOARD_LINKS_FETCHED", { links: links.map(strip_link) }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
@@ -80,9 +83,15 @@ async function create_dashboard_link(req, res) {
     if (!context) return undefined;
     const read = read_link_fields(req.body || {});
     if (read.error) return res.status(400).json(warning_response(req, read.error));
+    // A link shares ONE dashboard: the one named in the body, or the form's
+    // first when an older client names none.
+    const requested_id = typeof (req.body || {}).dashboard_id === "string" ? req.body.dashboard_id : "";
+    const target = requested_id ? await dashboards_model.get_dashboard_by_id(req.params.form_group_id, requested_id) : await dashboards_model.get_dashboard_by_form(req.params.form_group_id);
+    if (!target) return res.status(404).json(warning_response(req, "DASHBOARD_NOT_FOUND"));
     const link = await dashboard_links_model.create_link(
       Object.assign({}, read.fields, {
         form_group_id: req.params.form_group_id,
+        dashboard_id: target._id.toString(),
         project_id: context.project._id.toString(),
         created_by: req.user.user_id.toString(),
         created_by_name: req.user.full_name || "",

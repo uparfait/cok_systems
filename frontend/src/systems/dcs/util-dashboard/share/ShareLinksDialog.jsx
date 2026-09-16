@@ -41,7 +41,7 @@ function TextButton({ children, onClick, danger, disabled }) {
 }
 
 /**
- * The share links of a form's dashboard, for its editors: every link with
+ * The share links of ONE dashboard (the open one), for its editors: every link with
  * its title, description, status (live until a date, never expiring, or
  * expired), view count and creator; copy its public URL, edit it, delete
  * it; and create a new one. A public link opens the dashboard read-only,
@@ -59,7 +59,7 @@ export default function ShareLinksDialog({ form, onClose }) {
 
   useEffect(() => {
     let is_mounted = true;
-    list_dashboard_links(form.form_group_id)
+    list_dashboard_links(form.form_group_id, form.dashboard_id)
       .then((response) => is_mounted && setLinks((response.data && response.data.links) || []))
       .catch((error) => is_mounted && showError(request_error_text(error, translate("DCS_ERROR_GENERIC"))))
       .finally(() => is_mounted && setLoading(false));
@@ -67,7 +67,7 @@ export default function ShareLinksDialog({ form, onClose }) {
       is_mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.form_group_id]);
+  }, [form.form_group_id, form.dashboard_id]);
 
   const copy = (link) => {
     window.navigator.clipboard.writeText(public_dashboard_url(link.token));
@@ -78,7 +78,7 @@ export default function ShareLinksDialog({ form, onClose }) {
     setSaving(true);
     try {
       if (editing === "new") {
-        const response = await create_dashboard_link(form.form_group_id, fields);
+        const response = await create_dashboard_link(form.form_group_id, { ...fields, dashboard_id: form.dashboard_id || undefined });
         const link = response.data && response.data.link;
         setLinks((current) => [link].concat(current));
         copy(link);
@@ -122,7 +122,7 @@ export default function ShareLinksDialog({ form, onClose }) {
               {translate("DCS_DB_SHARE_TITLE")}
             </p>
             <p className="text-[11px] font-semibold truncate" style={{ color: "rgba(255,255,255,0.85)", ...FONT }}>
-              {form.form_name || form.form_group_id}
+              {form.dashboard_name ? `${form.dashboard_name} - ${form.form_name || form.form_group_id}` : form.form_name || form.form_group_id}
             </p>
           </div>
           <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger disabled={saving}>

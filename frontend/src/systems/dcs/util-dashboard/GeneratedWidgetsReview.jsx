@@ -90,7 +90,7 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, focusIds,
     setSaving(true);
     try {
       const positioned = reindex_positions(next_widgets);
-      const saved = await save_dashboard(form.form_group_id, positioned);
+      const saved = await save_dashboard(form, positioned);
       const final_widgets = (saved.data && saved.data.widgets) || positioned;
       setWidgets(final_widgets);
       if (onCountChange) onCountChange(final_widgets.length);

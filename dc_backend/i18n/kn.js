@@ -22,6 +22,20 @@ module.exports = {
   PROJECT_OWNER_TRANSFERRED: "Ubunyiri bwa poroje bwimuriwe undi neza",
   DASHBOARD_FETCHED: "Imbonerahamwe yabonetse neza",
 
+  DASHBOARDS_FETCHED: "Imbonerahamwe zabonetse neza",
+
+  DASHBOARD_CREATED: "Imbonerahamwe yakozwe neza",
+
+  DASHBOARD_RENAMED: "Imbonerahamwe yahinduriwe izina neza",
+
+  DASHBOARD_DELETED: "Imbonerahamwe yasibwe neza",
+
+  DASHBOARD_NOT_FOUND: "Iyi mbonerahamwe ntibaho cyangwa yakuweho",
+
+  DASHBOARD_NAME_REQUIRED: "Izina ry'imbonerahamwe rirakenewe (inyuguti 80 ntarengwa)",
+
+  DASHBOARD_NAME_TAKEN: "Iyi fishi isanzwe ifite imbonerahamwe ifite iryo zina",
+
   DASHBOARD_LINKS_FETCHED: "Amahuza yo gusangira yabonetse neza",
 
   DASHBOARD_LINK_CREATED: "Ihuza ryo gusangira ryakozwe neza",

@@ -30,12 +30,17 @@ async function get_public_dashboard(req, res) {
   try {
     const context = await resolve(req, res);
     if (!context) return undefined;
-    const dashboard = await dashboards_model.get_dashboard_by_form(context.form_version.form_group_id);
+    // The link's own dashboard; an older link without one shows the form's first.
+    const dashboard = context.link.dashboard_id
+      ? await dashboards_model.get_dashboard_by_id(context.form_version.form_group_id, context.link.dashboard_id)
+      : await dashboards_model.get_dashboard_by_form(context.form_version.form_group_id);
+    if (!dashboard) return res.status(404).json(warning_response(req, "DASHBOARD_NOT_FOUND"));
     await dashboard_links_model.count_view(context.link._id);
     return res.status(200).json(
       success_response(req, "DASHBOARD_FETCHED", {
         form_group_id: context.form_version.form_group_id,
         form_name: context.form_version.form_name,
+        dashboard_name: dashboard.name || dashboards_model.FIRST_NAME,
         project_name: context.project.name || "",
         link: { title: context.link.title, description: context.link.description || "", expires_at: context.link.expires_at || null },
         widgets: (dashboard && dashboard.widgets) || [],

@@ -23,6 +23,20 @@ module.exports = {
   PROJECT_OWNER_TRANSFERRED: "Project ownership transferred successfully",
   DASHBOARD_FETCHED: "Dashboard fetched successfully",
 
+  DASHBOARDS_FETCHED: "Dashboards fetched successfully",
+
+  DASHBOARD_CREATED: "Dashboard created successfully",
+
+  DASHBOARD_RENAMED: "Dashboard renamed successfully",
+
+  DASHBOARD_DELETED: "Dashboard deleted successfully",
+
+  DASHBOARD_NOT_FOUND: "This dashboard does not exist or was removed",
+
+  DASHBOARD_NAME_REQUIRED: "A dashboard name is required (max 80 characters)",
+
+  DASHBOARD_NAME_TAKEN: "This form already has a dashboard with that name",
+
   DASHBOARD_LINKS_FETCHED: "Share links fetched successfully",
 
   DASHBOARD_LINK_CREATED: "Share link created successfully",

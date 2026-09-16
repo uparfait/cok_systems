@@ -5,6 +5,53 @@ const save_dashboard = require("./controllers/save_dashboard.js");
 const dashboard_data = require("./controllers/dashboard_data.js");
 const kpi_skipped = require("./controllers/kpi_skipped.js");
 const { list_dashboard_links, create_dashboard_link, update_dashboard_link, delete_dashboard_link } = require("./controllers/dashboard_links.js");
+const { list_dashboards, create_dashboard, rename_dashboard, delete_dashboard, get_dashboard_by_id, save_dashboard_by_id } = require("./controllers/dashboards.js");
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/dashboards:
+ *   get:
+ *     summary: List the form's named dashboards (id, name, widget count)
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ *   post:
+ *     summary: Create a named dashboard for the form (form editors only)
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ */
+Router.get("/:form_group_id/dashboards", list_dashboards);
+Router.post("/:form_group_id/dashboards", create_dashboard);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/dashboards/{dashboard_id}:
+ *   get:
+ *     summary: One dashboard's widgets
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ *   put:
+ *     summary: Save one dashboard's widgets (validated against the form's schema)
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ *   patch:
+ *     summary: Rename a dashboard
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ *   delete:
+ *     summary: Delete a dashboard and its share links
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ */
+Router.get("/:form_group_id/dashboards/:dashboard_id", get_dashboard_by_id);
+Router.put("/:form_group_id/dashboards/:dashboard_id", save_dashboard_by_id);
+Router.patch("/:form_group_id/dashboards/:dashboard_id", rename_dashboard);
+Router.delete("/:form_group_id/dashboards/:dashboard_id", delete_dashboard);
 
 /**
  * @swagger

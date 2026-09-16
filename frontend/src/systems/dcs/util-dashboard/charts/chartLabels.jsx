@@ -15,8 +15,9 @@ import React from "react";
 // Text is drawn 6px clear of the axis, plus a little breathing room.
 const AXIS_GAP = 6;
 const AXIS_PAD = 10;
-// Only a label that cannot fit even this many lines is shortened.
-export const MAX_LINES = 8;
+// A label is only ever shortened past this many lines - far beyond any
+// real name, so in practice every label is drawn in full.
+export const MAX_LINES = 60;
 
 let measure_context;
 let measure_family;

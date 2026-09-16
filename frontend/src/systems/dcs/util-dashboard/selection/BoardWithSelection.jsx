@@ -79,7 +79,7 @@ export default function BoardWithSelection({ form, fields, widgets, editable, on
     setSaving(true);
     try {
       const positioned = finalize_widgets(selection.working);
-      const saved = await save_dashboard(form.form_group_id, positioned);
+      const saved = await save_dashboard(form, positioned);
       const final_widgets = (saved.data && saved.data.widgets) || positioned;
       showSuccess(translate("DCS_DB_SEL_SAVED"));
       selection.exit();

@@ -92,7 +92,7 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth 
     return (
       <div>
         {toggle_link("DCS_DB_OTHER_BACK", false)}
-        <CategoryCharts chartType="bar" rows={other_rows.map((row) => ({ label: String(row.label), value: row.value }))} series={[]} palette={palette} density={density} />
+        <CategoryCharts chartType="bar" rows={other_rows.map((row) => ({ label: String(row.label), value: row.value }))} series={[]} palette={palette} density={density} fitMode={fitMode} />
         {toggle_link("DCS_DB_OTHER_BACK", false)}
       </div>
     );
@@ -121,6 +121,7 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth 
         palette={palette}
         animate={animate}
         density={density}
+        fitMode={fitMode}
         legendLabels={{ split: translate("DCS_DB_LEGEND_COLORS"), pattern: translate("DCS_DB_LEGEND_TEXTURES") }}
       />
     );

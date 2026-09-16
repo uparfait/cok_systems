@@ -82,6 +82,7 @@ function PublicBoard() {
     >
       <BoardHeader
         form={form}
+        title={info.dashboard_name || info.form_name || ""}
         widgets_count={widgets.length}
         can_edit={false}
         generating={false}

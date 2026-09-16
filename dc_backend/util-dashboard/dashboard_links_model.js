@@ -23,8 +23,16 @@ async function create_link(link) {
   return Object.assign({ _id: result.insertedId }, document);
 }
 
-async function list_links_by_form(form_group_id) {
-  return get_db().collection(COLLECTION_NAME).find({ form_group_id: form_group_id.toString() }).sort({ created_at: -1 }).toArray();
+/** The links of one form, narrowed to one dashboard when a dashboard id is given. */
+async function list_links_by_form(form_group_id, dashboard_id) {
+  const query = { form_group_id: form_group_id.toString() };
+  if (dashboard_id) query.dashboard_id = dashboard_id.toString();
+  return get_db().collection(COLLECTION_NAME).find(query).sort({ created_at: -1 }).toArray();
+}
+
+async function delete_links_by_dashboard(dashboard_id) {
+  const result = await get_db().collection(COLLECTION_NAME).deleteMany({ dashboard_id: dashboard_id.toString() });
+  return result.deletedCount;
 }
 
 async function get_link_by_id(link_id) {
@@ -66,6 +74,7 @@ function is_expired(link) {
 module.exports = {
   create_link,
   list_links_by_form,
+  delete_links_by_dashboard,
   get_link_by_id,
   get_link_by_token,
   update_link,

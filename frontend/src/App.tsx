@@ -746,6 +746,7 @@ const App: React.FC = () => {
 
 
           <Route path="/dcs-form/:id" element={<PublicFormPage />} />
+          <Route path="/XdP/:token" element={<PublicDashboardPage />} />
           <Route path="/dcs-dashboard/:token" element={<PublicDashboardPage />} />
           <Route path="/dcs-approval/:token" element={<ApprovalPage />} />
           <Route path="/dcs-batch-approval/:token" element={<BatchApprovalPage />} />

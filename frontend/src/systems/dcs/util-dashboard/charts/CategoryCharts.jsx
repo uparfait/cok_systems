@@ -1,7 +1,7 @@
 import React, { useId } from "react";
 import { ResponsiveContainer, BarChart, Bar, Cell, ComposedChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, LabelList } from "recharts";
 import { build_palette } from "../appearance.js";
-import { wrapped_tick, x_axis_height, y_axis_width, y_label_room, value_axis_width, number_room, bar_row_height, widest_word } from "./chartLabels.jsx";
+import { wrapped_tick, x_axis_height, y_axis_width, y_label_room, value_axis_width, number_room, bar_row_height, widest_word, text_width } from "./chartLabels.jsx";
 import { chart_density, tick_style, value_style } from "./density.js";
 import { PatternDefs, pattern_fill, series_display } from "./patterns.jsx";
 import { SplitLegend, LegendFrame } from "./SeriesLegend.jsx";
@@ -10,6 +10,13 @@ import { SplitLegend, LegendFrame } from "./SeriesLegend.jsx";
  * Every category-comparison renderer: bar (horizontal), column (vertical),
  * lollipop, dot plot, grouped columns, stacked columns and the 100 percent
  * stacked variation.
+ *
+ * Many categories never stack on each other: every category gets at
+ * least its minimum room (and a long name enough room to wrap into a few
+ * lines), and when that is more than the card can show the chart widens
+ * and scrolls SIDEWAYS inside the card. A horizontal bar chart of many rows
+ * grows row by row and scrolls VERTICALLY inside the card past a cap. Only
+ * the fit-to-screen mode compresses everything to the card instead.
  *
  * Nothing is ever cut: the numeric axis reserves room for the largest
  * number it will print, a value written beside a bar reserves room for the
@@ -46,8 +53,31 @@ function category_axis_cap(labels, density) {
   return Math.min(Math.max(comfortable, Math.ceil(widest) + 18), Math.max(80, density.width * 0.62));
 }
 
-/** The text room one category gets under an X axis. */
-const category_room = (count, plot_width) => Math.max(28, plot_width / Math.max(1, count) - 6);
+/**
+ * How the categories of an X axis are laid out: the room each gets for its
+ * label and the width the chart must have to give it. Each category gets
+ * at least the card size's minimum, and a long label enough to wrap into
+ * about six lines; when the categories then need more width than the card
+ * offers, the chart widens (and scrolls sideways inside the card). In fit
+ * mode the card's width is simply shared out.
+ */
+function category_frame(labels, count, density, fixed_px, fit) {
+  const longest = labels.reduce((best, label) => Math.max(best, text_width(label, density.font)), 0);
+  const wanted = Math.max(density.min_col_px, Math.min(260, Math.ceil(longest / 6) + 16));
+  const available = Math.max(80, density.width - fixed_px);
+  const per = fit ? available / Math.max(1, count) : Math.max(wanted, available / Math.max(1, count));
+  const width = fit ? density.width : Math.max(density.width, Math.ceil(per * count + fixed_px));
+  return { room: Math.max(28, per - 6), width };
+}
+
+/** A chart that may be wider than its card scrolls sideways inside it; a taller one scrolls down. */
+function ScrollFrame({ width, height, fit, density, children }) {
+  return (
+    <div style={{ width: "100%", maxWidth: "100%", overflowX: fit || !width ? "hidden" : "auto", overflowY: fit || !height ? "hidden" : "auto", maxHeight: fit || !height ? undefined : density.max_height }}>
+      <div style={{ minWidth: fit || !width ? undefined : width }}>{children}</div>
+    </div>
+  );
+}
 
 /** A value written on a mark, left out entirely when the card is too narrow to read one. */
 function ValueLabels({ density, palette, dataKey, position, formatter, size }) {
@@ -55,7 +85,7 @@ function ValueLabels({ density, palette, dataKey, position, formatter, size }) {
   return <LabelList dataKey={dataKey} position={position} formatter={formatter || show_value} style={value_style(palette, density, size)} />;
 }
 
-function HorizontalBars({ rows, onItemClick, palette, animate, density }) {
+function HorizontalBars({ rows, onItemClick, palette, animate, density, fitMode }) {
   const labels = labels_of(rows);
   const cap = category_axis_cap(labels, density);
   const width = y_axis_width(labels, cap, density.font);
@@ -63,6 +93,7 @@ function HorizontalBars({ rows, onItemClick, palette, animate, density }) {
   const height = Math.max(density.height, rows.length * bar_row_height(labels, room, density.row_base, density.font));
   const margin = { top: 10, right: right_room(density, values_of(rows)), left: 0, bottom: 5 };
   return (
+    <ScrollFrame height={height} fit={fitMode} density={density}>
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={rows} layout="vertical" margin={margin}>
         <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} horizontal={false} />
@@ -75,17 +106,18 @@ function HorizontalBars({ rows, onItemClick, palette, animate, density }) {
         </Bar>
       </BarChart>
     </ResponsiveContainer>
+    </ScrollFrame>
   );
 }
 
 /** Columns and the lollipop / dot variations - one mark per category. */
-function VerticalMarks({ rows, onItemClick, palette, animate, density, shape }) {
+function VerticalMarks({ rows, onItemClick, palette, animate, density, shape, fitMode }) {
   const labels = labels_of(rows);
   const values = values_of(rows);
   const y_width = value_axis_width(values, density.font);
   const margin = { top: top_room(density), right: 14, left: 0, bottom: 5 };
-  const plot_width = Math.max(80, density.width - y_width - margin.right - 8);
-  const x_room = category_room(rows.length, plot_width);
+  const frame = category_frame(labels, rows.length, density, y_width + margin.right + 8, fitMode);
+  const x_room = frame.room;
   const axis_height = x_axis_height(labels, x_room, density.font);
   const height = density.height + axis_height - 30;
   const axes = (
@@ -98,32 +130,36 @@ function VerticalMarks({ rows, onItemClick, palette, animate, density, shape }) 
   );
   if (shape === "column") {
     return (
-      <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={rows} margin={margin}>
-          {axes}
-          <Bar dataKey="value" {...animation(animate)} maxBarSize={density.column_bar} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
-            {value_cells(rows, palette)}
-            <ValueLabels density={density} palette={palette} dataKey="value" position="top" />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <ScrollFrame width={frame.width} fit={fitMode} density={density}>
+        <ResponsiveContainer width="100%" height={height}>
+          <BarChart data={rows} margin={margin}>
+            {axes}
+            <Bar dataKey="value" {...animation(animate)} maxBarSize={density.column_bar} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
+              {value_cells(rows, palette)}
+              <ValueLabels density={density} palette={palette} dataKey="value" position="top" />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </ScrollFrame>
     );
   }
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={rows} margin={margin}>
-        {axes}
-        {shape === "lollipop" && (
-          <Bar dataKey="value" barSize={3} {...animation(animate)}>
+    <ScrollFrame width={frame.width} fit={fitMode} density={density}>
+      <ResponsiveContainer width="100%" height={height}>
+        <ComposedChart data={rows} margin={margin}>
+          {axes}
+          {shape === "lollipop" && (
+            <Bar dataKey="value" barSize={3} {...animation(animate)}>
+              {value_cells(rows, palette)}
+            </Bar>
+          )}
+          <Scatter dataKey="value" {...animation(animate)}>
             {value_cells(rows, palette)}
-          </Bar>
-        )}
-        <Scatter dataKey="value" {...animation(animate)}>
-          {value_cells(rows, palette)}
-          <ValueLabels density={density} palette={palette} dataKey="value" position="top" />
-        </Scatter>
-      </ComposedChart>
-    </ResponsiveContainer>
+            <ValueLabels density={density} palette={palette} dataKey="value" position="top" />
+          </Scatter>
+        </ComposedChart>
+      </ResponsiveContainer>
+    </ScrollFrame>
   );
 }
 
@@ -134,7 +170,7 @@ function VerticalMarks({ rows, onItemClick, palette, animate, density, shape }) 
  * drawn by SeriesLegend where the appearance places it - under the chart
  * whenever the card is too narrow to carry one beside it.
  */
-function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, labels, animate, density }) {
+function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, labels, animate, density, fitMode }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const display = series_display(series, seriesMeta, palette);
   const row_total = (row) => series.reduce((sum, key) => sum + (row[key] || 0), 0);
@@ -163,8 +199,8 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
   const margin = horizontal
     ? { top: 10, right: right_room(density, peak), left: 0, bottom: 5 }
     : { top: top_room(density), right: 14, left: 0, bottom: 5 };
-  const plot_width = Math.max(80, density.width - y_width - margin.right - 8);
-  const x_room = category_room(rows.length, plot_width);
+  const frame = horizontal ? { room: 0, width: 0 } : category_frame(row_labels, rows.length, density, y_width + margin.right + 8, fitMode);
+  const x_room = frame.room;
   const axis_height = x_axis_height(row_labels, x_room, density.font);
   const height = horizontal
     ? Math.max(density.height, rows.length * bar_row_height(row_labels, y_room, stacked ? density.row_base + 2 : Math.max(density.row_base - 8, series.length * (density.font + 7)), density.font))
@@ -172,6 +208,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
   const split_colors = display.splits.map((split, index) => palette.color_for(split, index));
 
   const chart = (
+    <ScrollFrame width={horizontal ? 0 : frame.width} height={horizontal ? height : 0} fit={fitMode} density={density}>
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} layout={horizontal ? "vertical" : "horizontal"} margin={margin}>
         <PatternDefs uid={uid} colors={split_colors} patternCount={display.patterns.length} />
@@ -203,6 +240,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
         ))}
       </BarChart>
     </ResponsiveContainer>
+    </ScrollFrame>
   );
 
   return (
@@ -221,10 +259,10 @@ const MULTI_SERIES_TYPES = {
   stacked_bar_100: { mode: "stacked_100", horizontal: true },
 };
 
-export default function CategoryCharts({ chartType, rows, series, seriesMeta, onItemClick, palette, legendLabels, animate, density }) {
+export default function CategoryCharts({ chartType, rows, series, seriesMeta, onItemClick, palette, legendLabels, animate, density, fitMode }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
-  const shared = { rows, palette: colors, animate, density: size };
+  const shared = { rows, palette: colors, animate, density: size, fitMode };
   if (chartType === "bar") return <HorizontalBars {...shared} onItemClick={onItemClick} />;
   if (chartType === "lollipop") return <VerticalMarks {...shared} shape="lollipop" />;
   if (chartType === "dot_plot") return <VerticalMarks {...shared} shape="dots" />;
