@@ -277,7 +277,7 @@ async function compute_occurrences(widget, kind, bounds, catalog) {
     const parts = display_fields.map((field_id) => answer_text(row.display[field_id])).filter(Boolean);
     const shared = Object.keys(row.shared || {}).map((field_id) => answer_text(row.shared[field_id])).filter(Boolean);
     const head = parts.length > 0 ? parts.join(separator) : answer_text(row._id) || "-";
-    return { label: [head].concat(shared).join(separator), value: row.value || 0, matches: row.matches };
+    return { label: [head].concat(shared).join(separator), value: row.value || 0, matches: row.matches, record_key: row._id, shared: row.shared || {} };
   });
   const has_rule = !!(widget.occurrence_rule && widget.occurrence_rule.operator);
   const matching = rows.filter((row) => row.matches);
@@ -293,7 +293,7 @@ async function compute_occurrences(widget, kind, bounds, catalog) {
   }
   const limit = slice_limit(widget);
   if (kind === CHART_KINDS.TREE) {
-    return { kind, occurrences, nodes: rows.slice(0, limit).map((row) => ({ name: row.label, value: row.value, matches: row.matches })) };
+    return { kind, occurrences, nodes: rows.slice(0, limit).map((row) => ({ name: row.label, value: row.value, matches: row.matches, record_key: row.record_key, shared: row.shared })) };
   }
   return { kind: CHART_KINDS.CATEGORY, occurrences, rows: rows.slice(0, limit), series: [], other_folded: false, other_rows: [] };
 }

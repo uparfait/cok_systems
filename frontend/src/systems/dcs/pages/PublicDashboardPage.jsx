@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped, get_public_filter_values, get_public_widget_records, request_error_text } from "../util-dashboard/dashboardService.js";
+import { get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped, get_public_filter_values, get_public_widget_records, export_public_widget_records, request_error_text } from "../util-dashboard/dashboardService.js";
 import RecordsOverlay from "../util-dashboard/records/RecordsOverlay.jsx";
 import { applied_filter_map } from "../util-dashboard/boardFilters.js";
 import { useBoardFullscreen } from "../util-dashboard/useBoardFullscreen.js";
@@ -65,7 +65,8 @@ function PublicBoard() {
   });
   const config = (info && info.link && info.link.config) || { filter_mode: "free", locked_filters: [], show_title: false };
   const locked = config.filter_mode === "locked";
-  const locked_ids = useMemo(() => new Set(locked ? ((info && info.filters) || []).map((def) => def.field_id) : []), [locked, info]);
+  // Only the filters the link fixed are locked; the rest stay the viewer's ("All" by default).
+  const locked_ids = useMemo(() => new Set(locked ? (config.locked_filters || []).map((entry) => entry.field_id) : []), [locked, config.locked_filters]);
   const fetch_filter_values = (field_id) => get_public_filter_values(token, field_id, data.applied_filters_ref.current, data.applied_period_ref.current).then((response) => (response.data && response.data.values) || []);
   const { container_ref, grid_ref, is_fullscreen, is_fallback, enter, exit, fs_mode, setFsMode, fit_scale, header_visible, show_header, schedule_header_hide } = useBoardFullscreen();
 
@@ -136,7 +137,7 @@ function PublicBoard() {
         filters={info.filters || []}
         fields={info.filter_fields || []}
         widgets={widgets}
-        filterValues={locked ? applied_filter_map(config.locked_filters) : data.filter_values}
+        filterValues={locked ? { ...data.filter_values, ...applied_filter_map(config.locked_filters) } : data.filter_values}
         onFilterValue={data.set_filter_value}
         onFilterValues={data.set_filter_values}
         fetchFilterValues={fetch_filter_values}
@@ -174,6 +175,7 @@ function PublicBoard() {
           title={records.widget.title}
           subtitle={info.dashboard_name || ""}
           fetchPage={(page) => get_public_widget_records(token, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick, page, limit: 20 })}
+          exportRecords={(on_progress) => export_public_widget_records(token, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick }, on_progress)}
           onClose={() => setRecords(null)}
         />
       )}

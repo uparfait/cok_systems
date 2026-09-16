@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_dashboard, save_dashboard, get_dashboard_data, get_filter_values, get_widget_records, request_error_text } from "./dashboardService.js";
+import { get_dashboard, save_dashboard, get_dashboard_data, get_filter_values, get_widget_records, export_widget_records, request_error_text } from "./dashboardService.js";
 import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
 import { useBoardData } from "./useBoardData.js";
@@ -49,7 +49,7 @@ export default function DashboardPage({ form }) {
 }
 
 function DashboardBoard({ form }) {
-  const { translate } = useDcsLanguage();
+  const { translate, language } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const board = useBoardTheme();
   const library = useDashboards(form.form_group_id);
@@ -460,7 +460,8 @@ function DashboardBoard({ form }) {
           title={records.widget.title}
           subtitle={library.active ? library.active.name : ""}
           schema={form.schema}
-          fetchPage={(page) => get_widget_records(form.form_group_id, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick, page, limit: 20 })}
+          fetchPage={(page) => get_widget_records(form.form_group_id, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick, page, limit: 20, language })}
+          exportRecords={(on_progress) => export_widget_records(form.form_group_id, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick, language, title: records.widget.title }, on_progress)}
           onClose={() => setRecords(null)}
         />
       )}

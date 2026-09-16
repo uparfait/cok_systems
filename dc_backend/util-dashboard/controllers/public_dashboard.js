@@ -2,7 +2,8 @@ const dashboards_model = require("../dashboards_model.js");
 const dashboard_links_model = require("../dashboard_links_model.js");
 const { load_public_dashboard_context } = require("../public_link_context.js");
 const { compute_dashboard_results, compute_skipped_page, compute_filter_values } = require("../compute_results.js");
-const { compute_widget_records } = require("../widget_records.js");
+const { compute_widget_records, collect_widget_records } = require("../widget_records.js");
+const { build_records_workbook, send_workbook } = require("../records_export.js");
 const { build_field_catalog, field_label_text, parent_field_id_of } = require("../field_catalog.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -31,15 +32,15 @@ function link_config(link) {
 }
 
 /**
- * The body a request really runs with under this link: a locked link
- * ignores the viewer's filter values and, when it fixes a period, the
- * viewer's period too.
+ * The body a request really runs with under this link: under a locked
+ * link the fixed filters always win over the viewer's values (the merge
+ * does that), every other filter stays the viewer's to pick, and a fixed
+ * period replaces the viewer's.
  */
 function viewer_body(req, link) {
   const config = link_config(link);
   const body = Object.assign({}, req.body || {});
   if (config.filter_mode !== "locked") return body;
-  body.filters = [];
   if (config.locked_period) body.period = config.locked_period;
   return body;
 }
@@ -162,7 +163,25 @@ async function get_public_widget_records(req, res) {
   }
 }
 
+/** The records behind a shared widget as an Excel download - when the link allows opening records. */
+async function get_public_widget_records_export(req, res) {
+  try {
+    const context = await resolve(req, res);
+    if (!context) return undefined;
+    if (!link_config(context.link).allow_records) return res.status(403).json(warning_response(req, "DASHBOARD_RECORDS_FORBIDDEN"));
+    const body = viewer_body(req, context.link);
+    const result = await collect_widget_records(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link));
+    if (result.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: result.invalid }));
+    const title = (body.widget && body.widget.title) || "records";
+    const file = await build_records_workbook({ title, items: result.items, columns: result.columns, criteria: result.criteria, period: result.period, language: "en" });
+    return send_workbook(res, file, result.items.length);
+  } catch (error) {
+    return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
+  }
+}
+
 module.exports = {
+  get_public_widget_records_export,
   get_public_widget_records,
   get_public_dashboard,
   get_public_dashboard_data,

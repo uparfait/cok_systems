@@ -29,9 +29,10 @@ function Radio({ checked, label, onPick }) {
 /**
  * A share link's advanced configuration: whether viewers filter the board
  * themselves or see it under filter values fixed here (one value per board
- * filter; the values offered follow the other fixed values, like on the
- * board itself), and whether the link's title replaces the dashboard's
- * name for viewers. Folded away until asked for.
+ * filter, or "Default" to leave that one to the viewer; the values offered
+ * follow the other fixed values, like on the board itself), and whether
+ * the link's title replaces the dashboard's name for viewers. Folded away
+ * until asked for.
  */
 export default function LinkConfigFields({ config, onChange, filters, fields, fetchValues }) {
   const { translate } = useDcsLanguage();
@@ -93,6 +94,7 @@ export default function LinkConfigFields({ config, onChange, filters, fields, fe
                     label={field_label_of(fields, def.field_id)}
                     value={locked_map[def.field_id]}
                     onChange={(value) => set_locked(def.field_id, value)}
+                    allLabel={translate("DCS_DB_SHARE_DEFAULT")}
                     fetchValues={() => fetchValues(def.field_id, applied_filter_list(locked_map).filter((entry) => entry.field_id !== def.field_id))}
                   />
                 ))}

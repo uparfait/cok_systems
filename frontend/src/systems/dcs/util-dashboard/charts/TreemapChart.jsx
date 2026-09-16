@@ -12,9 +12,9 @@ import { fit_text } from "./chartLabels.jsx";
  * over a neighbouring tile.
  */
 function TreemapCell(props) {
-  const { x, y, width, height, name, value, root, index, palette, fontSize, onPick } = props;
+  const { x, y, width, height, name, value, root, index, depth, palette, fontSize, onPick, record_key, shared } = props;
   const parent = root && root.name !== undefined && root.name !== name ? root.name : null;
-  const click = onPick && name !== undefined ? () => onPick({ name, parent }) : undefined;
+  const click = onPick && name !== undefined ? () => onPick({ name, parent, depth, record_key, shared }) : undefined;
   const color_index = root && typeof root.index === "number" ? root.index : index || 0;
   const color_label = root && root.name !== undefined ? root.name : name;
   // Measured, so a name is either shown whole or trimmed to what truly

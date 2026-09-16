@@ -5,6 +5,8 @@ import { portal_root } from "../portalRoot.js";
 import { IconButton, CLOSE_SVG } from "../BoardIcons.jsx";
 import DcsDataTable from "../../components/DcsDataTable.jsx";
 import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
+import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
+import { useToast } from "../../../../core/contexts/ToastContext.tsx";
 import { render_answer_cell, column_label } from "../../fields/dataColumns.jsx";
 import { flatten_schema_fields } from "../chartCatalog.js";
 import { request_error_text } from "../dashboardService.js";
@@ -30,8 +32,11 @@ const format_when = (value, language) => {
  * fetchPage(page) returns the server's { items, total, limit, columns,
  * criteria, period }.
  */
-export default function RecordsOverlay({ title, subtitle, fetchPage, schema, onClose }) {
+export default function RecordsOverlay({ title, subtitle, fetchPage, exportRecords, schema, onClose }) {
   const { translate, language } = useDcsLanguage();
+  const { showSuccess, showError } = useToast();
+  // The Excel export: null while idle, else the download's progress (0-100).
+  const [exporting, setExporting] = useState(null);
   const [page, setPage] = useState(1);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -87,22 +92,52 @@ export default function RecordsOverlay({ title, subtitle, fetchPage, schema, onC
   const tints = Object.fromEntries(columns.filter((column) => highlighted.has(column.key)).map((column) => [column.key, "blue"]));
   if (criteria.some((entry) => entry.is_time)) tints.submitted_at = "blue";
 
+  // The server builds the workbook and streams it; the button shows the download's progress.
+  const run_export = async () => {
+    if (!exportRecords || exporting !== null) return;
+    setExporting(0);
+    try {
+      const file = await exportRecords((percent) => setExporting(percent));
+      const href = URL.createObjectURL(file.blob);
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = file.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(href);
+      showSuccess(translate("DCS_DB_RECORDS_EXPORTED"));
+    } catch (failure) {
+      showError((failure && failure.message) || translate("DCS_DB_RECORDS_EXPORT_FAILED"));
+    } finally {
+      setExporting(null);
+    }
+  };
+
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex flex-col bg-white" role="dialog" aria-modal="true">
       <div className="flex items-center justify-between gap-3 flex-shrink-0 px-4 sm:px-5 py-2" style={{ backgroundColor: PRIMARY }}>
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...FONT }}>
-            {translate("DCS_DB_RECORDS_TITLE")}
+            {translate("DCS_DB_RECORDS_TITLE_OF", { title })}
           </p>
           <p className="text-[11px] font-semibold truncate" style={{ color: "rgba(255,255,255,0.85)", ...FONT }}>
-            {title}
-            {subtitle ? ` - ${subtitle}` : ""}
-            {result ? ` - ${translate("DCS_DB_RECORDS_COUNT", { count: total.toLocaleString("en-US") })}` : ""}
+            {subtitle || ""}
+            {result ? `${subtitle ? " - " : ""}${translate("DCS_DB_RECORDS_COUNT", { count: total.toLocaleString("en-US") })}` : ""}
           </p>
         </div>
-        <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger>
-          {CLOSE_SVG}
-        </IconButton>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {exportRecords && (
+            <div className="w-40 sm:w-48">
+              <DcsButtonPrimary type="button" onClick={run_export} disabled={exporting !== null || loading || !!error || total === 0} className="dcs-records-export-btn">
+                {exporting === null ? translate("DCS_DB_RECORDS_EXPORT") : translate("DCS_DB_RECORDS_EXPORTING", { percent: exporting })}
+              </DcsButtonPrimary>
+            </div>
+          )}
+          <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger>
+            {CLOSE_SVG}
+          </IconButton>
+        </div>
       </div>
 
       <div className="flex-shrink-0 px-4 sm:px-5 py-2 flex flex-wrap items-center gap-2 border-b" style={{ borderColor: "#E0E0E0" }}>

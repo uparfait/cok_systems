@@ -116,6 +116,24 @@ export default function BoardFilters({ filters, fields, values, onValue, onValue
           </div>
         );
       })}
+      {defs.some((def) => has(def.field_id) && !locked.has(def.field_id)) && (
+        <button
+          type="button"
+          className="dcs-board-filter-clear dcs-link-action"
+          disabled={disabled}
+          onClick={() => {
+            // Every filter the viewer may change goes back to "All"; the period stays.
+            const patch = {};
+            defs.forEach((def) => {
+              if (!locked.has(def.field_id)) patch[def.field_id] = "";
+            });
+            if (onValues) onValues(patch);
+            else Object.keys(patch).forEach((id) => onValue(id, ""));
+          }}
+        >
+          {translate("DCS_DB_FILTER_CLEAR")}
+        </button>
+      )}
     </>
   );
 }

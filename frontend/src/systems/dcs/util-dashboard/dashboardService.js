@@ -62,6 +62,59 @@ export function get_widget_records(form_group_id, body) {
 }
 
 /**
+ * Downloads the records behind a widget as Excel. The file is built on the
+ * server and streamed back with its length, so on_progress (0-100) tracks
+ * the real download. Resolves { blob, filename }.
+ */
+export function export_widget_records(form_group_id, body, on_progress) {
+  return download_records(`/dcs/api/forms/${form_group_id}/dashboard/records/export`, body, on_progress, true);
+}
+
+export function export_public_widget_records(token, body, on_progress) {
+  return download_records(`/dcs/api/public/dashboard/${token}/records/export`, body, on_progress, false);
+}
+
+function download_records(url, body, on_progress, authenticated) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url, true);
+    xhr.responseType = "blob";
+    xhr.setRequestHeader("Content-Type", "application/json");
+    if (authenticated) {
+      const token = window.localStorage.getItem("accessToken");
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.setRequestHeader("X-Language", window.localStorage.getItem("dcs_language") || "en");
+    } else {
+      xhr.setRequestHeader("X-Language", "en");
+    }
+    xhr.onprogress = (event) => {
+      if (event.lengthComputable && on_progress) on_progress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const disposition = xhr.getResponseHeader("Content-Disposition") || "";
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        resolve({ blob: xhr.response, filename: match ? match[1] : "records.xlsx" });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const json = JSON.parse(reader.result);
+          reject(new Error(json.message || `Export failed (${xhr.status})`));
+        } catch {
+          reject(new Error(`Export failed (${xhr.status})`));
+        }
+      };
+      reader.onerror = () => reject(new Error(`Export failed (${xhr.status})`));
+      reader.readAsText(xhr.response);
+    };
+    xhr.onerror = () => reject(new Error("Network error during export"));
+    xhr.send(JSON.stringify(body || {}));
+  });
+}
+
+/**
  * The values one board filter field can take right now: the distinct
  * answers under the period and the other applied filters, with counts.
  */

@@ -5,7 +5,7 @@ const save_dashboard = require("./controllers/save_dashboard.js");
 const dashboard_data = require("./controllers/dashboard_data.js");
 const kpi_skipped = require("./controllers/kpi_skipped.js");
 const filter_values = require("./controllers/filter_values.js");
-const widget_records = require("./controllers/widget_records.js");
+const { widget_records, widget_records_export } = require("./controllers/widget_records.js");
 const { list_dashboard_links, create_dashboard_link, update_dashboard_link, delete_dashboard_link } = require("./controllers/dashboard_links.js");
 const { list_dashboards, create_dashboard, rename_dashboard, delete_dashboard, get_dashboard_by_id, save_dashboard_by_id } = require("./controllers/dashboards.js");
 
@@ -132,6 +132,17 @@ Router.post("/:form_group_id/dashboard/filter-values", filter_values);
  *       - BearerAuth: []
  */
 Router.post("/:form_group_id/dashboard/records", widget_records);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/dashboard/records/export:
+ *   post:
+ *     summary: The submissions behind one widget as an Excel download (same body as the records endpoint)
+ *     tags: [Dashboard]
+ *     security:
+ *       - BearerAuth: []
+ */
+Router.post("/:form_group_id/dashboard/records/export", widget_records_export);
 
 /**
  * @swagger

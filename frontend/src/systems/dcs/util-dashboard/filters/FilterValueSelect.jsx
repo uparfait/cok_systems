@@ -22,7 +22,9 @@ const SEARCH_FROM = 8;
  * a filter that has loaded once never shows a spinner again. A locked
  * filter (a share link that fixes it) shows its value and cannot be opened.
  */
-export default function FilterValueSelect({ label, value, onChange, values, onOpen, fetchValues, locked, disabled, waitHint }) {
+export default function FilterValueSelect({ label, value, onChange, values, onOpen, fetchValues, locked, disabled, waitHint, allLabel }) {
+  // What the empty choice is called: "All" on a board, "Default" when fixing a link.
+  const all_text = allLabel || null;
   const { translate } = useDcsLanguage();
   const anchor_ref = useRef(null);
   const [open, setOpen] = useState(false);
@@ -70,7 +72,7 @@ export default function FilterValueSelect({ label, value, onChange, values, onOp
         onClick={() => setOpen((current) => !current)}
       >
         <span className="dcs-board-filter-label">{label}</span>
-        <span className="dcs-board-filter-value">{has_value ? String(value) : waitHint || translate("DCS_DB_FILTER_ALL")}</span>
+        <span className="dcs-board-filter-value">{has_value ? String(value) : waitHint || all_text || translate("DCS_DB_FILTER_ALL")}</span>
         {!locked && <span className="dcs-board-filter-chevron">{CHEVRON}</span>}
       </button>
       <MenuPopover open={open} anchorRef={anchor_ref} onClose={() => setOpen(false)} minWidth={240} maxHeight={400} align="start" role="listbox">
@@ -87,7 +89,8 @@ export default function FilterValueSelect({ label, value, onChange, values, onOp
           <li>
             <button type="button" role="option" aria-selected={!has_value} className={`dcs-board-switcher-item ${!has_value ? "is-active" : ""}`} onClick={() => pick("")}>
               <span className="min-w-0 flex-1">
-                <span className="dcs-board-switcher-item-name">{translate("DCS_DB_FILTER_ALL")}</span>
+                <span className="dcs-board-switcher-item-name">{all_text || translate("DCS_DB_FILTER_ALL")}</span>
+                {all_text && <span className="dcs-board-switcher-item-meta">{translate("DCS_DB_SHARE_DEFAULT_HINT")}</span>}
               </span>
             </button>
           </li>

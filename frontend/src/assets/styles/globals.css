@@ -3088,7 +3088,8 @@ background-color: #056daa;
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 2px;
+  /* Room on every side for the focus ring, which the scroll box would otherwise clip. */
+  padding: 6px;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
 }
@@ -3269,4 +3270,30 @@ background-color: #056daa;
   color: #056daa;
   background-color: rgba(5, 109, 170, 0.10);
   border: 1px solid rgba(5, 109, 170, 0.35);
+}
+
+/* The records overlay's export button sits on the blue header. */
+.dcs-records-export-btn {
+  border: 2px solid #FFFFFF !important;
+}
+
+/* "Clear filters" after the filter row: every filter back to All, the period untouched. */
+.dcs-board-filter-clear {
+  flex: none;
+  height: 40px;
+  padding: 0 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #056daa;
+  white-space: nowrap;
+}
+.dcs-board-filter-clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

@@ -59,10 +59,11 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
             setShowOther(true);
             return;
           }
-          if (onPick) onPick({ kind: "category", label: row.label, series: row.series, pattern: row.pattern });
+          if (onPick) onPick({ kind: "category", label: row.label, series: row.series, pattern: row.pattern, record_key: row.record_key, shared: row.shared });
         }
       : undefined;
-  const legend_pick = onPick ? (label) => onPick({ kind: "legend", label }) : undefined;
+  // A legend entry: its label, and on an occurrence card the counted value it stands for.
+  const legend_pick = onPick ? (entry) => onPick(entry && typeof entry === "object" ? { kind: "legend", label: entry.label, record_key: entry.record_key, shared: entry.shared } : { kind: "legend", label: entry }) : undefined;
 
   if (data.kind === "kpi") {
     return (
@@ -81,7 +82,7 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
     return <PointCharts chartType={widget.chart_type} points={data.points} xLabel="x" yLabel="y" palette={palette} animate={animate} density={density} onItemClick={onPick ? (point) => onPick({ kind: "point", x: point.x, y: point.y }) : undefined} />;
   }
   if (data.kind === "tree") {
-    return <TreemapChart nodes={data.nodes} palette={palette} animate={animate} density={density} onItemClick={onPick ? (node) => onPick({ kind: "tree", name: node.name, parent: node.parent }) : undefined} />;
+    return <TreemapChart nodes={data.nodes} palette={palette} animate={animate} density={density} onItemClick={onPick ? (node) => onPick({ kind: "tree", name: node.name, parent: node.parent, depth: node.depth, record_key: node.record_key, shared: node.shared }) : undefined} />;
   }
   if (data.kind === "time") {
     return <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} animate={animate} density={density} onItemClick={onPick ? (label) => onPick({ kind: "time", label }) : undefined} onLegendClick={legend_pick} />;
