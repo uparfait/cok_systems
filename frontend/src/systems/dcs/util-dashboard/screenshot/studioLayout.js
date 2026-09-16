@@ -9,7 +9,7 @@
 export const MIN_W = 120;
 export const MIN_H = 80;
 export const SNAP_PX = 6;
-export const CANVAS_PAD = 24;
+export const CANVAS_PAD = 0;
 
 /** The studio's starting boxes: the cards exactly where the board showed them. */
 export function initial_items(rects) {
