@@ -25,6 +25,10 @@ import { delete_design_file } from "../services/designUploadService.js";
  * populate a group's children was the JSON import overlay. The live
  * renderer (and the read-only review) instead delegates each child to
  * renderChildField, exactly as before.
+ *
+ * A group with nothing left to show - every question inside it hidden by
+ * the answers so far - draws nothing at all. Its frame is there to gather
+ * questions, and an empty frame is not a group, it is a box.
  */
 export default function GroupField({ field, language, mode, onFieldChange, onOpenSettings, renderChildField, getFieldError, onRequestAddMenu, searchVisibleIds }) {
   const { translate } = useDcsLanguage();
@@ -33,10 +37,10 @@ export default function GroupField({ field, language, mode, onFieldChange, onOpe
 
   if (!is_builder) {
     return (
-      <div className="w-full border p-3" style={{ borderColor: "#E0E0E0" }}>
+      <div className="dcs-group-box w-full border p-3" style={{ borderColor: "#E0E0E0" }}>
         <div>
           {children.map((child_field) => (
-            <div key={child_field.id} style={{ marginBottom: get_spacing_below_px(child_field) }}>
+            <div key={child_field.id} className="dcs-field-slot" style={{ marginBottom: get_spacing_below_px(child_field) }}>
               {renderChildField && renderChildField(child_field)}
             </div>
           ))}

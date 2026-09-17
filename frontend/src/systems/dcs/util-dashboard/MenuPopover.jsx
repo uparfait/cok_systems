@@ -15,25 +15,14 @@ const MARGIN = 8;
  * when there is more room there, and is clamped inside the viewport. It
  * follows the trigger while the page scrolls or resizes, and closes on an
  * outside click, on Escape, and whenever the trigger itself scrolls out of
- * sight. Given a widget's palette it mimics THAT widget - its own light or
- * dark look and colors - instead of the board's: the palette is written as
- * the board variables on the panel, so every item inside follows it.
+ * sight. Every popover is drawn in the BOARD's colors - a widget's own
+ * color settings paint the widget, not the menus hanging off it.
  */
-export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHeight, children, role, align, palette }) {
+export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHeight, children, role, align }) {
   const panel_ref = useRef(null);
   const [placement, setPlacement] = useState(null);
   const board = useBoardTheme();
-  const is_dark = palette ? !!palette.is_dark : board.is_dark;
-  const mimic = palette
-    ? {
-        "--board-surface": palette.background,
-        "--board-surface-hover": palette.is_dark ? "rgba(255, 255, 255, 0.08)" : "rgba(5, 109, 170, 0.08)",
-        "--board-border": palette.border,
-        "--board-text": palette.text,
-        "--board-muted": palette.muted,
-        color: palette.text,
-      }
-    : {};
+  const is_dark = board.is_dark;
 
   useLayoutEffect(() => {
     if (!open) return undefined;
@@ -100,7 +89,6 @@ export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHei
         backgroundColor: "var(--board-surface, #FFFFFF)",
         borderColor: "var(--board-border, #E0E0E0)",
         visibility: placement ? "visible" : "hidden",
-        ...mimic,
       }}
     >
       {children}

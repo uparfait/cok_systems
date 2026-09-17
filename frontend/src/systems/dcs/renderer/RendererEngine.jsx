@@ -196,16 +196,19 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
     ) : null;
 
     const { outer_style, inner_style } = build_design_styles(field);
+    const is_live = render_mode !== "builder";
+    const box_class = `${is_live ? "dcs-field-box" : ""} ${error_highlight_class || ""}`.trim() || undefined;
     const designed_element = outer_style ? (
       <div
         key={field.id}
         style={outer_style}
+        className="dcs-field-shell"
         ref={(el) => {
           if (el) registerField(field.id, el);
         }}
         data-field-id={field.id}
       >
-        <div style={inner_style} className={error_highlight_class}>
+        <div style={inner_style} className={box_class}>
           {preset_note}
           {element}
         </div>
@@ -214,7 +217,7 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
       <div
         key={field.id}
         style={inner_style}
-        className={error_highlight_class}
+        className={box_class}
         ref={(el) => {
           if (el) registerField(field.id, el);
         }}
@@ -232,7 +235,7 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
     const element = render_field(field);
     if (element === null) return null;
     return (
-      <div key={field.id} className="dcs-print-avoid-break" style={{ marginBottom: get_spacing_below_px(field) }}>
+      <div key={field.id} className={`${render_mode === "builder" ? "" : "dcs-field-slot"} dcs-print-avoid-break`.trim()} style={{ marginBottom: get_spacing_below_px(field) }}>
         {element}
       </div>
     );

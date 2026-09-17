@@ -211,8 +211,13 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
                       ? value.name
                       : translate("DCS_RENDERER_UPLOAD_PROMPT")}
               </span>
-              <span className="dcs-file-input-browse text-xs font-semibold uppercase flex-shrink-0" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                {translate("DCS_BTN_BROWSE_FILE")}
+              {/* A paperclip says "attach a file" in every language the
+                  form speaks, and gives the long name beside it the room
+                  the word "BROWSE" was taking. */}
+              <span className="dcs-file-input-browse flex-shrink-0 flex items-center" title={translate("DCS_BTN_BROWSE_FILE")} aria-label={translate("DCS_BTN_BROWSE_FILE")}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21.44 11.05l-8.49 8.49a5.5 5.5 0 01-7.78-7.78l8.49-8.49a3.67 3.67 0 015.18 5.18l-8.49 8.49a1.83 1.83 0 01-2.59-2.59l7.78-7.78" />
+                </svg>
               </span>
             </div>
             {field.allow_link_input && !is_builder && !value && (

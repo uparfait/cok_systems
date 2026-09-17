@@ -16,8 +16,14 @@ import { chart_density } from "./charts/density.js";
 const OTHER_KEY = "__other__";
 // The single row a widget with nothing to group by draws.
 const TOTAL_KEY = "__total__";
-// How many values a long chart opens with, before "Show more".
-const PREVIEW_COUNT = 5;
+// How many values a long chart opens with, before "Show more". A widget
+// asks the server for twelve categories unless it was told otherwise, so
+// at this figure a widget opens showing everything it was given and the
+// expander appears only for one deliberately asked to carry more. Charts
+// no longer hide values because they cannot draw them: an axis lies its
+// labels over or thins them (see charts/labelDensity), and a chart allowed
+// to scroll widens instead.
+const PREVIEW_COUNT = 12;
 // Every value of these is a share of the same whole, so hiding one would
 // misstate the others: they always draw every value they were given.
 const WHOLE_OF_TOTAL = ["pie", "donut", "waffle"];

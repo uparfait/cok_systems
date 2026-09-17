@@ -27,6 +27,9 @@ export function LegendRow({ items, palette, square, title, onItemClick }) {
           {title}
         </p>
       )}
+      {/* A long legend is a list to read through, not a wall to be
+          blocked by: past a dozen entries it becomes its own scrolling
+          column rather than pushing the chart off the card. */}
       <ul className="dcs-legend-column flex flex-col gap-1" style={{ listStyle: "none", margin: 0, padding: items.length > 12 ? "0 6px 0 0" : 0, maxHeight: items.length > 12 ? 260 : undefined, overflowY: items.length > 12 ? "auto" : "visible" }}>
         {items.map((item, index) => (
           <li
@@ -76,7 +79,9 @@ export function SplitLegend({ display, totals, palette, splitTitle, patternTitle
  * Chart plus legend, arranged by the widget's legend position - except on
  * a card too narrow to carry a legend beside the chart (see density.js),
  * where a left or right legend falls back under it rather than squeezing
- * the chart into nothing.
+ * the chart into nothing. That fallback is what puts every legend under
+ * its chart on a phone and beside it on a desktop, without either being
+ * asked for.
  */
 export function LegendFrame({ position, legend, children, density }) {
   if (!legend) return children;

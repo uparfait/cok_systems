@@ -146,7 +146,7 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
     });
 
     return (
-      <div className="w-full">
+      <div className="dcs-group-box w-full">
         <div ref={outer_ref} className="hidden min-[700px]:block relative w-full" style={{ height: height_px, backgroundColor: background_color }}>
           {children.map((child) => {
             const layout = child.section_layout || DEFAULT_LAYOUT;
@@ -163,7 +163,7 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
         </div>
         <div className="flex min-[700px]:hidden flex-col w-full" style={{ backgroundColor: background_color }}>
           {stacked_children.map((child) => (
-            <div key={child.id} className="w-full" style={{ marginBottom: get_spacing_below_px(child) }}>
+            <div key={child.id} className="dcs-field-slot w-full" style={{ marginBottom: get_spacing_below_px(child) }}>
               {renderChildField(child)}
             </div>
           ))}

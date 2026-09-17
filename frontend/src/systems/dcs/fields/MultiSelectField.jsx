@@ -40,8 +40,7 @@ export default function MultiSelectField({ field, language, mode, value, onChang
         {visible_options.map((option) => (
           <label
             key={option.id}
-            className="flex items-center gap-2 px-3 py-2 border cursor-pointer"
-            style={{ borderColor: "#E0E0E0" }}
+            className="dcs-choice-row flex items-center gap-2 px-3 py-2 cursor-pointer"
           >
             <input
               type="checkbox"

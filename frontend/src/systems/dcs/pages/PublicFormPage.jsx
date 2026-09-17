@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import ExcelJS from "exceljs";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
@@ -23,6 +24,7 @@ import { validate_submission_client_side } from "../jsonlogic/validateSubmission
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 import RendererEngine from "../renderer/RendererEngine.jsx";
+import { scroll_to_first_error } from "../renderer/scrollToError.js";
 import DcsSubmitControl from "../components/DcsSubmitControl.jsx";
 import DcsFormLoadingSpinner from "../components/DcsFormLoadingSpinner.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
@@ -439,6 +441,10 @@ function PublicFormPageContent() {
       if (!validation_result.valid) {
         setRevealAllErrors(true);
         setSubmitState("error");
+        // After the paint that reveals them - the highlighted fields have
+        // to be on the page before one of them can be scrolled to.
+        const unanswered = Object.keys(validation_result.field_errors || {});
+        window.requestAnimationFrame(() => scroll_to_first_error(unanswered));
         // Invalid data is never queued for upload - it is not a completed
         // response - but it must not simply vanish either, so a submit
         // attempt on an incomplete/invalid form guarantees it is at least
@@ -590,7 +596,11 @@ function PublicFormPageContent() {
   const progress_percent = compute_form_progress_percent(form.schema.fields, values);
 
   return (
-    <div
+    <>
+      <Helmet>
+        <title>{form.form_name || translate("DCS_PUBLIC_FORM_TITLE_FALLBACK")}</title>
+      </Helmet>
+      <div
       className="min-h-screen p-0 min-[760px]:px-6 pt-[env(safe-area-inset-top,0px)] min-[760px]:pt-[calc(52px+env(safe-area-inset-top,0px))] pb-[env(safe-area-inset-bottom,0px)] min-[760px]:pb-[calc(24px+env(safe-area-inset-bottom,0px))] flex flex-col items-center dcs-print-page-bg"
       style={{ backgroundColor: "#F7F9FB" }}
     >
@@ -769,13 +779,12 @@ function PublicFormPageContent() {
               submitState={submit_state}
               onSubmit={handle_submit}
               onIdle={() => setSubmitState("idle")}
+              secondary={
+                <DcsButtonOutline onClick={handle_save_draft_click} disabled={submitting}>
+                  {translate("DCS_BTN_SAVE_DRAFT")}
+                </DcsButtonOutline>
+              }
             />
-
-            <div className="w-full mt-3 dcs-no-print">
-              <DcsButtonOutline className="w-full" onClick={handle_save_draft_click} disabled={submitting}>
-                {translate("DCS_BTN_SAVE_DRAFT")}
-              </DcsButtonOutline>
-            </div>
           </>
         )}
       </div>
@@ -823,7 +832,8 @@ function PublicFormPageContent() {
           onExportReady={handle_export_ready}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

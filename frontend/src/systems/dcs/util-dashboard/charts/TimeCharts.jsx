@@ -1,7 +1,8 @@
 import React from "react";
 import { ResponsiveContainer, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, LabelList } from "recharts";
 import { build_palette } from "../appearance.js";
-import { wrapped_tick, x_axis_height, value_axis_width } from "./chartLabels.jsx";
+import { value_axis_width } from "./chartLabels.jsx";
+import { category_axis, value_step, with_value_labels, VALUE_LABEL_KEY } from "./labelDensity.jsx";
 import { chart_density, tick_style } from "./density.js";
 import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
 
@@ -14,15 +15,21 @@ const show_value = (value) => (value ? value : "");
  * measurement comes from the card's own width (see density.js), so a small
  * card draws a short chart with small labels instead of pushing its card
  * wider. A range with more points than the card can show scrolls sideways
- * INSIDE the card - except in fit-to-screen mode, where it compresses and
- * thins its labels. Labels wrap rather than being cut. A single series
- * draws in the widget's number color, split series in their own value
- * colors with the shared legend placed by the appearance.
+ * INSIDE the card.
+ *
+ * Fit-to-screen mode is the one that cannot scroll, so a hundred days have
+ * to share one width. The axis then lies its dates over at 45 degrees and,
+ * where even that will not fit, labels every n-th point (see
+ * labelDensity) - evenly, so the axis still reads as a time line. The
+ * numbers written on the points thin the same way against their own width.
+ * The line itself never loses a point, and the tooltip carries the date
+ * and value of whichever one is under the pointer. A single series draws
+ * in the widget's number color, split series in their own value colors
+ * with the shared legend placed by the appearance.
  */
 export default function TimeCharts({ chartType, rows, series, fitMode, palette, animate, density, onItemClick, onLegendClick }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
-  const tick_interval = fitMode ? "preserveStartEnd" : 0;
   const accent = colors.accent;
   const has_series = series && series.length > 0;
   const value_font = Math.max(8, size.value_font);
@@ -31,28 +38,36 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
   const peak = has_series ? rows.map((row) => Math.max(0, ...series.map((key) => row[key] || 0))) : rows.map((row) => row.value || 0);
   const y_width = value_axis_width(peak, size.font);
   const margin = { top: size.show_values ? value_font + 12 : 12, right: 14, left: 0, bottom: 5 };
-  const inner_width = Math.max(rows.length * size.point_px, size.width);
-  const x_room = Math.max(28, Math.max(80, inner_width - y_width - margin.right - 8) / Math.max(1, rows.length) - 6);
-  const axis_height = x_axis_height(rows.map((row) => row.label), x_room, size.font);
-  const chart_height = size.height + axis_height - 30;
+  // Fitting to the screen means the chart may not grow past the card, so
+  // the points share the card's width instead of claiming their own.
+  const inner_width = fitMode ? size.width : Math.max(rows.length * size.point_px, size.width);
+  const x_room = Math.max(6, Math.max(80, inner_width - y_width - margin.right - 8) / Math.max(1, rows.length) - 6);
+  const labels = rows.map((row) => row.label);
+  const axis = category_axis(labels, x_room, size.font, colors, y_width);
+  const chart_height = size.height + axis.height - 30;
+  // Values are written on as many points as can hold one without the
+  // figures touching; the rest are read from the tooltip.
+  const number_step = size.show_values ? value_step(has_series ? peak : rows.map((row) => row.value || 0), x_room, value_font) : 1;
+  const data = has_series ? rows : with_value_labels(rows, "value", number_step);
+  const number_key = !has_series && number_step > 1 ? VALUE_LABEL_KEY : "value";
   // Recharts reports the hovered category as activeLabel: that is the bucket clicked.
   const on_chart_click = onItemClick ? (state) => state && state.activeLabel !== undefined && onItemClick(String(state.activeLabel)) : undefined;
   const active_dot = onItemClick ? { r: 6, cursor: "pointer" } : undefined;
   const chart =
     chartType === "area" ? (
-      <AreaChart data={rows} margin={margin} onClick={on_chart_click} style={onItemClick ? { cursor: "pointer" } : undefined}>
+      <AreaChart data={data} margin={margin} onClick={on_chart_click} style={onItemClick ? { cursor: "pointer" } : undefined}>
         <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-        <XAxis dataKey="label" interval={tick_interval} height={axis_height} stroke={colors.grid} tick={wrapped_tick(colors, x_room, "middle", size.font)} />
+        <XAxis dataKey="label" interval={axis.interval} height={axis.height} stroke={colors.grid} tick={axis.tick} />
         <YAxis tick={tick_style(colors, size)} allowDecimals={false} stroke={colors.grid} width={y_width} />
         <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} />
         <Area type="monotone" dataKey="value" stroke={accent} fill={accent} fillOpacity={0.18} strokeWidth={2.5} activeDot={active_dot} {...animation(animate)}>
-          {size.show_values && <LabelList dataKey="value" position="top" formatter={show_value} style={{ fontSize: value_font, fontWeight: 600, fill: accent }} />}
+          {size.show_values && <LabelList dataKey={number_key} position="top" formatter={show_value} style={{ fontSize: value_font, fontWeight: 600, fill: accent }} />}
         </Area>
       </AreaChart>
     ) : (
-      <LineChart data={rows} margin={margin} onClick={on_chart_click} style={onItemClick ? { cursor: "pointer" } : undefined}>
+      <LineChart data={data} margin={margin} onClick={on_chart_click} style={onItemClick ? { cursor: "pointer" } : undefined}>
         <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-        <XAxis dataKey="label" interval={tick_interval} height={axis_height} stroke={colors.grid} tick={wrapped_tick(colors, x_room, "middle", size.font)} />
+        <XAxis dataKey="label" interval={axis.interval} height={axis.height} stroke={colors.grid} tick={axis.tick} />
         <YAxis tick={tick_style(colors, size)} allowDecimals={false} stroke={colors.grid} width={y_width} />
         <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} />
         {has_series ? (
@@ -60,13 +75,13 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
             const color = colors.color_for(key, index);
             return (
               <Line key={key} type="monotone" dataKey={key} stroke={color} strokeWidth={2.5} dot={{ r: 2.5, fill: color }} activeDot={active_dot} {...animation(animate)}>
-                {size.show_values && <LabelList dataKey={key} position="top" formatter={show_value} style={{ fontSize: Math.max(8, value_font - 1), fontWeight: 600, fill: color }} />}
+                {size.show_values && number_step === 1 && <LabelList dataKey={key} position="top" formatter={show_value} style={{ fontSize: Math.max(8, value_font - 1), fontWeight: 600, fill: color }} />}
               </Line>
             );
           })
         ) : (
           <Line type="monotone" dataKey="value" stroke={accent} strokeWidth={2.5} dot={{ r: 2.5, fill: accent }} activeDot={active_dot} {...animation(animate)}>
-            {size.show_values && <LabelList dataKey="value" position="top" formatter={show_value} style={{ fontSize: value_font, fontWeight: 600, fill: accent }} />}
+            {size.show_values && <LabelList dataKey={number_key} position="top" formatter={show_value} style={{ fontSize: value_font, fontWeight: 600, fill: accent }} />}
           </Line>
         )}
       </LineChart>

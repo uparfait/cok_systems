@@ -14,8 +14,14 @@ const SUCCESS_REVERT_MS = 5000;
  * normal state automatically after 5 seconds (or immediately once the
  * respondent starts a new answer, via the parent resetting submitState).
  * On failure, an error banner points back at the highlighted fields.
+ *
+ * `secondary` is the other way out of the form - saving a draft on the
+ * public page, nothing in the builder preview. It shares the action row:
+ * stacked under the submit button on a phone, where a full-width target is
+ * easiest to hit, and beside it from tablet width up, both sized to their
+ * own words (see .dcs-form-actions).
  */
-export default function DcsSubmitControl({ submitting, submitState, onSubmit, onIdle }) {
+export default function DcsSubmitControl({ submitting, submitState, onSubmit, onIdle, secondary }) {
   const { translate } = useDcsLanguage();
 
   useEffect(() => {
@@ -30,14 +36,16 @@ export default function DcsSubmitControl({ submitting, submitState, onSubmit, on
         {submitting ? (
           <SpiralLoader />
         ) : (
-          <DcsButtonPrimary
-            className="w-full"
-            onClick={onSubmit}
-            disabled={submitting}
-            style={submitState === "success" ? { backgroundColor: SUCCESS_COLOR, borderColor: SUCCESS_COLOR } : undefined}
-          >
-            {submitState === "success" ? translate("DCS_PUBLIC_DATA_RECORDED") : translate("DCS_RENDERER_SUBMIT")}
-          </DcsButtonPrimary>
+          <div className="dcs-form-actions">
+            {secondary}
+            <DcsButtonPrimary
+              onClick={onSubmit}
+              disabled={submitting}
+              style={submitState === "success" ? { backgroundColor: SUCCESS_COLOR, borderColor: SUCCESS_COLOR } : undefined}
+            >
+              {submitState === "success" ? translate("DCS_PUBLIC_DATA_RECORDED") : translate("DCS_RENDERER_SUBMIT")}
+            </DcsButtonPrimary>
+          </div>
         )}
       </div>
 

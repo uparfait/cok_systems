@@ -16,8 +16,12 @@ const SEARCH_FROM = 8;
  * and the picked value (or "All") in the box, listing the values the field
  * holds RIGHT NOW - under the period and the other filters, so a sector
  * filter under a chosen district lists that district's sectors only - with
- * a search box once the list is long. The list is either handed in
- * (`values`, preloaded and refreshed by the bar; `onOpen` asks for a silent
+ * a search box once the list is long. A value is listed by NAME ALONE: how
+ * many records carry it is a board answer, not a filter one, and a count
+ * beside every choice only invited reading the dropdown as data.
+ *
+ * The list is either handed in (`values`, preloaded and refreshed by the
+ * bar; `onOpen` asks for a silent
  * refresh) or fetched here on first open (`fetchValues`) and then kept, so
  * a filter that has loaded once never shows a spinner again. A locked
  * filter (a share link that fixes it) shows its value and cannot be opened.
@@ -92,7 +96,7 @@ export default function FilterValueSelect({ label, value, onChange, values, onOp
       <MenuPopover open={open} anchorRef={anchor_ref} onClose={() => setOpen(false)} minWidth={240} maxHeight={400} align="start" role="listbox">
         <div className="dcs-board-switcher-head">
           <span>{label}</span>
-          <span>{waiting || refreshing ? translate("DCS_DB_FILTER_LOADING") : shown_values.length || ""}</span>
+          <span>{waiting || refreshing ? translate("DCS_DB_FILTER_LOADING") : ""}</span>
         </div>
         {shown_values.length >= SEARCH_FROM && !waiting && (
           <div className="dcs-board-filter-search">
@@ -129,11 +133,8 @@ export default function FilterValueSelect({ label, value, onChange, values, onOp
                 return (
                   <li key={String(entry.value)}>
                     <button type="button" role="option" aria-selected={selected} className={`dcs-board-switcher-item ${selected ? "is-active" : ""}`} onClick={() => pick(entry.value)}>
-                      <span className="min-w-0 flex-1 flex items-baseline justify-between gap-2">
+                      <span className="min-w-0 flex-1">
                         <span className="dcs-board-switcher-item-name">{String(entry.value)}</span>
-                        <span className="dcs-board-switcher-item-meta" style={{ marginTop: 0, flex: "none" }}>
-                          {entry.count}
-                        </span>
                       </span>
                     </button>
                   </li>

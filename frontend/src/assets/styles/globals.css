@@ -1762,6 +1762,84 @@ background-color: #056daa;
   color: var(--board-text);
 }
 
+/* The two ways to leave a form - keep it for later, or send it. On a
+   phone they stack, the send button on top, each across the full width
+   because that is the easiest target there is. From tablet width up they
+   settle onto one line, centered under the form, each given the same
+   width so neither reads as the afterthought of the other. Both are tall
+   and softly rounded - they are the end of the work, and they are the two
+   things on the page worth aiming at. */
+.dcs-form-actions {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.dcs-form-actions > * {
+  width: 100%;
+}
+
+.dcs-form-actions .cok-btn-primary,
+.dcs-form-actions .cok-btn-outlined,
+.dcs-form-actions .cok-btn-outlined-danger {
+  width: 100%;
+  min-height: 52px;
+  padding: 0.95rem 1.5rem;
+  border-radius: 10px;
+}
+
+@media (min-width: 760px) {
+  .dcs-form-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  /* Both the same width, whatever their words: neither ending a form nor
+     setting it aside is the smaller decision. */
+  .dcs-form-actions > * {
+    width: 260px;
+    max-width: 100%;
+  }
+}
+
+/* A question that is currently not asked draws NOTHING - and its frame
+   must go with it. Every rendered field sits in a box that carries the
+   author's border, background and padding (see renderer/designStyles), and
+   a component that hides itself - a cascading child whose parent is
+   unanswered, a choice field whose conditions do not match - leaves that
+   box empty. An empty box is not a question, so it collapses, and so does
+   the slot holding it, or the gap below would stay behind as a hole in the
+   form. A group or section left with no question at all goes the same way:
+   a frame around nothing is just a stray border. */
+.dcs-field-box:empty {
+  display: none;
+}
+
+.dcs-field-slot:has(> .dcs-field-box:empty),
+.dcs-field-slot:has(> .dcs-field-shell > .dcs-field-box:empty) {
+  display: none;
+}
+
+.dcs-group-box:not(:has(.dcs-field-box:not(:empty))) {
+  display: none;
+}
+
+/* One option of a radio or checkbox question. It carries no border of its
+   own - a list of choices reads as a list, not as a stack of boxes - and
+   answers the pointer with a soft tint across the whole row, so the whole
+   row is visibly the click target and not just the little control. */
+.dcs-choice-row {
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease;
+}
+
+.dcs-choice-row:hover,
+.dcs-choice-row:focus-within {
+  background-color: rgba(5, 109, 170, 0.07);
+}
+
 /* A media field's trigger drawn as an input: same box as every text input,
    a pointer cursor, and the border and browse hint turning system blue on
    hover or focus so it reads as "click here to pick a file". */
@@ -1790,11 +1868,12 @@ background-color: #056daa;
 
 .dcs-file-input-browse {
   color: #056daa;
-  letter-spacing: 0.5px;
+  opacity: 0.75;
+  transition: opacity 0.2s ease;
 }
 
 .dcs-file-input:hover:not(.is-disabled) .dcs-file-input-browse {
-  text-decoration: underline;
+  opacity: 1;
 }
 
 /* On narrow screens the bar's links do not all fit, so the row itself

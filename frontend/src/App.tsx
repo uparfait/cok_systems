@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import {
   BrowserRouter as Router,
   Routes,
@@ -716,8 +717,9 @@ const AuthenticatedRoutes: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <ToastProvider>
-      <Router>
+    <HelmetProvider>
+      <ToastProvider>
+        <Router>
         <Routes>
           {/* Public Routes - No Auth/Socket needed */}
           <Route path="/" element={<Layout />}>
@@ -752,8 +754,9 @@ const App: React.FC = () => {
           {/* Authenticated Routes - With Auth/Socket */}
           <Route path="*" element={<AuthenticatedRoutes />} />
         </Routes>
-      </Router>
-    </ToastProvider>
+        </Router>
+      </ToastProvider>
+    </HelmetProvider>
   );
 };
 

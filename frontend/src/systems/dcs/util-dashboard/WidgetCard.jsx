@@ -152,6 +152,10 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
  * reach every grouped/clustered, stacked, 100 percent, heatmap and
  * multi-series line form - see convertible_types), and remove the widget.
  * Closes on outside click.
+ *
+ * The menu is drawn in the BOARD's colors, never the widget's. What a
+ * widget's color settings paint is the widget itself - its surface, its
+ * text and its marks - and nothing that merely hangs off it.
  */
 function CardMenu({ widget, palette, canMap, canHeat, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onMapMode }) {
   const { translate } = useDcsLanguage();
@@ -193,7 +197,7 @@ function CardMenu({ widget, palette, canMap, canHeat, onChangeType, onChangeSize
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         className="flex items-center justify-center"
-        style={{ width: 26, height: 26, border: `1px solid ${palette ? palette.border : SURFACE_BORDER}`, color: palette ? palette.muted : "var(--board-muted, #555555)", backgroundColor: open ? (palette && palette.is_dark ? "rgba(255, 255, 255, 0.08)" : "var(--board-surface-hover, #F0F7FB)") : palette ? palette.background : SURFACE, cursor: "pointer" }}
+        style={{ width: 26, height: 26, border: `1px solid ${palette ? palette.border : SURFACE_BORDER}`, color: palette ? palette.muted : "var(--board-muted, #555555)", backgroundColor: open ? "var(--board-surface-hover, #F0F7FB)" : palette ? palette.background : SURFACE, cursor: "pointer" }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="12" cy="5" r="2" />
@@ -201,7 +205,7 @@ function CardMenu({ widget, palette, canMap, canHeat, onChangeType, onChangeSize
           <circle cx="12" cy="19" r="2" />
         </svg>
       </button>
-      <MenuPopover open={open} anchorRef={button_ref} onClose={() => setOpen(false)} minWidth={200} palette={palette}>
+      <MenuPopover open={open} anchorRef={button_ref} onClose={() => setOpen(false)} minWidth={200}>
         <>
           {onChangeSize && (
             <>

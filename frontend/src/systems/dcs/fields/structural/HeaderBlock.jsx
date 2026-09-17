@@ -4,17 +4,18 @@ import DcsLinkedText from "../../components/DcsLinkedText.jsx";
 import DcsTextLinkMenu from "../../components/DcsTextLinkMenu.jsx";
 import { add_link_to_range, remove_links_overlapping_range, find_link_overlapping_range } from "../textLinkSegments.js";
 
-// clamp(min, viewport-scaled, max) - the max is the original fixed size on
-// a wide enough screen, the min is a sane floor on a small phone, and the
-// vw term shrinks smoothly in between instead of a fixed size overflowing
-// or wrapping awkwardly on a narrow viewport.
+// clamp(min, viewport-scaled, max) - the max is the size on a wide enough
+// screen, the min is a sane floor on a small phone, and the vw term shrinks
+// smoothly in between instead of a fixed size overflowing or wrapping
+// awkwardly on a narrow viewport. A heading leads its questions, it does
+// not shout over them, so even a Heading 1 stays close to the text under it.
 const HEADING_SIZES = {
-  1: "clamp(20px, 5vw, 28px)",
-  2: "clamp(18px, 4.5vw, 24px)",
-  3: "clamp(16px, 4vw, 21px)",
-  4: "clamp(15px, 3.5vw, 18px)",
-  5: "clamp(14px, 3.2vw, 16px)",
-  6: "clamp(13px, 3vw, 14px)",
+  1: "clamp(17px, 3.8vw, 22px)",
+  2: "clamp(16px, 3.4vw, 19px)",
+  3: "clamp(15px, 3.1vw, 17px)",
+  4: "clamp(14px, 2.9vw, 16px)",
+  5: "clamp(13px, 2.7vw, 15px)",
+  6: "clamp(12px, 2.5vw, 13px)",
 };
 
 export default function HeaderBlock({ field, language, mode, onFieldChange }) {

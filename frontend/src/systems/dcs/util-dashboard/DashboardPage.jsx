@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_dashboard, save_dashboard, get_dashboard_data, get_filter_values, get_widget_records, export_widget_records, get_map_shapes, request_error_text } from "./dashboardService.js";
@@ -343,8 +344,16 @@ function DashboardBoard({ form }) {
   );
 
   const map_scope = filter_names(data.filter_values);
+  // Which board is open, in the tab. A person keeps several open at once
+  // and they are otherwise identical.
+  const board_name = library.active ? library.active.name : "";
   return (
     <MapScopeProvider fetchShapes={(names, held) => get_map_shapes(form.form_group_id, names, map_scope, held)} scopeKey={map_scope.join("|")}>
+    {board_name ? (
+      <Helmet>
+        <title>{board_name}</title>
+      </Helmet>
+    ) : null}
     <div
       ref={container_ref}
       className={`dcs-board-root dcs-board-no-select relative select-none ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "pb-16 space-y-4"}`}
