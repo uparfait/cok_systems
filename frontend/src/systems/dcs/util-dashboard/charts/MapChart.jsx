@@ -9,6 +9,7 @@ import { create_layers, set_shapes, set_theme, set_heat, highlight, shape_geojso
 import { HEAT_LOW, HEAT_HIGH } from "./heatScale.js";
 import { take_cache, take_map, attach_map, start_map, release_map, drop_map } from "./mapKeeper.js";
 import { usePlaceMarkers } from "./mapOverlay.jsx";
+import { use_boundaries } from "./useBoundaries.js";
 import { MapKindToggle, MapTools, MapTip, MapVeil, PlaceLabels } from "./MapChrome.jsx";
 import MapLegend from "./MapLegend.jsx";
 import { MARKER_SET } from "./mapMarkers.js";
@@ -105,8 +106,6 @@ export default function MapChart({
   const colors = palette || build_palette(null);
   const size = density || chart_density();
   const is_heat = mode === "heat";
-  const [status, setStatus] = useState({ loading: true, error: "" });
-  const [version, setVersion] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [ready, setReady] = useState(false);
   const [broken, setBroken] = useState(false);
@@ -142,63 +141,7 @@ export default function MapChart({
 
   const names = useMemo(() => (is_heat ? [] : (rows || []).map((row) => row.label).filter(Boolean)), [rows, is_heat]);
   const names_key = names.join("|");
-
-  // Boundaries are only ever asked for by a world map, and only the names
-  // it has never seen; the answer says whether what is held still stands.
-  useEffect(() => {
-    if (is_heat) {
-      setStatus({ loading: false, error: "" });
-      return undefined;
-    }
-    if (!fetch_shapes) {
-      setStatus({ loading: false, error: translate("DCS_DB_MAP_NO_SOURCE") });
-      return undefined;
-    }
-    const missing = names.filter((name) => !cache.places.has(map_key(name)) && !cache.unknown.has(map_key(name)));
-    if (missing.length === 0 && (cache.level || names.length === 0)) {
-      setStatus({ loading: false, error: "" });
-      return undefined;
-    }
-    let alive = true;
-    setStatus({ loading: true, error: "" });
-    Promise.resolve(fetch_shapes(names, { have: Array.from(cache.places.values()).map((entry) => entry.asked), have_level: cache.level }))
-      .then((response) => {
-        const answer = (response && response.data) || response || null;
-        if (!alive) return;
-        if (!answer) {
-          setStatus({ loading: false, error: translate("DCS_DB_MAP_FAILED") });
-          return;
-        }
-        // A different level is a different map: what was held no longer fits.
-        if (answer.kept !== true) {
-          cache.places.clear();
-          cache.parents.clear();
-          cache.unknown.clear();
-          cache.box = null;
-        }
-        cache.level = answer.level || cache.level;
-        (answer.shapes || []).forEach((shape) => {
-          const key = map_key(shape.asked || shape.name);
-          if (!cache.places.has(key)) cache.places.set(key, { asked: shape.asked || shape.name, list: [] });
-          cache.places.get(key).list.push(shape);
-          cache.box = grow_box(cache.box, bounds_of([shape]));
-        });
-        (answer.parents || []).forEach((entry) =>
-          entry.shapes.forEach((shape) => {
-            cache.parents.set(chain_of(shape), { ...shape, level: entry.level });
-            cache.box = grow_box(cache.box, bounds_of([shape]));
-          }),
-        );
-        (answer.unknown || []).forEach((name) => cache.unknown.add(map_key(name)));
-        setVersion((current) => current + 1);
-        setStatus({ loading: false, error: "" });
-      })
-      .catch(() => alive && setStatus({ loading: false, error: translate("DCS_DB_MAP_FAILED") }));
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [is_heat, names_key, scope_key, attempt]);
+  const { status, version } = use_boundaries({ heat: is_heat, names, names_key, scope_key, attempt, cache, fetch_shapes, translate });
 
   const height = Math.max(220, size.height + 60);
   const number_text = (value) => Number(value).toLocaleString("en-US");
