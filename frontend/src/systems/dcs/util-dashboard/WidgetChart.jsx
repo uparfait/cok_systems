@@ -175,7 +175,6 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
         <MapChart
           rows={rows}
           series={data.series || []}
-          level={(widget.map && widget.map.level) || "district"}
           marker={(widget.map && widget.map.marker) || null}
           showMarkers={!!(widget.map && widget.map.show_markers)}
           showLabels={!(widget.map && widget.map.show_labels === false)}

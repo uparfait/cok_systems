@@ -45,9 +45,9 @@ const START_VIEW = { center: [30.06, -1.94], zoom: 9 };
  * place it landed on, while the whole widget's records stay behind a double
  * click OUTSIDE the map area.
  */
-export default function MapChart({ rows, series, level, marker, showMarkers, showLabels, heatmap, palette, density, animate, onItemClick, onLegendClick }) {
+export default function MapChart({ rows, series, marker, showMarkers, showLabels, heatmap, palette, density, animate, onItemClick, onLegendClick }) {
   const { translate } = useDcsLanguage();
-  const { fetch_shapes } = useMapScope();
+  const { fetch_shapes, scope_key } = useMapScope();
   const colors = palette || build_palette(null);
   const size = density || chart_density();
   const [state, setState] = useState({ loading: true, error: "", data: null });
@@ -73,7 +73,7 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
     }
     let is_mounted = true;
     setState((current) => ({ loading: true, error: "", data: current.data }));
-    Promise.resolve(fetch_shapes(level, names))
+    Promise.resolve(fetch_shapes(names))
       .then((response) => {
         const data = (response && response.data) || response || null;
         if (is_mounted) setState({ loading: false, error: data ? "" : translate("DCS_DB_MAP_FAILED"), data });
@@ -83,7 +83,7 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
       is_mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level, names_key, attempt]);
+  }, [names_key, scope_key, attempt]);
 
   const height = Math.max(220, size.height + 60);
   const data = state.data;

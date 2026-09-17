@@ -4,7 +4,8 @@ const { load_public_dashboard_context } = require("../public_link_context.js");
 const { compute_dashboard_results, compute_skipped_page, compute_filter_values } = require("../compute_results.js");
 const { compute_widget_records, collect_widget_records } = require("../widget_records.js");
 const { build_records_workbook, send_workbook } = require("../records_export.js");
-const { map_shapes, MAP_LEVELS } = require("../map_shapes.js");
+const { map_shapes } = require("../map_shapes.js");
+const { read_map_request } = require("./map_shapes.js");
 const { build_field_catalog, field_label_text, parent_field_id_of } = require("../field_catalog.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -187,11 +188,7 @@ async function get_public_map_shapes(req, res) {
   try {
     const context = await resolve(req, res);
     if (!context) return undefined;
-    const body = req.body || {};
-    const level = typeof body.level === "string" ? body.level.trim() : "";
-    if (!MAP_LEVELS.includes(level)) return res.status(400).json(warning_response(req, "DASHBOARD_MAP_LEVEL_INVALID"));
-    const within = body.within && typeof body.within === "object" ? body.within : {};
-    return res.status(200).json(success_response(req, "DASHBOARD_MAP_FETCHED", map_shapes(level, Array.isArray(body.names) ? body.names : [], body.outline === true, within)));
+    return res.status(200).json(success_response(req, "DASHBOARD_MAP_FETCHED", map_shapes(read_map_request(req))));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

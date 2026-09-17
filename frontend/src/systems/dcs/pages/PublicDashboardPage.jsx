@@ -7,7 +7,7 @@ import { applied_filter_map } from "../util-dashboard/boardFilters.js";
 import { useBoardFullscreen } from "../util-dashboard/useBoardFullscreen.js";
 import { useBoardData } from "../util-dashboard/useBoardData.js";
 import { BoardThemeProvider, useBoardTheme } from "../util-dashboard/boardTheme.jsx";
-import { MapScopeProvider } from "../util-dashboard/mapScope.jsx";
+import { MapScopeProvider, filter_names } from "../util-dashboard/mapScope.jsx";
 import BoardHeader from "../util-dashboard/BoardHeader.jsx";
 import BoardGrid from "../util-dashboard/BoardGrid.jsx";
 import SkippedDetailsModal from "../util-dashboard/SkippedDetailsModal.jsx";
@@ -67,6 +67,9 @@ function PublicBoard() {
   const config = (info && info.link && info.link.config) || { filter_mode: "free", locked_filters: [], show_title: false };
   const locked = config.filter_mode === "locked";
   // Only the filters the link fixed are locked; the rest stay the viewer's ("All" by default).
+  // A shared link can fix some filters itself: the map is scoped by those
+  // too, exactly as the filter bar shows them.
+  const map_scope = filter_names(locked ? { ...data.filter_values, ...applied_filter_map(config.locked_filters) } : data.filter_values);
   const locked_ids = useMemo(() => new Set(locked ? (config.locked_filters || []).map((entry) => entry.field_id) : []), [locked, config.locked_filters]);
   const fetch_filter_values = (field_id) => get_public_filter_values(token, field_id, data.applied_filters_ref.current, data.applied_period_ref.current).then((response) => (response.data && response.data.values) || []);
   const { container_ref, grid_ref, is_fullscreen, is_fallback, enter, exit, fs_mode, setFsMode, fit_scale, header_visible, show_header, schedule_header_hide } = useBoardFullscreen();
@@ -106,7 +109,7 @@ function PublicBoard() {
   }
 
   return (
-    <MapScopeProvider fetchShapes={(level, names) => get_public_map_shapes(token, level, names)}>
+    <MapScopeProvider fetchShapes={(names) => get_public_map_shapes(token, names, map_scope)} scopeKey={map_scope.join("|")}>
     <div
       ref={container_ref}
       className={`dcs-board-root dcs-board-public dcs-board-no-select relative select-none flex-1 min-w-0 max-w-full ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "p-3 sm:p-5 space-y-4"}`}

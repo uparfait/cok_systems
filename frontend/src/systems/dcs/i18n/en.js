@@ -511,6 +511,8 @@ const en = {
   DCS_DB_MAP_STEP_LOOK: "3. Names, markers and size",
   DCS_DB_MAP_STEP_LOOK_HINT: "Names are written on every shape wide enough to hold one, whatever the zoom",
   DCS_DB_MAP_SHOW_LABELS: "Write place names",
+  DCS_DB_MAP_HEAT_ON: "Spread a heat layer",
+  DCS_DB_MAP_HEAT_OFF: "Remove the heat layer",
   DCS_DB_MAP_HEATMAP: "Spread a heat layer",
   DCS_DB_MAP_HEATMAP_HINT: "The heat is weighted by each place's number and spread in one color, which you can change under Colors (it is listed as \"heatmap\"). It fades out as you zoom in and the boundaries take over.",
   DCS_DB_MAP_HEATMAP_SPLIT: "Split into values: each value spreads its own heat in its own color, the same colors the markers and the legend use - change any of them under Colors.",

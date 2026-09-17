@@ -511,6 +511,8 @@ const fr = {
   DCS_DB_MAP_STEP_LOOK: "3. Noms, marqueurs et taille",
   DCS_DB_MAP_STEP_LOOK_HINT: "Les noms sont ecrits sur chaque forme assez large, quel que soit le zoom",
   DCS_DB_MAP_SHOW_LABELS: "Ecrire les noms des lieux",
+  DCS_DB_MAP_HEAT_ON: "Etaler une couche de chaleur",
+  DCS_DB_MAP_HEAT_OFF: "Retirer la couche de chaleur",
   DCS_DB_MAP_HEATMAP: "Etaler une couche de chaleur",
   DCS_DB_MAP_HEATMAP_HINT: "La chaleur suit le nombre de chaque lieu et s'etale dans une seule couleur, modifiable sous Couleurs (elle y figure comme \"heatmap\"). Elle s'efface a mesure que vous zoomez et que les limites prennent le relais.",
   DCS_DB_MAP_HEATMAP_SPLIT: "Divise en valeurs : chaque valeur etale sa propre chaleur dans sa propre couleur, les memes couleurs que les marqueurs et la legende - modifiez-les sous Couleurs.",

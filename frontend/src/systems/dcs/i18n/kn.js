@@ -511,6 +511,8 @@ const kn = {
   DCS_DB_MAP_STEP_LOOK: "3. Amazina, ibimenyetso n'ingano",
   DCS_DB_MAP_STEP_LOOK_HINT: "Amazina yandikwa kuri buri shusho ifite ubugari buhagije, uko waba wegereje kose",
   DCS_DB_MAP_SHOW_LABELS: "Andika amazina y'ahantu",
+  DCS_DB_MAP_HEAT_ON: "Sasa urwego rw'ubushyuhe",
+  DCS_DB_MAP_HEAT_OFF: "Kuraho urwego rw'ubushyuhe",
   DCS_DB_MAP_HEATMAP: "Sasa urwego rw'ubushyuhe",
   DCS_DB_MAP_HEATMAP_HINT: "Ubushyuhe bukurikiza umubare wa buri hantu kandi busakara mu ibara rimwe, ushobora kurihindura muri Amabara (ryanditse nka \"heatmap\"). Buragenda bugabanuka igihe wegereza kandi imbibi zigafata umwanya.",
   DCS_DB_MAP_HEATMAP_SPLIT: "Bigabanyijwe mu duciro: buri gaciro gasasa ubushyuhe bwako mu ibara ryako, amabara amwe ibimenyetso n'ibisobanuro bikoresha - uyahindurira muri Amabara.",

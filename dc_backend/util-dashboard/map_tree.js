@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { normalize } = require("./map_names.js");
+const { normalize, skeleton } = require("./map_names.js");
 
 /**
  * The administrative tree the map widget draws from, held in memory: a
@@ -111,13 +111,16 @@ function read_province(file) {
 
   const node_of = (encoded, depth) => {
     const level = LEVELS[depth];
+    const name = String(dict[get(encoded, level.name_key)] || "").trim();
     const geometry = get(encoded, "geometry") || {};
     const type = dict[get(geometry, "type")];
     const anchor = get(encoded, "anchor");
     const children = level.child_key ? get(encoded, level.child_key) || [] : [];
     return {
       level: level.key,
-      name: String(dict[get(encoded, level.name_key)] || "").trim(),
+      name,
+      key: normalize(name),
+      skel: skeleton(name),
       anchor: Array.isArray(anchor) ? [round(anchor[0]), round(anchor[1])] : null,
       rings: rings_of(type, get(geometry, "coordinates")).map((ring) => simplify(ring, level.tolerance)),
       children: children.map((child) => node_of(child, depth + 1)),
@@ -155,12 +158,12 @@ function read_flat() {
   };
   const nodes = {};
   MAP_LEVELS.forEach((level) => {
-    nodes[level] = read(level).map((shape) => ({ level, name: shape.name, anchor: shape.anchor || null, rings: shape.rings || [], parent: shape.parent || "", children: [] }));
+    nodes[level] = read(level).map((shape) => ({ level, name: shape.name, key: normalize(shape.name), skel: skeleton(shape.name), anchor: shape.anchor || null, rings: shape.rings || [], parent: shape.parent || "", children: [] }));
   });
   MAP_LEVELS.forEach((level, index) => {
     if (index === 0) return;
     const above = new Map();
-    nodes[MAP_LEVELS[index - 1]].forEach((node) => above.set(normalize(node.name), node));
+    nodes[MAP_LEVELS[index - 1]].forEach((node) => above.set(node.key, node));
     nodes[level].forEach((node) => {
       const holder = above.get(normalize(node.parent));
       if (holder) holder.children.push(node);

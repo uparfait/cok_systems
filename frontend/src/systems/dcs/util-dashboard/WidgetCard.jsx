@@ -153,7 +153,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
  * multi-series line form - see convertible_types), and remove the widget.
  * Closes on outside click.
  */
-function CardMenu({ widget, palette, canMap, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon }) {
+function CardMenu({ widget, palette, canMap, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onToggleHeat }) {
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
   const button_ref = useRef(null);
@@ -255,6 +255,11 @@ function CardMenu({ widget, palette, canMap, onChangeType, onChangeSize, onRemov
               {translate(widget.chart_type === "map" ? "DCS_DB_MAP_CHANGE_MARKER" : widget.icon ? "DCS_DB_ICON_CHANGE" : "DCS_DB_ICON_SET")}
             </button>
           )}
+          {onToggleHeat && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: onPickIcon ? "none" : `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onToggleHeat)}>
+              {translate(widget.map && widget.map.heatmap ? "DCS_DB_MAP_HEAT_OFF" : "DCS_DB_MAP_HEAT_ON")}
+            </button>
+          )}
           {onAppearance && (
             <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: onPickIcon ? "none" : `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onAppearance)}>
               {translate("DCS_DB_COLOR_SETTINGS")}
@@ -312,7 +317,7 @@ function KpiIconSlot({ icon, color }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords, canMap }) {
+export default function WidgetCard({ widget, data, loading, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords, canMap, onToggleHeat }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -425,8 +430,8 @@ export default function WidgetCard({ widget, data, loading, onRetry, fitMode, ed
           />
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
-        {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon) && (
-          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} />
+        {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon || onToggleHeat) && (
+          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onToggleHeat={is_map ? onToggleHeat : undefined} />
         )}
       </div>
 

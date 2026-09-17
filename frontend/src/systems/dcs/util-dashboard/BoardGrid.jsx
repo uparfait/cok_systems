@@ -91,6 +91,7 @@ export default function BoardGrid({
       onRemove={editable ? () => onRemoveWidget(widget) : undefined}
       onChangeType={editable ? (next_type) => onUpdateWidget(widget.id, type_change(widget, next_type)) : undefined}
       canMap={map_level_of(widget) !== undefined}
+      onToggleHeat={editable && widget.chart_type === "map" ? () => onUpdateWidget(widget.id, { map: Object.assign({}, widget.map || {}, { heatmap: !(widget.map && widget.map.heatmap) }) }) : undefined}
       onChangeSize={editable && widget.chart_type !== "kpi" ? (next_size) => onUpdateWidget(widget.id, { size: next_size }) : undefined}
       onRetry={() => onRetryWidget(widget)}
       onShowSkipped={onShowSkipped}

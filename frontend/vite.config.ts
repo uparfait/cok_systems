@@ -9,6 +9,13 @@ export default defineConfig({
     tailwindcss(),
   ],
 
+  // MapLibre loads its own worker from inside its package; the dependency
+  // optimizer rewrites that away and the worker file then cannot be found,
+  // so the map is served as it ships.
+  optimizeDeps: {
+    exclude: ['maplibre-gl'],
+  },
+
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

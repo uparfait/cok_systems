@@ -23,7 +23,7 @@ import ShareLinksDialog from "./share/ShareLinksDialog.jsx";
 import ScreenshotStudio from "./screenshot/ScreenshotStudio.jsx";
 import RecordsOverlay from "./records/RecordsOverlay.jsx";
 import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
-import { MapScopeProvider } from "./mapScope.jsx";
+import { MapScopeProvider, filter_names } from "./mapScope.jsx";
 import { location_fields } from "./builder/mapFields.js";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
@@ -45,9 +45,7 @@ const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports
 export default function DashboardPage({ form }) {
   return (
     <BoardThemeProvider>
-      <MapScopeProvider fetchShapes={(level, names) => get_map_shapes(form.form_group_id, level, names)}>
-        <DashboardBoard form={form} />
-      </MapScopeProvider>
+      <DashboardBoard form={form} />
     </BoardThemeProvider>
   );
 }
@@ -342,7 +340,9 @@ function DashboardBoard({ form }) {
     </div>
   );
 
+  const map_scope = filter_names(data.filter_values);
   return (
+    <MapScopeProvider fetchShapes={(names) => get_map_shapes(form.form_group_id, names, map_scope)} scopeKey={map_scope.join("|")}>
     <div
       ref={container_ref}
       className={`dcs-board-root dcs-board-no-select relative select-none ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "pb-16 space-y-4"}`}
@@ -496,5 +496,6 @@ function DashboardBoard({ form }) {
         <DcsConfirmDialog titleKey="DCS_DB_REMOVE_TITLE" messageKey="DCS_DB_REMOVE_MESSAGE" confirming={removing} onConfirm={handle_remove_widget} onCancel={() => setWidgetToRemove(null)} />
       )}
     </div>
+    </MapScopeProvider>
   );
 }
