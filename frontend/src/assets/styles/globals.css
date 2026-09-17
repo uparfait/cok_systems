@@ -3351,56 +3351,34 @@ background-color: #056daa;
   position: relative;
   overflow: hidden;
   border: 1px solid;
-  touch-action: none;
   user-select: none;
-  cursor: grab;
 }
-.dcs-map-frame:active {
-  cursor: grabbing;
-}
-.dcs-map-svg {
-  display: block;
-  transform-origin: 0 0;
-}
-.dcs-map-frame path {
-  outline: none;
-}
-.dcs-map-shape {
-  animation: dcs-map-shape-in 420ms ease both;
-  transition: fill 400ms ease, stroke-width 160ms ease;
-}
-@keyframes dcs-map-shape-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-.dcs-map-overlay {
+.dcs-map-canvas {
   position: absolute;
   inset: 0;
+}
+.dcs-map-canvas .maplibregl-canvas:focus {
+  outline: none;
+}
+.dcs-map-place {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1;
   pointer-events: none;
 }
 .dcs-map-label {
-  position: absolute;
-  transform: translate(-50%, -50%);
   font-family: 'Montserrat', sans-serif;
   font-weight: 700;
   letter-spacing: 0.2px;
   white-space: nowrap;
   text-shadow: 0 0 3px rgba(255, 255, 255, 0.9), 0 0 1px rgba(255, 255, 255, 0.9);
-  transition: left 260ms ease, top 260ms ease;
-}
-.dcs-map-label.is-below {
-  transform: translate(-50%, 4px);
 }
 .dcs-board-dark .dcs-map-label {
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 0 1px rgba(0, 0, 0, 0.9);
 }
 .dcs-map-marker {
-  position: absolute;
-  transform: translate(-50%, -50%);
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -3409,7 +3387,6 @@ background-color: #056daa;
   max-width: 120px;
   line-height: 1;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
-  transition: left 260ms ease, top 260ms ease;
 }
 .dcs-map-mark {
   display: inline-flex;
@@ -3429,6 +3406,7 @@ background-color: #056daa;
   position: absolute;
   right: 8px;
   top: 8px;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -3456,17 +3434,17 @@ background-color: #056daa;
 }
 .dcs-map-tip {
   position: absolute;
-  left: 8px;
-  bottom: 8px;
+  z-index: 6;
   display: flex;
   flex-wrap: wrap;
-  max-width: calc(100% - 60px);
+  max-width: 62%;
   gap: 4px 8px;
   align-items: baseline;
   padding: 4px 8px;
   border: 1px solid;
   font-family: 'Montserrat', sans-serif;
   font-size: 11px;
+  pointer-events: none;
 }
 .dcs-map-tip-path {
   width: 100%;

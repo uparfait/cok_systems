@@ -63,6 +63,7 @@ function sanitize_map(widget) {
   if (marker) out.marker = marker;
   if (raw.show_labels === false) out.show_labels = false;
   if (raw.show_markers === true) out.show_markers = true;
+  if (raw.heatmap === true) out.heatmap = true;
   return Object.keys(out).length > 0 ? out : null;
 }
 

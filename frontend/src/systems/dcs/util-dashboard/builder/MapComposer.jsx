@@ -20,6 +20,7 @@ export const EMPTY_MAP_SPEC = {
   marker: MARKER_SET[0],
   show_markers: false,
   show_labels: true,
+  heatmap: false,
   title: "",
   title_touched: false,
   description: "",
@@ -101,7 +102,7 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
       metric: { aggregation: spec.aggregation, field_id: counts_all && (!spec.field_id || spec.field_id === ALL_SUBMISSIONS_ID) ? null : spec.field_id },
       group_by: { field_id: place_id },
       split_by: spec.split_id ? { field_id: spec.split_id } : null,
-      map: { level: spec.level, marker: spec.marker, show_markers: spec.show_markers, show_labels: spec.show_labels },
+      map: { level: spec.level, marker: spec.marker, show_markers: spec.show_markers, show_labels: spec.show_labels, heatmap: spec.heatmap },
     });
     onAdd({
       tab: "map",
@@ -164,7 +165,9 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
         <div className="flex flex-wrap items-center gap-4 mb-3">
           <Switch checked={spec.show_labels} onChange={(show_labels) => patch({ show_labels })} label={translate("DCS_DB_MAP_SHOW_LABELS")} disabled={disabled} />
           <Switch checked={spec.show_markers} onChange={(show_markers) => patch({ show_markers })} label={translate("DCS_DB_MAP_SHOW_MARKERS")} disabled={disabled} />
+          <Switch checked={spec.heatmap} onChange={(heatmap) => patch({ heatmap })} label={translate("DCS_DB_MAP_HEATMAP")} disabled={disabled} />
         </div>
+        {spec.heatmap && <Preview>{translate(spec.split_id ? "DCS_DB_MAP_HEATMAP_SPLIT" : "DCS_DB_MAP_HEATMAP_HINT")}</Preview>}
         {spec.show_markers && (
           <div className="dcs-map-marker-grid mb-2">
             {MARKER_SET.map((icon) => (

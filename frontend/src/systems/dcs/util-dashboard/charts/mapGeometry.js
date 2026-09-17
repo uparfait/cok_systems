@@ -1,15 +1,12 @@
 /**
- * Turning boundary outlines into something an SVG can draw. The City of
- * Kigali spans about half a degree, so a plain equirectangular projection
- * is exact enough - longitudes only need the cosine of the latitude to keep
- * the city from looking stretched sideways.
+ * The small measurements a map widget needs on top of the map engine:
+ * where a shape's name belongs, how far it reaches, and the one key that
+ * ties a boundary to the row it carries a number for.
  *
- * Everything here is pure: the same shapes always project to the same box,
- * which is what lets the labels and the markers sit exactly on top of the
- * paths they belong to.
+ * MapLibre projects and draws everything else. Coordinates are kept the way
+ * GeoJSON writes them, [longitude, latitude], from the server all the way
+ * into the map.
  */
-
-const RADIANS = Math.PI / 180;
 
 export function bounds_of(groups) {
   let min_x = Infinity;
@@ -30,41 +27,8 @@ export function bounds_of(groups) {
   return { min_x, min_y, max_x, max_y };
 }
 
-/**
- * A projection fitting `bounds` into a width x height box, keeping the
- * aspect right and centring what is left over. Returns point(), path() and
- * the box it filled.
- */
-export function make_projection(bounds, width, height, padding) {
-  const pad = padding === undefined ? 8 : padding;
-  const box_w = Math.max(1, width - pad * 2);
-  const box_h = Math.max(1, height - pad * 2);
-  if (!bounds) return { point: () => [0, 0], path: () => "", scale: 1 };
-  const mid_lat = (bounds.min_y + bounds.max_y) / 2;
-  const stretch = Math.cos(mid_lat * RADIANS) || 1;
-  const span_x = Math.max(1e-9, (bounds.max_x - bounds.min_x) * stretch);
-  const span_y = Math.max(1e-9, bounds.max_y - bounds.min_y);
-  const scale = Math.min(box_w / span_x, box_h / span_y);
-  const offset_x = pad + (box_w - span_x * scale) / 2;
-  const offset_y = pad + (box_h - span_y * scale) / 2;
-  const point = ([x, y]) => [offset_x + (x - bounds.min_x) * stretch * scale, offset_y + (bounds.max_y - y) * scale];
-  const path = (rings) =>
-    (rings || [])
-      .map((ring) => {
-        if (!ring || ring.length < 3) return "";
-        return (
-          ring
-            .map((coordinate, index) => {
-              const [px, py] = point(coordinate);
-              return `${index === 0 ? "M" : "L"}${px.toFixed(1)} ${py.toFixed(1)}`;
-            })
-            .join(" ") + " Z"
-        );
-      })
-      .filter(Boolean)
-      .join(" ");
-  return { point, path, scale };
-}
+/** A box MapLibre understands: [[west, south], [east, north]]. */
+export const map_bounds = (box) => (box ? [[box.min_x, box.min_y], [box.max_x, box.max_y]] : null);
 
 /** Where a shape's name should sit: its stored anchor, else the middle of its outline. */
 export function anchor_of(shape) {
@@ -73,31 +37,13 @@ export function anchor_of(shape) {
   return box ? [(box.min_x + box.max_x) / 2, (box.min_y + box.max_y) / 2] : null;
 }
 
-/** How wide a shape draws, in pixels - a name is only written when it fits. */
-export function shape_width(shape, projection) {
-  const box = bounds_of([shape]);
-  if (!box) return 0;
-  const [left] = projection.point([box.min_x, box.max_y]);
-  const [right] = projection.point([box.max_x, box.min_y]);
-  return Math.abs(right - left);
-}
-
-/** How tall a shape draws, in pixels. */
-export function shape_height(shape, projection) {
-  const box = bounds_of([shape]);
-  if (!box) return 0;
-  const [, top] = projection.point([box.min_x, box.max_y]);
-  const [, bottom] = projection.point([box.max_x, box.min_y]);
-  return Math.abs(bottom - top);
-}
-
 // The administrative words people put around a place's real name.
 const NAME_PREFIXES = [/^umujyi wa /, /^intara ya /, /^intara y'/, /^akarere ka /, /^umurenge wa /, /^akagari ka /, /^umudugudu wa /, /^city of /, /^province of /, /^district of /];
 const NAME_SUFFIXES = [/ city$/, / province$/, / district$/, / sector$/, / cell$/, / village$/];
 
 /**
  * Names are matched the way the server matches them (see
- * dc_backend/util-dashboard/map_shapes.js), so a place always finds its
+ * dc_backend/util-dashboard/map_names.js), so a place always finds its
  * number: no case, no punctuation, no administrative word, and l written
  * as r - the two stand for one sound and the lists disagree on which to
  * use.
