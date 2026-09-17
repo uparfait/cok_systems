@@ -104,6 +104,31 @@ export const VALUE_LABEL_KEY = "__shown_value";
 /** One in how many marks can carry its number without the numbers touching. */
 export const value_step = (values, per_px, font) => Math.max(1, Math.ceil((number_room(values, font) + 6) / Math.max(1, per_px)));
 
+/** Smaller than this a number is no longer worth writing. */
+export const MIN_VALUE_FONT = 7;
+
+/**
+ * The largest size these numbers can be written at and still fit the room
+ * one mark gets - or 0 when even the smallest will not fit.
+ *
+ * A number that does not fit is SHRUNK before it is given up on. Dropping
+ * straight from "it fits at eleven" to "no numbers at all" is what left
+ * grouped and stacked bars bare: three series sharing one category's width
+ * have a third of it each, which eleven-pixel figures rarely fit and eight-
+ * pixel ones usually do. Below MIN_VALUE_FONT there is nothing legible
+ * left to draw, and only then is the number left to the tooltip.
+ */
+export function fit_value_font(values, per_px, max_font, min_font) {
+  const floor = min_font || MIN_VALUE_FONT;
+  const room = Number(per_px);
+  const top = Math.max(floor, Math.round(max_font || 11));
+  if (!Number.isFinite(room)) return top;
+  for (let font = top; font >= floor; font -= 1) {
+    if (number_room(values, font) + 4 <= room) return font;
+  }
+  return 0;
+}
+
 /**
  * The same rows with an extra field holding only the values that are
  * actually going to be written. The marks keep reading the real field, so
@@ -112,4 +137,38 @@ export const value_step = (values, per_px, font) => Math.max(1, Math.ceil((numbe
 export function with_value_labels(rows, source_key, step) {
   if (step <= 1) return rows;
   return rows.map((row, index) => ({ ...row, [VALUE_LABEL_KEY]: index % step === 0 ? row[source_key] : null }));
+}
+
+/** Where a staggered number is written: one above the line, the next below. */
+export const ABOVE_KEY = "__value_above";
+export const BELOW_KEY = "__value_below";
+
+/**
+ * Numbers along a LINE, laid out so they can all be read.
+ *
+ * A line's points sit close together, and a row of numbers written above
+ * them runs into itself long before the line itself is crowded. Writing
+ * every other one BELOW the line instead doubles the room each number has
+ * without dropping any of them - the reading zigzags, which is what a
+ * dense line chart does everywhere it is done well. Only past what even
+ * that can hold are numbers thinned, and then evenly.
+ *
+ * Returns the rows to draw plus the two fields the labels read from. The
+ * "below" field is null when the numbers fit on one side and there is no
+ * reason to make the eye jump.
+ */
+export function stagger_values(rows, source_key, per_px, values, font) {
+  const need = number_room(values, font) + 6;
+  const room = Math.max(1, per_px);
+  const stagger = need > room;
+  const step = Math.max(1, Math.ceil(need / (stagger ? room * 2 : room)));
+  if (!stagger && step <= 1) return { rows, above: source_key, below: null, step: 1, stagger: false };
+  let written = 0;
+  const out = rows.map((row, index) => {
+    if (index % step !== 0) return { ...row, [ABOVE_KEY]: null, [BELOW_KEY]: null };
+    const below = stagger && written % 2 === 1;
+    written += 1;
+    return { ...row, [ABOVE_KEY]: below ? null : row[source_key], [BELOW_KEY]: below ? row[source_key] : null };
+  });
+  return { rows: out, above: ABOVE_KEY, below: stagger ? BELOW_KEY : null, step, stagger };
 }

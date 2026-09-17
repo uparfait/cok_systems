@@ -2,11 +2,16 @@ import React from "react";
 import { ResponsiveContainer, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, LabelList } from "recharts";
 import { build_palette } from "../appearance.js";
 import { value_axis_width } from "./chartLabels.jsx";
-import { category_axis, value_step, with_value_labels, VALUE_LABEL_KEY } from "./labelDensity.jsx";
+import { category_axis, value_step, stagger_values, fit_value_font, MIN_VALUE_FONT } from "./labelDensity.jsx";
 import { chart_density, tick_style } from "./density.js";
 import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
 
-const animation = (animate) => ({ isAnimationActive: animate !== false, animationDuration: 700, animationEasing: "ease-out" });
+// Short on purpose: the charting library draws no value labels at all
+// while a chart is animating, so this is also how long a line goes without
+// its numbers after every filter change.
+const ANIMATION_MS = 260;
+
+const animation = (animate) => ({ isAnimationActive: animate !== false, animationDuration: ANIMATION_MS, animationEasing: "ease-out" });
 
 const show_value = (value) => (value ? value : "");
 
@@ -21,7 +26,8 @@ const show_value = (value) => (value ? value : "");
  * to share one width. The axis then lies its dates over at 45 degrees and,
  * where even that will not fit, labels every n-th point (see
  * labelDensity) - evenly, so the axis still reads as a time line. The
- * numbers written on the points thin the same way against their own width.
+ * numbers written on the points zigzag above and below the line so they
+ * all fit, and thin only past what that holds.
  * The line itself never loses a point, and the tooltip carries the date
  * and value of whichever one is under the pointer. A single series draws
  * in the widget's number color, split series in their own value colors
@@ -45,11 +51,17 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
   const labels = rows.map((row) => row.label);
   const axis = category_axis(labels, x_room, size.font, colors, y_width);
   const chart_height = size.height + axis.height - 30;
-  // Values are written on as many points as can hold one without the
-  // figures touching; the rest are read from the tooltip.
-  const number_step = size.show_values ? value_step(has_series ? peak : rows.map((row) => row.value || 0), x_room, value_font) : 1;
-  const data = has_series ? rows : with_value_labels(rows, "value", number_step);
-  const number_key = !has_series && number_step > 1 ? VALUE_LABEL_KEY : "value";
+  // Numbers along a line zigzag ABOVE and BELOW it rather than crowding
+  // one side, which doubles the room each one has (see stagger_values);
+  // only past what even that holds are they thinned. Several lines sharing
+  // the same vertical room have nowhere to zigzag into, so a split chart
+  // writes its numbers only where they already fit.
+  // Written as small as they need to be to fit between the points, before
+  // any of them is moved below the line or dropped.
+  const number_font = size.show_values ? fit_value_font(peak, x_room * 2, value_font, MIN_VALUE_FONT) || MIN_VALUE_FONT : value_font;
+  const numbers = size.show_values && !has_series ? stagger_values(rows, "value", x_room, peak, number_font) : { rows, above: "value", below: null };
+  const data = numbers.rows;
+  const series_numbers = size.show_values && has_series && value_step(peak, x_room, number_font) === 1;
   // Recharts reports the hovered category as activeLabel: that is the bucket clicked.
   const on_chart_click = onItemClick ? (state) => state && state.activeLabel !== undefined && onItemClick(String(state.activeLabel)) : undefined;
   const active_dot = onItemClick ? { r: 6, cursor: "pointer" } : undefined;
@@ -61,7 +73,8 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
         <YAxis tick={tick_style(colors, size)} allowDecimals={false} stroke={colors.grid} width={y_width} />
         <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} />
         <Area type="monotone" dataKey="value" stroke={accent} fill={accent} fillOpacity={0.18} strokeWidth={2.5} activeDot={active_dot} {...animation(animate)}>
-          {size.show_values && <LabelList dataKey={number_key} position="top" formatter={show_value} style={{ fontSize: value_font, fontWeight: 600, fill: accent }} />}
+          {size.show_values && <LabelList dataKey={numbers.above} position="top" formatter={show_value} style={{ fontSize: number_font, fontWeight: 600, fill: accent }} />}
+          {size.show_values && numbers.below && <LabelList dataKey={numbers.below} position="bottom" formatter={show_value} style={{ fontSize: number_font, fontWeight: 600, fill: accent }} />}
         </Area>
       </AreaChart>
     ) : (
@@ -75,13 +88,14 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
             const color = colors.color_for(key, index);
             return (
               <Line key={key} type="monotone" dataKey={key} stroke={color} strokeWidth={2.5} dot={{ r: 2.5, fill: color }} activeDot={active_dot} {...animation(animate)}>
-                {size.show_values && number_step === 1 && <LabelList dataKey={key} position="top" formatter={show_value} style={{ fontSize: Math.max(8, value_font - 1), fontWeight: 600, fill: color }} />}
+                {series_numbers && <LabelList dataKey={key} position="top" formatter={show_value} style={{ fontSize: Math.max(MIN_VALUE_FONT, number_font - 1), fontWeight: 600, fill: color }} />}
               </Line>
             );
           })
         ) : (
           <Line type="monotone" dataKey="value" stroke={accent} strokeWidth={2.5} dot={{ r: 2.5, fill: accent }} activeDot={active_dot} {...animation(animate)}>
-            {size.show_values && <LabelList dataKey={number_key} position="top" formatter={show_value} style={{ fontSize: value_font, fontWeight: 600, fill: accent }} />}
+            {size.show_values && <LabelList dataKey={numbers.above} position="top" formatter={show_value} style={{ fontSize: number_font, fontWeight: 600, fill: accent }} />}
+            {size.show_values && numbers.below && <LabelList dataKey={numbers.below} position="bottom" formatter={show_value} style={{ fontSize: number_font, fontWeight: 600, fill: accent }} />}
           </Line>
         )}
       </LineChart>

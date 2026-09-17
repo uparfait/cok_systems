@@ -923,6 +923,7 @@ const fr = {
   DCS_DB_ICON_LOADING_LIBS: "chargement des bibliotheques {{done}}/{{total}}",
   DCS_DB_ICON_LOAD_FAILED: "Les bibliotheques d'icones n'ont pas pu etre chargees",
   DCS_DB_ICON_CHANGE: "Changer l'icone",
+  DCS_DB_ICON_APPLYING: "Application des modifications...",
   DCS_DB_ICON_SEARCH: "Rechercher des icones...",
   DCS_DB_ICON_REMOVE: "Retirer l'icone",
   DCS_DB_ICON_COUNT: "{{count}} icones",

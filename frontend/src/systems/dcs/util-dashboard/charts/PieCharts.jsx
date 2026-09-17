@@ -15,14 +15,17 @@ import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
  * Its legend sits wherever the widget's appearance puts it, unchanged.
  */
 /** A number written inside its slice, for rings with no room around them. */
-function inside_label(size) {
+function inside_label(size, colors, rows) {
   return (props) => {
-    const { cx, cy, midAngle, innerRadius, outerRadius, value, percent } = props;
+    const { cx, cy, midAngle, innerRadius, outerRadius, value, percent, index } = props;
     if (!value || percent < 0.04) return null;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
     const radians = -(midAngle * Math.PI) / 180;
+    // Written on the slice, so it is read against the slice's own color -
+    // a number in white on a pale yellow wedge is not there at all.
+    const slice = rows[index] ? colors.color_for(rows[index].label, index) : colors.accent;
     return (
-      <text x={cx + radius * Math.cos(radians)} y={cy + radius * Math.sin(radians)} fill="#FFFFFF" textAnchor="middle" dominantBaseline="central" fontSize={Math.max(9, size.value_font || size.font)} fontWeight={700}>
+      <text x={cx + radius * Math.cos(radians)} y={cy + radius * Math.sin(radians)} fill={colors.on_mark(slice)} textAnchor="middle" dominantBaseline="central" fontSize={Math.max(9, size.value_font || size.font)} fontWeight={700}>
         {value}
       </text>
     );
@@ -53,9 +56,9 @@ export default function PieCharts({ chartType, rows, totalLabel, onItemClick, pa
               outerRadius={with_labels ? size.pie : "78%"}
               paddingAngle={rows.length > 1 ? 2 : 0}
               isAnimationActive={animate !== false}
-              animationDuration={700}
+              animationDuration={260}
               animationEasing="ease-out"
-              label={with_labels ? ({ value, percent }) => `${value} (${Math.round(percent * 100)}%)` : inside_label(size)}
+              label={with_labels ? ({ value, percent }) => `${value} (${Math.round(percent * 100)}%)` : inside_label(size, colors, rows)}
               labelLine={with_labels ? { strokeWidth: 1 } : false}
               stroke={colors.background}
               cursor={handle_click ? "pointer" : undefined}

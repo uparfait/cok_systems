@@ -66,6 +66,43 @@ export function with_color_alpha(input, alpha) {
   return level >= 1 ? base : `${base}${to_hex_pair(Math.round(level * 255))}`;
 }
 
+/** How bright a color is to the eye, 0 (black) to 1 (white). */
+export function luminance(input) {
+  const hex = opaque_color(input) || "#000000";
+  const channel = (pair) => {
+    const value = parseInt(pair, 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * channel(hex.slice(1, 3)) + 0.7152 * channel(hex.slice(3, 5)) + 0.0722 * channel(hex.slice(5, 7));
+}
+
+/** How far apart two colors are to the eye, 1 (identical) to 21 (black on white). */
+export function contrast(one, other) {
+  const a = luminance(one);
+  const b = luminance(other);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+// Below this, text starts to disappear into what it is written on. It is
+// the standard bar for large and bold text, which is what a chart writes.
+const READABLE = 3;
+
+/**
+ * Text that can actually be READ on this background.
+ *
+ * A widget whose text color is its background color - set deliberately, or
+ * arrived at by recoloring one of them - writes its labels in invisible
+ * ink, and a number written over a mark can vanish into the mark's own
+ * color the same way. So the color asked for is used whenever it stands
+ * out from what it sits on, and when it does not, it gives way to black or
+ * white, whichever of the two reads better there. Nothing is ever drawn in
+ * a color nobody can see.
+ */
+export function readable_on(background, preferred) {
+  if (preferred && contrast(preferred, background) >= READABLE) return preferred;
+  return luminance(background) > 0.45 ? "#1A1A1A" : "#FFFFFF";
+}
+
 export function auto_color(index) {
   return SERIES_COLORS[Math.abs(index) % SERIES_COLORS.length];
 }
@@ -151,14 +188,19 @@ export function build_palette(raw, board_theme) {
     const named = value_labels[String(label)];
     return named === undefined || named === null || named === "" ? label : named;
   };
+  // Whatever the card is set to, its own words have to be legible on it.
+  const text = readable_on(solid, mode.text);
+  const number = readable_on(solid, mode.number);
   return {
     theme: appearance.theme,
     is_dark: appearance.theme === "dark",
     legend_position: appearance.legend_position,
     background: mode.background,
     background_solid: solid,
-    text: mode.text,
-    number: mode.number,
+    text,
+    number,
+    // The accent paints marks, not text, so it is never overridden - a
+    // bar may be any color its widget likes.
     accent: mode.number,
     muted: extras.muted,
     grid: extras.grid,
@@ -169,11 +211,14 @@ export function build_palette(raw, board_theme) {
     color_override,
     name_for,
     value_labels,
-    tick: { fontSize: 11, fill: mode.text },
-    tooltip: { borderRadius: 0, border: `1px solid ${mode.border || MODE_DEFAULTS[appearance.theme].border}`, fontSize: 12, backgroundColor: solid, color: mode.text },
+    // A number or a name written ON a mark is read against the MARK, not
+    // against the card, so every renderer that does it asks here.
+    on_mark: (fill) => readable_on(fill, null),
+    tick: { fontSize: 11, fill: text },
+    tooltip: { borderRadius: 0, border: `1px solid ${mode.border || MODE_DEFAULTS[appearance.theme].border}`, fontSize: 12, backgroundColor: solid, color: text },
     // Recharts paints tooltip rows black unless told otherwise - unreadable on a dark board.
-    tooltip_text: { color: mode.text },
-    legend_style: { fontSize: 11, color: mode.text },
+    tooltip_text: { color: text },
+    legend_style: { fontSize: 11, color: text },
   };
 }
 

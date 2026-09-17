@@ -923,6 +923,7 @@ const kn = {
   DCS_DB_ICON_LOADING_LIBS: "gupakira ububiko {{done}}/{{total}}",
   DCS_DB_ICON_LOAD_FAILED: "Ububiko bw'ibimenyetso ntibwashoboye gupakirwa",
   DCS_DB_ICON_CHANGE: "Hindura ikimenyetso",
+  DCS_DB_ICON_APPLYING: "Gushyiraho impinduka...",
   DCS_DB_ICON_SEARCH: "Shakisha ibimenyetso...",
   DCS_DB_ICON_REMOVE: "Kuraho ikimenyetso",
   DCS_DB_ICON_COUNT: "Ibimenyetso {{count}}",

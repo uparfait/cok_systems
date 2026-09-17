@@ -923,6 +923,7 @@ const en = {
   DCS_DB_ICON_LOADING_LIBS: "loading libraries {{done}}/{{total}}",
   DCS_DB_ICON_LOAD_FAILED: "The icon libraries could not be loaded",
   DCS_DB_ICON_CHANGE: "Change icon",
+  DCS_DB_ICON_APPLYING: "Applying changes...",
   DCS_DB_ICON_SEARCH: "Search icons...",
   DCS_DB_ICON_REMOVE: "Remove icon",
   DCS_DB_ICON_COUNT: "{{count}} icons",

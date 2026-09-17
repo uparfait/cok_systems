@@ -2,7 +2,7 @@ import React, { useId } from "react";
 import { ResponsiveContainer, BarChart, Bar, Cell, ComposedChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, LabelList } from "recharts";
 import { build_palette } from "../appearance.js";
 import { wrapped_tick, y_axis_width, y_label_room, value_axis_width, number_room, bar_row_height, widest_word, text_width } from "./chartLabels.jsx";
-import { category_axis, value_step, with_value_labels, VALUE_LABEL_KEY } from "./labelDensity.jsx";
+import { category_axis, value_step, with_value_labels, fit_value_font, MIN_VALUE_FONT, VALUE_LABEL_KEY } from "./labelDensity.jsx";
 import { chart_density, tick_style, value_style } from "./density.js";
 import { PatternDefs, pattern_fill, series_display } from "./patterns.jsx";
 import { SplitLegend, LegendFrame } from "./SeriesLegend.jsx";
@@ -38,7 +38,12 @@ import { SplitLegend, LegendFrame } from "./SeriesLegend.jsx";
  * a texture inside each series color. Marks grow in and glide to values.
  */
 
-const animation = (animate) => ({ isAnimationActive: animate !== false, animationDuration: 700, animationEasing: "ease-out" });
+// How long marks take to grow in. Deliberately short: the charting
+// library draws no value labels at all while a chart is animating, so this
+// is also how long a chart goes without its numbers after every change.
+const ANIMATION_MS = 260;
+
+const animation = (animate) => ({ isAnimationActive: animate !== false, animationDuration: ANIMATION_MS, animationEasing: "ease-out" });
 
 const show_value = (value) => (value ? value : "");
 const clicked_row = (entry) => (entry && entry.payload ? entry.payload : entry);
@@ -132,9 +137,12 @@ function VerticalMarks({ rows, onItemClick, palette, animate, density, shape, fi
   const frame = category_frame(labels, rows.length, density, y_width + margin.right + 8, fitMode);
   const axis = category_axis(labels, frame.room, density.font, palette, y_width);
   const height = density.height + axis.height - 30;
-  // A number is not as wide as a name, so the two are thinned separately:
-  // a chart can keep every label and still write only the figures that fit.
-  const number_step = density.show_values ? value_step(values, frame.room, density.value_font) : 1;
+  // A number is not as wide as a name, so the two are handled separately.
+  // The figures shrink to the column first; only when even the smallest
+  // will not fit are they thinned, and then evenly.
+  const fitted = density.show_values ? fit_value_font(values, frame.room, density.value_font, MIN_VALUE_FONT) : 0;
+  const number_font = fitted || MIN_VALUE_FONT;
+  const number_step = !density.show_values || fitted ? 1 : value_step(values, frame.room, MIN_VALUE_FONT);
   const data = with_value_labels(rows, "value", number_step);
   const number_key = number_step > 1 ? VALUE_LABEL_KEY : "value";
   const axes = (
@@ -153,7 +161,7 @@ function VerticalMarks({ rows, onItemClick, palette, animate, density, shape, fi
             {axes}
             <Bar dataKey="value" {...animation(animate)} maxBarSize={density.column_bar} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
               {value_cells(rows, palette)}
-              <ValueLabels density={density} palette={palette} dataKey={number_key} position="top" />
+              <ValueLabels density={density} palette={palette} dataKey={number_key} position="top" size={number_font} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -172,7 +180,7 @@ function VerticalMarks({ rows, onItemClick, palette, animate, density, shape, fi
           )}
           <Scatter dataKey="value" {...animation(animate)}>
             {value_cells(rows, palette)}
-            <ValueLabels density={density} palette={palette} dataKey={number_key} position="top" />
+            <ValueLabels density={density} palette={palette} dataKey={number_key} position="top" size={number_font} />
           </Scatter>
         </ComposedChart>
       </ResponsiveContainer>
@@ -210,7 +218,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
   const row_labels = labels_of(rows);
   // The biggest number any axis or label will have to print.
   const peak = mode === "stacked_100" ? [100] : rows.map((row) => (stacked ? row_total(row) : Math.max(0, ...series.map((key) => row[key] || 0))));
-  const segment_font = Math.max(8, density.value_font - 1);
+  const base_segment_font = Math.max(8, density.value_font - 1);
   const y_width = horizontal ? y_axis_width(row_labels, category_axis_cap(row_labels, density), density.font) : value_axis_width(peak, density.font);
   const y_room = y_label_room(y_width);
   const margin = horizontal
@@ -218,11 +226,15 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
     : { top: top_room(density), right: 14, left: 0, bottom: 5 };
   const frame = horizontal ? { room: 0, width: 0 } : category_frame(row_labels, rows.length, density, y_width + margin.right + 8, fitMode);
   const axis = horizontal ? null : category_axis(row_labels, frame.room, density.font, palette, y_width);
-  // A grouped column is a fraction of its category's room, and a stacked
-  // segment a fraction of its height: below the width of the number itself
-  // the figures are left to the tooltip rather than written over each other.
-  const room_for_numbers = horizontal || frame.room / Math.max(1, stacked ? 1 : series.length) >= number_room(peak, segment_font) + 6;
-  const show_numbers = density.show_values && room_for_numbers;
+  // A grouped column is a fraction of its category's room and a stacked
+  // segment a fraction of its height, so the figures are written as small
+  // as they need to be to fit the slot one series actually gets. Only when
+  // even the smallest readable size will not fit are they left to the
+  // tooltip. A horizontal bar writes its numbers in the margin beside it,
+  // where the room is the chart's, not one column's.
+  const slot = horizontal ? Infinity : frame.room / Math.max(1, stacked ? 1 : series.length);
+  const segment_font = fit_value_font(peak, slot, base_segment_font, MIN_VALUE_FONT);
+  const show_numbers = density.show_values && segment_font > 0;
   const height = horizontal
     ? Math.max(density.height, rows.length * bar_row_height(row_labels, y_room, stacked ? density.row_base + 2 : Math.max(density.row_base - 8, series.length * (density.font + 7)), density.font))
     : density.height + axis.height - 30;
@@ -259,7 +271,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
           >
             {show_numbers &&
               (stacked ? (
-                <LabelList dataKey={item.key} position="center" formatter={(value) => (value ? (mode === "stacked_100" ? `${value}%` : value) : "")} style={{ fontSize: segment_font, fontWeight: 600, fill: "#FFFFFF" }} />
+                <LabelList dataKey={item.key} position="center" formatter={(value) => (value ? (mode === "stacked_100" ? `${value}%` : value) : "")} style={{ fontSize: segment_font, fontWeight: 600, fill: palette.on_mark(item.color) }} />
               ) : (
                 <LabelList dataKey={item.key} position={horizontal ? "right" : "top"} formatter={show_value} style={value_style(palette, density, segment_font)} />
               ))}

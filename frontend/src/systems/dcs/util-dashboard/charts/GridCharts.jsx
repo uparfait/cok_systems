@@ -1,6 +1,7 @@
 import React from "react";
 import { build_palette, with_alpha } from "../appearance.js";
 import { chart_density } from "./density.js";
+import { fit_value_font, MIN_VALUE_FONT } from "./labelDensity.jsx";
 import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
 
 /**
@@ -24,6 +25,8 @@ export function HeatmapChart({ rows, series, fitMode, palette, density, onItemCl
   const colors = palette || build_palette(null);
   const size = density || chart_density();
   const max = rows.reduce((best, row) => series.reduce((inner, key) => Math.max(inner, row[key] || 0), best), 0);
+  // Every number in the grid written at a size the cells can hold.
+  const cell_font = fit_value_font([max], size.cell_px - 8, size.font, MIN_VALUE_FONT) || MIN_VALUE_FONT;
   const label_width = Math.round(Math.max(56, Math.min(size.y_max, size.width * 0.28)));
   const cell_height = Math.max(22, Math.round(size.cell_px / 2.2));
   return (
@@ -57,7 +60,7 @@ export function HeatmapChart({ rows, series, fitMode, palette, density, onItemCl
                     style={{
                       cursor: onItemClick ? "pointer" : undefined,
                       height: cell_height,
-                      fontSize: size.font,
+                      fontSize: cell_font,
                       transition: "background-color 600ms ease, color 600ms ease",
                       backgroundColor: heat_color(row[key] || 0, max, colors),
                       color: (row[key] || 0) / (max || 1) > 0.55 ? "#FFFFFF" : colors.text,

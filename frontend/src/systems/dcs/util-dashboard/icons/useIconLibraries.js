@@ -5,13 +5,18 @@ import { ICON_LIBRARIES, load_library, search_key, icon_label, make_icon_id } fr
  * Loads the requested libraries (all of them for a cross-library search)
  * one bundle at a time, exposing what has arrived so far: results appear
  * as each library lands instead of waiting for the slowest one.
+ *
+ * `paused` stops it: once a choice has been made there is nothing left to
+ * search, so no further bundle is fetched and nothing is reported as
+ * still on its way.
  */
-export function useIconLibraries(library_ids) {
+export function useIconLibraries(library_ids, paused) {
   const [loaded, setLoaded] = useState({});
   const [failed, setFailed] = useState({});
   const wanted_key = library_ids.join("|");
 
   useEffect(() => {
+    if (paused) return undefined;
     let is_mounted = true;
     library_ids.forEach((id) => {
       if (loaded[id] || failed[id]) return;
@@ -25,9 +30,9 @@ export function useIconLibraries(library_ids) {
       is_mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wanted_key]);
+  }, [wanted_key, paused]);
 
-  const pending = library_ids.filter((id) => !loaded[id] && !failed[id]).length;
+  const pending = paused ? 0 : library_ids.filter((id) => !loaded[id] && !failed[id]).length;
   return { loaded, failed, pending };
 }
 

@@ -24,7 +24,12 @@ const ALL_IDS = ICON_LIBRARIES.map((library) => library.id);
  * icons themselves in a grid. Searching always runs ACROSS every library
  * unless one is picked in the filter; libraries are fetched on demand and
  * results show up as each one lands. The grid renders in pages that grow
- * as it is scrolled. Picking an icon saves it at once and closes the drawer.
+ * as it is scrolled.
+ *
+ * Picking an icon saves it at once and closes the drawer - and the moment
+ * one is picked the search STOPS: no further library is fetched, and the
+ * drawer says it is applying the change rather than carrying on loading
+ * icons the person has already finished choosing from.
  */
 export default function IconPickerPanel({ widget, saving, onPick, onRemove, onClose }) {
   const { translate } = useDcsLanguage();
@@ -33,7 +38,7 @@ export default function IconPickerPanel({ widget, saving, onPick, onRemove, onCl
   const [shown, setShown] = useState(PAGE);
 
   const wanted_ids = useMemo(() => (library === ALL ? ALL_IDS : [library]), [library]);
-  const { loaded, failed, pending } = useIconLibraries(wanted_ids);
+  const { loaded, failed, pending } = useIconLibraries(wanted_ids, saving);
   const index = useIconIndex(loaded, wanted_ids);
   const matches = useMemo(() => filter_icon_index(index, query), [index, query]);
   const visible = matches.slice(0, shown);
@@ -134,8 +139,11 @@ export default function IconPickerPanel({ widget, saving, onPick, onRemove, onCl
 
         <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3" onScroll={handle_scroll}>
           {saving ? (
-            <div className="flex items-center justify-center py-10">
+            <div className="flex flex-col items-center justify-center gap-2 py-10">
               <SpiralLoader />
+              <span className="text-xs font-semibold" style={{ color: PRIMARY, ...HEADING_FONT }}>
+                {translate("DCS_DB_ICON_APPLYING")}
+              </span>
             </div>
           ) : matches.length === 0 && pending > 0 ? (
             <div className="flex items-center justify-center py-10">
