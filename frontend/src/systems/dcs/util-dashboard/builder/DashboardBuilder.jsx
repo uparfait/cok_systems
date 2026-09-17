@@ -11,7 +11,7 @@ import GenerationProgress from "../GenerationProgress.jsx";
 import KpiComposer from "./KpiComposer.jsx";
 import ChartComposer from "./ChartComposer.jsx";
 import DraftList from "./DraftList.jsx";
-import { TABS, MAX_WIDGETS, builder_fields, finalize_widgets } from "./composeWidgets.js";
+import { TABS, MAX_WIDGETS, builder_fields, finalize_widgets, widget_to_spec, tab_of_widget } from "./composeWidgets.js";
 import FiltersTab from "./FiltersTab.jsx";
 import MapComposer from "./MapComposer.jsx";
 import { same_filter_defs } from "../boardFilters.js";
@@ -26,14 +26,27 @@ let draft_sequence = 0;
  * composes each widget by hand (formula, field, "in each", chart type...)
  * and watches the draft list grow on the right. Nothing touches the saved dashboard until "Save": drafts are then
  * appended to the current board or replace it, as chosen in the footer.
+ *
+ * With `reconfigure` it opens on ONE widget that is already on the board,
+ * read back into the composer it was built with (see widget_to_spec) and
+ * open for changing. Saving then puts the changed widget back where it
+ * was, under its own id and in its own place, instead of adding a second
+ * one beside it - so the button says Update, and nothing else on the board
+ * is touched.
  */
-export default function DashboardBuilder({ form, existingWidgets, existingFilters, initialTab, onClose, onSaved, onAutoGenerate }) {
+export default function DashboardBuilder({ form, existingWidgets, existingFilters, initialTab, reconfigure, onClose, onSaved, onAutoGenerate }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const existing = existingWidgets || [];
 
-  const [tab, setTab] = useState(initialTab || "kpi");
-  const [drafts, setDrafts] = useState([]);
+  // Reconfiguring starts with the widget itself as the one draft, already
+  // open in its composer.
+  const reopened = useMemo(() => {
+    if (!reconfigure) return null;
+    return { key: "reconfigure", tab: tab_of_widget(reconfigure), spec: widget_to_spec(reconfigure), widgets: [reconfigure], summary: reconfigure.title || "" };
+  }, [reconfigure]);
+  const [tab, setTab] = useState(reopened ? reopened.tab : initialTab || "kpi");
+  const [drafts, setDrafts] = useState(reopened ? [reopened] : []);
   // The board's filter fields (Filters tab), saved together with the widgets.
   const [filter_defs, setFilterDefs] = useState(existingFilters || []);
   const filters_changed = !same_filter_defs(filter_defs, existingFilters || []);
@@ -42,7 +55,7 @@ export default function DashboardBuilder({ form, existingWidgets, existingFilter
   const [progress, setProgress] = useState(0);
   const [confirm_close, setConfirmClose] = useState(false);
   // The draft reopened in its composer; adding then replaces it in place.
-  const [editing, setEditing] = useState(null);
+  const [editing, setEditing] = useState(reopened);
 
   const fields = useMemo(() => builder_fields(form.schema), [form.schema]);
   const draft_widgets = drafts.reduce((sum, draft) => sum + draft.widgets.length, 0);
@@ -92,8 +105,13 @@ export default function DashboardBuilder({ form, existingWidgets, existingFilter
     setProgress(20);
     try {
       const fresh = drafts.flatMap((draft) => draft.widgets);
+      // Reconfiguring changes ONE widget in place: it keeps its id and its
+      // position, and every other widget on the board is left alone.
+      const replaced = reconfigure
+        ? existing.map((widget) => (widget.id === reconfigure.id && fresh[0] ? Object.assign({}, fresh[0], { id: reconfigure.id, position: widget.position }) : widget))
+        : null;
       // Filters alone can be saved too: the widgets then stay as they are.
-      const merged = draft_widgets === 0 ? existing : finalize_widgets(mode === "append" ? existing.concat(fresh) : fresh);
+      const merged = replaced || (draft_widgets === 0 ? existing : finalize_widgets(mode === "append" ? existing.concat(fresh) : fresh));
       setProgress(60);
       const saved = await save_dashboard(form, merged, filter_defs);
       const final_widgets = (saved.data && saved.data.widgets) || merged;
@@ -214,7 +232,7 @@ export default function DashboardBuilder({ form, existingWidgets, existingFilter
                   {translate("DCS_DB_BUILDER_CANCEL")}
                 </DcsButtonOutline>
                 <DcsButtonPrimary className="sm:w-56" disabled={!can_save} onClick={handle_save}>
-                  {draft_widgets === 0 && filters_changed ? translate("DCS_DB_BUILDER_SAVE_FILTERS") : translate("DCS_DB_BUILDER_SAVE", { count: draft_widgets })}
+                  {reconfigure ? translate("DCS_DB_BUILDER_UPDATE") : draft_widgets === 0 && filters_changed ? translate("DCS_DB_BUILDER_SAVE_FILTERS") : translate("DCS_DB_BUILDER_SAVE", { count: draft_widgets })}
                 </DcsButtonPrimary>
               </div>
             </div>

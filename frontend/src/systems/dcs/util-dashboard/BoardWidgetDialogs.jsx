@@ -3,11 +3,13 @@ import AppearanceDialog from "./builder/AppearanceDialog.jsx";
 import { appearance_values_field } from "./builder/composeWidgets.js";
 import IconPickerPanel from "./icons/IconPickerPanel.jsx";
 import SkippedDetailsModal from "./SkippedDetailsModal.jsx";
+import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 
 /**
- * The per-widget dialogs of the dashboard page - color settings, the icon
- * picker and the skipped-answers detail - each shown for the widget the
- * page currently holds in the matching state slot.
+ * The dialogs of the dashboard page - color settings, the icon picker,
+ * the skipped-answers detail, and the two confirmations that something is
+ * about to be thrown away - each shown for whatever the page currently
+ * holds in the matching state slot.
  */
 // A KPI card's icon is its own; a map's is the marker it plants on every
 // place, which lives with the rest of its map settings.
@@ -16,7 +18,7 @@ const icon_of = (widget) => (is_map(widget) ? { ...widget, icon: (widget.map && 
 // Picking one for a map also plants it; removing it takes the markers off.
 const icon_change = (widget, name) => (is_map(widget) ? { map: Object.assign({}, widget.map, { marker: name, show_markers: !!name }) } : { icon: name });
 
-export default function BoardWidgetDialogs({ form, fields, widgets, savingWidgetId, appearanceWidget, iconWidget, skippedWidget, period, appliedFilters, onUpdate, onCloseAppearance, onCloseIcon, onCloseSkipped }) {
+export default function BoardWidgetDialogs({ form, fields, widgets, savingWidgetId, appearanceWidget, iconWidget, skippedWidget, period, appliedFilters, onUpdate, onCloseAppearance, onCloseIcon, onCloseSkipped, confirmDelete, confirmRemove }) {
   const current_widget = () => (iconWidget ? widgets.find((widget) => widget.id === iconWidget.id) || iconWidget : null);
 
   return (
@@ -50,6 +52,12 @@ export default function BoardWidgetDialogs({ form, fields, widgets, savingWidget
         />
       )}
       {skippedWidget && <SkippedDetailsModal form={form} widget={skippedWidget} period={period} filters={appliedFilters} onClose={onCloseSkipped} />}
+      {confirmDelete && confirmDelete.open && (
+        <DcsConfirmDialog titleKey="DCS_DB_DEL_CONFIRM_TITLE" messageKey="DCS_DB_DEL_CONFIRM_MESSAGE" confirming={confirmDelete.busy} onConfirm={confirmDelete.onConfirm} onCancel={confirmDelete.onCancel} />
+      )}
+      {confirmRemove && confirmRemove.open && (
+        <DcsConfirmDialog titleKey="DCS_DB_REMOVE_TITLE" messageKey="DCS_DB_REMOVE_MESSAGE" confirming={confirmRemove.busy} onConfirm={confirmRemove.onConfirm} onCancel={confirmRemove.onCancel} />
+      )}
     </>
   );
 }

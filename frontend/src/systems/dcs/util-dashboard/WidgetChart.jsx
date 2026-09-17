@@ -12,6 +12,7 @@ import DimensionTotals from "./charts/DimensionTotals.jsx";
 import { build_palette } from "./appearance.js";
 import { useBoardTheme } from "./boardTheme.jsx";
 import { chart_density } from "./charts/density.js";
+import { drawn_chart_type } from "./overTime.js";
 
 const OTHER_KEY = "__other__";
 // The single row a widget with nothing to group by draws.
@@ -141,9 +142,26 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
     );
   }
   if (data.kind === "time") {
+    const drawn = drawn_chart_type(widget);
+    const on_time = onPick ? (label) => onPick({ kind: "time", label }) : undefined;
     return (
       <div>
-        <TimeCharts chartType={widget.chart_type} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} animate={animate} density={density} onItemClick={onPick ? (label) => onPick({ kind: "time", label }) : undefined} onLegendClick={legend_pick} />
+        {drawn === "line" || drawn === "area" ? (
+          <TimeCharts chartType={drawn} rows={rows} series={data.series || []} fitMode={fitMode} palette={palette} animate={animate} density={density} onItemClick={on_time} onLegendClick={legend_pick} />
+        ) : (
+          <CategoryCharts
+            chartType={drawn}
+            rows={rows}
+            series={data.series || []}
+            legendLabels={{ split: translate("DCS_DB_LEGEND_COLORS") }}
+            palette={palette}
+            animate={animate}
+            density={density}
+            fitMode={fitMode}
+            onItemClick={on_time ? (row) => on_time(row && row.label) : undefined}
+            onLegendClick={legend_pick}
+          />
+        )}
         <DimensionTotals totals={data.totals} palette={palette} />
       </div>
     );

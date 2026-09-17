@@ -3,20 +3,14 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import WidgetChart from "./WidgetChart.jsx";
 import LibraryIcon from "./icons/LibraryIcon.jsx";
-import { chart_definition, convertible_types } from "./chartCatalog.js";
+import { chart_definition } from "./chartCatalog.js";
 import { build_palette, with_alpha } from "./appearance.js";
+import CardMenu from "./WidgetCardMenu.jsx";
 import { useBoardTheme } from "./boardTheme.jsx";
-import MenuPopover from "./MenuPopover.jsx";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
 const ORANGE = "#E67E22";
-// The widths a chart can take on the board (KPI cards keep their own dense grid).
-const SIZE_OPTIONS = [
-  { id: "small", labelKey: "DCS_DB_SIZE_SMALL" },
-  { id: "medium", labelKey: "DCS_DB_SIZE_MEDIUM" },
-  { id: "large", labelKey: "DCS_DB_SIZE_LARGE" },
-];
 const SURFACE = "var(--board-surface, #FFFFFF)";
 const SURFACE_BORDER = "var(--board-border, #E0E0E0)";
 const SURFACE_TEXT = "var(--board-text, #333333)";
@@ -145,143 +139,6 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
 }
 
 /**
- * The three-dots menu at each card's top right: pick the icon a KPI card
- * shows or the marker a map plants, flip the widget into ANY
- * compatible look (single-series category charts reach every bar, column,
- * lollipop, dot, slice, waffle, treemap, line and area form; split ones
- * reach every grouped/clustered, stacked, 100 percent, heatmap and
- * multi-series line form - see convertible_types), and remove the widget.
- * Closes on outside click.
- *
- * The menu is drawn in the BOARD's colors, never the widget's. What a
- * widget's color settings paint is the widget itself - its surface, its
- * text and its marks - and nothing that merely hangs off it.
- */
-function CardMenu({ widget, palette, canMap, canHeat, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onMapMode }) {
-  const { translate } = useDcsLanguage();
-  const [open, setOpen] = useState(false);
-  const button_ref = useRef(null);
-
-  const item_style = (danger) => ({
-    display: "block",
-    width: "100%",
-    textAlign: "left",
-    padding: "0.5rem 0.75rem",
-    fontSize: 12,
-    fontFamily: "'Montserrat', sans-serif",
-    color: danger ? DANGER : SURFACE_TEXT,
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  });
-  const section_title = (key) => (
-    <p className="px-3 pt-2 pb-1 text-xs font-semibold uppercase" style={{ color: "var(--board-muted, #9E9E9E)", fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.4px", margin: 0 }}>
-      {translate(key)}
-    </p>
-  );
-
-  const pick = (action) => {
-    setOpen(false);
-    action();
-  };
-
-  return (
-    <div className="flex-shrink-0">
-      <button
-        ref={button_ref}
-        type="button"
-        title={translate("DCS_DB_MENU")}
-        aria-label={translate("DCS_DB_MENU")}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="flex items-center justify-center"
-        style={{ width: 26, height: 26, border: `1px solid ${palette ? palette.border : SURFACE_BORDER}`, color: palette ? palette.muted : "var(--board-muted, #555555)", backgroundColor: open ? "var(--board-surface-hover, #F0F7FB)" : palette ? palette.background : SURFACE, cursor: "pointer" }}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <circle cx="12" cy="5" r="2" />
-          <circle cx="12" cy="12" r="2" />
-          <circle cx="12" cy="19" r="2" />
-        </svg>
-      </button>
-      <MenuPopover open={open} anchorRef={button_ref} onClose={() => setOpen(false)} minWidth={200}>
-        <>
-          {onChangeSize && (
-            <>
-              {section_title("DCS_DB_SIZE")}
-              <div className="flex gap-1 px-3 pb-2">
-                {SIZE_OPTIONS.map((option) => {
-                  const current = (widget.size || "medium") === option.id;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={current}
-                      className="dcs-db-menu-item flex-1 text-xs font-semibold py-1 px-2"
-                      style={{ border: `1px solid ${current ? PRIMARY : SURFACE_BORDER}`, color: current ? "#FFFFFF" : PRIMARY, backgroundColor: current ? PRIMARY : "transparent", cursor: current ? "default" : "pointer", fontFamily: "'Montserrat', sans-serif" }}
-                      onClick={() => !current && pick(() => onChangeSize(option.id))}
-                    >
-                      {translate(option.labelKey)}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-          {onChangeType && convertible_types(widget, canMap).filter((type) => type !== widget.chart_type).length > 0 && (
-            <>
-              {section_title("DCS_DB_TURN_INTO")}
-              <div style={{ maxHeight: 220, overflowY: "auto" }}>
-                {convertible_types(widget, canMap)
-                  .filter((type) => type !== widget.chart_type)
-                  .map((type) => {
-                    const definition = chart_definition(type);
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        role="menuitem"
-                        className="dcs-db-menu-item"
-                        style={item_style(false)}
-                        onClick={() => pick(() => onChangeType(type))}
-                      >
-                        {definition ? translate(definition.labelKey) : type}
-                      </button>
-                    );
-                  })}
-              </div>
-            </>
-          )}
-          {onPickIcon && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onPickIcon)}>
-              {translate(widget.chart_type === "map" ? "DCS_DB_MAP_CHANGE_MARKER" : widget.icon ? "DCS_DB_ICON_CHANGE" : "DCS_DB_ICON_SET")}
-            </button>
-          )}
-          {onMapMode && (widget.map && widget.map.mode === "heat" ? canMap : canHeat) && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: onPickIcon ? "none" : `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(() => onMapMode(widget.map && widget.map.mode === "heat" ? "world" : "heat"))}>
-              {translate(widget.map && widget.map.mode === "heat" ? "DCS_DB_MAP_KIND_WORLD" : "DCS_DB_MAP_KIND_HEAT")}
-            </button>
-          )}
-          {onAppearance && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: onPickIcon ? "none" : `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onAppearance)}>
-              {translate("DCS_DB_COLOR_SETTINGS")}
-            </button>
-          )}
-          {onRemove && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(true)} onClick={() => pick(onRemove)}>
-              {translate("DCS_DB_REMOVE_WIDGET")}
-            </button>
-          )}
-          <style>{`.dcs-db-menu-item:hover { background-color: var(--board-surface-hover, #F0F7FB) !important; }`}</style>
-        </>
-      </MenuPopover>
-    </div>
-  );
-}
-
-/**
  * The grand total behind one widget's data - the sum across ALL its rows,
  * series, points or tree nodes. Only meaningful for additive measures
  * (count/sum); averages and extremes show no total.
@@ -321,7 +178,7 @@ function KpiIconSlot({ icon, color }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords, canMap, canHeat, onMapMode }) {
+export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -442,7 +299,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
         {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon || onMapMode) && (
-          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onMapMode={is_map ? onMapMode : undefined} canHeat={canHeat} />
+          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onMapMode={is_map ? onMapMode : undefined} canHeat={canHeat} fields={fields} onOverTime={onOverTime} onReconfigure={onReconfigure} />
         )}
       </div>
 

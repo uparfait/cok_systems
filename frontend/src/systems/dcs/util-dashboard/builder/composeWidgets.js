@@ -1,4 +1,5 @@
 import { chart_definition, flatten_schema_fields, field_label_text, SUBMITTED_AT_FIELD } from "../chartCatalog.js";
+import { TIME_SOURCE_IDS } from "../overTime.js";
 import { KPI_FORMULAS } from "../kpiCatalog.js";
 import { has_preset_config } from "../../fields/presetFields.js";
 
@@ -496,6 +497,64 @@ export function appearance_values_field(widget, fields) {
   if ((kind === "category" || kind === "tree") && widget.group_by) return find(widget.group_by);
   if (widget.metric && widget.metric.aggregation === "occurrences") return find(widget.metric);
   return null;
+}
+
+/** Which tab of the builder composes this look. */
+export function tab_of_widget(widget) {
+  if (!widget) return "charts";
+  if (widget.chart_type === "kpi") return "kpi";
+  if (widget.chart_type === "map") return "map";
+  return DIAGRAM_TAB_TYPES.includes(widget.chart_type) ? "diagrams" : "charts";
+}
+
+/**
+ * A saved widget read back as the composer spec it was built from, so it
+ * can be reopened and changed rather than deleted and made again.
+ *
+ * Almost every key is a straight inverse of make_widget. The exception is
+ * "in each", which does not survive the trip: it is not stored on a widget
+ * at all - it SPLIT one composition into several widgets, each carrying a
+ * filter for its own value - so a widget reopened from the board is the
+ * one widget it now is, with its filters intact, and can be fanned out
+ * again from scratch if that is wanted.
+ */
+export function widget_to_spec(widget) {
+  const metric = widget.metric || {};
+  const group = widget.group_by || {};
+  const rules = type_rules(widget.chart_type);
+  const timed = rules.kind === "time" && (group.granularity || TIME_SOURCE_IDS.includes(group.field_id));
+  const rule = widget.occurrence_rule || {};
+  return {
+    chart_type: widget.chart_type || "",
+    aggregation: metric.aggregation || "count",
+    field_id: metric.field_id || "",
+    group_id: timed ? "" : group.field_id || "",
+    split_id: (widget.split_by && widget.split_by.field_id) || "",
+    legend_id: (widget.legend_by && widget.legend_by.field_id) || "",
+    pattern_id: (widget.pattern_by && widget.pattern_by.field_id) || "",
+    time_source: timed ? group.field_id || SUBMITTED_AT_FIELD : SUBMITTED_AT_FIELD,
+    granularity: (timed && group.granularity) || "auto",
+    x_id: widget.x_field_id || "",
+    y_id: widget.y_field_id || "",
+    size_id: widget.size_field_id || "",
+    in_each_id: "",
+    in_each_mode: "combined",
+    display_ids: Array.isArray(widget.display_fields) ? widget.display_fields.slice() : [],
+    display_separator: widget.display_separator === undefined ? " - " : widget.display_separator,
+    same_rules: Array.isArray(widget.same_fields) ? widget.same_fields.map((entry) => ({ ...entry })) : [],
+    rule_operator: rule.operator || "",
+    rule_value: rule.value === undefined || rule.value === null ? "" : String(rule.value),
+    rule_scope: widget.occurrence_scope || "matching",
+    // Reopened with the words it already has, so nothing is renamed behind
+    // the author's back by the automatic title.
+    title: widget.title || "",
+    title_touched: true,
+    description: widget.description || "",
+    size: widget.size || "medium",
+    appearance: widget.appearance || null,
+    icon: widget.icon || null,
+    map: widget.map || null,
+  };
 }
 
 /** Positions every widget of a save in order and strips builder-only keys. */

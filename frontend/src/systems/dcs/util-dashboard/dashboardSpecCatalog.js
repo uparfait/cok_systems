@@ -15,6 +15,18 @@ import { has_preset_config } from "../fields/presetFields.js";
  * { widgets: [...] } normalized into complete widget documents.
  */
 
+/** A pasted widget's over-time settings, or null when it is read all at once. */
+function over_time_settings(source) {
+  const held = source && source.over_time;
+  if (!held || typeof held !== "object" || held.enabled !== true) return null;
+  return {
+    enabled: true,
+    field_id: typeof held.field_id === "string" && held.field_id ? held.field_id : "submitted_at",
+    granularity: typeof held.granularity === "string" && held.granularity ? held.granularity : "auto",
+    axis: held.axis === "y" ? "y" : "x",
+  };
+}
+
 const NOT_COLLECTED_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "section", "group", "hidden"];
 const CHOICE_TYPES = ["single_select", "multi_select", "cascading_select", "select_group", "likert_scale"];
 const MULTI_TYPES = ["multi_select", "ranking"];
@@ -121,6 +133,14 @@ function widget_shape() {
     limit: `Max categories shown, 1-50 (default 12; pie/donut/waffle are capped at 6; treemap commonly 50).`,
     size: "small | medium | large - the share of a board row this widget claims, so neighbours that still fit sit beside it: small is a third of a row (three small charts side by side), medium a half (two side by side), large a whole row to itself. A small and a medium therefore share one row. KPI cards ignore it - they have their own dense row of their own.",
     position: "0-based order on the board; assigned from the array order when missing.",
+    over_time:
+      "Optional, and the way to ask a question about CHANGE rather than about totals: { enabled: true, field_id, granularity, axis }. null (or left out) on every widget that is read all at once. " +
+      "It is not a chart type - it is a way of reading one. The widget keeps its formula, its filters and its split_by, and the time line takes over the axis its categories had, so \"average age by district\" turned over time becomes \"average age per month\", and with a split_by, one line or one stack per value of that field. Whatever the widget grouped by is set aside while it is on. " +
+      "field_id is the clock: \"submitted_at\" (when the record arrived), \"updated_at\" (when it was last changed) or the id of a date / date_time field of the form - never a choice field. " +
+      "granularity is \"auto\" (recommended) or one of hour, day, week, month, year. On auto the server picks it from the period actually being shown - a day reads in hours, up to a month in days, up to six months in weeks, up to two years in months, longer in years - so a custom range gets whatever suits its own length and the widget stays right when the reader changes the period. " +
+      "axis is \"x\" for the time line along the bottom (the default) or \"y\" for it down the side; asking for y draws the widget as its horizontal twin, because which axis time runs along IS the difference between a column chart and a bar chart. " +
+      "Only these chart types can carry it: line, area, bar, column, lollipop, dot_plot, grouped_column, stacked_column, stacked_100, grouped_bar, stacked_bar, stacked_bar_100. A pie, donut, waffle, treemap, heatmap, map, scatter, bubble or kpi divides one whole between its values or spends both axes already, and is refused. " +
+      "Prefer over_time on a widget the reader will want a trend for, and do NOT also set group_by to a date field on the same widget - that is the same request made twice.",
     icon: "KPI cards only, optional: '<library>:<IconName>' from icon_libraries, e.g. 'lucide:Users' or 'tabler:IconChartBar'. An icon its library does not carry is looked up by the same name in the others, so a near-miss still draws something rather than nothing - but name it correctly. null otherwise.",
     appearance:
       "Optional look: { theme: 'light'|'dark', legend_position: 'bottom'|'top'|'right'|'left', light: { background, text, number, border }, dark: { background, text, number, border }, value_colors: { '<answer value>': '#rrggbb' }, value_labels: { '<answer value>': 'Shown as' } } - null for the default look. " +
@@ -202,6 +222,7 @@ export function build_dashboard_creation_guide(form) {
       "Every field_id used anywhere in a widget MUST be one of the ids in form.fields (or 'submitted_at' for the time axis). Never invent a field. Fields marked with a preset note must not be used.",
       "Choose the chart by the data: a choice field alone -> column/bar/donut/pie/lollipop/treemap; two choice fields -> stacked_column/grouped_column/stacked_100/heatmap; a date or the submission date -> line/area; two numeric fields -> scatter (three -> bubble); a single figure -> kpi.",
       "To show a measure for each value of a field, prefer ONE widget that carries the values inside it - a KPI card with legend_by, or a chart with that field as group_by or split_by - over one filtered widget per value (see one_widget_or_many).",
+      "A board answers two different questions: how much there is now, and how it is changing. Cover both - leave most widgets as they are, and turn a few of the ones a reader will want a trend for over time (see over_time), rather than adding a second widget that repeats the first with a date on its axis.",
       "Set each chart's size to the share of a row it deserves: small (a third), medium (a half) or large (a whole row). Neighbours that still fit share the row, so a row of three small charts or one large chart alone both work.",
       "Category charts need a choice field in group_by; numeric formulas (sum, avg, min, max, stddev, median, cumulative_sum, moving_average) need a numeric field in metric.field_id; count may leave field_id null to count submissions.",
       "Titles are plain language for the readers of the board (e.g. 'Submissions per district'); keep them under 120 characters and unique.",
@@ -396,6 +417,8 @@ export function normalize_pasted_widgets(form, pasted) {
       appearance: source.appearance && typeof source.appearance === "object" ? source.appearance : null,
       // A map's own settings: which boundaries it draws and how it marks them.
       map: map_settings(source),
+      // Read as the period passes, rather than all at once.
+      over_time: over_time_settings(source),
       x_field_id: source.x_field_id || null,
       y_field_id: source.y_field_id || null,
       size_field_id: source.size_field_id || null,

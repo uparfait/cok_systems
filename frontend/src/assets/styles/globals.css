@@ -1844,6 +1844,19 @@ background-color: #056daa;
   cursor: pointer;
 }
 
+/* The clock picker inside a widget's menu. It follows the board like the
+   rest of the menu, never the widget's own colors. */
+.dcs-over-time-select {
+  width: 100%;
+  padding: 4px 6px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  border: 1px solid var(--board-border, #E0E0E0);
+  background-color: var(--board-surface, #FFFFFF);
+  color: var(--board-text, #333333);
+  border-radius: 0;
+}
+
 /* One option of a radio or checkbox question. It carries no border of its
    own - a list of choices reads as a list, not as a stack of boxes - and
    answers the pointer with a soft tint across the whole row, so the whole

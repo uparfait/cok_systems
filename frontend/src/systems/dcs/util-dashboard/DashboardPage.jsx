@@ -11,15 +11,13 @@ import { fold_family } from "./chartCatalog.js";
 import BoardHeader from "./BoardHeader.jsx";
 import DashboardSwitcher from "./DashboardSwitcher.jsx";
 import DashboardNameDialog from "./DashboardNameDialog.jsx";
-import GeneratedWidgetsReview from "./GeneratedWidgetsReview.jsx";
-import DashboardBuilder from "./builder/DashboardBuilder.jsx";
+import BoardAuthoringOverlays from "./BoardAuthoringOverlays.jsx";
 import BoardWidgetDialogs from "./BoardWidgetDialogs.jsx";
 import { builder_fields } from "./builder/composeWidgets.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
-import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import BoardWithSelection from "./selection/BoardWithSelection.jsx";
-import DashboardCodeOverlay, { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
+import { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
 import ShareLinksDialog from "./share/ShareLinksDialog.jsx";
 import ScreenshotStudio from "./screenshot/ScreenshotStudio.jsx";
 import RecordsOverlay from "./records/RecordsOverlay.jsx";
@@ -72,6 +70,8 @@ function DashboardBoard({ form }) {
   const asked_ref = useRef(false);
   // The builder overlay's open tab ("kpi" | "charts" | "diagrams"), null while closed.
   const [builder_tab, setBuilderTab] = useState(null);
+  // The widget reopened in the builder to be changed, rather than a new one added.
+  const [reconfiguring, setReconfiguring] = useState(null);
   // The Ctrl+6 code tools overlay and the share links dialog.
   const [code_open, setCodeOpen] = useState(false);
   const [share_open, setShareOpen] = useState(false);
@@ -344,16 +344,12 @@ function DashboardBoard({ form }) {
   );
 
   const map_scope = filter_names(data.filter_values);
-  // Which board is open, in the tab. A person keeps several open at once
-  // and they are otherwise identical.
+  // A person keeps several boards open at once and they look identical.
   const board_name = library.active ? library.active.name : "";
   return (
     <MapScopeProvider fetchShapes={(names, held) => get_map_shapes(form.form_group_id, names, map_scope, held)} scopeKey={map_scope.join("|")}>
-    {board_name ? (
-      <Helmet>
-        <title>{board_name}</title>
-      </Helmet>
-    ) : null}
+    {/* Which board is open, in the tab. */}
+    {board_name ? <Helmet><title>{board_name}</title></Helmet> : null}
     <div
       ref={container_ref}
       className={`dcs-board-root dcs-board-no-select relative select-none ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "pb-16 space-y-4"}`}
@@ -429,6 +425,10 @@ function DashboardBoard({ form }) {
             onShowSkipped={(target) => setSkippedWidget(target)}
             onPickIcon={(target) => setIconWidget(target)}
             onAppearance={(target) => setAppearanceWidget(target)}
+            onReconfigure={(target) => {
+              setReconfiguring(target);
+              setBuilderTab("charts");
+            }}
             onOpenRecords={(widget, pick) => setRecords({ widget, pick })}
             mapLevels={map_levels}
             heatField={heat_field}
@@ -444,35 +444,24 @@ function DashboardBoard({ form }) {
         </div>
       )}
 
-      {review_widgets !== null && (
-        <GeneratedWidgetsReview form={scoped_form} initialWidgets={review_widgets} focusIds={review_focus} onOpenDashboard={close_review} onClose={close_review} onWidgetsChange={commit_widgets} />
-      )}
-      {builder_tab !== null && (
-        <DashboardBuilder
-          form={scoped_form}
-          existingWidgets={widgets}
-          existingFilters={filters}
-          initialTab={builder_tab}
-          onClose={() => setBuilderTab(null)}
-          onSaved={(final_widgets, final_filters) => {
-            setBuilderTab(null);
-            commit_widgets(final_widgets, final_filters);
-          }}
-          onAutoGenerate={() => handle_generate("overwrite")}
-        />
-      )}
-      {code_open && (
-        <DashboardCodeOverlay
-          form={scoped_form}
-          widgets={widgets}
-          filters={filters}
-          onClose={() => setCodeOpen(false)}
-          onSaved={(final_widgets, final_filters) => {
-            setCodeOpen(false);
-            commit_widgets(final_widgets, final_filters);
-          }}
-        />
-      )}
+      <BoardAuthoringOverlays
+        form={scoped_form}
+        widgets={widgets}
+        filters={filters}
+        reviewWidgets={review_widgets}
+        reviewFocus={review_focus}
+        builderTab={builder_tab}
+        reconfigure={reconfiguring}
+        codeOpen={code_open}
+        onCloseReview={close_review}
+        onCloseBuilder={() => {
+          setBuilderTab(null);
+          setReconfiguring(null);
+        }}
+        onCloseCode={() => setCodeOpen(false)}
+        onCommit={commit_widgets}
+        onAutoGenerate={() => handle_generate("overwrite")}
+      />
       {share_open && <ShareLinksDialog form={scoped_form} filters={filters} fields={form_fields} fetchFilterValues={fetch_filter_values} onClose={() => setShareOpen(false)} />}
       {records && (
         <RecordsOverlay
@@ -500,13 +489,9 @@ function DashboardBoard({ form }) {
         onCloseAppearance={() => setAppearanceWidget(null)}
         onCloseIcon={() => setIconWidget(null)}
         onCloseSkipped={() => setSkippedWidget(null)}
+        confirmDelete={{ open: confirming === "delete", busy: deleting, onConfirm: handle_delete, onCancel: () => setConfirming(null) }}
+        confirmRemove={{ open: !!widget_to_remove, busy: removing, onConfirm: handle_remove_widget, onCancel: () => setWidgetToRemove(null) }}
       />
-      {confirming === "delete" && (
-        <DcsConfirmDialog titleKey="DCS_DB_DEL_CONFIRM_TITLE" messageKey="DCS_DB_DEL_CONFIRM_MESSAGE" confirming={deleting} onConfirm={handle_delete} onCancel={() => setConfirming(null)} />
-      )}
-      {widget_to_remove && (
-        <DcsConfirmDialog titleKey="DCS_DB_REMOVE_TITLE" messageKey="DCS_DB_REMOVE_MESSAGE" confirming={removing} onConfirm={handle_remove_widget} onCancel={() => setWidgetToRemove(null)} />
-      )}
     </div>
     </MapScopeProvider>
   );

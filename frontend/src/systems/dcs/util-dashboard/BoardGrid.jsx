@@ -48,6 +48,9 @@ export default function BoardGrid({
   onOpenRecords,
   mapLevels,
   heatField,
+  // The form's own fields, for the clock an "over time" widget follows.
+  fields,
+  onReconfigure,
 }) {
   const [dragging_id, setDraggingId] = useState(null);
   const [over_id, setOverId] = useState(null);
@@ -102,6 +105,9 @@ export default function BoardGrid({
       canMap={map_level_of(widget) !== undefined}
       canHeat={!!heatField}
       onMapMode={editable && widget.chart_type === "map" ? (next) => onUpdateWidget(widget.id, { map: map_of_mode(widget, next) }) : undefined}
+      fields={fields}
+      onOverTime={editable ? (next) => onUpdateWidget(widget.id, { over_time: next }) : undefined}
+      onReconfigure={editable && onReconfigure ? () => onReconfigure(widget) : undefined}
       onChangeSize={editable && widget.chart_type !== "kpi" ? (next_size) => onUpdateWidget(widget.id, { size: next_size }) : undefined}
       onRetry={() => onRetryWidget(widget)}
       onShowSkipped={onShowSkipped}
