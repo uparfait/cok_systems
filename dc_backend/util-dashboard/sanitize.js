@@ -15,8 +15,9 @@ function sanitize_field_ref(value) {
   return { field_id: value.field_id.trim() };
 }
 
-const HEX_COLOR = /^#[0-9a-f]{6}$/i;
-const MODE_COLOR_KEYS = ["background", "text", "number"];
+// Six digits, or eight when the color carries transparency with it.
+const HEX_COLOR = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
+const MODE_COLOR_KEYS = ["background", "text", "number", "border"];
 const MAX_VALUE_COLORS = 100;
 const LEGEND_POSITIONS = ["bottom", "top", "right", "left"];
 
@@ -30,8 +31,9 @@ function sanitize_mode(mode) {
 }
 
 /**
- * A widget's look: its mode, the colors of each mode and one color per
- * legend / category value - every color must be a six-digit hex.
+ * A widget's look: its mode, the colors of each mode (background - which
+ * may be see-through - text, numbers and border) and one color per legend
+ * / category value. Every color must be a six- or eight-digit hex.
  */
 function sanitize_appearance(appearance) {
   if (!appearance || typeof appearance !== "object") return null;

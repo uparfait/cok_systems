@@ -11,10 +11,13 @@ import { useFanOutValues } from "./useFanOutValues.js";
 import { resolve_appearance, build_palette, auto_color, random_color, MODE_DEFAULTS, LEGEND_POSITIONS } from "../appearance.js";
 import { portal_root } from "../portalRoot.js";
 
+// A widget's background may be see-through, so that one carries an
+// opacity slider; nothing else does.
 const MODE_KEYS = [
-  { id: "background", labelKey: "DCS_DB_COLOR_BACKGROUND" },
+  { id: "background", labelKey: "DCS_DB_COLOR_BACKGROUND", alpha: true },
   { id: "text", labelKey: "DCS_DB_COLOR_TEXT" },
   { id: "number", labelKey: "DCS_DB_COLOR_NUMBERS" },
+  { id: "border", labelKey: "DCS_DB_COLOR_BORDER" },
 ];
 
 /** Strips defaults so only real customizations are stored. */
@@ -158,6 +161,7 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
                   key={`${draft.theme}-${entry.id}`}
                   label={translate(entry.labelKey)}
                   value={mode[entry.id]}
+                  alpha={entry.alpha}
                   onChange={(color) => set_mode_color(entry.id, color)}
                   onClear={mode[entry.id] !== MODE_DEFAULTS[draft.theme][entry.id] ? () => set_mode_color(entry.id, MODE_DEFAULTS[draft.theme][entry.id]) : null}
                 />

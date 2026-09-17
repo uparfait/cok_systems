@@ -483,8 +483,10 @@ export function build_chart_drafts(form, spec, values) {
 
 /**
  * The field whose values a widget colors one by one: a KPI's legend field,
- * a split chart's split field, or a category / tree chart's group field.
- * Time-only, point and plain KPI widgets have none.
+ * a split chart's split field, a category / tree chart's group field, or -
+ * when it counts occurrences, which has no group_by - the field whose
+ * answers are being counted. Time-only, point and plain KPI widgets have
+ * none.
  */
 export function appearance_values_field(widget, fields) {
   const find = (ref) => (ref && ref.field_id ? fields.find((field) => field.id === ref.field_id) || null : null);
@@ -492,6 +494,7 @@ export function appearance_values_field(widget, fields) {
   if (widget.split_by) return find(widget.split_by);
   const kind = type_rules(widget.chart_type).kind;
   if ((kind === "category" || kind === "tree") && widget.group_by) return find(widget.group_by);
+  if (widget.metric && widget.metric.aggregation === "occurrences") return find(widget.metric);
   return null;
 }
 

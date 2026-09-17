@@ -76,20 +76,20 @@ export function SplitLegend({ display, totals, palette, splitTitle, patternTitle
 }
 
 /**
- * Chart plus legend, arranged by the widget's legend position - except on
- * a card too narrow to carry a legend beside the chart (see density.js),
- * where a left or right legend falls back under it rather than squeezing
- * the chart into nothing. That fallback is what puts every legend under
- * its chart on a phone and beside it on a desktop, without either being
- * asked for.
+ * Chart plus legend, arranged by the widget's legend position - top,
+ * bottom, left or right, exactly as it was set, on every card. A narrow
+ * card does not move the legend somewhere else; it gives a side legend a
+ * narrower column, and the chart keeps the rest. Anything else made the
+ * setting look ignored on the small and medium cards that make up most of
+ * a board.
  */
 export function LegendFrame({ position, legend, children, density }) {
   if (!legend) return children;
-  const side = (position === "left" || position === "right") && (!density || density.side_legend);
-  if (side) {
+  if (position === "left" || position === "right") {
+    const column = density && !density.side_legend ? "clamp(76px, 32%, 130px)" : "clamp(110px, 28%, 170px)";
     return (
       <div className={`flex gap-3 items-start min-w-0 ${position === "left" ? "flex-row" : "flex-row-reverse"}`}>
-        <div className="flex-shrink-0" style={{ width: "clamp(110px, 28%, 170px)", paddingTop: 8 }}>
+        <div className="flex-shrink-0" style={{ width: column, paddingTop: 8 }}>
           {legend}
         </div>
         <div className="flex-1 min-w-0">{children}</div>

@@ -1,8 +1,9 @@
 import { SERIES_COLORS } from "./charts/chartTheme.js";
 
 /**
- * A widget's appearance: its mode (light or dark), the background, text and
- * number colors of each mode, one color per legend / category value, and the
+ * A widget's appearance: its mode (light or dark), the background (which
+ * may be see-through), text, number and border colors of each mode, one
+ * color per legend / category value, and the
  * name each of those values is shown under - a stored answer stays what it
  * is, but a legend may call it something a reader understands.
  * build_palette turns that into everything a renderer needs, so charts and
@@ -10,31 +11,59 @@ import { SERIES_COLORS } from "./charts/chartTheme.js";
  */
 
 export const MODE_DEFAULTS = {
-  light: { background: "#FFFFFF", text: "#333333", number: "#056daa" },
-  dark: { background: "#1E2A35", text: "#F2F5F8", number: "#7CC4FF" },
+  light: { background: "#FFFFFF", text: "#333333", number: "#056daa", border: "#E0E0E0" },
+  dark: { background: "#1E2A35", text: "#F2F5F8", number: "#7CC4FF", border: "#2E3B48" },
 };
 
 const MODE_EXTRAS = {
-  light: { muted: "#9E9E9E", grid: "#E0E0E0", border: "#E0E0E0", empty: "#F4F7F9", soft: "#F4F7F9" },
-  dark: { muted: "#A9B4C0", grid: "rgba(255,255,255,0.14)", border: "#2E3B48", empty: "rgba(255,255,255,0.08)", soft: "rgba(255,255,255,0.06)" },
+  light: { muted: "#9E9E9E", grid: "#E0E0E0", empty: "#F4F7F9", soft: "#F4F7F9" },
+  dark: { muted: "#A9B4C0", grid: "rgba(255,255,255,0.14)", empty: "rgba(255,255,255,0.08)", soft: "rgba(255,255,255,0.06)" },
 };
 
-const HEX_PATTERN = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
-const RGB_PATTERN = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*[\d.]+\s*)?\)$/i;
+// Four or eight digits carry an alpha channel: "#1e2a3580" is the dark
+// background at half strength, and a widget set that way lets the board
+// through behind it.
+const HEX_PATTERN = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const RGB_PATTERN = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([\d.]+)\s*)?\)$/i;
 
 const to_hex_pair = (value) => Math.max(0, Math.min(255, Number(value))).toString(16).padStart(2, "0");
 
-/** "#abc", "#AABBCC", "rgb(1, 2, 3)" or "rgba(...)" -> "#aabbcc"; anything else -> null. */
+/**
+ * "#abc", "#AABBCC", "rgb(1, 2, 3)" -> "#aabbcc"; anything carrying an
+ * alpha - "#abcd", "#aabbccdd", "rgba(1, 2, 3, 0.5)" - keeps it as the
+ * last two digits. Anything else -> null.
+ */
 export function normalize_color(input) {
   const value = String(input || "").trim();
   if (HEX_PATTERN.test(value)) {
     const digits = value.slice(1);
-    const full = digits.length === 3 ? digits.split("").map((digit) => digit + digit).join("") : digits;
+    const full = digits.length <= 4 ? digits.split("").map((digit) => digit + digit).join("") : digits;
     return `#${full.toLowerCase()}`;
   }
   const rgb = value.match(RGB_PATTERN);
-  if (rgb) return `#${to_hex_pair(rgb[1])}${to_hex_pair(rgb[2])}${to_hex_pair(rgb[3])}`;
-  return null;
+  if (!rgb) return null;
+  const alpha = rgb[4] === undefined || Number(rgb[4]) >= 1 ? "" : to_hex_pair(Math.round(Math.max(0, Number(rgb[4])) * 255));
+  return `#${to_hex_pair(rgb[1])}${to_hex_pair(rgb[2])}${to_hex_pair(rgb[3])}${alpha}`;
+}
+
+/** The same color with any transparency taken off - "#1e2a3580" -> "#1e2a35". */
+export function opaque_color(input) {
+  const normalized = normalize_color(input);
+  return normalized ? normalized.slice(0, 7) : null;
+}
+
+/** How see-through a color is, 0 (invisible) to 1 (solid). */
+export function color_alpha(input) {
+  const normalized = normalize_color(input);
+  if (!normalized || normalized.length < 9) return 1;
+  return Math.round((parseInt(normalized.slice(7, 9), 16) / 255) * 100) / 100;
+}
+
+/** The same color at this transparency; 1 leaves it solid. */
+export function with_color_alpha(input, alpha) {
+  const base = opaque_color(input) || "#ffffff";
+  const level = Math.max(0, Math.min(1, Number(alpha)));
+  return level >= 1 ? base : `${base}${to_hex_pair(Math.round(level * 255))}`;
 }
 
 export function auto_color(index) {
@@ -107,6 +136,10 @@ export function build_palette(raw, board_theme) {
   if (board_theme === "dark") appearance.theme = "dark";
   const mode = appearance[appearance.theme];
   const extras = MODE_EXTRAS[appearance.theme];
+  // A translucent background is the widget's own look; anything that has
+  // to paint a solid surface behind something (a map's base, a slice
+  // outline) takes the same color with the transparency taken off.
+  const solid = opaque_color(mode.background) || MODE_DEFAULTS[appearance.theme].background;
   const value_colors = appearance.value_colors;
   const color_for = (label, index) => value_colors[String(label)] || auto_color(index || 0);
   // The color this widget was told to use for one value, if any - a map
@@ -123,12 +156,13 @@ export function build_palette(raw, board_theme) {
     is_dark: appearance.theme === "dark",
     legend_position: appearance.legend_position,
     background: mode.background,
+    background_solid: solid,
     text: mode.text,
     number: mode.number,
     accent: mode.number,
     muted: extras.muted,
     grid: extras.grid,
-    border: extras.border,
+    border: mode.border || MODE_DEFAULTS[appearance.theme].border,
     empty: extras.empty,
     soft: extras.soft,
     color_for,
@@ -136,7 +170,7 @@ export function build_palette(raw, board_theme) {
     name_for,
     value_labels,
     tick: { fontSize: 11, fill: mode.text },
-    tooltip: { borderRadius: 0, border: `1px solid ${extras.border}`, fontSize: 12, backgroundColor: mode.background, color: mode.text },
+    tooltip: { borderRadius: 0, border: `1px solid ${mode.border || MODE_DEFAULTS[appearance.theme].border}`, fontSize: 12, backgroundColor: solid, color: mode.text },
     // Recharts paints tooltip rows black unless told otherwise - unreadable on a dark board.
     tooltip_text: { color: mode.text },
     legend_style: { fontSize: 11, color: mode.text },

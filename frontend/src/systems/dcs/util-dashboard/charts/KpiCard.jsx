@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { build_palette } from "../appearance.js";
 import { chart_density } from "./density.js";
 
@@ -56,9 +57,20 @@ function AnimatedNumber({ value, style, className }) {
  * window right before it whenever the widget's period is bounded, and -
  * when the card carries a legend - one row per value under the total, each
  * in its own color. Deliberately COMPACT - KPI cards sit in a dense grid at
- * the top of the board, several per row. The number draws in the widget's
- * number color, the rest follows its light or dark mode.
+ * the top of the board, several per row, and every card in a row is as
+ * tall as the tallest, so a long legend does not lengthen one card, it
+ * lengthens the whole row. Past a handful of values the card therefore
+ * shows the first two and opens the rest on request.
+ *
+ * The number draws in the widget's number color, the rest follows its
+ * light or dark mode, and each value is called whatever the widget's
+ * appearance renamed it to.
  */
+
+// Up to this many values are simply listed; beyond it the card shows
+// PREVIEW of them and a line that opens the rest.
+const LIST_ALL_UNDER = 4;
+const PREVIEW = 2;
 export default function KpiCard({ value, changePct, legend, totalLabel, palette, density, onLegendClick }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
@@ -67,6 +79,11 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
   const number_font = Math.max(17, Math.min(28, Math.round(size.width / 8)));
   const direction = changePct === null || changePct === undefined ? null : changePct >= 0 ? "up" : "down";
   const has_legend = Array.isArray(legend) && legend.length > 0;
+  const { translate } = useDcsLanguage();
+  const [open, setOpen] = useState(false);
+  const rows = has_legend ? legend : [];
+  const folds = rows.length >= LIST_ALL_UNDER;
+  const shown = folds && !open ? rows.slice(0, PREVIEW) : rows;
   return (
     <div className="flex flex-col items-center justify-center text-center py-2 min-w-0">
       {has_legend && (
@@ -76,20 +93,33 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
       )}
       <AnimatedNumber value={value} className="font-bold break-all" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif", fontSize: number_font, lineHeight: 1.1, maxWidth: "100%" }} />
       {has_legend && (
-        <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0, maxHeight: legend.length > 12 ? 280 : undefined, overflowY: legend.length > 12 ? "auto" : "visible" }}>
-          {legend.map((row, index) => (
+        <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0, maxHeight: shown.length > 12 ? 280 : undefined, overflowY: shown.length > 12 ? "auto" : "visible" }}>
+          {shown.map((row, index) => (
             <li key={`${row.label}-${index}`} className={`flex items-center justify-between gap-2 text-xs min-w-0 ${onLegendClick ? "dcs-legend-clickable" : ""}`} style={{ opacity: row.matches === false ? 0.6 : 1 }} onClick={onLegendClick ? () => onLegendClick(row) : undefined}>
               <span className="flex items-center gap-1.5 min-w-0">
                 <span className="flex-shrink-0" style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: colors.color_for(row.label, index), transition: "background-color 300ms ease" }} />
                 {/* An occurrence card showing every value marks the ones that met its rule. */}
                 <span className={`break-words min-w-0 ${row.matches === true ? "font-semibold" : ""}`} style={{ color: colors.text }}>
-                  {row.label}
+                  {colors.name_for ? colors.name_for(row.label) : row.label}
                 </span>
               </span>
               <AnimatedNumber value={row.value} className="font-semibold flex-shrink-0" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif" }} />
             </li>
           ))}
         </ul>
+      )}
+      {folds && (
+        <button
+          type="button"
+          className="dcs-no-drill mt-1 text-xs"
+          style={{ color: colors.number, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "'Montserrat', sans-serif" }}
+          onClick={(event) => {
+            event.stopPropagation();
+            setOpen((current) => !current);
+          }}
+        >
+          {open ? translate("DCS_DB_SHOW_LESS") : translate("DCS_DB_SHOW_MORE", { count: rows.length - PREVIEW })}
+        </button>
       )}
       {direction !== null && (
         <span className="mt-1 text-xs font-semibold" style={{ color: direction === "up" ? GOOD : BAD, fontFamily: "'Montserrat', sans-serif" }}>

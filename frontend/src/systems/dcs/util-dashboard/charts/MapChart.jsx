@@ -12,6 +12,7 @@ import { usePlaceMarkers } from "./mapOverlay.jsx";
 import { use_boundaries } from "./useBoundaries.js";
 import { MapKindToggle, MapTools, MapTip, MapVeil, PlaceLabels } from "./MapChrome.jsx";
 import MapLegend from "./MapLegend.jsx";
+import { LegendFrame } from "./SeriesLegend.jsx";
 import { MARKER_SET } from "./mapMarkers.js";
 
 // Roughly how wide one letter of a place name draws, per pixel of font size.
@@ -129,7 +130,7 @@ export default function MapChart({
   // board washes the basemap harder, so the widget's own colors keep their
   // contrast over it.
   const theme_ref = useRef(null);
-  theme_ref.current = { line: with_alpha(colors.text, 0.45), active: colors.number, background: colors.background, tint: lightness(colors.background) < 0.5 ? 0.62 : 0.3 };
+  theme_ref.current = { line: with_alpha(colors.text, 0.45), active: colors.number, background: colors.background_solid, tint: lightness(colors.background_solid) < 0.5 ? 0.62 : 0.3 };
 
   // However a map engine fails - and some fail by never answering at all -
   // the card must end up with something a viewer can act on.
@@ -198,7 +199,7 @@ export default function MapChart({
   };
   // Text sits over colored land, so it carries a halo of the widget's own
   // background - that is what keeps it readable in either theme.
-  const halo = `0 0 3px ${colors.background}, 0 0 2px ${colors.background}, 0 0 1px ${colors.background}`;
+  const halo = `0 0 3px ${colors.background_solid}, 0 0 2px ${colors.background_solid}, 0 0 1px ${colors.background_solid}`;
 
   // What a world map draws right now: the boundaries of the names it holds,
   // taken from what has already been fetched, and the parents above them.
@@ -269,7 +270,7 @@ export default function MapChart({
     attach_map(entry, host_ref.current);
     if (entry.failed) setBroken(true);
     else if (entry.loaded) setReady(true);
-    else start_map(entry, colors.background, () => setReady(true), () => setBroken(true));
+    else start_map(entry, colors.background_solid, () => setReady(true), () => setBroken(true));
     return () => {
       setReady(false);
       live_ref.current = null;
@@ -445,6 +446,11 @@ export default function MapChart({
   return (
     <div>
       <MapKindToggle mode={is_heat ? "heat" : "world"} canHeat={canHeat} canWorld={canWorld} colors={colors} translate={translate} onMode={onMode} />
+      <LegendFrame
+        position={colors.legend_position}
+        density={size}
+        legend={<MapLegend items={legend_items} palette={colors} onPick={!is_heat && (onItemClick || onLegendClick) ? pick_legend : null} unknown={drawing.unknown} />}
+      >
       <div className="dcs-map-frame dcs-no-drill" style={{ height, borderColor: colors.border, backgroundColor: colors.background }} onClick={(event) => event.stopPropagation()}>
         {/* MapLibre's own stylesheet would take this element's height away
             from it, so its size is written where no stylesheet can reach. */}
@@ -468,8 +474,7 @@ export default function MapChart({
           />
         )}
       </div>
-
-      <MapLegend items={legend_items} palette={colors} onPick={!is_heat && (onItemClick || onLegendClick) ? pick_legend : null} unknown={drawing.unknown} />
+      </LegendFrame>
     </div>
   );
 }

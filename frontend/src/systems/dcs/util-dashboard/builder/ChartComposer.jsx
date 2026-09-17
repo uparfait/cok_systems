@@ -160,6 +160,17 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
   const data_step = rules.kind === "point" ? 2 : 3;
   // Without a data step (occurrences) the later steps close the gap.
   const next_step = counting_occurrences ? data_step - 1 : data_step;
+  // Whose values this chart paints one by one: the split, else the
+  // categories - which, when counting occurrences, are the answers of the
+  // field being counted rather than a group_by.
+  const color_values_id =
+    rules.split !== "none" && spec.split_id
+      ? spec.split_id
+      : counting_occurrences
+        ? spec.field_id
+        : rules.kind === "category" || rules.kind === "tree"
+          ? spec.group_id
+          : "";
 
   return (
     <div className="dcs-view-swap flex flex-col gap-5">
@@ -274,7 +285,7 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
           <ColorSettingsButton
             form={form}
             title={spec.title}
-            valuesField={fields.find((field) => field.id === (rules.split !== "none" && spec.split_id ? spec.split_id : rules.kind === "category" || rules.kind === "tree" ? spec.group_id : "")) || null}
+            valuesField={fields.find((field) => field.id === color_values_id) || null}
             appearance={spec.appearance}
             onChange={(appearance) => patch({ appearance })}
             disabled={disabled}

@@ -12,11 +12,7 @@ import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
  * The donut shows the total in its hole. Slice colors follow the widget's
  * per-value colors, text its light or dark mode.
  *
- * A ring's legend is the list of what it is made of, and it is long. Left
- * at its default it sits BESIDE the ring on a card wide enough to carry a
- * column of names, and drops UNDER the ring on a narrow one - where a side
- * legend would squeeze the ring down to nothing. Asking for a particular
- * side in the widget's appearance still overrides both.
+ * Its legend sits wherever the widget's appearance puts it, unchanged.
  */
 /** A number written inside its slice, for rings with no room around them. */
 function inside_label(size) {
@@ -44,13 +40,8 @@ export default function PieCharts({ chartType, rows, totalLabel, onItemClick, pa
   const with_labels = size.show_values && size.width >= 340;
 
   const legend = <LegendRow items={rows.map((row, index) => ({ label: row.label, color: colors.color_for(row.label, index), value: row.value || 0 }))} palette={colors} onItemClick={onItemClick ? (label) => onItemClick({ label }) : undefined} />;
-  // "bottom" is what a widget carries when nobody chose a side; on a wide
-  // card a ring reads better with its names beside it. LegendFrame drops
-  // that back under the chart by itself on a card too narrow for it.
-  const legend_position = colors.legend_position === "bottom" ? "right" : colors.legend_position;
-
   return (
-    <LegendFrame position={legend_position} density={size} legend={legend}>
+    <LegendFrame position={colors.legend_position} density={size} legend={legend}>
       <div className="relative" style={{ height: chart_height, maxWidth: "100%" }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>

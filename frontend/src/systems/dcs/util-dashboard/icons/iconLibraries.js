@@ -6,6 +6,15 @@ import React from "react";
  * { names, render(name, props) }. An icon is referenced as
  * "<library id>:<icon name>"; a bare Tabler component name predates the
  * prefix and still resolves to Tabler.
+ *
+ * A reference can go stale - a library renames or drops an icon between
+ * versions, or a dashboard is copied from a form whose author picked from
+ * a set this one does not carry. Rather than leave a KPI card or a map
+ * marker as a hole in the layout, resolve_icon then looks for the SAME
+ * icon by name in the other libraries: every set spells its icons its own
+ * way ("IconHome", "faHome", "HomeIcon", "GiHome"), so the search is on
+ * the readable name they share, and the first library that has one draws
+ * it. See icon_match_key.
  */
 
 const DEFAULT_LIBRARY = "tabler";
@@ -193,6 +202,12 @@ export const ICON_LIBRARIES = [
   react_icons_set("ri-simpleline", "Simple Line Icons", () => import("react-icons/sl"), /^Sl/),
 ];
 
+// Where a missing icon is looked for, in order: the well-stocked general
+// sets first, so a replacement is usually found in the first one or two
+// and the rest are never even fetched. Style-matched roughly to each
+// other, so a substitute does not stand out from the icons around it.
+const FALLBACK_LIBRARIES = ["tabler", "lucide", "phosphor", "heroicons-outline", "feather", "bootstrap", "mui", "fa-solid"];
+
 export const library_definition = (id) => ICON_LIBRARIES.find((library) => library.id === id) || null;
 
 /** Loads (once) one library into its { names, render } contract. */
@@ -240,4 +255,64 @@ export function search_key(name) {
   return String(name || "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * The name one icon shares with the same icon in every other library:
+ * "IconHome" (Tabler), "faHome" (Font Awesome), "HomeIcon" (Heroicons)
+ * and "GiHome" (Game Icons) all reduce to "home".
+ */
+export const icon_match_key = (name, library_id) => search_key(icon_label(name, library_id));
+
+const key_indexes = new Map();
+
+/** One library's icons by the name they share with the other libraries. */
+function key_index(id) {
+  if (!key_indexes.has(id)) {
+    key_indexes.set(
+      id,
+      load_library(id)
+        .then((library) => {
+          const index = new Map();
+          (library ? library.names : []).forEach((name) => {
+            const key = icon_match_key(name, id);
+            if (key && !index.has(key)) index.set(key, name);
+          });
+          return index;
+        })
+        .catch(() => new Map()),
+    );
+  }
+  return key_indexes.get(id);
+}
+
+const resolutions = new Map();
+
+/**
+ * Where a stored icon reference actually draws from: its own library when
+ * it still holds that icon, otherwise the same icon found by name in
+ * another (see FALLBACK_LIBRARIES). Resolves to { name, render } or null
+ * when no library has it at all. Answered once per reference and kept, so
+ * a card drawn a hundred times searches once.
+ */
+export function resolve_icon(icon_id) {
+  const parsed = parse_icon_id(icon_id);
+  if (!parsed) return Promise.resolve(null);
+  if (resolutions.has(icon_id)) return resolutions.get(icon_id);
+  const search = (async () => {
+    const own = await load_library(parsed.library).catch(() => null);
+    if (own && own.names.includes(parsed.name)) return { library: parsed.library, name: parsed.name, render: own.render };
+    const key = icon_match_key(parsed.name, parsed.library);
+    if (!key) return null;
+    for (const id of FALLBACK_LIBRARIES) {
+      if (id === parsed.library) continue;
+      const name = (await key_index(id)).get(key);
+      if (!name) continue;
+      const library = await load_library(id).catch(() => null);
+      if (library) return { library: id, name, render: library.render };
+    }
+    return null;
+  })();
+  resolutions.set(icon_id, search);
+  return search;
 }

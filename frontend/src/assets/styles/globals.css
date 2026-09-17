@@ -1826,6 +1826,24 @@ background-color: #056daa;
   display: none;
 }
 
+/* A color swatch that may be see-through is shown over a chequerboard,
+   so half-transparent white reads as half-transparent rather than as
+   white. The slider beside it stays narrow enough to leave the hex box
+   its room. */
+.dcs-color-swatch {
+  background-image: linear-gradient(45deg, #D0D0D0 25%, transparent 25%), linear-gradient(-45deg, #D0D0D0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #D0D0D0 75%), linear-gradient(-45deg, transparent 75%, #D0D0D0 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+  background-color: #FFFFFF;
+}
+
+.dcs-color-opacity {
+  width: 70px;
+  accent-color: #056daa;
+  cursor: pointer;
+}
+
 /* One option of a radio or checkbox question. It carries no border of its
    own - a list of choices reads as a list, not as a stack of boxes - and
    answers the pointer with a soft tint across the whole row, so the whole

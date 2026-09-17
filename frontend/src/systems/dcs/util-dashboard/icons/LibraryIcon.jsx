@@ -1,28 +1,34 @@
 import React, { useEffect, useState } from "react";
-import { parse_icon_id, load_library } from "./iconLibraries.js";
+import { resolve_icon } from "./iconLibraries.js";
 
 /**
- * Draws one stored icon reference ("lucide:Cat", or a bare Tabler name)
- * by loading just that icon's library. Renders nothing until the library
- * has arrived or when the reference is unknown.
+ * Draws one stored icon reference ("lucide:Cat", or a bare Tabler name) by
+ * loading just that icon's library. Renders nothing until the library has
+ * arrived, or when no library anywhere has the icon.
+ *
+ * A reference its own library no longer carries is not given up on: the
+ * same icon is looked for by name in the other libraries (see
+ * resolve_icon), so a renamed or moved icon still draws instead of leaving
+ * a hole where a KPI card's icon or a map's marker should be.
  */
 export default function LibraryIcon({ icon, size, color }) {
-  const parsed = parse_icon_id(icon);
-  const library_id = parsed ? parsed.library : null;
-  const [library, setLibrary] = useState(null);
+  const [found, setFound] = useState(null);
 
   useEffect(() => {
-    if (!library_id) return undefined;
+    if (!icon) {
+      setFound(null);
+      return undefined;
+    }
     let is_mounted = true;
-    setLibrary(null);
-    load_library(library_id)
-      .then((loaded) => is_mounted && setLibrary(loaded))
-      .catch(() => is_mounted && setLibrary(null));
+    setFound(null);
+    resolve_icon(icon)
+      .then((entry) => is_mounted && setFound(entry))
+      .catch(() => is_mounted && setFound(null));
     return () => {
       is_mounted = false;
     };
-  }, [library_id]);
+  }, [icon]);
 
-  if (!parsed || !library) return null;
-  return library.render(parsed.name, { size: size || 20, color });
+  if (!found) return null;
+  return found.render(found.name, { size: size || 20, color });
 }

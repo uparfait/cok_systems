@@ -113,13 +113,12 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
         <KpiCard
           value={data.value}
           changePct={data.change_pct}
-          legend={cap(legend)}
+          legend={legend}
           totalLabel={translate(data.occurrences ? (data.occurrences.has_rule ? "DCS_DB_OCC_VALUES_MATCHING" : "DCS_DB_OCC_VALUES") : "DCS_DB_TOTAL")}
           palette={palette}
           density={density}
           onLegendClick={legend_pick}
         />
-        {more_link(legend)}
       </div>
     );
   }
