@@ -91,10 +91,24 @@ export function shape_height(shape, projection) {
   return Math.abs(bottom - top);
 }
 
-/** Names are matched the way the server matches them, so a label always finds its value. */
-export const map_key = (name) =>
-  String(name || "")
-    .toLowerCase()
-    .replace(/^city of /, "")
-    .replace(/ city$/, "")
-    .replace(/[^a-z0-9]/g, "");
+// The administrative words people put around a place's real name.
+const NAME_PREFIXES = [/^umujyi wa /, /^intara ya /, /^intara y'/, /^akarere ka /, /^umurenge wa /, /^akagari ka /, /^umudugudu wa /, /^city of /, /^province of /, /^district of /];
+const NAME_SUFFIXES = [/ city$/, / province$/, / district$/, / sector$/, / cell$/, / village$/];
+
+/**
+ * Names are matched the way the server matches them (see
+ * dc_backend/util-dashboard/map_shapes.js), so a place always finds its
+ * number: no case, no punctuation, no administrative word, and l written
+ * as r - the two stand for one sound and the lists disagree on which to
+ * use.
+ */
+export const map_key = (name) => {
+  let text = String(name || "").toLowerCase().trim();
+  NAME_PREFIXES.forEach((pattern) => {
+    text = text.replace(pattern, "");
+  });
+  NAME_SUFFIXES.forEach((pattern) => {
+    text = text.replace(pattern, "");
+  });
+  return text.replace(/[^a-z0-9]/g, "").replace(/l/g, "r");
+};

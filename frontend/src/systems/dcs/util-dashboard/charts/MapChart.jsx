@@ -109,10 +109,19 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
   // Every boundary keeps a color of its own, split or not - the colors of
   // the split belong to its markers and its legend, not to the land. A
   // color set on the widget's appearance for that place always wins.
-  const color_of = (shape, index) => colors.color_override(shape.name) || spread_color(index);
+  // A shape answers to the name the widget asked for, which is what its
+  // rows are labelled with - the boundary's own spelling can differ.
+  const key_of = (shape) => map_key(shape.asked || shape.name);
+  // One color per place NAME, so the several villages that share a name
+  // share its color and its legend entry.
+  const name_index = new Map();
+  (rows || []).forEach((row, index) => {
+    if (!name_index.has(map_key(row.label))) name_index.set(map_key(row.label), index);
+  });
+  const color_of = (shape) => colors.color_override(shape.name) || spread_color(name_index.has(key_of(shape)) ? name_index.get(key_of(shape)) : 0);
   // What one place is worth in each value, largest first, zeroes dropped.
   const parts_of = (shape) => {
-    const row = values.get(map_key(shape.name));
+    const row = values.get(key_of(shape));
     if (!row || !has_split) return [];
     return split_values
       .map((value) => ({ value, count: Number(row[value]) || 0 }))
@@ -120,7 +129,7 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
       .sort((a, b) => b.count - a.count);
   };
   const value_of = (shape) => {
-    const row = values.get(map_key(shape.name));
+    const row = values.get(key_of(shape));
     return row ? row.value : null;
   };
 
@@ -220,11 +229,11 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
   // background - that is what keeps it readable in either theme.
   const halo = `0 0 3px ${colors.background}, 0 0 2px ${colors.background}, 0 0 1px ${colors.background}`;
   // What one place plants: one mark per value it holds, or its own total.
-  const marks_of = (shape, index) => {
+  const marks_of = (shape) => {
     const parts = parts_of(shape);
     if (parts.length > 0) return parts.map((part) => ({ key: part.value, color: value_color(part.value), count: part.count }));
     const total = value_of(shape);
-    return total === null ? [] : [{ key: shape.name, color: color_of(shape, index), count: total }];
+    return total === null ? [] : [{ key: shape.name, color: color_of(shape), count: total }];
   };
 
   // The legend: the split values and their totals, or the places themselves.
@@ -237,7 +246,7 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
         is_value: true,
         value: (rows || []).reduce((sum, row) => sum + (Number(row[value]) || 0), 0),
       }))
-    : (data.shapes || []).map((shape, index) => ({ key: shape.name, name: shape.name, color: color_of(shape, index), value: value_of(shape) }));
+    : (rows || []).map((row) => ({ key: row.label, name: row.label, color: colors.color_override(row.label) || spread_color(name_index.get(map_key(row.label)) || 0), value: row.value }));
   const pick_legend = (item) => {
     if (item.is_value) {
       if (onLegendClick) onLegendClick({ label: item.name });
@@ -282,9 +291,9 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
             const active = hover === shape.name;
             return (
               <path
-                key={shape.name}
+                key={`${shape.name}-${index}`}
                 d={projection.path(shape.rings)}
-                fill={with_alpha(color_of(shape, index), answered ? (active ? 0.92 : 0.7) : 0.16)}
+                fill={with_alpha(color_of(shape), answered ? (active ? 0.92 : 0.7) : 0.16)}
                 stroke={active ? "#FFFFFF" : with_alpha(colors.text, 0.4)}
                 strokeWidth={(active ? 3 : 0.8) / view.k}
                 className={animate === false ? undefined : "dcs-map-shape"}
@@ -301,12 +310,12 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
         </svg>
 
         <div className="dcs-map-overlay">
-          {labels.map((shape) => {
+          {labels.map((shape, index) => {
             const point = anchor_of(shape);
             if (!point) return null;
             const [px, py] = screen(point);
             return (
-              <span key={shape.name} className={`dcs-map-label ${showMarkers ? "is-below" : ""}`} style={{ left: px, top: py, color: colors.text, fontSize: label_font, textShadow: halo }}>
+              <span key={`${shape.name}-${index}`} className={`dcs-map-label ${showMarkers ? "is-below" : ""}`} style={{ left: px, top: py, color: colors.text, fontSize: label_font, textShadow: halo }}>
                 {label_text(shape)}
               </span>
             );
@@ -314,14 +323,14 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
           {markers.map((shape, index) => {
             const point = anchor_of(shape);
             if (!point) return null;
-            const marks = marks_of(shape, index);
+            const marks = marks_of(shape);
             // A mark that does not fit its own boundary is left out rather
             // than laid over the next place and its name.
             if (marks.length === 0 || !fits(shape, marks.length * (mark_size + 20) + 4, mark_size + 4)) return null;
             const [px, py] = screen(point);
             // Nothing but the icon and the number - no card around them.
             return (
-              <span key={`marker-${shape.name}`} className="dcs-map-marker" style={{ left: px, top: py }}>
+              <span key={`marker-${shape.name}-${index}`} className="dcs-map-marker" style={{ left: px, top: py }}>
                 {marks.map((mark) => (
                   <span key={mark.key} className="dcs-map-mark">
                     <LibraryIcon icon={marker_icon} size={mark_size} color={mark.color} />
