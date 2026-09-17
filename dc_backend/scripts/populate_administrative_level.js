@@ -32,7 +32,7 @@
 const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
-const { normalize_shape_name } = require("../util-dashboard/map_shapes");
+const { normalize } = require("../util-dashboard/map_names.js");
 
 const SOURCE_DIR = path.resolve(__dirname, "../../geojson-files");
 const OUT_DIR = path.resolve(__dirname, "../../geojson-maped");
@@ -299,12 +299,12 @@ async function build() {
   const all_provinces = [];
   let province = null;
   let province_rings = null;
-  const wanted = normalize_shape_name(asked_province);
+  const wanted = normalize(asked_province);
   await each_feature(province_level.file, (feature) => {
     const properties = feature.properties || {};
     const name = String(properties.shapeName || "").trim();
     all_provinces.push({ name, shape_id: String(properties.shapeID || ""), shape_iso: String(properties.shapeISO || "") });
-    if (province || !wanted || normalize_shape_name(name) !== wanted) return;
+    if (province || !wanted || normalize(name) !== wanted) return;
     province_rings = rings_of(feature.geometry);
     province = node_of(feature, province_level, anchor_of(province_rings));
   });

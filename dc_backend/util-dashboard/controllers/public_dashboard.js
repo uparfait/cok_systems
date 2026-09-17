@@ -190,7 +190,8 @@ async function get_public_map_shapes(req, res) {
     const body = req.body || {};
     const level = typeof body.level === "string" ? body.level.trim() : "";
     if (!MAP_LEVELS.includes(level)) return res.status(400).json(warning_response(req, "DASHBOARD_MAP_LEVEL_INVALID"));
-    return res.status(200).json(success_response(req, "DASHBOARD_MAP_FETCHED", map_shapes(level, Array.isArray(body.names) ? body.names : [], body.outline === true)));
+    const within = body.within && typeof body.within === "object" ? body.within : {};
+    return res.status(200).json(success_response(req, "DASHBOARD_MAP_FETCHED", map_shapes(level, Array.isArray(body.names) ? body.names : [], body.outline === true, within)));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

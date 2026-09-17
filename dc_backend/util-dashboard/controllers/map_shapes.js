@@ -4,9 +4,14 @@ const { success_response, warning_response, error_response } = require("../../ut
 
 /**
  * The outlines a map widget draws: the shapes it names at its own level
- * (districts, sectors, cells, villages of the City of Kigali), the parents
- * above them and the country outline behind. The widget sends the names it
- * has data for, never the whole country.
+ * (districts, sectors, cells, villages), the parents above them and the
+ * country outline behind. The widget sends the names it has data for, never
+ * the whole country, and every one of them is found by walking down the
+ * administrative tree, so a shape comes back knowing the chain above it.
+ *
+ * A request may also send "within": { province, district, sector, cell } to
+ * keep that walk inside one branch, which is how a name that repeats across
+ * the country is pinned down to one place.
  */
 
 function read_request(req, res) {
@@ -16,7 +21,8 @@ function read_request(req, res) {
     res.status(400).json(warning_response(req, "DASHBOARD_MAP_LEVEL_INVALID"));
     return null;
   }
-  return { level, names: Array.isArray(body.names) ? body.names : [], outline: body.outline === true };
+  const within = body.within && typeof body.within === "object" ? body.within : {};
+  return { level, names: Array.isArray(body.names) ? body.names : [], outline: body.outline === true, within };
 }
 
 async function widget_map_shapes(req, res) {
@@ -28,7 +34,7 @@ async function widget_map_shapes(req, res) {
     if (!context.allowed) return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     const request = read_request(req, res);
     if (!request) return undefined;
-    return res.status(200).json(success_response(req, "DASHBOARD_MAP_FETCHED", map_shapes(request.level, request.names, request.outline)));
+    return res.status(200).json(success_response(req, "DASHBOARD_MAP_FETCHED", map_shapes(request.level, request.names, request.outline, request.within)));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

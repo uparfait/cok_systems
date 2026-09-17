@@ -27,6 +27,10 @@ const LETTER_WIDTH = 0.58;
  *
  * The outlines are not part of the widget's data - they are asked for by
  * name (only the places actually answered), with a retry when that fails.
+ * The server finds them by walking down the administrative tree, so a name
+ * that belongs to several places (a dozen villages are called Kabeza) comes
+ * back once per real place, each carrying the chain above it, which is what
+ * the tooltip shows to tell them apart.
  * The map pans by dragging (never past its own edge) and zooms on its
  * centre from the wheel or its buttons. Names and markers are plain HTML
  * above the drawing, at a fixed size whatever the zoom, and NEITHER is
@@ -205,6 +209,10 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
 
   const parents = data.parents || [];
   const parent_color = (name, index) => colors.color_for(name, index + 3);
+  // The place under the pointer: kept as the shape itself, not as its name,
+  // because several places can carry one name and only the chain above them
+  // says which is which.
+  const hover_row = hover ? values.get(map_key(hover.asked || hover.name)) || null : null;
   const transform = `translate(${view.x}px, ${view.y}px) scale(${view.k})`;
   const tool_style = { backgroundColor: colors.background, borderColor: colors.border, color: colors.text };
   const screen = (point) => {
@@ -277,7 +285,7 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
             .map((entry, level_index) =>
               entry.shapes.map((shape, index) => (
                 <path
-                  key={`${entry.level}-${shape.name}`}
+                  key={`${entry.level}-${shape.name}-${index}`}
                   d={projection.path(shape.rings)}
                   fill={with_alpha(parent_color(shape.name, index + level_index), 0.06)}
                   stroke={parent_color(shape.name, index + level_index)}
@@ -288,7 +296,7 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
             )}
           {(data.shapes || []).map((shape, index) => {
             const answered = value_of(shape) !== null;
-            const active = hover === shape.name;
+            const active = hover !== null && hover.id === index;
             return (
               <path
                 key={`${shape.name}-${index}`}
@@ -298,7 +306,7 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
                 strokeWidth={(active ? 3 : 0.8) / view.k}
                 className={animate === false ? undefined : "dcs-map-shape"}
                 style={{ animationDelay: `${Math.min(index * 12, 600)}ms`, cursor: onItemClick ? "pointer" : "default" }}
-                onMouseEnter={() => setHover(shape.name)}
+                onMouseEnter={() => setHover({ id: index, name: shape.name, asked: shape.asked, path: shape.path || [] })}
                 onClick={(event) => {
                   event.stopPropagation();
                   if (drag_ref.current && drag_ref.current.moved) return;
@@ -356,16 +364,17 @@ export default function MapChart({ rows, series, level, marker, showMarkers, sho
 
         {hover && (
           <div className="dcs-map-tip" style={{ backgroundColor: colors.tooltip.backgroundColor, color: colors.tooltip_text.color, borderColor: colors.border }}>
-            <b>{hover}</b>
-            <span>{values.has(map_key(hover)) ? Number(values.get(map_key(hover)).value).toLocaleString("en-US") : translate("DCS_DB_MAP_NO_VALUE")}</span>
-            {has_split && values.has(map_key(hover)) && (
+            <b>{hover.name}</b>
+            {hover.path.length > 0 && <span className="dcs-map-tip-path">{hover.path.join(" / ")}</span>}
+            <span>{hover_row ? Number(hover_row.value).toLocaleString("en-US") : translate("DCS_DB_MAP_NO_VALUE")}</span>
+            {has_split && hover_row && (
               <span className="dcs-map-tip-values">
                 {split_values
-                  .filter((value) => (Number(values.get(map_key(hover))[value]) || 0) > 0)
+                  .filter((value) => (Number(hover_row[value]) || 0) > 0)
                   .map((value) => (
                     <span key={value} className="dcs-map-tip-value">
                       <span className="dcs-map-legend-swatch" style={{ borderColor: value_color(value), backgroundColor: value_color(value) }} />
-                      {value} {Number(values.get(map_key(hover))[value]).toLocaleString("en-US")}
+                      {value} {Number(hover_row[value]).toLocaleString("en-US")}
                     </span>
                   ))}
               </span>
