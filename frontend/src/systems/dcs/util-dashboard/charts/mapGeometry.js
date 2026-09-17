@@ -27,6 +27,18 @@ export function bounds_of(groups) {
   return { min_x, min_y, max_x, max_y };
 }
 
+/** One box holding both: how far everything a map has been given reaches. */
+export const grow_box = (box, other) => {
+  if (!other) return box;
+  if (!box) return { ...other };
+  return {
+    min_x: Math.min(box.min_x, other.min_x),
+    min_y: Math.min(box.min_y, other.min_y),
+    max_x: Math.max(box.max_x, other.max_x),
+    max_y: Math.max(box.max_y, other.max_y),
+  };
+};
+
 /** A box MapLibre understands: [[west, south], [east, north]]. */
 export const map_bounds = (box) => (box ? [[box.min_x, box.min_y], [box.max_x, box.max_y]] : null);
 

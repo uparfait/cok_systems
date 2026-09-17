@@ -74,10 +74,10 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     const run_id = run_seq_ref.current + 1;
     run_seq_ref.current = run_id;
     applied_period_ref.current = applied_period;
-    if (!silent) {
-      setDataByWidget({});
-      setDataLoading(true);
-    }
+    // The board is NEVER emptied to reload it: every card keeps the data
+    // it has until its own new result replaces it, and the board marks
+    // itself busy so the cards can cover themselves meanwhile.
+    if (!silent) setDataLoading(true);
     Promise.allSettled(widget_list.map((widget) => fetch_one(widget, applied_period, run_id, silent))).then(() => {
       if (run_seq_ref.current === run_id && !silent) setDataLoading(false);
     });

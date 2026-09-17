@@ -8,7 +8,7 @@ import { build_palette, spread_color, with_alpha } from "../appearance.js";
 import { chart_density } from "./density.js";
 import LibraryIcon from "../icons/LibraryIcon.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
-import { bounds_of, anchor_of, map_bounds, map_key } from "./mapGeometry.js";
+import { bounds_of, anchor_of, map_bounds, map_key, grow_box } from "./mapGeometry.js";
 import { resolve_style, create_layers, set_shapes, set_theme, set_heat, highlight, shape_geojson, point_geojson, LAND_FILL } from "./mapDraw.js";
 import { usePlaceMarkers } from "./mapOverlay.jsx";
 import MapLegend from "./MapLegend.jsx";
@@ -19,6 +19,14 @@ const LETTER_WIDTH = 0.58;
 const START_VIEW = { center: [30.06, -1.94], zoom: 9 };
 const LEVEL_ORDER = ["province", "district", "sector", "cell", "village"];
 const chain_of = (shape) => (shape.path || []).concat(shape.name).join("/");
+
+/** How light a color is, 0 to 1 - what tells a dark board from a light one. */
+function lightness(color) {
+  const hex = String(color || "").replace("#", "");
+  if (hex.length < 6) return 1;
+  const part = (at) => parseInt(hex.slice(at, at + 2), 16) / 255;
+  return 0.2126 * part(0) + 0.7152 * part(2) + 0.0722 * part(4);
+}
 
 /**
  * A real map, drawn by MapLibre GL: the administrative boundaries of the
@@ -70,11 +78,16 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
   const first_fit = useRef(true);
   // Every boundary this widget has ever been given, by the name it was asked
   // for. This is what a filter no longer costs a request.
-  const cache_ref = useRef({ level: "", places: new Map(), parents: new Map(), unknown: new Set() });
+  const cache_ref = useRef({ level: "", places: new Map(), parents: new Map(), unknown: new Set(), box: null });
   // The map's own handlers are bound once, so what they call is kept where
   // they can always see the newest one.
   const pick_ref = useRef(onItemClick);
   pick_ref.current = onItemClick;
+  // Everything the map paints with that is not read off a feature. A dark
+  // board washes the basemap harder, so the widget's own colors keep their
+  // contrast over it.
+  const theme_ref = useRef(null);
+  theme_ref.current = { line: with_alpha(colors.text, 0.45), active: colors.number, background: colors.background, tint: lightness(colors.background) < 0.5 ? 0.62 : 0.3 };
 
   const names = useMemo(() => (rows || []).map((row) => row.label).filter(Boolean), [rows]);
   const names_key = names.join("|");
@@ -107,14 +120,23 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
           cache.places.clear();
           cache.parents.clear();
           cache.unknown.clear();
+          cache.box = null;
         }
         cache.level = answer.level || cache.level;
+        // How far everything this map has been given reaches, kept as it
+        // arrives: it is what a viewer is always allowed to zoom out to.
         (answer.shapes || []).forEach((shape) => {
           const key = map_key(shape.asked || shape.name);
           if (!cache.places.has(key)) cache.places.set(key, { asked: shape.asked || shape.name, list: [] });
           cache.places.get(key).list.push(shape);
+          cache.box = grow_box(cache.box, bounds_of([shape]));
         });
-        (answer.parents || []).forEach((entry) => entry.shapes.forEach((shape) => cache.parents.set(chain_of(shape), { ...shape, level: entry.level })));
+        (answer.parents || []).forEach((entry) =>
+          entry.shapes.forEach((shape) => {
+            cache.parents.set(chain_of(shape), { ...shape, level: entry.level });
+            cache.box = grow_box(cache.box, bounds_of([shape]));
+          }),
+        );
         (answer.unknown || []).forEach((name) => cache.unknown.add(map_key(name)));
         setVersion((current) => current + 1);
         setStatus({ loading: false, error: "" });
@@ -264,7 +286,7 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
   useEffect(() => {
     const map = map_ref.current;
     if (!map || !ready) return undefined;
-    create_layers(map, { line: with_alpha(colors.text, 0.45), active: colors.number });
+    create_layers(map, theme_ref.current);
     const on_move = (event) => {
       const feature = (event.features || [])[0];
       if (!feature) return;
@@ -318,7 +340,7 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
         return props;
       }),
     });
-    set_theme(map, { line: with_alpha(colors.text, 0.45), active: colors.number });
+    set_theme(map, theme_ref.current);
 
     const max_of = (key) => (rows || []).reduce((top, row) => Math.max(top, Number(key ? row[key] : row.value) || 0), 0);
     const heat = !heatmap
@@ -332,9 +354,27 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
       heat_ref.current = heat_key;
     }
 
+    // How far the viewer may travel: everything this map has ever been
+    // given, not just what one filter left on it - the province outline is
+    // always part of that, so zooming back out to the whole of it is always
+    // allowed however far a filter zoomed in.
+    const box = bounds_of(drawing.shapes.concat(drawing.outlines));
+    const outer = grow_box(cache_ref.current.box, box);
+    if (outer) {
+      const room = [(outer.max_x - outer.min_x) * 0.5 + 0.05, (outer.max_y - outer.min_y) * 0.5 + 0.05];
+      const reach = [
+        [outer.min_x - room[0], outer.min_y - room[1]],
+        [outer.max_x + room[0], outer.max_y + room[1]],
+      ];
+      map.setMaxBounds(null);
+      map.setMinZoom(0);
+      const fits = map.cameraForBounds(reach, { padding: 8 });
+      if (fits && Number.isFinite(fits.zoom)) map.setMinZoom(Math.max(0, fits.zoom - 0.5));
+      map.setMaxBounds(reach);
+    }
+
     // The view follows the data only when the data has gone somewhere it
     // cannot see; a viewer who zoomed in keeps what they were looking at.
-    const box = bounds_of(drawing.shapes.concat(drawing.outlines));
     if (!box) return;
     bounds_ref.current = map_bounds(box);
     const seen = map.getBounds();
@@ -343,12 +383,6 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
       map.fitBounds(bounds_ref.current, { padding: 18, duration: first_fit.current || animate === false ? 0 : 600 });
       first_fit.current = false;
     }
-    const room = [(box.max_x - box.min_x) * 0.35 + 0.02, (box.max_y - box.min_y) * 0.35 + 0.02];
-    map.setMaxBounds(null);
-    map.setMaxBounds([
-      [box.min_x - room[0], box.min_y - room[1]],
-      [box.max_x + room[0], box.max_y + room[1]],
-    ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, signature]);
 

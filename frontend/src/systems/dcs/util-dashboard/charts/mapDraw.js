@@ -20,7 +20,9 @@ import { anchor_of } from "./mapGeometry.js";
  *
  * The basemap is a vector style fetched once; when it cannot be reached the
  * map falls back to a plain background in the widget's own color, and every
- * data layer still draws.
+ * data layer still draws. Either way it is washed with the widget's own
+ * background before anything of this widget is drawn over it, so a dark
+ * board gets a dark map and the data keeps the contrast it was given.
  */
 
 export const BASEMAP_STYLE = "https://tiles.openfreemap.org/styles/bright";
@@ -33,6 +35,7 @@ const LAND_ACTIVE = "dcs-land-active";
 const OUTLINE_FILL = "dcs-outline-fill";
 const OUTLINE_LINE = "dcs-outline-line";
 const HEAT = "dcs-heat";
+const TINT = "dcs-map-tint";
 
 // A place nobody answered is left pale; the properties are read off each
 // feature, so the types are stated rather than guessed.
@@ -119,6 +122,9 @@ function first_symbol(map) {
  */
 export function create_layers(map, theme) {
   const before = first_symbol(map);
+  // The basemap, washed with the widget's own background: this is what
+  // makes the map follow the board's theme.
+  if (!map.getLayer(TINT)) map.addLayer({ id: TINT, type: "background", paint: { "background-color": theme.background, "background-opacity": theme.tint } }, before);
   Object.values(SOURCES).forEach((id) => {
     if (!map.getSource(id)) map.addSource(id, { type: "geojson", data: EMPTY });
   });
@@ -151,6 +157,10 @@ export function set_shapes(map, plan) {
 
 /** The colors that are not read off the features themselves. */
 export function set_theme(map, theme) {
+  if (map.getLayer(TINT)) {
+    map.setPaintProperty(TINT, "background-color", theme.background);
+    map.setPaintProperty(TINT, "background-opacity", theme.tint);
+  }
   if (map.getLayer(LAND_LINE)) map.setPaintProperty(LAND_LINE, "line-color", theme.line);
   if (map.getLayer(LAND_ACTIVE)) map.setPaintProperty(LAND_ACTIVE, "line-color", theme.active);
 }

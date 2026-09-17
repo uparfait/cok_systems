@@ -84,6 +84,7 @@ export default function BoardGrid({
       widget={widget}
       data={dataByWidget[widget.id]}
       loading={dataLoading && !dataByWidget[widget.id]}
+      busy={dataLoading && !!dataByWidget[widget.id]}
       fitMode={fitMode}
       editable={editable}
       savingText={savingWidgetId === widget.id}
