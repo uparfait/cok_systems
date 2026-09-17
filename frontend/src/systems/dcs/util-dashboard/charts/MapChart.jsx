@@ -53,6 +53,7 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
   const [state, setState] = useState({ loading: true, error: "", data: null });
   const [attempt, setAttempt] = useState(0);
   const [ready, setReady] = useState(false);
+  const [broken, setBroken] = useState(false);
   const [tip, setTip] = useState(null);
   const canvas_ref = useRef(null);
   const map_ref = useRef(null);
@@ -159,24 +160,31 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
     let map = null;
     let cancelled = false;
     if (!has_frame) return undefined;
-    resolve_style(colors.background).then((style) => {
-      if (cancelled || !canvas_ref.current) return;
-      map = new GlMap({
-        container: canvas_ref.current,
-        style,
-        center: START_VIEW.center,
-        zoom: START_VIEW.zoom,
-        attributionControl: false,
-        dragRotate: false,
-        pitchWithRotate: false,
-        touchPitch: false,
-      });
-      map.touchZoomRotate.disableRotation();
-      map_ref.current = map;
-      map.on("load", () => {
-        if (!cancelled) setReady(true);
-      });
-    });
+    resolve_style(colors.background)
+      .then((style) => {
+        if (cancelled || !canvas_ref.current) return;
+        map = new GlMap({
+          container: canvas_ref.current,
+          style,
+          center: START_VIEW.center,
+          zoom: START_VIEW.zoom,
+          attributionControl: false,
+          dragRotate: false,
+          pitchWithRotate: false,
+          touchPitch: false,
+        });
+        map.touchZoomRotate.disableRotation();
+        map_ref.current = map;
+        map.on("load", () => {
+          if (cancelled) return;
+          // The card may have been given its size after the map was made.
+          map.resize();
+          setReady(true);
+        });
+      })
+      // A map engine that cannot start (no WebGL, a blocked worker) must say
+      // so with its retry, never leave an empty box behind.
+      .catch(() => !cancelled && setBroken(true));
     return () => {
       cancelled = true;
       setReady(false);
@@ -185,7 +193,7 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
       if (map) map.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [has_frame]);
+  }, [has_frame, attempt]);
 
   // The data layers, redrawn whenever the widget's own data or colors move.
   useEffect(() => {
@@ -309,13 +317,21 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
       </div>
     );
   }
-  if (!data) {
+  if (!data || broken) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 text-center px-3" style={{ height }}>
         <p className="text-xs font-semibold" style={{ color: colors.text }}>
-          {state.error || translate("DCS_DB_MAP_FAILED")}
+          {(!broken && state.error) || translate("DCS_DB_MAP_FAILED")}
         </p>
-        <button type="button" className="dcs-map-retry" style={{ color: colors.number, borderColor: colors.border }} onClick={() => setAttempt((current) => current + 1)}>
+        <button
+          type="button"
+          className="dcs-map-retry"
+          style={{ color: colors.number, borderColor: colors.border }}
+          onClick={() => {
+            setBroken(false);
+            setAttempt((current) => current + 1);
+          }}
+        >
           {translate("DCS_DB_RETRY")}
         </button>
       </div>
@@ -352,7 +368,7 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
   return (
     <div>
       <div className="dcs-map-frame dcs-no-drill" style={{ height, borderColor: colors.border, backgroundColor: colors.background }} onClick={(event) => event.stopPropagation()}>
-        <div ref={canvas_ref} className="dcs-map-canvas" />
+        <div ref={canvas_ref} className="dcs-map-canvas" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
 
         {shown.map((place) =>
           createPortal(

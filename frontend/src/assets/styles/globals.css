@@ -3356,6 +3356,8 @@ background-color: #056daa;
 .dcs-map-canvas {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
 }
 .dcs-map-canvas .maplibregl-canvas:focus {
   outline: none;
