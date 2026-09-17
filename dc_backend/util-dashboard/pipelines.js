@@ -1,7 +1,7 @@
 const { get_db } = require("../db_connection/db.js");
 const { build_match_stage, numeric_expr } = require("./match_stage.js");
 const { is_multi_value } = require("./field_catalog.js");
-const { LIMITS, SUBMITTED_AT_FIELD } = require("./constants.js");
+const { LIMITS, SUBMITTED_AT_FIELD, UPDATED_AT_FIELD } = require("./constants.js");
 
 const SUBMISSIONS_COLLECTION = "dcs_submissions";
 
@@ -113,6 +113,9 @@ async function split_rows(widget, bounds, catalog) {
  */
 function time_source_expr(field_id) {
   if (!field_id || field_id === SUBMITTED_AT_FIELD) return "$submitted_at";
+  // A record that has never been changed has no updated_at of its own, so
+  // the moment it arrived is when it last stood as it is.
+  if (field_id === UPDATED_AT_FIELD) return { $ifNull: ["$updated_at", "$submitted_at"] };
   return { $convert: { input: `$data.${field_id}`, to: "date", onError: null, onNull: null } };
 }
 

@@ -4,7 +4,7 @@
  * and storage, so no stray data can ever be persisted or executed.
  */
 
-const { MAP_LEVELS } = require("./constants.js");
+const { MAP_LEVELS, TIME_SOURCE_FIELDS, OVER_TIME_AXES } = require("./constants.js");
 
 function clean_string(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -99,6 +99,23 @@ function sanitize_map(widget) {
   return out;
 }
 
+const GRANULARITIES = ["auto", "hour", "day", "week", "month", "year"];
+
+/**
+ * "Over time": the clock a widget is read against, how finely it is
+ * sliced, and which way the time line runs. Left out entirely when the
+ * toggle is off, so a widget that is not over time carries nothing.
+ */
+function sanitize_over_time(widget) {
+  const raw = widget.over_time && typeof widget.over_time === "object" ? widget.over_time : null;
+  if (!raw || raw.enabled !== true) return null;
+  const field_id = clean_string(raw.field_id) || TIME_SOURCE_FIELDS[0];
+  const out = { enabled: true, field_id };
+  out.granularity = GRANULARITIES.includes(clean_string(raw.granularity)) ? clean_string(raw.granularity) : "auto";
+  out.axis = OVER_TIME_AXES.includes(clean_string(raw.axis)) ? clean_string(raw.axis) : "x";
+  return out;
+}
+
 function sanitize_widget(widget) {
   if (!widget || typeof widget !== "object") return null;
   const group_by = sanitize_field_ref(widget.group_by);
@@ -157,6 +174,8 @@ function sanitize_widget(widget) {
     occurrence_scope: clean_string(widget.occurrence_scope) || undefined,
     // Maps only: the administrative level drawn and how it is marked.
     map: sanitize_map(widget),
+    // The same widget, read as the period passes instead of all at once.
+    over_time: sanitize_over_time(widget),
     x_field_id: clean_string(widget.x_field_id) || null,
     y_field_id: clean_string(widget.y_field_id) || null,
     size_field_id: clean_string(widget.size_field_id) || null,

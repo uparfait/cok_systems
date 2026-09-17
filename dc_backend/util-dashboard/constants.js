@@ -90,6 +90,42 @@ const TIME_GRANULARITIES = ["auto", "hour", "day", "week", "month", "year"];
 
 // The pseudo field every form always has: when a record was submitted.
 const SUBMITTED_AT_FIELD = "submitted_at";
+const UPDATED_AT_FIELD = "updated_at";
+
+/**
+ * "Over time" turns a widget that counts things into one that counts them
+ * AS TIME PASSES: the same formula, applied to each slice of the period.
+ * The clock it reads is one of the form's own date fields, or one of the
+ * two the system keeps on every record - when it was submitted, and when
+ * it was last changed.
+ */
+const TIME_SOURCE_FIELDS = [SUBMITTED_AT_FIELD, UPDATED_AT_FIELD];
+
+/**
+ * The looks a widget can keep while being drawn over time. A time series
+ * is a run of values along one axis, so anything that draws one mark per
+ * category can carry it - bars, columns, lines and areas, grouped and
+ * stacked. A pie, a waffle, a treemap and a map divide ONE whole between
+ * values and have nowhere to put a time line; a KPI is a single number;
+ * a scatter already spends both its axes on numbers.
+ */
+const OVER_TIME_TYPES = [
+  "line",
+  "area",
+  "bar",
+  "column",
+  "lollipop",
+  "dot_plot",
+  "grouped_column",
+  "stacked_column",
+  "stacked_100",
+  "grouped_bar",
+  "stacked_bar",
+  "stacked_bar_100",
+];
+
+/** Which way the time line runs: along the bottom, or down the side. */
+const OVER_TIME_AXES = ["x", "y"];
 
 const LIMITS = {
   // The automatic generator builds the full pairwise comparison matrix of
@@ -125,5 +161,9 @@ module.exports = {
   MAP_LEVELS,
   TIME_GRANULARITIES,
   SUBMITTED_AT_FIELD,
+  UPDATED_AT_FIELD,
+  TIME_SOURCE_FIELDS,
+  OVER_TIME_TYPES,
+  OVER_TIME_AXES,
   LIMITS,
 };

@@ -1,5 +1,5 @@
 const { flatten_fields } = require("../jsonlogic/dependency_graph.js");
-const { SUBMITTED_AT_FIELD } = require("./constants.js");
+const { SUBMITTED_AT_FIELD, TIME_SOURCE_FIELDS } = require("./constants.js");
 
 /**
  * Classifies a form's fields into the roles the dashboard understands:
@@ -80,7 +80,7 @@ function is_numeric(catalog, field_id) {
 }
 
 function is_time_source(catalog, field_id) {
-  return field_id === SUBMITTED_AT_FIELD || catalog.date_ids.includes(field_id);
+  return TIME_SOURCE_FIELDS.includes(field_id) || catalog.date_ids.includes(field_id);
 }
 
 /**

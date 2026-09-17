@@ -22,7 +22,7 @@ export default function PointCharts({ chartType, points, xLabel, yLabel, palette
         <YAxis type="number" dataKey="y" name={yLabel} tick={tick_style(colors, size)} stroke={colors.grid} width={size.font * 3} />
         {has_size && <ZAxis type="number" dataKey="size" range={[30, bubble_max]} />}
         <Tooltip contentStyle={colors.tooltip} itemStyle={colors.tooltip_text} labelStyle={colors.tooltip_text} cursor={{ strokeDasharray: "3 3" }} />
-        <Scatter data={points} fill={colors.accent} fillOpacity={0.7} isAnimationActive={animate !== false} animationDuration={700} animationEasing="ease-out" cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(entry && entry.payload ? entry.payload : entry) : undefined} />
+        <Scatter data={points} fill={colors.accent} fillOpacity={0.7} isAnimationActive={false} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(entry && entry.payload ? entry.payload : entry) : undefined} />
       </ScatterChart>
     </ResponsiveContainer>
   );

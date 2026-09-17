@@ -55,9 +55,7 @@ export default function PieCharts({ chartType, rows, totalLabel, onItemClick, pa
               innerRadius={is_donut ? "55%" : 0}
               outerRadius={with_labels ? size.pie : "78%"}
               paddingAngle={rows.length > 1 ? 2 : 0}
-              isAnimationActive={animate !== false}
-              animationDuration={260}
-              animationEasing="ease-out"
+              isAnimationActive={false}
               label={with_labels ? ({ value, percent }) => `${value} (${Math.round(percent * 100)}%)` : inside_label(size, colors, rows)}
               labelLine={with_labels ? { strokeWidth: 1 } : false}
               stroke={colors.background}

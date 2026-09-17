@@ -10,6 +10,8 @@ const {
   WIDGET_SIZES,
   MAP_LEVELS,
   TIME_GRANULARITIES,
+  OVER_TIME_TYPES,
+  OVER_TIME_AXES,
   OCCURRENCE_OPERATORS,
   OCCURRENCE_SCOPES,
   LIMITS,
@@ -157,6 +159,23 @@ function validate_shape_for_kind(widget, definition, catalog, errors, describe) 
     const granularity = widget.group_by && widget.group_by.granularity;
     if (granularity && !TIME_GRANULARITIES.includes(granularity)) {
       errors.push(`${describe}: unknown time granularity`);
+    }
+  }
+  // Over time is a way of READING a widget, not a chart type, so it is
+  // checked whatever the kind: it needs a clock the records actually carry
+  // and a look that has an axis to spend on a time line.
+  if (widget.over_time && widget.over_time.enabled === true) {
+    if (!OVER_TIME_TYPES.includes(widget.chart_type)) {
+      errors.push(`${describe}: this chart type cannot be drawn over time`);
+    }
+    if (!is_time_source(catalog, widget.over_time.field_id)) {
+      errors.push(`${describe}: over time needs submitted_at, updated_at or a date field of the form`);
+    }
+    if (widget.over_time.granularity && !TIME_GRANULARITIES.includes(widget.over_time.granularity)) {
+      errors.push(`${describe}: unknown time granularity`);
+    }
+    if (widget.over_time.axis && !OVER_TIME_AXES.includes(widget.over_time.axis)) {
+      errors.push(`${describe}: the time line runs along x or y`);
     }
   }
   if (kind === CHART_KINDS.POINT) {

@@ -1,17 +1,18 @@
 import React from "react";
 import { ResponsiveContainer, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, LabelList } from "recharts";
 import { build_palette } from "../appearance.js";
-import { value_axis_width } from "./chartLabels.jsx";
+import { value_axis_width, number_room } from "./chartLabels.jsx";
 import { category_axis, value_step, stagger_values, fit_value_font, MIN_VALUE_FONT } from "./labelDensity.jsx";
 import { chart_density, tick_style } from "./density.js";
 import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
 
-// Short on purpose: the charting library draws no value labels at all
-// while a chart is animating, so this is also how long a line goes without
-// its numbers after every filter change.
-const ANIMATION_MS = 260;
-
-const animation = (animate) => ({ isAnimationActive: animate !== false, animationDuration: ANIMATION_MS, animationEasing: "ease-out" });
+// The marks do not animate, and that is deliberate: the charting library
+// hides every value label for as long as a series is animating, and a card
+// that is off screen or mid-layout when it mounts can stay "animating"
+// indefinitely - which is how charts ended up with no numbers on them
+// until something forced a redraw. A chart that can always be read beats a
+// chart that grows in. (animate is still accepted so callers need not change.)
+const animation = () => ({ isAnimationActive: false });
 
 const show_value = (value) => (value ? value : "");
 
@@ -46,7 +47,11 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
   const margin = { top: size.show_values ? value_font + 12 : 12, right: 14, left: 0, bottom: 5 };
   // Fitting to the screen means the chart may not grow past the card, so
   // the points share the card's width instead of claiming their own.
-  const inner_width = fitMode ? size.width : Math.max(rows.length * size.point_px, size.width);
+  // A point is never closer to the next than the number it carries is
+  // wide: the line widens and scrolls inside the card rather than give up
+  // on writing its values.
+  const point_px = size.show_values ? Math.max(size.point_px, number_room(peak, value_font) + 10) : size.point_px;
+  const inner_width = fitMode ? size.width : Math.max(rows.length * point_px, size.width);
   const x_room = Math.max(6, Math.max(80, inner_width - y_width - margin.right - 8) / Math.max(1, rows.length) - 6);
   const labels = rows.map((row) => row.label);
   const axis = category_axis(labels, x_room, size.font, colors, y_width);
@@ -111,7 +116,7 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
         {/* A block div already fills the card; min-width only raises it,
             so the chart only ever scrolls when it has more points than the
             card can show at a readable spacing. */}
-        <div style={{ minWidth: fitMode ? undefined : rows.length * size.point_px, height: chart_height }}>
+        <div style={{ minWidth: fitMode ? undefined : rows.length * point_px, height: chart_height }}>
           <ResponsiveContainer width="100%" height="100%">
             {chart}
           </ResponsiveContainer>

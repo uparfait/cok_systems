@@ -38,12 +38,13 @@ import { SplitLegend, LegendFrame } from "./SeriesLegend.jsx";
  * a texture inside each series color. Marks grow in and glide to values.
  */
 
-// How long marks take to grow in. Deliberately short: the charting
-// library draws no value labels at all while a chart is animating, so this
-// is also how long a chart goes without its numbers after every change.
-const ANIMATION_MS = 260;
-
-const animation = (animate) => ({ isAnimationActive: animate !== false, animationDuration: ANIMATION_MS, animationEasing: "ease-out" });
+// The marks do not animate, and that is deliberate: the charting library
+// hides every value label for as long as a series is animating, and a card
+// that is off screen or mid-layout when it mounts can stay "animating"
+// indefinitely - which is how charts ended up with no numbers on them
+// until something forced a redraw. A chart that can always be read beats a
+// chart that grows in. (animate is still accepted so callers need not change.)
+const animation = () => ({ isAnimationActive: false });
 
 const show_value = (value) => (value ? value : "");
 const clicked_row = (entry) => (entry && entry.payload ? entry.payload : entry);
@@ -69,14 +70,16 @@ function category_axis_cap(labels, density) {
 /**
  * How the categories of an X axis are laid out: the room each gets for its
  * label and the width the chart must have to give it. Each category gets
- * at least the card size's minimum, and a long label enough to wrap into
- * about six lines; when the categories then need more width than the card
- * offers, the chart widens (and scrolls sideways inside the card). In fit
- * mode the card's width is simply shared out.
+ * at least the card size's minimum, a long label enough to wrap into about
+ * six lines, and - the point of number_px - never less than the NUMBER it
+ * has to carry. When the categories then need more width than the card
+ * offers, the chart widens and scrolls sideways inside it, which is how
+ * every number is guaranteed its room instead of being dropped for want of
+ * it. In fit mode, which may not widen, the card's width is shared out.
  */
-function category_frame(labels, count, density, fixed_px, fit) {
+function category_frame(labels, count, density, fixed_px, fit, number_px) {
   const longest = labels.reduce((best, label) => Math.max(best, text_width(label, density.font)), 0);
-  const wanted = Math.max(density.min_col_px, Math.min(260, Math.ceil(longest / 6) + 16));
+  const wanted = Math.max(density.min_col_px, number_px || 0, Math.min(260, Math.ceil(longest / 6) + 16));
   const available = Math.max(80, density.width - fixed_px);
   const per = fit ? available / Math.max(1, count) : Math.max(wanted, available / Math.max(1, count));
   const width = fit ? density.width : Math.max(density.width, Math.ceil(per * count + fixed_px));
@@ -134,12 +137,18 @@ function VerticalMarks({ rows, onItemClick, palette, animate, density, shape, fi
   const values = values_of(rows);
   const y_width = value_axis_width(values, density.font);
   const margin = { top: top_room(density), right: 14, left: 0, bottom: 5 };
-  const frame = category_frame(labels, rows.length, density, y_width + margin.right + 8, fitMode);
+  // The room one column must have if its number is to be written over it.
+  const number_px = density.show_values ? number_room(values, density.value_font) + 10 : 0;
+  const frame = category_frame(labels, rows.length, density, y_width + margin.right + 8, fitMode, number_px);
   const axis = category_axis(labels, frame.room, density.font, palette, y_width);
   const height = density.height + axis.height - 30;
   // A number is not as wide as a name, so the two are handled separately.
   // The figures shrink to the column first; only when even the smallest
   // will not fit are they thinned, and then evenly.
+  // Outside fit mode the frame above guaranteed the room, so this fits and
+  // the step is 1: every column carries its number. Fit mode cannot widen,
+  // so there the figures shrink first and are thinned only if even the
+  // smallest will not fit - the tooltip still carries every one of them.
   const fitted = density.show_values ? fit_value_font(values, frame.room, density.value_font, MIN_VALUE_FONT) : 0;
   const number_font = fitted || MIN_VALUE_FONT;
   const number_step = !density.show_values || fitted ? 1 : value_step(values, frame.room, MIN_VALUE_FONT);
@@ -224,7 +233,11 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
   const margin = horizontal
     ? { top: 10, right: right_room(density, peak), left: 0, bottom: 5 }
     : { top: top_room(density), right: 14, left: 0, bottom: 5 };
-  const frame = horizontal ? { room: 0, width: 0 } : category_frame(row_labels, rows.length, density, y_width + margin.right + 8, fitMode);
+  // A grouped category carries one number per series side by side, a
+  // stacked one carries them above each other, so the room a category
+  // needs is the number's width times the number of columns in it.
+  const number_px = density.show_values ? (number_room(peak, base_segment_font) + 8) * (stacked ? 1 : Math.max(1, series.length)) : 0;
+  const frame = horizontal ? { room: 0, width: 0 } : category_frame(row_labels, rows.length, density, y_width + margin.right + 8, fitMode, number_px);
   const axis = horizontal ? null : category_axis(row_labels, frame.room, density.font, palette, y_width);
   // A grouped column is a fraction of its category's room and a stacked
   // segment a fraction of its height, so the figures are written as small
@@ -233,8 +246,10 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
   // tooltip. A horizontal bar writes its numbers in the margin beside it,
   // where the room is the chart's, not one column's.
   const slot = horizontal ? Infinity : frame.room / Math.max(1, stacked ? 1 : series.length);
-  const segment_font = fit_value_font(peak, slot, base_segment_font, MIN_VALUE_FONT);
-  const show_numbers = density.show_values && segment_font > 0;
+  // Never zero: outside fit mode the frame above made the room, and inside
+  // it the smallest readable size is still written rather than nothing.
+  const segment_font = fit_value_font(peak, slot, base_segment_font, MIN_VALUE_FONT) || MIN_VALUE_FONT;
+  const show_numbers = density.show_values;
   const height = horizontal
     ? Math.max(density.height, rows.length * bar_row_height(row_labels, y_room, stacked ? density.row_base + 2 : Math.max(density.row_base - 8, series.length * (density.font + 7)), density.font))
     : density.height + axis.height - 30;

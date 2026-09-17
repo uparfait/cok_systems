@@ -2,7 +2,7 @@ const pipelines = require("./pipelines.js");
 const { kpi_metric_result } = require("./kpi_metrics.js");
 const { effective_bounds } = require("./match_stage.js");
 const { build_field_catalog, field_label_text, parent_field_id_of, is_categorical } = require("./field_catalog.js");
-const { CHART_TYPES, CHART_KINDS, LIMITS } = require("./constants.js");
+const { CHART_TYPES, CHART_KINDS, LIMITS, OVER_TIME_TYPES, SUBMITTED_AT_FIELD } = require("./constants.js");
 
 /**
  * Turns one widget definition into chart-ready data. The database returns
@@ -382,6 +382,20 @@ async function widget_data_of(raw_widget, form_version, period_override) {
   }
   if (((raw_widget.metric && raw_widget.metric.aggregation) || "count") === "occurrences") {
     return compute_occurrences(raw_widget, kind, bounds, catalog);
+  }
+  // OVER TIME: the same widget, the same formula, read as the period
+  // passes instead of all at once. Whatever it groups by otherwise is set
+  // aside - the time line is the axis now - while a split_by still draws
+  // one series per value, so "average age over time, by gender" works. The
+  // slice size comes from the period itself unless one was asked for (see
+  // resolve_granularity): a day reads in hours, a month in days, a decade
+  // in years, and a custom range in whatever suits its own length.
+  const over_time = raw_widget.over_time && raw_widget.over_time.enabled === true ? raw_widget.over_time : null;
+  if (over_time && OVER_TIME_TYPES.includes(raw_widget.chart_type)) {
+    const timed = Object.assign({}, raw_widget, {
+      group_by: { field_id: over_time.field_id || SUBMITTED_AT_FIELD, granularity: over_time.granularity || "auto" },
+    });
+    return compute_time(timed, bounds, catalog);
   }
   const widget = kind === CHART_KINDS.KPI || kind === CHART_KINDS.POINT ? raw_widget : ungrouped_widget(raw_widget);
   // Nothing to group by and nothing to split by: the widget is one number,
