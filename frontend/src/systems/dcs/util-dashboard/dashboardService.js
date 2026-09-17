@@ -61,8 +61,9 @@ export function get_dashboard_data(form_group_id, widgets, period, filters) {
  * The boundary outlines a map widget draws: only the places it has data
  * for, by name, plus their parents and the country outline.
  */
-export function get_map_shapes(form_group_id, names, parents) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/map-shapes`, "POST", { names: names || [], parents: parents || [] });
+export function get_map_shapes(form_group_id, names, parents, held) {
+  const known = held || {};
+  return dcs_request(`/forms/${form_group_id}/dashboard/map-shapes`, "POST", { names: names || [], parents: parents || [], have: known.have || [], have_level: known.have_level || "" });
 }
 
 export function get_widget_records(form_group_id, body) {
@@ -187,8 +188,9 @@ export function get_public_widget_records(token, body) {
   return dcs_request(`/public/dashboard/${token}/records`, "POST", body, PUBLIC_CONFIG);
 }
 
-export function get_public_map_shapes(token, names, parents) {
-  return dcs_request(`/public/dashboard/${token}/map-shapes`, "POST", { names: names || [], parents: parents || [] }, PUBLIC_CONFIG);
+export function get_public_map_shapes(token, names, parents, held) {
+  const known = held || {};
+  return dcs_request(`/public/dashboard/${token}/map-shapes`, "POST", { names: names || [], parents: parents || [], have: known.have || [], have_level: known.have_level || "" }, PUBLIC_CONFIG);
 }
 
 export function get_public_filter_values(token, field_id, filters, period) {

@@ -342,7 +342,7 @@ function DashboardBoard({ form }) {
 
   const map_scope = filter_names(data.filter_values);
   return (
-    <MapScopeProvider fetchShapes={(names) => get_map_shapes(form.form_group_id, names, map_scope)} scopeKey={map_scope.join("|")}>
+    <MapScopeProvider fetchShapes={(names, held) => get_map_shapes(form.form_group_id, names, map_scope, held)} scopeKey={map_scope.join("|")}>
     <div
       ref={container_ref}
       className={`dcs-board-root dcs-board-no-select relative select-none ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "pb-16 space-y-4"}`}

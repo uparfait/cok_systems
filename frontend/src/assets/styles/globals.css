@@ -3362,6 +3362,18 @@ background-color: #056daa;
 .dcs-map-canvas .maplibregl-canvas:focus {
   outline: none;
 }
+.dcs-map-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 0 12px;
+}
 .dcs-map-place {
   display: flex;
   flex-direction: column;

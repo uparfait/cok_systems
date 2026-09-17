@@ -109,7 +109,7 @@ function PublicBoard() {
   }
 
   return (
-    <MapScopeProvider fetchShapes={(names) => get_public_map_shapes(token, names, map_scope)} scopeKey={map_scope.join("|")}>
+    <MapScopeProvider fetchShapes={(names, held) => get_public_map_shapes(token, names, map_scope, held)} scopeKey={map_scope.join("|")}>
     <div
       ref={container_ref}
       className={`dcs-board-root dcs-board-public dcs-board-no-select relative select-none flex-1 min-w-0 max-w-full ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "p-3 sm:p-5 space-y-4"}`}

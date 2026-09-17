@@ -22,6 +22,13 @@ const { MAP_LEVELS, load_tree } = require("./map_tree.js");
  * ancestor of a shape that was found, and the places the board is filtered
  * to keep the walk inside their own branch.
  *
+ * A widget keeps every boundary it has been given, so a request also says
+ * which names it already holds ("have") and at which level ("have_level").
+ * When the level it holds is still the right one, only the boundaries it is
+ * missing are sent back and the answer says so with kept: true; when the
+ * names have moved to another level, everything is sent and kept is false,
+ * which tells the widget to let go of what it held.
+ *
  * A name that nothing answers to is tried once more on consonants alone
  * ("Mageragere" finds "Mageregere"), which is only accepted when it lands
  * on a single spelling. What is still unmatched is reported back, so the
@@ -169,19 +176,20 @@ function collect(tree, level, wanted, parents) {
     return false;
   });
 
-  return { level, shapes, ancestors: held.ancestors, matched: wanted.size - unknown.length, unknown };
+  return { level, shapes, ancestors: held.ancestors, exact: seen.size, matched: wanted.size - unknown.length, unknown };
 }
 
 /**
- * Which level these names belong to: the one that accounts for most of
- * them, and of two that account for as many, the higher one - which is the
- * level the board's own filters stop at.
+ * Which level these names belong to: the one that answers most of them by
+ * their own spelling, then the one that answers most of them at all, and of
+ * two that do as well, the higher one - which is where the board's own
+ * filters stop.
  */
 function pick_level(tree, wanted, parents) {
   let best = null;
   MAP_LEVELS.forEach((level) => {
     const answer = collect(tree, level, wanted, parents);
-    if (!best || answer.matched > best.matched) best = answer;
+    if (!best || answer.exact > best.exact || (answer.exact === best.exact && answer.matched > best.matched)) best = answer;
   });
   return best;
 }
@@ -198,7 +206,7 @@ function whole_level(tree, parents) {
       shapes.push(shape_of(node, path, node.name));
       held.of(path, chain);
     });
-    return { level, shapes, ancestors: held.ancestors, matched: shapes.length, unknown: [] };
+    return { level, shapes, ancestors: held.ancestors, exact: shapes.length, matched: shapes.length, unknown: [] };
   });
   // The level under the filtered place: the first one holding more than the
   // filtered place itself, and few enough to read.
@@ -217,10 +225,18 @@ function map_shapes(request) {
   const tree = load_tree();
   const parents = real_parents(tree, asked.parents);
   const wanted = wanted_names(asked.names);
+  const have = new Set((Array.isArray(asked.have) ? asked.have : []).map((name) => normalize(name)).filter(Boolean));
 
   let answer = wanted.size === 0 ? whole_level(tree, parents) : pick_level(tree, wanted, parents);
   // A filter that names a place the map cannot hold must not empty it.
   if (answer.shapes.length === 0 && parents.length > 0) answer = wanted.size === 0 ? whole_level(tree, []) : pick_level(tree, wanted, []);
+
+  // What the widget already holds does not travel a second time - neither
+  // the boundaries themselves nor the parents it was given with them.
+  const kept = have.size > 0 && asked.have_level === answer.level;
+  const sent = kept ? answer.shapes.filter((shape) => !have.has(normalize(shape.asked))) : answer.shapes;
+  const needed = new Set();
+  sent.forEach((shape) => (shape.path || []).forEach((step, depth) => needed.add(shape.path.slice(0, depth + 1).join("/"))));
 
   const held = [];
   MAP_LEVELS.slice(0, MAP_LEVELS.indexOf(answer.level))
@@ -228,12 +244,15 @@ function map_shapes(request) {
     .forEach((parent_level) => {
       const found = answer.ancestors.get(parent_level);
       if (!found || found.size === 0) return;
-      held.push({ level: parent_level, shapes: Array.from(found.entries()).map(([node, path]) => shape_of(node, path)) });
+      const shapes = Array.from(found.entries())
+        .map(([node, path]) => shape_of(node, path))
+        .filter((shape) => !kept || needed.has(shape.path.concat(shape.name).join("/")));
+      if (shapes.length > 0) held.push({ level: parent_level, shapes });
     });
-
   return {
     level: answer.level,
-    shapes: answer.shapes,
+    kept,
+    shapes: sent,
     parents: held,
     outline: asked.outline === true && tree.outline ? { name: tree.outline.name, rings: tree.outline.rings } : null,
     unknown: answer.unknown,
