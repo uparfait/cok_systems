@@ -33,6 +33,12 @@ function compact(appearance) {
     if (appearance.value_colors[key]) value_colors[key] = appearance.value_colors[key];
   });
   if (Object.keys(value_colors).length > 0) out.value_colors = value_colors;
+  const value_labels = {};
+  Object.keys(appearance.value_labels || {}).forEach((key) => {
+    const name = String(appearance.value_labels[key] || "").trim();
+    if (name && name !== key) value_labels[key] = name;
+  });
+  if (Object.keys(value_labels).length > 0) out.value_labels = value_labels;
   return out;
 }
 
@@ -42,6 +48,11 @@ function compact(appearance) {
  * per legend or category value (auto-assigned, randomizable, or set by
  * pasting a hex / rgb value or picking one). A live preview shows the
  * result before it is applied.
+ *
+ * Every value can also be RENAMED here. What a form stored stays what it
+ * is - the rename only changes what this widget's legend, labels and
+ * tooltips call it, so "M" can read as "Male" on the board without
+ * touching a single answer.
  */
 export default function AppearanceDialog({ form, title, valuesField, appearance, onApply, onClose }) {
   const { translate } = useDcsLanguage();
@@ -67,6 +78,14 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
       return { ...current, value_colors: next };
     });
   const reset_values = () => setDraft((current) => ({ ...current, value_colors: {} }));
+  const set_value_label = (label, name) =>
+    setDraft((current) => {
+      const next = { ...current.value_labels };
+      if (name && name.trim()) next[String(label)] = name.slice(0, 120);
+      else delete next[String(label)];
+      return { ...current, value_labels: next };
+    });
+  const reset_labels = () => setDraft((current) => ({ ...current, value_labels: {} }));
   const reset_all = () => setDraft(resolve_appearance(null));
 
   const mode_chips = [
@@ -187,18 +206,31 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
                   <button type="button" onClick={reset_values} className="text-xs font-bold uppercase px-3 py-1.5 cursor-pointer" style={{ color: TEXT_MUTED, border: `1px solid ${BORDER}`, background: "none", letterSpacing: "0.4px", ...HEADING_FONT }}>
                     {translate("DCS_DB_COLOR_AUTO")}
                   </button>
+                  <button type="button" onClick={reset_labels} className="text-xs font-bold uppercase px-3 py-1.5 cursor-pointer" style={{ color: TEXT_MUTED, border: `1px solid ${BORDER}`, background: "none", letterSpacing: "0.4px", ...HEADING_FONT }}>
+                    {translate("DCS_DB_COLOR_RENAME_RESET")}
+                  </button>
                 </div>
                 <div className="flex flex-col gap-2" style={{ maxHeight: 260, overflowY: "auto" }}>
                   {values.list.map((label, index) => (
-                    <ColorInput
-                      key={String(label)}
-                      label={String(label)}
-                      value={draft.value_colors[String(label)] || ""}
-                      fallback={auto_color(index)}
-                      autoTag={translate("DCS_DB_COLOR_AUTO_TAG")}
-                      onChange={(color) => set_value_color(label, color)}
-                      onClear={() => set_value_color(label, "")}
-                    />
+                    <div key={String(label)} className="flex flex-wrap items-end gap-2">
+                      <div className="min-w-0 flex-1">
+                        <ColorInput
+                          label={String(label)}
+                          value={draft.value_colors[String(label)] || ""}
+                          fallback={auto_color(index)}
+                          autoTag={translate("DCS_DB_COLOR_AUTO_TAG")}
+                          onChange={(color) => set_value_color(label, color)}
+                          onClear={() => set_value_color(label, "")}
+                        />
+                      </div>
+                      <input
+                        className="dcs-rename-input"
+                        value={draft.value_labels[String(label)] || ""}
+                        placeholder={translate("DCS_DB_COLOR_RENAME_PLACEHOLDER")}
+                        title={translate("DCS_DB_COLOR_RENAME")}
+                        onChange={(event) => set_value_label(label, event.target.value)}
+                      />
+                    </div>
                   ))}
                 </div>
               </>

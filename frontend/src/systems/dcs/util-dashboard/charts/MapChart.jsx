@@ -1,22 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Map as GlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useMapScope } from "../mapScope.jsx";
 import { build_palette, spread_color, with_alpha } from "../appearance.js";
 import { chart_density } from "./density.js";
-import LibraryIcon from "../icons/LibraryIcon.jsx";
-import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
 import { bounds_of, anchor_of, map_bounds, map_key, grow_box } from "./mapGeometry.js";
-import { resolve_style, create_layers, set_shapes, set_theme, set_heat, highlight, shape_geojson, point_geojson, LAND_FILL } from "./mapDraw.js";
+import { create_layers, set_shapes, set_theme, set_heat, highlight, shape_geojson, point_geojson, heat_geojson, set_heat_map, clear_heat_map, LAND_FILL } from "./mapDraw.js";
+import { HEAT_LOW, HEAT_HIGH } from "./heatScale.js";
+import { take_cache, take_map, attach_map, start_map, release_map, drop_map } from "./mapKeeper.js";
 import { usePlaceMarkers } from "./mapOverlay.jsx";
+import { MapKindToggle, MapTools, MapTip, MapVeil, PlaceLabels } from "./MapChrome.jsx";
 import MapLegend from "./MapLegend.jsx";
 import { MARKER_SET } from "./mapMarkers.js";
 
 // Roughly how wide one letter of a place name draws, per pixel of font size.
 const LETTER_WIDTH = 0.58;
-const START_VIEW = { center: [30.06, -1.94], zoom: 9 };
 const LEVEL_ORDER = ["province", "district", "sector", "cell", "village"];
 const chain_of = (shape) => (shape.path || []).concat(shape.name).join("/");
 
@@ -28,57 +26,102 @@ function lightness(color) {
   return 0.2126 * part(0) + 0.7152 * part(2) + 0.0722 * part(4);
 }
 
+/** The box a scatter of points covers. */
+function points_box(points) {
+  let box = null;
+  (points || []).forEach((point) => {
+    const x = Number(point.lng);
+    const y = Number(point.lat);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    box = grow_box(box, { min_x: x, min_y: y, max_x: x, max_y: y });
+  });
+  if (!box) return null;
+  // A single point is a place, not a box: give it room to be seen in.
+  if (box.max_x - box.min_x < 0.004) {
+    box.min_x -= 0.002;
+    box.max_x += 0.002;
+  }
+  if (box.max_y - box.min_y < 0.004) {
+    box.min_y -= 0.002;
+    box.max_y += 0.002;
+  }
+  return box;
+}
+
 /**
- * A real map, drawn by MapLibre GL: the administrative boundaries of the
- * places this widget has data for, filled each in a color of its own over a
- * vector basemap, with every parent above them outlined behind. A place
- * nobody answered is left pale.
+ * A map widget, drawn by MapLibre GL over a vector basemap, one of two ways.
  *
- * THE MAP IS BUILT ONCE AND KEPT. Filtering a board changes which places the
- * widget holds, not the map: the boundaries it has already been given are
- * remembered, only names it has never seen are asked for, and what is drawn
- * is handed to the layers as new data. Nothing is torn down, nothing is
- * fetched twice, and the view the viewer left the map in stays theirs unless
- * the data moves somewhere it cannot see.
+ * A WORLD map paints administrative boundaries: the places this widget has
+ * data for, each filled in a color of its own, with every parent outlined
+ * behind and a place nobody answered left pale. Its boundaries are not part
+ * of the widget's data - they are asked for by name, and the server works
+ * out whether those names are districts, sectors, cells or villages by
+ * walking down from the places the board is filtered to, so a name that
+ * belongs to several places comes back once per real place with the chain
+ * above it.
  *
- * No level is ever asked for either. The server works out whether these
- * names are districts, sectors, cells or villages, walking down from the
- * places the board is filtered to, so a name belonging to several places
- * comes back once per real place with the chain above it - which is what the
- * tooltip shows to tell them apart.
+ * A HEAT map paints the records themselves, each at the position it was
+ * collected: no boundaries, no levels, no markers. It is only offered when
+ * the form captures a position, because an administrative name says nothing
+ * about where inside its area an answer came from.
  *
- * A map split by a field (status, gender) plants ONE MARKER PER VALUE on
- * every place: the same icon each time, in the value's own color and
- * carrying that value's own number, which is what the legend names. Names
- * and markers are HTML pinned to the map, drawn only where the place is big
- * enough to hold them, so nothing is ever written over a neighbour.
+ * THE MAP IS BUILT ONCE AND KEPT - across a filter, and across the card
+ * being lifted out of the board to fill the screen, which unmounts
+ * everything inside it (see mapKeeper). What is drawn is handed to the
+ * layers as new data; nothing is torn down and nothing is fetched twice.
  *
- * Asked for it, the map also spreads a heat layer per value, weighted by
- * that value's numbers and colored with the value's own color - every one of
- * them configurable on the widget, like everything else it paints with.
- *
- * A click inside the map opens the records of the place it landed on, while
- * the whole widget's records stay behind a double click OUTSIDE the map.
+ * The view goes to what the widget highlights, whole and with room to
+ * spare, whenever that changes - and stays where the viewer put it while it
+ * does not. Nothing holds the viewer in: they may zoom out to the whole
+ * world and pan anywhere, and "Reset" brings back everything the map holds.
  */
-export default function MapChart({ rows, series, marker, showMarkers, showLabels, heatmap, palette, density, animate, onItemClick, onLegendClick }) {
+export default function MapChart({
+  mapKey,
+  mode,
+  rows,
+  series,
+  points,
+  groups,
+  range,
+  marker,
+  showMarkers,
+  showLabels,
+  radius,
+  intensity,
+  lowColor,
+  highColor,
+  showPoints,
+  canHeat,
+  canWorld,
+  onMode,
+  palette,
+  density,
+  animate,
+  onItemClick,
+  onLegendClick,
+}) {
   const { translate } = useDcsLanguage();
   const { fetch_shapes, scope_key } = useMapScope();
   const colors = palette || build_palette(null);
   const size = density || chart_density();
+  const is_heat = mode === "heat";
   const [status, setStatus] = useState({ loading: true, error: "" });
   const [version, setVersion] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [ready, setReady] = useState(false);
   const [broken, setBroken] = useState(false);
   const [tip, setTip] = useState(null);
-  const canvas_ref = useRef(null);
-  const map_ref = useRef(null);
+  const host_ref = useRef(null);
   const bounds_ref = useRef(null);
-  const heat_ref = useRef("");
-  const first_fit = useRef(true);
-  // Every boundary this widget has ever been given, by the name it was asked
-  // for. This is what a filter no longer costs a request.
-  const cache_ref = useRef({ level: "", places: new Map(), parents: new Map(), unknown: new Set(), box: null });
+  const outer_ref = useRef(null);
+  const id_ref = useRef(null);
+  if (!id_ref.current) id_ref.current = mapKey || `map-${Math.random().toString(36).slice(2)}`;
+  // The boundaries are shared by anything drawing this widget; the map
+  // itself is lent to this card while it is on the page, and taken in the
+  // effect below - never during a render, which React may throw away.
+  const cache = useMemo(() => take_cache(id_ref.current), []);
+  const live_ref = useRef(null);
+  const map_of = () => (live_ref.current ? live_ref.current.map : null);
   // The map's own handlers are bound once, so what they call is kept where
   // they can always see the newest one.
   const pick_ref = useRef(onItemClick);
@@ -89,17 +132,28 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
   const theme_ref = useRef(null);
   theme_ref.current = { line: with_alpha(colors.text, 0.45), active: colors.number, background: colors.background, tint: lightness(colors.background) < 0.5 ? 0.62 : 0.3 };
 
-  const names = useMemo(() => (rows || []).map((row) => row.label).filter(Boolean), [rows]);
+  // However a map engine fails - and some fail by never answering at all -
+  // the card must end up with something a viewer can act on.
+  useEffect(() => {
+    if (ready || broken) return undefined;
+    const timer = window.setTimeout(() => setBroken(true), 20000);
+    return () => window.clearTimeout(timer);
+  }, [ready, broken, attempt]);
+
+  const names = useMemo(() => (is_heat ? [] : (rows || []).map((row) => row.label).filter(Boolean)), [rows, is_heat]);
   const names_key = names.join("|");
 
-  // Only the names the map has never seen are ever asked for; the answer
-  // says whether what is already held still stands.
+  // Boundaries are only ever asked for by a world map, and only the names
+  // it has never seen; the answer says whether what is held still stands.
   useEffect(() => {
+    if (is_heat) {
+      setStatus({ loading: false, error: "" });
+      return undefined;
+    }
     if (!fetch_shapes) {
       setStatus({ loading: false, error: translate("DCS_DB_MAP_NO_SOURCE") });
       return undefined;
     }
-    const cache = cache_ref.current;
     const missing = names.filter((name) => !cache.places.has(map_key(name)) && !cache.unknown.has(map_key(name)));
     if (missing.length === 0 && (cache.level || names.length === 0)) {
       setStatus({ loading: false, error: "" });
@@ -123,8 +177,6 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
           cache.box = null;
         }
         cache.level = answer.level || cache.level;
-        // How far everything this map has been given reaches, kept as it
-        // arrives: it is what a viewer is always allowed to zoom out to.
         (answer.shapes || []).forEach((shape) => {
           const key = map_key(shape.asked || shape.name);
           if (!cache.places.has(key)) cache.places.set(key, { asked: shape.asked || shape.name, list: [] });
@@ -146,9 +198,10 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [names_key, scope_key, attempt]);
+  }, [is_heat, names_key, scope_key, attempt]);
 
   const height = Math.max(220, size.height + 60);
+  const number_text = (value) => Number(value).toLocaleString("en-US");
 
   // What one place is worth: its own number, or - when the map is split
   // into values - the sum of them, which the split rows never carry.
@@ -165,9 +218,7 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, split_values.join("|")]);
 
-  const value_color = (value) => colors.color_override(value) || colors.color_for(value, split_values.indexOf(value));
-  // A shape answers to the name the widget asked for, which is what its
-  // rows are labelled with - the boundary's own spelling can differ.
+  const value_color = (value, index) => colors.color_override(value) || colors.color_for(value, index === undefined ? split_values.indexOf(value) : index);
   const key_of = (shape) => map_key(shape.asked || shape.name);
   // One color per place NAME, so the several villages that share a name
   // share its color and its legend entry.
@@ -180,7 +231,6 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
     const row = values.get(key_of(shape));
     return row ? row.value : null;
   };
-  // What one place is worth in each value, largest first, zeroes dropped.
   const parts_of = (shape) => {
     const row = values.get(key_of(shape));
     if (!row || !has_split) return [];
@@ -189,7 +239,6 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
       .filter((entry) => entry.count > 0)
       .sort((a, b) => b.count - a.count);
   };
-  // What one place plants: one mark per value it holds, or its own total.
   const marks_of = (shape) => {
     const parts = parts_of(shape);
     if (parts.length > 0) return parts.map((part) => ({ key: part.value, color: value_color(part.value), count: part.count }));
@@ -200,7 +249,6 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
   const label_font = Math.max(8, size.font - 1);
   const mark_size = Math.max(12, Math.round(size.font * 1.3));
   const marker_icon = marker || MARKER_SET[0];
-  const number_text = (value) => Number(value).toLocaleString("en-US");
   const label_text = (shape) => {
     const value = value_of(shape);
     return showMarkers || value === null ? shape.name : `${shape.name} ${number_text(value)}`;
@@ -209,83 +257,88 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
   // background - that is what keeps it readable in either theme.
   const halo = `0 0 3px ${colors.background}, 0 0 2px ${colors.background}, 0 0 1px ${colors.background}`;
 
-  // What this widget draws right now: the boundaries of the names it holds,
+  // What a world map draws right now: the boundaries of the names it holds,
   // taken from what has already been fetched, and the parents above them.
   const drawing = useMemo(() => {
-    const cache = cache_ref.current;
     const shapes = [];
     const unknown = [];
-    (rows || []).forEach((row) => {
-      const key = map_key(row.label);
-      const entry = cache.places.get(key);
-      if (entry) shapes.push(...entry.list);
-      else if (cache.unknown.has(key)) unknown.push(row.label);
-    });
+    if (!is_heat) {
+      (rows || []).forEach((row) => {
+        const key = map_key(row.label);
+        const entry = cache.places.get(key);
+        if (entry) shapes.push(...entry.list);
+        else if (cache.unknown.has(key)) unknown.push(row.label);
+      });
+    }
     const chains = new Set();
     shapes.forEach((shape) => (shape.path || []).forEach((step, depth) => chains.add(shape.path.slice(0, depth + 1).join("/"))));
     const outlines = Array.from(cache.parents.values()).filter((shape) => chains.has(chain_of(shape)));
     return { shapes, outlines, unknown };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, names_key]);
+  }, [version, names_key, is_heat]);
+
+  // The heat layers: one per value of the split field, each in its own
+  // color, or one scale from the widget's own low color to its high one.
+  const heat_plan = useMemo(() => {
+    if (!is_heat) return null;
+    const list = (groups || []).map((group, index) => ({ key: group.label, low: value_color(group.label, index), high: value_color(group.label, index) }));
+    return {
+      points: heat_geojson(points),
+      layers: list,
+      low: lowColor || HEAT_LOW,
+      hot: highColor || HEAT_HIGH,
+      high: (range && range.high) || 1,
+      radius: radius,
+      intensity: intensity,
+      dots: showPoints !== false,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [is_heat, points, groups, lowColor, highColor, range, radius, intensity, showPoints, colors.background]);
 
   // Everything the painting depends on, in one string: the layers are only
   // handed new data when one of them really changed.
   const signature = [
+    mode,
     version,
     names_key,
     split_values.join("|"),
     (rows || []).map((row) => row.value).join(","),
+    (points || []).length,
+    (groups || []).map((group) => `${group.label}:${group.value}`).join(","),
     marker,
     showMarkers,
     showLabels,
-    heatmap,
+    radius,
+    intensity,
+    lowColor,
+    highColor,
+    showPoints,
     colors.background,
     colors.text,
     colors.number,
   ].join("~");
 
-  // The map itself, made once for the life of the widget.
+  // The map itself: borrowed while this card is on the page, built the
+  // first time any card asks for it.
   useEffect(() => {
-    let map = null;
-    let cancelled = false;
-    resolve_style(colors.background)
-      .then((style) => {
-        if (cancelled || !canvas_ref.current) return;
-        map = new GlMap({
-          container: canvas_ref.current,
-          style,
-          center: START_VIEW.center,
-          zoom: START_VIEW.zoom,
-          attributionControl: false,
-          dragRotate: false,
-          pitchWithRotate: false,
-          touchPitch: false,
-        });
-        map.touchZoomRotate.disableRotation();
-        map_ref.current = map;
-        map.on("load", () => {
-          if (cancelled) return;
-          // The card may have been given its size after the map was made.
-          map.resize();
-          setReady(true);
-        });
-      })
-      // A map engine that cannot start (no WebGL, a blocked worker) must say
-      // so with its retry, never leave an empty box behind.
-      .catch(() => !cancelled && setBroken(true));
+    const entry = take_map(id_ref.current);
+    live_ref.current = entry;
+    attach_map(entry, host_ref.current);
+    if (entry.failed) setBroken(true);
+    else if (entry.loaded) setReady(true);
+    else start_map(entry, colors.background, () => setReady(true), () => setBroken(true));
     return () => {
-      cancelled = true;
       setReady(false);
-      map_ref.current = null;
-      if (map) map.remove();
+      live_ref.current = null;
+      release_map(entry);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt]);
 
-  // The layers, and the pointer, once the map is up.
+  // The boundary layers, and the pointer, whenever this card takes over.
   useEffect(() => {
-    const map = map_ref.current;
-    if (!map || !ready) return undefined;
+    const map = map_of();
+    if (!map || !ready || is_heat) return undefined;
     create_layers(map, theme_ref.current);
     const on_move = (event) => {
       const feature = (event.features || [])[0];
@@ -313,92 +366,77 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
       map.off("click", LAND_FILL, on_click);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+  }, [ready, is_heat]);
 
   // New data for those layers - no rebuilding, no remounting.
   useEffect(() => {
-    const map = map_ref.current;
-    if (!map || !ready) return;
-    const depth_of = (shape) => Math.max(0, LEVEL_ORDER.indexOf(cache_ref.current.level) - LEVEL_ORDER.indexOf(shape.level) - 1);
-    const parent_color = (shape, index) => colors.color_for(shape.name, index + 3);
-    set_shapes(map, {
-      land: shape_geojson(drawing.shapes, (shape, index) => ({
-        key: `${index}`,
-        name: shape.name,
-        asked: shape.asked || shape.name,
-        path: (shape.path || []).join(" / "),
-        color: color_of(shape),
-        answered: value_of(shape) !== null,
-      })),
-      outlines: shape_geojson(drawing.outlines, (shape, index) => ({ color: parent_color(shape, index), weight: Math.max(0.8, 2.2 - depth_of(shape) * 0.5) })),
-      points: point_geojson(drawing.shapes, (shape) => {
-        const row = values.get(key_of(shape));
-        const props = { w_total: row ? Number(row.value) || 0 : 0 };
-        split_values.forEach((value, index) => {
-          props[`w${index}`] = row ? Number(row[value]) || 0 : 0;
-        });
-        return props;
-      }),
-    });
+    const map = map_of();
+    const entry = live_ref.current;
+    if (!map || !entry || !ready) return;
+    let box = null;
+    if (is_heat) {
+      // Heat and boundaries never share a map: whichever is not being drawn
+      // is emptied rather than left underneath.
+      set_shapes(map, {});
+      set_heat(map, []);
+      set_heat_map(map, heat_plan);
+      box = points_box(points);
+    } else {
+      clear_heat_map(map);
+      const depth_of = (shape) => Math.max(0, LEVEL_ORDER.indexOf(cache.level) - LEVEL_ORDER.indexOf(shape.level) - 1);
+      set_shapes(map, {
+        land: shape_geojson(drawing.shapes, (shape, index) => ({
+          key: `${index}`,
+          name: shape.name,
+          asked: shape.asked || shape.name,
+          path: (shape.path || []).join(" / "),
+          color: color_of(shape),
+          answered: value_of(shape) !== null,
+        })),
+        outlines: shape_geojson(drawing.outlines, (shape, index) => ({ color: colors.color_for(shape.name, index + 3), weight: Math.max(0.8, 2.2 - depth_of(shape) * 0.5) })),
+        points: point_geojson(drawing.shapes, (shape) => {
+          const row = values.get(key_of(shape));
+          const props = { w_total: row ? Number(row.value) || 0 : 0 };
+          split_values.forEach((value, index) => {
+            props[`w${index}`] = row ? Number(row[value]) || 0 : 0;
+          });
+          return props;
+        }),
+      });
+      // The view is framed on THE PLACES THIS WIDGET HIGHLIGHTS - never on
+      // the parents outlined behind them. One village fills the map with
+      // that village; three districts fill it with those three.
+      box = bounds_of(drawing.shapes) || bounds_of(drawing.outlines);
+    }
     set_theme(map, theme_ref.current);
-
-    const max_of = (key) => (rows || []).reduce((top, row) => Math.max(top, Number(key ? row[key] : row.value) || 0), 0);
-    const heat = !heatmap
-      ? []
-      : has_split
-        ? split_values.map((value, index) => ({ key: `w${index}`, color: value_color(value), max: max_of(value) }))
-        : [{ key: "w_total", color: colors.color_override("heatmap") || colors.color_for("heatmap", 0), max: max_of(null) }];
-    const heat_key = JSON.stringify(heat);
-    if (heat_key !== heat_ref.current) {
-      set_heat(map, heat);
-      heat_ref.current = heat_key;
-    }
-
-    // How far the viewer may travel: everything this map has ever been
-    // given, not just what one filter left on it - the province outline is
-    // always part of that, so zooming back out to the whole of it is always
-    // allowed however far a filter zoomed in.
-    const box = bounds_of(drawing.shapes.concat(drawing.outlines));
-    const outer = grow_box(cache_ref.current.box, box);
-    if (outer) {
-      const room = [(outer.max_x - outer.min_x) * 0.5 + 0.05, (outer.max_y - outer.min_y) * 0.5 + 0.05];
-      const reach = [
-        [outer.min_x - room[0], outer.min_y - room[1]],
-        [outer.max_x + room[0], outer.max_y + room[1]],
-      ];
-      map.setMaxBounds(null);
-      map.setMinZoom(0);
-      const fits = map.cameraForBounds(reach, { padding: 8 });
-      if (fits && Number.isFinite(fits.zoom)) map.setMinZoom(Math.max(0, fits.zoom - 0.5));
-      map.setMaxBounds(reach);
-    }
-
-    // The view follows the data only when the data has gone somewhere it
-    // cannot see; a viewer who zoomed in keeps what they were looking at.
     if (!box) return;
     bounds_ref.current = map_bounds(box);
-    const seen = map.getBounds();
-    const inside = seen.contains([box.min_x, box.min_y]) && seen.contains([box.max_x, box.max_y]);
-    if (first_fit.current || !inside) {
-      map.fitBounds(bounds_ref.current, { padding: 18, duration: first_fit.current || animate === false ? 0 : 600 });
-      first_fit.current = false;
+    outer_ref.current = map_bounds(is_heat ? box : grow_box(cache.box, box));
+    const highlighted = is_heat ? `heat:${(points || []).length}:${signature}` : [cache.level].concat(drawing.shapes.map((shape) => chain_of(shape))).join(",");
+    if (highlighted !== entry.fitted) {
+      const first = entry.fitted === null;
+      entry.fitted = highlighted;
+      map.fitBounds(bounds_ref.current, { padding: 18, duration: first || animate === false ? 0 : 600 });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, signature]);
 
-  // The card can be resized under the map, which must be told or it draws
-  // into the box it had.
+  // The card can be resized under the map - grown to fill the screen, or
+  // shrunk back - which the map must be told, or it keeps drawing into the
+  // box it had.
   useEffect(() => {
-    const element = canvas_ref.current;
+    const element = host_ref.current;
     if (!element || !ready) return undefined;
-    const observer = new ResizeObserver(() => map_ref.current && map_ref.current.resize());
+    const observer = new ResizeObserver(() => map_of() && map_of().resize());
     observer.observe(element);
     return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
   // Which places may write their name and plant their markers, and what
   // room each of them needs to do it inside its own boundary.
   const places = useMemo(() => {
+    if (is_heat) return [];
     return drawing.shapes
       .map((shape, index) => {
         const marks = showMarkers ? marks_of(shape) : [];
@@ -410,35 +448,50 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
           Math.max(label ? label.length * label_font * LETTER_WIDTH + 6 : 0, marks.length * (mark_size + 22)),
           (label ? label_font * 1.6 : 0) + (marks.length > 0 ? mark_size + 4 : 0),
         ];
-        return { key: `${shape.name}-${index}`, point, box, needed, label, marks };
+        return { key: `${shape.name}-${index}`, point, box, needed, label, marks, font: label_font };
       })
       .filter(Boolean);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawing, signature]);
-  const shown = usePlaceMarkers(map_ref.current, ready, places);
+  }, [drawing, signature, is_heat]);
+  const shown = usePlaceMarkers(map_of(), ready, places);
 
-  const tool_style = { backgroundColor: colors.background, borderColor: colors.border, color: colors.text };
   const zoom_by = (step) => {
-    const map = map_ref.current;
+    const map = map_of();
     if (map) map.easeTo({ zoom: map.getZoom() + step, duration: 260 });
     setTip(null);
   };
+  const reset_view = () => {
+    const map = map_of();
+    const home = outer_ref.current || bounds_ref.current;
+    if (map && home) map.fitBounds(home, { padding: 18, duration: 500 });
+    setTip(null);
+  };
   const tip_row = tip ? values.get(map_key(tip.asked || tip.name)) : null;
-  const veil = { backgroundColor: with_alpha(colors.background, 0.72) };
-  const failed = broken || (!!status.error && drawing.shapes.length === 0);
+  const failed = broken || (!is_heat && !!status.error && drawing.shapes.length === 0);
+  const waiting = !failed && (status.loading || !ready);
 
-  // The legend: the split values and their totals, or the places themselves.
-  const legend_items = has_split
-    ? split_values.map((value) => ({
-        key: value,
-        name: value,
-        color: value_color(value),
-        icon: showMarkers ? marker_icon : null,
-        is_value: true,
-        value: (rows || []).reduce((sum, row) => sum + (Number(row[value]) || 0), 0),
-      }))
-    : (rows || []).map((row) => ({ key: row.label, name: row.label, color: colors.color_override(row.label) || spread_color(name_index.get(map_key(row.label)) || 0), value: row.value }));
+  // The legend. A world map names its places or the values they are split
+  // into; a heat map names the values it spreads, or the two ends of its
+  // own scale with the lightest and heaviest point on it.
+  const legend_items = is_heat
+    ? (groups || []).length > 0
+      ? (groups || []).map((group, index) => ({ key: group.label, name: group.label, color: value_color(group.label, index), value: group.value }))
+      : [
+          { key: "heat-low", name: translate("DCS_DB_MAP_HEAT_LOW"), color: lowColor || HEAT_LOW, value: (range && range.low) || 0 },
+          { key: "heat-high", name: translate("DCS_DB_MAP_HEAT_HIGH"), color: highColor || HEAT_HIGH, value: (range && range.high) || 0 },
+        ]
+    : has_split
+      ? split_values.map((value) => ({
+          key: value,
+          name: value,
+          color: value_color(value),
+          icon: showMarkers ? marker_icon : null,
+          is_value: true,
+          value: (rows || []).reduce((sum, row) => sum + (Number(row[value]) || 0), 0),
+        }))
+      : (rows || []).map((row) => ({ key: row.label, name: row.label, color: colors.color_override(row.label) || spread_color(name_index.get(map_key(row.label)) || 0), value: row.value }));
   const pick_legend = (item) => {
+    if (is_heat) return;
     if (item.is_value) {
       if (onLegendClick) onLegendClick({ label: item.name });
     } else if (onItemClick) {
@@ -448,104 +501,32 @@ export default function MapChart({ rows, series, marker, showMarkers, showLabels
 
   return (
     <div>
+      <MapKindToggle mode={is_heat ? "heat" : "world"} canHeat={canHeat} canWorld={canWorld} colors={colors} translate={translate} onMode={onMode} />
       <div className="dcs-map-frame dcs-no-drill" style={{ height, borderColor: colors.border, backgroundColor: colors.background }} onClick={(event) => event.stopPropagation()}>
         {/* MapLibre's own stylesheet would take this element's height away
             from it, so its size is written where no stylesheet can reach. */}
-        <div ref={canvas_ref} className="dcs-map-canvas" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
-
-        {shown.map((place) =>
-          createPortal(
-            <React.Fragment key={place.key}>
-              {place.marks.length > 0 && (
-                <span className="dcs-map-marker">
-                  {place.marks.map((mark) => (
-                    <span key={mark.key} className="dcs-map-mark">
-                      <LibraryIcon icon={marker_icon} size={mark_size} color={mark.color} />
-                      <b style={{ color: colors.text, textShadow: halo }}>{number_text(mark.count)}</b>
-                    </span>
-                  ))}
-                </span>
-              )}
-              {place.label && (
-                <span className="dcs-map-label" style={{ color: colors.text, fontSize: label_font, textShadow: halo }}>
-                  {place.label}
-                </span>
-              )}
-            </React.Fragment>,
-            place.element,
-            place.key,
-          ),
-        )}
-
-        <div className="dcs-map-tools">
-          <button type="button" style={tool_style} title={translate("DCS_DB_MAP_ZOOM_IN")} onClick={() => zoom_by(1)}>
-            +
-          </button>
-          <button type="button" style={tool_style} title={translate("DCS_DB_MAP_ZOOM_OUT")} onClick={() => zoom_by(-1)}>
-            -
-          </button>
-          <button
-            type="button"
-            className="dcs-map-reset"
-            style={tool_style}
-            title={translate("DCS_DB_MAP_RESET")}
-            onClick={() => {
-              const map = map_ref.current;
-              if (map && bounds_ref.current) map.fitBounds(bounds_ref.current, { padding: 18, duration: 500 });
-              setTip(null);
+        <div ref={host_ref} className="dcs-map-canvas" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+        <PlaceLabels shown={shown} icon={marker_icon} size={mark_size} colors={colors} halo={halo} format={number_text} />
+        <MapTools colors={colors} translate={translate} onZoom={zoom_by} onReset={reset_view} />
+        <MapTip tip={tip} row={tip_row} colors={colors} split={split_values} colorOf={value_color} translate={translate} format={number_text} />
+        {(failed || waiting) && (
+          <MapVeil
+            failed={failed}
+            message={!broken && status.error ? status.error : ""}
+            colors={colors}
+            translate={translate}
+            onRetry={() => {
+              // A retry builds the map again from nothing: whatever stopped
+              // it the first time is still in the one that failed.
+              drop_map(id_ref.current);
+              setBroken(false);
+              setAttempt((current) => current + 1);
             }}
-          >
-            {translate("DCS_DB_MAP_RESET")}
-          </button>
-        </div>
-
-        {tip && (
-          <div className="dcs-map-tip" style={{ left: tip.x + 14, top: tip.y + 14, backgroundColor: colors.tooltip.backgroundColor, color: colors.tooltip_text.color, borderColor: colors.border }}>
-            <b>{tip.name}</b>
-            {tip.path && <span className="dcs-map-tip-path">{tip.path}</span>}
-            <span>{tip_row ? number_text(tip_row.value) : translate("DCS_DB_MAP_NO_VALUE")}</span>
-            {has_split && tip_row && (
-              <span className="dcs-map-tip-values">
-                {split_values
-                  .filter((value) => (Number(tip_row[value]) || 0) > 0)
-                  .map((value) => (
-                    <span key={value} className="dcs-map-tip-value">
-                      <span className="dcs-map-legend-swatch" style={{ borderColor: value_color(value), backgroundColor: value_color(value) }} />
-                      {value} {number_text(tip_row[value])}
-                    </span>
-                  ))}
-              </span>
-            )}
-          </div>
-        )}
-
-        {failed ? (
-          <div className="dcs-map-veil" style={veil}>
-            <p className="text-xs font-semibold" style={{ color: colors.text }}>
-              {(!broken && status.error) || translate("DCS_DB_MAP_FAILED")}
-            </p>
-            <button
-              type="button"
-              className="dcs-map-retry"
-              style={{ color: colors.number, borderColor: colors.border }}
-              onClick={() => {
-                setBroken(false);
-                setAttempt((current) => current + 1);
-              }}
-            >
-              {translate("DCS_DB_RETRY")}
-            </button>
-          </div>
-        ) : (
-          (status.loading || !ready) && (
-            <div className="dcs-map-veil" style={veil}>
-              <SpiralLoader />
-            </div>
-          )
+          />
         )}
       </div>
 
-      <MapLegend items={legend_items} palette={colors} onPick={onItemClick || onLegendClick ? pick_legend : null} unknown={drawing.unknown} />
+      <MapLegend items={legend_items} palette={colors} onPick={!is_heat && (onItemClick || onLegendClick) ? pick_legend : null} unknown={drawing.unknown} />
     </div>
   );
 }

@@ -2,7 +2,9 @@ import { SERIES_COLORS } from "./charts/chartTheme.js";
 
 /**
  * A widget's appearance: its mode (light or dark), the background, text and
- * number colors of each mode, and one color per legend / category value.
+ * number colors of each mode, one color per legend / category value, and the
+ * name each of those values is shown under - a stored answer stays what it
+ * is, but a legend may call it something a reader understands.
  * build_palette turns that into everything a renderer needs, so charts and
  * cards never read the raw appearance themselves.
  */
@@ -91,7 +93,7 @@ export function resolve_appearance(raw) {
   const theme = source.theme === "dark" ? "dark" : "light";
   const mode = (name) => ({ ...MODE_DEFAULTS[name], ...(source[name] && typeof source[name] === "object" ? source[name] : {}) });
   const legend_position = LEGEND_POSITIONS.includes(source.legend_position) ? source.legend_position : "bottom";
-  return { theme, legend_position, light: mode("light"), dark: mode("dark"), value_colors: { ...(source.value_colors || {}) } };
+  return { theme, legend_position, light: mode("light"), dark: mode("dark"), value_colors: { ...(source.value_colors || {}) }, value_labels: { ...(source.value_labels || {}) } };
 }
 
 /**
@@ -110,6 +112,12 @@ export function build_palette(raw, board_theme) {
   // The color this widget was told to use for one value, if any - a map
   // spreads its own colors and only wants to know about the exceptions.
   const color_override = (label) => value_colors[String(label)] || null;
+  // What this value is CALLED here. Everything else about it is unchanged.
+  const value_labels = appearance.value_labels || {};
+  const name_for = (label) => {
+    const named = value_labels[String(label)];
+    return named === undefined || named === null || named === "" ? label : named;
+  };
   return {
     theme: appearance.theme,
     is_dark: appearance.theme === "dark",
@@ -125,6 +133,8 @@ export function build_palette(raw, board_theme) {
     soft: extras.soft,
     color_for,
     color_override,
+    name_for,
+    value_labels,
     tick: { fontSize: 11, fill: mode.text },
     tooltip: { borderRadius: 0, border: `1px solid ${extras.border}`, fontSize: 12, backgroundColor: mode.background, color: mode.text },
     // Recharts paints tooltip rows black unless told otherwise - unreadable on a dark board.

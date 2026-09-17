@@ -47,6 +47,7 @@ export default function BoardGrid({
   selection,
   onOpenRecords,
   mapLevels,
+  heatField,
 }) {
   const [dragging_id, setDraggingId] = useState(null);
   const [over_id, setOverId] = useState(null);
@@ -72,6 +73,13 @@ export default function BoardGrid({
   // the city has boundaries for; turning into one carries that level over,
   // and turning back leaves it in place for the next time.
   const map_level_of = (widget) => (mapLevels && widget.group_by ? mapLevels.get(widget.group_by.field_id) : undefined);
+  // Switching a map between its two kinds keeps what the other kind needs,
+  // so a map turned to heat and back is the map it was.
+  const map_of_mode = (widget, next) => {
+    const held = widget.map || {};
+    if (next !== "heat") return Object.assign({}, held, { mode: "world", level: held.level || (mapLevels && widget.group_by ? mapLevels.get(widget.group_by.field_id) : undefined) });
+    return Object.assign({}, held, { mode: "heat", point_field_id: held.point_field_id || heatField });
+  };
   const type_change = (widget, next_type) => {
     if (next_type !== "map") return { chart_type: next_type };
     const level = map_level_of(widget);
@@ -92,7 +100,8 @@ export default function BoardGrid({
       onRemove={editable ? () => onRemoveWidget(widget) : undefined}
       onChangeType={editable ? (next_type) => onUpdateWidget(widget.id, type_change(widget, next_type)) : undefined}
       canMap={map_level_of(widget) !== undefined}
-      onToggleHeat={editable && widget.chart_type === "map" ? () => onUpdateWidget(widget.id, { map: Object.assign({}, widget.map || {}, { heatmap: !(widget.map && widget.map.heatmap) }) }) : undefined}
+      canHeat={!!heatField}
+      onMapMode={editable && widget.chart_type === "map" ? (next) => onUpdateWidget(widget.id, { map: map_of_mode(widget, next) }) : undefined}
       onChangeSize={editable && widget.chart_type !== "kpi" ? (next_size) => onUpdateWidget(widget.id, { size: next_size }) : undefined}
       onRetry={() => onRetryWidget(widget)}
       onShowSkipped={onShowSkipped}

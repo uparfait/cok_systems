@@ -21,9 +21,13 @@ import { filter_candidates, field_label_of, parent_filter_of, descendant_filters
  * link the fixed filters show their value and cannot be changed.
  *
  * Every filter's values are loaded as soon as the bar mounts and again,
- * silently, whenever the period or another filter changes (refreshKey) or
- * a filter is opened - what a filter already lists stays on screen while
- * the fresh list arrives, so opening one never waits.
+ * whenever the period or another filter changes (refreshKey) or a filter is
+ * opened. A plain filter keeps what it lists while the fresh list arrives,
+ * so opening one never waits - but A CASCADE CHILD DROPS ITS LIST THE
+ * MOMENT ANYTHING CHANGES: the sectors it was showing belong to the
+ * district that was chosen before, and nobody may pick one of those by
+ * mistake. Until its own list lands it says it is loading and offers
+ * nothing.
  *
  * Cascades are tracked: a child filter (sector) stays closed until its
  * parent filter (district) holds a value, and changing or clearing the
@@ -59,16 +63,39 @@ export default function BoardFilters({ filters, fields, values, onValue, onValue
   const candidates = filter_candidates(fields);
   const locked = lockedIds || new Set();
   const [cache, setCache] = useState({});
+  const [busy, setBusy] = useState({});
   const alive_ref = useRef(true);
   const defs_key = defs.map((def) => def.field_id).join("|");
+  // The parent value each child's list was loaded under.
+  const loaded_under = useRef({});
 
-  const refresh = (field_id) =>
-    Promise.resolve(fetchValues(field_id))
+  const refresh = (field_id) => {
+    setBusy((current) => ({ ...current, [field_id]: true }));
+    return Promise.resolve(fetchValues(field_id))
       .then((list) => alive_ref.current && setCache((current) => ({ ...current, [field_id]: Array.isArray(list) ? list : [] })))
-      .catch(() => alive_ref.current && setCache((current) => (current[field_id] ? current : { ...current, [field_id]: [] })));
+      .catch(() => alive_ref.current && setCache((current) => (current[field_id] ? current : { ...current, [field_id]: [] })))
+      .finally(() => alive_ref.current && setBusy((current) => ({ ...current, [field_id]: false })));
+  };
 
   useEffect(() => {
     alive_ref.current = true;
+    // A child's list belongs to the parent value it was loaded under: when
+    // THAT changes the list goes, so nobody can pick from the old one. Any
+    // other change (the period, a sibling, its own value) leaves the list on
+    // screen and refreshes it quietly underneath.
+    setCache((current) => {
+      const next = { ...current };
+      defs.forEach((def) => {
+        const parent = parent_filter_of(candidates.find((entry) => entry.id === def.field_id));
+        if (!parent || !def_ids.has(parent)) return;
+        const under = values && values[parent] !== undefined && values[parent] !== null ? String(values[parent]) : "";
+        if (loaded_under.current[def.field_id] !== under) {
+          delete next[def.field_id];
+          loaded_under.current[def.field_id] = under;
+        }
+      });
+      return next;
+    });
     defs.forEach((def) => refresh(def.field_id));
     return () => {
       alive_ref.current = false;
@@ -110,6 +137,7 @@ export default function BoardFilters({ filters, fields, values, onValue, onValue
             disabled={disabled || !!waits_for}
             waitHint={waits_for ? translate("DCS_DB_FILTER_PICK_PARENT", { parent: waits_for }) : ""}
             values={cache[def.field_id]}
+            loading={!!busy[def.field_id]}
             onOpen={() => refresh(def.field_id)}
             onChange={(value) => apply(def.field_id, value)}
           />

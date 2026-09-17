@@ -153,7 +153,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
  * multi-series line form - see convertible_types), and remove the widget.
  * Closes on outside click.
  */
-function CardMenu({ widget, palette, canMap, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onToggleHeat }) {
+function CardMenu({ widget, palette, canMap, canHeat, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onMapMode }) {
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
   const button_ref = useRef(null);
@@ -255,9 +255,9 @@ function CardMenu({ widget, palette, canMap, onChangeType, onChangeSize, onRemov
               {translate(widget.chart_type === "map" ? "DCS_DB_MAP_CHANGE_MARKER" : widget.icon ? "DCS_DB_ICON_CHANGE" : "DCS_DB_ICON_SET")}
             </button>
           )}
-          {onToggleHeat && (
-            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: onPickIcon ? "none" : `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onToggleHeat)}>
-              {translate(widget.map && widget.map.heatmap ? "DCS_DB_MAP_HEAT_OFF" : "DCS_DB_MAP_HEAT_ON")}
+          {onMapMode && (widget.map && widget.map.mode === "heat" ? canMap : canHeat) && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: onPickIcon ? "none" : `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(() => onMapMode(widget.map && widget.map.mode === "heat" ? "world" : "heat"))}>
+              {translate(widget.map && widget.map.mode === "heat" ? "DCS_DB_MAP_KIND_WORLD" : "DCS_DB_MAP_KIND_HEAT")}
             </button>
           )}
           {onAppearance && (
@@ -317,7 +317,7 @@ function KpiIconSlot({ icon, color }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords, canMap, onToggleHeat }) {
+export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords, canMap, canHeat, onMapMode }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -437,8 +437,8 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           />
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
-        {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon || onToggleHeat) && (
-          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onToggleHeat={is_map ? onToggleHeat : undefined} />
+        {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon || onMapMode) && (
+          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onMapMode={is_map ? onMapMode : undefined} canHeat={canHeat} />
         )}
       </div>
 
@@ -474,7 +474,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             )}
           </div>
         ) : (
-          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_size.width} fillHeight={fill_height} onPick={pick_records} />
+          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_size.width} fillHeight={fill_height} onPick={pick_records} canHeat={canHeat} canWorld={canMap} onMapMode={onMapMode} />
         )}
       </div>
 

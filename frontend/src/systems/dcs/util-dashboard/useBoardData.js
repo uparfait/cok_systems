@@ -36,6 +36,8 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
   const applied_filters_ref = useRef(applied_filter_list(initialFilterValues || {}));
 
   const run_seq_ref = useRef(0);
+  // How many loads the viewer is waiting on right now.
+  const waiting_ref = useRef(0);
   const applied_period_ref = useRef({ preset: "this_year", from: null, to: null });
   const widgets_ref = useRef([]);
   widgets_ref.current = widgets;
@@ -77,9 +79,20 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     // The board is NEVER emptied to reload it: every card keeps the data
     // it has until its own new result replaces it, and the board marks
     // itself busy so the cards can cover themselves meanwhile.
-    if (!silent) setDataLoading(true);
+    // Counted, not matched against the newest run id: a silent poll also
+    // takes a run id, so a load that finishes after one started would never
+    // recognise itself and the board would stay busy for ever. Every load
+    // the viewer waits on adds one here and takes it back when it settles,
+    // whether its results were still wanted or not, and the board is busy
+    // for exactly as long as one of them is out.
+    if (!silent) {
+      waiting_ref.current += 1;
+      setDataLoading(true);
+    }
     Promise.allSettled(widget_list.map((widget) => fetch_one(widget, applied_period, run_id, silent))).then(() => {
-      if (run_seq_ref.current === run_id && !silent) setDataLoading(false);
+      if (silent) return;
+      waiting_ref.current = Math.max(0, waiting_ref.current - 1);
+      if (waiting_ref.current === 0) setDataLoading(false);
     });
   };
 

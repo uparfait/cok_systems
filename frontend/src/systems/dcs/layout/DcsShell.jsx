@@ -48,6 +48,9 @@ export default function DcsShell() {
   const location = useLocation();
   const [is_sub_header_visible, setIsSubHeaderVisible] = useState(true);
   const [is_main_sidebar_open, setIsMainSidebarOpen] = useState(false);
+  // The projects sidebar starts open: it is this module's own workspace
+  // panel, and its button lives in the sub-header next to the page links.
+  const [is_projects_sidebar_open, setIsProjectsSidebarOpen] = useState(true);
   const is_visible_ref = useRef(true);
   const last_scroll_top_ref = useRef(0);
   // Toggling the sub-header changes DcsSidebarShell's own available height
@@ -173,9 +176,11 @@ export default function DcsShell() {
           <DcsHeader
             subHeaderVisible
             onMainMenuToggle={() => setIsMainSidebarOpen((previous) => !previous)}
+            onProjectsMenuToggle={() => setIsProjectsSidebarOpen((previous) => !previous)}
+            projectsSidebarOpen={is_projects_sidebar_open}
             projects={projects}
           />
-          <DcsSidebarShell projects={projects} projectsLoading={projects_loading}>
+          <DcsSidebarShell projects={projects} projectsLoading={projects_loading} isOpen={is_projects_sidebar_open} onClose={() => setIsProjectsSidebarOpen(false)} onPeek={setIsProjectsSidebarOpen}>
             <Outlet />
           </DcsSidebarShell>
         </div>

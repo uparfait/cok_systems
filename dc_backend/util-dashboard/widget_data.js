@@ -336,6 +336,37 @@ function ungrouped_widget(widget) {
 }
 
 /**
+ * A heat map's data: the points themselves, what the split field divides
+ * them into (with what each value weighs, for the legend) and the lightest
+ * and heaviest point there is, which is what a heat scale is read against.
+ */
+async function heat_data(widget, bounds) {
+  const points = await pipelines.heat_points(widget, bounds);
+  const totals = new Map();
+  let low = null;
+  let high = null;
+  points.forEach((point) => {
+    const weight = Number(point.weight) || 0;
+    if (low === null || weight < low) low = weight;
+    if (high === null || weight > high) high = weight;
+    const name = point.group === null || point.group === undefined ? "" : String(point.group);
+    if (name) totals.set(name, (totals.get(name) || 0) + weight);
+  });
+  const groups = Array.from(totals.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((left, right) => right.value - left.value)
+    .slice(0, LEGEND_LIMIT);
+  return {
+    kind: CHART_KINDS.HEAT,
+    points,
+    groups,
+    range: { low: low === null ? 0 : low, high: high === null ? 0 : high },
+    weighted: !!(widget.map && widget.map.weight_field_id),
+    capped: points.length >= LIMITS.MAX_HEAT_POINTS,
+  };
+}
+
+/**
  * The complete data of one widget. The caller has already verified access
  * and resolved the form's active version (for its field catalog).
  */
@@ -343,6 +374,12 @@ async function widget_data_of(raw_widget, form_version, period_override) {
   const catalog = build_field_catalog(form_version.schema);
   const bounds = effective_bounds(raw_widget, period_override);
   let kind = (CHART_TYPES[raw_widget.chart_type] || {}).kind;
+  // A heat map is not a category chart at all: it is the records
+  // themselves, each at the place it was collected, so it never goes near
+  // grouping, folding or a limit.
+  if (raw_widget.chart_type === "map" && raw_widget.map && raw_widget.map.mode === "heat") {
+    return heat_data(raw_widget, bounds);
+  }
   if (((raw_widget.metric && raw_widget.metric.aggregation) || "count") === "occurrences") {
     return compute_occurrences(raw_widget, kind, bounds, catalog);
   }

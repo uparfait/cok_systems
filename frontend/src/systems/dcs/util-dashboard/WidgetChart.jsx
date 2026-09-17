@@ -38,7 +38,7 @@ const WHOLE_OF_TOTAL = ["pie", "donut", "waffle"];
  * Under every legend sits the count line: how many different values each
  * choice field the widget reads holds under the same filters.
  */
-export default function WidgetChart({ widget, data, fitMode, animate, cardWidth, fillHeight, onPick }) {
+export default function WidgetChart({ widget, data, fitMode, animate, cardWidth, fillHeight, onPick, canHeat, canWorld, onMapMode }) {
   const { translate } = useDcsLanguage();
   const [show_other, setShowOther] = useState(false);
   const [show_all, setShowAll] = useState(false);
@@ -169,23 +169,39 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
 
   // A map is asked for by name, so it never takes the capped rows: every
   // place with an answer is drawn, and its own legend folds the long list.
+  // A heat map takes no rows at all - it is the records themselves, each at
+  // the position it was collected.
   if (widget.chart_type === "map") {
+    const settings = widget.map || {};
+    const heat = settings.mode === "heat";
     return (
       <div>
         <MapChart
+          mapKey={widget.id}
+          mode={heat ? "heat" : "world"}
           rows={rows}
           series={data.series || []}
-          marker={(widget.map && widget.map.marker) || null}
-          showMarkers={!!(widget.map && widget.map.show_markers)}
-          showLabels={!(widget.map && widget.map.show_labels === false)}
-          heatmap={!!(widget.map && widget.map.heatmap)}
+          points={data.points || []}
+          groups={data.groups || []}
+          range={data.range || null}
+          marker={settings.marker || null}
+          showMarkers={!!settings.show_markers}
+          showLabels={!(settings.show_labels === false)}
+          radius={settings.radius}
+          intensity={settings.intensity}
+          lowColor={settings.low_color}
+          highColor={settings.high_color}
+          showPoints={settings.show_points !== false}
+          canHeat={canHeat}
+          canWorld={canWorld}
+          onMode={onMapMode}
           palette={palette}
           density={density}
           animate={animate}
           onItemClick={handle_item_click}
           onLegendClick={legend_pick}
         />
-        <DimensionTotals totals={data.totals} palette={palette} />
+        {!heat && <DimensionTotals totals={data.totals} palette={palette} />}
       </div>
     );
   }

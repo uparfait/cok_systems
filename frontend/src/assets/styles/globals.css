@@ -3347,6 +3347,35 @@ background-color: #056daa;
   z-index: 2;
 }
 /* The map widget: boundaries drawn in SVG, names and markers above it. */
+.dcs-rename-input {
+  width: 150px;
+  padding: 5px 8px;
+  border: 1px solid #E0E0E0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  color: #333333;
+}
+.dcs-rename-input:focus {
+  outline: none;
+  border-color: #056daa;
+}
+.dcs-map-kinds {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.dcs-map-kind {
+  padding: 3px 10px;
+  border: 1px solid;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
 .dcs-map-frame {
   position: relative;
   overflow: hidden;
@@ -3361,6 +3390,59 @@ background-color: #056daa;
 }
 .dcs-map-canvas .maplibregl-canvas:focus {
   outline: none;
+}
+.dcs-sidebar-peek {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  z-index: 20;
+}
+.dcs-sub-header-menu {
+  background: none;
+  border: none;
+  line-height: 0;
+  transition: background-color 0.16s ease;
+}
+.dcs-sub-header-menu:hover {
+  background-color: rgba(5, 109, 170, 0.08);
+}
+.dcs-sub-header-menu.is-open {
+  background-color: rgba(5, 109, 170, 0.14);
+}
+.dcs-sidebar-close {
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: none;
+  color: #9E9E9E;
+  transition: color 0.16s ease, background-color 0.16s ease;
+}
+.dcs-sidebar-close:hover {
+  color: #056daa;
+  background-color: rgba(5, 109, 170, 0.08);
+}
+.dcs-board-filter.is-loading {
+  opacity: 0.75;
+}
+.dcs-board-filter-busy {
+  width: 10px;
+  height: 10px;
+  border: 1.6px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.8;
+  animation: dcs-filter-spin 700ms linear infinite;
+}
+@keyframes dcs-filter-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.dcs-board-switcher-item:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 .dcs-widget-busy {
   position: absolute;
@@ -3436,25 +3518,29 @@ background-color: #056daa;
   gap: 4px;
 }
 .dcs-map-tools button {
-  min-width: 26px;
-  height: 26px;
-  padding: 0 6px;
-  background-color: rgba(255, 255, 255, 0.92);
-  border: 1px solid #E0E0E0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Glass: the widget background thinned over the map, blurred, with a
+     hairline edge and a soft lift - it reads on streets and on a plain
+     board alike, and the map keeps showing through. */
+  border: 1px solid;
+  border-radius: 10px;
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.35);
   cursor: pointer;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  color: #333333;
-  transition: background-color 160ms ease;
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
 }
 .dcs-map-tools button:hover {
-  background-color: #FFFFFF;
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
-.dcs-map-tools .dcs-map-reset {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+.dcs-map-tools button:active {
+  transform: translateY(0);
 }
 .dcs-map-tip {
   position: absolute;

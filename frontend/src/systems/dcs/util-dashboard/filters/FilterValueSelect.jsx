@@ -21,8 +21,17 @@ const SEARCH_FROM = 8;
  * refresh) or fetched here on first open (`fetchValues`) and then kept, so
  * a filter that has loaded once never shows a spinner again. A locked
  * filter (a share link that fixes it) shows its value and cannot be opened.
+ *
+ * While a fresh list is on its way (`loading`) the filter says so with a
+ * small spinner where its arrow is, and that is all: a filter that already
+ * holds a list keeps it on screen and stays pickable, so opening one never
+ * waits and never flickers. A cascade child is the exception - when its
+ * parent changes, the bar takes its list away, and with nothing it can
+ * trust it shows the loader and offers nothing until its own values land.
+ * Picking one of the previous parent's values would filter the board by
+ * something that does not exist under the new one.
  */
-export default function FilterValueSelect({ label, value, onChange, values, onOpen, fetchValues, locked, disabled, waitHint, allLabel }) {
+export default function FilterValueSelect({ label, value, onChange, values, onOpen, fetchValues, locked, disabled, waitHint, allLabel, loading }) {
   // What the empty choice is called: "All" on a board, "Default" when fixing a link.
   const all_text = allLabel || null;
   const { translate } = useDcsLanguage();
@@ -32,7 +41,12 @@ export default function FilterValueSelect({ label, value, onChange, values, onOp
   const [query, setQuery] = useState("");
   const has_value = value !== "" && value !== null && value !== undefined;
   const list = values !== undefined ? values : own_values;
-  const loading = !Array.isArray(list);
+  // Waiting is having NOTHING that can be trusted - a filter opened for the
+  // first time, or a cascade child whose parent has just changed. A filter
+  // that already holds a list keeps showing it and refreshes underneath, so
+  // opening one never waits and never flickers.
+  const waiting = !Array.isArray(list);
+  const refreshing = loading === true && !waiting;
   const shown_values = Array.isArray(list) ? list : [];
 
   useEffect(() => {
@@ -57,14 +71,14 @@ export default function FilterValueSelect({ label, value, onChange, values, onOp
 
   const shown = query.trim() ? shown_values.filter((entry) => String(entry.value).toLowerCase().includes(query.trim().toLowerCase())) : shown_values;
   // The current value stays selectable even when no record carries it any more.
-  const current_listed = loading || !has_value || shown_values.some((entry) => String(entry.value) === String(value));
+  const current_listed = waiting || !has_value || shown_values.some((entry) => String(entry.value) === String(value));
 
   return (
     <>
       <button
         ref={anchor_ref}
         type="button"
-        className={`dcs-board-filter ${has_value ? "is-active" : ""} ${open ? "is-open" : ""} ${locked ? "is-locked" : ""} ${waitHint ? "is-waiting" : ""}`}
+        className={`dcs-board-filter ${has_value ? "is-active" : ""} ${open ? "is-open" : ""} ${locked ? "is-locked" : ""} ${waitHint ? "is-waiting" : ""} ${(waiting || refreshing) && !locked ? "is-loading" : ""}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         disabled={disabled || locked}
@@ -73,28 +87,28 @@ export default function FilterValueSelect({ label, value, onChange, values, onOp
       >
         <span className="dcs-board-filter-label">{label}</span>
         <span className="dcs-board-filter-value">{has_value ? String(value) : waitHint || all_text || translate("DCS_DB_FILTER_ALL")}</span>
-        {!locked && <span className="dcs-board-filter-chevron">{CHEVRON}</span>}
+        {!locked && (waiting || refreshing ? <span className="dcs-board-filter-busy" aria-hidden="true" /> : <span className="dcs-board-filter-chevron">{CHEVRON}</span>)}
       </button>
       <MenuPopover open={open} anchorRef={anchor_ref} onClose={() => setOpen(false)} minWidth={240} maxHeight={400} align="start" role="listbox">
         <div className="dcs-board-switcher-head">
           <span>{label}</span>
-          <span>{shown_values.length || ""}</span>
+          <span>{waiting || refreshing ? translate("DCS_DB_FILTER_LOADING") : shown_values.length || ""}</span>
         </div>
-        {shown_values.length >= SEARCH_FROM && (
+        {shown_values.length >= SEARCH_FROM && !waiting && (
           <div className="dcs-board-filter-search">
             <input value={query} autoFocus placeholder={translate("DCS_DB_FILTER_SEARCH")} onChange={(event) => setQuery(event.target.value)} />
           </div>
         )}
         <ul className="dcs-board-switcher-list">
           <li>
-            <button type="button" role="option" aria-selected={!has_value} className={`dcs-board-switcher-item ${!has_value ? "is-active" : ""}`} onClick={() => pick("")}>
+            <button type="button" role="option" aria-selected={!has_value} disabled={waiting} className={`dcs-board-switcher-item ${!has_value ? "is-active" : ""}`} onClick={() => pick("")}>
               <span className="min-w-0 flex-1">
                 <span className="dcs-board-switcher-item-name">{all_text || translate("DCS_DB_FILTER_ALL")}</span>
                 {all_text && <span className="dcs-board-switcher-item-meta">{translate("DCS_DB_SHARE_DEFAULT_HINT")}</span>}
               </span>
             </button>
           </li>
-          {loading ? (
+          {waiting ? (
             <li className="flex justify-center py-4">
               <SpiralLoader />
             </li>

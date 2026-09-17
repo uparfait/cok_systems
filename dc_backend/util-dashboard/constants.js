@@ -10,6 +10,8 @@ const CHART_KINDS = {
   POINT: "point",
   TREE: "tree",
   KPI: "kpi",
+  // The records themselves, each at the place it was collected.
+  HEAT: "heat",
 };
 
 // chart_type -> the data kind its pipeline produces, whether a split
@@ -102,6 +104,9 @@ const LIMITS = {
   MAX_DISPLAY_FIELDS: 5,
   DEFAULT_CATEGORY_LIMIT: 12,
   MAX_POINTS: 500,
+  // A heat map is drawn from the records themselves, not from groups of
+  // them, so it carries far more - but never a whole database.
+  MAX_HEAT_POINTS: 8000,
   MAX_TIME_BUCKETS: 400,
 };
 

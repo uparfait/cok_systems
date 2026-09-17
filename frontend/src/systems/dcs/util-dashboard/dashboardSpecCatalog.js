@@ -52,7 +52,7 @@ const CHART_TEXT = {
   donut: "A pie with a hole, at most 6 slices.",
   waffle: "A 10x10 grid of squares showing shares, at most 6 values.",
   treemap: "Nested rectangles sized by value, one per group_by value.",
-  map: "Places drawn on a real map (MapLibre) from their own administrative boundaries: one shape per group_by value, each in a color of its own, with its name written inside it and its number on its marker, and every parent above them outlined behind. Needs map.level and a group_by field whose answers are place names (the form's district, sector, cell or village field). Only places inside the City of Kigali have boundaries.",
+  map: "A real map (MapLibre), drawn one of two ways. map.mode \"world\" fills administrative boundaries: one shape per group_by value, each in a color of its own, with its name written inside it and its number on its marker, and every parent above them outlined behind - it needs map.level and a group_by field whose answers are place names (the form's district, sector, cell or village field), and only places inside the City of Kigali have boundaries. map.mode \"heat\" spreads the records themselves, each at the position it was collected: it needs map.point_field_id, a field of type geolocation, and NOTHING else about places - no level, no group_by, no markers. A form without a geolocation field cannot hold a heat map.",
   scatter: "Points from two numeric fields (x_field_id, y_field_id).",
   bubble: "A scatter whose point size comes from a third numeric field (size_field_id).",
   heatmap: "A grid of group_by values by split_by values, colored by the measure.",
@@ -103,7 +103,7 @@ function widget_shape() {
     chart_type: `One of: ${Object.keys(CHART_TEXT).join(", ")} (see chart_types).`,
     metric: "{ aggregation, field_id } - the measure. aggregation is one of the formulas; field_id is a numeric field for numeric formulas, any field (or null for whole submissions) for count, any field for count_distinct. Point charts (scatter, bubble) ignore metric.",
     group_by: "{ field_id } for category and tree charts (a choice field); { field_id, granularity } for time charts where field_id is 'submitted_at' or a date field and granularity is one of the time_granularities. null for KPI and point charts. Optional everywhere else too: with no group_by the chart draws one mark per split_by value, and with neither it draws the single total of what it selects.",
-    map: "Maps only: { level, marker, show_markers, show_labels, heatmap }. level is one of province, district, sector, cell, village and must match the group_by field (a district map groups by the form's district field). marker is an icon id like \"lucide:MapPin\" (any icon of the icon libraries), show_markers plants it on every place with that place's number, and show_labels writes the place names. With a split_by every place plants that same icon once per value, in the value's own color, and the legend names the values. heatmap: true also spreads a heat layer weighted by the numbers - one per split value, each in that value's own color, or one in the color named \"heatmap\" in appearance.colors when the map is not split.",
+    map: "Maps only. A world map: { mode: \"world\", level, marker, show_markers, show_labels }. level is one of province, district, sector, cell, village and must match the group_by field (a district map groups by the form's district field). marker is an icon id like \"lucide:MapPin\" (any icon of the icon libraries), show_markers plants it on every place with that place's number, and show_labels writes the place names. With a split_by every place plants that same icon once per value, in the value's own color, and the legend names the values. A heat map instead: { mode: \"heat\", point_field_id, weight_field_id, radius, intensity, show_points, low_color, high_color }. point_field_id is the form's geolocation field and is required; weight_field_id is a number field each answer is weighed by (left out, every answer weighs one); radius 6-80 and intensity 0.2-4 say how far one answer's heat reaches and how hard it burns (28 and 1.3 read well); show_points draws each answer as a dot once the viewer zooms in; low_color and high_color are the two ends of the scale, as #rrggbb. Split a heat map with split_by and each value spreads its own heat in its own color from appearance.value_colors, and the legend names them - no scale colors are used then.",
     split_by: "{ field_id } of a second choice field (different from group_by) - required by grouped/stacked/heatmap types, optional on line, forbidden elsewhere.",
     pattern_by: "{ field_id } of a third choice field drawn as a texture inside each split color - grouped/stacked bar and column charts only. Usually null.",
     legend_by: "{ field_id } of a choice field - KPI cards only: lists the count per value under the number. Not with median, cumulative_sum, moving_average or occurrences.",
@@ -175,7 +175,7 @@ function examples(form, fields) {
       size: "large",
       metric: { aggregation: "count", field_id: null },
       group_by: { field_id: place.fields[0].id },
-      map: { level: place.level, marker: "lucide:MapPin", show_markers: false, show_labels: true, heatmap: false },
+      map: { mode: "world", level: place.level, marker: "lucide:MapPin", show_markers: false, show_labels: true },
     });
   }
   if (choice[0] && Array.isArray(choice[0].raw.options) && choice[0].raw.options[0]) {
@@ -308,6 +308,35 @@ export function normalize_pasted_filters(form, pasted) {
  * present, and positions in array order. Returns { widgets, unknown_fields }
  * where unknown_fields lists every field id not found on the form.
  */
+/**
+ * A pasted map's own settings. The two kinds share nothing but the mode
+ * itself, so each keeps only what it is drawn from - a heat map carrying a
+ * level, or a world map carrying a position field, would be a map that
+ * cannot make up its mind.
+ */
+function map_settings(source) {
+  if (source.chart_type !== "map" || !source.map || typeof source.map !== "object") return null;
+  const held = source.map;
+  if (held.mode === "heat") {
+    return {
+      mode: "heat",
+      point_field_id: typeof held.point_field_id === "string" ? held.point_field_id : null,
+      weight_field_id: typeof held.weight_field_id === "string" ? held.weight_field_id : null,
+      radius: Number(held.radius) || null,
+      intensity: Number(held.intensity) || null,
+      show_points: held.show_points !== false,
+      low_color: typeof held.low_color === "string" ? held.low_color : null,
+      high_color: typeof held.high_color === "string" ? held.high_color : null,
+    };
+  }
+  return {
+    mode: "world",
+    level: held.level,
+    marker: typeof held.marker === "string" ? held.marker : null,
+    show_markers: held.show_markers === true,
+    show_labels: held.show_labels !== false,
+  };
+}
 export function normalize_pasted_widgets(form, pasted) {
   const known = new Set(flatten_schema_fields((form.schema && form.schema.fields) || []).map((field) => field.id));
   known.add(SUBMITTED_AT_FIELD);
@@ -360,16 +389,7 @@ export function normalize_pasted_widgets(form, pasted) {
       occurrence_scope: source.occurrence_scope === "all" ? "all" : rule ? "matching" : "all",
       appearance: source.appearance && typeof source.appearance === "object" ? source.appearance : null,
       // A map's own settings: which boundaries it draws and how it marks them.
-      map:
-        source.chart_type === "map" && source.map && typeof source.map === "object"
-          ? {
-              level: source.map.level,
-              marker: typeof source.map.marker === "string" ? source.map.marker : null,
-              show_markers: source.map.show_markers === true,
-              show_labels: source.map.show_labels !== false,
-              heatmap: source.map.heatmap === true,
-            }
-          : null,
+      map: map_settings(source),
       x_field_id: source.x_field_id || null,
       y_field_id: source.y_field_id || null,
       size_field_id: source.size_field_id || null,

@@ -12,6 +12,9 @@ const { SUBMITTED_AT_FIELD } = require("./constants.js");
 const CATEGORICAL_TYPES = ["single_select", "multi_select", "cascading_select", "select_group", "likert_scale"];
 const MULTI_VALUE_TYPES = ["multi_select", "ranking"];
 const NUMERIC_TYPES = ["number"];
+// The one field type that captures a real position: latitude, longitude
+// and what was read back around them.
+const GEO_TYPES = ["geolocation"];
 const DATE_TYPES = ["date", "date_time"];
 
 function field_label_text(field) {
@@ -50,11 +53,13 @@ function build_field_catalog(schema) {
   const categorical = [];
   const numeric = [];
   const dates = [];
+  const geo = [];
   flat.forEach((field) => {
     if (!field || !field.id) return;
     if (CATEGORICAL_TYPES.includes(field.type)) categorical.push(field.id);
     if (NUMERIC_TYPES.includes(field.type)) numeric.push(field.id);
     if (DATE_TYPES.includes(field.type)) dates.push(field.id);
+    if (GEO_TYPES.includes(field.type)) geo.push(field.id);
   });
 
   return {
@@ -62,6 +67,7 @@ function build_field_catalog(schema) {
     categorical_ids: categorical,
     numeric_ids: numeric,
     date_ids: dates,
+    geo_ids: geo,
   };
 }
 

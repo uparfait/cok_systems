@@ -9,12 +9,13 @@ import DcsContextNavLinks from "./DcsContextNavLinks.jsx";
 /**
  * Reuses the same authenticated header every other system uses (profile,
  * notifications, logout), with no sidebar next to it. A slim translated
- * bar underneath carries a back icon and the Home, Templates and Approve
- * data links on the left, the links of the open project or form in the
+ * bar underneath carries the projects sidebar's own menu button - the same
+ * button the header above it uses for the main sidebar - and the Home,
+ * Templates and Approve data links on the left, the links of the open project or form in the
  * center (as many as fit, the rest behind "More"), and the totals plus
  * the language switcher on the right.
  */
-export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, projects }) {
+export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, onProjectsMenuToggle, projectsSidebarOpen, projects }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { translate } = useDcsLanguage();
@@ -41,13 +42,14 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, p
           <div className="flex items-center gap-3 flex-shrink-0">
             <button
               type="button"
-              onClick={() => navigate(-1)}
-              title={translate("DCS_BTN_BACK")}
-              className="dcs-sidebar-toggle cursor-pointer flex items-center justify-center bg-white border flex-shrink-0"
-              style={{ width: 30, height: 30, borderRadius: "50%", borderColor: "#E0E0E0" }}
+              onClick={onProjectsMenuToggle || (() => {})}
+              title={translate(projectsSidebarOpen ? "DCS_SIDEBAR_HIDE" : "DCS_SIDEBAR_SHOW")}
+              className={`dcs-sub-header-menu p-2 rounded-none cursor-pointer flex-shrink-0 ${projectsSidebarOpen ? "is-open" : ""}`}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2" strokeLinecap="round">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
 

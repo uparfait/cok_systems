@@ -107,8 +107,25 @@ function validate_occurrences(widget, catalog, errors, describe) {
 
 function validate_shape_for_kind(widget, definition, catalog, errors, describe) {
   const kind = definition.kind;
-  // A map draws named boundaries: it needs the level and the field whose
+  // A map is drawn one of two ways, and each asks for its own things. A
+  // HEAT map spreads the positions records were collected at, so it needs a
+  // field that captured one - an administrative level says nothing about
+  // where inside itself an answer came from, and cannot make heat. A WORLD
+  // map fills named boundaries, so it needs the level and the field whose
   // answers name them.
+  if (widget.chart_type === "map" && widget.map && widget.map.mode === "heat") {
+    const point_field = widget.map.point_field_id;
+    if (!point_field || !(catalog.geo_ids || []).includes(point_field)) {
+      errors.push(`${describe}: a heat map needs the form's map location field, the one that records latitude and longitude`);
+    }
+    if (widget.map.weight_field_id && !is_numeric(catalog, widget.map.weight_field_id)) {
+      errors.push(`${describe}: a heat map can only be weighed by a number field`);
+    }
+    if (widget.split_by && widget.split_by.field_id && !is_categorical(catalog, widget.split_by.field_id)) {
+      errors.push(`${describe}: a heat map splits by a choice field`);
+    }
+    return;
+  }
   if (widget.chart_type === "map") {
     const level = widget.map && widget.map.level;
     if (!MAP_LEVELS.includes(level)) errors.push(`${describe}: a map needs one of these levels: ${MAP_LEVELS.join(", ")}`);

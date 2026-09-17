@@ -41,6 +41,16 @@ function sanitize_appearance(appearance) {
   const dark = sanitize_mode(appearance.dark);
   if (light) out.light = light;
   if (dark) out.dark = dark;
+  if (appearance.value_labels && typeof appearance.value_labels === "object") {
+    const value_labels = {};
+    Object.keys(appearance.value_labels)
+      .slice(0, 200)
+      .forEach((key) => {
+        const name = appearance.value_labels[key];
+        if (key.length <= 120 && typeof name === "string" && name.trim()) value_labels[key] = name.trim().slice(0, 120);
+      });
+    if (Object.keys(value_labels).length > 0) out.value_labels = value_labels;
+  }
   if (appearance.value_colors && typeof appearance.value_colors === "object") {
     const value_colors = {};
     Object.keys(appearance.value_colors)
@@ -55,16 +65,36 @@ function sanitize_appearance(appearance) {
 }
 
 /** A map widget's own settings: which administrative level it draws, and its markers. */
+// A map is drawn one of two ways, and they share almost nothing: a WORLD
+// map fills administrative boundaries by name, a HEAT map spreads the
+// positions records were collected at. Each keeps only its own settings.
+const MAP_MODES = ["world", "heat"];
+
+const clean_color = (value) => (HEX_COLOR.test(clean_string(value)) ? clean_string(value).toLowerCase() : "");
+
 function sanitize_map(widget) {
   const raw = widget.map && typeof widget.map === "object" ? widget.map : {};
   const marker = clean_string(raw.marker);
-  const out = {};
+  const mode = MAP_MODES.includes(clean_string(raw.mode)) ? clean_string(raw.mode) : "world";
+  const out = { mode };
+  if (mode === "heat") {
+    if (clean_string(raw.point_field_id)) out.point_field_id = clean_string(raw.point_field_id);
+    if (clean_string(raw.weight_field_id)) out.weight_field_id = clean_string(raw.weight_field_id);
+    const radius = Number(raw.radius);
+    const intensity = Number(raw.intensity);
+    if (Number.isFinite(radius) && radius >= 6 && radius <= 80) out.radius = Math.round(radius);
+    if (Number.isFinite(intensity) && intensity >= 0.2 && intensity <= 4) out.intensity = Number(intensity.toFixed(2));
+    if (raw.show_points === true) out.show_points = true;
+    // The two ends of the heat scale, which the widget may set itself.
+    if (clean_color(raw.low_color)) out.low_color = clean_color(raw.low_color);
+    if (clean_color(raw.high_color)) out.high_color = clean_color(raw.high_color);
+    return out;
+  }
   if (MAP_LEVELS.includes(clean_string(raw.level))) out.level = clean_string(raw.level);
   if (marker) out.marker = marker;
   if (raw.show_labels === false) out.show_labels = false;
   if (raw.show_markers === true) out.show_markers = true;
-  if (raw.heatmap === true) out.heatmap = true;
-  return Object.keys(out).length > 0 ? out : null;
+  return out;
 }
 
 function sanitize_widget(widget) {

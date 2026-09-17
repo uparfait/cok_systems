@@ -39,7 +39,7 @@ export function LegendRow({ items, palette, square, title, onItemClick }) {
               {item.pattern_index !== undefined && item.pattern_index > 0 ? <PatternSwatch index={item.pattern_index} color={item.color} size={12} /> : <Marker color={item.color} square={square} />}
             </span>
             <span className="break-words min-w-0 flex-1">
-              {item.label}
+              {palette.name_for ? palette.name_for(item.label) : item.label}
             </span>
             {item.value !== undefined && item.value !== null && (
               <span className="font-semibold" style={{ color: palette.number, ...LEGEND_FONT }}>

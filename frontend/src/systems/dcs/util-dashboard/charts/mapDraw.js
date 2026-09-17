@@ -1,5 +1,6 @@
 import { with_alpha } from "../appearance.js";
 import { anchor_of } from "./mapGeometry.js";
+import { heat_ramp, spread_of } from "./heatScale.js";
 
 /**
  * Everything a map widget hands to MapLibre: the basemap it sits on, the
@@ -35,6 +36,9 @@ const LAND_ACTIVE = "dcs-land-active";
 const OUTLINE_FILL = "dcs-outline-fill";
 const OUTLINE_LINE = "dcs-outline-line";
 const HEAT = "dcs-heat";
+const HEAT_SOURCE = "dcs-heat-source";
+const HEAT_LAYER = "dcs-heat-layer";
+const HEAT_DOTS = "dcs-heat-dots";
 const TINT = "dcs-map-tint";
 
 // A place nobody answered is left pale; the properties are read off each
@@ -181,4 +185,75 @@ export function set_heat(map, entries) {
 /** Outlines the place under the pointer, or nothing at all. */
 export function highlight(map, key) {
   if (map && map.getLayer(LAND_ACTIVE)) map.setFilter(LAND_ACTIVE, ["==", ["get", "key"], key || ""]);
+}
+
+/** The points of a heat map: one per record, where it was collected. */
+export const heat_geojson = (points) => ({
+  type: "FeatureCollection",
+  features: (points || []).map((point, index) => ({
+    type: "Feature",
+    id: index,
+    properties: { weight: Number(point.weight) || 0, group: point.group === null || point.group === undefined ? "" : String(point.group) },
+    geometry: { type: "Point", coordinates: [Number(point.lng), Number(point.lat)] },
+  })),
+});
+
+/**
+ * A heat map, drawn the way heat maps are drawn: every record spreads heat
+ * of its own weight, the spread grows with the zoom, and the burn fades out
+ * as the viewer arrives - where the single points take over, each one drawn
+ * as a dot so a dense place can still be read apart.
+ *
+ * Split into values, there is one layer per value, each in its own color,
+ * so two values over the same ground are told apart by hue rather than
+ * washed into one.
+ */
+export function set_heat_map(map, plan) {
+  ((map.getStyle() && map.getStyle().layers) || [])
+    .filter((layer) => layer.id.indexOf(HEAT_LAYER) === 0 || layer.id.indexOf(HEAT_DOTS) === 0)
+    .forEach((layer) => map.removeLayer(layer.id));
+  if (!map.getSource(HEAT_SOURCE)) map.addSource(HEAT_SOURCE, { type: "geojson", data: plan.points || EMPTY });
+  else map.getSource(HEAT_SOURCE).setData(plan.points || EMPTY);
+
+  const spread = { radius: Number(plan.radius) || spread_of().radius, intensity: Number(plan.intensity) || spread_of().intensity };
+  const top = Math.max(1, Number(plan.high) || 1);
+  const layers = plan.layers && plan.layers.length > 0 ? plan.layers : [{ key: "", low: plan.low, high: plan.hot }];
+  layers.forEach((entry, index) => {
+    const paint = {
+      "heatmap-weight": ["interpolate", ["linear"], ["get", "weight"], 0, 0, top, 1],
+      "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 6, spread.intensity * 0.6, 16, spread.intensity * 2.2],
+      "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"]].concat(heat_ramp(entry.low, entry.high)),
+      "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 6, spread.radius * 0.5, 12, spread.radius, 18, spread.radius * 2.4],
+      "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.95, 16, 0.75, 18, 0.35],
+    };
+    const spec = { id: HEAT_LAYER + "-" + index, type: "heatmap", source: HEAT_SOURCE, paint };
+    if (entry.key) spec.filter = ["==", ["get", "group"], entry.key];
+    map.addLayer(spec);
+  });
+  if (plan.dots === false) return;
+  layers.forEach((entry, index) => {
+    const spec = {
+      id: HEAT_DOTS + "-" + index,
+      type: "circle",
+      source: HEAT_SOURCE,
+      minzoom: 13,
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 2.5, 18, 7],
+        "circle-color": entry.high || plan.hot,
+        "circle-stroke-color": "#FFFFFF",
+        "circle-stroke-width": 0.8,
+        "circle-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 15, 0.85],
+      },
+    };
+    if (entry.key) spec.filter = ["==", ["get", "group"], entry.key];
+    map.addLayer(spec);
+  });
+}
+
+/** Takes the heat off, for a map that has gone back to boundaries. */
+export function clear_heat_map(map) {
+  ((map.getStyle() && map.getStyle().layers) || [])
+    .filter((layer) => layer.id.indexOf(HEAT_LAYER) === 0 || layer.id.indexOf(HEAT_DOTS) === 0)
+    .forEach((layer) => map.removeLayer(layer.id));
+  if (map.getSource(HEAT_SOURCE)) map.removeSource(HEAT_SOURCE);
 }

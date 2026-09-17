@@ -58,6 +58,24 @@ export function map_levels_of(fields) {
   }));
 }
 
+/**
+ * The fields that captured a real position - latitude and longitude, as the
+ * map location field records them. A heat map can be drawn from nothing
+ * else: an administrative level says only which area an answer came from,
+ * never where inside it, and heat made of area names would be a lie.
+ */
+export function geo_fields(fields) {
+  return (fields || []).filter((field) => field && field.type === "geolocation").map((field) => ({ id: field.id, label: field.label }));
+}
+
+/** A heat map is worth offering once the form captures a position. */
+export const heat_available = (fields) => geo_fields(fields).length > 0;
+
+/** The number fields a heat map can weigh its points by. */
+export function number_fields(fields) {
+  return (fields || []).filter((field) => field && field.type === "number").map((field) => ({ id: field.id, label: field.label }));
+}
+
 /** A map is worth offering once the form asks for a district or lower. */
 export function map_available(fields) {
   return map_levels_of(fields).some((entry) => entry.level !== "province");

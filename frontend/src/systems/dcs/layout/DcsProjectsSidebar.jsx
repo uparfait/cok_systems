@@ -57,7 +57,7 @@ function SidebarSearchingSkeleton() {
  * that project isn't the active one) so the match sits in its real place
  * among that project's other forms, not floating on its own.
  */
-export default function DcsProjectsSidebar({ projects, loading }) {
+export default function DcsProjectsSidebar({ projects, loading, onClose }) {
   const navigate = useNavigate();
   const { translate } = useDcsLanguage();
   const [query, setQuery] = useState("");
@@ -101,12 +101,19 @@ export default function DcsProjectsSidebar({ projects, loading }) {
   return (
     <aside className="w-full h-full bg-white border-r flex flex-col" style={{ borderColor: "#E0E0E0" }}>
       <div className="p-3 border-b" style={{ borderColor: "#E0E0E0" }}>
-        <h2
-          className="text-xs font-bold uppercase tracking-wide mb-2"
-          style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}
-        >
-          {translate("DCS_SIDEBAR_TITLE")}
-        </h2>
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h2 className="text-xs font-bold uppercase tracking-wide" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
+            {translate("DCS_SIDEBAR_TITLE")}
+          </h2>
+          {onClose && (
+            <button type="button" onClick={onClose} title={translate("DCS_SIDEBAR_HIDE")} aria-label={translate("DCS_SIDEBAR_HIDE")} className="dcs-sidebar-close cursor-pointer flex items-center justify-center flex-shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <line x1="5" y1="5" x2="19" y2="19" />
+                <line x1="19" y1="5" x2="5" y2="19" />
+              </svg>
+            </button>
+          )}
+        </div>
         <div className="relative">
           <input
             type="text"

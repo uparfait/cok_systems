@@ -179,6 +179,37 @@ async function point_rows(widget, bounds) {
 }
 
 /**
+ * A heat map's points: the position a record was collected at, what it
+ * weighs and which value of the split field it belongs to.
+ *
+ * Nothing here is grouped or counted: heat is made of the records
+ * themselves, so a place with two hundred answers burns brighter than one
+ * with two. A record whose position was never captured is dropped, and
+ * the weight is 1 unless the widget names a number field to weigh by -
+ * a household size, an amount - in which case the records that cannot be
+ * read as a number weigh nothing.
+ */
+async function heat_points(widget, bounds) {
+  const field = widget.map && widget.map.point_field_id;
+  const split = widget.split_by && widget.split_by.field_id;
+  const weigh = widget.map && widget.map.weight_field_id;
+  const projection = {
+    _id: 0,
+    lat: { $convert: { input: `$data.${field}.latitude`, to: "double", onError: null, onNull: null } },
+    lng: { $convert: { input: `$data.${field}.longitude`, to: "double", onError: null, onNull: null } },
+    weight: weigh ? { $convert: { input: `$data.${weigh}`, to: "double", onError: 0, onNull: 0 } } : { $literal: 1 },
+  };
+  if (split) projection.group = { $convert: { input: `$data.${split}`, to: "string", onError: null, onNull: null } };
+  const pipeline = [
+    build_match_stage(widget, bounds),
+    { $project: projection },
+    { $match: { lat: { $ne: null }, lng: { $ne: null } } },
+    { $limit: LIMITS.MAX_HEAT_POINTS },
+  ];
+  return run_pipeline(pipeline);
+}
+
+/**
  * How many times each value of ONE field occurs: [{_id: <value>, value:
  * <times>, display: {<field>: <its answer>}, matches: <bool>}]. Every record
  * that answered the field is grouped by that answer; the display fields
@@ -285,6 +316,7 @@ async function dimension_counts(widget, bounds, catalog, field_ids) {
 }
 
 module.exports = {
+  heat_points,
   time_source_expr,
   category_rows,
   dimension_counts,
