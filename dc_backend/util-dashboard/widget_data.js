@@ -374,6 +374,8 @@ async function widget_data_of(raw_widget, form_version, period_override) {
   const catalog = build_field_catalog(form_version.schema);
   const bounds = effective_bounds(raw_widget, period_override);
   let kind = (CHART_TYPES[raw_widget.chart_type] || {}).kind;
+  // A canvas is a place, not a question: there is nothing to compute.
+  if (kind === CHART_KINDS.CANVAS) return { kind: CHART_KINDS.CANVAS };
   // A heat map is not a category chart at all: it is the records
   // themselves, each at the place it was collected, so it never goes near
   // grouping, folding or a limit.

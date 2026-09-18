@@ -12,6 +12,7 @@ import KpiComposer from "./KpiComposer.jsx";
 import ChartComposer from "./ChartComposer.jsx";
 import DraftList from "./DraftList.jsx";
 import { TABS, MAX_WIDGETS, builder_fields, finalize_widgets, widget_to_spec, tab_of_widget } from "./composeWidgets.js";
+import { default_box } from "../boxLayout.js";
 import FiltersTab from "./FiltersTab.jsx";
 import MapComposer from "./MapComposer.jsx";
 import { same_filter_defs } from "../boardFilters.js";
@@ -34,7 +35,7 @@ let draft_sequence = 0;
  * one beside it - so the button says Update, and nothing else on the board
  * is touched.
  */
-export default function DashboardBuilder({ form, existingWidgets, existingFilters, initialTab, reconfigure, onClose, onSaved, onAutoGenerate }) {
+export default function DashboardBuilder({ form, existingWidgets, existingFilters, initialTab, reconfigure, intoCanvas, onClose, onSaved, onAutoGenerate }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const existing = existingWidgets || [];
@@ -104,7 +105,10 @@ export default function DashboardBuilder({ form, existingWidgets, existingFilter
     setSaving(true);
     setProgress(20);
     try {
-      const fresh = drafts.flatMap((draft) => draft.widgets);
+      const built = drafts.flatMap((draft) => draft.widgets);
+      // Built for a canvas: each one names it and starts at a sensible
+      // size inside it, to be dragged or set from there.
+      const fresh = intoCanvas ? built.map((widget) => Object.assign({}, widget, { parent_id: intoCanvas, box: default_box() })) : built;
       // Reconfiguring changes ONE widget in place: it keeps its id and its
       // position, and every other widget on the board is left alone.
       const replaced = reconfigure

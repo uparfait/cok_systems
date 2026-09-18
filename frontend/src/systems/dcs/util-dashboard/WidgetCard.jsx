@@ -178,7 +178,7 @@ function KpiIconSlot({ icon, color }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure }) {
+export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, slot, onContextMenu }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -237,7 +237,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   };
 
   return (
-    <div data-widget-id={widget.id} {...(is_map ? { onDoubleClick: handle_card_click } : { onClick: handle_card_click })} className="dcs-widget-card dcs-widget-hover relative border-2 flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
+    <div data-widget-id={widget.id} onContextMenu={onContextMenu} {...(is_map ? { onDoubleClick: handle_card_click } : { onClick: handle_card_click })} className="dcs-widget-card dcs-widget-hover relative border-2 flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
       {busy && (
         // The board is fetching again: what the card holds stays on show,
         // under a veil that takes every click until the new data lands.
@@ -307,7 +307,11 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           chart sizes itself to, and anything still wider than it (a long
           time range, a wide heatmap) scrolls inside here instead. */}
       <div ref={chart_ref} className={`px-2 ${is_kpi ? "pb-2" : "pb-3"} flex-1 min-w-0 max-w-full`} style={{ overflowX: "auto", overflowY: "hidden" }}>
-        {loading ? (
+        {slot ? (
+          // A canvas has no data to wait for or fail at: what it holds is
+          // handed in and drawn straight away.
+          slot
+        ) : loading ? (
           <div className="flex items-center justify-center" style={{ height: state_height }}>
             <SpiralLoader />
           </div>

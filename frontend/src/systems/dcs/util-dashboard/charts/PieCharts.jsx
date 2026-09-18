@@ -26,7 +26,7 @@ function inside_label(size, colors, rows) {
     const slice = rows[index] ? colors.color_for(rows[index].label, index) : colors.accent;
     return (
       <text x={cx + radius * Math.cos(radians)} y={cy + radius * Math.sin(radians)} fill={colors.on_mark(slice)} textAnchor="middle" dominantBaseline="central" fontSize={Math.max(9, size.value_font || size.font)} fontWeight={700}>
-        {value}
+        {colors.number_text(value)}
       </text>
     );
   };
@@ -56,7 +56,7 @@ export default function PieCharts({ chartType, rows, totalLabel, onItemClick, pa
               outerRadius={with_labels ? size.pie : "78%"}
               paddingAngle={rows.length > 1 ? 2 : 0}
               isAnimationActive={false}
-              label={with_labels ? ({ value, percent }) => `${value} (${Math.round(percent * 100)}%)` : inside_label(size, colors, rows)}
+              label={with_labels ? ({ value, percent }) => `${colors.number_text(value)} (${Math.round(percent * 100)}%)` : inside_label(size, colors, rows)}
               labelLine={with_labels ? { strokeWidth: 1 } : false}
               stroke={colors.background}
               cursor={handle_click ? "pointer" : undefined}

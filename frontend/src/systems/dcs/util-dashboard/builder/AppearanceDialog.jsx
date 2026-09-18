@@ -7,8 +7,9 @@ import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
 import { ChipGrid, PRIMARY, BORDER, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builderUi.jsx";
 import ColorInput from "./ColorInput.jsx";
+import BoxSettings from "./BoxSettings.jsx";
 import { useFanOutValues } from "./useFanOutValues.js";
-import { resolve_appearance, build_palette, auto_color, random_color, MODE_DEFAULTS, LEGEND_POSITIONS } from "../appearance.js";
+import { resolve_appearance, build_palette, auto_color, random_color, MODE_DEFAULTS, LEGEND_POSITIONS, UNIT_SIDES } from "../appearance.js";
 import { portal_root } from "../portalRoot.js";
 
 // A widget's background may be see-through, so that one carries an
@@ -42,6 +43,8 @@ function compact(appearance) {
     if (name && name !== key) value_labels[key] = name;
   });
   if (Object.keys(value_labels).length > 0) out.value_labels = value_labels;
+  // A unit of nothing is no unit at all.
+  if (appearance.unit && String(appearance.unit.text || "").trim()) out.unit = { text: appearance.unit.text, at: appearance.unit.at === "start" ? "start" : "end" };
   return out;
 }
 
@@ -56,10 +59,23 @@ function compact(appearance) {
  * is - the rename only changes what this widget's legend, labels and
  * tooltips call it, so "M" can read as "Male" on the board without
  * touching a single answer.
+ *
+ * The UNIT is the other half of that: what the numbers are measured in,
+ * written at the start of them or at the end - "$12", "1200RWF". It is
+ * used exactly as typed, so a space before "RWF" is the author's to give,
+ * and it reaches every number the widget prints, not just the big one.
+ *
+ * A widget that sits in a CANVAS also sets its size and place here (see
+ * BoxSettings) - the same two values its drag handles write - so one
+ * dialog covers everything about how a widget looks and how much room it
+ * takes.
  */
-export default function AppearanceDialog({ form, title, valuesField, appearance, onApply, onClose }) {
+export default function AppearanceDialog({ form, title, valuesField, appearance, box, onApply, onClose }) {
   const { translate } = useDcsLanguage();
   const [draft, setDraft] = useState(() => resolve_appearance(appearance));
+  // Only a widget that sits in a canvas has a size of its own to set; on
+  // the board itself the grid decides, and there is nothing to show.
+  const [draft_box, setDraftBox] = useState(() => (box ? { ...box } : null));
   const values = useFanOutValues(form, valuesField);
   const palette = useMemo(() => build_palette(draft), [draft]);
   const mode = draft[draft.theme];
@@ -169,6 +185,40 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
             </div>
           </section>
 
+          {draft_box && (
+            <section>
+              <p className="text-xs font-bold uppercase mb-2" style={{ color: TEXT_DARK, letterSpacing: "0.5px", ...HEADING_FONT }}>
+                {translate("DCS_DB_BOX_TITLE")}
+              </p>
+              <BoxSettings box={draft_box} onChange={setDraftBox} />
+            </section>
+          )}
+
+          <section>
+            <p className="text-xs font-bold uppercase mb-1" style={{ color: TEXT_DARK, letterSpacing: "0.5px", ...HEADING_FONT }}>
+              {translate("DCS_DB_UNIT")}
+            </p>
+            <p className="text-xs mb-2" style={{ color: TEXT_MUTED }}>
+              {translate("DCS_DB_UNIT_HINT")}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                className="dcs-rename-input"
+                value={draft.unit.text}
+                placeholder={translate("DCS_DB_UNIT_PLACEHOLDER")}
+                maxLength={12}
+                aria-label={translate("DCS_DB_UNIT")}
+                onChange={(event) => setDraft((current) => ({ ...current, unit: { ...current.unit, text: event.target.value } }))}
+              />
+              <ChipGrid
+                options={UNIT_SIDES.map((side) => ({ id: side, label: translate(side === "start" ? "DCS_DB_UNIT_START" : "DCS_DB_UNIT_END") }))}
+                value={draft.unit.at}
+                onChange={(at) => setDraft((current) => ({ ...current, unit: { ...current.unit, at } }))}
+                columns="grid-cols-2 sm:w-64"
+              />
+            </div>
+          </section>
+
           <section>
             <p className="text-xs font-bold uppercase mb-2" style={{ color: TEXT_DARK, letterSpacing: "0.5px", ...HEADING_FONT }}>
               {translate("DCS_DB_LEGEND_POSITION")}
@@ -249,7 +299,7 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
           <DcsButtonOutline className="sm:w-32" onClick={onClose}>
             {translate("DCS_DB_BUILDER_CANCEL")}
           </DcsButtonOutline>
-          <DcsButtonPrimary className="sm:w-44" onClick={() => onApply(compact(draft))}>
+          <DcsButtonPrimary className="sm:w-44" onClick={() => onApply(compact(draft), draft_box)}>
             {translate("DCS_DB_COLOR_APPLY")}
           </DcsButtonPrimary>
         </div>

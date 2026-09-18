@@ -66,7 +66,7 @@ export function HeatmapChart({ rows, series, fitMode, palette, density, onItemCl
                       color: (row[key] || 0) / (max || 1) > 0.55 ? "#FFFFFF" : colors.text,
                     }}
                   >
-                    {row[key] || 0}
+                    {colors.number_text(row[key] || 0)}
                   </div>
                 </td>
               ))}

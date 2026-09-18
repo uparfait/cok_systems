@@ -46,7 +46,6 @@ import { SplitLegend, LegendFrame } from "./SeriesLegend.jsx";
 // chart that grows in. (animate is still accepted so callers need not change.)
 const animation = () => ({ isAnimationActive: false });
 
-const show_value = (value) => (value ? value : "");
 const clicked_row = (entry) => (entry && entry.payload ? entry.payload : entry);
 const labels_of = (rows) => rows.map((row) => row.label);
 const values_of = (rows) => rows.map((row) => row.value || 0);
@@ -103,7 +102,9 @@ function ScrollFrame({ width, height, fit, density, children }) {
 /** A value written on a mark, left out entirely when the card is too narrow to read one. */
 function ValueLabels({ density, palette, dataKey, position, formatter, size }) {
   if (!density.show_values) return null;
-  return <LabelList dataKey={dataKey} position={position} formatter={formatter || show_value} style={value_style(palette, density, size)} />;
+  // Written in the widget's own unit, so a bar says what a KPI card says.
+  const text = formatter || ((value) => (value ? palette.number_text(value) : ""));
+  return <LabelList dataKey={dataKey} position={position} formatter={text} style={value_style(palette, density, size)} />;
 }
 
 function HorizontalBars({ rows, onItemClick, palette, animate, density, fitMode }) {
@@ -286,12 +287,12 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
           >
             {show_numbers &&
               (stacked ? (
-                <LabelList dataKey={item.key} position="center" formatter={(value) => (value ? (mode === "stacked_100" ? `${value}%` : value) : "")} style={{ fontSize: segment_font, fontWeight: 600, fill: palette.on_mark(item.color) }} />
+                <LabelList dataKey={item.key} position="center" formatter={(value) => (value ? (mode === "stacked_100" ? `${value}%` : palette.number_text(value)) : "")} style={{ fontSize: segment_font, fontWeight: 600, fill: palette.on_mark(item.color) }} />
               ) : (
-                <LabelList dataKey={item.key} position={horizontal ? "right" : "top"} formatter={show_value} style={value_style(palette, density, segment_font)} />
+                <LabelList dataKey={item.key} position={horizontal ? "right" : "top"} formatter={(value) => (value ? palette.number_text(value) : "")} style={value_style(palette, density, segment_font)} />
               ))}
             {mode === "stacked" && show_numbers && index === display.items.length - 1 && (
-              <LabelList dataKey={(entry) => row_total(entry)} position={horizontal ? "right" : "top"} formatter={show_value} style={value_style(palette, density)} />
+              <LabelList dataKey={(entry) => row_total(entry)} position={horizontal ? "right" : "top"} formatter={(value) => (value ? palette.number_text(value) : "")} style={value_style(palette, density)} />
             )}
           </Bar>
         ))}

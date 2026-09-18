@@ -7,8 +7,11 @@ import { has_preset_config } from "../fields/presetFields.js";
  * type's kind and display name.
  */
 
-// kind: category | time | point | tree | kpi (matches the backend).
+// kind: category | time | point | tree | kpi | canvas (matches the backend).
 export const CHART_CATALOG = [
+  // A canvas reads nothing: it is a place other widgets sit in, laid out
+  // by their own boxes rather than by the board's grid.
+  { type: "canvas", kind: "canvas", labelKey: "DCS_DB_CHART_CANVAS" },
   { type: "bar", kind: "category", labelKey: "DCS_DB_CHART_BAR" },
   { type: "column", kind: "category", labelKey: "DCS_DB_CHART_COLUMN" },
   { type: "grouped_column", kind: "category", labelKey: "DCS_DB_CHART_GROUPED" },
@@ -48,7 +51,9 @@ const SINGLE_CATEGORY_TYPES = ["bar", "column", "lollipop", "dot_plot", "pie", "
 const SPLIT_CATEGORY_TYPES = ["grouped_column", "grouped_bar", "stacked_column", "stacked_bar", "stacked_100", "stacked_bar_100", "heatmap", "line"];
 
 export function convertible_types(widget, can_map) {
-  if (!widget || widget.chart_type === "kpi") return [];
+  // A canvas holds widgets rather than drawing data, so it is not a look
+  // anything can be turned into, or out of.
+  if (!widget || widget.chart_type === "kpi" || widget.chart_type === "canvas") return [];
   if (["scatter", "bubble"].includes(widget.chart_type)) {
     return widget.size_field_id ? ["scatter", "bubble"] : ["scatter"];
   }

@@ -3,9 +3,10 @@ import { SERIES_COLORS } from "./charts/chartTheme.js";
 /**
  * A widget's appearance: its mode (light or dark), the background (which
  * may be see-through), text, number and border colors of each mode, one
- * color per legend / category value, and the
- * name each of those values is shown under - a stored answer stays what it
- * is, but a legend may call it something a reader understands.
+ * color per legend / category value, the name each of those values is
+ * shown under - a stored answer stays what it is, but a legend may call it
+ * something a reader understands - and the unit its numbers are written
+ * in, at the start of them or at the end.
  * build_palette turns that into everything a renderer needs, so charts and
  * cards never read the raw appearance themselves.
  */
@@ -152,6 +153,20 @@ export function random_color() {
 }
 
 export const LEGEND_POSITIONS = ["bottom", "top", "right", "left"];
+export const UNIT_SIDES = ["start", "end"];
+const MAX_UNIT = 12;
+
+/**
+ * What a number is measured IN, written where the reader expects it: "$12"
+ * puts it at the start, "1200RWF" at the end. The text is used exactly as
+ * it was typed - a space before "RWF" is a space the author wanted, and
+ * nobody wants one after "$" - so nothing is inserted and nothing is
+ * trimmed away from the middle.
+ */
+export function unit_text(number, unit) {
+  if (!unit || !unit.text) return number;
+  return unit.at === "start" ? `${unit.text}${number}` : `${number}${unit.text}`;
+}
 
 /** The stored appearance completed with defaults; null when nothing was customized. */
 export function resolve_appearance(raw) {
@@ -159,7 +174,9 @@ export function resolve_appearance(raw) {
   const theme = source.theme === "dark" ? "dark" : "light";
   const mode = (name) => ({ ...MODE_DEFAULTS[name], ...(source[name] && typeof source[name] === "object" ? source[name] : {}) });
   const legend_position = LEGEND_POSITIONS.includes(source.legend_position) ? source.legend_position : "bottom";
-  return { theme, legend_position, light: mode("light"), dark: mode("dark"), value_colors: { ...(source.value_colors || {}) }, value_labels: { ...(source.value_labels || {}) } };
+  const held = source.unit && typeof source.unit === "object" ? source.unit : {};
+  const unit = { text: String(held.text === undefined || held.text === null ? "" : held.text).slice(0, MAX_UNIT), at: held.at === "start" ? "start" : "end" };
+  return { theme, legend_position, unit, light: mode("light"), dark: mode("dark"), value_colors: { ...(source.value_colors || {}) }, value_labels: { ...(source.value_labels || {}) } };
 }
 
 /**
@@ -191,10 +208,21 @@ export function build_palette(raw, board_theme) {
   // Whatever the card is set to, its own words have to be legible on it.
   const text = readable_on(solid, mode.text);
   const number = readable_on(solid, mode.number);
+  // Every number this widget prints, anywhere, goes through here: the big
+  // one on a KPI card, the one over a bar, the one in a legend, the one in
+  // a tooltip. One place, so a widget cannot say "1,200" in one corner and
+  // "1200RWF" in another.
+  const number_text = (value) => {
+    if (value === null || value === undefined || value === "") return "";
+    const shown = typeof value === "number" ? (Math.round(value * 100) / 100).toLocaleString("en-US") : String(value);
+    return unit_text(shown, appearance.unit);
+  };
   return {
     theme: appearance.theme,
     is_dark: appearance.theme === "dark",
     legend_position: appearance.legend_position,
+    unit: appearance.unit,
+    number_text,
     background: mode.background,
     background_solid: solid,
     text,

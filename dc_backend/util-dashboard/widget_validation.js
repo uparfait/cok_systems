@@ -12,6 +12,7 @@ const {
   TIME_GRANULARITIES,
   OVER_TIME_TYPES,
   OVER_TIME_AXES,
+  MAX_CANVAS_DEPTH,
   OCCURRENCE_OPERATORS,
   OCCURRENCE_SCOPES,
   LIMITS,
@@ -109,6 +110,18 @@ function validate_occurrences(widget, catalog, errors, describe) {
 
 function validate_shape_for_kind(widget, definition, catalog, errors, describe) {
   const kind = definition.kind;
+  // A canvas reads nothing: it is a place other widgets sit in. It takes no
+  // formula, no field and no period, so none of the checks below apply and
+  // anything it was given by mistake is simply refused.
+  if (kind === CHART_KINDS.CANVAS) {
+    if (widget.group_by || widget.split_by || widget.legend_by || widget.pattern_by) {
+      errors.push(`${describe}: a canvas holds widgets, it does not read fields`);
+    }
+    if (widget.over_time && widget.over_time.enabled === true) {
+      errors.push(`${describe}: a canvas cannot be read over time`);
+    }
+    return;
+  }
   // A map is drawn one of two ways, and each asks for its own things. A
   // HEAT map spreads the positions records were collected at, so it needs a
   // field that captured one - an administrative level says nothing about
@@ -321,6 +334,55 @@ function validate_widget(widget, index, form_versions_by_group, project_id, erro
  * Validates the whole widget list of one dashboard save.
  * form_versions_by_group maps form_group_id -> that form's active version.
  */
+/**
+ * Where every widget sits. A widget may name a CANVAS as its parent, and
+ * only a canvas: it then draws inside it instead of on the board. A parent
+ * that does not exist, is not a canvas, or is the widget itself would leave
+ * a widget nowhere at all; a chain of canvases that leads back to where it
+ * started would leave the board drawing itself forever; and past a few
+ * levels of nesting there is nothing left to see inside the innermost one.
+ */
+function validate_nesting(widgets, errors) {
+  const by_id = new Map();
+  widgets.forEach((widget) => {
+    if (widget && typeof widget.id === "string") by_id.set(widget.id, widget);
+  });
+  widgets.forEach((widget, index) => {
+    const parent_id = widget && widget.parent_id;
+    if (!parent_id) return;
+    const describe = `Widget ${index + 1}${widget.title ? ` (${widget.title})` : ""}`;
+    if (parent_id === widget.id) {
+      errors.push(`${describe}: a widget cannot sit inside itself`);
+      return;
+    }
+    const parent = by_id.get(parent_id);
+    if (!parent) {
+      errors.push(`${describe}: the canvas it sits in is not on this dashboard`);
+      return;
+    }
+    if (parent.chart_type !== "canvas") {
+      errors.push(`${describe}: only a canvas can hold other widgets`);
+      return;
+    }
+    let depth = 0;
+    let cursor = parent;
+    const walked = new Set([widget.id]);
+    while (cursor) {
+      if (walked.has(cursor.id)) {
+        errors.push(`${describe}: these canvases sit inside each other`);
+        return;
+      }
+      walked.add(cursor.id);
+      depth += 1;
+      if (depth > MAX_CANVAS_DEPTH) {
+        errors.push(`${describe}: canvases may be nested ${MAX_CANVAS_DEPTH} deep at most`);
+        return;
+      }
+      cursor = cursor.parent_id ? by_id.get(cursor.parent_id) : null;
+    }
+  });
+}
+
 function validate_dashboard(widgets, form_versions_by_group, project_id) {
   const errors = [];
   if (!Array.isArray(widgets)) {
@@ -337,6 +399,7 @@ function validate_dashboard(widgets, form_versions_by_group, project_id) {
     }
     validate_widget(widget, index, form_versions_by_group, project_id, errors);
   });
+  validate_nesting(widgets, errors);
   return { valid: errors.length === 0, errors };
 }
 

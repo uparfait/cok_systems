@@ -12,7 +12,8 @@ import DashboardCodeOverlay from "./DashboardCodeOverlay.jsx";
  *
  * `reconfigure` is one widget already on the board, reopened in the
  * builder to be changed rather than a new one added; the builder then
- * saves it back in place under its own id.
+ * saves it back in place under its own id. `intoCanvas` is the opposite:
+ * whatever is built lands INSIDE that canvas instead of on the board.
  */
 export default function BoardAuthoringOverlays({
   form,
@@ -22,6 +23,7 @@ export default function BoardAuthoringOverlays({
   reviewFocus,
   builderTab,
   reconfigure,
+  intoCanvas,
   codeOpen,
   onCloseReview,
   onCloseBuilder,
@@ -41,6 +43,7 @@ export default function BoardAuthoringOverlays({
           existingFilters={filters}
           initialTab={builderTab}
           reconfigure={reconfigure}
+          intoCanvas={intoCanvas}
           onClose={onCloseBuilder}
           onSaved={(final_widgets, final_filters) => {
             onCloseBuilder();

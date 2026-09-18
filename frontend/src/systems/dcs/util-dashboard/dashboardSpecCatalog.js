@@ -69,6 +69,8 @@ const CHART_TEXT = {
   bubble: "A scatter whose point size comes from a third numeric field (size_field_id).",
   heatmap: "A grid of group_by values by split_by values, colored by the measure.",
   kpi: "A single big number card, optionally with a legend (legend_by) listing the counts per value of a choice field.",
+  canvas:
+    "Free space on the board that OTHER widgets sit inside. It reads no field, takes no formula, no group_by, no period and no over_time - it is a place, not a question. Widgets join it by naming its id in their parent_id, and lay themselves out inside it with their own box. Use one to put a few widgets side by side at sizes the board's own grid cannot give them; do not wrap a single widget in one, and do not use one where the ordinary grid would do.",
 };
 
 function role_of(field) {
@@ -133,6 +135,15 @@ function widget_shape() {
     limit: `Max categories shown, 1-50 (default 12; pie/donut/waffle are capped at 6; treemap commonly 50).`,
     size: "small | medium | large - the share of a board row this widget claims, so neighbours that still fit sit beside it: small is a third of a row (three small charts side by side), medium a half (two side by side), large a whole row to itself. A small and a medium therefore share one row. KPI cards ignore it - they have their own dense row of their own.",
     position: "0-based order on the board; assigned from the array order when missing.",
+    parent_id:
+      "Optional: the id of a CANVAS widget on this same dashboard, when this widget should be drawn inside that canvas instead of on the board. null (or left out) for everything else. Only a canvas can hold widgets; the canvas must be in the same list; a widget cannot name itself; canvases may be nested at most 3 deep and never in a circle.",
+    box:
+      "Only meaningful with parent_id: how this widget lays itself out inside its canvas. { flow, width, height, min_width, max_width, min_height, max_height }. " +
+      "flow is \"row\" (carry on along the row), \"row_break\" (start a new row) or \"column\" (take a line of its own). " +
+      "Every length is { value, unit } with unit \"px\" or \"%\" - a percent is of the canvas, a pixel count is absolute, and percentages are capped at 100. " +
+      "LEAVE OUT what you do not care about: a widget with no width takes whatever is left of its row, which is usually what is wanted. A sensible pair of widgets side by side is two boxes of { flow: \"row\", width: { value: 50, unit: \"%\" } }; give the first one min_width so they stack rather than crush on a phone.",
+    canvas:
+      "Canvases only: { flow, gap, height } - which way its children run (\"row\" or \"column\"), the pixels between them (0-64, 12 reads well), and a height of its own as { value, unit } or null to grow to what it holds.",
     over_time:
       "Optional, and the way to ask a question about CHANGE rather than about totals: { enabled: true, field_id, granularity, axis }. null (or left out) on every widget that is read all at once. " +
       "It is not a chart type - it is a way of reading one. The widget keeps its formula, its filters and its split_by, and the time line takes over the axis its categories had, so \"average age by district\" turned over time becomes \"average age per month\", and with a split_by, one line or one stack per value of that field. Whatever the widget grouped by is set aside while it is on. " +
@@ -144,6 +155,7 @@ function widget_shape() {
     icon: "KPI cards only, optional: '<library>:<IconName>' from icon_libraries, e.g. 'lucide:Users' or 'tabler:IconChartBar'. An icon its library does not carry is looked up by the same name in the others, so a near-miss still draws something rather than nothing - but name it correctly. null otherwise.",
     appearance:
       "Optional look: { theme: 'light'|'dark', legend_position: 'bottom'|'top'|'right'|'left', light: { background, text, number, border }, dark: { background, text, number, border }, value_colors: { '<answer value>': '#rrggbb' }, value_labels: { '<answer value>': 'Shown as' } } - null for the default look. " +
+      "unit is what the numbers are measured in: { text, at } with at \"start\" ($12) or \"end\" (1200RWF). The text is used EXACTLY as given, so write \" RWF\" with its leading space and \"$\" without one; it reaches every number the widget prints, not only the big one on a KPI card. " +
       "Colors are a six-digit hex, or EIGHT digits when the background should be see-through ('#1e2a3580' is half-transparent, '#00000000' invisible) so the board shows through the card - only background takes an alpha, text, number, border and value_colors stay solid. " +
       "border is the card's own outline color. " +
       "legend_position is obeyed on every widget at every card size, so 'right' really does put the legend beside the chart, the map or the ring on a small card too - do not set it to a side unless the widget's legend is short enough to read in a narrow column. " +
@@ -419,6 +431,10 @@ export function normalize_pasted_widgets(form, pasted) {
       map: map_settings(source),
       // Read as the period passes, rather than all at once.
       over_time: over_time_settings(source),
+      // Where it sits: inside a canvas, and how it lays itself out there.
+      parent_id: typeof source.parent_id === "string" && source.parent_id ? source.parent_id : null,
+      box: source.box && typeof source.box === "object" ? source.box : null,
+      canvas: source.chart_type === "canvas" ? Object.assign({ flow: "row", gap: 12, height: null }, source.canvas || {}) : null,
       x_field_id: source.x_field_id || null,
       y_field_id: source.y_field_id || null,
       size_field_id: source.size_field_id || null,

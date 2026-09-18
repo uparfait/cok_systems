@@ -52,14 +52,14 @@ function useBoxSize(element_ref) {
   return size;
 }
 
-function Tile({ node, rect, color, label, font, ink, crowded, hovered, onHover, onPick }) {
+function Tile({ node, rect, color, label, font, ink, format, crowded, hovered, onHover, onPick }) {
   const is_hovered = hovered === node.name;
   const quiet = crowded && !is_hovered;
   // Room for the name on its own line, and for the number under it.
   const text = quiet || rect.width < MIN_TEXT_PX * 2 ? "" : fit_text(label, rect.width - 10, font);
   const show_name = text !== "" && rect.height > font * 2.2;
   const show_value = !show_name && !quiet && rect.height > MIN_TEXT_PX && rect.width > MIN_TEXT_PX * 1.6;
-  const number = typeof node.value === "number" ? node.value.toLocaleString("en-US") : node.value;
+  const number = format(node.value);
   return (
     <g
       onClick={onPick ? () => onPick(node) : undefined}
@@ -129,6 +129,7 @@ export default function TreemapChart({ nodes, palette, density, onItemClick }) {
                 color={color_of(node, index)}
                 label={String(name_of(node))}
                 ink={colors.on_mark(color_of(node, index))}
+                format={colors.number_text}
                 font={font}
                 crowded={crowded}
                 hovered={hovered}

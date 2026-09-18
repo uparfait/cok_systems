@@ -4,7 +4,7 @@
  * and storage, so no stray data can ever be persisted or executed.
  */
 
-const { MAP_LEVELS, TIME_SOURCE_FIELDS, OVER_TIME_AXES } = require("./constants.js");
+const { MAP_LEVELS, TIME_SOURCE_FIELDS, OVER_TIME_AXES, BOX_FLOWS, BOX_UNITS } = require("./constants.js");
 
 function clean_string(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -39,6 +39,13 @@ function sanitize_appearance(appearance) {
   if (!appearance || typeof appearance !== "object") return null;
   const out = { theme: appearance.theme === "dark" ? "dark" : "light" };
   if (LEGEND_POSITIONS.includes(appearance.legend_position)) out.legend_position = appearance.legend_position;
+  // What the widget's numbers are measured in, and which side it goes.
+  // Kept exactly as typed, spaces and all: "$" wants none after it and
+  // " RWF" wants one before it, and only the author knows which.
+  if (appearance.unit && typeof appearance.unit === "object") {
+    const text = typeof appearance.unit.text === "string" ? appearance.unit.text.slice(0, 12) : "";
+    if (text.trim()) out.unit = { text, at: appearance.unit.at === "start" ? "start" : "end" };
+  }
   const light = sanitize_mode(appearance.light);
   const dark = sanitize_mode(appearance.dark);
   if (light) out.light = light;
@@ -116,6 +123,52 @@ function sanitize_over_time(widget) {
   return out;
 }
 
+/** One length: a number and what it is measured in, or nothing. */
+function sanitize_length(value) {
+  if (!value || typeof value !== "object") return null;
+  const size = Number(value.value);
+  if (!Number.isFinite(size) || size <= 0) return null;
+  const unit = BOX_UNITS.includes(clean_string(value.unit)) ? clean_string(value.unit) : "px";
+  // A percentage past the whole canvas, or a pixel size past any screen,
+  // is a typo rather than an intention.
+  const cap = unit === "%" ? 100 : 4000;
+  return { value: Math.min(Math.round(size * 100) / 100, cap), unit };
+}
+
+const BOX_LENGTHS = ["width", "height", "min_width", "max_width", "min_height", "max_height"];
+
+/**
+ * How a widget lays itself out INSIDE a canvas: whether it runs along the
+ * row, starts a new one, or stacks in a column, and the sizes it is held
+ * to. Every length is optional - what is left out is decided by the canvas
+ * and by what the widget holds. Only ever kept on a widget that sits in a
+ * canvas; a widget on the board itself is laid out by the board.
+ */
+function sanitize_box(widget) {
+  const raw = widget.box && typeof widget.box === "object" ? widget.box : null;
+  if (!raw) return null;
+  const out = { flow: BOX_FLOWS.includes(clean_string(raw.flow)) ? clean_string(raw.flow) : "row" };
+  BOX_LENGTHS.forEach((key) => {
+    const length = sanitize_length(raw[key]);
+    if (length) out[key] = length;
+  });
+  return out;
+}
+
+/** A canvas's own settings: which way its children run, and how far apart. */
+function sanitize_canvas(widget) {
+  if (clean_string(widget.chart_type) !== "canvas") return null;
+  const raw = widget.canvas && typeof widget.canvas === "object" ? widget.canvas : {};
+  const gap = Number(raw.gap);
+  const height = sanitize_length(raw.height);
+  return {
+    flow: BOX_FLOWS.includes(clean_string(raw.flow)) ? clean_string(raw.flow) : "row",
+    gap: Number.isFinite(gap) && gap >= 0 && gap <= 64 ? Math.round(gap) : 12,
+    // A canvas grows to its contents unless it was given a height of its own.
+    height: height || null,
+  };
+}
+
 function sanitize_widget(widget) {
   if (!widget || typeof widget !== "object") return null;
   const group_by = sanitize_field_ref(widget.group_by);
@@ -176,6 +229,11 @@ function sanitize_widget(widget) {
     map: sanitize_map(widget),
     // The same widget, read as the period passes instead of all at once.
     over_time: sanitize_over_time(widget),
+    // The canvas this widget sits in, and how it lays itself out there.
+    parent_id: clean_string(widget.parent_id) || null,
+    box: sanitize_box(widget),
+    // Canvases only: how the widgets inside them are arranged.
+    canvas: sanitize_canvas(widget),
     x_field_id: clean_string(widget.x_field_id) || null,
     y_field_id: clean_string(widget.y_field_id) || null,
     size_field_id: clean_string(widget.size_field_id) || null,

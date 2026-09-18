@@ -12,12 +12,23 @@ const CHART_KINDS = {
   KPI: "kpi",
   // The records themselves, each at the place it was collected.
   HEAT: "heat",
+  // A canvas holds no data of its own: it is a place other widgets sit in.
+  CANVAS: "canvas",
 };
 
 // chart_type -> the data kind its pipeline produces, whether a split
 // (second categorical field) is required/allowed, and the slice cap for
 // circular/part-to-whole charts that stop being readable past a few slices.
 const CHART_TYPES = {
+  /**
+   * A CANVAS is a widget that holds other widgets. It reads nothing and
+   * asks the database for nothing - what it carries is a layout. Widgets
+   * name it in their parent_id and lay themselves out inside it with their
+   * own box (see sanitize_box): along a row, wrapping onto the next line or
+   * not, or stacked in a column, at whatever width and height they were
+   * given in pixels or in percent of the canvas.
+   */
+  canvas: { kind: CHART_KINDS.CANVAS, split: "none" },
   bar: { kind: CHART_KINDS.CATEGORY, split: "none" },
   column: { kind: CHART_KINDS.CATEGORY, split: "none" },
   lollipop: { kind: CHART_KINDS.CATEGORY, split: "none" },
@@ -82,6 +93,13 @@ const PERIOD_PRESETS = ["all", "today", "this_week", "this_month", "last_month",
 const SORT_OPTIONS = ["value_desc", "value_asc", "label_asc"];
 
 // The administrative levels a map widget can draw, top down.
+/** How a widget joins the flow of the canvas it sits in. */
+const BOX_FLOWS = ["row", "row_break", "column"];
+/** What a length is measured in. */
+const BOX_UNITS = ["px", "%"];
+/** How deep canvases may nest before a board becomes unreadable. */
+const MAX_CANVAS_DEPTH = 3;
+
 const MAP_LEVELS = ["province", "district", "sector", "cell", "village"];
 
 const WIDGET_SIZES = ["small", "medium", "large", "full"];
@@ -162,6 +180,9 @@ module.exports = {
   TIME_GRANULARITIES,
   SUBMITTED_AT_FIELD,
   UPDATED_AT_FIELD,
+  BOX_FLOWS,
+  BOX_UNITS,
+  MAX_CANVAS_DEPTH,
   TIME_SOURCE_FIELDS,
   OVER_TIME_TYPES,
   OVER_TIME_AXES,

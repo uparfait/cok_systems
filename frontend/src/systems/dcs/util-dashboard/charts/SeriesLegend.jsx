@@ -46,7 +46,7 @@ export function LegendRow({ items, palette, square, title, onItemClick }) {
             </span>
             {item.value !== undefined && item.value !== null && (
               <span className="font-semibold" style={{ color: palette.number, ...LEGEND_FONT }}>
-                {typeof item.value === "number" ? item.value.toLocaleString("en-US") : item.value}
+                {palette.number_text ? palette.number_text(item.value) : item.value}
               </span>
             )}
           </li>

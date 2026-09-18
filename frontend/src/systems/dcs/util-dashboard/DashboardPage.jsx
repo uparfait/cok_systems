@@ -2,25 +2,23 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_dashboard, save_dashboard, get_dashboard_data, get_filter_values, get_widget_records, export_widget_records, get_map_shapes, request_error_text } from "./dashboardService.js";
+import { get_dashboard, save_dashboard, get_dashboard_data, get_filter_values, get_map_shapes, request_error_text } from "./dashboardService.js";
 import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
 import { useBoardData } from "./useBoardData.js";
 import { useDashboards } from "./useDashboards.js";
-import { fold_family } from "./chartCatalog.js";
 import BoardHeader from "./BoardHeader.jsx";
 import DashboardSwitcher from "./DashboardSwitcher.jsx";
-import DashboardNameDialog from "./DashboardNameDialog.jsx";
+import BoardViewOverlays from "./BoardViewOverlays.jsx";
 import BoardAuthoringOverlays from "./BoardAuthoringOverlays.jsx";
+import { useBoardCanvas } from "./useBoardCanvas.jsx";
+import { useWidgetEdits } from "./useWidgetEdits.js";
 import BoardWidgetDialogs from "./BoardWidgetDialogs.jsx";
 import { builder_fields } from "./builder/composeWidgets.js";
-import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
+import BoardEmptyState from "./BoardEmptyState.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import BoardWithSelection from "./selection/BoardWithSelection.jsx";
 import { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
-import ShareLinksDialog from "./share/ShareLinksDialog.jsx";
-import ScreenshotStudio from "./screenshot/ScreenshotStudio.jsx";
-import RecordsOverlay from "./records/RecordsOverlay.jsx";
 import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
 import { MapScopeProvider, filter_names } from "./mapScope.jsx";
 import { location_fields, geo_fields } from "./builder/mapFields.js";
@@ -72,6 +70,8 @@ function DashboardBoard({ form }) {
   const [builder_tab, setBuilderTab] = useState(null);
   // The widget reopened in the builder to be changed, rather than a new one added.
   const [reconfiguring, setReconfiguring] = useState(null);
+  // The canvas a newly built widget should be dropped into, if any.
+  const [into_canvas, setIntoCanvas] = useState(null);
   // The Ctrl+6 code tools overlay and the share links dialog.
   const [code_open, setCodeOpen] = useState(false);
   const [share_open, setShareOpen] = useState(false);
@@ -226,52 +226,36 @@ function DashboardBoard({ form }) {
   // The generated board is deliberately large - each card can be removed on
   // its own, after a warning. Removing never refetches the survivors.
   const [widget_to_remove, setWidgetToRemove] = useState(null);
-  const [removing, setRemoving] = useState(false);
-  const handle_remove_widget = async () => {
-    const target = widget_to_remove;
-    if (!target) return;
-    const next_widgets = widgets.filter((widget) => widget.id !== target.id).map((widget, index) => ({ ...widget, position: index }));
-    setRemoving(true);
-    try {
-      const saved = await save_dashboard(scoped_form, next_widgets);
-      const final_widgets = (saved.data && saved.data.widgets) || next_widgets;
-      data.settle(final_widgets);
-      commit_widgets(final_widgets);
-      data.keep_only(final_widgets);
-      showSuccess(translate("DCS_DB_WIDGET_REMOVED"));
-    } catch (error) {
-      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
-    } finally {
-      setRemoving(false);
-      setWidgetToRemove(null);
-    }
-  };
+  // Click-to-edit on a card (title, description, look, size, icon, colors,
+  // and the box it takes inside a canvas), and removing one - both saved
+  // right away with a per-card spinner. See useWidgetEdits.
+  const edits = useWidgetEdits({ form: scoped_form, widgets, data, translate, showSuccess, showError, onCommit: commit_widgets });
 
-  // Click-to-edit on a card (title, description, look, size, icon, colors):
-  // saved right away with a per-card spinner. Only a switch that changes
-  // the data's folding family (donut to bar, for example) refreshes THAT
-  // one card; nothing else refetches.
-  const [saving_widget_id, setSavingWidgetId] = useState(null);
-  const handle_update_widget = async (widget_id, changes) => {
-    const previous = widgets.find((widget) => widget.id === widget_id);
-    const next_widgets = widgets.map((widget) => (widget.id === widget_id ? { ...widget, ...changes } : widget));
-    setSavingWidgetId(widget_id);
-    try {
-      const saved = await save_dashboard(scoped_form, next_widgets);
-      const final_widgets = (saved.data && saved.data.widgets) || next_widgets;
-      data.settle(final_widgets);
-      commit_widgets(final_widgets);
-      if (changes.chart_type && previous && fold_family(changes.chart_type) !== fold_family(previous.chart_type)) {
-        const updated = final_widgets.find((widget) => widget.id === widget_id);
-        if (updated) data.retry_widget(updated);
-      }
-      showSuccess(translate("DCS_DB_WIDGET_UPDATED"));
-    } catch (error) {
-      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
-    } finally {
-      setSavingWidgetId(null);
-    }
+  // Right-clicking the board makes canvases; right-clicking a widget acts
+  // on that one. Both need the board to be editable.
+  const open_builder_in = (canvas) => {
+    setIntoCanvas(canvas.id);
+    setBuilderTab("charts");
   };
+  const canvas_menu = useBoardCanvas({
+    form: scoped_form,
+    widgets,
+    editable: can_edit && !generating,
+    isDark: board.is_dark,
+    translate,
+    onCommit: (next) => commit_widgets(next),
+    onSettings: (target) => setAppearanceWidget(target),
+    onReconfigure: (target) => {
+      setReconfiguring(target);
+      setBuilderTab("charts");
+    },
+    onAddWidget: open_builder_in,
+  });
+
+  const saving_widget_id = edits.saving_widget_id;
+  const removing = edits.removing;
+  const handle_update_widget = edits.update_widget;
+  const handle_remove_widget = () => edits.remove_widget(widget_to_remove, () => setWidgetToRemove(null));
 
   // The automatic generation, still reachable from the builder's footer:
   // "overwrite" replaces the whole board, and the fresh board opens in the
@@ -326,21 +310,13 @@ function DashboardBoard({ form }) {
 
   const has_board = !!active_id;
   const empty_state = (
-    <div className="dcs-board-chrome border-2 p-8 text-center">
-      <p className="text-sm font-semibold mb-1" style={{ color: "var(--board-text, #333333)", fontFamily: "'Montserrat', sans-serif" }}>
-        {translate(has_board ? "DCS_DB_EMPTY_TITLE" : "DCS_DB_NO_DASHBOARDS_TITLE")}
-      </p>
-      <p className="text-xs mb-4" style={{ color: "var(--board-muted, #9E9E9E)" }}>
-        {translate(!can_edit ? "DCS_DB_EMPTY_HINT_VIEWER" : has_board ? "DCS_DB_EMPTY_HINT" : "DCS_DB_NO_DASHBOARDS_HINT")}
-      </p>
-      {can_edit && (
-        <div className="w-full sm:w-56 mx-auto">
-          <DcsButtonPrimary type="button" onClick={() => (has_board ? setBuilderTab("kpi") : setNaming(true))}>
-            {translate(has_board ? "DCS_DB_BTN_GENERATE" : "DCS_DB_CREATE_BTN")}
-          </DcsButtonPrimary>
-        </div>
-      )}
-    </div>
+    <BoardEmptyState
+      hasBoard={has_board}
+      canEdit={can_edit}
+      onGenerate={() => setBuilderTab("kpi")}
+      onCreate={() => setNaming(true)}
+      onAddCanvas={() => canvas_menu.add_canvas(null)}
+    />
   );
 
   const map_scope = filter_names(data.filter_values);
@@ -354,6 +330,7 @@ function DashboardBoard({ form }) {
       ref={container_ref}
       className={`dcs-board-root dcs-board-no-select relative select-none ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "pb-16 space-y-4"}`}
       style={is_fullscreen ? { backgroundColor: "var(--board-bg, #F4F7F9)", width: "100%", height: "100%", overflowY: fs_mode === "fit" ? "hidden" : "auto" } : undefined}
+      onContextMenu={canvas_menu.open_board_menu}
     >
       <BoardHeader
         form={form}
@@ -429,6 +406,8 @@ function DashboardBoard({ form }) {
               setReconfiguring(target);
               setBuilderTab("charts");
             }}
+            onAddToCanvas={open_builder_in}
+            onWidgetMenu={canvas_menu.open_widget_menu}
             onOpenRecords={(widget, pick) => setRecords({ widget, pick })}
             mapLevels={map_levels}
             heatField={heat_field}
@@ -452,29 +431,33 @@ function DashboardBoard({ form }) {
         reviewFocus={review_focus}
         builderTab={builder_tab}
         reconfigure={reconfiguring}
+        intoCanvas={into_canvas}
         codeOpen={code_open}
         onCloseReview={close_review}
         onCloseBuilder={() => {
           setBuilderTab(null);
           setReconfiguring(null);
+          setIntoCanvas(null);
         }}
         onCloseCode={() => setCodeOpen(false)}
         onCommit={commit_widgets}
         onAutoGenerate={() => handle_generate("overwrite")}
       />
-      {share_open && <ShareLinksDialog form={scoped_form} filters={filters} fields={form_fields} fetchFilterValues={fetch_filter_values} onClose={() => setShareOpen(false)} />}
-      {records && (
-        <RecordsOverlay
-          title={records.widget.title}
-          subtitle={library.active ? library.active.name : ""}
-          schema={form.schema}
-          fetchPage={(page) => get_widget_records(form.form_group_id, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick, page, limit: 20, language })}
-          exportRecords={(on_progress) => export_widget_records(form.form_group_id, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick, language, title: records.widget.title }, on_progress)}
-          onClose={() => setRecords(null)}
-        />
-      )}
-      {shot && <ScreenshotStudio form={scoped_form} widgets={widgets} dataByWidget={shot.data} rects={shot.rects} base={shot.base} onClose={() => setShot(null)} />}
-      {naming && <DashboardNameDialog formName={form.form_name} saving={name_saving} onSubmit={submit_name} onCancel={() => setNaming(false)} />}
+      {canvas_menu.menu_element}
+      <BoardViewOverlays
+        shareOpen={share_open}
+        share={{ form: scoped_form, filters, fields: form_fields, fetchFilterValues: fetch_filter_values }}
+        records={records}
+        view={{ form_group_id: form.form_group_id, schema: form.schema, board_name: library.active ? library.active.name : "", period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, language }}
+        shot={shot}
+        shotProps={shot ? { form: scoped_form, widgets, dataByWidget: shot.data, rects: shot.rects, base: shot.base } : null}
+        naming={naming}
+        namingProps={{ formName: form.form_name, saving: name_saving, onSubmit: submit_name }}
+        onCloseShare={() => setShareOpen(false)}
+        onCloseRecords={() => setRecords(null)}
+        onCloseShot={() => setShot(null)}
+        onCancelNaming={() => setNaming(false)}
+      />
       <BoardWidgetDialogs
         form={scoped_form}
         fields={form_fields}

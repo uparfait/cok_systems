@@ -42,18 +42,19 @@ function useAnimatedNumber(target) {
   return shown;
 }
 
-function AnimatedNumber({ value, style, className }) {
+function AnimatedNumber({ value, style, className, format }) {
   const shown = useAnimatedNumber(value);
   return (
     <span className={className} style={style}>
-      {format_number(shown)}
+      {format ? format(shown) : format_number(shown)}
     </span>
   );
 }
 
 /**
  * The single-number widget: the aggregated value of the current window
- * (counting up or down as it changes), the change against the equally long
+ * (counting up or down as it changes, and carrying the widget's unit -
+ * "$12", "1200RWF"), the change against the equally long
  * window right before it whenever the widget's period is bounded, and -
  * when the card carries a legend - one row per value under the total, each
  * in its own color. Deliberately COMPACT - KPI cards sit in a dense grid at
@@ -86,12 +87,17 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
   const shown = folds && !open ? rows.slice(0, PREVIEW) : rows;
   return (
     <div className="flex flex-col items-center justify-center text-center py-2 min-w-0">
-      {has_legend && (
+      {/* Nothing is written over the number unless it says something the
+          card's own title does not. "TOTAL" did not - it sat between the
+          title and the figure telling nobody anything - so it is gone. An
+          occurrence card's line ("values matching the rule") stays, because
+          the figure means nothing without it. */}
+      {totalLabel ? (
         <span className="text-[10px] font-semibold uppercase" style={{ color: colors.muted, fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.5px" }}>
           {totalLabel}
         </span>
-      )}
-      <AnimatedNumber value={value} className="font-bold break-all" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif", fontSize: number_font, lineHeight: 1.1, maxWidth: "100%" }} />
+      ) : null}
+      <AnimatedNumber value={value} format={colors.number_text} className="font-bold break-all" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif", fontSize: number_font, lineHeight: 1.1, maxWidth: "100%" }} />
       {has_legend && (
         <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0, maxHeight: shown.length > 12 ? 280 : undefined, overflowY: shown.length > 12 ? "auto" : "visible" }}>
           {shown.map((row, index) => (
@@ -103,7 +109,7 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
                   {colors.name_for ? colors.name_for(row.label) : row.label}
                 </span>
               </span>
-              <AnimatedNumber value={row.value} className="font-semibold flex-shrink-0" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif" }} />
+              <AnimatedNumber value={row.value} format={colors.number_text} className="font-semibold flex-shrink-0" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif" }} />
             </li>
           ))}
         </ul>

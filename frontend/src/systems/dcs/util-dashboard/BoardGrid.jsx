@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import WidgetCard from "./WidgetCard.jsx";
+import CanvasWidget from "./CanvasWidget.jsx";
 import ExpandableSlot from "./ExpandableSlot.jsx";
 import { build_palette } from "./appearance.js";
 import { useBoardTheme } from "./boardTheme.jsx";
@@ -51,6 +52,9 @@ export default function BoardGrid({
   // The form's own fields, for the clock an "over time" widget follows.
   fields,
   onReconfigure,
+  // Canvases: dropping a widget into one, and the right-click menu.
+  onAddToCanvas,
+  onWidgetMenu,
 }) {
   const [dragging_id, setDraggingId] = useState(null);
   const [over_id, setOverId] = useState(null);
@@ -69,8 +73,18 @@ export default function BoardGrid({
     const has = (list) => Array.isArray(list) && list.length > 0;
     return !has(entry.rows) && !has(entry.points) && !has(entry.nodes);
   };
-  const kpi_widgets = widgets.filter((widget) => widget.chart_type === "kpi" && !emptied_by_filters(widget));
-  const chart_widgets = widgets.filter((widget) => widget.chart_type !== "kpi" && !emptied_by_filters(widget));
+  // A widget that names a canvas as its parent is drawn INSIDE that
+  // canvas, not on the board, so the board itself only lays out the ones
+  // that belong to nobody. Everything else is reached through its canvas.
+  const children_of = new Map();
+  widgets.forEach((widget) => {
+    if (!widget.parent_id) return;
+    if (!children_of.has(widget.parent_id)) children_of.set(widget.parent_id, []);
+    children_of.get(widget.parent_id).push(widget);
+  });
+  const on_board = (widget) => !widget.parent_id;
+  const kpi_widgets = widgets.filter((widget) => on_board(widget) && widget.chart_type === "kpi" && !emptied_by_filters(widget));
+  const chart_widgets = widgets.filter((widget) => on_board(widget) && widget.chart_type !== "kpi" && !emptied_by_filters(widget));
   const selecting = !!selection;
   // A widget can become a map when the field it groups by names a place
   // the city has boundaries for; turning into one carries that level over,
@@ -88,6 +102,20 @@ export default function BoardGrid({
     const level = map_level_of(widget);
     return { chart_type: "map", map: Object.assign({ show_labels: true }, widget.map || {}, level ? { level } : {}) };
   };
+
+  // What a canvas draws: the widgets that named it, each in its own box.
+  // Recursive, because a canvas may hold a canvas.
+  const canvas_slot = (widget) =>
+    widget.chart_type !== "canvas" ? null : (
+      <CanvasWidget
+        widget={widget}
+        editable={editable}
+        onResize={editable ? (id, box) => onUpdateWidget(id, { box }) : undefined}
+        onAddWidget={editable && onAddToCanvas ? () => onAddToCanvas(widget) : undefined}
+      >
+        {(children_of.get(widget.id) || []).map((child) => ({ widget: child, node: render_card(child) }))}
+      </CanvasWidget>
+    );
 
   const render_card = (widget) => (
     <ExpandableSlot expanded={expanded_id === widget.id} onToggle={() => setExpandedId((current) => (current === widget.id ? null : widget.id))} hideButton={selecting} palette={build_palette(widget.appearance, board.theme)}>
@@ -108,6 +136,8 @@ export default function BoardGrid({
       fields={fields}
       onOverTime={editable ? (next) => onUpdateWidget(widget.id, { over_time: next }) : undefined}
       onReconfigure={editable && onReconfigure ? () => onReconfigure(widget) : undefined}
+      slot={canvas_slot(widget)}
+      onContextMenu={onWidgetMenu ? (event) => onWidgetMenu(event, widget) : undefined}
       onChangeSize={editable && widget.chart_type !== "kpi" ? (next_size) => onUpdateWidget(widget.id, { size: next_size }) : undefined}
       onRetry={() => onRetryWidget(widget)}
       onShowSkipped={onShowSkipped}

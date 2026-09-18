@@ -14,7 +14,7 @@ import { LegendRow, LegendFrame } from "./SeriesLegend.jsx";
 // chart that grows in. (animate is still accepted so callers need not change.)
 const animation = () => ({ isAnimationActive: false });
 
-const show_value = (value) => (value ? value : "");
+const value_text = (colors) => (value) => (value ? colors.number_text(value) : "");
 
 /**
  * Time-series renderers: line (single or multi series) and area. Every
@@ -68,6 +68,7 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
   const data = numbers.rows;
   const series_numbers = size.show_values && has_series && value_step(peak, x_room, number_font) === 1;
   // Recharts reports the hovered category as activeLabel: that is the bucket clicked.
+  const show_value = value_text(colors);
   const on_chart_click = onItemClick ? (state) => state && state.activeLabel !== undefined && onItemClick(String(state.activeLabel)) : undefined;
   const active_dot = onItemClick ? { r: 6, cursor: "pointer" } : undefined;
   const chart =

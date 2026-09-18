@@ -29,10 +29,12 @@ export default function BoardWidgetDialogs({ form, fields, widgets, savingWidget
           title={appearanceWidget.title}
           valuesField={appearance_values_field(appearanceWidget, fields)}
           appearance={appearanceWidget.appearance}
+          box={appearanceWidget.parent_id ? appearanceWidget.box || { flow: "row" } : null}
           onClose={onCloseAppearance}
-          onApply={async (appearance) => {
+          onApply={async (appearance, box) => {
             onCloseAppearance();
-            await onUpdate(appearanceWidget.id, { appearance });
+            // A widget on the board itself has no box: the grid places it.
+            await onUpdate(appearanceWidget.id, appearanceWidget.parent_id ? { appearance, box } : { appearance });
           }}
         />
       )}

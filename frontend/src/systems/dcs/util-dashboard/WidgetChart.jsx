@@ -115,7 +115,9 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
           value={data.value}
           changePct={data.change_pct}
           legend={legend}
-          totalLabel={translate(data.occurrences ? (data.occurrences.has_rule ? "DCS_DB_OCC_VALUES_MATCHING" : "DCS_DB_OCC_VALUES") : "DCS_DB_TOTAL")}
+          // Only an occurrence card needs a word over its number; a plain
+          // total is already named by the card's title.
+          totalLabel={data.occurrences ? translate(data.occurrences.has_rule ? "DCS_DB_OCC_VALUES_MATCHING" : "DCS_DB_OCC_VALUES") : ""}
           palette={palette}
           density={density}
           onLegendClick={legend_pick}
