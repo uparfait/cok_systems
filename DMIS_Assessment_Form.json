@@ -3658,9 +3658,9 @@
               "parent_field_id": null,
               "parent_value": null,
               "message": {
-                "en": "Enter a value between 0 and 6.",
+                "en": "Must be zero or a positive number.",
                 "kn": "",
-                "fr": "Saisissez une valeur entre 0 et 6."
+                "fr": "Doit être zéro ou un nombre positif."
               },
               "valid_message": {
                 "en": "",
@@ -3674,32 +3674,6 @@
                     "var": "number_7f07da"
                   },
                   0
-                ]
-              }
-            },
-            {
-              "id": "rule_bc5335",
-              "operator": "max_value",
-              "value": 6,
-              "parent_field_id": null,
-              "parent_value": null,
-              "message": {
-                "en": "Enter a value between 0 and 6.",
-                "kn": "",
-                "fr": "Saisissez une valeur entre 0 et 6."
-              },
-              "valid_message": {
-                "en": "",
-                "kn": "",
-                "fr": ""
-              },
-              "severity": "error",
-              "condition": {
-                "<=": [
-                  {
-                    "var": "number_7f07da"
-                  },
-                  6
                 ]
               }
             }
@@ -3762,9 +3736,9 @@
               "parent_field_id": null,
               "parent_value": null,
               "message": {
-                "en": "Enter a value between 0 and 6.",
+                "en": "Must be zero or a positive number.",
                 "kn": "",
-                "fr": "Saisissez une valeur entre 0 et 6."
+                "fr": "Doit être zéro ou un nombre positif."
               },
               "valid_message": {
                 "en": "",
@@ -3778,32 +3752,6 @@
                     "var": "number_938b32"
                   },
                   0
-                ]
-              }
-            },
-            {
-              "id": "rule_cc9371",
-              "operator": "max_value",
-              "value": 6,
-              "parent_field_id": null,
-              "parent_value": null,
-              "message": {
-                "en": "Enter a value between 0 and 6.",
-                "kn": "",
-                "fr": "Saisissez une valeur entre 0 et 6."
-              },
-              "valid_message": {
-                "en": "",
-                "kn": "",
-                "fr": ""
-              },
-              "severity": "error",
-              "condition": {
-                "<=": [
-                  {
-                    "var": "number_938b32"
-                  },
-                  6
                 ]
               }
             }
@@ -4084,9 +4032,9 @@
                   "parent_field_id": null,
                   "parent_value": null,
                   "message": {
-                    "en": "Enter a value between 0 and 3.",
+                    "en": "Must be zero or a positive number.",
                     "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
+                    "fr": "Doit être zéro ou un nombre positif."
                   },
                   "valid_message": {
                     "en": "",
@@ -4100,32 +4048,6 @@
                         "var": "number_0b42e9"
                       },
                       0
-                    ]
-                  }
-                },
-                {
-                  "id": "rule_6b32c7",
-                  "operator": "max_value",
-                  "value": 3,
-                  "parent_field_id": null,
-                  "parent_value": null,
-                  "message": {
-                    "en": "Enter a value between 0 and 3.",
-                    "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
-                  },
-                  "valid_message": {
-                    "en": "",
-                    "kn": "",
-                    "fr": ""
-                  },
-                  "severity": "error",
-                  "condition": {
-                    "<=": [
-                      {
-                        "var": "number_0b42e9"
-                      },
-                      3
                     ]
                   }
                 }
@@ -4188,9 +4110,9 @@
                   "parent_field_id": null,
                   "parent_value": null,
                   "message": {
-                    "en": "Enter a value between 0 and 3.",
+                    "en": "Must be zero or a positive number.",
                     "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
+                    "fr": "Doit être zéro ou un nombre positif."
                   },
                   "valid_message": {
                     "en": "",
@@ -4204,32 +4126,6 @@
                         "var": "number_13c8ff"
                       },
                       0
-                    ]
-                  }
-                },
-                {
-                  "id": "rule_765416",
-                  "operator": "max_value",
-                  "value": 3,
-                  "parent_field_id": null,
-                  "parent_value": null,
-                  "message": {
-                    "en": "Enter a value between 0 and 3.",
-                    "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
-                  },
-                  "valid_message": {
-                    "en": "",
-                    "kn": "",
-                    "fr": ""
-                  },
-                  "severity": "error",
-                  "condition": {
-                    "<=": [
-                      {
-                        "var": "number_13c8ff"
-                      },
-                      3
                     ]
                   }
                 }
@@ -4292,9 +4188,9 @@
                   "parent_field_id": null,
                   "parent_value": null,
                   "message": {
-                    "en": "Enter a value between 0 and 3.",
+                    "en": "Must be zero or a positive number.",
                     "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
+                    "fr": "Doit être zéro ou un nombre positif."
                   },
                   "valid_message": {
                     "en": "",
@@ -4308,32 +4204,6 @@
                         "var": "number_29f8a7"
                       },
                       0
-                    ]
-                  }
-                },
-                {
-                  "id": "rule_d2c70a",
-                  "operator": "max_value",
-                  "value": 3,
-                  "parent_field_id": null,
-                  "parent_value": null,
-                  "message": {
-                    "en": "Enter a value between 0 and 3.",
-                    "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
-                  },
-                  "valid_message": {
-                    "en": "",
-                    "kn": "",
-                    "fr": ""
-                  },
-                  "severity": "error",
-                  "condition": {
-                    "<=": [
-                      {
-                        "var": "number_29f8a7"
-                      },
-                      3
                     ]
                   }
                 }
@@ -4396,9 +4266,9 @@
                   "parent_field_id": null,
                   "parent_value": null,
                   "message": {
-                    "en": "Enter a value between 0 and 3.",
+                    "en": "Must be zero or a positive number.",
                     "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
+                    "fr": "Doit être zéro ou un nombre positif."
                   },
                   "valid_message": {
                     "en": "",
@@ -4412,32 +4282,6 @@
                         "var": "number_7bfd55"
                       },
                       0
-                    ]
-                  }
-                },
-                {
-                  "id": "rule_72cf46",
-                  "operator": "max_value",
-                  "value": 3,
-                  "parent_field_id": null,
-                  "parent_value": null,
-                  "message": {
-                    "en": "Enter a value between 0 and 3.",
-                    "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
-                  },
-                  "valid_message": {
-                    "en": "",
-                    "kn": "",
-                    "fr": ""
-                  },
-                  "severity": "error",
-                  "condition": {
-                    "<=": [
-                      {
-                        "var": "number_7bfd55"
-                      },
-                      3
                     ]
                   }
                 }
@@ -4500,9 +4344,9 @@
                   "parent_field_id": null,
                   "parent_value": null,
                   "message": {
-                    "en": "Enter a value between 0 and 3.",
+                    "en": "Must be zero or a positive number.",
                     "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
+                    "fr": "Doit être zéro ou un nombre positif."
                   },
                   "valid_message": {
                     "en": "",
@@ -4516,32 +4360,6 @@
                         "var": "number_d1c97c"
                       },
                       0
-                    ]
-                  }
-                },
-                {
-                  "id": "rule_786bdd",
-                  "operator": "max_value",
-                  "value": 3,
-                  "parent_field_id": null,
-                  "parent_value": null,
-                  "message": {
-                    "en": "Enter a value between 0 and 3.",
-                    "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
-                  },
-                  "valid_message": {
-                    "en": "",
-                    "kn": "",
-                    "fr": ""
-                  },
-                  "severity": "error",
-                  "condition": {
-                    "<=": [
-                      {
-                        "var": "number_d1c97c"
-                      },
-                      3
                     ]
                   }
                 }
@@ -4604,9 +4422,9 @@
                   "parent_field_id": null,
                   "parent_value": null,
                   "message": {
-                    "en": "Enter a value between 0 and 3.",
+                    "en": "Must be zero or a positive number.",
                     "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
+                    "fr": "Doit être zéro ou un nombre positif."
                   },
                   "valid_message": {
                     "en": "",
@@ -4620,32 +4438,6 @@
                         "var": "number_28e555"
                       },
                       0
-                    ]
-                  }
-                },
-                {
-                  "id": "rule_f5711a",
-                  "operator": "max_value",
-                  "value": 3,
-                  "parent_field_id": null,
-                  "parent_value": null,
-                  "message": {
-                    "en": "Enter a value between 0 and 3.",
-                    "kn": "",
-                    "fr": "Saisissez une valeur entre 0 et 3."
-                  },
-                  "valid_message": {
-                    "en": "",
-                    "kn": "",
-                    "fr": ""
-                  },
-                  "severity": "error",
-                  "condition": {
-                    "<=": [
-                      {
-                        "var": "number_28e555"
-                      },
-                      3
                     ]
                   }
                 }
@@ -7103,14 +6895,14 @@
           "id": "single_select_9dc26c",
           "type": "single_select",
           "label": {
-            "en": "E3. Risk status",
+            "en": "E2. Risk status",
             "kn": "",
-            "fr": "E3. Niveau de risque"
+            "fr": "E2. Niveau de risque"
           },
           "placeholder": {
-            "en": "Select e3. Risk status",
+            "en": "Select e2. Risk status",
             "kn": "",
-            "fr": "Sélectionner e3. Niveau de risque"
+            "fr": "Sélectionner e2. Niveau de risque"
           },
           "help_text": {
             "en": "",
@@ -7337,14 +7129,14 @@
           "id": "single_select_2041ff",
           "type": "single_select",
           "label": {
-            "en": "E1. Current status of the response",
+            "en": "F1. Current status of the response",
             "kn": "",
-            "fr": "E1. État actuel de l'intervention"
+            "fr": "F1. État actuel de l'intervention"
           },
           "placeholder": {
-            "en": "Select e1. Current status of the response",
+            "en": "Select f1. Current status of the response",
             "kn": "",
-            "fr": "Sélectionner e1. État actuel de l'intervention"
+            "fr": "Sélectionner f1. État actuel de l'intervention"
           },
           "help_text": {
             "en": "",
@@ -7419,14 +7211,14 @@
           "id": "multi_select_74d38b",
           "type": "multi_select",
           "label": {
-            "en": "E3. Type of activity or assistance provided",
+            "en": "F2. Type of activity or assistance provided",
             "kn": "",
-            "fr": "E3. Type d'activité ou d'assistance fournie"
+            "fr": "F2. Type d'activité ou d'assistance fournie"
           },
           "placeholder": {
-            "en": "Select all that apply for e3. Type of activity or assistance provided",
+            "en": "Select all that apply for f2. Type of activity or assistance provided",
             "kn": "",
-            "fr": "Sélectionner tout ce qui s'applique pour e3. Type d'activité ou d'assistance fournie"
+            "fr": "Sélectionner tout ce qui s'applique pour f2. Type d'activité ou d'assistance fournie"
           },
           "help_text": {
             "en": "Select all activity types delivered during this response; the relevant sub-sections below will open based on your selection.",
@@ -7595,14 +7387,14 @@
               "id": "single_select_6727ff",
               "type": "single_select",
               "label": {
-                "en": "H1. Was any relief assistance provided to the household?",
+                "en": "F2.1. Was any relief assistance provided to the household?",
                 "kn": "",
-                "fr": "H1. Une aide a-t-elle été fournie au ménage ?"
+                "fr": "F2.1. Une aide a-t-elle été fournie au ménage ?"
               },
               "placeholder": {
-                "en": "Select h1. Was any relief assistance provided to the household?",
+                "en": "Select f2.1. Was any relief assistance provided to the household?",
                 "kn": "",
-                "fr": "Sélectionner h1. Une aide a-t-elle été fournie au ménage ?"
+                "fr": "Sélectionner f2.1. Une aide a-t-elle été fournie au ménage ?"
               },
               "help_text": {
                 "en": "",
@@ -7668,14 +7460,14 @@
               "id": "multi_select_15e8c2",
               "type": "multi_select",
               "label": {
-                "en": "H2. Assistance Provider",
+                "en": "F2.2. Assistance Provider",
                 "kn": "",
-                "fr": "H2. Fournisseur de l'aide"
+                "fr": "F2.2. Fournisseur de l'aide"
               },
               "placeholder": {
-                "en": "Select all that apply for h2. Assistance Provider",
+                "en": "Select all that apply for f2.2. Assistance Provider",
                 "kn": "",
-                "fr": "Sélectionner tout ce qui s'applique pour h2. Fournisseur de l'aide"
+                "fr": "Sélectionner tout ce qui s'applique pour f2.2. Fournisseur de l'aide"
               },
               "help_text": {
                 "en": "Select all that apply.",
@@ -10884,9 +10676,9 @@
               "id": "header_492585",
               "type": "header",
               "label": {
-                "en": "E7. Evacuation Site",
+                "en": "F3. Evacuation Site",
                 "kn": "",
-                "fr": "E7. Site d'évacuation"
+                "fr": "F3. Site d'évacuation"
               },
               "placeholder": {
                 "en": "",
@@ -11476,14 +11268,14 @@
           "id": "multi_select_7f0869",
           "type": "multi_select",
           "label": {
-            "en": "E8. Resources deployed",
+            "en": "F4. Resources deployed",
             "kn": "",
-            "fr": "E8. Ressources déployées"
+            "fr": "F4. Ressources déployées"
           },
           "placeholder": {
-            "en": "Select all that apply for e8. Resources deployed",
+            "en": "Select all that apply for f4. Resources deployed",
             "kn": "",
-            "fr": "Sélectionner tout ce qui s'applique pour e8. Ressources déployées"
+            "fr": "Sélectionner tout ce qui s'applique pour f4. Ressources déployées"
           },
           "help_text": {
             "en": "Select all that apply.",
@@ -11585,14 +11377,14 @@
           "id": "single_select_b5102c",
           "type": "single_select",
           "label": {
-            "en": "E9. Coordination meeting held for this incident",
+            "en": "F5. Coordination meeting held for this incident",
             "kn": "",
-            "fr": "E9. Réunion de coordination tenue pour cet incident"
+            "fr": "F5. Réunion de coordination tenue pour cet incident"
           },
           "placeholder": {
-            "en": "Select e9. Coordination meeting held for this incident",
+            "en": "Select f5. Coordination meeting held for this incident",
             "kn": "",
-            "fr": "Sélectionner e9. Réunion de coordination tenue pour cet incident"
+            "fr": "Sélectionner f5. Réunion de coordination tenue pour cet incident"
           },
           "help_text": {
             "en": "",
@@ -11658,14 +11450,14 @@
           "id": "large_text_ff1bba",
           "type": "large_text",
           "label": {
-            "en": "E10. Outstanding needs or gaps",
+            "en": "F6. Outstanding needs or gaps",
             "kn": "",
-            "fr": "E10. Besoins ou lacunes restants"
+            "fr": "F6. Besoins ou lacunes restants"
           },
           "placeholder": {
-            "en": "Describe e10. Outstanding needs or gaps",
+            "en": "Describe f6. Outstanding needs or gaps",
             "kn": "",
-            "fr": "Décrire e10. Besoins ou lacunes restants"
+            "fr": "Décrire f6. Besoins ou lacunes restants"
           },
           "help_text": {
             "en": "",
@@ -11716,14 +11508,14 @@
           "id": "number_9d587a",
           "type": "number",
           "label": {
-            "en": "E10. Number of persons not yet reached",
+            "en": "F7. Number of persons not yet reached",
             "kn": "",
-            "fr": "E10. Nombre de personnes non encore atteintes"
+            "fr": "F7. Nombre de personnes non encore atteintes"
           },
           "placeholder": {
-            "en": "Enter e10. Number of persons not yet reached (number)",
+            "en": "Enter f7. Number of persons not yet reached (number)",
             "kn": "",
-            "fr": "Saisir e10. Nombre de personnes non encore atteintes (nombre)"
+            "fr": "Saisir f7. Nombre de personnes non encore atteintes (nombre)"
           },
           "help_text": {
             "en": "",
@@ -11829,9 +11621,9 @@
           "id": "header_f724ef",
           "type": "header",
           "label": {
-            "en": "Disaster Preparedness and Readiness",
+            "en": "Section G — Disaster Preparedness and Readiness",
             "kn": "",
-            "fr": "Préparation et état de préparation aux catastrophes"
+            "fr": "Section G — Préparation et état de préparation aux catastrophes"
           },
           "placeholder": {
             "en": "",
@@ -14826,9 +14618,9 @@
           "id": "header_fee2d6",
           "type": "header",
           "label": {
-            "en": "Part F — Conclusion",
+            "en": "Part H — Conclusion",
             "kn": "",
-            "fr": "Partie F — Conclusion"
+            "fr": "Partie H — Conclusion"
           },
           "placeholder": {
             "en": "",
@@ -14934,14 +14726,14 @@
           "id": "large_text_23d744",
           "type": "large_text",
           "label": {
-            "en": "F1. Recommendation",
+            "en": "H1. Recommendation",
             "kn": "",
-            "fr": "F1. Recommandation"
+            "fr": "H1. Recommandation"
           },
           "placeholder": {
-            "en": "Describe f1. Recommendation",
+            "en": "Describe h1. Recommendation",
             "kn": "",
-            "fr": "Décrire f1. Recommandation"
+            "fr": "Décrire h1. Recommandation"
           },
           "help_text": {
             "en": "",
@@ -14992,14 +14784,14 @@
           "id": "text_3a6df3",
           "type": "text",
           "label": {
-            "en": "F2. Assessor's name",
+            "en": "H2. Assessor's name",
             "kn": "",
-            "fr": "F2. Nom de l'évaluateur"
+            "fr": "H2. Nom de l'évaluateur"
           },
           "placeholder": {
-            "en": "Enter f2. Assessor's name",
+            "en": "Enter h2. Assessor's name",
             "kn": "",
-            "fr": "Saisir f2. Nom de l'évaluateur"
+            "fr": "Saisir h2. Nom de l'évaluateur"
           },
           "help_text": {
             "en": "",
@@ -15043,14 +14835,14 @@
           "id": "text_249beb",
           "type": "text",
           "label": {
-            "en": "F3. Function",
+            "en": "H3. Function",
             "kn": "",
-            "fr": "F3. Fonction"
+            "fr": "H3. Fonction"
           },
           "placeholder": {
-            "en": "Enter f3. Function",
+            "en": "Enter h3. Function",
             "kn": "",
-            "fr": "Saisir f3. Fonction"
+            "fr": "Saisir h3. Fonction"
           },
           "help_text": {
             "en": "",
@@ -15094,9 +14886,9 @@
           "id": "phone_5229a1",
           "type": "phone",
           "label": {
-            "en": "F4. Telephone",
+            "en": "H4. Telephone",
             "kn": "",
-            "fr": "F4. Téléphone"
+            "fr": "H4. Téléphone"
           },
           "placeholder": {
             "en": "e.g. 078 000 0000",
@@ -15172,9 +14964,9 @@
           "id": "image_8e68f6",
           "type": "image",
           "label": {
-            "en": "F5. Picture",
+            "en": "H5. Picture",
             "kn": "",
-            "fr": "F5. Photo"
+            "fr": "H5. Photo"
           },
           "placeholder": {
             "en": "Take or upload a photo",
@@ -15230,9 +15022,9 @@
           "id": "image_e8f84e",
           "type": "image",
           "label": {
-            "en": "F6. Additional picture",
+            "en": "H6. Additional picture",
             "kn": "",
-            "fr": "F6. Photo supplémentaire"
+            "fr": "H6. Photo supplémentaire"
           },
           "placeholder": {
             "en": "Take or upload a photo",
@@ -15288,9 +15080,9 @@
           "id": "image_f829c8",
           "type": "image",
           "label": {
-            "en": "F7. Additional picture",
+            "en": "H7. Additional picture",
             "kn": "",
-            "fr": "F7. Photo supplémentaire"
+            "fr": "H7. Photo supplémentaire"
           },
           "placeholder": {
             "en": "Take or upload a photo",
