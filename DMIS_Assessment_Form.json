@@ -3778,9 +3778,9 @@
           "id": "hidden_7e52fd",
           "type": "hidden",
           "label": {
-            "en": "",
+            "en": "C7. Total household members (males + females)",
             "kn": "",
-            "fr": ""
+            "fr": "C7. Total des membres du ménage (hommes + femmes)"
           },
           "placeholder": {
             "en": "",
@@ -3788,9 +3788,9 @@
             "fr": ""
           },
           "help_text": {
-            "en": "",
+            "en": "Derived by the system.",
             "kn": "",
-            "fr": ""
+            "fr": "Calculé par le système."
           },
           "required_message": {
             "en": "",
@@ -11121,9 +11121,9 @@
               "id": "hidden_bd326d",
               "type": "hidden",
               "label": {
-                "en": "",
+                "en": "Evacuation site occupancy rate (%)",
                 "kn": "",
-                "fr": ""
+                "fr": "Taux d'occupation du site d'évacuation (%)"
               },
               "placeholder": {
                 "en": "",
@@ -11131,9 +11131,9 @@
                 "fr": ""
               },
               "help_text": {
-                "en": "",
+                "en": "Derived by the system.",
                 "kn": "",
-                "fr": ""
+                "fr": "Calculé par le système."
               },
               "required_message": {
                 "en": "",
@@ -12168,7 +12168,36 @@
                 "font_family": null,
                 "list_type": null,
                 "spacing_below_px": 16
-              }
+              },
+              "options": [
+                {
+                  "id": "option_dv_conf",
+                  "label": {
+                    "en": "Confirmed",
+                    "kn": "",
+                    "fr": "Confirmé"
+                  },
+                  "value": "confirmed"
+                },
+                {
+                  "id": "option_dv_notc",
+                  "label": {
+                    "en": "Not confirmed",
+                    "kn": "",
+                    "fr": "Non confirmé"
+                  },
+                  "value": "not_confirmed"
+                },
+                {
+                  "id": "option_dv_note",
+                  "label": {
+                    "en": "Not evaluated",
+                    "kn": "",
+                    "fr": "Non évalué"
+                  },
+                  "value": "not_evaluated"
+                }
+              ]
             },
             {
               "id": "hidden_allok7",
@@ -12232,7 +12261,27 @@
                 "font_family": null,
                 "list_type": null,
                 "spacing_below_px": 16
-              }
+              },
+              "options": [
+                {
+                  "id": "option_dv_yes7",
+                  "label": {
+                    "en": "Yes",
+                    "kn": "",
+                    "fr": "Oui"
+                  },
+                  "value": "yes"
+                },
+                {
+                  "id": "option_dv_no7",
+                  "label": {
+                    "en": "No",
+                    "kn": "",
+                    "fr": "Non"
+                  },
+                  "value": "no"
+                }
+              ]
             },
             {
               "id": "large_text_6bfe13",
@@ -13354,7 +13403,27 @@
                     "font_family": null,
                     "list_type": null,
                     "spacing_below_px": 16
-                  }
+                  },
+                  "options": [
+                    {
+                      "id": "option_dv_exc",
+                      "label": {
+                        "en": "Exceeds capacity",
+                        "kn": "",
+                        "fr": "Dépasse la capacité"
+                      },
+                      "value": "exceeds_capacity"
+                    },
+                    {
+                      "id": "option_dv_within",
+                      "label": {
+                        "en": "Within capacity",
+                        "kn": "",
+                        "fr": "Dans la capacité"
+                      },
+                      "value": "within_capacity"
+                    }
+                  ]
                 },
                 {
                   "id": "number_7a7b3d",

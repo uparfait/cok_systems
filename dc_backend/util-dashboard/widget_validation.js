@@ -5,6 +5,7 @@ const {
   KPI_ONLY_AGGREGATIONS,
   NUMERIC_AGGREGATIONS,
   FILTER_OPERATORS,
+  VALUELESS_OPERATORS,
   PERIOD_PRESETS,
   SORT_OPTIONS,
   WIDGET_SIZES,
@@ -256,6 +257,8 @@ function validate_filters(widget, catalog, errors, describe) {
       errors.push(`${describe}: filter ${index + 1} uses an unknown operator`);
       return;
     }
+    // Answered-or-not needs no value to compare against.
+    if (VALUELESS_OPERATORS.includes(filter.operator)) return;
     if (!is_scalar(filter.value) || String(filter.value).trim() === "") {
       errors.push(`${describe}: filter ${index + 1} needs a value`);
       return;

@@ -86,7 +86,11 @@ const KPI_ONLY_AGGREGATIONS = ["median", "cumulative_sum", "moving_average"];
 // SKIPPED, counted, and reported back so the card can flag them.
 const NUMERIC_AGGREGATIONS = ["sum", "avg", "median", "min", "max", "stddev", "cumulative_sum", "moving_average"];
 
-const FILTER_OPERATORS = ["eq", "ne", "contains", "gt", "gte", "lt", "lte"];
+// "empty" and "not_empty" read whether the field was answered at all and
+// take no value: they are how a board counts records missing a photo, a
+// cost or a position.
+const FILTER_OPERATORS = ["eq", "ne", "contains", "gt", "gte", "lt", "lte", "empty", "not_empty"];
+const VALUELESS_OPERATORS = ["empty", "not_empty"];
 
 const PERIOD_PRESETS = ["all", "today", "this_week", "this_month", "last_month", "this_year", "custom"];
 
@@ -189,6 +193,7 @@ module.exports = {
   KPI_ONLY_AGGREGATIONS,
   NUMERIC_AGGREGATIONS,
   FILTER_OPERATORS,
+  VALUELESS_OPERATORS,
   PERIOD_PRESETS,
   SORT_OPTIONS,
   WIDGET_SIZES,

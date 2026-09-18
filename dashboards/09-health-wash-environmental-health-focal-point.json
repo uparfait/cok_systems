@@ -1,0 +1,1152 @@
+{
+  "filters": [
+    {
+      "field_id": "cascading_select_8dz9o8"
+    },
+    {
+      "field_id": "cascading_select_v0mxca"
+    },
+    {
+      "field_id": "cascading_select_jwf5p2"
+    },
+    {
+      "field_id": "single_select_101af2"
+    },
+    {
+      "field_id": "single_select_644771"
+    },
+    {
+      "field_id": "select_group_0756c5"
+    },
+    {
+      "field_id": "single_select_c99cb5"
+    }
+  ],
+  "widgets": [
+    {
+      "id": "hw_bio",
+      "title": "Biological hotspots",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Bug",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fff4e5",
+          "text": "#7a4b00",
+          "number": "#e08a00"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_101af2",
+          "operator": "eq",
+          "value": "biological"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 0
+    },
+    {
+      "id": "hw_chem",
+      "title": "Chemical hotspots",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:FlaskConical",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fdecea",
+          "text": "#7f1d1d",
+          "number": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_101af2",
+          "operator": "eq",
+          "value": "chemical"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 1
+    },
+    {
+      "id": "hw_bio_types",
+      "title": "Biological hotspots by type",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Biohazard",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": {
+        "field_id": "cascading_select_b49b76"
+      },
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_101af2",
+          "operator": "eq",
+          "value": "biological"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 2
+    },
+    {
+      "id": "hw_health_fac",
+      "title": "Health facilities affected",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Hospital",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": {
+        "field_id": "single_select_7b7b58"
+      },
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "functional": "#1f8a4c",
+          "partially_damaged": "#e08a00",
+          "severely_damaged": "#e65100",
+          "destroyed": "#c62828",
+          "inaccessible_cut_off": "#6a1b9a",
+          "under_repair": "#056daa"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "select_group_0756c5",
+          "operator": "eq",
+          "value": "health"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 3
+    },
+    {
+      "id": "hw_watsan_fac",
+      "title": "Water and sanitation facilities affected",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Droplets",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": {
+        "field_id": "single_select_7b7b58"
+      },
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "functional": "#1f8a4c",
+          "partially_damaged": "#e08a00",
+          "severely_damaged": "#e65100",
+          "destroyed": "#c62828",
+          "inaccessible_cut_off": "#6a1b9a",
+          "under_repair": "#056daa"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "select_group_0756c5",
+          "operator": "eq",
+          "value": "watsan"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 4
+    },
+    {
+      "id": "hw_sites",
+      "title": "Evacuation sites in use",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Tent",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_c99cb5",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 5
+    },
+    {
+      "id": "hw_wash",
+      "title": "WASH availability at sites in use",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:ShowerHead",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": {
+        "field_id": "single_select_644771"
+      },
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "yes": "#1f8a4c",
+          "no": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_c99cb5",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 6
+    },
+    {
+      "id": "hw_persons_no_wash",
+      "title": "Persons in sites LACKING WASH",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:TriangleAlert",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_41b4c3"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fdecea",
+          "text": "#7f1d1d",
+          "number": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_c99cb5",
+          "operator": "eq",
+          "value": "yes"
+        },
+        {
+          "field_id": "single_select_644771",
+          "operator": "eq",
+          "value": "no"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 7
+    },
+    {
+      "id": "hw_crowded_no_wash",
+      "title": "Sites above 80% occupancy without WASH",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Siren",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fdecea",
+          "text": "#7f1d1d",
+          "number": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "hidden_bd326d",
+          "operator": "gt",
+          "value": 80
+        },
+        {
+          "field_id": "single_select_644771",
+          "operator": "eq",
+          "value": "no"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 8
+    },
+    {
+      "id": "hw_trauma",
+      "title": "Trauma cases",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Brain",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_9a0824"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 9
+    },
+    {
+      "id": "hw_injured",
+      "title": "Injured",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Ambulance",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_271ca1"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 10
+    },
+    {
+      "id": "hw_psycho",
+      "title": "Psychosocial support provided",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:HandHeart",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": {
+        "field_id": "single_select_f0413c"
+      },
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "yes": "#1f8a4c",
+          "no": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_f0413c",
+          "operator": "not_empty",
+          "value": null
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 11
+    },
+    {
+      "id": "hw_flooded",
+      "title": "Households flooded / water entered",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:CloudRain",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_8c0eb4",
+          "operator": "eq",
+          "value": "flooded_water_entered"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 12
+    },
+    {
+      "id": "hw_waterborne",
+      "title": "Waterborne disease outbreak zones",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Droplet",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fff4e5",
+          "text": "#7a4b00",
+          "number": "#e08a00"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_b49b76",
+          "operator": "eq",
+          "value": "waterborne_disease_zone"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 13
+    },
+    {
+      "id": "hw_bio_bar",
+      "title": "Biological hotspot types",
+      "description": "",
+      "chart_type": "bar",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_b49b76"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_101af2",
+          "operator": "eq",
+          "value": "biological"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 6,
+      "size": "medium",
+      "position": 14
+    },
+    {
+      "id": "hw_chem_bar",
+      "title": "Chemical hotspot types",
+      "description": "",
+      "chart_type": "bar",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_b49b76"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_101af2",
+          "operator": "eq",
+          "value": "chemical"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 6,
+      "size": "medium",
+      "position": 15
+    },
+    {
+      "id": "hw_health_status",
+      "title": "Health facility types by impact status",
+      "description": "",
+      "chart_type": "stacked_column",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_3ec652"
+      },
+      "split_by": {
+        "field_id": "single_select_7b7b58"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "functional": "#1f8a4c",
+          "partially_damaged": "#e08a00",
+          "severely_damaged": "#e65100",
+          "destroyed": "#c62828",
+          "inaccessible_cut_off": "#6a1b9a",
+          "under_repair": "#056daa"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "select_group_0756c5",
+          "operator": "eq",
+          "value": "health"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 16
+    },
+    {
+      "id": "hw_watsan_status",
+      "title": "Water and sanitation facility types by impact status",
+      "description": "",
+      "chart_type": "stacked_column",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_3ec652"
+      },
+      "split_by": {
+        "field_id": "single_select_7b7b58"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "functional": "#1f8a4c",
+          "partially_damaged": "#e08a00",
+          "severely_damaged": "#e65100",
+          "destroyed": "#c62828",
+          "inaccessible_cut_off": "#6a1b9a",
+          "under_repair": "#056daa"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "select_group_0756c5",
+          "operator": "eq",
+          "value": "watsan"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 17
+    },
+    {
+      "id": "hw_occupancy_wash",
+      "title": "Average occupancy rate by WASH availability",
+      "description": "",
+      "chart_type": "column",
+      "icon": null,
+      "metric": {
+        "aggregation": "avg",
+        "field_id": "hidden_bd326d"
+      },
+      "group_by": {
+        "field_id": "single_select_644771"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "yes": "#1f8a4c",
+          "no": "#c62828"
+        },
+        "unit": {
+          "text": "%",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_c99cb5",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 18
+    },
+    {
+      "id": "hw_crowding",
+      "title": "Site crowding: occupancy against capacity",
+      "description": "",
+      "chart_type": "scatter",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": "number_8ab955",
+      "y_field_id": "number_41b4c3",
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_c99cb5",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "medium",
+      "position": 19
+    },
+    {
+      "id": "hw_wash_sector",
+      "title": "WASH availability per sector (sites in use)",
+      "description": "",
+      "chart_type": "stacked_100",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_v0mxca"
+      },
+      "split_by": {
+        "field_id": "single_select_644771"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "yes": "#1f8a4c",
+          "no": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_c99cb5",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 40,
+      "size": "large",
+      "position": 20
+    },
+    {
+      "id": "hw_heat_bio",
+      "title": "Epidemic-risk map: biological hotspots",
+      "description": "",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_101af2",
+          "operator": "eq",
+          "value": "biological"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "large",
+      "map": {
+        "mode": "heat",
+        "point_field_id": "geolocation_11648e",
+        "weight_field_id": null,
+        "radius": 28,
+        "intensity": 1.3,
+        "show_points": true,
+        "low_color": "#c5e1a5",
+        "high_color": "#33691e"
+      },
+      "position": 21
+    },
+    {
+      "id": "hw_heat_chem",
+      "title": "Chemical-hazard map",
+      "description": "",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_101af2",
+          "operator": "eq",
+          "value": "chemical"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "medium",
+      "map": {
+        "mode": "heat",
+        "point_field_id": "geolocation_11648e",
+        "weight_field_id": null,
+        "radius": 28,
+        "intensity": 1.3,
+        "show_points": true,
+        "low_color": "#ffcc80",
+        "high_color": "#bf360c"
+      },
+      "position": 22
+    },
+    {
+      "id": "hw_heat_flood",
+      "title": "Flooded households (waterborne risk)",
+      "description": "",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_8c0eb4",
+          "operator": "eq",
+          "value": "flooded_water_entered"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "medium",
+      "map": {
+        "mode": "heat",
+        "point_field_id": "geolocation_11648e",
+        "weight_field_id": null,
+        "radius": 28,
+        "intensity": 1.3,
+        "show_points": true,
+        "low_color": "#90caf9",
+        "high_color": "#0d47a1"
+      },
+      "position": 23
+    },
+    {
+      "id": "hw_trauma_time",
+      "title": "Trauma cases over time",
+      "description": "",
+      "chart_type": "column",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_9a0824"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "over_time": {
+        "enabled": true,
+        "field_id": "date_time_07fa41",
+        "granularity": "auto",
+        "axis": "x"
+      },
+      "position": 24
+    },
+    {
+      "id": "hw_psycho_sector",
+      "title": "Psychosocial support per sector",
+      "description": "",
+      "chart_type": "stacked_100",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_v0mxca"
+      },
+      "split_by": {
+        "field_id": "single_select_f0413c"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "yes": "#1f8a4c",
+          "no": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_f0413c",
+          "operator": "not_empty",
+          "value": null
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 40,
+      "size": "large",
+      "position": 25
+    },
+    {
+      "id": "hw_map_bio",
+      "title": "Biological and chemical hotspots per sector",
+      "description": "",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_v0mxca"
+      },
+      "split_by": {
+        "field_id": "single_select_101af2"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "large",
+      "map": {
+        "mode": "world",
+        "level": "sector",
+        "marker": "lucide:Biohazard",
+        "show_markers": true,
+        "show_labels": true
+      },
+      "position": 26
+    }
+  ]
+}

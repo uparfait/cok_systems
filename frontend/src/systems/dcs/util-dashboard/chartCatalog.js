@@ -124,6 +124,15 @@ const DATE_TYPES = ["date", "date_time"];
 
 export const SUBMITTED_AT_FIELD = "submitted_at";
 
+/**
+ * A DERIVED field: a hidden field the form computes itself and stores with
+ * the answers (a status, a total, a comparison). The dashboard reads it
+ * like an answered field - as a choice to group, split, legend or filter
+ * by, and as a number to sum or average - because the catalog cannot know
+ * which a formula yields.
+ */
+export const is_derived_field = (field) => !!field && field.type === "hidden" && !!field.computed && field.computed.enabled === true;
+
 export function flatten_schema_fields(fields, accumulator) {
   const flat = accumulator || [];
   (fields || []).forEach((field) => {
@@ -149,8 +158,8 @@ export function classify_fields(schema) {
   const flat = flatten_schema_fields((schema && schema.fields) || []).filter((field) => !has_preset_config(field));
   return {
     all: flat.filter((field) => field && field.id),
-    categorical: flat.filter((field) => CATEGORICAL_TYPES.includes(field.type)),
-    numeric: flat.filter((field) => NUMERIC_TYPES.includes(field.type)),
+    categorical: flat.filter((field) => CATEGORICAL_TYPES.includes(field.type) || is_derived_field(field)),
+    numeric: flat.filter((field) => NUMERIC_TYPES.includes(field.type) || is_derived_field(field)),
     dates: flat.filter((field) => DATE_TYPES.includes(field.type)),
   };
 }

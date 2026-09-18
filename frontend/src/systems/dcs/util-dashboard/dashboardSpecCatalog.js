@@ -1,4 +1,4 @@
-import { CHART_CATALOG, flatten_schema_fields, field_label_text, SUBMITTED_AT_FIELD } from "./chartCatalog.js";
+import { CHART_CATALOG, flatten_schema_fields, field_label_text, is_derived_field, SUBMITTED_AT_FIELD } from "./chartCatalog.js";
 import { BUILDER_FORMULAS, KPI_ONLY, type_rules, builder_fields, MAX_WIDGETS } from "./builder/composeWidgets.js";
 import { map_levels_of } from "./builder/mapFields.js";
 import { ICON_LIBRARIES } from "./icons/iconLibraries.js";
@@ -79,6 +79,7 @@ const CHART_TEXT = {
 };
 
 function role_of(field) {
+  if (is_derived_field(field)) return "derived (computed by the form from other answers and stored with them: group, split, legend or filter by it when it holds a label such as a status; sum, average or compare it when it holds a number)";
   if (field.type === "number") return "numeric";
   if (DATE_TYPES.includes(field.type)) return "date";
   if (CHOICE_TYPES.includes(field.type) || field.type === "ranking") return MULTI_TYPES.includes(field.type) ? "choice (many answers per submission)" : "choice";
@@ -103,9 +104,11 @@ function option_values(field) {
 /** Every data-collection field of the form as the guide describes it. */
 export function describe_form_fields(schema) {
   return flatten_schema_fields((schema && schema.fields) || [])
-    .filter((field) => field && field.id && !NOT_COLLECTED_TYPES.includes(field.type))
+    .filter((field) => field && field.id && (is_derived_field(field) || !NOT_COLLECTED_TYPES.includes(field.type)))
     .map((field) => {
-      const entry = { id: field.id, type: field.type, label: field_label_text(field), role: role_of(field), can_group_or_split: CHOICE_TYPES.includes(field.type), can_measure_numerically: field.type === "number", can_drive_time_axis: DATE_TYPES.includes(field.type) };
+      const derived = is_derived_field(field);
+      const entry = { id: field.id, type: field.type, label: field_label_text(field), role: role_of(field), can_group_or_split: CHOICE_TYPES.includes(field.type) || derived, can_measure_numerically: field.type === "number" || derived, can_drive_time_axis: DATE_TYPES.includes(field.type) };
+      if (derived && field.computed && field.computed.formula) entry.formula = field.computed.formula;
       if (field.parent_field_id) entry.parent_field_id = field.parent_field_id;
       const values = option_values(field);
       if (values !== undefined) entry.answer_values = values;
@@ -134,7 +137,7 @@ function widget_shape() {
     x_field_id: "Numeric field on the x axis - scatter and bubble only, otherwise null.",
     y_field_id: "Numeric field on the y axis - scatter and bubble only, otherwise null.",
     size_field_id: "Numeric field sizing the bubbles - bubble only, otherwise null.",
-    filters: "Array (max 10) of { field_id, operator, value } restricting the submissions counted: operator is one of the filter_operators; value is a stored answer value (a string or number). Use [{ field_id: <choice field>, operator: 'eq', value: <one answer> }] to make one card per answer value.",
+    filters: "Array (max 10) of { field_id, operator, value } restricting the submissions counted: operator is one of the filter_operators; value is a stored answer value (a string or number). Use [{ field_id: <choice field>, operator: 'eq', value: <one answer> }] to make one card per answer value. The operators empty and not_empty take no value (write value null): [{ field_id: <a photo field>, operator: 'empty' }] counts the records that never attached one, which is how a completeness or data-quality card is built.",
     period: "{ preset, from, to } - the widget's own time window; preset is one of the period_presets. Use { preset: 'all', from: null, to: null } unless a fixed window is wanted; the dashboard's period filter overrides it while viewing.",
     sort: "value_desc | value_asc | label_asc (category charts).",
     limit: `Max categories shown, 1-50 (default 12; pie/donut/waffle are capped at 6; treemap commonly 50).`,
@@ -242,6 +245,7 @@ export function build_dashboard_creation_guide(form) {
       "Ask the AI to reply with ONLY one JSON object shaped like { \"filters\": [ ... ], \"widgets\": [ ... ] } - no prose, no markdown code fences - built strictly from the widget_shape, chart_types, formulas, board_filters and the form's fields listed below.",
       "Copy that JSON reply, paste it into the 'Paste dashboard JSON here' box of the same Ctrl+6 overlay on the dashboard, then choose to add the widgets to the board or to replace the board with them.",
       "Every field_id used anywhere in a widget MUST be one of the ids in form.fields (or 'submitted_at' for the time axis). Never invent a field. Fields marked with a preset note must not be used.",
+      "Fields with role 'derived' are values the form computes itself (a confirmation status, a criteria count, a capacity verdict, a household total). They are stored with every submission and are the right thing to chart when a question asks for a status or a total the form already works out - group, legend or filter by a derived label, sum or average a derived number. Their answer_values list what they can hold when the form declares it; their formula shows how they are worked out.",
       "Choose the chart by the data: a choice field alone -> column/bar/donut/pie/lollipop/treemap; two choice fields -> stacked_column/grouped_column/stacked_100/heatmap; a date or the submission date -> line/area; two numeric fields -> scatter (three -> bubble); a single figure -> kpi.",
       "To show a measure for each value of a field, prefer ONE widget that carries the values inside it - a KPI card with legend_by, or a chart with that field as group_by or split_by - over one filtered widget per value (see one_widget_or_many).",
       "A board answers two different questions: how much there is now, and how it is changing. Cover both - leave most widgets as they are, and turn a few of the ones a reader will want a trend for over time (see over_time), rather than adding a second widget that repeats the first with a date on its axis.",
@@ -273,7 +277,7 @@ export function build_dashboard_creation_guide(form) {
     widget_shape: widget_shape(),
     chart_types: chart_types_doc(),
     formulas: Object.fromEntries(BUILDER_FORMULAS.map((formula) => [formula.id, { description: FORMULA_TEXT[formula.id] || "", numeric_field_required: !!formula.numeric, kpi_only: KPI_ONLY.includes(formula.id) }])),
-    filter_operators: { eq: "equals", ne: "does not equal", contains: "text contains", gt: "greater than (numbers)", gte: "greater or equal (numbers)", lt: "less than (numbers)", lte: "less or equal (numbers)" },
+    filter_operators: { eq: "equals", ne: "does not equal", contains: "text contains", gt: "greater than (numbers)", gte: "greater or equal (numbers)", lt: "less than (numbers)", lte: "less or equal (numbers)", empty: "the field was not answered (missing, blank or an empty list) - no value", not_empty: "the field was answered - no value" },
     period_presets: ["all", "today", "this_week", "this_month", "last_month", "this_year", "custom (needs from, optional to, as ISO dates)"],
     time_granularities: ["auto", "hour", "day", "week", "month", "year"],
     sort_options: ["value_desc", "value_asc", "label_asc"],
@@ -408,7 +412,9 @@ export function normalize_pasted_widgets(form, pasted) {
     const metric = source.metric && typeof source.metric === "object" ? source.metric : { aggregation: "count", field_id: null };
     check(metric.field_id);
     [source.x_field_id, source.y_field_id, source.size_field_id].forEach(check);
-    const filters = Array.isArray(source.filters) ? source.filters : [];
+    const filters = (Array.isArray(source.filters) ? source.filters : []).map((filter) =>
+      filter && ["empty", "not_empty"].includes(filter.operator) ? { field_id: filter.field_id, operator: filter.operator, value: "" } : filter,
+    );
     filters.forEach((filter) => filter && check(filter.field_id));
     const display_fields = Array.isArray(source.display_fields) ? source.display_fields.filter((id) => typeof id === "string" && id).slice(0, 5) : [];
     display_fields.forEach(check);

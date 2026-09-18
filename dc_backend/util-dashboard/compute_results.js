@@ -5,7 +5,7 @@ const { compute_widget_data } = require("./widget_data.js");
 const { effective_bounds, build_match_stage } = require("./match_stage.js");
 const { build_field_catalog, is_multi_value } = require("./field_catalog.js");
 const { kpi_skipped_rows } = require("./kpi_metrics.js");
-const { sanitize_applied_filters, merge_applied, apply_board_filters, FILTER_FIELD_TYPES, MAX_FILTER_VALUES } = require("./board_filters.js");
+const { sanitize_applied_filters, merge_applied, apply_board_filters, can_filter_field, MAX_FILTER_VALUES } = require("./board_filters.js");
 const { LIMITS } = require("./constants.js");
 
 const DEFAULT_PAGE = 20;
@@ -95,7 +95,7 @@ async function compute_filter_values(body, form_group_id, form_version, forced_f
   const field_id = typeof body.field_id === "string" ? body.field_id.trim() : "";
   const catalog = build_field_catalog(form_version.schema);
   const field = catalog.fields_by_id.get(field_id);
-  if (!field || !FILTER_FIELD_TYPES.includes(field.type)) return { invalid: "not a filter field" };
+  if (!can_filter_field(field)) return { invalid: "not a filter field" };
   const period_override = sanitize_period_override(body.period);
   const others = applied_filters(body, forced_filters).filter((entry) => entry.field_id !== field_id);
   const probe = { form_group_id, filters: others.map((entry) => ({ field_id: entry.field_id, operator: "eq", value: entry.value })) };

@@ -12,12 +12,15 @@
  * change back as the widget's board_context).
  */
 
-export const FILTER_FIELD_TYPES = ["single_select", "cascading_select", "select_group"];
+export const FILTER_FIELD_TYPES = ["single_select", "multi_select", "cascading_select", "select_group"];
 export const MAX_BOARD_FILTERS = 8;
+
+/** A field may filter the board when its answers come from a fixed list, or when the form derives it itself. */
+export const can_filter_field = (field) => !!field && (FILTER_FIELD_TYPES.includes(field.type) || field.is_derived === true || (field.type === "hidden" && !!field.computed && field.computed.enabled === true));
 
 /** The builder fields of a form that may become board filters. */
 export function filter_candidates(fields) {
-  return (fields || []).filter((field) => FILTER_FIELD_TYPES.includes(field.type));
+  return (fields || []).filter((field) => can_filter_field(field));
 }
 
 /**

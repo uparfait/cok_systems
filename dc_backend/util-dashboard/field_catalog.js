@@ -17,6 +17,19 @@ const NUMERIC_TYPES = ["number"];
 const GEO_TYPES = ["geolocation"];
 const DATE_TYPES = ["date", "date_time"];
 
+/**
+ * A DERIVED field: a hidden field the form computes itself (a status that
+ * follows from other answers, a total, a comparison). Its value is stored
+ * with the answers at submission, so a dashboard may read it like any
+ * answered field - group, split, legend or filter by it when it holds a
+ * label, sum or average it when it holds a number. Both roles are open
+ * because the catalog cannot know which a formula yields; a numeric
+ * formula on a label simply skips every answer, as on any text field.
+ */
+function is_derived_field(field) {
+  return !!field && field.type === "hidden" && !!field.computed && field.computed.enabled === true;
+}
+
 function field_label_text(field) {
   if (field && field.label) {
     return field.label.en || field.label.kn || field.label.fr || field.id;
@@ -54,8 +67,14 @@ function build_field_catalog(schema) {
   const numeric = [];
   const dates = [];
   const geo = [];
+  const derived = [];
   flat.forEach((field) => {
     if (!field || !field.id) return;
+    if (is_derived_field(field)) {
+      derived.push(field.id);
+      categorical.push(field.id);
+      numeric.push(field.id);
+    }
     if (CATEGORICAL_TYPES.includes(field.type)) categorical.push(field.id);
     if (NUMERIC_TYPES.includes(field.type)) numeric.push(field.id);
     if (DATE_TYPES.includes(field.type)) dates.push(field.id);
@@ -68,6 +87,7 @@ function build_field_catalog(schema) {
     numeric_ids: numeric,
     date_ids: dates,
     geo_ids: geo,
+    derived_ids: derived,
   };
 }
 
@@ -94,6 +114,7 @@ function is_multi_value(catalog, field_id) {
 
 module.exports = {
   build_field_catalog,
+  is_derived_field,
   field_label_text,
   parent_field_id_of,
   is_categorical,

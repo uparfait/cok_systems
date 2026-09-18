@@ -1,4 +1,4 @@
-const { field_label_text, parent_field_id_of } = require("./field_catalog.js");
+const { field_label_text, parent_field_id_of, is_derived_field } = require("./field_catalog.js");
 
 /**
  * Dashboard-level filters: the board carries a list of filter FIELDS (saved
@@ -21,10 +21,16 @@ const { field_label_text, parent_field_id_of } = require("./field_catalog.js");
  * district (Kigali)") - so every widget shows the filters it runs under.
  */
 
-const FILTER_FIELD_TYPES = ["single_select", "cascading_select", "select_group"];
+// A multi select filters too: a record holding the picked value among its answers is kept.
+const FILTER_FIELD_TYPES = ["single_select", "multi_select", "cascading_select", "select_group"];
 const MAX_BOARD_FILTERS = 8;
 const MAX_FILTER_VALUES = 200;
 const DRILL_ROLES = ["group_by", "split_by", "pattern_by", "legend_by"];
+
+/** Whether a field may be a board filter: a fixed-list choice, or a value the form derives itself. */
+function can_filter_field(field) {
+  return !!field && (FILTER_FIELD_TYPES.includes(field.type) || is_derived_field(field));
+}
 
 const clean = (value) => (typeof value === "string" ? value.trim() : "");
 const is_scalar = (value) => typeof value === "string" || typeof value === "number" || typeof value === "boolean";
@@ -49,7 +55,7 @@ function validate_filter_defs(defs, catalog) {
   defs.forEach((def, index) => {
     const field = catalog.fields_by_id.get(def.field_id);
     if (!field) errors.push(`Filter ${index + 1}: unknown field`);
-    else if (!FILTER_FIELD_TYPES.includes(field.type)) errors.push(`Filter ${index + 1}: only select, radio, cascading and select group fields can filter`);
+    else if (!can_filter_field(field)) errors.push(`Filter ${index + 1}: only select, radio, cascading, select group and derived fields can filter`);
   });
   return errors;
 }
@@ -137,6 +143,7 @@ function apply_board_filters(widget, applied, catalog) {
 
 module.exports = {
   FILTER_FIELD_TYPES,
+  can_filter_field,
   MAX_BOARD_FILTERS,
   MAX_FILTER_VALUES,
   sanitize_filter_defs,

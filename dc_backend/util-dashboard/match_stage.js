@@ -33,8 +33,13 @@ function numeric_expr(field_id) {
  * One widget filter -> one Mongo condition. Unknown operators were already
  * rejected by validation, so this only ever sees the supported set.
  */
+// An unanswered field is missing, null, blank or an empty list.
+const EMPTY_VALUES = [null, "", []];
+
 function filter_condition(filter) {
   const path = `data.${filter.field_id}`;
+  if (filter.operator === "empty") return { $or: [{ [path]: { $exists: false } }, { [path]: { $in: EMPTY_VALUES } }] };
+  if (filter.operator === "not_empty") return { [path]: { $exists: true, $nin: EMPTY_VALUES } };
   if (filter.operator === "eq") return { [path]: { $in: value_candidates(filter.value) } };
   if (filter.operator === "ne") return { [path]: { $nin: value_candidates(filter.value) } };
   if (filter.operator === "contains") {

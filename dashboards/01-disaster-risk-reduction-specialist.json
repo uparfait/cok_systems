@@ -1,0 +1,911 @@
+{
+  "filters": [
+    {
+      "field_id": "cascading_select_8dz9o8"
+    },
+    {
+      "field_id": "cascading_select_v0mxca"
+    },
+    {
+      "field_id": "cascading_select_jwf5p2"
+    },
+    {
+      "field_id": "single_select_101af2"
+    },
+    {
+      "field_id": "single_select_f42575"
+    },
+    {
+      "field_id": "single_select_4d066b"
+    }
+  ],
+  "widgets": [
+    {
+      "id": "drr_total",
+      "title": "Hotspots logged",
+      "description": "Every hotspot / risk-area visit recorded",
+      "chart_type": "kpi",
+      "icon": "lucide:MapPin",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#e6f4f1",
+          "text": "#333333",
+          "number": "#056daa"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 0
+    },
+    {
+      "id": "drr_by_risk",
+      "title": "Hotspots by risk status",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:TriangleAlert",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": {
+        "field_id": "single_select_f42575"
+      },
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "high": "#c62828",
+          "moderate": "#e08a00",
+          "low": "#1f8a4c",
+          "no_risk": "#9e9e9e"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 1
+    },
+    {
+      "id": "drr_high",
+      "title": "High-risk hotspots",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Siren",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fdecea",
+          "text": "#7f1d1d",
+          "number": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        },
+        {
+          "field_id": "single_select_f42575",
+          "operator": "eq",
+          "value": "high"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 2
+    },
+    {
+      "id": "drr_exposed",
+      "title": "Exposed households (all hotspots)",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:House",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_b20f56"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 3
+    },
+    {
+      "id": "drr_exposed_high",
+      "title": "Exposed households at HIGH risk",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:UserX",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_b20f56"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fdecea",
+          "text": "#7f1d1d",
+          "number": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        },
+        {
+          "field_id": "single_select_f42575",
+          "operator": "eq",
+          "value": "high"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 4
+    },
+    {
+      "id": "drr_exposed_avg",
+      "title": "Average exposed households per hotspot",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Users",
+      "metric": {
+        "aggregation": "avg",
+        "field_id": "number_b20f56"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 5
+    },
+    {
+      "id": "drr_by_category",
+      "title": "Hotspots by category",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Layers",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": {
+        "field_id": "single_select_101af2"
+      },
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 6
+    },
+    {
+      "id": "drr_month",
+      "title": "New hotspots this month",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:CalendarDays",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "this_month",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 7
+    },
+    {
+      "id": "drr_hh_risk",
+      "title": "Households with a risk profile (Section E)",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:HandHeart",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": {
+        "field_id": "single_select_9dc26c"
+      },
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "high": "#c62828",
+          "moderate": "#e08a00",
+          "low": "#1f8a4c",
+          "no_risk": "#9e9e9e"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_b63058",
+          "operator": "eq",
+          "value": "risk"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 8
+    },
+    {
+      "id": "drr_quickwins",
+      "title": "Records with quick-win mitigation activities",
+      "description": "Preparedness visits that recorded at least one quick-win activity",
+      "chart_type": "kpi",
+      "icon": "lucide:Wrench",
+      "metric": {
+        "aggregation": "count",
+        "field_id": "multi_select_2e0bba"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 9
+    },
+    {
+      "id": "drr_map_sector",
+      "title": "Hotspots per sector",
+      "description": "",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_v0mxca"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "large",
+      "map": {
+        "mode": "world",
+        "level": "sector",
+        "marker": "lucide:TriangleAlert",
+        "show_markers": true,
+        "show_labels": true
+      },
+      "position": 10
+    },
+    {
+      "id": "drr_heat_exposed",
+      "title": "Where exposed households concentrate",
+      "description": "Each hotspot burns by its exposed households",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "large",
+      "map": {
+        "mode": "heat",
+        "point_field_id": "geolocation_11648e",
+        "weight_field_id": "number_b20f56",
+        "radius": 28,
+        "intensity": 1.3,
+        "show_points": true,
+        "low_color": "#f9d976",
+        "high_color": "#c62828"
+      },
+      "position": 11
+    },
+    {
+      "id": "drr_type_exposed",
+      "title": "Exposed households per hotspot type",
+      "description": "Pareto view: the types driving most of the exposure come first",
+      "chart_type": "bar",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_b20f56"
+      },
+      "group_by": {
+        "field_id": "cascading_select_b49b76"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 20,
+      "size": "large",
+      "position": 12
+    },
+    {
+      "id": "drr_category_risk",
+      "title": "Risk status within each hotspot category",
+      "description": "",
+      "chart_type": "stacked_100",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "single_select_101af2"
+      },
+      "split_by": {
+        "field_id": "single_select_f42575"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "high": "#c62828",
+          "moderate": "#e08a00",
+          "low": "#1f8a4c",
+          "no_risk": "#9e9e9e"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 13
+    },
+    {
+      "id": "drr_treemap",
+      "title": "Hotspot types sized by exposed households",
+      "description": "",
+      "chart_type": "treemap",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_b20f56"
+      },
+      "group_by": {
+        "field_id": "cascading_select_b49b76"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "large",
+      "position": 14
+    },
+    {
+      "id": "drr_sector_risk",
+      "title": "Risk status per sector",
+      "description": "",
+      "chart_type": "heatmap",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_v0mxca"
+      },
+      "split_by": {
+        "field_id": "single_select_f42575"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 40,
+      "size": "large",
+      "position": 15
+    },
+    {
+      "id": "drr_new_over_time",
+      "title": "New hotspots registered over time, by risk status",
+      "description": "Read against the rain seasons (Feb-May, Sep-Dec)",
+      "chart_type": "stacked_column",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": {
+        "field_id": "single_select_f42575"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "high": "#c62828",
+          "moderate": "#e08a00",
+          "low": "#1f8a4c",
+          "no_risk": "#9e9e9e"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "over_time": {
+        "enabled": true,
+        "field_id": "date_time_07fa41",
+        "granularity": "auto",
+        "axis": "x"
+      },
+      "position": 16
+    },
+    {
+      "id": "drr_exposure_trend",
+      "title": "Exposed households registered over time",
+      "description": "",
+      "chart_type": "area",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_b20f56"
+      },
+      "group_by": {
+        "field_id": "date_time_07fa41",
+        "granularity": "auto"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 17
+    },
+    {
+      "id": "drr_e_type",
+      "title": "Household risk profiles per hotspot type (Section E)",
+      "description": "",
+      "chart_type": "bar",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_e8ad6f"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_b63058",
+          "operator": "eq",
+          "value": "risk"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 20,
+      "size": "medium",
+      "position": 18
+    },
+    {
+      "id": "drr_e_risk",
+      "title": "Household risk profiles by risk status",
+      "description": "",
+      "chart_type": "donut",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "single_select_9dc26c"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "high": "#c62828",
+          "moderate": "#e08a00",
+          "low": "#1f8a4c",
+          "no_risk": "#9e9e9e"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_b63058",
+          "operator": "eq",
+          "value": "risk"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 6,
+      "size": "small",
+      "position": 19
+    },
+    {
+      "id": "drr_quickwin_types",
+      "title": "Quick-win mitigation activities recorded",
+      "description": "",
+      "chart_type": "bar",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "multi_select_2e0bba"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 16,
+      "size": "large",
+      "position": 20
+    },
+    {
+      "id": "drr_hotspot_district",
+      "title": "Hotspots per district by category",
+      "description": "",
+      "chart_type": "stacked_column",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_8dz9o8"
+      },
+      "split_by": {
+        "field_id": "single_select_101af2"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 21
+    }
+  ]
+}

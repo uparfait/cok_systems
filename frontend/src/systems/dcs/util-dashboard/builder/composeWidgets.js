@@ -1,4 +1,4 @@
-import { chart_definition, flatten_schema_fields, field_label_text, SUBMITTED_AT_FIELD } from "../chartCatalog.js";
+import { chart_definition, flatten_schema_fields, field_label_text, is_derived_field, SUBMITTED_AT_FIELD } from "../chartCatalog.js";
 import { TIME_SOURCE_IDS } from "../overTime.js";
 import { KPI_FORMULAS } from "../kpiCatalog.js";
 import { has_preset_config } from "../../fields/presetFields.js";
@@ -125,14 +125,15 @@ const NOT_COLLECTED_TYPES = ["paragraph", "header", "file", "image_block", "hori
  */
 export function builder_fields(schema) {
   return flatten_schema_fields((schema && schema.fields) || [])
-    .filter((field) => field && field.id && !NOT_COLLECTED_TYPES.includes(field.type) && !has_preset_config(field))
+    .filter((field) => field && field.id && (is_derived_field(field) || !NOT_COLLECTED_TYPES.includes(field.type)) && !has_preset_config(field))
     .map((field) => ({
       id: field.id,
       type: field.type,
       label: field_label_text(field),
-      is_choice: CHOICE_TYPES.includes(field.type),
-      is_numeric: NUMERIC_TYPES.includes(field.type),
+      is_choice: CHOICE_TYPES.includes(field.type) || is_derived_field(field),
+      is_numeric: NUMERIC_TYPES.includes(field.type) || is_derived_field(field),
       is_date: DATE_TYPES.includes(field.type),
+      is_derived: is_derived_field(field),
       raw: field,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
@@ -147,6 +148,7 @@ export function all_submissions_field(translate) {
 }
 
 export function field_type_key(field) {
+  if (field.is_derived || is_derived_field(field)) return "DCS_DB_FT_DERIVED";
   if (NUMERIC_TYPES.includes(field.type)) return "DCS_DB_FT_NUMBER";
   if (DATE_TYPES.includes(field.type)) return "DCS_DB_FT_DATE";
   if (MULTI_TYPES.includes(field.type)) return "DCS_DB_FT_MULTI";

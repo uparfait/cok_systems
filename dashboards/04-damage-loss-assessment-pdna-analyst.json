@@ -1,0 +1,1134 @@
+{
+  "filters": [
+    {
+      "field_id": "cascading_select_8dz9o8"
+    },
+    {
+      "field_id": "cascading_select_v0mxca"
+    },
+    {
+      "field_id": "cascading_select_jwf5p2"
+    },
+    {
+      "field_id": "single_select_7c5216"
+    },
+    {
+      "field_id": "single_select_573c88"
+    },
+    {
+      "field_id": "single_select_8c0eb4"
+    },
+    {
+      "field_id": "single_select_e0a9c8"
+    },
+    {
+      "field_id": "single_select_4d066b"
+    }
+  ],
+  "widgets": [
+    {
+      "id": "pdna_total",
+      "title": "Total estimated loss",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Banknote",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_3800b1"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#e6f4f1",
+          "text": "#333333",
+          "number": "#056daa"
+        },
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 0
+    },
+    {
+      "id": "pdna_mean",
+      "title": "Mean loss per incident",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:ChartBar",
+      "metric": {
+        "aggregation": "avg",
+        "field_id": "number_3800b1"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 1
+    },
+    {
+      "id": "pdna_median",
+      "title": "Median loss per incident",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Scale",
+      "metric": {
+        "aggregation": "median",
+        "field_id": "number_3800b1"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 2
+    },
+    {
+      "id": "pdna_max",
+      "title": "Largest single loss (verification queue)",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:TriangleAlert",
+      "metric": {
+        "aggregation": "max",
+        "field_id": "number_3800b1"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fff4e5",
+          "text": "#7a4b00",
+          "number": "#e08a00"
+        },
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 3
+    },
+    {
+      "id": "pdna_deaths",
+      "title": "Deaths",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Skull",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_ca002e"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fdecea",
+          "text": "#7f1d1d",
+          "number": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 4
+    },
+    {
+      "id": "pdna_injured",
+      "title": "Injured",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Ambulance",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_271ca1"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 5
+    },
+    {
+      "id": "pdna_trauma",
+      "title": "Trauma cases",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Brain",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_9a0824"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 6
+    },
+    {
+      "id": "pdna_missing",
+      "title": "Missing",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Search",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_07a4a8"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fdecea",
+          "text": "#7f1d1d",
+          "number": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 7
+    },
+    {
+      "id": "pdna_houses",
+      "title": "Houses damaged",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:House",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 8
+    },
+    {
+      "id": "pdna_damage_type",
+      "title": "House damage severity",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Layers",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": {
+        "field_id": "single_select_8c0eb4"
+      },
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 9
+    },
+    {
+      "id": "pdna_tenure",
+      "title": "Tenant vs owner losses",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Users",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": {
+        "field_id": "single_select_e0a9c8"
+      },
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 10
+    },
+    {
+      "id": "pdna_cost_missing",
+      "title": "Loss records with the cost MISSING",
+      "description": "Completeness of the money field",
+      "chart_type": "kpi",
+      "icon": "lucide:FileX",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fff4e5",
+          "text": "#7a4b00",
+          "number": "#e08a00"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_7c5216",
+          "operator": "not_empty",
+          "value": null
+        },
+        {
+          "field_id": "number_3800b1",
+          "operator": "empty",
+          "value": null
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 11
+    },
+    {
+      "id": "pdna_no_photo",
+      "title": "Deaths or missing recorded without a photo",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:ImageOff",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fdecea",
+          "text": "#7f1d1d",
+          "number": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "number_ca002e",
+          "operator": "gt",
+          "value": 0
+        },
+        {
+          "field_id": "image_8e68f6",
+          "operator": "empty",
+          "value": null
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 12
+    },
+    {
+      "id": "pdna_other_blank",
+      "title": "Cause = Other with no description",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:CircleHelp",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fff4e5",
+          "text": "#7a4b00",
+          "number": "#e08a00"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_573c88",
+          "operator": "eq",
+          "value": "other_cause_c"
+        },
+        {
+          "field_id": "text_928225",
+          "operator": "empty",
+          "value": null
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 13
+    },
+    {
+      "id": "pdna_cost_driver",
+      "title": "Estimated loss by key driver",
+      "description": "",
+      "chart_type": "bar",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_3800b1"
+      },
+      "group_by": {
+        "field_id": "single_select_7c5216"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "medium",
+      "position": 14
+    },
+    {
+      "id": "pdna_cost_cause",
+      "title": "Estimated loss by immediate cause",
+      "description": "",
+      "chart_type": "bar",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_3800b1"
+      },
+      "group_by": {
+        "field_id": "single_select_573c88"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 20,
+      "size": "medium",
+      "position": 15
+    },
+    {
+      "id": "pdna_cost_damage",
+      "title": "Estimated loss by house damage type",
+      "description": "",
+      "chart_type": "column",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_3800b1"
+      },
+      "group_by": {
+        "field_id": "single_select_8c0eb4"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "medium",
+      "position": 16
+    },
+    {
+      "id": "pdna_avg_damage",
+      "title": "Average loss per house damage type (outliers)",
+      "description": "",
+      "chart_type": "lollipop",
+      "icon": null,
+      "metric": {
+        "aggregation": "avg",
+        "field_id": "number_3800b1"
+      },
+      "group_by": {
+        "field_id": "single_select_8c0eb4"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "medium",
+      "position": 17
+    },
+    {
+      "id": "pdna_damage_sector",
+      "title": "House damage type per sector",
+      "description": "",
+      "chart_type": "stacked_column",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_v0mxca"
+      },
+      "split_by": {
+        "field_id": "single_select_8c0eb4"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 40,
+      "size": "large",
+      "position": 18
+    },
+    {
+      "id": "pdna_cost_deaths",
+      "title": "Loss against deaths per incident",
+      "description": "Quadrants: high cost / high casualties top right",
+      "chart_type": "scatter",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": "number_3800b1",
+      "y_field_id": "number_ca002e",
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "medium",
+      "position": 19
+    },
+    {
+      "id": "pdna_bubble",
+      "title": "Loss, injured and deaths per incident",
+      "description": "Bubble size: deaths",
+      "chart_type": "bubble",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": "number_3800b1",
+      "y_field_id": "number_271ca1",
+      "size_field_id": "number_ca002e",
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "medium",
+      "position": 20
+    },
+    {
+      "id": "pdna_cost_time",
+      "title": "Estimated loss over time",
+      "description": "Compare the current season against the last",
+      "chart_type": "column",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_3800b1"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "over_time": {
+        "enabled": true,
+        "field_id": "date_time_07fa41",
+        "granularity": "auto",
+        "axis": "x"
+      },
+      "position": 21
+    },
+    {
+      "id": "pdna_casualties_time",
+      "title": "Deaths over time",
+      "description": "",
+      "chart_type": "area",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_ca002e"
+      },
+      "group_by": {
+        "field_id": "date_time_07fa41",
+        "granularity": "auto"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 22
+    },
+    {
+      "id": "pdna_driver_cause",
+      "title": "Key driver by immediate cause",
+      "description": "",
+      "chart_type": "heatmap",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "single_select_7c5216"
+      },
+      "split_by": {
+        "field_id": "single_select_573c88"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 23
+    },
+    {
+      "id": "pdna_tree",
+      "title": "Loss by immediate cause (treemap)",
+      "description": "",
+      "chart_type": "treemap",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_3800b1"
+      },
+      "group_by": {
+        "field_id": "single_select_573c88"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "medium",
+      "position": 24
+    },
+    {
+      "id": "pdna_structures",
+      "title": "Other structures damaged",
+      "description": "",
+      "chart_type": "bar",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "multi_select_b293aa"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 8,
+      "size": "medium",
+      "position": 25
+    },
+    {
+      "id": "pdna_tenure_damage",
+      "title": "Damage type by tenure",
+      "description": "",
+      "chart_type": "grouped_column",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "single_select_8c0eb4"
+      },
+      "split_by": {
+        "field_id": "single_select_e0a9c8"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 26
+    },
+    {
+      "id": "pdna_map",
+      "title": "Estimated loss per sector",
+      "description": "",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_3800b1"
+      },
+      "group_by": {
+        "field_id": "cascading_select_v0mxca"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "large",
+      "map": {
+        "mode": "world",
+        "level": "sector",
+        "marker": "lucide:Banknote",
+        "show_markers": true,
+        "show_labels": true
+      },
+      "position": 27
+    },
+    {
+      "id": "pdna_heat",
+      "title": "Where the losses concentrate",
+      "description": "Weighted by estimated cost",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "large",
+      "map": {
+        "mode": "heat",
+        "point_field_id": "geolocation_11648e",
+        "weight_field_id": "number_3800b1",
+        "radius": 28,
+        "intensity": 1.3,
+        "show_points": true,
+        "low_color": "#2b6cb0",
+        "high_color": "#c62828"
+      },
+      "position": 28
+    },
+    {
+      "id": "pdna_cell_top",
+      "title": "Most expensive cells",
+      "description": "",
+      "chart_type": "bar",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_3800b1"
+      },
+      "group_by": {
+        "field_id": "cascading_select_jwf5p2"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "unit": {
+          "text": "RWF",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 20,
+      "size": "large",
+      "position": 29
+    }
+  ]
+}

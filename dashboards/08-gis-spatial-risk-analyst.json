@@ -1,0 +1,939 @@
+{
+  "filters": [
+    {
+      "field_id": "cascading_select_8dz9o8"
+    },
+    {
+      "field_id": "cascading_select_v0mxca"
+    },
+    {
+      "field_id": "cascading_select_jwf5p2"
+    },
+    {
+      "field_id": "cascading_select_yb89hw"
+    },
+    {
+      "field_id": "single_select_4d066b"
+    },
+    {
+      "field_id": "single_select_101af2"
+    }
+  ],
+  "widgets": [
+    {
+      "id": "gis_total",
+      "title": "Records",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Database",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 0
+    },
+    {
+      "id": "gis_with_gps",
+      "title": "Records with a GPS position",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Crosshair",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#e8f5e9",
+          "text": "#14532d",
+          "number": "#1f8a4c"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "geolocation_11648e",
+          "operator": "not_empty",
+          "value": null
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 1
+    },
+    {
+      "id": "gis_no_gps",
+      "title": "Records WITHOUT a GPS position",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:MapPinOff",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fdecea",
+          "text": "#7f1d1d",
+          "number": "#c62828"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "geolocation_11648e",
+          "operator": "empty",
+          "value": null
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 2
+    },
+    {
+      "id": "gis_with_upi",
+      "title": "Records with a UPI (parcel join possible)",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Landmark",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "text_98db0b",
+          "operator": "not_empty",
+          "value": null
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 3
+    },
+    {
+      "id": "gis_no_upi",
+      "title": "Records without a UPI",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:FileX",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#fff4e5",
+          "text": "#7a4b00",
+          "number": "#e08a00"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "text_98db0b",
+          "operator": "empty",
+          "value": null
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 4
+    },
+    {
+      "id": "gis_by_purpose",
+      "title": "Records by purpose",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Layers",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": {
+        "field_id": "single_select_4d066b"
+      },
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "hotspot": "#e08a00",
+          "household_loss": "#c62828",
+          "infrastructure": "#1f3a5f",
+          "emergency_response": "#6a1b9a",
+          "preparedness_readiness": "#1f8a4c"
+        },
+        "value_labels": {
+          "hotspot": "Hotspot / risk area",
+          "household_loss": "Household loss",
+          "infrastructure": "Infrastructure",
+          "emergency_response": "Emergency response",
+          "preparedness_readiness": "Preparedness"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 5
+    },
+    {
+      "id": "gis_villages",
+      "title": "Villages with records",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Map",
+      "metric": {
+        "aggregation": "count_distinct",
+        "field_id": "cascading_select_yb89hw"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 6
+    },
+    {
+      "id": "gis_cells",
+      "title": "Cells with records",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Grid3x3",
+      "metric": {
+        "aggregation": "count_distinct",
+        "field_id": "cascading_select_jwf5p2"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 7
+    },
+    {
+      "id": "gis_repeat_upi",
+      "title": "Parcels (UPI) visited more than once",
+      "description": "Repeat-location incidence",
+      "chart_type": "kpi",
+      "icon": "lucide:Copy",
+      "metric": {
+        "aggregation": "occurrences",
+        "field_id": "text_98db0b"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "display_fields": [
+        "cascading_select_jwf5p2",
+        "cascading_select_yb89hw"
+      ],
+      "display_separator": " - ",
+      "same_fields": [],
+      "occurrence_rule": {
+        "operator": "gt",
+        "value": 1
+      },
+      "occurrence_scope": "matching",
+      "position": 8
+    },
+    {
+      "id": "gis_hot_villages",
+      "title": "Villages with 3 or more records",
+      "description": "Spatial clustering candidates",
+      "chart_type": "kpi",
+      "icon": "lucide:Radar",
+      "metric": {
+        "aggregation": "occurrences",
+        "field_id": "cascading_select_yb89hw"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "display_fields": [
+        "cascading_select_jwf5p2"
+      ],
+      "display_separator": " - ",
+      "same_fields": [],
+      "occurrence_rule": {
+        "operator": "gte",
+        "value": 3
+      },
+      "occurrence_scope": "matching",
+      "position": 9
+    },
+    {
+      "id": "gis_wetland",
+      "title": "Wetland encroachment hotspots",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Leaf",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_b49b76",
+          "operator": "eq",
+          "value": "wetland_encroachment"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 10
+    },
+    {
+      "id": "gis_riverbank",
+      "title": "Riverbank buffer-zone violations",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Droplet",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_b49b76",
+          "operator": "eq",
+          "value": "riverbank_buffer_violation"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 11
+    },
+    {
+      "id": "gis_heat_all",
+      "title": "Kernel density of all records, by purpose",
+      "description": "Each purpose spreads its own colour",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": {
+        "field_id": "single_select_4d066b"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "hotspot": "#e08a00",
+          "household_loss": "#c62828",
+          "infrastructure": "#1f3a5f",
+          "emergency_response": "#6a1b9a",
+          "preparedness_readiness": "#1f8a4c"
+        },
+        "value_labels": {
+          "hotspot": "Hotspot / risk area",
+          "household_loss": "Household loss",
+          "infrastructure": "Infrastructure",
+          "emergency_response": "Emergency response",
+          "preparedness_readiness": "Preparedness"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "large",
+      "map": {
+        "mode": "heat",
+        "point_field_id": "geolocation_11648e",
+        "weight_field_id": null,
+        "radius": 28,
+        "intensity": 1.3,
+        "show_points": true,
+        "low_color": "#2b6cb0",
+        "high_color": "#c62828"
+      },
+      "position": 12
+    },
+    {
+      "id": "gis_heat_hotspots",
+      "title": "Hotspot register (risk points)",
+      "description": "",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "medium",
+      "map": {
+        "mode": "heat",
+        "point_field_id": "geolocation_11648e",
+        "weight_field_id": "number_b20f56",
+        "radius": 28,
+        "intensity": 1.3,
+        "show_points": true,
+        "low_color": "#ffe082",
+        "high_color": "#e65100"
+      },
+      "position": 13
+    },
+    {
+      "id": "gis_heat_impact",
+      "title": "Impact records (household losses)",
+      "description": "Lay this beside the hotspot register to validate the risk map",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "medium",
+      "map": {
+        "mode": "heat",
+        "point_field_id": "geolocation_11648e",
+        "weight_field_id": "hidden_7e52fd",
+        "radius": 28,
+        "intensity": 1.3,
+        "show_points": true,
+        "low_color": "#90caf9",
+        "high_color": "#b71c1c"
+      },
+      "position": 14
+    },
+    {
+      "id": "gis_map_cell",
+      "title": "Records per cell",
+      "description": "",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_jwf5p2"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "large",
+      "map": {
+        "mode": "world",
+        "level": "cell",
+        "marker": "lucide:MapPin",
+        "show_markers": false,
+        "show_labels": true
+      },
+      "position": 15
+    },
+    {
+      "id": "gis_map_sector_purpose",
+      "title": "Records per sector by purpose",
+      "description": "",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_v0mxca"
+      },
+      "split_by": {
+        "field_id": "single_select_4d066b"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "hotspot": "#e08a00",
+          "household_loss": "#c62828",
+          "infrastructure": "#1f3a5f",
+          "emergency_response": "#6a1b9a",
+          "preparedness_readiness": "#1f8a4c"
+        },
+        "value_labels": {
+          "hotspot": "Hotspot / risk area",
+          "household_loss": "Household loss",
+          "infrastructure": "Infrastructure",
+          "emergency_response": "Emergency response",
+          "preparedness_readiness": "Preparedness"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "large",
+      "map": {
+        "mode": "world",
+        "level": "sector",
+        "marker": "lucide:MapPin",
+        "show_markers": true,
+        "show_labels": true
+      },
+      "position": 16
+    },
+    {
+      "id": "gis_village_tree",
+      "title": "Records per village nested under cell",
+      "description": "",
+      "chart_type": "treemap",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_yb89hw"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "large",
+      "position": 17
+    },
+    {
+      "id": "gis_geo_types",
+      "title": "Geological hotspot types",
+      "description": "",
+      "chart_type": "bar",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_b49b76"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_101af2",
+          "operator": "eq",
+          "value": "geological"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "medium",
+      "position": 18
+    },
+    {
+      "id": "gis_hydro_types",
+      "title": "Meteorological and hydrological hotspot types",
+      "description": "",
+      "chart_type": "bar",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_b49b76"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_101af2",
+          "operator": "eq",
+          "value": "met_hydro"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "medium",
+      "position": 19
+    },
+    {
+      "id": "gis_purpose_time",
+      "title": "Records over time by purpose (season slider)",
+      "description": "",
+      "chart_type": "stacked_column",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": {
+        "field_id": "single_select_4d066b"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "value_colors": {
+          "hotspot": "#e08a00",
+          "household_loss": "#c62828",
+          "infrastructure": "#1f3a5f",
+          "emergency_response": "#6a1b9a",
+          "preparedness_readiness": "#1f8a4c"
+        },
+        "value_labels": {
+          "hotspot": "Hotspot / risk area",
+          "household_loss": "Household loss",
+          "infrastructure": "Infrastructure",
+          "emergency_response": "Emergency response",
+          "preparedness_readiness": "Preparedness"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "over_time": {
+        "enabled": true,
+        "field_id": "date_time_07fa41",
+        "granularity": "auto",
+        "axis": "x"
+      },
+      "position": 20
+    },
+    {
+      "id": "gis_gps_sector",
+      "title": "GPS completeness per sector",
+      "description": "Records with a position, per sector and purpose",
+      "chart_type": "stacked_100",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_v0mxca"
+      },
+      "split_by": {
+        "field_id": "single_select_4d066b"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "geolocation_11648e",
+          "operator": "not_empty",
+          "value": null
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 40,
+      "size": "large",
+      "position": 21
+    },
+    {
+      "id": "gis_sector_purpose",
+      "title": "Records per sector by purpose",
+      "description": "",
+      "chart_type": "heatmap",
+      "icon": null,
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_v0mxca"
+      },
+      "split_by": {
+        "field_id": "single_select_4d066b"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 40,
+      "size": "large",
+      "position": 22
+    }
+  ]
+}

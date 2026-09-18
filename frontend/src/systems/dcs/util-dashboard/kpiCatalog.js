@@ -1,4 +1,4 @@
-import { classify_fields, field_label_text, flatten_schema_fields } from "./chartCatalog.js";
+import { classify_fields, field_label_text, flatten_schema_fields, is_derived_field } from "./chartCatalog.js";
 import { is_cascade_child, category_display } from "./autoGenerate.js";
 import { has_preset_config } from "../fields/presetFields.js";
 
@@ -71,6 +71,7 @@ const KPI_FIELD_TYPES = [
 ];
 
 export function kpi_field_type_key(field) {
+  if (is_derived_field(field)) return "DCS_DB_FT_DERIVED";
   if (field.type === "number") return "DCS_DB_FT_NUMBER";
   if (field.type === "large_text") return "DCS_DB_FT_LARGE_TEXT";
   if (["single_select", "select_group", "cascading_select", "likert_scale"].includes(field.type)) return "DCS_DB_FT_SINGLE";
@@ -80,7 +81,7 @@ export function kpi_field_type_key(field) {
 
 export function eligible_kpi_fields(schema) {
   return flatten_schema_fields((schema && schema.fields) || []).filter(
-    (field) => field && field.id && KPI_FIELD_TYPES.includes(field.type) && !is_cascade_child(field) && !has_preset_config(field),
+    (field) => field && field.id && (KPI_FIELD_TYPES.includes(field.type) || is_derived_field(field)) && !is_cascade_child(field) && !has_preset_config(field),
   );
 }
 
