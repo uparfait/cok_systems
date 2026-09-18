@@ -42,7 +42,7 @@ export default function MapLegend({ items, palette, onPick, unknown }) {
                 <span className="dcs-map-legend-swatch" style={{ borderColor: item.color, backgroundColor: with_alpha(item.color, 0.7) }} />
               )}
               {palette.name_for ? palette.name_for(item.name) : item.name}
-              {item.value !== null && item.value !== undefined && <b style={{ color: palette.number }}>{Number(item.value).toLocaleString("en-US")}</b>}
+              {item.value !== null && item.value !== undefined && <b style={{ color: palette.number }}>{palette.number_text(item.value)}</b>}
             </button>
           ))}
           {list.length > PREVIEW && (

@@ -83,7 +83,7 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
   // which is right: a number broken across two lines has stopped being a
   // number anyone can read at a glance.
   const roomy_font = Math.max(17, Math.min(28, Math.round(size.width / 8)));
-  const number_font = fit_text_font(colors.number_text(value), Math.max(60, size.width - 24), roomy_font, 11);
+  const number_font = fit_text_font(colors.number_text(value), Math.max(60, size.width - 24), roomy_font, 8);
   const direction = changePct === null || changePct === undefined ? null : changePct >= 0 ? "up" : "down";
   const has_legend = Array.isArray(legend) && legend.length > 0;
   const { translate } = useDcsLanguage();
@@ -103,7 +103,7 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
           {totalLabel}
         </span>
       ) : null}
-      <AnimatedNumber value={value} format={colors.number_text} className="font-bold break-all" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif", fontSize: number_font, lineHeight: 1.1, maxWidth: "100%" }} />
+      <AnimatedNumber value={value} format={colors.number_text} className="font-bold whitespace-nowrap" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif", fontSize: number_font, lineHeight: 1.1, maxWidth: "100%" }} />
       {has_legend && (
         <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0, maxHeight: shown.length > 12 ? 280 : undefined, overflowY: shown.length > 12 ? "auto" : "visible" }}>
           {shown.map((row, index) => (

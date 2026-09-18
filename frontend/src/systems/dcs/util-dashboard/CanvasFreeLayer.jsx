@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { canvas_size, move_rect, resize_rect, snap_rect, bring_to_front, replace_item, clamp_rect } from "./screenshot/studioLayout.js";
 import { spot_of, FREE_PAD } from "./boxLayout.js";
+import FitScale from "./FitScale.jsx";
 
 /**
  * FREE PLACEMENT inside a section, worked exactly the way the screenshot
@@ -181,7 +182,11 @@ export default function CanvasFreeLayer({ list, width, height, scale, placeable,
             style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, zIndex: rect.z }}
             onPointerDown={start(id, "move")}
           >
-            <div className={`dcs-canvas-spot-body ${placeable ? "is-still" : ""}`}>{entry.node}</div>
+            {/* Resized smaller than its content needs, a widget is drawn
+                smaller as a whole rather than cut off at the edge. */}
+            <div className={`dcs-canvas-spot-body ${placeable ? "is-still" : ""}`}>
+              <FitScale>{entry.node}</FitScale>
+            </div>
             {placeable && (
               <>
                 {EDGES.map((edge) => (

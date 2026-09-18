@@ -2,6 +2,7 @@ import React, { useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { child_style, breaks_row, canvas_style, default_box, is_free } from "./boxLayout.js";
 import CanvasFreeLayer from "./CanvasFreeLayer.jsx";
+import FitScale from "./FitScale.jsx";
 
 /**
  * A CANVAS: a widget whose content is other widgets.
@@ -35,7 +36,9 @@ function CanvasChild({ widget, gap, dragProps, dropClass, children }) {
       {/* While the board is being arranged the card is a picture of the
           widget, so the whole child is one handle to drag by - as on a free
           surface, and as in the screenshot studio. */}
-      <div className={dragProps ? "dcs-canvas-child-body" : undefined}>{children}</div>
+      <div className={dragProps ? "dcs-canvas-child-body" : undefined} style={{ height: "100%" }}>
+        <FitScale>{children}</FitScale>
+      </div>
     </div>
   );
 }

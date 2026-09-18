@@ -145,7 +145,7 @@ export default function MapChart({
   const { status, version } = use_boundaries({ heat: is_heat, names, names_key, scope_key, attempt, cache, fetch_shapes, translate });
 
   const height = Math.max(220, size.height + 60);
-  const number_text = (value) => Number(value).toLocaleString("en-US");
+  const number_text = (value) => colors.number_text(value);
 
   // What one place is worth: its own number, or - when the map is split
   // into values - the sum of them, which the split rows never carry.
