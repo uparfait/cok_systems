@@ -14,6 +14,10 @@ export function get_test_data_job(job_id, known_percent) {
   return dcs_request(`/test-data/jobs/${job_id}${query}`, "GET");
 }
 
+export function cancel_test_data_job(job_id) {
+  return dcs_request(`/test-data/jobs/${job_id}/cancel`, "POST");
+}
+
 export function delete_test_data(form_group_id, payload) {
   return dcs_request(`/test-data/${form_group_id}`, "DELETE", payload);
 }

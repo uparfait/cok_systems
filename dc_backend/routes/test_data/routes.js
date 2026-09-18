@@ -6,6 +6,7 @@ const delete_test_data = require("../../controllers/test_data/delete_test_data.j
 const generate_test_approvals = require("../../controllers/test_data/generate_test_approvals.js");
 const clear_test_approvals = require("../../controllers/test_data/clear_test_approvals.js");
 const get_test_fields = require("../../controllers/test_data/get_test_fields.js");
+const cancel_test_job = require("../../controllers/test_data/cancel_test_job.js");
 
 /**
  * @swagger
@@ -20,6 +21,20 @@ const get_test_fields = require("../../controllers/test_data/get_test_fields.js"
  *         description: Job status fetched successfully
  */
 Router.get("/jobs/:job_id", get_test_job);
+
+/**
+ * @swagger
+ * /dcs/api/test-data/jobs/{job_id}/cancel:
+ *   post:
+ *     summary: Stop a running test-data job at its next record; what is already saved stays
+ *     tags: [TestData]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Cancel requested
+ */
+Router.post("/jobs/:job_id/cancel", cancel_test_job);
 
 /**
  * @swagger

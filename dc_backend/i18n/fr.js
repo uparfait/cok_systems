@@ -186,6 +186,7 @@ module.exports = {
   DCS_GEO_TABLE_HEADER_LABEL: "Données de localisation",
   TEST_DATA_GENERATION_STARTED: "La génération des données de test a commencé",
   TEST_DATA_JOB_FETCHED: "Statut de la génération des données de test récupéré",
+  TEST_DATA_JOB_CANCEL_REQUESTED: "La génération s'arrêtera au prochain enregistrement",
   TEST_DATA_JOB_NOT_FOUND: "La tâche de données de test est introuvable",
   TEST_DATA_RANGE_INVALID: "La plage de dates fournie n'est pas valide",
   TEST_DATA_RATE_INVALID: "Les valeurs d'enregistrements par heure ne sont pas valides",

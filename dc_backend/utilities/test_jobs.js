@@ -20,6 +20,7 @@ function create_job(total) {
     failed: 0,
     percent: 0,
     error: null,
+    cancel_requested: false,
     started_at: new Date(),
     finished_at: null,
   };
@@ -37,6 +38,19 @@ function update_progress(job_id, patch) {
   Object.assign(job, patch);
   job.percent = job.total > 0 ? Math.min(100, Math.round((job.processed / job.total) * 100)) : 100;
 }
+
+/** Marks a running job to stop at its next record; a finished job is returned untouched. */
+function cancel_job(job_id) {
+  const job = jobs.get(job_id);
+  if (!job) return null;
+  if (job.status === "running") job.cancel_requested = true;
+  return job;
+}
+
+const is_cancel_requested = (job_id) => {
+  const job = jobs.get(job_id);
+  return !!(job && job.cancel_requested);
+};
 
 function finish_job(job_id, status, error_message) {
   const job = jobs.get(job_id);
@@ -60,6 +74,7 @@ function job_view(job) {
     // Approval-generation jobs also report how many approvers the cascade
     // enumeration produced; other jobs simply never set this.
     approvers: job.approvers === undefined ? null : job.approvers,
+    cancel_requested: job.cancel_requested === true,
     error: job.error,
   };
 }
@@ -97,6 +112,8 @@ if (cleanup_interval.unref) cleanup_interval.unref();
 module.exports = {
   create_job,
   get_job,
+  cancel_job,
+  is_cancel_requested,
   update_progress,
   finish_job,
   job_view,

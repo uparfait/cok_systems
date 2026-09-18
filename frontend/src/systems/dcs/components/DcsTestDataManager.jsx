@@ -6,6 +6,7 @@ import {
   generate_test_data,
   get_test_data_fields,
   get_test_data_job,
+  cancel_test_data_job,
   delete_test_data,
   generate_test_approvals,
   clear_test_approvals,
@@ -147,6 +148,9 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
   const [fields_loading, setFieldsLoading] = useState(false);
   const [ranges, setRanges] = useState({});
   const [cover_cascades, setCoverCascades] = useState(true);
+  // The running job's id, so it can be asked to stop; and whether it was.
+  const [job_id, setJobId] = useState("");
+  const [cancelling, setCancelling] = useState(false);
   const cancelled_ref = useRef(false);
 
   useEffect(() => {
@@ -226,11 +230,12 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
         number_ranges,
         cover_cascades,
       });
-      const job_id = started.data.job_id;
+      const started_id = started.data.job_id;
+      setJobId(started_id);
       let known_percent = -1;
       let current = null;
       while (!cancelled_ref.current) {
-        const response = await poll_job_with_retry(job_id, known_percent);
+        const response = await poll_job_with_retry(started_id, known_percent);
         current = response.data;
         setJob(current);
         known_percent = current.percent;
@@ -238,6 +243,8 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
       }
       if (current && current.status === "completed") {
         showSuccess(translate("DCS_TEST_DATA_DONE", { saved: current.saved, failed: current.failed }));
+      } else if (current && current.status === "cancelled") {
+        showSuccess(translate("DCS_TEST_DATA_CANCELLED", { saved: current.saved, processed: current.processed, total: current.total }));
       } else if (current && current.status === "error") {
         showError(current.error || translate("DCS_ERROR_GENERIC"));
       } else if (!cancelled_ref.current) {
@@ -247,6 +254,19 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
       showError(error.message || translate("DCS_ERROR_GENERIC"));
     } finally {
       setRunning(false);
+      setCancelling(false);
+      setJobId("");
+    }
+  };
+
+  const handle_cancel = async () => {
+    if (!job_id || cancelling) return;
+    setCancelling(true);
+    try {
+      await cancel_test_data_job(job_id);
+    } catch (error) {
+      setCancelling(false);
+      showError(error.message || translate("DCS_ERROR_GENERIC"));
     }
   };
 
@@ -300,19 +320,26 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
         {(running || job) && <JobProgress job={job} />}
 
         {is_done && (
-          <p className="text-sm" style={{ color: job.status === "completed" ? SUCCESS : DANGER, fontFamily: FONT }}>
+          <p className="text-sm" style={{ color: job.status === "completed" ? SUCCESS : job.status === "cancelled" ? "#B9770E" : DANGER, fontFamily: FONT }}>
             {job.status === "completed"
               ? translate("DCS_TEST_DATA_DONE", { saved: job.saved, failed: job.failed })
-              : job.error || translate("DCS_ERROR_GENERIC")}
+              : job.status === "cancelled"
+                ? translate("DCS_TEST_DATA_CANCELLED", { saved: job.saved, processed: job.processed, total: job.total })
+                : job.error || translate("DCS_ERROR_GENERIC")}
           </p>
         )}
 
         {running ? (
-          <div className="flex items-center gap-2">
-            <span className="dcs-inline-spinner" style={{ color: PRIMARY }} />
-            <span className="text-xs" style={MUTED_STYLE}>
-              {translate("DCS_TEST_DATA_PROGRESS", { percent: job ? job.percent : 0 })}
-            </span>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="dcs-inline-spinner" style={{ color: PRIMARY }} />
+              <span className="text-xs" style={MUTED_STYLE}>
+                {cancelling ? translate("DCS_TEST_DATA_CANCELLING") : translate("DCS_TEST_DATA_PROGRESS", { percent: job ? job.percent : 0 })}
+              </span>
+            </div>
+            <DcsButtonOutlineDanger style={{ width: "auto" }} onClick={handle_cancel} disabled={!job_id || cancelling}>
+              {translate("DCS_TEST_DATA_CANCEL_BTN")}
+            </DcsButtonOutlineDanger>
           </div>
         ) : (
           <DcsButtonPrimary className="w-full" onClick={handle_start} disabled={versionsLoading || fields_loading}>

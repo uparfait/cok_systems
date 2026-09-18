@@ -96,7 +96,14 @@ async function run_generation(job_id, form_version, routing_config, timestamps, 
   };
 
   try {
+    let cancelled = false;
     for (const submitted_at of timestamps) {
+      // A cancel request is honoured before the next record: what is
+      // already generated is stored, and the job says where it stopped.
+      if (test_jobs.is_cancel_requested(job_id)) {
+        cancelled = true;
+        break;
+      }
       let validation_result = null;
       for (let attempt = 0; attempt < 3; attempt += 1) {
         const record = generate_test_record(plan);
@@ -126,7 +133,7 @@ async function run_generation(job_id, form_version, routing_config, timestamps, 
       if (processed % YIELD_EVERY === 0) await new Promise((resolve) => setImmediate(resolve));
     }
     await flush();
-    test_jobs.finish_job(job_id, "completed");
+    test_jobs.finish_job(job_id, cancelled ? "cancelled" : "completed");
   } catch (error) {
     try {
       await flush();

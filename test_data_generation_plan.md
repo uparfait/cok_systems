@@ -22,6 +22,8 @@ Goal: the test-data generator (TDM page, "Generate test data") must (1) let the 
 - [x] Backend `node --check` on every changed file
 - [x] Frontend build green (see final message for the exit status)
 
+- [x] Cancel: a Cancel button while a job runs (`POST /test-data/jobs/:job_id/cancel`); the loop stops before its next record, stores what it already generated, and the job ends with status `cancelled` telling where it stopped (`stopped at X of Y, N saved and kept`)
+
 ## Results (DMIS form, 1000 records, offline, same machine)
 | Measure | Before | After |
 |---|---|---|

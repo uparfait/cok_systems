@@ -186,6 +186,7 @@ module.exports = {
   DCS_GEO_TABLE_HEADER_LABEL: "Amakuru y'Aho Biherereye",
   TEST_DATA_GENERATION_STARTED: "Gukora amakuru y'igerageza byatangiye",
   TEST_DATA_JOB_FETCHED: "Aho gukora amakuru y'igerageza bigeze byabonetse",
+  TEST_DATA_JOB_CANCEL_REQUESTED: "Gukora bizahagarara ku nyandiko ikurikira",
   TEST_DATA_JOB_NOT_FOUND: "Akazi ko gukora amakuru y'igerageza ntikabonetse",
   TEST_DATA_RANGE_INVALID: "Igihe watanze ntabwo ari cyo",
   TEST_DATA_RATE_INVALID: "Umubare w'inyandiko ku isaha ntabwo ari wo",

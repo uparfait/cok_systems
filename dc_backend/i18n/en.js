@@ -186,6 +186,7 @@ module.exports = {
   DCS_GEO_TABLE_HEADER_LABEL: "Map Location Data",
   TEST_DATA_GENERATION_STARTED: "Test data generation started",
   TEST_DATA_JOB_FETCHED: "Test data job status fetched",
+  TEST_DATA_JOB_CANCEL_REQUESTED: "The job will stop at its next record",
   TEST_DATA_JOB_NOT_FOUND: "Test data job was not found",
   TEST_DATA_RANGE_INVALID: "The provided date range is not valid",
   TEST_DATA_RATE_INVALID: "The records-per-hour values are not valid",
