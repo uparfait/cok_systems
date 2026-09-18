@@ -1,11 +1,7 @@
-import React, { useRef, useState } from "react";
+import React from "react";
 import { get_field_text } from "../fieldText.js";
 import DcsLinkedText from "../../components/DcsLinkedText.jsx";
-import DcsTextLinkMenu from "../../components/DcsTextLinkMenu.jsx";
-import { add_link_to_range, remove_links_overlapping_range, find_link_overlapping_range } from "../textLinkSegments.js";
 import { fill_text_tokens } from "../textTokens.js";
-import { language_blocks, LANGUAGE_NAME_KEYS } from "../languageBlocks.js";
-import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 
 // clamp(min, viewport-scaled, max) - the max is the size on a wide enough
 // screen, the min is a sane floor on a small phone, and the vw term shrinks
@@ -21,96 +17,34 @@ const HEADING_SIZES = {
   6: "clamp(12px, 2.5vw, 13px)",
 };
 
-export default function HeaderBlock({ field, language, mode, onFieldChange, allValues }) {
+/**
+ * A heading shows the text of the language the reader picked and nothing
+ * else - the form's language switch is the one filter. Its text is written
+ * per language in Field Settings; the builder canvas only previews it (raw,
+ * with any {{field_id}} tokens still visible), the live form fills tokens
+ * from the current answers.
+ */
+export default function HeaderBlock({ field, language, mode, allValues }) {
   const is_builder = mode === "builder";
   const level = field.level || 2;
-  const text_value = get_field_text(field.label, language);
   const HeadingTag = `h${level}`;
   const design = field.design || {};
-  const fills_container = !!field.section_layout;
+  const text_value = get_field_text(field.label, language);
   const text_links = (field.text_links && field.text_links[language]) || [];
-  const textarea_ref = useRef(null);
-  const [link_menu, setLinkMenu] = useState(null);
-  const { translate } = useDcsLanguage();
+  const live = is_builder ? { text: text_value, links: text_links } : fill_text_tokens(text_value, text_links, allValues);
 
-  if (!is_builder) {
-    const heading_style = {
-      fontFamily: design.font_family || "'Montserrat', sans-serif",
-      fontWeight: 700,
-      color: design.text_color || "#333333",
-      fontSize: HEADING_SIZES[level],
-      whiteSpace: "pre-wrap",
-    };
-    const draw = (block) => {
-      const live = fill_text_tokens(block.text, (field.text_links && field.text_links[block.language]) || [], allValues);
-      return React.createElement(HeadingTag, { style: heading_style }, <DcsLinkedText key="linked" text={live.text} links={live.links} />);
-    };
-    const blocks = language_blocks(field, field.label, language);
-    if (blocks.length === 1) return draw(blocks[0]);
-    return (
-      <div className="space-y-3">
-        {blocks.map((block) => (
-          <div key={block.language}>
-            <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: heading_style.color, opacity: 0.7 }}>
-              {translate(LANGUAGE_NAME_KEYS[block.language])}
-            </p>
-            {draw(block)}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  const set_text_links = (next_links) => {
-    onFieldChange(Object.assign({}, field, { text_links: Object.assign({}, field.text_links, { [language]: next_links }) }));
-  };
-
-  const handle_context_menu = (event) => {
-    const textarea = textarea_ref.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    if (end <= start) return;
-    event.preventDefault();
-    const existing_link = find_link_overlapping_range(text_links, start, end);
-    setLinkMenu({ x: event.clientX, y: event.clientY, start, end, initial_url: existing_link ? existing_link.href : "https://" });
-  };
-
-  return (
-    <div className={fills_container ? "w-full h-full flex flex-col" : "w-full"}>
-      <textarea
-        ref={textarea_ref}
-        className="cok-auth-input w-full py-2"
-        style={
-          fills_container
-            ? { fontWeight: 700, fontSize: HEADING_SIZES[level], flex: 1, minHeight: 0, resize: "none" }
-            : { fontWeight: 700, fontSize: HEADING_SIZES[level], resize: "none" }
-        }
-        rows={fills_container ? undefined : 2}
-        value={text_value}
-        onContextMenu={handle_context_menu}
-        onChange={(event) => {
-          if (!onFieldChange) return;
-          const next_label = Object.assign({}, field.label, { [language]: event.target.value });
-          onFieldChange(Object.assign({}, field, { label: next_label }));
-        }}
-      />
-      {link_menu && (
-        <DcsTextLinkMenu
-          x={link_menu.x}
-          y={link_menu.y}
-          initialUrl={link_menu.initial_url}
-          onApply={(href) => {
-            set_text_links(add_link_to_range(text_links, link_menu.start, link_menu.end, href));
-            setLinkMenu(null);
-          }}
-          onRemove={() => {
-            set_text_links(remove_links_overlapping_range(text_links, link_menu.start, link_menu.end));
-            setLinkMenu(null);
-          }}
-          onClose={() => setLinkMenu(null)}
-        />
-      )}
-    </div>
+  return React.createElement(
+    HeadingTag,
+    {
+      className: is_builder && !text_value ? "opacity-50" : undefined,
+      style: {
+        fontFamily: design.font_family || "'Montserrat', sans-serif",
+        fontWeight: 700,
+        color: design.text_color || "#333333",
+        fontSize: HEADING_SIZES[level],
+        whiteSpace: "pre-wrap",
+      },
+    },
+    <DcsLinkedText key="linked" text={live.text} links={live.links} />,
   );
 }

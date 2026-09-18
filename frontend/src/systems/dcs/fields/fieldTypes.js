@@ -112,7 +112,6 @@ export function create_blank_field(field_type) {
       // full device width instead.
       offset_percent: 0,
       full_device_width: false,
-      show_all_languages: false,
       width_percent: null,
       text_color: null,
       background_color: null,

@@ -66,16 +66,15 @@ const FIELD_TYPE_DOCS = {
     description: "A block of static, read-only body text - not a question, produces no answer in submissions.",
     extra_properties: { content: "Translated text object - the paragraph's own body text (supports plain line breaks and {{field_id}} tokens)." },
     usage_notes:
-      "Use for instructions, section intros or disclaimers. Design.list_type turns it into a bulleted/numbered list. " +
+      "Use for instructions, section intros or disclaimers. Its text is content, written per language (en, kn, fr) in Field Settings like a label; the reader sees only the language selected in the form, never all languages at once. Design.list_type turns it into a bulleted/numbered list. " +
       "A paragraph can QUOTE A LIVE ANSWER: write the field id in double braces and it is replaced with the current value as the person fills the form - '{{hidden_count}} of 7 criteria confirmed' or 'Outstanding:\n{{hidden_missing}}'. Pair it with a hidden computed field for totals and lists, and put the paragraph inside a group with a visibility_condition so the note appears only when it applies (a green 'confirmed' note when the derived status is 'confirmed', an amber 'x of 7' warning when it is not). " +
-      "A NOTE EVERYONE MUST READ SHOWS EVERY LANGUAGE: a greeting, a consent statement or a closing thank-you gets design.show_all_languages = true and its text written in en, kn and fr, so the block reads in all three at once with each language named, the reader's own first. " +
-      "A NOTE THAT CARRIES A VERDICT IS COLORED: design.background_color + design.text_color (white on green for success, dark amber on a pale amber for a warning); a paragraph or header with a background is drawn as a framed card automatically.",
+      "A NOTE THAT CARRIES A VERDICT IS COLORED: design.background_color + design.text_color (white on green for success, dark amber on a pale amber for a warning); a paragraph or header with a background is drawn as a soft rounded tint with no border (unless design.border_enabled is set).",
     example: { id: "paragraph_ab12cd", type: "paragraph", content: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Please answer every question honestly." }), design: { spacing_below_px: 16 } },
   },
   header: {
     description: "A heading (like h1-h6) used to visually separate sections of the form - produces no answer.",
     extra_properties: { level: "Integer 1-6 - the heading level/size, 1 = largest." },
-    usage_notes: "Use to break a long form into clearly labeled sections for the respondent. Its label may quote a live answer with {{field_id}} tokens, like a paragraph.",
+    usage_notes: "Use to break a long form into clearly labeled sections for the respondent. Its text is the label, written per language (en, kn, fr) in Field Settings; the reader sees only the language selected in the form. It may quote a live answer with {{field_id}} tokens, like a paragraph.",
     example: { id: "header_ab12cd", type: "header", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Household information" }), level: 2, design: { spacing_below_px: 16 } },
   },
   file: {
@@ -389,7 +388,6 @@ export function build_form_creation_guide(selected_types) {
     design_object: {
       spacing_below_px: "Number, default 16 - the vertical gap left below this component before the next one.",
       full_device_width: "Boolean, content types only (paragraph, header, file, image_block, horizontal_line, section) - true breaks the component out to the full device width instead of the form's own column width.",
-      show_all_languages: "Boolean, header/paragraph only - true draws every language the text was written in, one under the other with its language named, the reader's language first. Use it for a welcome, a consent note or a thank-you that a mixed audience must read without switching the form's language; write the text in every language (en, kn, fr) when you set it.",
       width_percent: "Number 0-100, content types only (except image_block), ignored when full_device_width is true - how wide this component's own column is, as a percent of the form width.",
       offset_percent: "Number 0-100, content types only (except image_block), ignored when full_device_width is true - horizontal position of the column within the remaining slack (0 = flush left, 100 = flush right).",
       background_color: "Hex color string or null - box background color. Applies to every type except horizontal_line.",

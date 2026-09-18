@@ -1,117 +1,45 @@
-import React, { useRef, useState } from "react";
+import React from "react";
 import { get_field_text } from "../fieldText.js";
 import DcsLinkedText from "../../components/DcsLinkedText.jsx";
-import DcsTextLinkMenu from "../../components/DcsTextLinkMenu.jsx";
-import {
-  split_lines_with_offsets,
-  shift_links_to_range,
-  add_link_to_range,
-  remove_links_overlapping_range,
-  find_link_overlapping_range,
-} from "../textLinkSegments.js";
+import { split_lines_with_offsets, shift_links_to_range } from "../textLinkSegments.js";
 import { fill_text_tokens } from "../textTokens.js";
-import { language_blocks, LANGUAGE_NAME_KEYS } from "../languageBlocks.js";
-import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 
 const ALLOWED_LIST_TYPES = ["disc", "circle", "square", "decimal", "lower-roman", "upper-roman", "none"];
 const ORDERED_LIST_TYPES = ["decimal", "lower-roman", "upper-roman"];
 
-export default function ParagraphBlock({ field, language, mode, onFieldChange, allValues }) {
+/**
+ * A paragraph shows the text of the language the reader picked and nothing
+ * else - the form's language switch is the one filter. Its text is written
+ * per language in Field Settings; the builder canvas only previews it (raw,
+ * with any {{field_id}} tokens still visible), the live form fills tokens
+ * from the current answers.
+ */
+export default function ParagraphBlock({ field, language, mode, allValues }) {
   const is_builder = mode === "builder";
-  const content_text = get_field_text(field.content, language);
   const design = field.design || {};
-  const fills_container = !!field.section_layout;
+  const content_text = get_field_text(field.content, language);
   const text_links = (field.text_links && field.text_links[language]) || [];
-  const textarea_ref = useRef(null);
-  const [link_menu, setLinkMenu] = useState(null);
-  const { translate } = useDcsLanguage();
+  const live = is_builder ? { text: content_text, links: text_links } : fill_text_tokens(content_text, text_links, allValues);
+  const text_style = { color: design.text_color || "#555555", fontFamily: design.font_family || undefined };
+  const faded = is_builder && !content_text ? "opacity-50" : "";
 
-  if (!is_builder) {
-    const text_style = { color: design.text_color || "#555555", fontFamily: design.font_family || undefined };
-    const is_list = ALLOWED_LIST_TYPES.includes(design.list_type) && design.list_type !== "none";
+  if (ALLOWED_LIST_TYPES.includes(design.list_type) && design.list_type !== "none") {
+    const lines_with_offsets = split_lines_with_offsets(live.text).filter((entry) => entry.line.trim().length > 0);
     const ListTag = ORDERED_LIST_TYPES.includes(design.list_type) ? "ol" : "ul";
-    const draw = (block) => {
-      const live = fill_text_tokens(block.text, (field.text_links && field.text_links[block.language]) || [], allValues);
-      if (is_list) {
-        const lines_with_offsets = split_lines_with_offsets(live.text).filter((entry) => entry.line.trim().length > 0);
-        return (
-          <ListTag className="text-sm pl-6" style={Object.assign({ listStyleType: design.list_type }, text_style)}>
-            {lines_with_offsets.map((entry, index) => (
-              <li key={index}>
-                <DcsLinkedText text={entry.line} links={shift_links_to_range(live.links, entry.start, entry.end)} />
-              </li>
-            ))}
-          </ListTag>
-        );
-      }
-      return (
-        <div className="text-sm" style={Object.assign({ whiteSpace: "pre-wrap" }, text_style)}>
-          <DcsLinkedText text={live.text} links={live.links} />
-        </div>
-      );
-    };
-    const blocks = language_blocks(field, field.content, language);
-    if (blocks.length === 1) return draw(blocks[0]);
     return (
-      <div className="space-y-3">
-        {blocks.map((block) => (
-          <div key={block.language}>
-            <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: text_style.color, opacity: 0.7 }}>
-              {translate(LANGUAGE_NAME_KEYS[block.language])}
-            </p>
-            {draw(block)}
-          </div>
+      <ListTag className={`text-sm pl-6 ${faded}`.trim()} style={Object.assign({ listStyleType: design.list_type }, text_style)}>
+        {lines_with_offsets.map((entry, index) => (
+          <li key={index}>
+            <DcsLinkedText text={entry.line} links={shift_links_to_range(live.links, entry.start, entry.end)} />
+          </li>
         ))}
-      </div>
+      </ListTag>
     );
   }
 
-  const set_text_links = (next_links) => {
-    onFieldChange(Object.assign({}, field, { text_links: Object.assign({}, field.text_links, { [language]: next_links }) }));
-  };
-
-  const handle_context_menu = (event) => {
-    const textarea = textarea_ref.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    if (end <= start) return;
-    event.preventDefault();
-    const existing_link = find_link_overlapping_range(text_links, start, end);
-    setLinkMenu({ x: event.clientX, y: event.clientY, start, end, initial_url: existing_link ? existing_link.href : "https://" });
-  };
-
   return (
-    <div className={fills_container ? "w-full h-full flex flex-col" : "w-full"}>
-      <textarea
-        ref={textarea_ref}
-        className="cok-auth-input w-full py-2"
-        style={fills_container ? { flex: 1, minHeight: 0, resize: "none" } : { resize: "none" }}
-        rows={fills_container ? undefined : 4}
-        value={content_text}
-        onContextMenu={handle_context_menu}
-        onChange={(event) => {
-          if (!onFieldChange) return;
-          const next_content = Object.assign({}, field.content, { [language]: event.target.value });
-          onFieldChange(Object.assign({}, field, { content: next_content }));
-        }}
-      />
-      {link_menu && (
-        <DcsTextLinkMenu
-          x={link_menu.x}
-          y={link_menu.y}
-          initialUrl={link_menu.initial_url}
-          onApply={(href) => {
-            set_text_links(add_link_to_range(text_links, link_menu.start, link_menu.end, href));
-            setLinkMenu(null);
-          }}
-          onRemove={() => {
-            set_text_links(remove_links_overlapping_range(text_links, link_menu.start, link_menu.end));
-            setLinkMenu(null);
-          }}
-          onClose={() => setLinkMenu(null)}
-        />
-      )}
+    <div className={`text-sm ${faded}`.trim()} style={Object.assign({ whiteSpace: "pre-wrap" }, text_style)}>
+      <DcsLinkedText text={live.text} links={live.links} />
     </div>
   );
 }

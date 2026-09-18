@@ -164,20 +164,32 @@ function get_panel_width() {
 /**
  * Translated three-language input row shared by every text setting below.
  */
-function TranslatedTextRow({ labelKey, value, onChange, translate }) {
+function TranslatedTextRow({ labelKey, value, onChange, translate, multiline }) {
   return (
     <div>
       <label className="cok-auth-label">{translate(labelKey)}</label>
       <div className="space-y-2">
-        {LANGUAGES.map((language_code) => (
-          <input
-            key={language_code}
-            className="cok-auth-input w-full py-3"
-            placeholder={language_code.toUpperCase()}
-            value={(value && value[language_code]) || ""}
-            onChange={(event) => onChange(Object.assign({}, value, { [language_code]: event.target.value }))}
-          />
-        ))}
+        {LANGUAGES.map((language_code) =>
+          multiline ? (
+            <textarea
+              key={language_code}
+              className="cok-auth-input w-full py-3"
+              rows={4}
+              style={{ resize: "vertical" }}
+              placeholder={language_code.toUpperCase()}
+              value={(value && value[language_code]) || ""}
+              onChange={(event) => onChange(Object.assign({}, value, { [language_code]: event.target.value }))}
+            />
+          ) : (
+            <input
+              key={language_code}
+              className="cok-auth-input w-full py-3"
+              placeholder={language_code.toUpperCase()}
+              value={(value && value[language_code]) || ""}
+              onChange={(event) => onChange(Object.assign({}, value, { [language_code]: event.target.value }))}
+            />
+          ),
+        )}
       </div>
     </div>
   );
@@ -282,8 +294,9 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
   // separate from Labels so that tab's growing "Quick entry" + options list
   // doesn't crowd out the field's other everyday settings.
   const has_options_tab = OPTION_TYPES.includes(draft.type) || draft.type === "cascading_select";
+  const has_text_tab = ["header", "paragraph"].includes(draft.type);
   const base_tabs = is_content_field
-    ? ["designs", "visibility"]
+    ? (has_text_tab ? ["labels", "designs", "visibility"] : ["designs", "visibility"])
     : NO_VALIDATION_TYPES.includes(draft.type)
       ? (has_options_tab ? ["labels", "options", "designs", "visibility"] : ["labels", "designs", "visibility"])
       : (has_options_tab ? ["labels", "options", "validation", "designs", "visibility"] : ["labels", "validation", "designs", "visibility"]);
@@ -705,9 +718,13 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                 }}
               />
 
+              {draft.type === "paragraph" && (
+                <TranslatedTextRow labelKey="DCS_SETTINGS_PARAGRAPH_TEXT" value={draft.content} onChange={(value) => update({ content: value })} translate={translate} multiline />
+              )}
+
               {has_label && (
                 <div style={label_required_error ? { outline: "2px solid #F39C12", outlineOffset: 4 } : undefined}>
-                  <TranslatedTextRow labelKey="DCS_SETTINGS_LABEL" value={draft.label} onChange={(value) => update({ label: value })} translate={translate} />
+                  <TranslatedTextRow labelKey={is_header ? "DCS_SETTINGS_HEADING_TEXT" : "DCS_SETTINGS_LABEL"} value={draft.label} onChange={(value) => update({ label: value })} translate={translate} multiline={is_header} />
                   {label_required_error && (
                     <p className="text-xs mt-1" style={{ color: "#B9770E" }}>{label_required_error.message}</p>
                   )}
@@ -1276,22 +1293,6 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                     <p className="text-xs" style={{ color: "#9E9E9E" }}>
                       {translate("DCS_DESIGN_POSITION_HINT")}
                     </p>
-                  )}
-                  {(is_header || draft.type === "paragraph") && (
-                    <>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={!!design.show_all_languages}
-                          onChange={(event) => update_design({ show_all_languages: event.target.checked })}
-                          style={{ accentColor: "#056daa" }}
-                        />
-                        {translate("DCS_DESIGN_SHOW_ALL_LANGUAGES")}
-                      </label>
-                      <p className="text-xs" style={{ color: "#9E9E9E" }}>
-                        {translate("DCS_DESIGN_SHOW_ALL_LANGUAGES_HINT")}
-                      </p>
-                    </>
                   )}
                 </>
               )}

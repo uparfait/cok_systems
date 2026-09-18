@@ -56,9 +56,9 @@
       "id": "header_8carzd",
       "type": "header",
       "label": {
-        "en": "Hello,\n\nWe kindly ask you to collect reliable and timely information regarding disasters in the City of Kigali. This will help us issue early warnings and provide prompt assistance to those in need.",
+        "en": "HELLO,\nWE KINDLY ASK YOU TO COLLECT RELIABLE AND TIMELY INFORMATION REGARDING DISASTERS IN THE CITY OF KIGALI. THIS WILL HELP US ISSUE EARLY WARNINGS AND PROVIDE PROMPT ASSISTANCE TO THOSE IN NEED.",
         "kn": "MURAHO,\nTURABASABA GUKUSANYA AMAKURU AJYANYE N'IBIZA MU MUJYI WA KIGALI MU BURYO BWIZEWE KANDI KU GIHE. IBI BIZADUFASHA GUTANGA UBUTUMWA BWO KUBURIRA HAKIRI KARE NO GUTANGA UBUTABAZI MUBURYO BWIHUSE KU BABUKENEYE.",
-        "fr": "Bonjour,\n\nNous vous demandons de collecter des informations fiables et actualisées sur les catastrophes naturelles dans la ville de Kigali. Cela nous aidera à émettre des alertes précoces et à fournir une assistance rapide à ceux qui en ont besoin."
+        "fr": "BONJOUR,\nNOUS VOUS DEMANDONS DE COLLECTER DES INFORMATIONS FIABLES ET ACTUALISÉES SUR LES CATASTROPHES NATURELLES DANS LA VILLE DE KIGALI. CELA NOUS AIDERA À ÉMETTRE DES ALERTES PRÉCOCES ET À FOURNIR UNE ASSISTANCE RAPIDE À CEUX QUI EN ONT BESOIN."
       },
       "placeholder": {
         "en": "",
@@ -99,8 +99,7 @@
         "border_color": "#E0E0E0",
         "border_width": 1,
         "font_family": null,
-        "list_type": null,
-        "show_all_languages": true
+        "list_type": null
       },
       "level": 6
     },
@@ -15391,8 +15390,7 @@
         "border_color": "#E0E0E0",
         "border_width": 1,
         "font_family": null,
-        "list_type": null,
-        "show_all_languages": true
+        "list_type": null
       },
       "level": 4
     }
