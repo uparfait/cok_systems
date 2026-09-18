@@ -7,25 +7,16 @@
       "field_id": "cascading_select_v0mxca"
     },
     {
-      "field_id": "cascading_select_jwf5p2"
-    },
-    {
-      "field_id": "single_select_6727ff"
-    },
-    {
       "field_id": "multi_select_15e8c2"
     },
     {
-      "field_id": "multi_select_74d38b"
-    },
-    {
-      "field_id": "single_select_8c0eb4"
+      "field_id": "single_select_6727ff"
     }
   ],
   "widgets": [
     {
       "id": "log_reached",
-      "title": "Households reached with relief",
+      "title": "Households reached",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:HandHeart",
@@ -66,51 +57,8 @@
       "position": 0
     },
     {
-      "id": "log_coverage",
-      "title": "Relief coverage (yes / no)",
-      "description": "Share of assessed households that received relief",
-      "chart_type": "kpi",
-      "icon": "lucide:Percent",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": {
-        "field_id": "single_select_6727ff"
-      },
-      "appearance": {
-        "theme": "light",
-        "value_colors": {
-          "yes": "#1f8a4c",
-          "no": "#c62828"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "not_empty",
-          "value": null
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 1
-    },
-    {
       "id": "log_persons",
-      "title": "Persons in households reached",
+      "title": "Persons reached",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:Users",
@@ -141,12 +89,52 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
+      "position": 1
+    },
+    {
+      "id": "log_food",
+      "title": "Beans + rice + maize (kg)",
+      "description": "Beans; rice and maize flour on the chart",
+      "chart_type": "kpi",
+      "icon": "lucide:Wheat",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_878e63"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "unit": {
+          "text": "kg",
+          "at": "end"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_6727ff",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
       "position": 2
     },
     {
-      "id": "log_cash_total",
-      "title": "Cash and vouchers for food",
-      "description": "Cash for food; food vouchers are the next card",
+      "id": "log_cash",
+      "title": "Cash for food",
+      "description": "",
       "chart_type": "kpi",
       "icon": "lucide:Banknote",
       "metric": {
@@ -185,7 +173,7 @@
     },
     {
       "id": "log_voucher",
-      "title": "Food voucher value",
+      "title": "Food vouchers",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:Wallet",
@@ -224,8 +212,78 @@
       "position": 4
     },
     {
+      "id": "log_tarps",
+      "title": "Tarpaulins",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:Tent",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_46600d"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_6727ff",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 5
+    },
+    {
+      "id": "log_blankets",
+      "title": "Blankets",
+      "description": "",
+      "chart_type": "kpi",
+      "icon": "lucide:BedDouble",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_5bf064"
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_6727ff",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 6
+    },
+    {
       "id": "log_other_provider",
-      "title": "Distributions by an 'Other' provider (reclassify)",
+      "title": "'Other' provider (reclassify)",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:CircleHelp",
@@ -263,105 +321,25 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 5
-    },
-    {
-      "id": "log_providers",
-      "title": "Assistance providers",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Handshake",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": {
-        "field_id": "multi_select_15e8c2"
-      },
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 6
-    },
-    {
-      "id": "log_food_beans",
-      "title": "Beans distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Wheat",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_878e63"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "kg",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
       "position": 7
     },
     {
-      "id": "log_food_rice",
-      "title": "Rice distributed",
+      "id": "log_map",
+      "title": "Households reached per district",
       "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Wheat",
+      "chart_type": "map",
+      "icon": null,
       "metric": {
-        "aggregation": "sum",
-        "field_id": "number_ee3ce5"
+        "aggregation": "count",
+        "field_id": null
       },
-      "group_by": null,
+      "group_by": {
+        "field_id": "cascading_select_8dz9o8"
+      },
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "kg",
-          "at": "end"
-        }
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -378,716 +356,23 @@
         "to": null
       },
       "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
+      "limit": 50,
+      "size": "medium",
+      "map": {
+        "mode": "world",
+        "level": "district",
+        "marker": "lucide:Package",
+        "show_markers": true,
+        "show_labels": true
+      },
       "position": 8
     },
     {
-      "id": "log_food_maize",
-      "title": "Maize flour distributed",
+      "id": "log_heat",
+      "title": "Where relief was delivered",
       "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Wheat",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_7d14e0"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "kg",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 9
-    },
-    {
-      "id": "log_food_oil",
-      "title": "Cooking oil distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Droplets",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_2f8b2a"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "L",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 10
-    },
-    {
-      "id": "log_food_sugar",
-      "title": "Sugar distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Package",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_876873"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "kg",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 11
-    },
-    {
-      "id": "log_food_salt",
-      "title": "Salt distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Package",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_257615"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "kg",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 12
-    },
-    {
-      "id": "log_food_heb",
-      "title": "High energy biscuits distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Package",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_fc2abe"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "packs",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 13
-    },
-    {
-      "id": "log_food_rte",
-      "title": "Ready-to-eat meal packs distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Soup",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_1e1495"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "packs",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 14
-    },
-    {
-      "id": "log_food_shisha",
-      "title": "Shisha Kibondo distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Milk",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_8077e1"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "units",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 15
-    },
-    {
-      "id": "log_nfi_blankets",
-      "title": "Blankets distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:BedDouble",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_5bf064"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 16
-    },
-    {
-      "id": "log_nfi_mattresses",
-      "title": "Mattresses distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Bed",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_985a5c"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 17
-    },
-    {
-      "id": "log_nfi_nets",
-      "title": "Mosquito nets distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Bug",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_bbf8f3"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 18
-    },
-    {
-      "id": "log_nfi_tarpaulins",
-      "title": "Tarpaulins distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Tent",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_46600d"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 19
-    },
-    {
-      "id": "log_nfi_kitchen",
-      "title": "Kitchen sets distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Utensils",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_7fac76"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 20
-    },
-    {
-      "id": "log_nfi_buckets",
-      "title": "Buckets distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Package",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_299603"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 21
-    },
-    {
-      "id": "log_nfi_jerrycans",
-      "title": "Jerrycans distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Droplet",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_60b6d8"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 22
-    },
-    {
-      "id": "log_nfi_soap",
-      "title": "Soap bars distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Droplets",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_cbf4e0"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 23
-    },
-    {
-      "id": "log_nfi_hygiene",
-      "title": "Hygiene kits distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Boxes",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_6a5cea"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 24
-    },
-    {
-      "id": "log_nfi_dignity",
-      "title": "Dignity kits distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Boxes",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_a498a2"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 25
-    },
-    {
-      "id": "log_nfi_baby",
-      "title": "Baby care kits distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Baby",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_7fc987"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 26
-    },
-    {
-      "id": "log_nfi_clothing",
-      "title": "Clothing sets distributed",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Shirt",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_50cf19"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 27
-    },
-    {
-      "id": "log_blanket_no_tarp",
-      "title": "Roof blown off, blankets given but NO tarpaulin",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:TriangleAlert",
+      "chart_type": "map",
+      "icon": null,
       "metric": {
         "aggregation": "count",
         "field_id": null
@@ -1096,91 +381,39 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#fdecea",
-          "text": "#7f1d1d",
-          "number": "#c62828"
-        }
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
       "filters": [
         {
-          "field_id": "single_select_8c0eb4",
-          "operator": "eq",
-          "value": "roof_blown_off_d"
-        },
-        {
-          "field_id": "number_5bf064",
-          "operator": "gt",
-          "value": 0
-        },
-        {
-          "field_id": "number_46600d",
-          "operator": "empty",
-          "value": null
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 28
-    },
-    {
-      "id": "log_dup_nid",
-      "title": "Same National ID assisted more than once",
-      "description": "Possible duplicate distributions",
-      "chart_type": "kpi",
-      "icon": "lucide:Copy",
-      "metric": {
-        "aggregation": "occurrences",
-        "field_id": "text_7cdc13"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "display_fields": [
-        "text_d8f416",
-        "cascading_select_v0mxca"
-      ],
-      "display_separator": " - ",
-      "same_fields": [
-        {
           "field_id": "single_select_6727ff",
+          "operator": "eq",
           "value": "yes"
         }
       ],
-      "occurrence_rule": {
-        "operator": "gt",
-        "value": 1
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
       },
-      "occurrence_scope": "matching",
-      "position": 29
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "medium",
+      "map": {
+        "mode": "heat",
+        "point_field_id": "geolocation_11648e",
+        "weight_field_id": "hidden_7e52fd",
+        "radius": 28,
+        "intensity": 1.3,
+        "show_points": true,
+        "low_color": "#a5d6a7",
+        "high_color": "#1b5e20"
+      },
+      "position": 9
     },
     {
-      "id": "log_provider_bar",
+      "id": "log_provider",
       "title": "Distributions per provider",
       "description": "",
       "chart_type": "bar",
@@ -1212,9 +445,9 @@
         "to": null
       },
       "sort": "value_desc",
-      "limit": 12,
+      "limit": 10,
       "size": "medium",
-      "position": 30
+      "position": 10
     },
     {
       "id": "log_provider_time",
@@ -1250,504 +483,14 @@
       },
       "sort": "value_desc",
       "limit": 12,
-      "size": "large",
+      "size": "medium",
       "over_time": {
         "enabled": true,
         "field_id": "date_time_07fa41",
         "granularity": "auto",
         "axis": "x"
       },
-      "position": 31
-    },
-    {
-      "id": "log_provider_sector",
-      "title": "Providers per sector",
-      "description": "",
-      "chart_type": "heatmap",
-      "icon": null,
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": {
-        "field_id": "multi_select_15e8c2"
-      },
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "large",
-      "position": 32
-    },
-    {
-      "id": "log_beans_sector",
-      "title": "Beans distributed per sector",
-      "description": "",
-      "chart_type": "column",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_878e63"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "kg",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "medium",
-      "position": 33
-    },
-    {
-      "id": "log_rice_sector",
-      "title": "Rice distributed per sector",
-      "description": "",
-      "chart_type": "column",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_ee3ce5"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "kg",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "medium",
-      "position": 34
-    },
-    {
-      "id": "log_cash_sector",
-      "title": "Cash for food per sector",
-      "description": "",
-      "chart_type": "bar",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_c892da"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "RWF",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "medium",
-      "position": 35
-    },
-    {
-      "id": "log_voucher_sector",
-      "title": "Food vouchers per sector",
-      "description": "",
-      "chart_type": "bar",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_41038e"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "RWF",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "medium",
-      "position": 36
-    },
-    {
-      "id": "log_blankets_sector",
-      "title": "Blankets per sector",
-      "description": "",
-      "chart_type": "column",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_5bf064"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "medium",
-      "position": 37
-    },
-    {
-      "id": "log_tarp_sector",
-      "title": "Tarpaulins per sector",
-      "description": "",
-      "chart_type": "column",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_46600d"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "medium",
-      "position": 38
-    },
-    {
-      "id": "log_map",
-      "title": "Households reached per cell",
-      "description": "",
-      "chart_type": "map",
-      "icon": null,
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": {
-        "field_id": "cascading_select_jwf5p2"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 50,
-      "size": "large",
-      "map": {
-        "mode": "world",
-        "level": "cell",
-        "marker": "lucide:Package",
-        "show_markers": true,
-        "show_labels": true
-      },
-      "position": 39
-    },
-    {
-      "id": "log_heat",
-      "title": "Where relief has been delivered",
-      "description": "",
-      "chart_type": "map",
-      "icon": null,
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 50,
-      "size": "large",
-      "map": {
-        "mode": "heat",
-        "point_field_id": "geolocation_11648e",
-        "weight_field_id": "hidden_7e52fd",
-        "radius": 28,
-        "intensity": 1.3,
-        "show_points": true,
-        "low_color": "#a5d6a7",
-        "high_color": "#1b5e20"
-      },
-      "position": 40
-    },
-    {
-      "id": "log_coverage_sector",
-      "title": "Relief coverage per sector",
-      "description": "",
-      "chart_type": "stacked_100",
-      "icon": null,
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": {
-        "field_id": "single_select_6727ff"
-      },
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "value_colors": {
-          "yes": "#1f8a4c",
-          "no": "#c62828"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "not_empty",
-          "value": null
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "large",
-      "position": 41
-    },
-    {
-      "id": "log_cash_time",
-      "title": "Cash for food over time (running deliveries)",
-      "description": "",
-      "chart_type": "area",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_c892da"
-      },
-      "group_by": {
-        "field_id": "date_time_07fa41",
-        "granularity": "auto"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "large",
-      "position": 42
-    },
-    {
-      "id": "log_activity",
-      "title": "Activity types in relief records",
-      "description": "",
-      "chart_type": "donut",
-      "icon": null,
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": {
-        "field_id": "multi_select_74d38b"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 6,
-      "size": "small",
-      "position": 43
+      "position": 11
     }
   ]
 }

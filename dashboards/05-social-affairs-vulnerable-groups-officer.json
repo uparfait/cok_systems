@@ -7,28 +7,16 @@
       "field_id": "cascading_select_v0mxca"
     },
     {
-      "field_id": "cascading_select_jwf5p2"
-    },
-    {
       "field_id": "single_select_defe08"
     },
     {
-      "field_id": "single_select_136dfc"
-    },
-    {
-      "field_id": "single_select_b63058"
-    },
-    {
       "field_id": "single_select_6727ff"
-    },
-    {
-      "field_id": "single_select_8c0eb4"
     }
   ],
   "widgets": [
     {
       "id": "soc_households",
-      "title": "Households assessed",
+      "title": "Households",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:House",
@@ -70,7 +58,7 @@
     },
     {
       "id": "soc_persons",
-      "title": "Persons affected (household members)",
+      "title": "Persons affected",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:Users",
@@ -104,113 +92,8 @@
       "position": 1
     },
     {
-      "id": "soc_avg_size",
-      "title": "Average household size",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Scale",
-      "metric": {
-        "aggregation": "avg",
-        "field_id": "hidden_7e52fd"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 2
-    },
-    {
-      "id": "soc_males",
-      "title": "Males",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:User",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_7f07da"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 3
-    },
-    {
-      "id": "soc_females",
-      "title": "Females",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:User",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_938b32"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 4
-    },
-    {
       "id": "soc_under5",
-      "title": "Under-5 children",
+      "title": "Under-5",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:Baby",
@@ -241,11 +124,11 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 5
+      "position": 2
     },
     {
       "id": "soc_over65",
-      "title": "Aged over 65",
+      "title": "Over 65",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:UserCheck",
@@ -276,11 +159,11 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 6
+      "position": 3
     },
     {
       "id": "soc_disabled",
-      "title": "Persons with disability",
+      "title": "With disability",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:Accessibility",
@@ -311,11 +194,11 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 7
+      "position": 4
     },
     {
       "id": "soc_pregnant",
-      "title": "Pregnant or lactating women",
+      "title": "Pregnant / lactating",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:HeartPulse",
@@ -346,161 +229,11 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 8
-    },
-    {
-      "id": "soc_students",
-      "title": "Affected students",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:GraduationCap",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_d1c97c"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 9
-    },
-    {
-      "id": "soc_chronic",
-      "title": "Chronically ill",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Pill",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_28e555"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 10
-    },
-    {
-      "id": "soc_details",
-      "title": "Detailed household breakdown available",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:ClipboardCheck",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": {
-        "field_id": "single_select_136dfc"
-      },
-      "appearance": {
-        "theme": "light",
-        "value_colors": {
-          "yes": "#1f8a4c",
-          "no": "#c62828"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 11
-    },
-    {
-      "id": "soc_tenure",
-      "title": "Occupancy status of household heads",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:KeyRound",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": {
-        "field_id": "single_select_defe08"
-      },
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 12
+      "position": 5
     },
     {
       "id": "soc_hrz",
-      "title": "Households in a high-risk zone (relocation)",
+      "title": "In high-risk zone",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:TriangleAlert",
@@ -538,48 +271,11 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 13
-    },
-    {
-      "id": "soc_type",
-      "title": "Assessment type (risk vs impact)",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Layers",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": {
-        "field_id": "single_select_b63058"
-      },
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 14
+      "position": 6
     },
     {
       "id": "soc_no_relief",
-      "title": "Households assessed with NO relief recorded",
+      "title": "No relief yet",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:UserX",
@@ -622,14 +318,58 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 15
+      "position": 7
     },
     {
-      "id": "soc_vuln_no_relief",
-      "title": "Households with a disabled member and no relief",
+      "id": "soc_map",
+      "title": "Persons affected per district",
       "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:BellRing",
+      "chart_type": "map",
+      "icon": null,
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "hidden_7e52fd"
+      },
+      "group_by": {
+        "field_id": "cascading_select_8dz9o8"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": null,
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 50,
+      "size": "medium",
+      "map": {
+        "mode": "world",
+        "level": "district",
+        "marker": "lucide:Users",
+        "show_markers": true,
+        "show_labels": true
+      },
+      "position": 8
+    },
+    {
+      "id": "soc_heat",
+      "title": "Density of affected households",
+      "description": "",
+      "chart_type": "map",
+      "icon": null,
       "metric": {
         "aggregation": "count",
         "field_id": null
@@ -638,102 +378,6 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#fdecea",
-          "text": "#7f1d1d",
-          "number": "#c62828"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "number_29f8a7",
-          "operator": "gt",
-          "value": 0
-        },
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "no"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 16
-    },
-    {
-      "id": "soc_no_nid",
-      "title": "Households without a National ID recorded",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:FileX",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#fff4e5",
-          "text": "#7a4b00",
-          "number": "#e08a00"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        },
-        {
-          "field_id": "text_7cdc13",
-          "operator": "empty",
-          "value": null
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 17
-    },
-    {
-      "id": "soc_persons_sector",
-      "title": "Persons affected per sector",
-      "description": "",
-      "chart_type": "bar",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "hidden_7e52fd"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
       "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
@@ -751,249 +395,33 @@
         "to": null
       },
       "sort": "value_desc",
-      "limit": 40,
-      "size": "large",
-      "position": 18
-    },
-    {
-      "id": "soc_under5_sector",
-      "title": "Under-5 children per sector",
-      "description": "",
-      "chart_type": "column",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_0b42e9"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
+      "limit": 50,
       "size": "medium",
-      "position": 19
+      "map": {
+        "mode": "heat",
+        "point_field_id": "geolocation_11648e",
+        "weight_field_id": "hidden_7e52fd",
+        "radius": 28,
+        "intensity": 1.3,
+        "show_points": true,
+        "low_color": "#2b6cb0",
+        "high_color": "#c62828"
+      },
+      "position": 9
     },
     {
-      "id": "soc_over65_sector",
-      "title": "Persons over 65 per sector",
+      "id": "soc_tenure",
+      "title": "Occupancy status of household heads",
       "description": "",
-      "chart_type": "column",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_13c8ff"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "medium",
-      "position": 20
-    },
-    {
-      "id": "soc_disabled_sector",
-      "title": "Persons with disability per sector",
-      "description": "",
-      "chart_type": "column",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_29f8a7"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "medium",
-      "position": 21
-    },
-    {
-      "id": "soc_pregnant_sector",
-      "title": "Pregnant or lactating women per sector",
-      "description": "",
-      "chart_type": "column",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_7bfd55"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "medium",
-      "position": 22
-    },
-    {
-      "id": "soc_tenure_sector",
-      "title": "Occupancy status per sector",
-      "description": "",
-      "chart_type": "stacked_column",
+      "chart_type": "donut",
       "icon": null,
       "metric": {
         "aggregation": "count",
         "field_id": null
       },
       "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": {
         "field_id": "single_select_defe08"
       },
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 40,
-      "size": "large",
-      "position": 23
-    },
-    {
-      "id": "soc_damage_tenure",
-      "title": "House damage type by occupancy status",
-      "description": "",
-      "chart_type": "heatmap",
-      "icon": null,
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": {
-        "field_id": "single_select_8c0eb4"
-      },
-      "split_by": {
-        "field_id": "single_select_defe08"
-      },
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "large",
-      "position": 24
-    },
-    {
-      "id": "soc_size_sector",
-      "title": "Average household size per sector",
-      "description": "",
-      "chart_type": "lollipop",
-      "icon": null,
-      "metric": {
-        "aggregation": "avg",
-        "field_id": "hidden_7e52fd"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
@@ -1014,26 +442,24 @@
         "to": null
       },
       "sort": "value_desc",
-      "limit": 40,
-      "size": "medium",
-      "position": 25
+      "limit": 6,
+      "size": "small",
+      "position": 10
     },
     {
-      "id": "soc_relief_sector",
-      "title": "Relief coverage per sector",
+      "id": "soc_relief",
+      "title": "Relief coverage",
       "description": "",
-      "chart_type": "stacked_100",
+      "chart_type": "donut",
       "icon": null,
       "metric": {
         "aggregation": "count",
         "field_id": null
       },
       "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": {
         "field_id": "single_select_6727ff"
       },
+      "split_by": null,
       "pattern_by": null,
       "legend_by": null,
       "appearance": {
@@ -1059,113 +485,21 @@
         "to": null
       },
       "sort": "value_desc",
-      "limit": 40,
-      "size": "large",
-      "position": 26
-    },
-    {
-      "id": "soc_map",
-      "title": "Persons affected per cell",
-      "description": "",
-      "chart_type": "map",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "hidden_7e52fd"
-      },
-      "group_by": {
-        "field_id": "cascading_select_jwf5p2"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 50,
-      "size": "large",
-      "map": {
-        "mode": "world",
-        "level": "cell",
-        "marker": "lucide:Users",
-        "show_markers": true,
-        "show_labels": true
-      },
-      "position": 27
-    },
-    {
-      "id": "soc_heat",
-      "title": "Density of vulnerable households",
-      "description": "Weighted by household members",
-      "chart_type": "map",
-      "icon": null,
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 50,
-      "size": "large",
-      "map": {
-        "mode": "heat",
-        "point_field_id": "geolocation_11648e",
-        "weight_field_id": "hidden_7e52fd",
-        "radius": 28,
-        "intensity": 1.3,
-        "show_points": true,
-        "low_color": "#2b6cb0",
-        "high_color": "#c62828"
-      },
-      "position": 28
+      "limit": 6,
+      "size": "small",
+      "position": 11
     },
     {
       "id": "soc_trend",
       "title": "Persons affected over time",
       "description": "",
-      "chart_type": "area",
+      "chart_type": "column",
       "icon": null,
       "metric": {
         "aggregation": "sum",
         "field_id": "hidden_7e52fd"
       },
-      "group_by": {
-        "field_id": "date_time_07fa41",
-        "granularity": "auto"
-      },
+      "group_by": null,
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
@@ -1187,51 +521,14 @@
       },
       "sort": "value_desc",
       "limit": 12,
-      "size": "large",
-      "position": 29
-    },
-    {
-      "id": "soc_hh_time",
-      "title": "Households assessed over time by assessment type",
-      "description": "",
-      "chart_type": "stacked_column",
-      "icon": null,
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": {
-        "field_id": "single_select_b63058"
-      },
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "household_loss"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "large",
+      "size": "small",
       "over_time": {
         "enabled": true,
         "field_id": "date_time_07fa41",
         "granularity": "auto",
         "axis": "x"
       },
-      "position": 30
+      "position": 12
     }
   ]
 }

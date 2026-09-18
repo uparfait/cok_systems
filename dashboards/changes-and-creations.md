@@ -70,21 +70,21 @@ Note: `composeWidgets.js` was already 563 lines before this work (over the 500-l
 
 ## 5. The eleven dashboards
 
-Every board carries District -> Sector -> Cell as cascading board filters (a chart per sector drills to cells when a sector is picked), plus the role's own filters. Every KPI card has a Lucide icon; verdict colours are consistent across boards (risk: red / amber / green / grey; response status: red / amber / green; confirmation: green / amber / grey; yes / no: green / red; purpose: one colour per module). Loss figures carry the unit RWF, rates the unit %.
+Every board carries District and Sector as cascading board filters plus the role's own; nothing groups by sector - maps and charts read at DISTRICT level, and picking a district in the filter bar drills them to its sectors on their own. Every KPI card has a Lucide icon; verdict colours are consistent across boards (risk: red / amber / green / grey; response status: red / amber / green; confirmation: green / amber / grey; yes / no: green / red; purpose: one colour per module). Loss figures carry the unit RWF, rates the unit %.
 
 | # | File | Widgets | Board filters |
 |---|------|---------|---------------|
-| 1 | `01-disaster-risk-reduction-specialist.json` | 22 | + hotspot category, risk status, purpose |
-| 2 | `02-emergency-operations-coordinator.json` | 32 | + F1 status, F2 activity, site in use, F5 meeting, purpose |
-| 3 | `03-preparedness-evacuation-site-officer.json` | 31 | + confirmation status, capacity status, site type, command post, overflow site |
-| 4 | `04-damage-loss-assessment-pdna-analyst.json` | 30 | + driver, cause, damage type, tenure, purpose |
-| 5 | `05-social-affairs-vulnerable-groups-officer.json` | 31 | + occupancy, details available, C10 type, relief provided, damage type |
-| 6 | `06-relief-logistics-supply-chain-officer.json` | 44 | + relief provided, provider, activity, damage type |
-| 7 | `07-critical-infrastructure-public-works-engineer.json` | 27 | + facility category, type, impact status, purpose |
-| 8 | `08-gis-spatial-risk-analyst.json` | 23 | + village, purpose, hotspot category |
-| 9 | `09-health-wash-environmental-health-focal-point.json` | 27 | + hotspot category, WASH, facility category, site in use |
-| 10 | `10-me-dmis-data-administrator.json` | 33 | + purpose, C10 type, details available |
-| 11 | `11-executive-didimac-view.json` | 20 | district, sector, purpose |
+| 1 | `01-disaster-risk-reduction-specialist.json` | 11 | district, sector + role filters |
+| 2 | `02-emergency-operations-coordinator.json` | 12 | district, sector + role filters |
+| 3 | `03-preparedness-evacuation-site-officer.json` | 11 | district, sector + role filters |
+| 4 | `04-damage-loss-assessment-pdna-analyst.json` | 12 | district, sector + role filters |
+| 5 | `05-social-affairs-vulnerable-groups-officer.json` | 13 | district, sector + role filters |
+| 6 | `06-relief-logistics-supply-chain-officer.json` | 12 | district, sector + role filters |
+| 7 | `07-critical-infrastructure-public-works-engineer.json` | 11 | district, sector + role filters |
+| 8 | `08-gis-spatial-risk-analyst.json` | 11 | district, sector + role filters |
+| 9 | `09-health-wash-environmental-health-focal-point.json` | 11 | district, sector + role filters |
+| 10 | `10-me-dmis-data-administrator.json` | 12 | district, sector + role filters |
+| 11 | `11-executive-didimac-view.json` | 11 | district, purpose |
 
 ### 1. Disaster Risk Reduction / Prevention Specialist
 Question: which parts of Kigali will fail next. KPIs: hotspots logged, by risk status (legend), high-risk count, exposed households (all / at high risk / average), by category, new this month, households with a Section E risk profile, records with quick-win activities. Visuals: hotspots per sector (world map), heat map weighted by exposed households, exposed households per hotspot type (Pareto order), risk status within category (100% stacked), treemap of types by exposure, risk per sector heat grid, new hotspots over time by risk status, exposure trend, Section E type and risk status, quick-win activities, hotspots per district by category.
@@ -154,3 +154,13 @@ Nothing is committed to git; the backend needs a restart.
 - **Creating or editing a link** (dashboard page -> Share links): when the form has more than one dashboard the form shows "Dashboards in this link": *Only this dashboard* or *This dashboard together with others*. Combined, the other dashboards are ticked from a list, and a dropdown "Settings for" names the dashboard whose advanced configuration (free or fixed filters, fixed period, records, own title) is being edited - every dashboard keeps its own. Another dashboard's board filters are fetched when it is first configured (`LinkDashboardsFields.jsx`; stored as `extra_dashboards: [{ dashboard_id, config }]` on the link, validated in `controllers/dashboard_links.js`).
 - **Opening the link**: the public page shows a dashboard dropdown in the header when the link opens several; the choice rides in the URL (`?d=<dashboard id>`). Every data, filter-value, records and KPI request names the open dashboard, and the server applies that dashboard's own configuration (`controllers/public_dashboard.js`: `shared_entries`, `link_config(link, dashboard_id)`, `forced_filters(link, req)`); a dashboard the link does not open is refused with 404.
 - Links saved before this change keep working unchanged (one dashboard, its own config).
+
+## 10. Compact redesign of the eleven dashboards (2026-09-18, evening)
+
+Each board was cut to ONE SCREEN readable in about thirty seconds: 127 widgets in all (11 to 13 per board, down from 320). The shape is the same everywhere:
+
+- a dense KPI row of 6 to 8 cards (the alert cards tinted red / amber, the good news green);
+- one map at DISTRICT level (a district picked in the filters drills to its sectors automatically) and, where the form captures GPS, one heat map weighted by what matters to the role (exposed households, persons not reached, loss, household members, affected units);
+- two to four charts that show where things stand (100% stacked bars, donuts, one trend over time), never a table, a league list or a per-sector breakdown.
+
+The role descriptions in section 5 still name the questions each board answers; the per-sector breakdowns, occurrence lists and secondary charts they mention were removed from the files. The earlier 320-widget versions are gone; regenerate them from the git history if a deep-dive board is ever wanted again.

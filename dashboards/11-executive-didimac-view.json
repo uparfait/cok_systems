@@ -4,9 +4,6 @@
       "field_id": "cascading_select_8dz9o8"
     },
     {
-      "field_id": "cascading_select_v0mxca"
-    },
-    {
       "field_id": "single_select_4d066b"
     }
   ],
@@ -121,7 +118,7 @@
     },
     {
       "id": "exec_displaced",
-      "title": "Households displaced (evacuated)",
+      "title": "Households displaced",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:Tent",
@@ -157,7 +154,7 @@
     },
     {
       "id": "exec_loss",
-      "title": "Total estimated loss",
+      "title": "Estimated loss",
       "description": "",
       "chart_type": "kpi",
       "icon": "lucide:Banknote",
@@ -174,7 +171,7 @@
         "light": {
           "background": "#e6f4f1",
           "text": "#333333",
-          "number": "#1f3a5f"
+          "number": "#056daa"
         },
         "unit": {
           "text": "RWF",
@@ -238,256 +235,8 @@
       "position": 5
     },
     {
-      "id": "exec_capacity",
-      "title": "Confirmed evacuation-site capacity (persons)",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:ShieldCheck",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_dd80ef"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#e8f5e9",
-          "text": "#14532d",
-          "number": "#1f8a4c"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_243f20",
-          "operator": "eq",
-          "value": "confirmed"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 6
-    },
-    {
-      "id": "exec_demand",
-      "title": "Current hosting demand (persons)",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:UserPlus",
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_6af621"
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "preparedness_readiness"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 7
-    },
-    {
-      "id": "exec_high",
-      "title": "High-risk hotspots",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:TriangleAlert",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#fff4e5",
-          "text": "#7a4b00",
-          "number": "#e08a00"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_f42575",
-          "operator": "eq",
-          "value": "high"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 8
-    },
-    {
-      "id": "exec_visits",
-      "title": "Assessment visits by purpose",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:ClipboardList",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": {
-        "field_id": "single_select_4d066b"
-      },
-      "appearance": {
-        "theme": "light",
-        "value_colors": {
-          "hotspot": "#e08a00",
-          "household_loss": "#c62828",
-          "infrastructure": "#1f3a5f",
-          "emergency_response": "#6a1b9a",
-          "preparedness_readiness": "#1f8a4c"
-        },
-        "value_labels": {
-          "hotspot": "Hotspot / risk area",
-          "household_loss": "Household loss",
-          "infrastructure": "Infrastructure",
-          "emergency_response": "Emergency response",
-          "preparedness_readiness": "Preparedness"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 9
-    },
-    {
-      "id": "exec_facilities",
-      "title": "Facilities not functional",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:Building",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_4d066b",
-          "operator": "eq",
-          "value": "infrastructure"
-        },
-        {
-          "field_id": "single_select_7b7b58",
-          "operator": "ne",
-          "value": "functional"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 10
-    },
-    {
-      "id": "exec_relief",
-      "title": "Households reached with relief",
-      "description": "",
-      "chart_type": "kpi",
-      "icon": "lucide:HandHeart",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#e8f5e9",
-          "text": "#14532d",
-          "number": "#1f8a4c"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [
-        {
-          "field_id": "single_select_6727ff",
-          "operator": "eq",
-          "value": "yes"
-        }
-      ],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "small",
-      "position": 11
-    },
-    {
       "id": "exec_map",
-      "title": "Assessment visits per sector by purpose",
+      "title": "Visits per district by purpose",
       "description": "",
       "chart_type": "map",
       "icon": null,
@@ -496,7 +245,7 @@
         "field_id": null
       },
       "group_by": {
-        "field_id": "cascading_select_v0mxca"
+        "field_id": "cascading_select_8dz9o8"
       },
       "split_by": {
         "field_id": "single_select_4d066b"
@@ -531,114 +280,15 @@
       },
       "sort": "value_desc",
       "limit": 50,
-      "size": "large",
+      "size": "medium",
       "map": {
         "mode": "world",
-        "level": "sector",
+        "level": "district",
         "marker": "lucide:MapPin",
         "show_markers": true,
         "show_labels": true
       },
-      "position": 12
-    },
-    {
-      "id": "exec_trend",
-      "title": "Incidents over time (12-month view)",
-      "description": "Set the board period to this year for the 12-month line",
-      "chart_type": "line",
-      "icon": null,
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": {
-        "field_id": "date_time_07fa41",
-        "granularity": "month"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "large",
-      "position": 13
-    },
-    {
-      "id": "exec_league",
-      "title": "Sector league table: estimated loss",
-      "description": "",
-      "chart_type": "bar",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "number_3800b1"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "unit": {
-          "text": "RWF",
-          "at": "end"
-        }
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "medium",
-      "position": 14
-    },
-    {
-      "id": "exec_persons_sector",
-      "title": "Sector league table: persons affected",
-      "description": "",
-      "chart_type": "bar",
-      "icon": null,
-      "metric": {
-        "aggregation": "sum",
-        "field_id": "hidden_7e52fd"
-      },
-      "group_by": {
-        "field_id": "cascading_select_v0mxca"
-      },
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": null,
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "medium",
-      "position": 15
+      "position": 6
     },
     {
       "id": "exec_purpose_time",
@@ -684,14 +334,14 @@
       },
       "sort": "value_desc",
       "limit": 12,
-      "size": "large",
+      "size": "medium",
       "over_time": {
         "enabled": true,
         "field_id": "date_time_07fa41",
         "granularity": "auto",
         "axis": "x"
       },
-      "position": 16
+      "position": 7
     },
     {
       "id": "exec_status",
@@ -729,11 +379,11 @@
       "sort": "value_desc",
       "limit": 6,
       "size": "small",
-      "position": 17
+      "position": 8
     },
     {
       "id": "exec_site_status",
-      "title": "Evacuation site confirmation",
+      "title": "Evacuation sites",
       "description": "",
       "chart_type": "donut",
       "icon": null,
@@ -767,11 +417,11 @@
       "sort": "value_desc",
       "limit": 6,
       "size": "small",
-      "position": 18
+      "position": 9
     },
     {
       "id": "exec_risk",
-      "title": "Hotspot risk status",
+      "title": "Hotspot risk",
       "description": "",
       "chart_type": "donut",
       "icon": null,
@@ -806,7 +456,7 @@
       "sort": "value_desc",
       "limit": 6,
       "size": "small",
-      "position": 19
+      "position": 10
     }
   ]
 }
