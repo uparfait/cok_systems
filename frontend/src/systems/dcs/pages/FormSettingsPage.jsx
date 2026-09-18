@@ -88,7 +88,7 @@ export default function FormSettingsPage() {
           <DcsButtonOutline onClick={() => setTranslationLinksOpen(true)}>{translate("DCS_TRANSLATION_LINKS_BUTTON")}</DcsButtonOutline>
         </div>
       </div>
-      {translation_links_open && <TranslationLinksDialog formGroupId={form_group_id} onClose={() => setTranslationLinksOpen(false)} />}
+      {translation_links_open && <TranslationLinksDialog formGroupId={form_group_id} form={form} onClose={() => setTranslationLinksOpen(false)} />}
 
       <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
         <DcsFormNameField value={form_name} onChange={setFormName} />

@@ -178,16 +178,21 @@ export function public_dashboard_url(token) {
  */
 const PUBLIC_CONFIG = { headers: { "X-Language": "en" } };
 
-export function get_public_dashboard(token) {
-  return dcs_request(`/public/dashboard/${token}`, "GET", undefined, PUBLIC_CONFIG);
+// A link may open several dashboards; dashboard_id says which one a request
+// is about (left out: the link's own).
+const with_dashboard = (body, dashboard_id) => (dashboard_id ? Object.assign({}, body, { dashboard_id }) : body);
+
+export function get_public_dashboard(token, dashboard_id) {
+  const query = dashboard_id ? `?dashboard_id=${encodeURIComponent(dashboard_id)}` : "";
+  return dcs_request(`/public/dashboard/${token}${query}`, "GET", undefined, PUBLIC_CONFIG);
 }
 
-export function get_public_dashboard_data(token, widgets, period, filters) {
-  return dcs_request(`/public/dashboard/${token}/data`, "POST", { widgets, period: period || null, filters: filters || [] }, PUBLIC_CONFIG);
+export function get_public_dashboard_data(token, widgets, period, filters, dashboard_id) {
+  return dcs_request(`/public/dashboard/${token}/data`, "POST", with_dashboard({ widgets, period: period || null, filters: filters || [] }, dashboard_id), PUBLIC_CONFIG);
 }
 
-export function get_public_kpi_skipped(token, widget, period, offset, limit, filters) {
-  return dcs_request(`/public/dashboard/${token}/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20, filters: filters || [] }, PUBLIC_CONFIG);
+export function get_public_kpi_skipped(token, widget, period, offset, limit, filters, dashboard_id) {
+  return dcs_request(`/public/dashboard/${token}/kpi-skipped`, "POST", with_dashboard({ widget, period: period || null, offset: offset || 0, limit: limit || 20, filters: filters || [] }, dashboard_id), PUBLIC_CONFIG);
 }
 
 export function get_public_widget_records(token, body) {
@@ -199,8 +204,8 @@ export function get_public_map_shapes(token, names, parents, held) {
   return dcs_request(`/public/dashboard/${token}/map-shapes`, "POST", { names: names || [], parents: parents || [], have: known.have || [], have_level: known.have_level || "" }, PUBLIC_CONFIG);
 }
 
-export function get_public_filter_values(token, field_id, filters, period) {
-  return dcs_request(`/public/dashboard/${token}/filter-values`, "POST", { field_id, filters: filters || [], period: period || null }, PUBLIC_CONFIG);
+export function get_public_filter_values(token, field_id, filters, period, dashboard_id) {
+  return dcs_request(`/public/dashboard/${token}/filter-values`, "POST", with_dashboard({ field_id, filters: filters || [], period: period || null }, dashboard_id), PUBLIC_CONFIG);
 }
 
 /**

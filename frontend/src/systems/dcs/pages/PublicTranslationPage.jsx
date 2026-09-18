@@ -9,20 +9,21 @@ import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import TranslationFieldCard from "../translation/TranslationFieldCard.jsx";
-import { flatten_all_fields, set_change, count_changes, LANGUAGES } from "../translation/translationTexts.js";
+import { translatable_entries, set_change, count_changes, index_proposals, page_count, page_slice, LANGUAGES, LANGUAGE_NAME_KEYS } from "../translation/translationTexts.js";
 
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 const BORDER = "#E0E0E0";
 const MUTED = "#9E9E9E";
 const PRIMARY = "#056daa";
+const AMBER = "#B9770E";
 
 /**
- * A form opened through a translation link: no sign-in. Every field of the
- * form's active version is listed - conditions ignored, hidden fields
- * included - and every text it carries is shown in English, Kinyarwanda and
- * French, editable except for the kinds the link's creator locked. Save
- * writes the changed texts back into the form; nothing else about the form
- * can be changed here.
+ * A form opened through a translation link: no sign-in. The fields that
+ * carry a text a respondent sees are shown three at a time, each drawn as
+ * the respondent sees it, with English, Kinyarwanda and French stacked
+ * under every text. Saving stores PROPOSALS - the form itself changes only
+ * when its owner reviews and applies them, and the page shows how far each
+ * saved text got.
  */
 function TranslationWorkbench() {
   const { token } = useParams();
@@ -33,28 +34,31 @@ function TranslationWorkbench() {
   const [failure, setFailure] = useState("");
   const [changes, setChanges] = useState({});
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(0);
 
-  const load = () => {
+  useEffect(() => {
     setLoading(true);
-    return get_public_translation(token)
+    get_public_translation(token)
       .then((response) => {
         setInfo(response.data || null);
         setFailure("");
       })
       .catch((error) => setFailure(request_error_text(error, translate("DCS_ERROR_GENERIC"))))
       .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  const entries = useMemo(() => (info ? flatten_all_fields(info.fields) : []), [info]);
+  const entries = useMemo(() => (info ? translatable_entries(info.fields, translate, language) : []), [info, translate, language]);
+  const proposals = useMemo(() => index_proposals(info ? info.proposals : []), [info]);
+  const pages = page_count(entries.length);
+  const shown = page_slice(entries, page);
   const pending = count_changes(changes);
-  const locked_kinds = (info && info.locked_kinds) || [];
+  const locked = (info && info.locked_languages) || [];
 
-  const handle_change = (field_id, path, code, value) => setChanges((current) => set_change(current, field_id, path, code, value));
+  const go = (next) => {
+    setPage(Math.min(pages - 1, Math.max(0, next)));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const save = async () => {
     if (pending === 0) return;
@@ -63,7 +67,7 @@ function TranslationWorkbench() {
       const response = await save_public_translation(token, changes);
       showSuccess(response.message || translate("DCS_TRANSLATION_SAVED"));
       setChanges({});
-      await load();
+      setInfo((current) => Object.assign({}, current, { proposals: (response.data && response.data.proposals) || (current && current.proposals) || [] }));
     } catch (error) {
       showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
     } finally {
@@ -75,7 +79,7 @@ function TranslationWorkbench() {
 
   if (failure) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: "#F5F7FA" }}>
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: "#F5F7FA" }}>
         <div className="bg-white border-2 p-6 max-w-md text-center" style={{ borderColor: BORDER }}>
           <p className="text-sm" style={{ color: "#E74C3C", ...FONT }}>
             {failure}
@@ -86,52 +90,77 @@ function TranslationWorkbench() {
   }
 
   return (
-    <div className="min-h-screen pb-28" style={{ backgroundColor: "#F5F7FA" }}>
+    <div className="min-h-screen pb-32" style={{ backgroundColor: "#F5F7FA" }}>
       <Helmet>
-        <title>{info ? `${info.form_name} - ${translate("DCS_TRANSLATION_PAGE_TITLE")}` : translate("DCS_TRANSLATION_PAGE_TITLE")}</title>
+        <title>{`${info.form_name} - ${translate("DCS_TRANSLATION_PAGE_TITLE")}`}</title>
       </Helmet>
-      <div className="max-w-4xl mx-auto px-4 pt-6 space-y-4">
-        <div className="bg-white border-2 p-4 sm:p-6 flex items-start justify-between gap-3 flex-wrap" style={{ borderColor: BORDER }}>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase" style={{ color: MUTED, ...FONT }}>
-              {translate("DCS_TRANSLATION_PAGE_TITLE")}
-            </p>
-            <h1 className="text-lg font-bold truncate" style={{ color: "#333333", ...FONT }}>
-              {info.form_name}
-            </h1>
-            <p className="text-xs mt-1" style={{ color: MUTED, ...FONT }}>
-              {translate("DCS_TRANSLATION_PAGE_HINT")}
-            </p>
+      <div className="max-w-3xl mx-auto px-4 pt-4 sm:pt-6 space-y-4">
+        <div className="bg-white border-2 p-4 sm:p-6 space-y-3" style={{ borderColor: BORDER }}>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase" style={{ color: MUTED, ...FONT }}>
+                {translate("DCS_TRANSLATION_PAGE_TITLE")}
+              </p>
+              <h1 className="text-lg font-bold" style={{ color: "#333333", ...FONT }}>
+                {info.form_name}
+              </h1>
+            </div>
+            <div className="flex gap-1">
+              {LANGUAGES.map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setLanguage(code)}
+                  className="text-[11px] font-bold uppercase px-3 py-1 rounded-full cursor-pointer"
+                  style={{ border: `1px solid ${PRIMARY}`, color: language === code ? "#FFFFFF" : PRIMARY, backgroundColor: language === code ? PRIMARY : "transparent", ...FONT }}
+                >
+                  {code}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-1">
-            {LANGUAGES.map((code) => (
-              <button
-                key={code}
-                type="button"
-                onClick={() => setLanguage(code)}
-                className="text-[11px] font-bold uppercase px-3 py-1 rounded-full cursor-pointer"
-                style={{ border: `1px solid ${PRIMARY}`, color: language === code ? "#FFFFFF" : PRIMARY, backgroundColor: language === code ? PRIMARY : "transparent", ...FONT }}
-              >
-                {code}
-              </button>
-            ))}
-          </div>
+          <p className="text-xs" style={{ color: MUTED, ...FONT }}>
+            {translate("DCS_TRANSLATION_PAGE_HINT")}
+          </p>
+          {locked.length > 0 && (
+            <p className="text-xs flex items-center gap-2 flex-wrap" style={{ color: AMBER, ...FONT }}>
+              {translate("DCS_TRANSLATION_LOCKED_LANGUAGES")}:
+              {locked.map((code) => (
+                <span key={code} className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ border: `1px solid ${AMBER}` }}>
+                  {translate(LANGUAGE_NAME_KEYS[code])}
+                </span>
+              ))}
+            </p>
+          )}
         </div>
 
-        {entries.map((entry, index) => (
-          <TranslationFieldCard key={entry.field.id || index} entry={entry} index={index + 1} lockedKinds={locked_kinds} changes={changes} onChange={handle_change} />
+        {shown.map((entry, index) => (
+          <TranslationFieldCard key={entry.field.id} entry={entry} index={page * shown.length + index + 1} lockedLanguages={locked} changes={changes} proposals={proposals} onChange={(field_id, key, code, value) => setChanges((current) => set_change(current, field_id, key, code, value))} />
         ))}
+        {entries.length === 0 && (
+          <p className="text-sm" style={{ color: MUTED, ...FONT }}>
+            {translate("DCS_TRANSLATION_NO_TEXTS")}
+          </p>
+        )}
       </div>
 
       <div className="fixed bottom-0 inset-x-0 bg-white border-t-2 px-4 py-3" style={{ borderColor: BORDER }}>
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-sm" style={{ color: pending > 0 ? PRIMARY : MUTED, ...FONT }}>
-            {pending > 0 ? translate("DCS_TRANSLATION_CHANGES", { count: pending }) : translate("DCS_TRANSLATION_NO_CHANGES")}
-          </p>
-          <div className="flex gap-2">
-            <DcsButtonOutline onClick={() => setChanges({})} disabled={pending === 0 || saving}>
-              {translate("DCS_BTN_CANCEL")}
+        <div className="max-w-3xl mx-auto space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <DcsButtonOutline onClick={() => go(page - 1)} disabled={page === 0 || saving}>
+              {translate("DCS_TRANSLATION_BACK")}
             </DcsButtonOutline>
+            <p className="text-xs text-center" style={{ color: MUTED, ...FONT }}>
+              {translate("DCS_TRANSLATION_PAGE_OF", { page: page + 1, total: pages })}
+            </p>
+            <DcsButtonOutline onClick={() => go(page + 1)} disabled={page >= pages - 1 || saving}>
+              {translate("DCS_TRANSLATION_NEXT")}
+            </DcsButtonOutline>
+          </div>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-xs" style={{ color: pending > 0 ? PRIMARY : MUTED, ...FONT }}>
+              {pending > 0 ? translate("DCS_TRANSLATION_CHANGES", { count: pending }) : translate("DCS_TRANSLATION_SAVED_NOTE")}
+            </p>
             <DcsButtonPrimary onClick={save} disabled={pending === 0 || saving}>
               {saving ? translate("DCS_WAITING_GENERIC") : translate("DCS_TRANSLATION_SAVE")}
             </DcsButtonPrimary>

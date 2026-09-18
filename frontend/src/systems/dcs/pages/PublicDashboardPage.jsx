@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_public_map_shapes, get_public_dashboard, get_public_dashboard_data, get_public_kpi_skipped, get_public_filter_values, get_public_widget_records, export_public_widget_records, request_error_text } from "../util-dashboard/dashboardService.js";
 import RecordsOverlay from "../util-dashboard/records/RecordsOverlay.jsx";
@@ -32,6 +32,9 @@ const FONT = { fontFamily: "'Montserrat', sans-serif" };
  */
 function PublicBoard() {
   const { token } = useParams();
+  // Which of the link's dashboards is open: ?d=<id>, the link's own when absent.
+  const [search_params, setSearchParams] = useSearchParams();
+  const dashboard_id = search_params.get("d") || "";
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const [loading, setLoading] = useState(true);
@@ -44,7 +47,8 @@ function PublicBoard() {
   useEffect(() => {
     let is_mounted = true;
     setLoading(true);
-    get_public_dashboard(token)
+    setFailure("");
+    get_public_dashboard(token, dashboard_id)
       .then((response) => is_mounted && setInfo(response.data || null))
       .catch((error) => is_mounted && setFailure(request_error_text(error, translate("DCS_ERROR_GENERIC"))))
       .finally(() => is_mounted && setLoading(false));
@@ -52,18 +56,21 @@ function PublicBoard() {
       is_mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, dashboard_id]);
+  const open_id = (info && info.dashboard_id) || dashboard_id;
+  const shared = (info && info.shared_dashboards) || [];
+  const pick_dashboard = (next) => setSearchParams(next ? { d: next } : {});
 
   const widgets = useMemo(() => (info && info.widgets) || [], [info]);
   const form = useMemo(() => (info ? { form_group_id: info.form_group_id, form_name: info.form_name, schema: null } : { form_group_id: token, form_name: "", schema: null }), [info, token]);
 
   const data = useBoardData({
-    scope_key: token,
+    scope_key: `${token}:${open_id}`,
     widgets,
     loading: loading || !info,
     blocked: false,
     frozen_ref,
-    fetch_batch: (batch, period, applied) => get_public_dashboard_data(token, batch, period, applied),
+    fetch_batch: (batch, period, applied) => get_public_dashboard_data(token, batch, period, applied, open_id),
   });
   const config = (info && info.link && info.link.config) || { filter_mode: "free", locked_filters: [], show_title: false };
   const locked = config.filter_mode === "locked";
@@ -73,7 +80,24 @@ function PublicBoard() {
   const map_scope = filter_names(locked ? { ...data.filter_values, ...applied_filter_map(config.locked_filters) } : data.filter_values);
   const board_title = (config.show_title && info && info.link && info.link.title) || (info && info.dashboard_name) || (info && info.form_name) || "";
   const locked_ids = useMemo(() => new Set(locked ? (config.locked_filters || []).map((entry) => entry.field_id) : []), [locked, config.locked_filters]);
-  const fetch_filter_values = (field_id) => get_public_filter_values(token, field_id, data.applied_filters_ref.current, data.applied_period_ref.current).then((response) => (response.data && response.data.values) || []);
+  const fetch_filter_values = (field_id) => get_public_filter_values(token, field_id, data.applied_filters_ref.current, data.applied_period_ref.current, open_id).then((response) => (response.data && response.data.values) || []);
+  // Several dashboards behind one link: the viewer picks which to open.
+  const dashboard_picker =
+    shared.length > 1 ? (
+      <select
+        className="dcs-board-chrome text-sm font-bold py-1 px-2 cursor-pointer"
+        style={{ color: "var(--board-text, #333333)", backgroundColor: "var(--board-card, #FFFFFF)", border: "1px solid var(--board-border, #E0E0E0)", maxWidth: "100%", ...FONT }}
+        value={open_id}
+        onChange={(event) => pick_dashboard(event.target.value)}
+        aria-label={translate("DCS_DB_PUBLIC_PICK_DASHBOARD")}
+      >
+        {shared.map((entry) => (
+          <option key={entry.id} value={entry.id}>
+            {entry.name}
+          </option>
+        ))}
+      </select>
+    ) : null;
   const { container_ref, grid_ref, is_fullscreen, is_fallback, enter, exit, fs_mode, setFsMode, fit_scale, header_visible, show_header, schedule_header_hide } = useBoardFullscreen();
 
   // The screenshot studio: the board as it stands right now - each card's
@@ -126,7 +150,7 @@ function PublicBoard() {
     >
       <BoardHeader
         form={form}
-        title={(config.show_title && info.link && info.link.title) || info.dashboard_name || info.form_name || ""}
+        title={dashboard_picker || (config.show_title && info.link && info.link.title) || info.dashboard_name || info.form_name || ""}
         widgets_count={widgets.length}
         can_edit={false}
         generating={false}
@@ -188,8 +212,8 @@ function PublicBoard() {
         <RecordsOverlay
           title={records.widget.title}
           subtitle={info.dashboard_name || ""}
-          fetchPage={(page) => get_public_widget_records(token, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick, page, limit: 20 })}
-          exportRecords={(on_progress) => export_public_widget_records(token, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick }, on_progress)}
+          fetchPage={(page) => get_public_widget_records(token, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick, page, limit: 20, dashboard_id: open_id })}
+          exportRecords={(on_progress) => export_public_widget_records(token, { widget: records.widget, period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, pick: records.pick, dashboard_id: open_id }, on_progress)}
           onClose={() => setRecords(null)}
         />
       )}
@@ -198,7 +222,7 @@ function PublicBoard() {
           form={form}
           widget={skipped_widget}
           period={data.applied_period_ref.current}
-          fetchSkipped={(widget, period, offset, limit) => get_public_kpi_skipped(token, widget, period, offset, limit, data.applied_filters_ref.current)}
+          fetchSkipped={(widget, period, offset, limit) => get_public_kpi_skipped(token, widget, period, offset, limit, data.applied_filters_ref.current, open_id)}
           onClose={() => setSkippedWidget(null)}
         />
       )}

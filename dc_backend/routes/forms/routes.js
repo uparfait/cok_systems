@@ -15,6 +15,7 @@ const search_forms = require("../../controllers/forms/search_forms.js");
 const get_form_approvers = require("../../controllers/forms/get_form_approvers.js");
 const get_form_submission_stats = require("../../controllers/forms/get_form_submission_stats.js");
 const { list_translation_links, create_translation_link, delete_translation_link } = require("../../controllers/forms/translation_links.js");
+const { list_translation_proposals, apply_translation_proposals, restore_translation_proposals, dismiss_translation_proposals } = require("../../controllers/forms/translation_proposals.js");
 const { upload_design_file: upload_design_file_middleware } = require("../../utilities/upload.js");
 
 /**
@@ -226,5 +227,29 @@ Router.delete("/:form_group_id/versions/:version", delete_form_version);
 Router.get("/:form_group_id/translation-links", list_translation_links);
 Router.post("/:form_group_id/translation-links", create_translation_link);
 Router.delete("/:form_group_id/translation-links/:link_id", delete_translation_link);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/translation-links/{link_id}/proposals:
+ *   get:
+ *     summary: What the link's translator proposed, each next to the text the form holds now (form editors only)
+ *     tags: [Forms]
+ * /dcs/api/forms/{form_group_id}/translation-links/{link_id}/proposals/apply:
+ *   post:
+ *     summary: Write the chosen pending proposals into the form (texts only, schema re-validated, replaced text remembered)
+ *     tags: [Forms]
+ * /dcs/api/forms/{form_group_id}/translation-links/{link_id}/proposals/restore:
+ *   post:
+ *     summary: Put the remembered text back for the chosen applied proposals
+ *     tags: [Forms]
+ * /dcs/api/forms/{form_group_id}/translation-links/{link_id}/proposals/dismiss:
+ *   post:
+ *     summary: Drop the chosen pending proposals without applying them
+ *     tags: [Forms]
+ */
+Router.get("/:form_group_id/translation-links/:link_id/proposals", list_translation_proposals);
+Router.post("/:form_group_id/translation-links/:link_id/proposals/apply", apply_translation_proposals);
+Router.post("/:form_group_id/translation-links/:link_id/proposals/restore", restore_translation_proposals);
+Router.post("/:form_group_id/translation-links/:link_id/proposals/dismiss", dismiss_translation_proposals);
 
 module.exports = Router;

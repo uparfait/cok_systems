@@ -59,8 +59,13 @@ module.exports = {
   TRANSLATION_LINK_NOT_FOUND: "This translation link does not exist or was removed",
   TRANSLATION_LINK_TITLE_TOO_LONG: "The link name is too long",
   TRANSLATION_FORM_FETCHED: "Form texts fetched successfully",
-  TRANSLATION_SAVED: "Translations saved into the form",
+  TRANSLATION_SAVED: "Translations saved - the form owner will review and apply them",
   TRANSLATION_NO_CHANGES: "No changeable text was sent - locked texts cannot be changed through this link",
+  TRANSLATION_PROPOSALS_FETCHED: "Proposed translations fetched successfully",
+  TRANSLATION_PROPOSALS_APPLIED: "{{applied}} translations applied to the form",
+  TRANSLATION_PROPOSALS_RESTORED: "{{restored}} texts restored on the form",
+  TRANSLATION_PROPOSALS_DISMISSED: "{{dismissed}} proposals dismissed",
+  TRANSLATION_NOTHING_SELECTED: "Select at least one proposal that can take this action",
 
   DASHBOARD_LINK_UPDATED: "Share link updated successfully",
 

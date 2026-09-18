@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_dashboard_data, get_filter_values, get_map_shapes, request_error_text } from "./dashboardService.js";
+import { get_dashboard_data, get_filter_values, get_map_shapes, request_error_text, get_dashboard } from "./dashboardService.js";
 import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
 import { useBoardData } from "./useBoardData.js";
@@ -439,7 +439,7 @@ function DashboardBoard({ form }) {
       {canvas_menu.menu_element}
       <BoardViewOverlays
         shareOpen={share_open}
-        share={{ form: scoped_form, filters, fields: form_fields, fetchFilterValues: fetch_filter_values }}
+        share={{ form: scoped_form, filters, fields: form_fields, fetchFilterValues: fetch_filter_values, dashboards: library.dashboards, fetchDashboardFilters: (dashboard_id) => get_dashboard({ form_group_id: form.form_group_id, dashboard_id }).then((response) => (response.data && response.data.filters) || []) }}
         records={records}
         view={{ form_group_id: form.form_group_id, schema: form.schema, board_name: library.active ? library.active.name : "", period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, language }}
         shot={shot}

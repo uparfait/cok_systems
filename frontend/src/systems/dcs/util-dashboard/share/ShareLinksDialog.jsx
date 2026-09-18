@@ -50,7 +50,7 @@ function TextButton({ children, onClick, danger, disabled }) {
  * it; and create a new one. A public link opens the dashboard read-only,
  * without signing in, until it expires or is deleted here.
  */
-export default function ShareLinksDialog({ form, filters, fields, fetchFilterValues, onClose }) {
+export default function ShareLinksDialog({ form, filters, fields, fetchFilterValues, dashboards, fetchDashboardFilters, onClose }) {
   const { translate, language } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const [links, setLinks] = useState([]);
@@ -167,7 +167,7 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
               {links.map((link) =>
                 editing === link.id ? (
                   <li key={link.id}>
-                    <LinkForm initial={link} saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} filters={filters} fields={fields} fetchValues={fetchFilterValues} recordFields={record_fields} />
+                    <LinkForm initial={link} saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} filters={filters} fields={fields} fetchValues={fetchFilterValues} recordFields={record_fields} primary={{ id: form.dashboard_id, name: form.dashboard_name }} dashboards={dashboards} fetchDashboardFilters={fetchDashboardFilters} />
                   </li>
                 ) : (
                   <li key={link.id} className="dcs-share-link-card border-2 bg-white" style={{ borderColor: link.expired ? "rgba(231,76,60,0.5)" : BORDER, borderLeft: `4px solid ${link.expired ? "#E74C3C" : PRIMARY}`, opacity: link.expired ? 0.85 : 1 }}>
@@ -186,6 +186,11 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
                         {link.config && link.config.filter_mode === "locked" && (
                           <span className="text-[10px] font-bold uppercase px-2 py-0.5" style={{ color: PRIMARY, border: `1px solid ${PRIMARY}`, letterSpacing: "0.4px", ...FONT }}>
                             {translate("DCS_DB_SHARE_CHIP_LOCKED", { count: (link.config.locked_filters || []).length + (link.config.locked_period ? 1 : 0) })}
+                          </span>
+                        )}
+                        {Array.isArray(link.extra_dashboards) && link.extra_dashboards.length > 0 && (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5" style={{ color: PRIMARY, border: `1px solid ${PRIMARY}`, letterSpacing: "0.4px", ...FONT }}>
+                            {translate("DCS_DB_SHARE_CHIP_COMBINED", { count: link.extra_dashboards.length })}
                           </span>
                         )}
                         {link.config && link.config.show_title && (
@@ -225,7 +230,7 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
 
           {!loading && editing === "new" && (
             <div className="pt-2">
-              <LinkForm saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} filters={filters} fields={fields} fetchValues={fetchFilterValues} recordFields={record_fields} />
+              <LinkForm saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} filters={filters} fields={fields} fetchValues={fetchFilterValues} recordFields={record_fields} primary={{ id: form.dashboard_id, name: form.dashboard_name }} dashboards={dashboards} fetchDashboardFilters={fetchDashboardFilters} />
             </div>
           )}
           {!loading && editing === null && (

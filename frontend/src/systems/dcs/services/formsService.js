@@ -152,3 +152,19 @@ export function get_public_translation(token) {
 export function save_public_translation(token, changes) {
   return dcs_request(`/public/translate/${token}`, "PUT", { changes });
 }
+
+export function list_translation_proposals(form_group_id, link_id) {
+  return dcs_request(`/forms/${form_group_id}/translation-links/${link_id}/proposals`, "GET");
+}
+
+export function apply_translation_proposals(form_group_id, link_id, ids) {
+  return dcs_request(`/forms/${form_group_id}/translation-links/${link_id}/proposals/apply`, "POST", { ids });
+}
+
+export function restore_translation_proposals(form_group_id, link_id, ids) {
+  return dcs_request(`/forms/${form_group_id}/translation-links/${link_id}/proposals/restore`, "POST", { ids });
+}
+
+export function dismiss_translation_proposals(form_group_id, link_id, ids) {
+  return dcs_request(`/forms/${form_group_id}/translation-links/${link_id}/proposals/dismiss`, "POST", { ids });
+}

@@ -58,8 +58,13 @@ module.exports = {
   TRANSLATION_LINK_NOT_FOUND: "Iri huza ryo guhindura indimi ntiribaho cyangwa ryasibwe",
   TRANSLATION_LINK_TITLE_TOO_LONG: "Izina ry'ihuza ni rirerire cyane",
   TRANSLATION_FORM_FETCHED: "Inyandiko z'ifishi zabonetse neza",
-  TRANSLATION_SAVED: "Ubusobanuro bwabitswe mu ifishi",
+  TRANSLATION_SAVED: "Ubusobanuro bwabitswe - nyir'ifishi azabusuzuma abushyire ku ifishi",
   TRANSLATION_NO_CHANGES: "Nta nyandiko ishobora guhindurwa yoherejwe - inyandiko zafunzwe ntizishobora guhindurwa binyuze kuri iri huza",
+  TRANSLATION_PROPOSALS_FETCHED: "Ubusobanuro bwatanzwe bwabonetse",
+  TRANSLATION_PROPOSALS_APPLIED: "Ubusobanuro {{applied}} bwashyizwe ku ifishi",
+  TRANSLATION_PROPOSALS_RESTORED: "Inyandiko {{restored}} zagaruwe ku ifishi",
+  TRANSLATION_PROPOSALS_DISMISSED: "Ibyifuzo {{dismissed}} byakuweho",
+  TRANSLATION_NOTHING_SELECTED: "Hitamo nibura icyifuzo kimwe gishobora gukorerwa iki gikorwa",
 
   DASHBOARD_LINK_UPDATED: "Ihuza ryo gusangira ryavuguruwe neza",
 

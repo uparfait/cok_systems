@@ -5,12 +5,14 @@ import { list_translation_links, create_translation_link, delete_translation_lin
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
-import { TEXT_KINDS } from "./translationTexts.js";
+import TranslationReviewDialog from "./TranslationReviewDialog.jsx";
+import { LANGUAGES, LANGUAGE_NAME_KEYS } from "./translationTexts.js";
 
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 const BORDER = "#E0E0E0";
 const MUTED = "#9E9E9E";
 const PRIMARY = "#056daa";
+const AMBER = "#B9770E";
 
 const format_date = (value, language) => {
   if (!value) return "";
@@ -20,11 +22,12 @@ const format_date = (value, language) => {
 
 /**
  * The translation links of one form, for its editors: create a link (named,
- * with the kinds of text its holder may not change ticked), copy an
- * existing link's URL, delete a link. A link opens the public translation
- * page without sign-in.
+ * with the LANGUAGES its holder may not change ticked), copy a link, review
+ * what its translator proposed (apply, restore, dismiss), delete a link.
+ * A link opens the public translation page without sign-in; what is saved
+ * there never touches the form until it is applied here.
  */
-export default function TranslationLinksDialog({ formGroupId, onClose }) {
+export default function TranslationLinksDialog({ formGroupId, form, onClose }) {
   const { translate, language } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const [links, setLinks] = useState([]);
@@ -33,6 +36,7 @@ export default function TranslationLinksDialog({ formGroupId, onClose }) {
   const [title, setTitle] = useState("");
   const [locked, setLocked] = useState([]);
   const [deleting, setDeleting] = useState(null);
+  const [reviewing, setReviewing] = useState(null);
 
   const reload = () =>
     list_translation_links(formGroupId)
@@ -45,12 +49,16 @@ export default function TranslationLinksDialog({ formGroupId, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formGroupId]);
 
-  const toggle_locked = (kind) => setLocked((current) => (current.includes(kind) ? current.filter((entry) => entry !== kind) : current.concat(kind)));
+  const toggle_locked = (code) => setLocked((current) => (current.includes(code) ? current.filter((entry) => entry !== code) : current.concat(code)));
 
   const create = async () => {
+    if (locked.length === LANGUAGES.length) {
+      showError(translate("DCS_TRANSLATION_ALL_LOCKED"));
+      return;
+    }
     setSaving(true);
     try {
-      const response = await create_translation_link(formGroupId, { title, locked_kinds: locked });
+      const response = await create_translation_link(formGroupId, { title, locked_languages: locked });
       showSuccess(response.message || translate("DCS_TRANSLATION_LINK_CREATED"));
       setTitle("");
       setLocked([]);
@@ -101,12 +109,15 @@ export default function TranslationLinksDialog({ formGroupId, onClose }) {
             <input className="cok-auth-input w-full py-2" value={title} onChange={(event) => setTitle(event.target.value)} placeholder={translate("DCS_TRANSLATION_LINK_NAME")} />
           </div>
           <div>
-            <label className="cok-auth-label">{translate("DCS_TRANSLATION_LOCKED_KINDS")}</label>
+            <label className="cok-auth-label">{translate("DCS_TRANSLATION_LOCKED_LANGUAGES")}</label>
+            <p className="text-xs mb-2" style={{ color: MUTED, ...FONT }}>
+              {translate("DCS_TRANSLATION_LOCKED_LANGUAGES_HINT")}
+            </p>
             <div className="grid gap-2 sm:grid-cols-3">
-              {TEXT_KINDS.map((entry) => (
-                <label key={entry.kind} className="flex items-center gap-2 text-sm cursor-pointer" style={FONT}>
-                  <input type="checkbox" checked={locked.includes(entry.kind)} onChange={() => toggle_locked(entry.kind)} style={{ accentColor: PRIMARY }} />
-                  {translate(entry.labelKey)}
+              {LANGUAGES.map((code) => (
+                <label key={code} className="flex items-center gap-2 text-sm cursor-pointer" style={FONT}>
+                  <input type="checkbox" checked={locked.includes(code)} onChange={() => toggle_locked(code)} style={{ accentColor: PRIMARY }} />
+                  {translate(LANGUAGE_NAME_KEYS[code])}
                 </label>
               ))}
             </div>
@@ -128,21 +139,22 @@ export default function TranslationLinksDialog({ formGroupId, onClose }) {
             </p>
           )}
           {links.map((link) => (
-            <div key={link.id} className="border p-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: BORDER }}>
+            <div key={link.id} className="border p-3 space-y-2" style={{ borderColor: BORDER }}>
               <div className="min-w-0">
                 <p className="text-sm font-semibold truncate" style={{ color: "#333333", ...FONT }}>
                   {link.title}
                 </p>
                 <p className="text-xs" style={{ color: MUTED, ...FONT }}>
-                  {link.created_by_name} - {format_date(link.created_at, language)} - {translate("DCS_TRANSLATION_SAVES", { count: link.saves || 0 })}
+                  {link.created_by_name} - {format_date(link.created_at, language)} - {translate("DCS_TRANSLATION_PENDING_SHORT", { count: link.pending || 0 })}, {translate("DCS_TRANSLATION_APPLIED_SHORT", { count: link.applied || 0 })}
                 </p>
-                {link.locked_kinds.length > 0 && (
-                  <p className="text-xs" style={{ color: "#B9770E", ...FONT }}>
-                    {translate("DCS_TRANSLATION_LOCKED_BADGE")}: {link.locked_kinds.map((kind) => translate((TEXT_KINDS.find((entry) => entry.kind === kind) || {}).labelKey || kind)).join(", ")}
+                {(link.locked_languages || []).length > 0 && (
+                  <p className="text-xs" style={{ color: AMBER, ...FONT }}>
+                    {translate("DCS_TRANSLATION_LOCKED_LANGUAGES")}: {link.locked_languages.map((code) => translate(LANGUAGE_NAME_KEYS[code] || "DCS_TRANSLATION_LANG_EN")).join(", ")}
                   </p>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <DcsButtonPrimary onClick={() => setReviewing(link)}>{translate("DCS_TRANSLATION_REVIEW_BTN", { count: link.pending || 0 })}</DcsButtonPrimary>
                 <DcsButtonOutline onClick={() => copy(link)}>{translate("DCS_TRANSLATION_COPY")}</DcsButtonOutline>
                 <DcsButtonOutline variant="danger" onClick={() => setDeleting(link)}>
                   {translate("DCS_TRANSLATION_DELETE")}
@@ -153,6 +165,7 @@ export default function TranslationLinksDialog({ formGroupId, onClose }) {
         </div>
       </div>
       {deleting && <DcsConfirmDialog titleKey="DCS_TRANSLATION_DELETE_TITLE" messageKey="DCS_TRANSLATION_DELETE_MESSAGE" onConfirm={remove} onCancel={() => setDeleting(null)} />}
+      {reviewing && <TranslationReviewDialog formGroupId={formGroupId} link={reviewing} fields={(form && form.schema && form.schema.fields) || []} onClose={() => setReviewing(null)} onChanged={reload} />}
     </div>
   );
 }

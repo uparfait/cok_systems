@@ -19,11 +19,38 @@ const { success_response, warning_response, error_response } = require("../../ut
  */
 
 /**
- * The link's viewing configuration; a link saved before configurations
- * existed lets its viewers filter freely and shows the dashboard's name.
+ * A link opens its own dashboard and, when its creator combined others
+ * into it, those too - each under its own viewing configuration. A
+ * request names the dashboard it is about (body.dashboard_id or
+ * ?dashboard_id); none means the link's own.
  */
-function link_config(link) {
-  const config = (link && link.config) || {};
+function shared_entries(link) {
+  const primary = { dashboard_id: link.dashboard_id || null, config: link.config || {} };
+  const extras = (Array.isArray(link.extra_dashboards) ? link.extra_dashboards : []).map((entry) => ({ dashboard_id: entry.dashboard_id, config: entry.config || {} }));
+  return [primary].concat(extras);
+}
+
+/** The shared entry a request is about, or null when this link does not open that dashboard. */
+function shared_entry_for(link, dashboard_id) {
+  const entries = shared_entries(link);
+  if (!dashboard_id) return entries[0];
+  return entries.find((entry) => entry.dashboard_id === dashboard_id) || null;
+}
+
+const requested_dashboard_id = (req) => {
+  const from_body = req.body && typeof req.body.dashboard_id === "string" ? req.body.dashboard_id.trim() : "";
+  const from_query = req.query && typeof req.query.dashboard_id === "string" ? req.query.dashboard_id.trim() : "";
+  return from_body || from_query || "";
+};
+
+/**
+ * The viewing configuration of one shared dashboard; a link saved before
+ * configurations existed lets its viewers filter freely and shows the
+ * dashboard's name.
+ */
+function link_config(link, dashboard_id) {
+  const entry = shared_entry_for(link, dashboard_id);
+  const config = (entry && entry.config) || {};
   return {
     filter_mode: config.filter_mode === "locked" ? "locked" : "free",
     locked_filters: Array.isArray(config.locked_filters) ? config.locked_filters : [],
@@ -41,8 +68,9 @@ function link_config(link) {
  * period replaces the viewer's.
  */
 function viewer_body(req, link) {
-  const config = link_config(link);
+  const config = link_config(link, requested_dashboard_id(req));
   const body = Object.assign({}, req.body || {});
+  delete body.dashboard_id;
   if (config.filter_mode !== "locked") return body;
   if (config.locked_period) body.period = config.locked_period;
   return body;
@@ -58,10 +86,13 @@ function filter_fields(dashboard, form_version) {
 }
 
 /** Locked values the viewer can never change; nothing forced when filtering is free. */
-function forced_filters(link) {
-  const config = link_config(link);
+function forced_filters(link, req) {
+  const config = link_config(link, requested_dashboard_id(req));
   return config.filter_mode === "locked" ? config.locked_filters : [];
 }
+
+/** Whether this link opens the dashboard a request names (the link's own when it names none). */
+const shares_requested = (link, req) => shared_entry_for(link, requested_dashboard_id(req)) !== null;
 
 async function resolve(req, res) {
   const context = await load_public_dashboard_context(req.params.token);
@@ -73,6 +104,10 @@ async function resolve(req, res) {
     res.status(410).json(warning_response(req, "DASHBOARD_LINK_EXPIRED"));
     return null;
   }
+  if (!shares_requested(context.link, req)) {
+    res.status(404).json(warning_response(req, "DASHBOARD_NOT_FOUND"));
+    return null;
+  }
   return context;
 }
 
@@ -80,19 +115,29 @@ async function get_public_dashboard(req, res) {
   try {
     const context = await resolve(req, res);
     if (!context) return undefined;
-    // The link's own dashboard; an older link without one shows the form's first.
-    const dashboard = context.link.dashboard_id
-      ? await dashboards_model.get_dashboard_by_id(context.form_version.form_group_id, context.link.dashboard_id)
+    // The dashboard asked for among those this link opens; the link's own
+    // when none is named, and an older link without one shows the form's first.
+    const wanted = requested_dashboard_id(req) || context.link.dashboard_id || "";
+    const dashboard = wanted
+      ? await dashboards_model.get_dashboard_by_id(context.form_version.form_group_id, wanted)
       : await dashboards_model.get_dashboard_by_form(context.form_version.form_group_id);
     if (!dashboard) return res.status(404).json(warning_response(req, "DASHBOARD_NOT_FOUND"));
+    // Every dashboard the link opens, by name, so viewers can pick one.
+    const shared = [];
+    for (const entry of shared_entries(context.link)) {
+      const held = entry.dashboard_id ? await dashboards_model.get_dashboard_by_id(context.form_version.form_group_id, entry.dashboard_id) : dashboard;
+      if (held) shared.push({ id: held._id.toString(), name: held.name || dashboards_model.FIRST_NAME });
+    }
     await dashboard_links_model.count_view(context.link._id);
     return res.status(200).json(
       success_response(req, "DASHBOARD_FETCHED", {
         form_group_id: context.form_version.form_group_id,
         form_name: context.form_version.form_name,
+        dashboard_id: dashboard._id.toString(),
         dashboard_name: dashboard.name || dashboards_model.FIRST_NAME,
+        shared_dashboards: shared,
         project_name: context.project.name || "",
-        link: { title: context.link.title, description: context.link.description || "", expires_at: context.link.expires_at || null, config: link_config(context.link) },
+        link: { title: context.link.title, description: context.link.description || "", expires_at: context.link.expires_at || null, config: link_config(context.link, dashboard._id.toString()) },
         widgets: (dashboard && dashboard.widgets) || [],
         filters: (dashboard && dashboard.filters) || [],
         filter_fields: filter_fields(dashboard, context.form_version),
@@ -110,7 +155,7 @@ async function get_public_dashboard_data(req, res) {
     if (!context) return undefined;
     // Under a locked link the viewer's own filter values (and fixed period) are ignored: only the link's count.
     const body = viewer_body(req, context.link);
-    const results = await compute_dashboard_results(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link));
+    const results = await compute_dashboard_results(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link, req));
     return res.status(200).json(success_response(req, "DASHBOARD_DATA_FETCHED", { results }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
@@ -122,7 +167,7 @@ async function get_public_kpi_skipped(req, res) {
     const context = await resolve(req, res);
     if (!context) return undefined;
     const body = viewer_body(req, context.link);
-    const page = await compute_skipped_page(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link));
+    const page = await compute_skipped_page(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link, req));
     if (page.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: page.invalid }));
     return res.status(200).json(
       success_response(req, "DASHBOARD_SKIPPED_FETCHED", {
@@ -143,7 +188,7 @@ async function get_public_filter_values(req, res) {
     const context = await resolve(req, res);
     if (!context) return undefined;
     const body = viewer_body(req, context.link);
-    const result = await compute_filter_values(body, context.form_version.form_group_id, context.form_version, forced_filters(context.link));
+    const result = await compute_filter_values(body, context.form_version.form_group_id, context.form_version, forced_filters(context.link, req));
     if (result.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_FILTER_INVALID"));
     return res.status(200).json(success_response(req, "DASHBOARD_FILTER_VALUES_FETCHED", { values: result.values }));
   } catch (error) {
@@ -156,9 +201,10 @@ async function get_public_widget_records(req, res) {
   try {
     const context = await resolve(req, res);
     if (!context) return undefined;
-    if (!link_config(context.link).allow_records) return res.status(403).json(warning_response(req, "DASHBOARD_RECORDS_FORBIDDEN"));
+    const config = link_config(context.link, requested_dashboard_id(req));
+    if (!config.allow_records) return res.status(403).json(warning_response(req, "DASHBOARD_RECORDS_FORBIDDEN"));
     const body = viewer_body(req, context.link);
-    const result = await compute_widget_records(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link), link_config(context.link).record_fields);
+    const result = await compute_widget_records(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link, req), config.record_fields);
     if (result.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: result.invalid }));
     return res.status(200).json(success_response(req, "DASHBOARD_RECORDS_FETCHED", result));
   } catch (error) {
@@ -171,9 +217,10 @@ async function get_public_widget_records_export(req, res) {
   try {
     const context = await resolve(req, res);
     if (!context) return undefined;
-    if (!link_config(context.link).allow_records) return res.status(403).json(warning_response(req, "DASHBOARD_RECORDS_FORBIDDEN"));
+    const config = link_config(context.link, requested_dashboard_id(req));
+    if (!config.allow_records) return res.status(403).json(warning_response(req, "DASHBOARD_RECORDS_FORBIDDEN"));
     const body = viewer_body(req, context.link);
-    const result = await collect_widget_records(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link), link_config(context.link).record_fields);
+    const result = await collect_widget_records(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link, req), config.record_fields);
     if (result.invalid) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: result.invalid }));
     const title = (body.widget && body.widget.title) || "records";
     const file = await build_records_workbook({ title, items: result.items, columns: result.columns, criteria: result.criteria, period: result.period, language: "en" });

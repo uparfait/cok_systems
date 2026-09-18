@@ -1,8 +1,9 @@
 const links_model = require("../../models/form_translation_links_model.js");
+const proposals_model = require("../../models/form_translation_proposals_model.js");
 const forms_model = require("../../models/forms_model.js");
 const projects_model = require("../../models/projects_model.js");
 const project_access = require("../../utilities/project_access.js");
-const { read_locked_kinds } = require("../../utilities/translation_texts.js");
+const { read_locked_languages } = require("../../utilities/translation_texts.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 const MAX_TITLE = 120;
@@ -12,15 +13,18 @@ const MAX_TITLE = 120;
  * allowed to EDIT the form may manage them - a link lets its holder rewrite
  * the form's texts, which is an edit of the form. A link is named for the
  * manager's own bookkeeping and records which kinds of text its holder may
- * not change.
+ * not change. What its holder saves becomes PROPOSALS the editor applies.
  */
 
-function strip_link(link) {
+function strip_link(link, counts) {
+  const own = (counts || {})[link._id.toString()] || {};
   return {
     id: link._id.toString(),
     token: link.token,
     title: link.title,
-    locked_kinds: link.locked_kinds || [],
+    locked_languages: link.locked_languages || [],
+    pending: own.pending || 0,
+    applied: own.applied || 0,
     views: link.views || 0,
     saves: link.saves || 0,
     last_saved_at: link.last_saved_at || null,
@@ -54,7 +58,8 @@ async function list_translation_links(req, res) {
     const context = await manager_context(req, res);
     if (!context) return undefined;
     const links = await links_model.list_links_by_form(req.params.form_group_id);
-    return res.status(200).json(success_response(req, "TRANSLATION_LINKS_FETCHED", { links: links.map(strip_link) }));
+    const counts = await proposals_model.count_by_link(req.params.form_group_id);
+    return res.status(200).json(success_response(req, "TRANSLATION_LINKS_FETCHED", { links: links.map((link) => strip_link(link, counts)) }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }
@@ -71,7 +76,7 @@ async function create_translation_link(req, res) {
       form_group_id: req.params.form_group_id,
       project_id: context.project ? context.project._id.toString() : null,
       title: title || "Translation link",
-      locked_kinds: read_locked_kinds(body.locked_kinds),
+      locked_languages: read_locked_languages(body.locked_languages),
       created_by: req.user.user_id.toString(),
       created_by_name: req.user.full_name || "",
     });
@@ -90,6 +95,7 @@ async function delete_translation_link(req, res) {
       return res.status(404).json(warning_response(req, "TRANSLATION_LINK_NOT_FOUND"));
     }
     await links_model.delete_link(existing._id);
+    await proposals_model.delete_by_link(existing._id.toString());
     return res.status(200).json(success_response(req, "TRANSLATION_LINK_DELETED", { id: existing._id.toString() }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
@@ -97,6 +103,7 @@ async function delete_translation_link(req, res) {
 }
 
 module.exports = {
+  manager_context,
   list_translation_links,
   create_translation_link,
   delete_translation_link,

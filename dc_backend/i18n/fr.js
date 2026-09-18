@@ -59,8 +59,13 @@ module.exports = {
   TRANSLATION_LINK_NOT_FOUND: "Ce lien de traduction n'existe pas ou a été supprimé",
   TRANSLATION_LINK_TITLE_TOO_LONG: "Le nom du lien est trop long",
   TRANSLATION_FORM_FETCHED: "Textes du formulaire récupérés avec succès",
-  TRANSLATION_SAVED: "Traductions enregistrées dans le formulaire",
+  TRANSLATION_SAVED: "Traductions enregistrées - le propriétaire du formulaire les examinera et les appliquera",
   TRANSLATION_NO_CHANGES: "Aucun texte modifiable n'a été envoyé - les textes verrouillés ne peuvent pas être modifiés par ce lien",
+  TRANSLATION_PROPOSALS_FETCHED: "Traductions proposées récupérées",
+  TRANSLATION_PROPOSALS_APPLIED: "{{applied}} traductions appliquées au formulaire",
+  TRANSLATION_PROPOSALS_RESTORED: "{{restored}} textes restaurés sur le formulaire",
+  TRANSLATION_PROPOSALS_DISMISSED: "{{dismissed}} propositions écartées",
+  TRANSLATION_NOTHING_SELECTED: "Sélectionnez au moins une proposition acceptant cette action",
 
   DASHBOARD_LINK_UPDATED: "Lien de partage mis à jour avec succès",
 

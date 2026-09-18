@@ -1,115 +1,160 @@
 /**
- * The kinds of translatable text a form field carries, and how a batch of
- * translations is applied to a schema. A translation link lets its holder
- * change these texts - in en, kn and fr - and nothing else: never a field's
- * type, id, options' values, conditions, formulas or design. Kinds the
- * link's creator locked are refused even when the request carries them.
+ * The texts of a form a translator may rewrite, and how a translation is
+ * read from and written into a schema. Only what a RESPONDENT SEES is
+ * translatable: a field's label (a heading's text), a paragraph's text,
+ * option labels, placeholders, help texts and a scale's end labels - never
+ * a type, an id, an option value, a condition, a formula, a design or a
+ * validation message. A link may lock whole LANGUAGES (en, kn, fr): a
+ * locked language is shown but refused on save.
  */
 const LANGUAGES = ["en", "kn", "fr"];
 const MAX_TEXT_LENGTH = 4000;
 
-const SIMPLE_KINDS = {
-  label: "label",
-  content: "content",
-  placeholder: "placeholder",
-  help_text: "help_text",
-  required_message: "required_message",
-  valid_message: "valid_message",
-  low_label: "scale",
-  high_label: "scale",
-};
+// Field types that show no label of their own to the respondent.
+const NO_LABEL_TYPES = ["paragraph", "group", "section", "file", "image_block", "horizontal_line"];
+// Field types with no input, so no placeholder or help text is ever shown.
+const NO_INPUT_TYPES = ["paragraph", "header", "group", "section", "file", "image_block", "horizontal_line", "hidden"];
 
-const TEXT_KINDS = ["label", "content", "placeholder", "help_text", "required_message", "valid_message", "options", "rules", "scale"];
+const SIMPLE_PATHS = ["label", "content", "placeholder", "help_text", "low_label", "high_label"];
 
-function read_locked_kinds(raw) {
+function read_locked_languages(raw) {
   if (!Array.isArray(raw)) return [];
-  return Array.from(new Set(raw.filter((kind) => TEXT_KINDS.includes(kind))));
+  return Array.from(new Set(raw.filter((code) => LANGUAGES.includes(code))));
 }
 
-/** A translated text object read from a request: only the three languages, strings only, capped. */
-function read_translated(raw) {
-  if (!raw || typeof raw !== "object") return null;
-  const out = {};
-  LANGUAGES.forEach((code) => {
-    if (typeof raw[code] === "string") out[code] = raw[code].slice(0, MAX_TEXT_LENGTH);
+function flatten(fields, out) {
+  const list = out || [];
+  (fields || []).forEach((field) => {
+    if (!field || typeof field !== "object") return;
+    list.push(field);
+    if (Array.isArray(field.children)) flatten(field.children, list);
   });
-  return Object.keys(out).length > 0 ? out : null;
+  return list;
 }
 
-function apply_translated(target, incoming) {
-  const next = Object.assign({}, target || {});
-  Object.keys(incoming).forEach((code) => {
-    next[code] = incoming[code];
-  });
-  return next;
+/** Whether this path is a text the respondent sees on this field. */
+function path_allowed(field, path) {
+  if (!Array.isArray(path) || path.length === 0) return false;
+  const [head] = path;
+  if (head === "label") return !NO_LABEL_TYPES.includes(field.type) && path.length === 1;
+  if (head === "content") return field.type === "paragraph" && path.length === 1;
+  if (head === "placeholder" || head === "help_text") return !NO_INPUT_TYPES.includes(field.type) && path.length === 1;
+  if (head === "low_label" || head === "high_label") return path.length === 1;
+  if (head === "options") return path.length === 2 && typeof path[1] === "string";
+  return false;
 }
 
-function apply_option_labels(options, incoming, counter) {
-  (options || []).forEach((option) => {
-    const change = option && option.id ? read_translated(incoming[option.id]) : null;
-    if (!change) return;
-    option.label = apply_translated(option.label, change);
-    counter.count += 1;
-  });
+function find_option(field, option_id) {
+  const own = (field.options || []).find((option) => option && option.id === option_id);
+  if (own) return own;
+  for (const group of field.parent_option_groups || []) {
+    const hit = ((group && group.options) || []).find((option) => option && option.id === option_id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** The translated text object a path addresses on a field, or null when the field has none there. */
+function text_at(field, path) {
+  if (!field || !path_allowed(field, path)) return null;
+  if (path[0] === "options") {
+    const option = find_option(field, path[1]);
+    return option && option.label && typeof option.label === "object" ? option.label : null;
+  }
+  const value = field[path[0]];
+  return value && typeof value === "object" ? value : null;
+}
+
+/** A clean path from a request: the known shapes only. */
+function read_path(raw) {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 2) return null;
+  const head = String(raw[0]);
+  if (raw.length === 1) return SIMPLE_PATHS.includes(head) ? [head] : null;
+  return head === "options" && typeof raw[1] === "string" && raw[1].trim() ? ["options", raw[1].trim()] : null;
+}
+
+const path_key = (path) => path.join("/");
+
+/**
+ * Writes one language of one text into a schema copy. Returns
+ * { previous } with the text that stood there (null when the language was
+ * empty), or null when the field or path does not exist on the form.
+ */
+function write_text(fields, field_id, path, language, value) {
+  if (!LANGUAGES.includes(language)) return null;
+  const field = flatten(fields).find((entry) => entry.id === field_id);
+  if (!field || !path_allowed(field, path)) return null;
+  if (path[0] === "options") {
+    const option = find_option(field, path[1]);
+    if (!option) return null;
+    const previous = option.label && typeof option.label[language] === "string" ? option.label[language] : null;
+    option.label = Object.assign({}, option.label || {}, { [language]: String(value).slice(0, MAX_TEXT_LENGTH) });
+    return { previous };
+  }
+  if (field[path[0]] === undefined || field[path[0]] === null) return null;
+  const target = typeof field[path[0]] === "object" ? field[path[0]] : {};
+  const previous = typeof target[language] === "string" ? target[language] : null;
+  field[path[0]] = Object.assign({}, target, { [language]: String(value).slice(0, MAX_TEXT_LENGTH) });
+  return { previous };
 }
 
 /**
- * Applies one field's translations in place, honouring the locked kinds.
- * Returns how many texts were changed.
+ * Applies a list of { field_id, path, language, value } onto a deep copy
+ * of the fields. Returns { fields, results } where results holds, per
+ * entry, the previous text or null when it could not be applied.
  */
-function apply_field_changes(field, changes, locked, counter) {
-  Object.keys(SIMPLE_KINDS).forEach((key) => {
-    if (locked.includes(SIMPLE_KINDS[key])) return;
-    const incoming = read_translated(changes[key]);
-    if (!incoming) return;
-    if (field[key] === undefined || field[key] === null) return;
-    field[key] = apply_translated(field[key], incoming);
-    counter.count += 1;
-  });
+function apply_texts(fields, entries) {
+  const copy = JSON.parse(JSON.stringify(fields || []));
+  const results = (entries || []).map((entry) => write_text(copy, entry.field_id, entry.path, entry.language, entry.value));
+  return { fields: copy, results };
+}
 
-  if (!locked.includes("options") && changes.options && typeof changes.options === "object") {
-    apply_option_labels(field.options, changes.options, counter);
-    (field.parent_option_groups || []).forEach((group) => apply_option_labels(group.options, changes.options, counter));
-  }
+/** The current text of one language at a path on the live fields, or null. */
+function current_text(fields, field_id, path, language) {
+  const field = flatten(fields).find((entry) => entry.id === field_id);
+  const text = text_at(field, path);
+  return text && typeof text[language] === "string" ? text[language] : null;
+}
 
-  if (!locked.includes("rules") && changes.rules && typeof changes.rules === "object") {
-    (field.validation_rules || []).forEach((rule) => {
-      const change = rule && rule.id ? changes.rules[rule.id] : null;
-      if (!change || typeof change !== "object") return;
-      ["message", "valid_message"].forEach((key) => {
-        const incoming = read_translated(change[key]);
-        if (!incoming) return;
-        rule[key] = apply_translated(rule[key], incoming);
-        counter.count += 1;
+/**
+ * Reads the changes a translator saved: { field_id: { <path key>: { en, kn, fr } } }
+ * where a path key is "label", "content", "placeholder", "help_text",
+ * "low_label", "high_label" or "options/<option id>". Returns clean
+ * { field_id, path, language, value } entries, locked languages dropped,
+ * unknown fields and paths dropped.
+ */
+function read_changes(fields, raw, locked_languages) {
+  const flat = flatten(fields);
+  const by_id = new Map(flat.map((field) => [field.id, field]));
+  const locked = read_locked_languages(locked_languages);
+  const out = [];
+  if (!raw || typeof raw !== "object") return out;
+  Object.keys(raw).slice(0, 5000).forEach((field_id) => {
+    const field = by_id.get(field_id);
+    const own = raw[field_id];
+    if (!field || !own || typeof own !== "object") return;
+    Object.keys(own).forEach((key) => {
+      const path = read_path(key.split("/"));
+      if (!path || !path_allowed(field, path) || !text_at(field, path)) return;
+      const texts = own[key];
+      if (!texts || typeof texts !== "object") return;
+      LANGUAGES.forEach((language) => {
+        if (locked.includes(language) || typeof texts[language] !== "string") return;
+        out.push({ field_id, path, language, value: texts[language].slice(0, MAX_TEXT_LENGTH) });
       });
     });
-  }
-}
-
-/**
- * Walks every field (groups' and sections' children included) and applies
- * the changes addressed to it. Works on a deep copy; the original schema is
- * never touched.
- */
-function apply_translation_changes(fields, changes, locked_kinds) {
-  const copy = JSON.parse(JSON.stringify(fields || []));
-  const safe_changes = changes && typeof changes === "object" ? changes : {};
-  const locked = read_locked_kinds(locked_kinds);
-  const counter = { count: 0 };
-  const walk = (list) =>
-    (list || []).forEach((field) => {
-      if (!field || typeof field !== "object") return;
-      const own = field.id ? safe_changes[field.id] : null;
-      if (own && typeof own === "object") apply_field_changes(field, own, locked, counter);
-      if (Array.isArray(field.children)) walk(field.children);
-    });
-  walk(copy);
-  return { fields: copy, applied: counter.count };
+  });
+  return out;
 }
 
 module.exports = {
-  TEXT_KINDS,
   LANGUAGES,
-  read_locked_kinds,
-  apply_translation_changes,
+  read_locked_languages,
+  read_path,
+  path_key,
+  text_at,
+  current_text,
+  write_text,
+  apply_texts,
+  read_changes,
 };

@@ -8,6 +8,7 @@ const { success_response, warning_response, error_response } = require("../../ut
 const MAX_TITLE = 120;
 const MAX_DESCRIPTION = 300;
 const MAX_RECORD_FIELDS = 300;
+const MAX_EXTRA_DASHBOARDS = 30;
 
 /**
  * Managing a form dashboard's public share links: list, create, edit and
@@ -26,6 +27,8 @@ function strip_link(link) {
     description: link.description || "",
     expires_at: link.expires_at || null,
     config: link_config(link),
+    // The OTHER dashboards this link also opens, each with its own viewing configuration.
+    extra_dashboards: Array.isArray(link.extra_dashboards) ? link.extra_dashboards.map((entry) => ({ dashboard_id: entry.dashboard_id, config: link_config({ config: entry.config }) })) : [],
     expired: dashboard_links_model.is_expired(link),
     views: link.views || 0,
     last_viewed_at: link.last_viewed_at || null,
@@ -84,6 +87,35 @@ function read_config(body) {
   };
 }
 
+/**
+ * The other dashboards a link may open, as requested: { dashboard_id, config }
+ * each, deduped, capped. Which of them really exist on the form is checked
+ * where the link is saved.
+ */
+function read_extra_dashboards(body) {
+  const raw = Array.isArray(body && body.extra_dashboards) ? body.extra_dashboards : [];
+  const seen = new Set();
+  const out = [];
+  raw.forEach((entry) => {
+    const dashboard_id = entry && typeof entry.dashboard_id === "string" ? entry.dashboard_id.trim() : "";
+    if (!dashboard_id || seen.has(dashboard_id) || out.length >= MAX_EXTRA_DASHBOARDS) return;
+    seen.add(dashboard_id);
+    out.push({ dashboard_id, config: read_config({ config: entry.config }) });
+  });
+  return out;
+}
+
+/** Keeps only the extra dashboards that exist on this form and are not the primary one. */
+async function existing_extra_dashboards(form_group_id, primary_id, requested) {
+  const kept = [];
+  for (const entry of requested) {
+    if (entry.dashboard_id === primary_id) continue;
+    const dashboard = await dashboards_model.get_dashboard_by_id(form_group_id, entry.dashboard_id);
+    if (dashboard) kept.push(entry);
+  }
+  return kept;
+}
+
 /** Reads and checks the editable fields of a link from a request body. */
 function read_link_fields(body) {
   const title = typeof body.title === "string" ? body.title.trim() : "";
@@ -97,7 +129,7 @@ function read_link_fields(body) {
     if (date.getTime() <= Date.now()) return { error: "DASHBOARD_LINK_EXPIRY_PAST" };
     expires_at = date;
   }
-  return { fields: { title, description, expires_at, config: read_config(body) } };
+  return { fields: { title, description, expires_at, config: read_config(body), extra_dashboards: read_extra_dashboards(body) } };
 }
 
 async function manager_context(req, res) {
@@ -141,6 +173,7 @@ async function create_dashboard_link(req, res) {
     const requested_id = typeof (req.body || {}).dashboard_id === "string" ? req.body.dashboard_id : "";
     const target = requested_id ? await dashboards_model.get_dashboard_by_id(req.params.form_group_id, requested_id) : await dashboards_model.get_dashboard_by_form(req.params.form_group_id);
     if (!target) return res.status(404).json(warning_response(req, "DASHBOARD_NOT_FOUND"));
+    read.fields.extra_dashboards = await existing_extra_dashboards(req.params.form_group_id, target._id.toString(), read.fields.extra_dashboards);
     const link = await dashboard_links_model.create_link(
       Object.assign({}, read.fields, {
         form_group_id: req.params.form_group_id,
@@ -166,6 +199,7 @@ async function update_dashboard_link(req, res) {
     }
     const read = read_link_fields(req.body || {});
     if (read.error) return res.status(400).json(warning_response(req, read.error));
+    read.fields.extra_dashboards = await existing_extra_dashboards(req.params.form_group_id, existing.dashboard_id || "", read.fields.extra_dashboards);
     const link = await dashboard_links_model.update_link(existing._id, read.fields);
     return res.status(200).json(success_response(req, "DASHBOARD_LINK_UPDATED", { link: strip_link(link) }));
   } catch (error) {

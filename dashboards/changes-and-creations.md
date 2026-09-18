@@ -139,3 +139,18 @@ Tiles: persons affected, deaths, missing, households displaced, total estimated 
 - The form JSON still passes the structural lint (no duplicate ids, no missing variable references, no numbering collisions).
 
 Nothing is committed to git; the backend needs a restart.
+
+## 8. Translation links, redesigned (2026-09-18, later the same day)
+
+- **What can be changed**: only texts a respondent sees - field labels and heading texts, paragraph texts, option labels, placeholders, help texts, scale end labels. Validation and required messages, ids, values, conditions, formulas and design are never offered.
+- **What the creator locks**: LANGUAGES, not text kinds. "Languages the translator may NOT change" = English / Kinyarwanda / French. A locked language is shown read-only on the public page and refused on save (`read_locked_languages`, `read_changes` in `dc_backend/utilities/translation_texts.js`).
+- **Public page** (`/dcs-translate/:token`, no sign-in): three fields per page with Back / Next, each field drawn as the respondent sees it (a heading at its level and colours once per language, a paragraph once per language, other fields as label + input or choice list in the reader's language), then every text with English, Kinyarwanda and French stacked in full-width textareas. No field ids anywhere; the field type is named in words. Mobile: one column, 16px gutters, fixed bottom bar.
+- **Saves are proposals**: `PUT /public/translate/:token` stores each changed text in `dcs_form_translation_proposals` (`models/form_translation_proposals_model.js`) with the value the form held; the form is untouched. The page shows each saved text's state (saved / applied / restored).
+- **Creator review**: Form settings -> Translation links -> "Review (n)" opens the proposals of that link three fields per page with the current text beside the proposed one; Apply writes the ticked pending texts into the active version (schema re-validated, replaced text remembered), Restore puts the remembered text back, Dismiss drops pending ones. Endpoints under `/forms/:id/translation-links/:link_id/proposals[/apply|/restore|/dismiss]` (`controllers/forms/translation_proposals.js`), editors only. Deleting a link deletes its proposals.
+- Proof (offline, DMIS form): a locked language is dropped, a validation message is refused, an unknown field is ignored, an unchanged text is not a proposal, apply records the previous text, restore returns the exact original schema.
+
+## 9. Share links that open several dashboards (2026-09-18)
+
+- **Creating or editing a link** (dashboard page -> Share links): when the form has more than one dashboard the form shows "Dashboards in this link": *Only this dashboard* or *This dashboard together with others*. Combined, the other dashboards are ticked from a list, and a dropdown "Settings for" names the dashboard whose advanced configuration (free or fixed filters, fixed period, records, own title) is being edited - every dashboard keeps its own. Another dashboard's board filters are fetched when it is first configured (`LinkDashboardsFields.jsx`; stored as `extra_dashboards: [{ dashboard_id, config }]` on the link, validated in `controllers/dashboard_links.js`).
+- **Opening the link**: the public page shows a dashboard dropdown in the header when the link opens several; the choice rides in the URL (`?d=<dashboard id>`). Every data, filter-value, records and KPI request names the open dashboard, and the server applies that dashboard's own configuration (`controllers/public_dashboard.js`: `shared_entries`, `link_config(link, dashboard_id)`, `forced_filters(link, req)`); a dashboard the link does not open is refused with 404.
+- Links saved before this change keep working unchanged (one dashboard, its own config).

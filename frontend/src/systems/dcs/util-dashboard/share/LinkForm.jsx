@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
-import LinkConfigFields, { DEFAULT_LINK_CONFIG } from "./LinkConfigFields.jsx";
+import { DEFAULT_LINK_CONFIG } from "./LinkConfigFields.jsx";
+import LinkDashboardsFields from "./LinkDashboardsFields.jsx";
 
 const TEXT_MUTED = "#9E9E9E";
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
@@ -21,7 +22,7 @@ function to_local_input(value) {
  * the expiry - a date and time, or "never expires". Used to create a link
  * and to edit an existing one.
  */
-export default function LinkForm({ initial, saving, onSubmit, onCancel, filters, fields, fetchValues, recordFields }) {
+export default function LinkForm({ initial, saving, onSubmit, onCancel, filters, fields, fetchValues, recordFields, primary, dashboards, fetchDashboardFilters }) {
   const { translate } = useDcsLanguage();
   const [title, setTitle] = useState((initial && initial.title) || "");
   const [description, setDescription] = useState((initial && initial.description) || "");
@@ -30,6 +31,8 @@ export default function LinkForm({ initial, saving, onSubmit, onCancel, filters,
   const [problem, setProblem] = useState("");
   // The advanced configuration: free or locked filters, title shown to viewers.
   const [config, setConfig] = useState((initial && initial.config) || DEFAULT_LINK_CONFIG);
+  // The other dashboards this link also opens, each with its own configuration.
+  const [extra, setExtra] = useState((initial && initial.extra_dashboards) || []);
 
   const submit = (event) => {
     event.preventDefault();
@@ -49,7 +52,7 @@ export default function LinkForm({ initial, saving, onSubmit, onCancel, filters,
         return;
       }
     }
-    onSubmit({ title: title.trim(), description: description.trim(), never_expires: never, expires_at: never ? null : new Date(expires_at).toISOString(), config });
+    onSubmit({ title: title.trim(), description: description.trim(), never_expires: never, expires_at: never ? null : new Date(expires_at).toISOString(), config, extra_dashboards: extra });
   };
 
   return (
@@ -74,7 +77,19 @@ export default function LinkForm({ initial, saving, onSubmit, onCancel, filters,
           </div>
         )}
       </div>
-      <LinkConfigFields config={config} onChange={setConfig} filters={filters} fields={fields} fetchValues={fetchValues} recordFields={recordFields} />
+      <LinkDashboardsFields
+        primary={primary || { id: "", name: "" }}
+        dashboards={dashboards || []}
+        config={config}
+        onConfigChange={setConfig}
+        extra={extra}
+        onExtraChange={setExtra}
+        filters={filters}
+        fields={fields}
+        fetchValues={fetchValues}
+        recordFields={recordFields}
+        fetchDashboardFilters={fetchDashboardFilters}
+      />
       <p className="text-xs" style={{ color: TEXT_MUTED }}>
         {translate("DCS_DB_SHARE_FORM_HINT")}
       </p>

@@ -1,21 +1,25 @@
-export const LANGUAGES = ["en", "kn", "fr"];
+import { DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
+import { get_field_text } from "../fields/fieldText.js";
 
-export const TEXT_KINDS = [
-  { kind: "label", labelKey: "DCS_TRANSLATION_KIND_LABEL" },
-  { kind: "content", labelKey: "DCS_TRANSLATION_KIND_CONTENT" },
-  { kind: "placeholder", labelKey: "DCS_TRANSLATION_KIND_PLACEHOLDER" },
-  { kind: "help_text", labelKey: "DCS_TRANSLATION_KIND_HELP_TEXT" },
-  { kind: "required_message", labelKey: "DCS_TRANSLATION_KIND_REQUIRED_MESSAGE" },
-  { kind: "valid_message", labelKey: "DCS_TRANSLATION_KIND_VALID_MESSAGE" },
-  { kind: "options", labelKey: "DCS_TRANSLATION_KIND_OPTIONS" },
-  { kind: "rules", labelKey: "DCS_TRANSLATION_KIND_RULES" },
-  { kind: "scale", labelKey: "DCS_TRANSLATION_KIND_SCALE" },
-];
+/**
+ * The texts of a form a translator may rewrite - only what a respondent
+ * sees: a field's label (a heading's text), a paragraph's text, option
+ * labels, placeholders, help texts and a scale's end labels. Nothing else
+ * (types, ids, values, conditions, messages) is ever offered. A link may
+ * lock whole languages; a locked language is shown but cannot be typed.
+ */
+export const LANGUAGES = ["en", "kn", "fr"];
+export const LANGUAGE_NAME_KEYS = { en: "DCS_TRANSLATION_LANG_EN", kn: "DCS_TRANSLATION_LANG_KN", fr: "DCS_TRANSLATION_LANG_FR" };
+export const FIELDS_PER_PAGE = 3;
 
 const NO_LABEL_TYPES = ["paragraph", "group", "section", "file", "image_block", "horizontal_line"];
 const NO_INPUT_TYPES = ["paragraph", "header", "group", "section", "file", "image_block", "horizontal_line", "hidden"];
 
-const has_text = (value) => !!value && LANGUAGES.some((code) => String(value[code] || "").trim().length > 0);
+/** The human name of a field type, never its id. */
+export function field_type_name(type, translate) {
+  const entry = DCS_FIELD_TYPE_REGISTRY.find((item) => item.type === type);
+  return entry ? translate(entry.labelKey) : String(type || "").replace(/_/g, " ");
+}
 
 /** Every field of the form in reading order, groups' and sections' children included, nothing skipped for visibility. */
 export function flatten_all_fields(fields, depth = 0, out = []) {
@@ -28,82 +32,81 @@ export function flatten_all_fields(fields, depth = 0, out = []) {
 }
 
 /**
- * The translatable texts one field carries, as rows a translator edits.
- * Each row names the kind it belongs to (so a locked kind can be shown
- * read-only) and the path the saved change is addressed to.
+ * The translatable texts one field carries, as rows a translator edits:
+ * { key, title, value } where key is the path the saved change is
+ * addressed to ("label", "content", "placeholder", "help_text",
+ * "low_label", "high_label", "options/<option id>").
  */
-export function collect_text_rows(field, translate) {
+export function translatable_rows(field, translate, language) {
   const rows = [];
   const type = field.type;
-  const push = (kind, path, title, value) => rows.push({ kind, path, title, value: value || {} });
+  const push = (key, title, value) => rows.push({ key, title, value: value || {} });
 
-  if (!NO_LABEL_TYPES.includes(type) && field.label) push("label", ["label"], translate("DCS_TRANSLATION_KIND_LABEL"), field.label);
-  if (type === "paragraph" && field.content) push("content", ["content"], translate("DCS_TRANSLATION_KIND_CONTENT"), field.content);
-
+  if (!NO_LABEL_TYPES.includes(type) && field.label) push("label", translate(type === "header" ? "DCS_TRANSLATION_HEADING_TEXT" : "DCS_TRANSLATION_KIND_LABEL"), field.label);
+  if (type === "paragraph" && field.content) push("content", translate("DCS_TRANSLATION_KIND_CONTENT"), field.content);
   if (!NO_INPUT_TYPES.includes(type)) {
-    if (field.placeholder) push("placeholder", ["placeholder"], translate("DCS_TRANSLATION_KIND_PLACEHOLDER"), field.placeholder);
-    if (field.help_text) push("help_text", ["help_text"], translate("DCS_TRANSLATION_KIND_HELP_TEXT"), field.help_text);
-    if (field.mandatory && field.required_message) push("required_message", ["required_message"], translate("DCS_TRANSLATION_KIND_REQUIRED_MESSAGE"), field.required_message);
-    if (has_text(field.valid_message)) push("valid_message", ["valid_message"], translate("DCS_TRANSLATION_KIND_VALID_MESSAGE"), field.valid_message);
+    if (field.placeholder) push("placeholder", translate("DCS_TRANSLATION_KIND_PLACEHOLDER"), field.placeholder);
+    if (field.help_text) push("help_text", translate("DCS_TRANSLATION_KIND_HELP_TEXT"), field.help_text);
   }
-
-  if (field.low_label) push("scale", ["low_label"], translate("DCS_TRANSLATION_LOW"), field.low_label);
-  if (field.high_label) push("scale", ["high_label"], translate("DCS_TRANSLATION_HIGH"), field.high_label);
+  if (field.low_label) push("low_label", translate("DCS_TRANSLATION_LOW"), field.low_label);
+  if (field.high_label) push("high_label", translate("DCS_TRANSLATION_HIGH"), field.high_label);
 
   const option_rows = (options) =>
     (options || []).forEach((option) => {
-      if (option && option.id && option.label) push("options", ["options", option.id], `${translate("DCS_TRANSLATION_OPTION")}: ${option.value}`, option.label);
+      if (!option || !option.id || !option.label) return;
+      const shown = get_field_text(option.label, language) || option.value;
+      push(`options/${option.id}`, `${translate("DCS_TRANSLATION_OPTION")}: ${shown}`, option.label);
     });
   option_rows(field.options);
-  (field.parent_option_groups || []).forEach((group) => option_rows(group.options));
-
-  (field.validation_rules || []).forEach((rule, index) => {
-    if (!rule || !rule.id) return;
-    const name = `${translate("DCS_TRANSLATION_RULE")} ${index + 1} (${rule.operator || ""})`;
-    if (rule.message) push("rules", ["rules", rule.id, "message"], name, rule.message);
-    if (has_text(rule.valid_message)) push("rules", ["rules", rule.id, "valid_message"], `${name} - ${translate("DCS_TRANSLATION_KIND_VALID_MESSAGE")}`, rule.valid_message);
-  });
-
+  (field.parent_option_groups || []).forEach((group) => option_rows(group && group.options));
   return rows;
 }
 
-/** Writes one language of one row into the pending-changes tree, keyed by field id then path. */
-export function set_change(changes, field_id, path, code, value) {
-  const next = Object.assign({}, changes);
-  const own = Object.assign({}, next[field_id] || {});
-  if (path.length === 1) {
-    own[path[0]] = Object.assign({}, own[path[0]] || {}, { [code]: value });
-  } else if (path[0] === "options") {
-    own.options = Object.assign({}, own.options || {}, { [path[1]]: Object.assign({}, (own.options || {})[path[1]] || {}, { [code]: value }) });
-  } else if (path[0] === "rules") {
-    const rule = Object.assign({}, (own.rules || {})[path[1]] || {});
-    rule[path[2]] = Object.assign({}, rule[path[2]] || {}, { [code]: value });
-    own.rules = Object.assign({}, own.rules || {}, { [path[1]]: rule });
-  }
-  next[field_id] = own;
-  return next;
+/** The fields that carry something to translate, each with its rows, in form order. */
+export function translatable_entries(fields, translate, language) {
+  return flatten_all_fields(fields)
+    .map((entry) => Object.assign({}, entry, { rows: translatable_rows(entry.field, translate, language) }))
+    .filter((entry) => entry.rows.length > 0);
 }
 
-/** The pending value of a row's language, falling back to what the form holds. */
-export function read_change(changes, field_id, path, code, fallback) {
+export function page_count(total, size) {
+  return Math.max(1, Math.ceil(total / (size || FIELDS_PER_PAGE)));
+}
+
+export function page_slice(list, page, size) {
+  const per_page = size || FIELDS_PER_PAGE;
+  return list.slice(page * per_page, page * per_page + per_page);
+}
+
+/** Writes one language of one row into the pending-changes tree: { field_id: { key: { code: value } } }. */
+export function set_change(changes, field_id, key, code, value) {
+  const own = Object.assign({}, changes[field_id] || {});
+  own[key] = Object.assign({}, own[key] || {}, { [code]: value });
+  return Object.assign({}, changes, { [field_id]: own });
+}
+
+/** The pending value of a row's language, falling back to what the form (or a saved proposal) holds. */
+export function read_change(changes, field_id, key, code, fallback) {
   const own = changes[field_id];
-  if (!own) return fallback;
-  let node = own;
-  if (path.length === 1) node = own[path[0]];
-  else if (path[0] === "options") node = (own.options || {})[path[1]];
-  else if (path[0] === "rules") node = ((own.rules || {})[path[1]] || {})[path[2]];
+  const node = own && own[key];
   return node && node[code] !== undefined ? node[code] : fallback;
 }
 
 export function count_changes(changes) {
   let total = 0;
-  const walk = (node) => {
-    if (!node || typeof node !== "object") return;
-    Object.keys(node).forEach((key) => {
-      if (LANGUAGES.includes(key)) total += 1;
-      else walk(node[key]);
-    });
-  };
-  walk(changes);
+  Object.values(changes || {}).forEach((own) => Object.values(own || {}).forEach((texts) => Object.keys(texts || {}).forEach((code) => LANGUAGES.includes(code) && (total += 1))));
   return total;
 }
+
+/** Saved proposals indexed for a quick look-up: "field|key|language" -> proposal (the newest wins). */
+export function index_proposals(proposals) {
+  const map = new Map();
+  (proposals || []).forEach((proposal) => {
+    const key = `${proposal.field_id}|${(proposal.path || []).join("/")}|${proposal.language}`;
+    const held = map.get(key);
+    if (!held || String(proposal.proposed_at) >= String(held.proposed_at)) map.set(key, proposal);
+  });
+  return map;
+}
+
+export const proposal_key = (field_id, key, language) => `${field_id}|${key}|${language}`;
