@@ -1,4 +1,4 @@
-const { evaluate_rule, build_trimmed_evaluation_data } = require("./engine.js");
+const { evaluate_rule, build_trimmed_evaluation_data, trim_value } = require("./engine.js");
 const { flatten_fields, build_dependency_graph, build_field_parent_map, is_visible_through_ancestors } = require("./dependency_graph.js");
 const { effective_rule_condition } = require("./validation_condition.js");
 const { resolve_preset_value } = require("./preset_fields.js");
@@ -123,6 +123,15 @@ function pick_translated_message(translated_object, language) {
  */
 function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_order, parent_map, submitted_data) {
   const working_data = Object.assign({}, submitted_data);
+  // The trimmed snapshot every rule reads, kept in step with working_data
+  // as answers are written or dropped: a respondent's accidental
+  // leading/trailing whitespace never flips a later field's visibility,
+  // and the stored/returned working_data itself is untouched.
+  const trimmed_data = build_trimmed_evaluation_data(working_data);
+  const write = (field_id, value) => {
+    working_data[field_id] = value;
+    trimmed_data[field_id] = trim_value(value);
+  };
   const preset_ids = new Set();
   let own_visible_by_id = new Map();
   let own_locked_by_id = new Map();
@@ -140,25 +149,20 @@ function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_orde
       if (!field || !field.type) return;
 
       if (field.computed && field.computed.enabled && field.computed.formula) {
-        const computed_result = evaluate_rule(field.computed.formula, build_trimmed_evaluation_data(working_data));
-        working_data[field_id] = computed_result.value;
+        const computed_result = evaluate_rule(field.computed.formula, trimmed_data);
+        write(field_id, computed_result.value);
       }
 
       // A preset field's answer is the form's own default, whatever the
       // client sent - never trusted, always forced.
       const preset = resolve_preset_value(field, working_data);
       if (preset.has) {
-        working_data[field_id] = preset.value;
+        write(field_id, preset.value);
         preset_ids.add(field_id);
       } else {
         preset_ids.delete(field_id);
       }
 
-      // Evaluated against a trimmed snapshot so a respondent's accidental
-      // leading/trailing whitespace on an earlier answer never flips a
-      // later field's visibility - the stored/returned working_data itself
-      // is untouched.
-      const trimmed_data = build_trimmed_evaluation_data(working_data);
       const visibility_result = field.visibility_condition
         ? evaluate_rule(field.visibility_condition, trimmed_data)
         : { value: true, error: null };
@@ -172,7 +176,12 @@ function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_orde
         own_visible_by_id.get(field_id) !== false && is_visible_through_ancestors(field_id, parent_map, own_visible_by_id);
       if ((!is_effectively_visible || own_locked_by_id.get(field_id)) && working_data[field_id] !== undefined) {
         delete working_data[field_id];
-        changed = true;
+        delete trimmed_data[field_id];
+        // A computed value is rewritten on every pass and dropped again here
+        // whenever its field is hidden: dropping it settles nothing, so it
+        // never asks for another pass (which used to run the loop to its
+        // safety limit on any form with a computed field in a hidden group).
+        if (!(field.computed && field.computed.enabled && field.computed.formula)) changed = true;
       }
     });
   }
@@ -187,11 +196,29 @@ function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_orde
  * JSONLogic engine the client used. Never trusts the client's own
  * validation state.
  */
-function validate_submission_data(schema, submitted_data, language) {
+// The static structure of a schema - its flattened fields, dependency
+// order and parent map - never changes while the same schema object is
+// validated against, so it is worked out once per object. A submit loads
+// a fresh document and pays once; bulk generation reuses one schema for
+// thousands of records and pays once too.
+const SCHEMA_STRUCTURE = new WeakMap();
+
+function schema_structure(schema) {
+  const known = SCHEMA_STRUCTURE.get(schema);
+  if (known) return known;
   const flat_fields = flatten_fields(schema.fields);
-  const fields_by_id = new Map(flat_fields.map((field) => [field.id, field]));
-  const dependency_result = build_dependency_graph(schema.fields);
-  const parent_map = build_field_parent_map(schema.fields);
+  const built = {
+    flat_fields,
+    fields_by_id: new Map(flat_fields.map((field) => [field.id, field])),
+    dependency_result: build_dependency_graph(schema.fields),
+    parent_map: build_field_parent_map(schema.fields),
+  };
+  SCHEMA_STRUCTURE.set(schema, built);
+  return built;
+}
+
+function validate_submission_data(schema, submitted_data, language) {
+  const { flat_fields, fields_by_id, dependency_result, parent_map } = schema_structure(schema);
 
   const field_errors = {};
 

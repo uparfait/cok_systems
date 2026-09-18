@@ -91,7 +91,10 @@ function resolve_effective_form_state(flat_fields, fields_by_id, evaluation_orde
         own_visible_by_id.get(field_id) !== false && is_visible_through_ancestors(field_id, parent_map, own_visible_by_id);
       if ((!is_effectively_visible || own_locked_by_id.get(field_id)) && working_data[field_id] !== undefined) {
         delete working_data[field_id];
-        changed = true;
+        // A computed value is rewritten on every pass and dropped again here
+        // whenever its field is hidden: dropping it settles nothing, so it
+        // never asks for another pass (mirrors dc_backend/jsonlogic/validate_submission.js).
+        if (!(field.computed && field.computed.enabled && field.computed.formula)) changed = true;
       }
     });
   }

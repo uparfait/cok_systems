@@ -123,11 +123,23 @@ function build_validation_condition(field_id, operator_id, value, parent_field_i
  * without operator metadata (hand-authored raw condition) keeps its stored
  * condition untouched.
  */
+// Rebuilt once per rule object and field: the rule and the field it sits
+// on do not change between the records validated against one schema.
+const CONDITION_CACHE = new WeakMap();
+
 function effective_rule_condition(field, rule) {
   if (!rule) return null;
   if (!rule.operator) return rule.condition || null;
-  const rebuilt = build_validation_condition(field.id, rule.operator, rule.value, rule.parent_field_id, rule.parent_value, field.type);
-  return rebuilt || rule.condition || null;
+  let per_field = CONDITION_CACHE.get(rule);
+  if (!per_field) {
+    per_field = new Map();
+    CONDITION_CACHE.set(rule, per_field);
+  }
+  const key = `${field.id}|${field.type}`;
+  if (per_field.has(key)) return per_field.get(key);
+  const rebuilt = build_validation_condition(field.id, rule.operator, rule.value, rule.parent_field_id, rule.parent_value, field.type) || rule.condition || null;
+  per_field.set(key, rebuilt);
+  return rebuilt;
 }
 
 module.exports = {

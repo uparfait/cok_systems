@@ -54,7 +54,23 @@ async function build_test_submission_approval(form_group_id, approval_config, re
   return build_approval_state(effective_config, location_chain, resolved_data);
 }
 
+/**
+ * The approval state under the form's OWN approvers only - what a record
+ * gets when the form has no generated pool at all. Location scoping is
+ * still resolved when a hand-made approver carries a location; nothing is
+ * looked up otherwise.
+ */
+async function build_approval_without_pool(approval_config, resolved_data) {
+  if (!approval_config || approval_config.enabled !== true) return null;
+  const needs_locations = (approval_config.approvers || []).some(
+    (approver) => approver && approver.level && approver.location_id !== null && approver.location_id !== undefined,
+  );
+  const location_chain = needs_locations ? await resolve_location_chain(resolved_data) : [];
+  return build_approval_state(approval_config, location_chain, resolved_data);
+}
+
 module.exports = {
+  build_approval_without_pool,
   record_match_values,
   config_with_generated_for_submission,
   build_test_submission_approval,

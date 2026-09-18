@@ -5,6 +5,7 @@ const get_test_job = require("../../controllers/test_data/get_test_job.js");
 const delete_test_data = require("../../controllers/test_data/delete_test_data.js");
 const generate_test_approvals = require("../../controllers/test_data/generate_test_approvals.js");
 const clear_test_approvals = require("../../controllers/test_data/clear_test_approvals.js");
+const get_test_fields = require("../../controllers/test_data/get_test_fields.js");
 
 /**
  * @swagger
@@ -33,6 +34,20 @@ Router.get("/jobs/:job_id", get_test_job);
  *         description: Generation job started
  */
 Router.post("/:form_group_id/generate", generate_test_data);
+
+/**
+ * @swagger
+ * /dcs/api/test-data/{form_group_id}/fields:
+ *   get:
+ *     summary: The number fields (with their ranges), GPS capture and cascades a test-data generation of one version draws from
+ *     tags: [TestData]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Generation fields fetched
+ */
+Router.get("/:form_group_id/fields", get_test_fields);
 
 /**
  * @swagger

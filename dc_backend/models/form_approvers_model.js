@@ -126,6 +126,11 @@ async function count_all_approvers(form_group_id, version) {
 }
 
 /** Removes a form's whole generated pool - the "clear test approvals" action. */
+/** How many generated approvers a form holds - zero means routing needs no per-record lookup. */
+async function count_generated_approvers(form_group_id) {
+  return get_db().collection(COLLECTION_NAME).countDocuments({ form_group_id });
+}
+
 async function delete_generated_approvers(form_group_id) {
   const result = await get_db().collection(COLLECTION_NAME).deleteMany({ form_group_id });
   return result.deletedCount;
@@ -154,6 +159,7 @@ module.exports = {
   replace_generated_approvers,
   page_all_approvers,
   count_all_approvers,
+  count_generated_approvers,
   delete_generated_approvers,
   find_matching_generated_approvers,
 };

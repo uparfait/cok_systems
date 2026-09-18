@@ -1,14 +1,21 @@
 const forms_model = require("../../models/forms_model.js");
 const submissions_model = require("../../models/submissions_model.js");
+const form_approvers_model = require("../../models/form_approvers_model.js");
 const project_access = require("../../utilities/project_access.js");
 const test_jobs = require("../../utilities/test_jobs.js");
 const { generate_test_record } = require("../../utilities/test_data_generator.js");
-const { build_test_submission_approval } = require("../../utilities/generated_approvers.js");
+const { build_test_data_plan } = require("../../utilities/test_data_plan.js");
+const { build_test_submission_approval, build_approval_without_pool } = require("../../utilities/generated_approvers.js");
 const { validate_submission_data } = require("../../jsonlogic/validate_submission.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
-const INSERT_BATCH_SIZE = 200;
+const INSERT_BATCH_SIZE = 500;
+// How many records are generated between two turns of the event loop: the
+// long-poll progress endpoint stays responsive, without paying a whole
+// scheduler tick per record.
+const YIELD_EVERY = 25;
 const HOUR_MS = 3600 * 1000;
+const MAX_RANGE_FIELDS = 500;
 
 function random_int(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -36,13 +43,47 @@ function build_timestamps(from, to, min_per_hour, max_per_hour) {
 }
 
 /**
+ * The number ranges the request carries: { field_id: { min, max } }, each a
+ * finite pair with min <= max. Returns { ranges } or { error } naming the
+ * first field that is not.
+ */
+function read_number_ranges(raw) {
+  const ranges = {};
+  if (raw === undefined || raw === null) return { ranges };
+  if (typeof raw !== "object" || Array.isArray(raw)) return { error: "number_ranges" };
+  const entries = Object.entries(raw).slice(0, MAX_RANGE_FIELDS);
+  for (const [field_id, range] of entries) {
+    if (!range || typeof range !== "object") continue;
+    const has_min = range.min !== undefined && range.min !== null && String(range.min).trim() !== "";
+    const has_max = range.max !== undefined && range.max !== null && String(range.max).trim() !== "";
+    if (!has_min && !has_max) continue;
+    const min = has_min ? Number(range.min) : null;
+    const max = has_max ? Number(range.max) : null;
+    if ((has_min && !Number.isFinite(min)) || (has_max && !Number.isFinite(max)) || (has_min && has_max && min > max)) return { error: field_id };
+    ranges[field_id] = { min, max };
+  }
+  return { ranges };
+}
+
+/**
+ * The approval a record gets. With no generated approver pool the form's
+ * own config is enough and no lookup is made per record; with a pool the
+ * matching approvers are fetched as before.
+ */
+function approval_for(form_group_id, routing_config, has_generated_pool, resolved_data) {
+  if (!routing_config || routing_config.enabled !== true) return Promise.resolve(null);
+  if (!has_generated_pool) return build_approval_without_pool(routing_config, resolved_data);
+  return build_test_submission_approval(form_group_id, routing_config, resolved_data);
+}
+
+/**
  * The background loop that actually generates and stores the records - runs
  * detached from the request that started it; the client follows along via
  * the long-poll job endpoint. Every record goes through the exact same
  * validate_submission_data gate as a real public submit; a record that
  * cannot pass after a few fresh attempts is counted failed and never saved.
  */
-async function run_generation(job_id, form_version, routing_config, timestamps) {
+async function run_generation(job_id, form_version, routing_config, timestamps, plan, has_generated_pool) {
   let buffer = [];
   let saved = 0;
   let failed = 0;
@@ -58,7 +99,7 @@ async function run_generation(job_id, form_version, routing_config, timestamps) 
     for (const submitted_at of timestamps) {
       let validation_result = null;
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        const record = generate_test_record(form_version.schema);
+        const record = generate_test_record(plan);
         validation_result = validate_submission_data(form_version.schema, record, "en");
         if (validation_result.valid) break;
       }
@@ -70,10 +111,7 @@ async function run_generation(job_id, form_version, routing_config, timestamps) 
           project_id: form_version.project_id,
           data: validation_result.resolved_data,
           client_submission_id: null,
-          // Routed through the form's current approval flow (hand-made
-          // approvers plus the generated pool) exactly like a real submit -
-          // conditions decide who signs - but no email is ever sent.
-          approval: await build_test_submission_approval(form_version.form_group_id, routing_config, validation_result.resolved_data),
+          approval: await approval_for(form_version.form_group_id, routing_config, has_generated_pool, validation_result.resolved_data),
           [submissions_model.TEST_DATA_FLAG]: true,
           submitted_at,
         });
@@ -85,11 +123,7 @@ async function run_generation(job_id, form_version, routing_config, timestamps) 
       processed += 1;
       test_jobs.update_progress(job_id, { processed, saved, failed });
       if (buffer.length >= INSERT_BATCH_SIZE) await flush();
-      // Generation is pure CPU work - yielding after EVERY record keeps the
-      // event loop (and the long-poll progress endpoint) responsive even on
-      // heavy schemas where a single record takes a while; starving the
-      // loop used to kill the client's poll with a dead connection.
-      await new Promise((resolve) => setImmediate(resolve));
+      if (processed % YIELD_EVERY === 0) await new Promise((resolve) => setImmediate(resolve));
     }
     await flush();
     test_jobs.finish_job(job_id, "completed");
@@ -105,13 +139,14 @@ async function run_generation(job_id, form_version, routing_config, timestamps) 
 
 /**
  * Starts a test-data generation job for one specific form version: builds
- * the timestamp plan from the requested window and per-hour rates, answers
- * immediately with a job id, and generates in the background.
+ * the timestamp plan from the requested window and per-hour rates and the
+ * generation plan from the schema (number ranges, cascade coverage),
+ * answers immediately with a job id, and generates in the background.
  */
 async function generate_test_data(req, res) {
   try {
     const { form_group_id } = req.params;
-    const { version, from, to, min_per_hour, max_per_hour } = req.body || {};
+    const { version, from, to, min_per_hour, max_per_hour, number_ranges, cover_cascades } = req.body || {};
 
     if (!form_group_id || version === undefined || version === null) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
@@ -134,6 +169,11 @@ async function generate_test_data(req, res) {
       return res.status(400).json(warning_response(req, "TEST_DATA_RATE_INVALID"));
     }
 
+    const read = read_number_ranges(number_ranges);
+    if (read.error) {
+      return res.status(400).json(warning_response(req, "TEST_DATA_NUMBER_RANGE_INVALID", { field: read.error }));
+    }
+
     const form_version = await forms_model.get_version_document(form_group_id, version);
     if (!form_version) {
       return res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
@@ -149,9 +189,12 @@ async function generate_test_data(req, res) {
     // the records are generated into.
     const active_version = await forms_model.get_active_version(form_group_id);
     const routing_config = (active_version || form_version).approval_config || null;
+    const has_generated_pool = routing_config && routing_config.enabled === true ? (await form_approvers_model.count_generated_approvers(form_group_id)) > 0 : false;
+
+    const plan = build_test_data_plan(form_version.schema, { number_ranges: read.ranges, cover_cascades: cover_cascades !== false });
 
     const job = test_jobs.create_job(timestamps.length);
-    setImmediate(() => run_generation(job.id, form_version, routing_config, timestamps));
+    setImmediate(() => run_generation(job.id, form_version, routing_config, timestamps, plan, has_generated_pool));
 
     return res.status(202).json(success_response(req, "TEST_DATA_GENERATION_STARTED", { job_id: job.id, total: timestamps.length }));
   } catch (error) {

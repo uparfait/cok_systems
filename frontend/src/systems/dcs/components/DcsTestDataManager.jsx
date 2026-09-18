@@ -4,6 +4,7 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_form_versions } from "../services/formsService.js";
 import {
   generate_test_data,
+  get_test_data_fields,
   get_test_data_job,
   delete_test_data,
   generate_test_approvals,
@@ -14,6 +15,7 @@ import { get_field_text } from "../fields/fieldText.js";
 import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "./DcsButtonOutlineDanger.jsx";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
+import TestDataRangesStep from "./TestDataRangesStep.jsx";
 
 const PRIMARY = "#056daa";
 const SUCCESS = "#4CAF50";
@@ -139,6 +141,12 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
   const [max_per_hour, setMaxPerHour] = useState("5");
   const [job, setJob] = useState(null);
   const [running, setRunning] = useState(false);
+  // What the chosen version generates from: its number fields (each with
+  // the min / max the user may tune), GPS capture and cascades.
+  const [fields, setFields] = useState(null);
+  const [fields_loading, setFieldsLoading] = useState(false);
+  const [ranges, setRanges] = useState({});
+  const [cover_cascades, setCoverCascades] = useState(true);
   const cancelled_ref = useRef(false);
 
   useEffect(() => {
@@ -147,6 +155,29 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
       cancelled_ref.current = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!version) return undefined;
+    let is_current = true;
+    setFieldsLoading(true);
+    get_test_data_fields(formGroupId, Number(version))
+      .then((response) => {
+        if (!is_current) return;
+        const described = response.data || null;
+        setFields(described);
+        const prefilled = {};
+        ((described && described.number_fields) || []).forEach((field) => {
+          prefilled[field.id] = { min: String(field.min), max: String(field.max) };
+        });
+        setRanges(prefilled);
+      })
+      .catch((error) => is_current && showError(error.message || translate("DCS_ERROR_GENERIC")))
+      .finally(() => is_current && setFieldsLoading(false));
+    return () => {
+      is_current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version, formGroupId]);
 
   // The overlay can open while the versions are still being fetched - the
   // initial state above would then stay empty forever (state initializers
@@ -172,6 +203,16 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
       showError(translate("DCS_TEST_DATA_RATE_INVALID"));
       return;
     }
+    const number_ranges = {};
+    for (const [field_id, range] of Object.entries(ranges)) {
+      const min = range.min === "" ? null : Number(range.min);
+      const max = range.max === "" ? null : Number(range.max);
+      if ((min !== null && !Number.isFinite(min)) || (max !== null && !Number.isFinite(max)) || (min !== null && max !== null && min > max)) {
+        showError(translate("DCS_TEST_DATA_RANGE_INVALID_FIELD"));
+        return;
+      }
+      if (min !== null || max !== null) number_ranges[field_id] = { min, max };
+    }
 
     setRunning(true);
     setJob(null);
@@ -182,6 +223,8 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
         to: new Date(to).toISOString(),
         min_per_hour: min_rate,
         max_per_hour: max_rate,
+        number_ranges,
+        cover_cascades,
       });
       const job_id = started.data.job_id;
       let known_percent = -1;
@@ -252,6 +295,8 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
           </div>
         </div>
 
+        <TestDataRangesStep fields={fields} loading={fields_loading} ranges={ranges} onChange={setRanges} coverCascades={cover_cascades} onCoverChange={setCoverCascades} disabled={running} />
+
         {(running || job) && <JobProgress job={job} />}
 
         {is_done && (
@@ -270,7 +315,7 @@ function GenerateTestDataOverlay({ formGroupId, versions, versionsLoading, onClo
             </span>
           </div>
         ) : (
-          <DcsButtonPrimary className="w-full" onClick={handle_start} disabled={versionsLoading}>
+          <DcsButtonPrimary className="w-full" onClick={handle_start} disabled={versionsLoading || fields_loading}>
             {translate("DCS_TEST_DATA_START_BTN")}
           </DcsButtonPrimary>
         )}

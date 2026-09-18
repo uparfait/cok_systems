@@ -184,6 +184,8 @@ module.exports = {
   TEST_DATA_JOB_NOT_FOUND: "La tâche de données de test est introuvable",
   TEST_DATA_RANGE_INVALID: "La plage de dates fournie n'est pas valide",
   TEST_DATA_RATE_INVALID: "Les valeurs d'enregistrements par heure ne sont pas valides",
+  TEST_DATA_FIELDS_FETCHED: "Champs de génération des données de test récupérés",
+  TEST_DATA_NUMBER_RANGE_INVALID: "La plage du champ {{field}} n'est pas valide (le minimum ne doit pas dépasser le maximum)",
   TEST_DATA_EMPTY_RANGE: "La plage sélectionnée ne produit aucun enregistrement",
   TEST_DATA_TOO_MANY: "La plage sélectionnée produit trop d'enregistrements (maximum {{max}})",
   TEST_DATA_DELETED: "{{count}} enregistrements de test ont été supprimés",

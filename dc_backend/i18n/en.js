@@ -184,6 +184,8 @@ module.exports = {
   TEST_DATA_JOB_NOT_FOUND: "Test data job was not found",
   TEST_DATA_RANGE_INVALID: "The provided date range is not valid",
   TEST_DATA_RATE_INVALID: "The records-per-hour values are not valid",
+  TEST_DATA_FIELDS_FETCHED: "Test data generation fields fetched",
+  TEST_DATA_NUMBER_RANGE_INVALID: "The number range of field {{field}} is not valid (min must not exceed max)",
   TEST_DATA_EMPTY_RANGE: "The selected range produces no records to generate",
   TEST_DATA_TOO_MANY: "The selected range produces too many records (maximum {{max}})",
   TEST_DATA_DELETED: "{{count}} test records were deleted successfully",

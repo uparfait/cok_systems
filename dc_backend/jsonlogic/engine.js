@@ -63,9 +63,23 @@ function is_valid_rule_structure(rule) {
  * evaluation errors are captured and returned alongside a null value so
  * callers can decide how to treat a broken rule (fail closed by default).
  */
+// A rule object is checked once: the same schema rule is evaluated for
+// every record of a bulk generation and for every field of every submit,
+// and its shape never changes between those calls.
+const STRUCTURE_CACHE = new WeakMap();
+
+function checked_structure(rule) {
+  if (typeof rule !== "object") return is_valid_rule_structure(rule);
+  const known = STRUCTURE_CACHE.get(rule);
+  if (known) return known;
+  const result = is_valid_rule_structure(rule);
+  STRUCTURE_CACHE.set(rule, result);
+  return result;
+}
+
 function evaluate_rule(rule, data) {
   if (rule === null || rule === undefined) return { value: null, error: null };
-  const structure_check = is_valid_rule_structure(rule);
+  const structure_check = checked_structure(rule);
   if (!structure_check.valid) {
     return { value: null, error: structure_check.reason };
   }
@@ -88,17 +102,17 @@ function evaluate_rule(rule, data) {
  * out from under them. Mirrors
  * frontend/src/systems/dcs/jsonlogic/engine.js - keep both in sync.
  */
+/** One value as the trimmed snapshot holds it: strings trimmed, string items of a list trimmed. */
+function trim_value(value) {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) return value.map((item) => (typeof item === "string" ? item.trim() : item));
+  return value;
+}
+
 function build_trimmed_evaluation_data(data) {
   const trimmed = {};
   Object.keys(data || {}).forEach((key) => {
-    const value = data[key];
-    if (typeof value === "string") {
-      trimmed[key] = value.trim();
-    } else if (Array.isArray(value)) {
-      trimmed[key] = value.map((item) => (typeof item === "string" ? item.trim() : item));
-    } else {
-      trimmed[key] = value;
-    }
+    trimmed[key] = trim_value(data[key]);
   });
   return trimmed;
 }
@@ -134,5 +148,6 @@ module.exports = {
   is_valid_rule_structure,
   extract_variable_references,
   build_trimmed_evaluation_data,
+  trim_value,
   MAX_RULE_DEPTH,
 };

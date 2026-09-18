@@ -184,6 +184,8 @@ module.exports = {
   TEST_DATA_JOB_NOT_FOUND: "Akazi ko gukora amakuru y'igerageza ntikabonetse",
   TEST_DATA_RANGE_INVALID: "Igihe watanze ntabwo ari cyo",
   TEST_DATA_RATE_INVALID: "Umubare w'inyandiko ku isaha ntabwo ari wo",
+  TEST_DATA_FIELDS_FETCHED: "Imyanya yo gukora amakuru y'igerageza yabonetse",
+  TEST_DATA_NUMBER_RANGE_INVALID: "Urutonde rw'imibare rw'umwanya {{field}} ntirukwiye (ntoya ntigomba kurenza nini)",
   TEST_DATA_EMPTY_RANGE: "Igihe cyatoranyijwe nta nyandiko kizatanga",
   TEST_DATA_TOO_MANY: "Igihe cyatoranyijwe gitanga inyandiko nyinshi cyane (ntarengwa ni {{max}})",
   TEST_DATA_DELETED: "Inyandiko z'igerageza {{count}} zasibwe neza",
