@@ -64,14 +64,17 @@ function option_example(index) {
 const FIELD_TYPE_DOCS = {
   paragraph: {
     description: "A block of static, read-only body text - not a question, produces no answer in submissions.",
-    extra_properties: { content: "Translated text object - the paragraph's own body text (supports plain line breaks)." },
-    usage_notes: "Use for instructions, section intros or disclaimers. Design.list_type turns it into a bulleted/numbered list.",
+    extra_properties: { content: "Translated text object - the paragraph's own body text (supports plain line breaks and {{field_id}} tokens)." },
+    usage_notes:
+      "Use for instructions, section intros or disclaimers. Design.list_type turns it into a bulleted/numbered list. " +
+      "A paragraph can QUOTE A LIVE ANSWER: write the field id in double braces and it is replaced with the current value as the person fills the form - '{{hidden_count}} of 7 criteria confirmed' or 'Outstanding:\n{{hidden_missing}}'. Pair it with a hidden computed field for totals and lists, and put the paragraph inside a group with a visibility_condition so the note appears only when it applies (a green 'confirmed' note when the derived status is 'confirmed', an amber 'x of 7' warning when it is not). " +
+      "A NOTE THAT CARRIES A VERDICT IS COLORED: design.background_color + design.text_color (white on green for success, dark amber on a pale amber for a warning); a paragraph or header with a background is drawn as a framed card automatically.",
     example: { id: "paragraph_ab12cd", type: "paragraph", content: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Please answer every question honestly." }), design: { spacing_below_px: 16 } },
   },
   header: {
     description: "A heading (like h1-h6) used to visually separate sections of the form - produces no answer.",
     extra_properties: { level: "Integer 1-6 - the heading level/size, 1 = largest." },
-    usage_notes: "Use to break a long form into clearly labeled sections for the respondent.",
+    usage_notes: "Use to break a long form into clearly labeled sections for the respondent. Its label may quote a live answer with {{field_id}} tokens, like a paragraph.",
     example: { id: "header_ab12cd", type: "header", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Household information" }), level: 2, design: { spacing_below_px: 16 } },
   },
   file: {
@@ -120,7 +123,8 @@ const FIELD_TYPE_DOCS = {
     description: "A visual box that holds several data-collection fields together - purely organizational, not repeating, and never labelled itself.",
     extra_properties: { children: "Array of child field objects (any type)." },
     usage_notes:
-      "Use to visually cluster related questions. NEVER give a group a 'label' - a group asks nothing, so a label on it reads to the respondent as a question that has no answer. Any label found on a group is removed automatically by the builder. To title a cluster of questions, put a 'header' component above the group instead. Each child is answered and validated exactly as if it were top-level.",
+      "Use to visually cluster related questions. NEVER give a group a 'label' - a group asks nothing, so a label on it reads to the respondent as a question that has no answer. Any label found on a group is removed automatically by the builder. To title a cluster of questions, put a 'header' component above the group instead. Each child is answered and validated exactly as if it were top-level. " +
+      "A group is also HOW A SUB-SECTION APPEARS ON A CONDITION ('complete only if X is ticked'): put the header, the note and the questions inside one group and give the GROUP the visibility_condition, e.g. { \"in\": [\"site_capacity_confirmed\", { \"var\": \"multi_select_x\" }] }. Never write 'complete only if...' as an instruction to the person and never put a visibility_condition on a header or paragraph - the system shows the sub-section when the condition holds and hides it otherwise, and nothing has to be read or remembered.",
     example: { id: "group_ab12cd", type: "group", children: [], design: { spacing_below_px: 16 } },
   },
   text: {
@@ -309,7 +313,9 @@ const FIELD_TYPE_DOCS = {
   hidden: {
     description: "Not shown to the respondent - either pre-filled by the link/context, or computed live from other answers.",
     extra_properties: { computed: "{ enabled: boolean, formula: <JSONLogic object> } - when enabled, the value is recalculated from other answers on every change." },
-    usage_notes: "Use 'computed.formula' with JSONLogic to derive a value, e.g. { \"+\": [{ \"var\": \"number_a\" }, { \"var\": \"number_b\" }] } to sum two numeric fields. Standard JSONLogic operators (var, ==, !=, >, <, >=, <=, +, -, *, /, %, if, and, or, !, in, cat) are all available, plus this system's custom operators (see validation_operators_reference).",
+    usage_notes:
+      "Use 'computed.formula' with JSONLogic to derive a value, e.g. { \"+\": [{ \"var\": \"number_a\" }, { \"var\": \"number_b\" }] } to sum two numeric fields. Standard JSONLogic operators (var, ==, !=, >, <, >=, <=, +, -, *, /, %, if, and, or, !, in, cat) are all available, plus this system's custom operators (see validation_operators_reference). " +
+      "NEVER ASK A PERSON WHAT THE SYSTEM CAN DECIDE. A status that follows from other answers ('all seven criteria met -> Confirmed'), a total ('households x average size'), a comparison ('within / exceeds capacity') or an overflow ('total minus capacity, else 0') is a hidden computed field, not a question: e.g. { \"if\": [{ \"and\": [{ \"in\": [\"c1\", { \"var\": \"multi_select_x\" }] }, { \"in\": [\"c2\", { \"var\": \"multi_select_x\" }] }] }, \"confirmed\", \"not_confirmed\"] } derives a status from a multi_select, and { \"cat\": [{ \"if\": [{ \"in\": [\"c1\", { \"var\": \"multi_select_x\" }] }, \"\", \"1. First criterion\n\"] }] } lists what is still missing. A computed field may reference another computed field; they are evaluated in dependency order, on the client as the person types and again on the server at submission, and the result is stored with the answers. A default for a blank number belongs in the formula: { \"if\": [{ \">\": [{ \"var\": \"avg\" }, 0] }, { \"var\": \"avg\" }, 4.3] }. Give a hidden field a label and, when its values are a fixed set, options, so dashboards can name what it holds.",
     example: { id: "hidden_ab12cd", type: "hidden", computed: { enabled: true, formula: { "+": [{ var: "number_a" }, { var: "number_b" }] } }, design: { spacing_below_px: 16 } },
   },
 };

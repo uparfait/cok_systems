@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { dcs_supported_languages } from "../i18n/index.js";
 import { DCS_FIELD_RENDERER_MAP } from "./fieldRendererMap.js";
-import { evaluate_field_visibility } from "./formEngine.js";
+import { evaluate_field_visibility, compute_derived_values } from "./formEngine.js";
 import { build_design_styles, get_spacing_below_px } from "./designStyles.js";
 import { LocationDataProvider } from "../fields/CascadingSelectField.jsx";
 import { apply_preset_values, is_preset_field, resolve_preset_value } from "../fields/presetFields.js";
@@ -93,7 +93,12 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
   // Outside the builder every preset field is answered by the form itself:
   // its default is part of the answers the other fields (cascading
   // children above all) read, and the field itself is never drawn.
-  const effective_values = render_mode === "builder" ? values : apply_preset_values(schema, values);
+  // Outside the builder every derived answer is recomputed here as well, so
+  // a note quoting a computed total or a group keyed on a derived status
+  // reads right in every mount - the public form, the builder rehearsal and
+  // an approval view of a stored submission alike - even when the values
+  // handed in were saved before those derived fields existed.
+  const effective_values = render_mode === "builder" ? values : compute_derived_values(schema, values || {});
 
   const mark_touched = (field_id) => {
     setTouchedFields((previous) => (previous.has(field_id) ? previous : new Set(previous).add(field_id)));

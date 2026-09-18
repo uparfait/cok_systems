@@ -9,11 +9,12 @@ import {
   remove_links_overlapping_range,
   find_link_overlapping_range,
 } from "../textLinkSegments.js";
+import { fill_text_tokens } from "../textTokens.js";
 
 const ALLOWED_LIST_TYPES = ["disc", "circle", "square", "decimal", "lower-roman", "upper-roman", "none"];
 const ORDERED_LIST_TYPES = ["decimal", "lower-roman", "upper-roman"];
 
-export default function ParagraphBlock({ field, language, mode, onFieldChange }) {
+export default function ParagraphBlock({ field, language, mode, onFieldChange, allValues }) {
   const is_builder = mode === "builder";
   const content_text = get_field_text(field.content, language);
   const design = field.design || {};
@@ -24,15 +25,16 @@ export default function ParagraphBlock({ field, language, mode, onFieldChange })
 
   if (!is_builder) {
     const text_style = { color: design.text_color || "#555555", fontFamily: design.font_family || undefined };
+    const live = fill_text_tokens(content_text, text_links, allValues);
 
     if (ALLOWED_LIST_TYPES.includes(design.list_type) && design.list_type !== "none") {
-      const lines_with_offsets = split_lines_with_offsets(content_text).filter((entry) => entry.line.trim().length > 0);
+      const lines_with_offsets = split_lines_with_offsets(live.text).filter((entry) => entry.line.trim().length > 0);
       const ListTag = ORDERED_LIST_TYPES.includes(design.list_type) ? "ol" : "ul";
       return (
         <ListTag className="text-sm pl-6" style={Object.assign({ listStyleType: design.list_type }, text_style)}>
           {lines_with_offsets.map((entry, index) => (
             <li key={index}>
-              <DcsLinkedText text={entry.line} links={shift_links_to_range(text_links, entry.start, entry.end)} />
+              <DcsLinkedText text={entry.line} links={shift_links_to_range(live.links, entry.start, entry.end)} />
             </li>
           ))}
         </ListTag>
@@ -41,7 +43,7 @@ export default function ParagraphBlock({ field, language, mode, onFieldChange })
 
     return (
       <div className="text-sm" style={Object.assign({ whiteSpace: "pre-wrap" }, text_style)}>
-        <DcsLinkedText text={content_text} links={text_links} />
+        <DcsLinkedText text={live.text} links={live.links} />
       </div>
     );
   }

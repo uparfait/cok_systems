@@ -47,6 +47,25 @@ export function build_design_styles(field) {
 
   if (design.background_color) inner_style.backgroundColor = design.background_color;
   if (design.border_enabled) inner_style.border = `${design.border_width || 1}px solid ${design.border_color || "#E0E0E0"}`;
+  else if (design.background_color) inner_style.border = `1px solid ${frame_tone(design.background_color)}`;
   if (inner_style.backgroundColor || inner_style.border) inner_style.padding = "0.75rem";
   return { outer_style, inner_style };
+}
+
+const FRAME_SHADE = 0.18;
+
+/**
+ * A text block given a background is framed in a slightly deeper tone of
+ * that same color, so the tinted box reads as a card with an edge instead
+ * of a smear of color. Only hex backgrounds can be shaded; anything else
+ * falls back to the neutral border every other box uses.
+ */
+export function frame_tone(color) {
+  const hex = String(color || "").trim();
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex);
+  if (!match) return "#E0E0E0";
+  const raw = match[1].length === 3 ? match[1].split("").map((c) => c + c).join("") : match[1];
+  const channels = [0, 2, 4].map((at) => parseInt(raw.slice(at, at + 2), 16));
+  const shaded = channels.map((value) => Math.round(value * (1 - FRAME_SHADE)));
+  return "#" + shaded.map((value) => value.toString(16).padStart(2, "0")).join("");
 }

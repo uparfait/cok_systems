@@ -3,6 +3,7 @@ import { get_field_text } from "../fieldText.js";
 import DcsLinkedText from "../../components/DcsLinkedText.jsx";
 import DcsTextLinkMenu from "../../components/DcsTextLinkMenu.jsx";
 import { add_link_to_range, remove_links_overlapping_range, find_link_overlapping_range } from "../textLinkSegments.js";
+import { fill_text_tokens } from "../textTokens.js";
 
 // clamp(min, viewport-scaled, max) - the max is the size on a wide enough
 // screen, the min is a sane floor on a small phone, and the vw term shrinks
@@ -18,7 +19,7 @@ const HEADING_SIZES = {
   6: "clamp(12px, 2.5vw, 13px)",
 };
 
-export default function HeaderBlock({ field, language, mode, onFieldChange }) {
+export default function HeaderBlock({ field, language, mode, onFieldChange, allValues }) {
   const is_builder = mode === "builder";
   const level = field.level || 2;
   const text_value = get_field_text(field.label, language);
@@ -30,6 +31,7 @@ export default function HeaderBlock({ field, language, mode, onFieldChange }) {
   const [link_menu, setLinkMenu] = useState(null);
 
   if (!is_builder) {
+    const live = fill_text_tokens(text_value, text_links, allValues);
     return React.createElement(
       HeadingTag,
       {
@@ -41,7 +43,7 @@ export default function HeaderBlock({ field, language, mode, onFieldChange }) {
           whiteSpace: "pre-wrap",
         },
       },
-      <DcsLinkedText key="linked" text={text_value} links={text_links} />,
+      <DcsLinkedText key="linked" text={live.text} links={live.links} />,
     );
   }
 
