@@ -1,7 +1,7 @@
 const dashboards_model = require("../dashboards_model.js");
 const dashboard_links_model = require("../dashboard_links_model.js");
 const { load_form_dashboard_context } = require("../form_context.js");
-const { sanitize_widgets } = require("../sanitize.js");
+const { sanitize_widgets, sanitize_board_layout } = require("../sanitize.js");
 const { validate_dashboard } = require("../widget_validation.js");
 const { build_field_catalog } = require("../field_catalog.js");
 const { sanitize_filter_defs, validate_filter_defs } = require("../board_filters.js");
@@ -120,6 +120,7 @@ async function get_dashboard_by_id(req, res) {
         dashboard: dashboards_model.strip_dashboard(dashboard),
         widgets: dashboard.widgets || [],
         filters: dashboard.filters || [],
+        layout: dashboard.layout || null,
         updated_at: dashboard.updated_at,
         can_edit: context.can_edit,
       }),
@@ -151,8 +152,20 @@ async function save_dashboard_by_id(req, res) {
       const filter_errors = validate_filter_defs(filters, build_field_catalog(context.form_version.schema));
       if (filter_errors.length > 0) return res.status(400).json(warning_response(req, "DASHBOARD_INVALID", null, { errors: filter_errors }));
     }
-    const saved = await dashboards_model.save_widgets(form_group_id, dashboard_id, widgets, filters);
-    return res.status(200).json(success_response(req, "DASHBOARD_SAVED", { dashboard: dashboards_model.strip_dashboard(saved), widgets: saved.widgets, filters: saved.filters || [], updated_at: saved.updated_at, can_edit: true }));
+    // How the board is arranged - the grid, or studio with every widget
+    // placed by hand - is saved with it.
+    const layout = sanitize_board_layout((req.body || {}).layout);
+    const saved = await dashboards_model.save_widgets(form_group_id, dashboard_id, widgets, filters, layout);
+    return res.status(200).json(
+      success_response(req, "DASHBOARD_SAVED", {
+        dashboard: dashboards_model.strip_dashboard(saved),
+        widgets: saved.widgets,
+        filters: saved.filters || [],
+        layout: saved.layout || null,
+        updated_at: saved.updated_at,
+        can_edit: true,
+      }),
+    );
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

@@ -155,6 +155,10 @@ export function random_color() {
 export const LEGEND_POSITIONS = ["bottom", "top", "right", "left"];
 export const UNIT_SIDES = ["start", "end"];
 const MAX_UNIT = 12;
+// A card outlines itself in two pixels unless told otherwise; zero is no
+// outline at all, and eight is as heavy as a border has any business being.
+const DEFAULT_BORDER = 2;
+const MAX_BORDER = 8;
 
 /**
  * The short names of the powers of a thousand, largest first. A dashboard
@@ -229,7 +233,12 @@ export function resolve_appearance(raw) {
   // Shortened by default: a board is read at a glance, and every widget
   // that has to spell out 1,240,000,000 has already lost the reader.
   const compact = source.compact !== false;
-  return { theme, legend_position, unit, compact, light: mode("light"), dark: mode("dark"), value_colors: { ...(source.value_colors || {}) }, value_labels: { ...(source.value_labels || {}) } };
+  // How heavy the card's own outline is, in pixels. Zero is NO BORDER at
+  // all, which is what a widget wants when it sits in a section that is
+  // already drawing one, or when a board is meant to read as one surface.
+  const held_width = Number(source.border_width);
+  const border_width = Number.isFinite(held_width) && held_width >= 0 ? Math.min(Math.round(held_width), MAX_BORDER) : DEFAULT_BORDER;
+  return { theme, legend_position, unit, compact, border_width, light: mode("light"), dark: mode("dark"), value_colors: { ...(source.value_colors || {}) }, value_labels: { ...(source.value_labels || {}) } };
 }
 
 /**
@@ -288,6 +297,8 @@ export function build_palette(raw, board_theme) {
     muted: extras.muted,
     grid: extras.grid,
     border: mode.border || MODE_DEFAULTS[appearance.theme].border,
+    // Zero means the card draws no outline at all.
+    border_width: Number.isFinite(Number(appearance.border_width)) ? Number(appearance.border_width) : DEFAULT_BORDER,
     empty: extras.empty,
     soft: extras.soft,
     color_for,

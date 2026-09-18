@@ -1,6 +1,7 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { child_style, breaks_row, canvas_style, resized_length, default_box } from "./boxLayout.js";
+import { child_style, breaks_row, canvas_style, default_box, is_free } from "./boxLayout.js";
+import CanvasFreeLayer from "./CanvasFreeLayer.jsx";
 
 /**
  * A CANVAS: a widget whose content is other widgets.
@@ -13,73 +14,33 @@ import { child_style, breaks_row, canvas_style, resized_length, default_box } fr
  * canvas is useful the moment something is dropped into it and can be
  * sized afterwards, rather than needing to be measured first.
  *
- * While the board is editable each child carries two drag handles - its
- * right edge for width, its bottom edge for height - and the whole canvas
- * is a drop of empty space that invites the first widget in. A viewer sees
- * none of that: the same layout, drawn still.
+ * While the board is editable the whole canvas is a drop of empty space
+ * that invites the first widget in. Sizing what is in it is studio mode's
+ * business, on the working copy, saved once - never a save on every move
+ * of the pointer. A viewer sees the same layout, drawn still.
+ *
+ * In the SELECTION mode each child can also be dragged onto another to
+ * change the order they sit in, which is how a widget is moved around
+ * inside a section and how a section inside a section is moved around
+ * inside its own. A drag there belongs to the child that was grabbed: it
+ * never travels up and takes the whole section with it.
  */
 
-const HANDLE = 10;
-
-/** One child, in its place, with the handles that resize it. */
-function CanvasChild({ widget, gap, editable, containerRef, onResize, children }) {
+/** One child, in its place. Sizing happens in studio mode, not here. */
+function CanvasChild({ widget, gap, dragProps, dropClass, children }) {
   const box = widget.box || default_box();
-  const wrap_ref = useRef(null);
-  const [dragging, setDragging] = useState("");
-
-  // Dragging reads the element's REAL size at the moment the drag starts,
-  // so an edge pulled from a widget that had no size of its own still
-  // begins exactly where it is being seen.
-  const start_drag = (edge) => (event) => {
-    if (!editable || !onResize) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const element = wrap_ref.current;
-    const container = containerRef && containerRef.current;
-    if (!element) return;
-    const rect = element.getBoundingClientRect();
-    const room = container ? container.clientWidth : rect.width;
-    const tall = container ? container.clientHeight : rect.height;
-    const from = { x: event.clientX, y: event.clientY, width: rect.width, height: rect.height };
-    setDragging(edge);
-    const move = (moved) => {
-      const next = { ...(widget.box || default_box()) };
-      if (edge === "width") next.width = resized_length(from.width, moved.clientX - from.x, room, (box.width && box.width.unit) || "%");
-      else next.height = resized_length(from.height, moved.clientY - from.y, tall, (box.height && box.height.unit) || "px");
-      onResize(widget.id, next);
-    };
-    const done = () => {
-      setDragging("");
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", done);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", done);
-  };
-
-  const handle_style = (edge) => ({
-    position: "absolute",
-    zIndex: 3,
-    background: dragging === edge ? "rgba(5,109,170,0.35)" : "transparent",
-    ...(edge === "width"
-      ? { top: 0, bottom: 0, right: -HANDLE / 2, width: HANDLE, cursor: "col-resize" }
-      : { left: 0, right: 0, bottom: -HANDLE / 2, height: HANDLE, cursor: "row-resize" }),
-  });
 
   return (
-    <div ref={wrap_ref} className="dcs-canvas-child relative min-w-0" style={child_style(box, gap)}>
-      {children}
-      {editable && onResize && (
-        <>
-          <span role="separator" aria-orientation="vertical" style={handle_style("width")} onPointerDown={start_drag("width")} />
-          <span role="separator" aria-orientation="horizontal" style={handle_style("height")} onPointerDown={start_drag("height")} />
-        </>
-      )}
+    <div className={`dcs-canvas-child relative min-w-0 ${dropClass || ""}`} style={child_style(box, gap)} {...(dragProps || {})}>
+      {/* While the board is being arranged the card is a picture of the
+          widget, so the whole child is one handle to drag by - as on a free
+          surface, and as in the screenshot studio. */}
+      <div className={dragProps ? "dcs-canvas-child-body" : undefined}>{children}</div>
     </div>
   );
 }
 
-export default function CanvasWidget({ widget, children, editable, onResize, onAddWidget, height }) {
+export default function CanvasWidget({ widget, children, editable, placeable, onPlace, onRemove, onAddWidget, dragPropsFor, dropClass, height }) {
   const { translate } = useDcsLanguage();
   const box_ref = useRef(null);
   const list = children || [];
@@ -99,6 +60,11 @@ export default function CanvasWidget({ widget, children, editable, onResize, onA
     );
   }
 
+  // Placed rather than queued: every widget where it was dragged to.
+  if (is_free(settings)) {
+    return <CanvasFreeLayer list={list} height={height} placeable={placeable} onPlace={onPlace} onRemove={onRemove} />;
+  }
+
   return (
     <div ref={box_ref} style={canvas_style(Object.assign({}, settings, height ? { height: { value: height, unit: "px" } } : {}))}>
       {list.map((entry) => (
@@ -107,7 +73,7 @@ export default function CanvasWidget({ widget, children, editable, onResize, onA
               across the whole line, which is how flex-wrap is made to break
               where it is told rather than only where it runs out of room. */}
           {breaks_row(entry.widget.box) && <span aria-hidden="true" style={{ flexBasis: "100%", height: 0 }} />}
-          <CanvasChild widget={entry.widget} gap={gap} editable={editable} containerRef={box_ref} onResize={onResize}>
+          <CanvasChild widget={entry.widget} gap={gap} dragProps={dragPropsFor ? dragPropsFor(entry.widget) : null} dropClass={dropClass ? dropClass(entry.widget) : ""}>
             {entry.node}
           </CanvasChild>
         </React.Fragment>

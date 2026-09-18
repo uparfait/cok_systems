@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_dashboard, save_dashboard, get_dashboard_data, get_filter_values, get_map_shapes, request_error_text } from "./dashboardService.js";
+import { get_dashboard_data, get_filter_values, get_map_shapes, request_error_text } from "./dashboardService.js";
 import { regenerate_and_save } from "./autoGenerate.js";
 import { useBoardFullscreen } from "./useBoardFullscreen.js";
 import { useBoardData } from "./useBoardData.js";
@@ -16,8 +16,9 @@ import { useWidgetEdits } from "./useWidgetEdits.js";
 import BoardWidgetDialogs from "./BoardWidgetDialogs.jsx";
 import { builder_fields } from "./builder/composeWidgets.js";
 import BoardEmptyState from "./BoardEmptyState.jsx";
+import { useBoardContents } from "./useBoardContents.js";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
-import BoardWithSelection from "./selection/BoardWithSelection.jsx";
+import StudioBoard from "./studio/StudioBoard.jsx";
 import { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
 import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
 import { MapScopeProvider, filter_names } from "./mapScope.jsx";
@@ -33,7 +34,7 @@ const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports
  * form in this browser). The open board shows live data (silently
  * refreshed every 30 seconds, with a board-wide period filter - see
  * useBoardData), and for users allowed to edit the form: the builder,
- * per-card edits, the selection mode, the Ctrl+6 code tools, public share
+ * per-card edits, studio mode, the Ctrl+6 code tools, public share
  * links of THIS board and deletion of THIS board. A form without any
  * dashboard first asks for a name. A regeneration NEVER shows data right
  * away: the result opens in the review list first, and while that review
@@ -54,10 +55,6 @@ function DashboardBoard({ form }) {
   const library = useDashboards(form.form_group_id);
   const { active_id, can_edit } = library;
 
-  const [widgets_loading, setWidgetsLoading] = useState(true);
-  const [widgets, setWidgets] = useState([]);
-  // The board's filter fields (see boardFilters.js), saved with the dashboard.
-  const [filters, setFilters] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ percent: 0, message_key: "" });
   const [deleting, setDeleting] = useState(false);
@@ -96,13 +93,28 @@ function DashboardBoard({ form }) {
     [form, active_id, library.active],
   );
 
-  const loading = library.list_loading || widgets_loading;
+  // The open board's widgets, filter fields and arrangement, and the one
+  // place every save lands. The data hook below is built from the widget
+  // list this returns, so it is handed a ref rather than the hook itself.
+  const data_ref = useRef(null);
+  const contents = useBoardContents({ form, scoped_form, active_id, library, dataRef: data_ref });
+  const widgets = contents.widgets;
+  const setWidgets = contents.setWidgets;
+  const filters = contents.filters;
+  const board_layout = contents.layout;
+  const commit_widgets = contents.commit;
+  const handle_change_filters = contents.change_filters;
+
+  const loading = library.list_loading || contents.loading;
   const frozen_ref = useRef(false);
   const [shot_open_flag, setShotOpenFlag] = useState(false);
   // The records overlay: { widget, pick } while open; and whether the
-  // selection mode is on (filters reorder only then).
+  // studio mode is on (filters stop applying while it is).
   const [records, setRecords] = useState(null);
   const [selecting, setSelecting] = useState(false);
+  // The switch the board's own menu uses to enter and leave studio
+  // mode; the mode itself lives inside StudioBoard.
+  const [studio_api, setStudioApi] = useState(null);
   frozen_ref.current = generating || review_widgets !== null || builder_tab !== null || code_open || share_open || naming || shot_open_flag || records !== null;
   useDashboardCodeShortcut(can_edit && !!active_id && !loading && !generating && review_widgets === null && builder_tab === null, () => setCodeOpen(true));
 
@@ -114,11 +126,12 @@ function DashboardBoard({ form }) {
     frozen_ref,
     fetch_batch: (batch, period, applied) => get_dashboard_data(form.form_group_id, batch, period, applied),
   });
+  data_ref.current = data;
 
   // Browser-native full screen with two viewing modes ("fit" zooms the whole
   // board onto one screen, "scroll" keeps natural size), the self-fitting
   // zoom and the hover-driven fixed header all live in the hook.
-  const { container_ref, grid_ref, is_fullscreen, is_fallback, enter, exit, fs_mode, setFsMode, fit_scale, header_visible, show_header, schedule_header_hide } = useBoardFullscreen();
+  const { container_ref, grid_ref, content_fits, is_fullscreen, is_fallback, enter, exit, fs_mode, setFsMode, fit_scale, header_visible, show_header, schedule_header_hide } = useBoardFullscreen();
 
   // The screenshot studio: the board as it stands right now - each card's
   // place measured on screen (undoing any fit zoom) and its current data
@@ -151,50 +164,6 @@ function DashboardBoard({ form }) {
     }
   }, [library.list_loading, library.dashboards.length, can_edit]);
 
-  // The active dashboard's widgets, loaded whenever the switcher changes it.
-  useEffect(() => {
-    if (!active_id) {
-      setWidgets([]);
-      setWidgetsLoading(false);
-      return undefined;
-    }
-    let is_mounted = true;
-    setWidgetsLoading(true);
-    get_dashboard({ form_group_id: form.form_group_id, dashboard_id: active_id })
-      .then((response) => {
-        if (!is_mounted) return;
-        setWidgets((response.data && response.data.widgets) || []);
-        setFilters((response.data && response.data.filters) || []);
-      })
-      .catch((error) => is_mounted && showError(request_error_text(error, translate("DCS_ERROR_GENERIC"))))
-      .finally(() => is_mounted && setWidgetsLoading(false));
-    return () => {
-      is_mounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.form_group_id, active_id]);
-
-  // Every save lands in the same place: the board and the switcher's count;
-  // a save that also carried the filter fields updates those too.
-  const commit_widgets = (final_widgets, final_filters) => {
-    setWidgets(final_widgets);
-    library.set_count(active_id, final_widgets.length);
-    if (Array.isArray(final_filters)) {
-      setFilters(final_filters);
-      data.prune_filters(final_filters);
-    }
-  };
-
-  // Adding or removing a filter field from the bar is saved right away.
-  const handle_change_filters = async (defs) => {
-    try {
-      const saved = await save_dashboard(scoped_form, widgets, defs);
-      commit_widgets((saved.data && saved.data.widgets) || widgets, (saved.data && saved.data.filters) || defs);
-      data.settle((saved.data && saved.data.widgets) || widgets);
-    } catch (error) {
-      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
-    }
-  };
 
   // The values a filter offers follow the period and the other filters.
   const fetch_filter_values = (field_id, others) =>
@@ -243,6 +212,10 @@ function DashboardBoard({ form }) {
     editable: can_edit && !generating,
     isDark: board.is_dark,
     translate,
+    // One right-click menu for the whole board, and studio mode is
+    // always its first entry.
+    arranging: selecting,
+    studio: studio_api,
     onCommit: (next) => commit_widgets(next),
     onSettings: (target) => setAppearanceWidget(target),
     onReconfigure: (target) => {
@@ -326,10 +299,13 @@ function DashboardBoard({ form }) {
     <MapScopeProvider fetchShapes={(names, held) => get_map_shapes(form.form_group_id, names, map_scope, held)} scopeKey={map_scope.join("|")}>
     {/* Which board is open, in the tab. */}
     {board_name ? <Helmet><title>{board_name}</title></Helmet> : null}
+    {/* Full screen means the SCREEN: no padding holding the board off
+        the edges, no margin around it, and no scrollbar unless there is
+        genuinely more board than screen. */}
     <div
       ref={container_ref}
-      className={`dcs-board-root dcs-board-no-select relative select-none ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen p-2 sm:p-4" : "pb-16 space-y-4"}`}
-      style={is_fullscreen ? { backgroundColor: "var(--board-bg, #F4F7F9)", width: "100%", height: "100%", overflowY: fs_mode === "fit" ? "hidden" : "auto" } : undefined}
+      className={`dcs-board-root dcs-board-no-select relative select-none ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen" : "pb-16 space-y-4"}`}
+      style={is_fullscreen ? { backgroundColor: "var(--board-bg, #F4F7F9)", width: "100%", height: "100%", overflowY: fs_mode === "fit" || content_fits ? "hidden" : "auto" } : undefined}
       onContextMenu={canvas_menu.open_board_menu}
     >
       <BoardHeader
@@ -370,7 +346,7 @@ function DashboardBoard({ form }) {
         onScreenshot={open_screenshot}
       />
 
-      {review_widgets !== null ? null : widgets_loading ? (
+      {review_widgets !== null ? null : contents.loading ? (
         <div className="dcs-board-chrome border-2 flex justify-center py-12">
           <SpiralLoader />
         </div>
@@ -387,7 +363,7 @@ function DashboardBoard({ form }) {
               : undefined
           }
         >
-          <BoardWithSelection
+          <StudioBoard
             form={scoped_form}
             fields={form_fields}
             widgets={widgets}
@@ -411,12 +387,15 @@ function DashboardBoard({ form }) {
             onOpenRecords={(widget, pick) => setRecords({ widget, pick })}
             mapLevels={map_levels}
             heatField={heat_field}
+            layout={board_layout}
             onSelectionChange={setSelecting}
-            onSaved={(final_widgets) => {
-              // Reordering, bulk edits and deletions never change what the
-              // surviving widgets chart - keep their data, drop the rest.
+            onSelectionApi={setStudioApi}
+            onSaved={(final_widgets, final_layout) => {
+              // Reordering, bulk edits, placements and deletions never
+              // change what the surviving widgets chart - keep their data,
+              // drop the rest.
               data.settle(final_widgets);
-              commit_widgets(final_widgets);
+              commit_widgets(final_widgets, undefined, final_layout);
               data.keep_only(final_widgets);
             }}
           />

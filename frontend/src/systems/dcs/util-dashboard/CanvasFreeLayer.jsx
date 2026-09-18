@@ -1,0 +1,214 @@
+import React, { useEffect, useRef, useState } from "react";
+import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import { canvas_size, move_rect, resize_rect, snap_rect, bring_to_front, replace_item, clamp_rect } from "./screenshot/studioLayout.js";
+import { spot_of, FREE_PAD } from "./boxLayout.js";
+
+/**
+ * FREE PLACEMENT inside a section, worked exactly the way the screenshot
+ * studio works - the same geometry, the same gesture, so what is learned
+ * in one is true in the other.
+ *
+ * Every widget is a box of { x, y, w, h, z }. Pressing its body begins a
+ * MOVE, pressing one of its four edges or four corners begins a RESIZE
+ * from that side with the opposite one staying put. Only ONE gesture runs
+ * at a time: what was pressed is remembered along with where the pointer
+ * started and the box as it was, and every later movement is measured from
+ * there - so a drag begun on a corner cannot finish as a move of something
+ * else, and the pointer may leave the section without losing the box. The
+ * window hears the rest of the gesture, which is what lets it end anywhere.
+ *
+ * Chaos is kept out three ways. Everything SNAPS to the edges and centres
+ * of its neighbours and of the section, with the guide lines drawn while
+ * the gesture is held. Nothing may leave the surface: a widget belongs to
+ * the section it was put in, so it is stopped at the edges rather than
+ * dragged off where nobody can reach it. And a surface with no height of
+ * its own GROWS downwards with whatever is pushed past its bottom, so
+ * nothing is cut off either.
+ *
+ * A SECTION carries what is in it. Its widgets are drawn inside it, so
+ * moving the section moves them with it and nothing has to be worked out.
+ *
+ * Placing is an edit like any other, so it only happens in STUDIO MODE
+ * and what it writes waits on the working copy until it is saved.
+ */
+
+// zoom re-lays-out at the new size; the transform fallback only paints
+// smaller, so it needs the height correcting.
+const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "1");
+
+const EDGES = ["n", "s", "e", "w"];
+const GRIPS = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
+const CLOSE_MARK = (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
+
+export default function CanvasFreeLayer({ list, width, height, scale, placeable, onPlace, onRemove }) {
+  // The pointer travels in screen pixels; the surface may be drawn smaller.
+  const factor = Number(scale) > 0 ? Number(scale) : 1;
+  const factor_ref = useRef(factor);
+  factor_ref.current = factor;
+  const surface_ref = useRef(null);
+  const [room, setRoom] = useState(0);
+  const [active_id, setActiveId] = useState(null);
+  const [guides, setGuides] = useState({ x: [], y: [] });
+  const [moving_id, setMovingId] = useState(null);
+  const gesture_ref = useRef(null);
+  const rects_ref = useRef([]);
+  const { translate } = useDcsLanguage();
+  const remove_label = translate("DCS_DB_REMOVE_WIDGET");
+
+  const rects = list.map((entry, index) => Object.assign({ id: entry.widget.id }, spot_of(entry.widget.box, index)));
+  rects_ref.current = rects;
+  // How wide the surface really is, which is what a widget is held inside.
+  const bounds = { w: width || room, h: 0 };
+  const bounds_ref = useRef(bounds);
+  bounds_ref.current = bounds;
+  // The surface is as tall as the lowest thing on it, and never shorter
+  // than the room the section itself was given.
+  const base = { w: 0, h: Math.max(height || 0, 160) };
+  const surface = canvas_size(rects, base);
+  // Wider than the room it has, a surface is drawn smaller to fit, so the
+  // widgets on it never run out past the section's right edge.
+  const fit = !width && room > 0 && surface.w > room ? room / surface.w : 1;
+  const fit_ref = useRef(fit);
+  fit_ref.current = fit;
+
+  // One gesture at a time, heard by the window so it can end anywhere.
+  useEffect(() => {
+    const on_move = (event) => {
+      const gesture = gesture_ref.current;
+      if (!gesture) return;
+      const dx = (event.clientX - gesture.origin_x) / (factor_ref.current * fit_ref.current);
+      const dy = (event.clientY - gesture.origin_y) / (factor_ref.current * fit_ref.current);
+      // A press that never travels is a CLICK, and a click still selects.
+      // Only real travel turns the press into a placement, and only then
+      // is the widget lifted above the others.
+      if (!gesture.live) {
+        if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+        gesture.live = true;
+        gesture.start = bring_to_front(rects_ref.current, gesture.id).find((entry) => entry.id === gesture.id);
+        if (gesture.kind === "move") setMovingId(gesture.id);
+      }
+      event.preventDefault();
+      const moved_rect = gesture.kind === "move" ? move_rect(gesture.start, dx, dy) : resize_rect(gesture.start, gesture.kind, dx, dy);
+      const raw = clamp_rect(moved_rect, bounds_ref.current);
+      const others = rects_ref.current.filter((entry) => entry.id !== gesture.id);
+      const snapped = snap_rect(raw, gesture.kind, others, canvas_size(others.concat([raw]), base));
+      snapped.rect = clamp_rect(snapped.rect, bounds_ref.current);
+      setGuides(snapped.guides);
+      onPlace(gesture.id, replace_item([gesture.start], gesture.id, snapped.rect)[0]);
+    };
+    const on_up = () => {
+      if (!gesture_ref.current) return;
+      gesture_ref.current = null;
+      setMovingId(null);
+      setGuides({ x: [], y: [] });
+    };
+    window.addEventListener("pointermove", on_move);
+    window.addEventListener("pointerup", on_up);
+    window.addEventListener("pointercancel", on_up);
+    return () => {
+      window.removeEventListener("pointermove", on_move);
+      window.removeEventListener("pointerup", on_up);
+      window.removeEventListener("pointercancel", on_up);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onPlace, base.h]);
+
+  const start = (id, kind) => (event) => {
+    if (!placeable || !onPlace || event.button !== 0) return;
+    // The body's press is left alone so a click on the card still reaches
+    // it; a grip has nothing else to be, so it is taken outright.
+    if (kind !== "move") event.preventDefault();
+    event.stopPropagation();
+    const held = rects_ref.current.find((entry) => entry.id === id);
+    if (!held) return;
+    // WHAT WAS PRESSED is remembered here and nowhere else: the rest of
+    // the gesture belongs to it until the pointer is let go.
+    setActiveId(id);
+    gesture_ref.current = { id, kind, start: held, origin_x: event.clientX, origin_y: event.clientY, live: false };
+  };
+
+  useEffect(() => {
+    const measure = () => {
+      if (surface_ref.current) setRoom(surface_ref.current.clientWidth);
+    };
+    measure();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    if (observer && surface_ref.current) observer.observe(surface_ref.current);
+    return () => {
+      if (observer) observer.disconnect();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={surface_ref}
+      className="dcs-canvas-free relative"
+      // With the fit the page still reserves the unfitted height under a
+      // transform, so the outer box is told what the fitted surface comes
+      // to; zoom re-lays-out and needs nothing.
+      style={{ minHeight: SUPPORTS_ZOOM || fit === 1 ? surface.h + FREE_PAD : undefined, height: !SUPPORTS_ZOOM && fit < 1 ? Math.ceil((surface.h + FREE_PAD) * fit) : undefined }}
+      onPointerDown={() => setActiveId(null)}
+    >
+      <div
+        className="relative"
+        style={
+          fit === 1
+            ? { minHeight: surface.h + FREE_PAD }
+            : SUPPORTS_ZOOM
+              ? { width: surface.w, minHeight: surface.h + FREE_PAD, zoom: fit }
+              : { width: surface.w, minHeight: surface.h + FREE_PAD, transform: `scale(${fit})`, transformOrigin: "top left" }
+        }
+      >
+      {list.map((entry, index) => {
+        const rect = rects[index];
+        const id = entry.widget.id;
+        return (
+          <div
+            key={id}
+            className={`dcs-canvas-spot ${placeable ? "dcs-studio-item" : ""} ${placeable && active_id === id ? "is-active" : ""} ${moving_id === id ? "is-moving" : ""}`}
+            style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, zIndex: rect.z }}
+            onPointerDown={start(id, "move")}
+          >
+            <div className={`dcs-canvas-spot-body ${placeable ? "is-still" : ""}`}>{entry.node}</div>
+            {placeable && (
+              <>
+                {EDGES.map((edge) => (
+                  <div key={edge} className={`dcs-studio-edge is-${edge}`} onPointerDown={start(id, edge)} />
+                ))}
+                {GRIPS.map((grip) => (
+                  <div key={grip} className={`dcs-studio-handle is-${grip}`} onPointerDown={start(id, grip)} />
+                ))}
+                {onRemove && (
+                  <button
+                    type="button"
+                    className="dcs-studio-remove"
+                    title={remove_label}
+                    aria-label={remove_label}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRemove(id);
+                    }}
+                  >
+                    {CLOSE_MARK}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })}
+      {guides.x.map((at) => (
+        <div key={`x${at}`} className="dcs-studio-guide is-x" style={{ left: at }} />
+      ))}
+      {guides.y.map((at) => (
+        <div key={`y${at}`} className="dcs-studio-guide is-y" style={{ top: at }} />
+      ))}
+      </div>
+    </div>
+  );
+}

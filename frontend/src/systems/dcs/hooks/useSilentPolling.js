@@ -11,10 +11,21 @@ const DEFAULT_POLL_INTERVAL_MS = 10000;
  * deps identifies which entity is being fetched (e.g. [project_id]) so
  * navigating to a different one refetches immediately instead of showing
  * the previous entity's stale data until the next scheduled poll.
+ *
+ * options.initial, when given, is what to show BEFORE the first answer -
+ * usually what an earlier visit fetched. With it the first call is as
+ * silent as every later one: no skeleton, no flash, the known list stays
+ * on screen and is replaced the moment the fresh one lands. A function is
+ * called with no arguments each time the deps change.
  */
-export function useSilentPolling(fetchFn, intervalMs, deps) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+export function useSilentPolling(fetchFn, intervalMs, deps, options) {
+  const initial_of = () => {
+    const held = options && options.initial;
+    const value = typeof held === "function" ? held() : held;
+    return value === undefined ? null : value;
+  };
+  const [data, setData] = useState(initial_of);
+  const [loading, setLoading] = useState(() => initial_of() === null);
   const [error, setError] = useState(null);
   const fetchFnRef = useRef(fetchFn);
   fetchFnRef.current = fetchFn;
@@ -34,7 +45,12 @@ export function useSilentPolling(fetchFn, intervalMs, deps) {
   const dependency_list = deps || [];
 
   useEffect(() => {
-    run(true);
+    // A new entity: show what is already known of it, or a skeleton if
+    // nothing is, and ask.
+    const known = initial_of();
+    setData(known);
+    setLoading(known === null);
+    run(known === null);
     const interval_id = window.setInterval(() => {
       run(false);
     }, intervalMs || DEFAULT_POLL_INTERVAL_MS);

@@ -13,9 +13,11 @@ function SkeletonBar({ width }) {
 
 function ProjectsSkeleton() {
   return (
-    <div className="px-3 space-y-3 py-1" aria-hidden="true">
+    <div className="flex flex-col gap-2 py-1" aria-hidden="true">
       {[85, 65, 75, 55, 70].map((width, index) => (
-        <SkeletonBar key={index} width={`${width}%`} />
+        <div key={index} className="dcs-project-card px-3 py-3">
+          <SkeletonBar width={`${width}%`} />
+        </div>
       ))}
     </div>
   );
@@ -99,48 +101,49 @@ export default function DcsProjectsSidebar({ projects, loading, onClose }) {
   const has_no_results = is_searching && !forms_loading && visible_projects.length === 0;
 
   return (
-    <aside className="w-full h-full bg-white border-r flex flex-col" style={{ borderColor: "#E0E0E0" }}>
-      <div className="p-3 border-b" style={{ borderColor: "#E0E0E0" }}>
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h2 className="text-xs font-bold uppercase tracking-wide" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
-            {translate("DCS_SIDEBAR_TITLE")}
-          </h2>
-          {onClose && (
-            <button type="button" onClick={onClose} title={translate("DCS_SIDEBAR_HIDE")} aria-label={translate("DCS_SIDEBAR_HIDE")} className="dcs-sidebar-close cursor-pointer flex items-center justify-center flex-shrink-0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                <line x1="5" y1="5" x2="19" y2="19" />
-                <line x1="19" y1="5" x2="5" y2="19" />
-              </svg>
-            </button>
-          )}
-        </div>
-        <div className="relative">
+    // Its own object, not another nav list: a tinted workspace whose
+    // header IS the search, with the project count beside it, and the
+    // projects below as cards. See .dcs-projects-* in globals.css.
+    <aside className="dcs-projects-aside w-full h-full flex flex-col" aria-label={translate("DCS_SIDEBAR_TITLE")}>
+      <div className="p-3 flex items-center gap-2">
+        {/* The app's own input, made round; the search icon sits in the
+            room the input already keeps on its left. */}
+        <div className="relative flex-1 min-w-0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9E9E9E" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true" className="absolute pointer-events-none" style={{ left: 14, top: "50%", transform: "translateY(-50%)" }}>
+            <circle cx="11" cy="11" r="7" />
+            <line x1="20" y1="20" x2="16.5" y2="16.5" />
+          </svg>
           <input
             type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={translate("DCS_SIDEBAR_SEARCH_PLACEHOLDER")}
-            className="cok-auth-input py-2 text-sm"
-            style={{ paddingRight: 30 }}
+            aria-label={translate("DCS_SIDEBAR_SEARCH_PLACEHOLDER")}
+            className="cok-auth-input rounded-full py-2 text-sm"
+            style={{ paddingRight: 44 }}
           />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              title={translate("DCS_BTN_CLEAR")}
-              className="dcs-sidebar-search-clear absolute cursor-pointer flex items-center justify-center"
-              style={{ right: 10, top: "50%", transform: "translateY(-50%)", width: 20, height: 20 }}
-            >
+          {query ? (
+            <button type="button" onClick={() => setQuery("")} title={translate("DCS_BTN_CLEAR")} className="dcs-sidebar-search-clear absolute cursor-pointer flex items-center justify-center" style={{ right: 12, top: "50%", transform: "translateY(-50%)", width: 22, height: 22 }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9E9E9E" strokeWidth="2.4" strokeLinecap="round">
                 <line x1="5" y1="5" x2="19" y2="19" />
                 <line x1="19" y1="5" x2="5" y2="19" />
               </svg>
             </button>
+          ) : (
+            <span className="dcs-projects-count absolute" style={{ right: 12, top: "50%", transform: "translateY(-50%)" }}>{(projects || []).length}</span>
           )}
         </div>
+        {onClose && (
+          <button type="button" onClick={onClose} title={translate("DCS_SIDEBAR_HIDE")} aria-label={translate("DCS_SIDEBAR_HIDE")} className="dcs-sidebar-close rounded-full cursor-pointer flex items-center justify-center flex-shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <line x1="5" y1="5" x2="19" y2="19" />
+              <line x1="19" y1="5" x2="5" y2="19" />
+            </svg>
+          </button>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto px-3 pb-2">
         {loading && <ProjectsSkeleton />}
 
         {!loading && !is_searching && visible_projects.length === 0 && (
@@ -150,7 +153,7 @@ export default function DcsProjectsSidebar({ projects, loading, onClose }) {
         )}
 
         {!loading && visible_projects.length > 0 && (
-          <div>
+          <div className="flex flex-col gap-2">
             {visible_projects.map((project) => (
               <DcsSidebarProjectRow
                 key={project._id}
@@ -171,7 +174,7 @@ export default function DcsProjectsSidebar({ projects, loading, onClose }) {
         )}
       </div>
 
-      <div className="p-3 border-t flex-shrink-0" style={{ borderColor: "#E0E0E0" }}>
+      <div className="dcs-projects-footer p-3 flex-shrink-0">
         <DcsButtonPrimary className="w-full" onClick={() => navigate("/dcs-system/new-project")}>
           {translate("DCS_SIDEBAR_NEW_PROJECT")}
         </DcsButtonPrimary>

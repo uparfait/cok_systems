@@ -71,8 +71,8 @@ const CHART_TEXT = {
   kpi: "A single big number card, optionally with a legend (legend_by) listing the counts per value of a choice field.",
   canvas:
     "A SECTION OF THE LAYOUT - free space that other widgets sit inside. It is design, not data: it reads no field, takes no formula, no group_by, no period, no over_time, and it draws no chart, no legend and no total. Nothing is fetched for it and nothing can be clicked into it. " +
-    "Its title and description are OPTIONAL, unlike every other widget - a canvas that simply holds three widgets side by side needs no heading, so leave the title as an empty string unless a heading genuinely helps the page read. " +
-    "Think of it as a SECTION of the page: a section holds widgets, a widget holds data. Nothing about data belongs on a canvas - no unit, no compact, no legend_position, no value_colors, no icon, no size. Give it only its own colors (background, border, and text if it carries a heading) and its canvas layout. " +
+    "Its title and description are OPTIONAL, unlike every other widget: BOTH may be left out. A canvas that simply holds three widgets side by side needs no heading, so leave the title as an empty string and the description null unless a heading genuinely helps the page read - an unnamed canvas draws no title bar at all, just the widgets in it. " +
+    "Think of it as a SECTION of the page: a section holds widgets, a widget holds data. Nothing about data belongs on a canvas - no unit, no compact, no legend_position, no value_colors, no icon, no size. Give it only its own colors (background, border, border_width, and text if it carries a heading) and its canvas layout. An unnamed canvas draws no heading and no padding at all, so its widgets start flush at the top - which is what a section usually wants. " +
     "Widgets join it by naming its id in their parent_id and lay themselves out inside it with their own box. Use one to group related widgets, or to put a few side by side at sizes the board's own grid cannot give them; do not wrap a single widget in one, and do not use one where the ordinary grid would do.",
 };
 
@@ -136,18 +136,21 @@ function widget_shape() {
     period: "{ preset, from, to } - the widget's own time window; preset is one of the period_presets. Use { preset: 'all', from: null, to: null } unless a fixed window is wanted; the dashboard's period filter overrides it while viewing.",
     sort: "value_desc | value_asc | label_asc (category charts).",
     limit: `Max categories shown, 1-50 (default 12; pie/donut/waffle are capped at 6; treemap commonly 50).`,
-    size: "small | medium | large - the share of a board row this widget claims, so neighbours that still fit sit beside it: small is a third of a row (three small charts side by side), medium a half (two side by side), large a whole row to itself. A small and a medium therefore share one row. KPI cards ignore it - they have their own dense row of their own.",
-    position: "0-based order on the board; assigned from the array order when missing.",
+    size: "small | medium | large - GRID BOARDS ONLY (a studio board ignores it and reads box.spot). The share of a board row this widget claims, so neighbours that still fit sit beside it: small is a third of a row (three small charts side by side), medium a half (two side by side), large a whole row to itself. A small and a medium therefore share one row. KPI cards ignore it - they have their own dense row of their own.",
+    position: "0-based order on the board; assigned from the array order when missing. Ignored on a STUDIO board, where box.spot places every widget instead.",
     parent_id:
       "Optional: the id of a CANVAS widget on this same dashboard, when this widget should be drawn inside that canvas instead of on the board. null (or left out) for everything else. Only a canvas can hold widgets; the canvas must be in the same list; a widget cannot name itself; canvases may be nested at most 3 deep and never in a circle.",
     box:
       "Only meaningful with parent_id: how this widget lays itself out inside its canvas. { flow, width, height, min_width, max_width, min_height, max_height }. " +
       "flow is \"row\" (carry on along the row), \"row_break\" (start a new row) or \"column\" (take a line of its own). " +
       "Every length is { value, unit } with unit \"px\" or \"%\" - a percent is of the canvas, a pixel count is absolute, and percentages are capped at 100. " +
+      "On a FREE canvas the lengths are ignored and box.spot places the widget instead: { x, y, w, h, z } in whole pixels from the section top left, w at least 80 and h at least 60, z deciding what sits above what. Leave spot out and it is dealt into a staircase from the corner. " +
       "LEAVE OUT what you do not care about: a widget with no width takes whatever is left of its row, which is usually what is wanted. A sensible pair of widgets side by side is two boxes of { flow: \"row\", width: { value: 50, unit: \"%\" } }; give the first one min_width so they stack rather than crush on a phone.",
     canvas:
-      "Canvases only: { flow, gap, width, height } - which way its children run (\"row\" or \"column\"), the pixels between them (0-64, 12 reads well), and its own size as { value, unit } each, or null. " +
-      "A canvas is NOT sized by the board's small / medium / large - it is a band of the page, so ignore the size key on it and give it a width instead, or leave width null for the full row. Height null lets it grow to whatever it holds, which is usually right.",
+      "Canvases only: { flow, gap, size_mode, width, height, min_width, max_width, min_height, max_height }. flow is how it arranges what is in it: \"row\" (along the row, wrapping), \"column\" (stacked), or \"free\" (NOT ARRANGED AT ALL - every widget sits exactly where it was dragged, at the x, y, w and h in its box.spot, and the others pass straight across it). gap is the pixels between them in row and column (0-64, 12 reads well) and means nothing on a free one. PREFER row or column: they look after themselves as a screen narrows, and free does not - reach for free only when the arrangement is the point. " +
+      "A canvas is NOT sized by the board's small / medium / large - it is a band of the page, so ignore the size key on it. It is sized ONE OF TWO WAYS, never both at once, and size_mode says which: \"fixed\" reads width and height, \"range\" reads min_width / max_width / min_height / max_height and ignores the fixed pair. Leaving size_mode out means \"fixed\". " +
+      "Every length is { value, unit } or null. unit is \"px\", \"%\", or - for width and height only - \"rest\", which means TAKE WHATEVER ROOM IS LEFT on the row and give it back when the widgets beside it grow; a \"rest\" length carries no number, so write { value: 0, unit: \"rest\" }. A percent on a canvas at the top of the board is a percent OF THE SCREEN (100% height is a screenful); inside another canvas it is a percent of that canvas. Width null gives it the full board, height null lets it grow to what it holds, and both are usually right. " +
+      "There is no place key: a section is not put \"left\" or \"centred\" from a list. It takes a line of its own in the board order, at the size it was given, and what is INSIDE it is placed by dragging.",
     over_time:
       "Optional, and the way to ask a question about CHANGE rather than about totals: { enabled: true, field_id, granularity, axis }. null (or left out) on every widget that is read all at once. " +
       "It is not a chart type - it is a way of reading one. The widget keeps its formula, its filters and its split_by, and the time line takes over the axis its categories had, so \"average age by district\" turned over time becomes \"average age per month\", and with a split_by, one line or one stack per value of that field. Whatever the widget grouped by is set aside while it is on. " +
@@ -162,7 +165,7 @@ function widget_shape() {
       "unit is what the numbers are measured in: { text, at } with at \"start\" or \"end\". Spacing is handled for you - a unit at the start is joined to the digits (\"$100k\") and one at the end is given exactly one space (\"100k Rwf\") whatever spacing you write around it - so just give the word or symbol. It reaches every number the widget prints, not only the big one on a KPI card. " +
       "compact shortens long numbers: 1,200 reads as 1.2k, 4,000,000 as 4m, then bn, tn, qd, qt, sx, sp, og, nn, dc. It is ON unless you set compact: false, and you should leave it on - a board is read at a glance. Turn it off only where exact figures are the point, such as a reference table of amounts. " +
       "Colors are a six-digit hex, or EIGHT digits when the background should be see-through ('#1e2a3580' is half-transparent, '#00000000' invisible) so the board shows through the card - only background takes an alpha, text, number, border and value_colors stay solid. " +
-      "border is the card's own outline color. " +
+      "border is the card's own outline color, and border_width how heavy it is in pixels - 2 is the default and 0 means NO OUTLINE AT ALL, which is what a widget inside a section usually wants so the section reads as one surface. " +
       "legend_position is obeyed on every widget at every card size, so 'right' really does put the legend beside the chart, the map or the ring on a small card too - do not set it to a side unless the widget's legend is short enough to read in a narrow column. " +
       "value_colors applies to every widget that draws one mark per value, treemap tiles included. " +
       "value_labels only changes what a value is CALLED in this widget's legend, labels and tooltips; the stored answer is untouched, so filters and shared links still use the real value.",
@@ -439,7 +442,7 @@ export function normalize_pasted_widgets(form, pasted) {
       // Where it sits: inside a canvas, and how it lays itself out there.
       parent_id: typeof source.parent_id === "string" && source.parent_id ? source.parent_id : null,
       box: source.box && typeof source.box === "object" ? source.box : null,
-      canvas: source.chart_type === "canvas" ? Object.assign({ flow: "row", gap: 12, height: null }, source.canvas || {}) : null,
+      canvas: source.chart_type === "canvas" ? Object.assign({ flow: "row", gap: 12, place: "flow", width: null, height: null, min_width: null, max_width: null, min_height: null, max_height: null }, source.canvas || {}) : null,
       x_field_id: source.x_field_id || null,
       y_field_id: source.y_field_id || null,
       size_field_id: source.size_field_id || null,

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { IconButton, CLOSE_SVG } from "../BoardIcons.jsx";
@@ -7,10 +7,12 @@ import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
 import { ChipGrid, PRIMARY, BORDER, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builderUi.jsx";
 import ColorInput from "./ColorInput.jsx";
-import BoxSettings, { LengthField } from "./BoxSettings.jsx";
+import BoxSettings from "./BoxSettings.jsx";
 import { useFanOutValues } from "./useFanOutValues.js";
 import { resolve_appearance, build_palette, auto_color, random_color, MODE_DEFAULTS, LEGEND_POSITIONS, UNIT_SIDES } from "../appearance.js";
 import { portal_root } from "../portalRoot.js";
+import NameSettings from "./NameSettings.jsx";
+import CanvasSettings from "./CanvasSettings.jsx";
 
 // A widget's background may be see-through, so that one carries an
 // opacity slider; nothing else does.
@@ -47,6 +49,9 @@ function compact(appearance) {
   if (appearance.unit && String(appearance.unit.text || "").trim()) out.unit = { text: appearance.unit.text, at: appearance.unit.at === "start" ? "start" : "end" };
   // Shortening is the default, so only turning it OFF is worth storing.
   if (appearance.compact === false) out.compact = false;
+  // Two pixels is what a card draws unless it was told otherwise, so only
+  // a different weight - nought among them - is worth storing.
+  if (Number.isFinite(Number(appearance.border_width)) && Number(appearance.border_width) !== 2) out.border_width = Number(appearance.border_width);
   return out;
 }
 
@@ -79,9 +84,24 @@ function compact(appearance) {
  * the color of whatever heading it carries - and the way its contents are
  * arranged. Everything else is hidden rather than shown and ignored.
  */
-export default function AppearanceDialog({ form, title, valuesField, appearance, box, dataless, canvas, onApply, onClose }) {
+export default function AppearanceDialog({ form, title, description, naming, valuesField, appearance, box, dataless, canvas, onApply, onClose }) {
   const { translate } = useDcsLanguage();
   const [draft, setDraft] = useState(() => resolve_appearance(appearance));
+  // The name and the description are set HERE now, not by clicking the
+  // card, so a board can be read without every heading being a control.
+  const [draft_name, setDraftName] = useState(() => ({ title: title || "", description: description || "" }));
+  const [name_missing, setNameMissing] = useState(false);
+  // While the change is being saved the dialog stays up and says so, and
+  // closes only once the board has it - a dialog that vanished the moment
+  // Apply was pressed left nothing to show whether anything had happened.
+  const [applying, setApplying] = useState(false);
+  // What the save came back with - the server's own message, or its error
+  // - shown in the footer where the person is looking. A success closes
+  // the dialog once it has been read; an error stays until it is dealt
+  // with.
+  const [outcome, setOutcome] = useState(null);
+  const close_timer = useRef(null);
+  useEffect(() => () => window.clearTimeout(close_timer.current), []);
   // Only a widget that sits in a canvas has a size of its own to set; on
   // the board itself the grid decides, and there is nothing to show.
   const [draft_box, setDraftBox] = useState(() => (box ? { ...box } : null));
@@ -116,6 +136,37 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
   const reset_labels = () => setDraft((current) => ({ ...current, value_labels: {} }));
   const reset_all = () => setDraft(resolve_appearance(null));
 
+  // A widget must be named; a section need not be, because it holds
+  // widgets rather than data and an unnamed one simply draws no heading.
+  const apply = async () => {
+    if (applying) return;
+    const named = String(draft_name.title || "").trim();
+    if (naming !== false && !dataless && !named) {
+      setNameMissing(true);
+      return;
+    }
+    setApplying(true);
+    setOutcome(null);
+    let result;
+    try {
+      result = await onApply({
+        appearance: compact(draft),
+        box: draft_box,
+        canvas: draft_canvas,
+        title: named,
+        description: String(draft_name.description || "").trim() || null,
+      });
+    } catch (error) {
+      result = { ok: false, message: (error && error.message) || translate("DCS_ERROR_GENERIC") };
+    } finally {
+      setApplying(false);
+    }
+    // A caller that answers nothing closes the dialog itself.
+    if (!result || typeof result !== "object") return;
+    setOutcome({ error: result.ok === false, text: result.message || "" });
+    if (result.ok !== false) close_timer.current = window.setTimeout(onClose, 1400);
+  };
+
   const mode_chips = [
     { id: "light", label: translate("DCS_DB_COLOR_LIGHT") },
     { id: "dark", label: translate("DCS_DB_COLOR_DARK") },
@@ -128,7 +179,7 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
 
   return createPortal(
     <div className="fixed inset-0 z-[10020] flex items-center justify-center p-3 sm:p-4">
-      <div className="absolute inset-0 bg-black/45" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/45" onClick={applying ? undefined : onClose} />
       <div className="dcs-builder-pop relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 720, maxHeight: "92vh", borderColor: PRIMARY }}>
         <div className="flex items-center justify-between gap-2 flex-shrink-0 px-4 sm:px-5 py-2" style={{ backgroundColor: PRIMARY }}>
           <div className="min-w-0">
@@ -139,12 +190,24 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
               {title}
             </p>
           </div>
-          <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger>
+          <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger disabled={applying}>
             {CLOSE_SVG}
           </IconButton>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 py-4 flex flex-col gap-5">
+          {naming !== false && (
+          <NameSettings
+            title={draft_name.title}
+            description={draft_name.description}
+            optional={dataless}
+            error={name_missing}
+            onChange={(changes) => {
+              setNameMissing(false);
+              setDraftName((current) => Object.assign({}, current, changes));
+            }}
+          />
+          )}
           <div
             className="dcs-view-swap border px-4 py-3 flex items-center justify-between gap-4 flex-wrap"
             style={{ backgroundColor: palette.background, borderColor: palette.border, transition: "background-color 220ms ease, color 220ms ease" }}
@@ -209,6 +272,28 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
                 />
               ))}
             </div>
+            {/* How HEAVY the outline is, nought among the answers: a card
+                with no border sits flush with whatever is around it, which
+                is what a widget inside a section usually wants. */}
+            <label className="flex items-center gap-2 mt-2">
+              <span className="text-xs flex-1" style={{ color: TEXT_DARK, ...HEADING_FONT }}>{translate("DCS_DB_COLOR_BORDER_WIDTH")}</span>
+              <input
+                type="number"
+                min="0"
+                max="8"
+                step="1"
+                className="dcs-rename-input"
+                style={{ width: 84 }}
+                value={Number.isFinite(Number(draft.border_width)) ? draft.border_width : 2}
+                onChange={(event) => {
+                  const next = Math.max(0, Math.min(8, Math.round(Number(event.target.value) || 0)));
+                  setDraft((current) => Object.assign({}, current, { border_width: next }));
+                }}
+              />
+              <span className="text-xs" style={{ color: TEXT_MUTED, width: 72 }}>
+                {translate(Number(draft.border_width) === 0 ? "DCS_DB_COLOR_BORDER_NONE" : "DCS_DB_COLOR_BORDER_PX")}
+              </span>
+            </label>
           </section>
 
           {draft_box && (
@@ -275,41 +360,7 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
           </section>
           )}
 
-          {draft_canvas && (
-            <section>
-              <p className="text-xs font-bold uppercase mb-2" style={{ color: TEXT_DARK, letterSpacing: "0.5px", ...HEADING_FONT }}>
-                {translate("DCS_DB_CANVAS_LAYOUT")}
-              </p>
-              <p className="text-xs mb-2" style={{ color: TEXT_MUTED }}>{translate("DCS_DB_CANVAS_LAYOUT_HINT")}</p>
-              <ChipGrid
-                options={[
-                  { id: "row", label: translate("DCS_DB_CANVAS_FLOW_ROW") },
-                  { id: "column", label: translate("DCS_DB_CANVAS_FLOW_COLUMN") },
-                ]}
-                value={draft_canvas.flow === "column" ? "column" : "row"}
-                onChange={(flow) => setDraftCanvas((current) => ({ ...current, flow }))}
-                columns="grid-cols-2 sm:w-64"
-              />
-              <label className="flex items-center gap-2 mt-2">
-                <span className="text-xs flex-1" style={{ color: TEXT_DARK, ...HEADING_FONT }}>{translate("DCS_DB_CANVAS_GAP")}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="64"
-                  className="dcs-rename-input"
-                  style={{ width: 84 }}
-                  value={Number.isFinite(Number(draft_canvas.gap)) ? draft_canvas.gap : 12}
-                  onChange={(event) => setDraftCanvas((current) => ({ ...current, gap: Math.max(0, Math.min(64, Number(event.target.value) || 0)) }))}
-                />
-              </label>
-              {/* A section takes the size it is given, not one of three
-                  named widths - it is a piece of the page's layout. */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                <LengthField labelKey="DCS_DB_BOX_WIDTH" length={draft_canvas.width || null} onChange={(width) => setDraftCanvas((current) => ({ ...current, width }))} />
-                <LengthField labelKey="DCS_DB_BOX_HEIGHT" length={draft_canvas.height || null} onChange={(height) => setDraftCanvas((current) => ({ ...current, height }))} />
-              </div>
-            </section>
-          )}
+          {draft_canvas && <CanvasSettings canvas={draft_canvas} onChange={setDraftCanvas} />}
 
           {!dataless && (
           <section>
@@ -375,15 +426,34 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
         </div>
 
         <div className="flex-shrink-0 px-4 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-2" style={{ borderTop: `1px solid ${BORDER}` }}>
-          <button type="button" onClick={reset_all} className="text-xs text-left cursor-pointer sm:flex-1" style={{ color: TEXT_MUTED, background: "none", border: "none", padding: 0, textDecoration: "underline", ...HEADING_FONT }}>
-            {translate("DCS_DB_COLOR_RESET_ALL")}
-          </button>
-          <DcsButtonOutline className="sm:w-32" onClick={onClose}>
-            {translate("DCS_DB_BUILDER_CANCEL")}
-          </DcsButtonOutline>
-          <DcsButtonPrimary className="sm:w-44" onClick={() => onApply(compact(draft), draft_box, draft_canvas)}>
-            {translate("DCS_DB_COLOR_APPLY")}
-          </DcsButtonPrimary>
+          {outcome && outcome.error ? (
+            <p className="text-xs font-semibold sm:flex-1" role="alert" style={{ color: "#E74C3C", ...HEADING_FONT }}>
+              {outcome.text}
+            </p>
+          ) : (
+            <button type="button" onClick={reset_all} className="text-xs text-left cursor-pointer sm:flex-1" style={{ color: TEXT_MUTED, background: "none", border: "none", padding: 0, textDecoration: "underline", ...HEADING_FONT }}>
+              {translate("DCS_DB_COLOR_RESET_ALL")}
+            </button>
+          )}
+          {applying ? (
+            <div className="flex items-center gap-2 sm:w-80 justify-end">
+              <SpiralLoader padded={false} size={20} />
+              <span className="text-xs font-semibold" style={{ color: PRIMARY, ...HEADING_FONT }}>{translate("DCS_DB_ICON_APPLYING")}</span>
+            </div>
+          ) : outcome && !outcome.error ? (
+            <p className="text-xs font-semibold sm:w-80 text-right" role="status" style={{ color: "#1E8E3E", ...HEADING_FONT }}>
+              {outcome.text}
+            </p>
+          ) : (
+            <>
+              <DcsButtonOutline className="sm:w-32" onClick={onClose}>
+                {translate("DCS_DB_BUILDER_CANCEL")}
+              </DcsButtonOutline>
+              <DcsButtonPrimary className="sm:w-44" onClick={apply}>
+                {translate("DCS_DB_COLOR_APPLY")}
+              </DcsButtonPrimary>
+            </>
+          )}
         </div>
       </div>
     </div>,

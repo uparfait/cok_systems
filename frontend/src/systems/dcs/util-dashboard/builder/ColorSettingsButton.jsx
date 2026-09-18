@@ -37,11 +37,14 @@ export default function ColorSettingsButton({ form, title, valuesField, appearan
         <AppearanceDialog
           form={form}
           title={title || translate("DCS_DB_COLOR_SETTINGS")}
+          // The widget being composed is named on the form behind this
+          // dialog, so here it is the appearance and nothing else.
+          naming={false}
           valuesField={valuesField}
           appearance={appearance}
           onClose={() => setOpen(false)}
-          onApply={(next) => {
-            onChange(next);
+          onApply={(result) => {
+            onChange(result.appearance);
             setOpen(false);
             showSuccess(translate("DCS_DB_COLOR_APPLIED"));
           }}

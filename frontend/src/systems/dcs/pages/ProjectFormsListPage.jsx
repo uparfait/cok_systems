@@ -3,6 +3,7 @@ import { useOutletContext, useNavigate } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useSilentPolling } from "../hooks/useSilentPolling.js";
 import { get_forms_by_project } from "../services/formsService.js";
+import { get_cached_forms, remember_forms } from "../hooks/formsCache.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
 
@@ -26,9 +27,10 @@ export default function ProjectFormsListPage() {
   const navigate = useNavigate();
 
   const { data: forms, loading } = useSilentPolling(
-    () => get_forms_by_project(project._id).then((res) => res.data || []),
+    () => get_forms_by_project(project._id).then((res) => remember_forms(project._id, res.data || [])),
     10000,
     [project._id],
+    { initial: () => get_cached_forms(project._id) },
   );
 
   const is_empty = !loading && (!forms || forms.length === 0);

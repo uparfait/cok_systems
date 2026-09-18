@@ -19,11 +19,17 @@ export function get_dashboard(scope) {
 
 /**
  * Saves one dashboard's whole widget list (validated server-side against
- * the form's real schema) and, when a list is given, its board filter
- * fields; callers that only touch widgets leave the filters as they are.
+ * the form's real schema) and, when they are given, its board filter
+ * fields and its layout; callers that only touch widgets leave both as
+ * they are.
  */
-export function save_dashboard(scope, widgets, filters) {
-  return dcs_request(dashboard_path(scope), "PUT", Array.isArray(filters) ? { widgets, filters } : { widgets });
+export function save_dashboard(scope, widgets, filters, layout) {
+  const body = { widgets };
+  if (Array.isArray(filters)) body.filters = filters;
+  // How the board is arranged - the grid, or studio with every widget
+  // placed by hand - rides along when the caller changed it.
+  if (layout) body.layout = layout;
+  return dcs_request(dashboard_path(scope), "PUT", body);
 }
 
 /** The form's named dashboards: { dashboards: [{id, name, widgets_count}], can_edit }. */

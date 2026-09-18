@@ -7,6 +7,7 @@ import { useCountUp } from "../home/useCountUp.js";
 import { useAgeBreakdown } from "../hooks/useAgeBreakdown.js";
 import { get_project } from "../services/projectsService.js";
 import { get_forms_by_project } from "../services/formsService.js";
+import { get_cached_forms, remember_forms } from "../hooks/formsCache.js";
 import { AGE_UNITS } from "../constants/ageUnits.js";
 import DcsProjectDetailSkeleton from "../components/DcsProjectDetailSkeleton.jsx";
 import { find_active_nav_key } from "../components/DcsPageNav.jsx";
@@ -81,9 +82,10 @@ export default function ProjectDetailPage() {
   const age = useAgeBreakdown(project ? project.created_at : new Date(0).toISOString(), isVisible && !!project && !is_showing_wrong_project);
 
   const { data: forms, loading: forms_loading } = useSilentPolling(
-    () => get_forms_by_project(project_id).then((res) => res.data || []),
+    () => get_forms_by_project(project_id).then((res) => remember_forms(project_id, res.data || [])),
     10000,
     [project_id],
+    { initial: () => get_cached_forms(project_id) },
   );
 
   const base_path = `/dcs-system/project/${project_id}`;

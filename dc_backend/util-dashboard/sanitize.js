@@ -4,7 +4,7 @@
  * and storage, so no stray data can ever be persisted or executed.
  */
 
-const { MAP_LEVELS, TIME_SOURCE_FIELDS, OVER_TIME_AXES, BOX_FLOWS, BOX_UNITS } = require("./constants.js");
+const { MAP_LEVELS, TIME_SOURCE_FIELDS, OVER_TIME_AXES, BOX_FLOWS, CANVAS_FLOWS, BOARD_MODES, BOARD_WIDTH, BOX_UNITS, BOX_SIZE_MODES, CANVAS_UNITS } = require("./constants.js");
 
 function clean_string(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -35,6 +35,24 @@ function sanitize_mode(mode) {
  * may be see-through - text, numbers and border) and one color per legend
  * / category value. Every color must be a six- or eight-digit hex.
  */
+/**
+ * A BOARD'S OWN LAYOUT: the grid it has always used, or studio, where the
+ * widgets are placed and sized by hand.
+ *
+ * A studio board keeps the WIDTH it was arranged at, because that is the
+ * only thing that makes pixel placement survive a different screen: a
+ * narrower one scales the whole board down by the ratio between the two,
+ * so the design arrives intact rather than reflowed into something else.
+ */
+function sanitize_board_layout(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const width = Number(raw.width);
+  return {
+    mode: BOARD_MODES.includes(clean_string(raw.mode)) ? clean_string(raw.mode) : "grid",
+    width: Number.isFinite(width) ? Math.min(Math.max(Math.round(width), BOARD_WIDTH.least), BOARD_WIDTH.most) : BOARD_WIDTH.usual,
+  };
+}
+
 function sanitize_appearance(appearance) {
   if (!appearance || typeof appearance !== "object") return null;
   const out = { theme: appearance.theme === "dark" ? "dark" : "light" };
@@ -44,6 +62,10 @@ function sanitize_appearance(appearance) {
   // " RWF" wants one before it, and only the author knows which.
   // Long numbers are shortened (1.2k, 4m, 1.2bn) unless turned off.
   if (appearance.compact === false) out.compact = false;
+  // How heavy the card outlines itself, in pixels. Zero is no outline at
+  // all; only a width that is not the usual two is worth storing.
+  const border_width = Number(appearance.border_width);
+  if (Number.isFinite(border_width) && border_width >= 0 && border_width !== 2) out.border_width = Math.min(Math.round(border_width), 8);
   if (appearance.unit && typeof appearance.unit === "object") {
     const text = typeof appearance.unit.text === "string" ? appearance.unit.text.slice(0, 12) : "";
     if (text.trim()) out.unit = { text, at: appearance.unit.at === "start" ? "start" : "end" };
@@ -126,6 +148,18 @@ function sanitize_over_time(widget) {
 }
 
 /** One length: a number and what it is measured in, or nothing. */
+const BOX_LENGTH_KEYS = ["width", "height", "min_width", "max_width", "min_height", "max_height"];
+
+/**
+ * A canvas's own length, which may also be "the rest". The rest carries no
+ * number - the room it is left decides - so it is stored as a unit with a
+ * zero beside it rather than as a size somebody could edit into nonsense.
+ */
+function sanitize_canvas_length(value) {
+  if (value && typeof value === "object" && clean_string(value.unit) === "rest") return { value: 0, unit: "rest" };
+  return sanitize_length(value);
+}
+
 function sanitize_length(value) {
   if (!value || typeof value !== "object") return null;
   const size = Number(value.value);
@@ -154,6 +188,23 @@ function sanitize_box(widget) {
     const length = sanitize_length(raw[key]);
     if (length) out[key] = length;
   });
+  // Where it was dragged to, when the section it is in places rather than
+  // queues. Pixels from the section's top left, capped at a size no screen
+  // will ever need so a bad number cannot stretch a board to nothing.
+  const spot = raw.spot && typeof raw.spot === "object" ? raw.spot : null;
+  if (spot) {
+    const whole = (value, least, most, spare) => {
+      const held = Number(value);
+      return Number.isFinite(held) ? Math.min(Math.max(Math.round(held), least), most) : spare;
+    };
+    out.spot = {
+      x: whole(spot.x, 0, 20000, 0),
+      y: whole(spot.y, 0, 20000, 0),
+      w: whole(spot.w, 80, 8000, 320),
+      h: whole(spot.h, 60, 8000, 220),
+      z: whole(spot.z, 0, 9999, 1),
+    };
+  }
   return out;
 }
 
@@ -162,16 +213,23 @@ function sanitize_canvas(widget) {
   if (clean_string(widget.chart_type) !== "canvas") return null;
   const raw = widget.canvas && typeof widget.canvas === "object" ? widget.canvas : {};
   const gap = Number(raw.gap);
-  const height = sanitize_length(raw.height);
-  return {
-    flow: BOX_FLOWS.includes(clean_string(raw.flow)) ? clean_string(raw.flow) : "row",
+  const settings = {
+    // A canvas arranges along rows, down a column, or not at all.
+    flow: CANVAS_FLOWS.includes(clean_string(raw.flow)) ? clean_string(raw.flow) : "row",
     gap: Number.isFinite(gap) && gap >= 0 && gap <= 64 ? Math.round(gap) : 12,
     // A section is sized in width and height rather than by the board's
-    // small / medium / large: it is a band of the page, not a card.
-    width: sanitize_length(raw.width),
-    // It grows to its contents unless it was given a height of its own.
-    height: height || null,
+    // small / medium / large: it is a band of the page, not a card. It
+    // takes the same six lengths a widget inside a canvas takes, so a
+    // least and a most can be set for each, in pixels or in percent.
   };
+  // Anything not set stays null: the board then gives it the full width
+  // and lets it grow to whatever it holds. Both sets are kept whichever
+  // mode is on, so switching back and forth does not throw a size away.
+  settings.size_mode = BOX_SIZE_MODES.includes(clean_string(raw.size_mode)) ? clean_string(raw.size_mode) : "fixed";
+  BOX_LENGTH_KEYS.forEach((key) => {
+    settings[key] = key === "width" || key === "height" ? sanitize_canvas_length(raw[key]) : sanitize_length(raw[key]);
+  });
+  return settings;
 }
 
 function sanitize_widget(widget) {
@@ -277,6 +335,7 @@ function sanitize_period_override(period) {
 }
 
 module.exports = {
+  sanitize_board_layout,
   sanitize_widget,
   sanitize_widgets,
   sanitize_period_override,

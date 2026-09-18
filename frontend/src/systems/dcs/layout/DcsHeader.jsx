@@ -2,7 +2,6 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../../../core/components/Layout/Header.tsx";
 import DcsLanguageSwitcher from "../components/DcsLanguageSwitcher.jsx";
-import DcsLogoMark from "../components/DcsLogoMark.jsx";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import DcsContextNavLinks from "./DcsContextNavLinks.jsx";
 
@@ -28,7 +27,7 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, o
     <div className="flex-shrink-0">
       <Header
         onMenuToggle={onMainMenuToggle || (() => {})}
-        currentSystem={<DcsLogoMark title={translate("DCS_HEADER_TITLE")} />}
+        currentSystem={translate("DCS_HEADER_TITLE")}
         links={[]}
         currentPath={location.pathname}
         onNavigate={(path) => navigate(path)}
@@ -46,10 +45,14 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, o
               title={translate(projectsSidebarOpen ? "DCS_SIDEBAR_HIDE" : "DCS_SIDEBAR_SHOW")}
               className={`dcs-sub-header-menu p-2 rounded-none cursor-pointer flex-shrink-0 ${projectsSidebarOpen ? "is-open" : ""}`}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2" strokeLinecap="round">
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="18" x2="21" y2="18" />
+              {/* A side panel with rows in it - what this button opens - so
+                  it is never mistaken for the app menu above it. */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="16" />
+                <line x1="9.5" y1="4" x2="9.5" y2="20" />
+                <line x1="5.5" y1="8" x2="7.5" y2="8" />
+                <line x1="5.5" y1="11.5" x2="7.5" y2="11.5" />
+                <line x1="5.5" y1="15" x2="7.5" y2="15" />
               </svg>
             </button>
 

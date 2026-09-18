@@ -1735,6 +1735,61 @@ background-color: #056daa;
   margin: -12px;
 }
 
+/* A full screen board is edge to edge. Nothing insets it and nothing
+   pushes it about: the screen is the frame, so the board has no frame of
+   its own. A rubber band at the end of it would only show the page behind. */
+.dcs-board-fullscreen {
+  padding: 0;
+  margin: 0;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+/* A FREE surface inside a section: widgets placed where they were put,
+   lifted when grabbed, with the alignment guides drawn while one is held. */
+.dcs-canvas-spot {
+  position: absolute;
+  touch-action: none;
+}
+.dcs-canvas-spot-body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.dcs-canvas-spot-body.is-still {
+  pointer-events: none;
+}
+/* A SECTION on the surface is its own surface. The picture stops at the
+   section's own card: what is INSIDE it - its free layer, its queued
+   children, their grips and their remove buttons - takes the pointer
+   again, so a widget in a section is moved inside the section while the
+   section itself is moved by its own edge or its own empty ground. */
+.dcs-canvas-spot-body .dcs-canvas-free,
+.dcs-canvas-spot-body .dcs-canvas-child {
+  pointer-events: auto;
+}
+.dcs-canvas-child-body {
+  pointer-events: none;
+}
+.dcs-canvas-spot .dcs-studio-remove {
+  opacity: 0;
+}
+.dcs-canvas-spot:hover .dcs-studio-remove,
+.dcs-canvas-spot.is-active .dcs-studio-remove {
+  opacity: 1;
+}
+
+/* The board's right edge is a wall. Whatever is on the board - a chart, a
+   section, a widget placed by hand on a screen wider than this one - stops
+   here rather than pushing a scrollbar across the page. The studio's own
+   scroll pane is the one place that is allowed to scroll. */
+.dcs-board-root:not(.dcs-studio-scroll) {
+  overflow-x: hidden;
+}
+.dcs-canvas-free {
+  overflow: hidden;
+}
+
 .dcs-board-public {
   overflow-x: hidden;
 }
@@ -2077,43 +2132,9 @@ background-color: #056daa;
   transform: translateY(0) scale(0.98);
 }
 
-/* DCS header monogram - "DCS" drawn like handwriting rather than a plain
-   label: a hollow outline whose stroke animates from fully undrawn to
-   fully drawn, then loops (the classic handwriting-stroke technique). 260
-   is a flat, tuned-by-eye unit count for "DCS" at this exact font/size -
-   there is no reliable way to ask the browser for a <text> element's real
-   stroke length, so this is deliberately generous (better to finish
-   slightly early than leave the last letter visibly unfinished). */
-.dcs-logo-mark {
-  overflow: visible;
-  cursor: default;
-  transition: transform 0.25s ease, filter 0.25s ease;
-}
 
-.dcs-logo-mark:hover {
-  transform: scale(1.08);
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
-}
 
-.dcs-logo-mark-write {
-  fill: none;
-  stroke: #FFFFFF;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 440;
-  stroke-dashoffset: 440;
-  animation: dcs-logo-handwrite 3.2s ease-in-out infinite;
-}
 
-@keyframes dcs-logo-handwrite {
-  0% {
-    stroke-dashoffset: 440;
-  }
-  55%, 100% {
-    stroke-dashoffset: 0;
-  }
-}
 
 /* Language switcher hover - a plain native <select> otherwise. */
 .dcs-lang-switcher {
@@ -3282,6 +3303,23 @@ background-color: #056daa;
 .dcs-studio-handle.is-ne { top: -7px; right: -7px; cursor: nesw-resize; }
 .dcs-studio-handle.is-sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
 .dcs-studio-handle.is-nw { top: -7px; left: -7px; cursor: nwse-resize; }
+/* A SECTION on the board is sized like a frame in a design tool: the
+   same eight grips as the screenshot studio, shown while the pointer is
+   over it and while one of them is being pulled. They only exist in the
+   selection mode, where what they write waits to be saved. */
+.dcs-canvas-frame {
+  position: relative;
+  touch-action: none;
+}
+.dcs-canvas-frame.is-sizing {
+  outline: 2px dashed rgba(5, 109, 170, 0.55);
+  outline-offset: 2px;
+}
+.dcs-canvas-frame.is-sizable:hover .dcs-studio-handle,
+.dcs-canvas-frame.is-sizing .dcs-studio-handle {
+  opacity: 1;
+}
+
 .dcs-studio-handle.is-se { bottom: -7px; right: -7px; cursor: nwse-resize; }
 .dcs-studio-remove {
   position: absolute;
@@ -3532,6 +3570,120 @@ background-color: #056daa;
 .dcs-sidebar-close:hover {
   color: #056daa;
   background-color: rgba(5, 109, 170, 0.08);
+}
+
+/* THE PROJECTS SIDEBAR IS NOT THE APP NAV. The main sidebar above it is a
+   white list with filled blue links and grey left bars; this one is the
+   module's WORKSPACE - a tinted ground, projects as white cards with a top
+   accent when open, and forms hanging off a dotted tree rail inside the
+   card. Same colours, same type, a different object. */
+.dcs-projects-aside {
+  background-color: #EEF3F7;
+  box-shadow: inset -1px 0 0 rgba(5, 109, 170, 0.12);
+}
+/* Every small thing in it is round: chips, pills, dots, icon buttons. */
+.dcs-projects-count {
+  border-radius: 9999px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: #056daa;
+  background-color: rgba(5, 109, 170, 0.1);
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+.dcs-project-card {
+  background-color: #FFFFFF;
+  border: 1px solid #D5DEE6;
+  border-top: 3px solid transparent;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.dcs-project-card:hover {
+  border-color: #B9C8D6;
+  border-top-color: rgba(5, 109, 170, 0.45);
+}
+.dcs-project-card.is-active {
+  border-top-color: #056daa;
+  box-shadow: 0 6px 18px rgba(5, 109, 170, 0.14);
+}
+.dcs-project-card-name {
+  background: none;
+  border: none;
+  font-family: 'Montserrat', sans-serif;
+}
+.dcs-project-forms-pill {
+  border-radius: 9999px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  color: #555555;
+  background-color: #EEF3F7;
+  white-space: nowrap;
+}
+.dcs-project-card.is-active .dcs-project-forms-pill {
+  color: #FFFFFF;
+  background-color: #056daa;
+}
+.dcs-project-chevron {
+  border-radius: 50%;
+  background: none;
+  border: none;
+  line-height: 0;
+  transition: background-color 0.16s ease;
+}
+.dcs-project-chevron:not(:disabled):hover {
+  background-color: rgba(5, 109, 170, 0.08);
+}
+/* The tree: a dotted rail down the left of the card, one dot per form. */
+.dcs-project-tree {
+  border-left: 2px dotted #B9C8D6;
+  margin-left: 18px;
+}
+.dcs-project-leaf {
+  position: relative;
+  background: none;
+  border: none;
+  font-family: 'Montserrat', sans-serif;
+  transition: background-color 0.16s ease;
+}
+.dcs-project-leaf::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  border: 2px solid #B9C8D6;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+.dcs-project-leaf:hover {
+  background-color: rgba(5, 109, 170, 0.05);
+}
+.dcs-project-leaf:hover::before {
+  border-color: #056daa;
+}
+.dcs-project-leaf.is-active::before {
+  background-color: #056daa;
+  border-color: #056daa;
+}
+.dcs-project-leaf-count {
+  border-radius: 9999px;
+  padding: 1px 6px;
+  background-color: #EEF3F7;
+  font-size: 10px;
+  font-weight: 700;
+  color: #9E9E9E;
+}
+.dcs-project-leaf.is-active .dcs-project-leaf-count {
+  color: #056daa;
+}
+.dcs-projects-footer {
+  background-color: #EEF3F7;
+  border-top: 1px solid #D5DEE6;
 }
 .dcs-board-filter.is-loading {
   opacity: 0.75;

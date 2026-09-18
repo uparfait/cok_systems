@@ -178,7 +178,7 @@ function KpiIconSlot({ icon, color }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, selectable, selected, onSelect, expanded, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, slot, onContextMenu }) {
+export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, slot, onContextMenu }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -222,7 +222,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // card's own handler, reached next as the event bubbles, stays quiet.
   const is_map = widget.chart_type === "map";
   const consumed_ref = useRef(false);
-  const can_drill = !is_canvas && !!onOpenRecords && !!data && !data.error && !data.locked && !selectable;
+  const can_drill = !is_canvas && !!onOpenRecords && !!data && !data.error && !data.locked;
   const pick_records = can_drill
     ? (pick) => {
         consumed_ref.current = true;
@@ -240,7 +240,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   };
 
   return (
-    <div data-widget-id={widget.id} onContextMenu={onContextMenu} {...(is_map ? { onDoubleClick: handle_card_click } : { onClick: handle_card_click })} className="dcs-widget-card dcs-widget-hover relative border-2 flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
+    <div data-widget-id={widget.id} onContextMenu={onContextMenu} {...(is_map ? { onDoubleClick: handle_card_click } : { onClick: handle_card_click })} className="dcs-widget-card dcs-widget-hover relative flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderStyle: "solid", borderWidth: failed || skipped_count > 0 ? 2 : palette.border_width, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
       {busy && (
         // The board is fetching again: what the card holds stays on show,
         // under a veil that takes every click until the new data lands.
@@ -248,56 +248,35 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           <SpiralLoader />
         </div>
       )}
-      {selectable && (
-        // The selection mode's click surface: covers the whole card so no
-        // inner control fires, and carries the tick that marks a selection.
-        <button
-          type="button"
-          aria-pressed={!!selected}
-          onClick={onSelect}
-          className="dcs-select-surface absolute inset-0 z-20 cursor-pointer"
-          style={{ background: selected ? "rgba(5,109,170,0.08)" : "transparent", border: "none" }}
-        >
-          <span
-            className="absolute flex items-center justify-center"
-            style={{ top: 8, left: 8, width: 22, height: 22, border: `2px solid ${PRIMARY}`, backgroundColor: selected ? PRIMARY : "#FFFFFF" }}
-          >
-            {selected && (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <polyline points="4 12.5 10 18.5 20 6" />
-              </svg>
-            )}
-          </span>
-        </button>
-      )}
+      {/* A SECTION need not be named. A canvas holds widgets, not data,
+          so its title and its description are both optional and an unnamed
+          one shows no title bar at all - an empty strip above a group of
+          widgets is just a gap. While the board is editable the bar stays,
+          because that is where a name is added and where its menu lives. */}
+      {(!is_canvas || !!widget.title || !!widget.description) && (
       <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
         {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} />}
         <div className="min-w-0 flex-1 relative">
           <div className="flex flex-wrap items-baseline gap-x-1.5">
+          {/* The name and the description are SHOWN here and set in the
+              settings dialog. They used to be typed in place, which made
+              every heading on a board a control and renamed a chart on a
+              stray click. */}
           <EditableText
             value={widget.title}
-            placeholder={type_label}
-            editable={editable}
-            saving={savingText}
-            hint={translate("DCS_DB_CLICK_TO_EDIT")}
+            placeholder={is_canvas ? "" : type_label}
+            hideWhenEmpty={is_canvas}
+            editable={false}
             maxLength={120}
             textStyle={{ color: palette.text, fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: is_kpi ? 12 : 14 }}
-            onCommit={(next) => {
-              // A widget must keep a title - an emptied one falls back.
-              if (next) onUpdateText({ title: next });
-            }}
           />
           </div>
           <EditableText
             value={widget.description || ""}
-            placeholder={translate("DCS_DB_ADD_DESCRIPTION")}
             hideWhenEmpty
-            editable={editable}
-            saving={savingText}
-            hint={translate("DCS_DB_CLICK_TO_EDIT")}
+            editable={false}
             maxLength={300}
             textStyle={{ color: palette.muted, fontSize: is_kpi ? 11 : 12 }}
-            onCommit={(next) => onUpdateText({ description: next || null })}
           />
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
@@ -305,11 +284,12 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onMapMode={is_map ? onMapMode : undefined} canHeat={canHeat} fields={fields} onOverTime={onOverTime} onReconfigure={onReconfigure} />
         )}
       </div>
+      )}
 
       {/* The chart area never widens the card: it is the measured box the
           chart sizes itself to, and anything still wider than it (a long
           time range, a wide heatmap) scrolls inside here instead. */}
-      <div ref={chart_ref} className={`px-2 ${is_kpi ? "pb-2" : "pb-3"} flex-1 min-w-0 max-w-full`} style={{ overflowX: "auto", overflowY: "hidden" }}>
+      <div ref={chart_ref} className={`${is_canvas ? "" : `px-2 ${is_kpi ? "pb-2" : "pb-3"}`} flex-1 min-w-0 max-w-full`} style={{ overflowX: "auto", overflowY: "hidden" }}>
         {slot ? (
           // A canvas has no data to wait for or fail at: what it holds is
           // handed in and drawn straight away.

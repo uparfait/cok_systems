@@ -95,8 +95,24 @@ const SORT_OPTIONS = ["value_desc", "value_asc", "label_asc"];
 // The administrative levels a map widget can draw, top down.
 /** How a widget joins the flow of the canvas it sits in. */
 const BOX_FLOWS = ["row", "row_break", "column"];
+// A canvas arranges what is in it along rows, down a column, or not at all:
+// FREE places every widget exactly where it was dragged.
+const CANVAS_FLOWS = ["row", "column", "free"];
+// How a whole BOARD is arranged: the responsive grid it has always used,
+// or STUDIO, where every widget is placed and sized by hand.
+const BOARD_MODES = ["grid", "studio"];
+// The width a studio board was arranged at. Everything on it is placed in
+// pixels against this, so a narrower screen scales the whole board down by
+// the ratio between the two rather than reflowing and losing the design.
+const BOARD_WIDTH = { least: 320, most: 4000, usual: 1280 };
 /** What a length is measured in. */
 const BOX_UNITS = ["px", "%"];
+// A canvas is sized one way or the other, never both: pinned to a width
+// and a height, or held between a least and a most.
+const BOX_SIZE_MODES = ["fixed", "range"];
+// And a canvas has one more answer than a widget's box does: THE REST,
+// whatever room the things beside it have not taken. It carries no number.
+const CANVAS_UNITS = ["px", "%", "rest"];
 /** How deep canvases may nest before a board becomes unreadable. */
 const MAX_CANVAS_DEPTH = 3;
 
@@ -181,7 +197,12 @@ module.exports = {
   SUBMITTED_AT_FIELD,
   UPDATED_AT_FIELD,
   BOX_FLOWS,
+  CANVAS_FLOWS,
+  BOARD_MODES,
+  BOARD_WIDTH,
   BOX_UNITS,
+  BOX_SIZE_MODES,
+  CANVAS_UNITS,
   MAX_CANVAS_DEPTH,
   TIME_SOURCE_FIELDS,
   OVER_TIME_TYPES,

@@ -17,6 +17,9 @@ export function useBoardFullscreen() {
   // Full screen opens in scroll mode: natural size, nothing shrunk away.
   const [fs_mode, setFsMode] = useState("scroll");
   const [fit_scale, setFitScale] = useState(1);
+  // Whether everything already fits on the screen, which decides whether
+  // the board may be scrolled at all.
+  const [content_fits, setContentFits] = useState(true);
   const [header_visible, setHeaderVisible] = useState(true);
 
   useEffect(() => {
@@ -161,9 +164,55 @@ export function useBoardFullscreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [is_fullscreen, fs_mode]);
 
+  /**
+   * A board with only a few widgets on it MUST NOT SCROLL. A scrollbar on
+   * a screen that is not full is a lie about there being more to see, and
+   * on a full screen it is the one thing that spoils it.
+   *
+   * So the board is measured against the screen and scrolling is turned
+   * off outright whenever what is on it already fits - re-measured as data
+   * arrives and the grid reflows, because a board grows as it loads. One
+   * pixel of slack, so a layout that rounds up does not earn a scrollbar.
+   * Fit mode never scrolls: it shrinks everything to fit instead.
+   */
+  useLayoutEffect(() => {
+    if (!is_fullscreen || fs_mode === "fit") {
+      setContentFits(true);
+      return undefined;
+    }
+    const grid = grid_ref.current;
+    const container = container_ref.current;
+    if (!grid || !container) return undefined;
+
+    let frame = null;
+    const measure = () => {
+      const room = container.clientHeight;
+      if (room <= 0) return;
+      setContentFits(grid.scrollHeight <= room + 1);
+    };
+    const schedule = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(measure);
+    };
+
+    measure();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null;
+    if (observer) {
+      observer.observe(grid);
+      observer.observe(container);
+    }
+    window.addEventListener("resize", schedule);
+    return () => {
+      if (observer) observer.disconnect();
+      window.removeEventListener("resize", schedule);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [is_fullscreen, fs_mode]);
+
   return {
     container_ref,
     grid_ref,
+    content_fits,
     is_fullscreen,
     is_fallback,
     enter,

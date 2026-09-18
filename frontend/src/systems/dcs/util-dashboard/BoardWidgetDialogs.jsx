@@ -27,6 +27,7 @@ export default function BoardWidgetDialogs({ form, fields, widgets, savingWidget
         <AppearanceDialog
           form={form}
           title={appearanceWidget.title}
+          description={appearanceWidget.description || ""}
           valuesField={appearance_values_field(appearanceWidget, fields)}
           appearance={appearanceWidget.appearance}
           box={appearanceWidget.parent_id ? appearanceWidget.box || { flow: "row" } : null}
@@ -35,13 +36,16 @@ export default function BoardWidgetDialogs({ form, fields, widgets, savingWidget
           dataless={appearanceWidget.chart_type === "canvas"}
           canvas={appearanceWidget.chart_type === "canvas" ? appearanceWidget.canvas || { flow: "row", gap: 12, height: null } : null}
           onClose={onCloseAppearance}
-          onApply={async (appearance, box, canvas) => {
-            onCloseAppearance();
-            const changes = { appearance };
+          onApply={async (result) => {
+            // The name and the description are set in this dialog too, so
+            // one apply carries everything about the widget it describes.
+            const changes = { appearance: result.appearance, title: result.title, description: result.description };
             // A widget on the board itself has no box: the grid places it.
-            if (appearanceWidget.parent_id) changes.box = box;
-            if (canvas) changes.canvas = canvas;
-            await onUpdate(appearanceWidget.id, changes);
+            if (appearanceWidget.parent_id) changes.box = result.box;
+            if (result.canvas) changes.canvas = result.canvas;
+            // The dialog shows the save happening and what came back, and
+            // closes itself once that has been read.
+            return onUpdate(appearanceWidget.id, changes);
           }}
         />
       )}

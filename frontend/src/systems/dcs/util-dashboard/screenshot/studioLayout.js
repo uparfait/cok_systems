@@ -57,6 +57,32 @@ export function resize_rect(start, direction, dx, dy) {
   return { ...start, x, y, w, h };
 }
 
+/**
+ * Keeps a box INSIDE the surface it belongs to.
+ *
+ * A widget dropped in a section belongs to that section: it may be put
+ * anywhere on it and nowhere off it, so a box pushed at an edge is stopped
+ * at the edge rather than escaping to where nobody can reach it. A box too
+ * big for the surface is narrowed to it first, because a box that cannot
+ * fit has no inside position to be clamped to.
+ *
+ * A surface with no height given (one that grows downwards as things are
+ * pushed past its bottom) is only clamped across.
+ */
+export function clamp_rect(rect, room) {
+  const wide = Number(room && room.w) > 0 ? Number(room.w) : 0;
+  const tall = Number(room && room.h) > 0 ? Number(room.h) : 0;
+  const w = wide ? Math.max(Math.min(rect.w, wide), Math.min(MIN_W, wide)) : rect.w;
+  const h = tall ? Math.max(Math.min(rect.h, tall), Math.min(MIN_H, tall)) : rect.h;
+  return {
+    ...rect,
+    w,
+    h,
+    x: wide ? Math.max(0, Math.min(rect.x, wide - w)) : Math.max(0, rect.x),
+    y: tall ? Math.max(0, Math.min(rect.y, tall - h)) : Math.max(0, rect.y),
+  };
+}
+
 function nearest(value, candidates, threshold) {
   let best = null;
   candidates.forEach((candidate) => {

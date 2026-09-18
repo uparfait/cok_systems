@@ -56,6 +56,8 @@ async function create_dashboard(form_group_id, project_id, name) {
     name_normalized: name.trim().toLowerCase(),
     widgets: [],
     filters: [],
+    // A new board is a grid until somebody arranges it by hand.
+    layout: { mode: "grid", width: 1280 },
     created_at: now,
     updated_at: now,
   };
@@ -82,11 +84,14 @@ async function delete_dashboard(form_group_id, dashboard_id) {
  * list is given (callers that only touch widgets leave the filters alone)
  * - and returns the saved copy.
  */
-async function save_widgets(form_group_id, dashboard_id, widgets, filters) {
+async function save_widgets(form_group_id, dashboard_id, widgets, filters, layout) {
   const object_id = to_object_id(dashboard_id);
   if (!object_id) return null;
   const changes = { widgets, updated_at: new Date() };
   if (Array.isArray(filters)) changes.filters = filters;
+  // How the board is arranged rides along when the client sends it; a
+  // caller that only touches widgets leaves the arrangement alone.
+  if (layout) changes.layout = layout;
   await collection().updateOne({ _id: object_id, form_group_id: form_group_id.toString() }, { $set: changes });
   return get_dashboard_by_id(form_group_id, dashboard_id);
 }

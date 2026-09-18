@@ -15,17 +15,29 @@ import { default_box } from "./boxLayout.js";
  * reconfiguring what it charts, and - on a canvas - putting a widget in
  * it. Everything here needs an editable board; a viewer's right-click is
  * left to the browser.
+ *
+ * STUDIO MODE is always the first entry, wherever the right-click landed.
+ * It is the one mode the board has: inside it widgets are selected, moved,
+ * placed, resized, edited together and deleted, all on a working copy that
+ * reaches the server only when the bar in the corner saves it. Nothing
+ * else is offered while it is on, because everything else writes straight
+ * past the copy the mode is holding.
  */
 
 let canvas_sequence = 0;
 
-/** A brand new, empty canvas, ready to be dropped on a board or into another one. */
+/**
+ * A brand new, empty canvas, ready to be dropped on a board or into
+ * another one. It is created UNNAMED and undescribed: a section is a piece
+ * of the page's layout, so a title is something you add when the group
+ * needs one, not a word the board puts there for you.
+ */
 export function new_canvas_widget(form, title, parent_id) {
   canvas_sequence += 1;
   return {
     id: `w_canvas_${Date.now().toString(36)}_${canvas_sequence}`,
     form_group_id: form.form_group_id,
-    title,
+    title: title || "",
     description: null,
     icon: null,
     chart_type: "canvas",
@@ -45,19 +57,21 @@ export function new_canvas_widget(form, title, parent_id) {
     // A canvas is a place, so it takes a whole row of the board unless it
     // is itself inside one.
     size: "large",
-    canvas: { flow: "row", gap: 12, height: null },
+    canvas: { flow: "row", gap: 12, place: "flow", width: null, height: null },
     parent_id: parent_id || null,
     box: parent_id ? default_box() : null,
     position: 0,
   };
 }
 
-export function useBoardCanvas({ form, widgets, editable, isDark, translate, onCommit, onSettings, onReconfigure, onAddWidget }) {
+export function useBoardCanvas({ form, widgets, editable, isDark, arranging, studio, onCommit, onSettings, onReconfigure, onAddWidget }) {
   const [menu, setMenu] = useState(null);
   const close = useCallback(() => setMenu(null), []);
 
   const open_board_menu = (event) => {
-    if (!editable) return;
+    // The way into studio mode must be reachable even where nothing else
+    // so the menu opens for it alone rather than not at all.
+    if (!editable && !studio) return;
     // Only the board's own empty space: a right-click that landed on a
     // widget is that widget's business and has already been handled.
     if (event.defaultPrevented) return;
@@ -66,25 +80,36 @@ export function useBoardCanvas({ form, widgets, editable, isDark, translate, onC
   };
 
   const open_widget_menu = (event, widget) => {
-    if (!editable) return;
+    if (!editable && !studio) return;
     event.preventDefault();
     event.stopPropagation();
     setMenu({ x: event.clientX, y: event.clientY, widget, dark: isDark });
   };
 
   const add_canvas = (parent_id) => {
-    const made = new_canvas_widget(form, translate("DCS_DB_CANVAS_TITLE"), parent_id);
+    const made = new_canvas_widget(form, "", parent_id);
     onCommit(widgets.concat([made]).map((widget, index) => ({ ...widget, position: index })));
   };
 
   const target = menu ? menu.widget : null;
   const is_canvas = !!target && target.chart_type === "canvas";
-  const items = [
-    { key: "canvas", labelKey: is_canvas ? "DCS_DB_CANVAS_ADD_INSIDE" : "DCS_DB_CANVAS_ADD_EMPTY", strong: true, onPick: () => add_canvas(is_canvas ? target.id : null) },
-    is_canvas && onAddWidget ? { key: "add", labelKey: "DCS_DB_CANVAS_ADD", onPick: () => onAddWidget(target) } : null,
-    target && onSettings ? { key: "settings", labelKey: "DCS_DB_COLOR_SETTINGS", onPick: () => onSettings(target) } : null,
-    target && !is_canvas && onReconfigure ? { key: "reconfigure", labelKey: "DCS_DB_RECONFIGURE", onPick: () => onReconfigure(target) } : null,
-  ];
+  // While STUDIO MODE is on it is the only thing on offer: the rest of
+  // these would commit straight to the board behind the working copy the
+  // mode is holding.
+  const items = arranging
+    ? [
+        { key: "studio", labelKey: "DCS_DB_STUDIO_LEAVE", strong: true, onPick: () => studio.toggle() },
+        studio && studio.arrangement
+          ? { key: "arrangement", labelKey: studio.is_studio() ? "DCS_DB_STUDIO_GRID" : "DCS_DB_STUDIO_FREE", onPick: () => studio.arrangement() }
+          : null,
+      ]
+    : [
+        studio ? { key: "studio", labelKey: "DCS_DB_STUDIO_ENTER", strong: true, onPick: () => studio.toggle() } : null,
+        editable ? { key: "canvas", labelKey: is_canvas ? "DCS_DB_CANVAS_ADD_INSIDE" : "DCS_DB_CANVAS_ADD_EMPTY", onPick: () => add_canvas(is_canvas ? target.id : null) } : null,
+        editable && is_canvas && onAddWidget ? { key: "add", labelKey: "DCS_DB_CANVAS_ADD", onPick: () => onAddWidget(target) } : null,
+        editable && target && onSettings ? { key: "settings", labelKey: "DCS_DB_COLOR_SETTINGS", onPick: () => onSettings(target) } : null,
+        editable && target && !is_canvas && onReconfigure ? { key: "reconfigure", labelKey: "DCS_DB_RECONFIGURE", onPick: () => onReconfigure(target) } : null,
+      ];
 
   return {
     open_board_menu,

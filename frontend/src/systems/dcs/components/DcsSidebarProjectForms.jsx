@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useSilentPolling } from "../hooks/useSilentPolling.js";
 import { get_forms_by_project } from "../services/formsService.js";
+import { get_cached_forms, remember_forms } from "../hooks/formsCache.js";
 import DcsHighlightedText from "./DcsHighlightedText.jsx";
 
 const PRIMARY = "#056daa";
@@ -14,7 +15,7 @@ function format_badge_count(count) {
 
 function SidebarFormsSkeleton() {
   return (
-    <div className="space-y-2" aria-hidden="true">
+    <div className="space-y-2 pl-3" aria-hidden="true">
       {[0, 1, 2].map((index) => (
         <div key={index} className="animate-pulse h-3" style={{ width: `${80 - index * 14}%`, backgroundColor: "rgba(5,109,170,0.1)" }} />
       ))}
@@ -23,8 +24,9 @@ function SidebarFormsSkeleton() {
 }
 
 /**
- * Fetches and renders the list of forms belonging to one project, silently
- * refreshing every 10 seconds - only while this dropdown is actually
+ * Fetches and renders the list of forms belonging to one project - what an
+ * earlier opening fetched shown at once, then silently refreshing every 10
+ * seconds - only while this dropdown is actually
  * expanded (it only mounts then), so the number of active pollers stays
  * bounded by how many rows the user has actually opened, not by the total
  * project count. Clicking a form navigates to its overview page; the
@@ -37,17 +39,21 @@ export default function DcsSidebarProjectForms({ project, searchQuery }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { translate } = useDcsLanguage();
+  // Opening a row a second time shows the forms it showed the first time,
+  // at once, and only asks for the fresh list behind them - the skeleton is
+  // for a project never opened before.
   const { data: forms, loading } = useSilentPolling(
-    () => get_forms_by_project(project._id).then((res) => res.data || []),
+    () => get_forms_by_project(project._id).then((res) => remember_forms(project._id, res.data || [])),
     10000,
     [project._id],
+    { initial: () => get_cached_forms(project._id) },
   );
 
   return (
-    <div className="pl-8 pr-2 pb-2 mt-2 space-y-2">
+    <div className="dcs-project-tree pr-2 pb-2 mb-1 mt-1 space-y-1">
       {loading && <SidebarFormsSkeleton />}
       {!loading && (!forms || forms.length === 0) && (
-        <p className="text-xs" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}>
+        <p className="text-xs pl-3" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}>
           {translate("DCS_FORMS_LIST_EMPTY")}
         </p>
       )}
@@ -59,22 +65,14 @@ export default function DcsSidebarProjectForms({ project, searchQuery }) {
           <button
             key={form.form_group_id}
             onClick={() => navigate(form_path)}
-            className="w-full cursor-pointer flex items-center justify-between gap-2 text-left pl-3 pr-2 py-2 text-xs transition-transform duration-150 hover:translate-x-1"
+            className={`dcs-project-leaf ${is_active ? "is-active" : ""} w-full cursor-pointer flex items-center justify-between gap-2 text-left pl-3 pr-2 py-1.5 text-xs`}
             title={title}
-            style={{
-              color: is_active ? PRIMARY : "#555555",
-              fontWeight: is_active ? 700 : 400,
-              backgroundColor: is_active ? "rgba(5,109,170,0.02)" : "transparent",
-              borderLeft: is_active ? `3px solid ${PRIMARY}` : "3px solid #E0E0E0",
-              fontFamily: "'Montserrat', sans-serif",
-            }}
+            style={{ color: is_active ? PRIMARY : "#555555", fontWeight: is_active ? 700 : 400 }}
           >
             <span className="truncate">
               <DcsHighlightedText text={title} query={searchQuery} />
             </span>
-            <span className="flex-shrink-0 text-[10px]" style={{ color: is_active ? PRIMARY : "#9E9E9E" }}>
-              {format_badge_count(form.total_submissions)}
-            </span>
+            <span className="dcs-project-leaf-count flex-shrink-0">{format_badge_count(form.total_submissions)}</span>
           </button>
         );
       })}

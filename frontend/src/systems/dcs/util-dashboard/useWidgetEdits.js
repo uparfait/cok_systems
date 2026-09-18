@@ -24,7 +24,7 @@ export function useWidgetEdits({ form, widgets, data, translate, showSuccess, sh
     const final_widgets = (saved.data && saved.data.widgets) || next_widgets;
     data.settle(final_widgets);
     onCommit(final_widgets);
-    return final_widgets;
+    return { final_widgets, message: saved && saved.message ? saved.message : "" };
   };
 
   const update_widget = async (widget_id, changes) => {
@@ -32,14 +32,18 @@ export function useWidgetEdits({ form, widgets, data, translate, showSuccess, sh
     const next_widgets = widgets.map((widget) => (widget.id === widget_id ? { ...widget, ...changes } : widget));
     setSavingWidgetId(widget_id);
     try {
-      const final_widgets = await save(next_widgets);
+      const { final_widgets, message } = await save(next_widgets);
       if (changes.chart_type && previous && fold_family(changes.chart_type) !== fold_family(previous.chart_type)) {
         const updated = final_widgets.find((widget) => widget.id === widget_id);
         if (updated) data.retry_widget(updated);
       }
       showSuccess(translate("DCS_DB_WIDGET_UPDATED"));
+      // What the server said, for whoever asked to show it where they are.
+      return { ok: true, message: message || translate("DCS_DB_WIDGET_UPDATED") };
     } catch (error) {
-      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
+      const text = request_error_text(error, translate("DCS_ERROR_GENERIC"));
+      showError(text);
+      return { ok: false, message: text };
     } finally {
       setSavingWidgetId(null);
     }

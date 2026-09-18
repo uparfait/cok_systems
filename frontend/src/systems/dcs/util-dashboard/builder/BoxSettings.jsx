@@ -1,7 +1,7 @@
 import React from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { ChipGrid, BORDER, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builderUi.jsx";
-import { FLOWS, UNITS, LENGTH_KEYS } from "../boxLayout.js";
+import { FLOWS, UNITS, LENGTH_KEYS, REST, is_rest } from "../boxLayout.js";
 
 /**
  * The size and place of one widget INSIDE a canvas.
@@ -16,7 +16,7 @@ import { FLOWS, UNITS, LENGTH_KEYS } from "../boxLayout.js";
  * this form and the handles are two ways to say one thing.
  */
 
-const LABELS = {
+export const LENGTH_LABELS = {
   width: "DCS_DB_BOX_WIDTH",
   height: "DCS_DB_BOX_HEIGHT",
   min_width: "DCS_DB_BOX_MIN_WIDTH",
@@ -25,10 +25,25 @@ const LABELS = {
   max_height: "DCS_DB_BOX_MAX_HEIGHT",
 };
 
-export function LengthField({ labelKey, length, onChange }) {
+/**
+ * One length: a number and the unit it is counted in.
+ *
+ * The unit list is given, because a widget's box is measured in pixels or
+ * percent while a canvas may also be told to take THE REST of the room.
+ * "The rest" carries no number - the room decides - so the box beside it
+ * goes quiet and says so.
+ */
+export function LengthField({ labelKey, length, onChange, units }) {
   const { translate } = useDcsLanguage();
-  const value = length && Number(length.value) > 0 ? String(length.value) : "";
+  const list = units || UNITS;
+  const rest = is_rest(length);
+  const value = !rest && length && Number(length.value) > 0 ? String(length.value) : "";
   const unit = (length && length.unit) || "%";
+  const pick_unit = (next) => {
+    if (next === "rest") return onChange(REST);
+    const held = Number(length && length.value);
+    return onChange(Number.isFinite(held) && held > 0 ? { value: held, unit: next } : null);
+  };
   return (
     <label className="flex items-center gap-2 min-w-0">
       <span className="text-xs flex-1 min-w-0 truncate" style={{ color: TEXT_DARK, ...HEADING_FONT }}>
@@ -41,23 +56,23 @@ export function LengthField({ labelKey, length, onChange }) {
         className="dcs-rename-input"
         style={{ width: 84 }}
         value={value}
-        placeholder={translate("DCS_DB_BOX_AUTO")}
+        disabled={rest}
+        placeholder={translate(rest ? "DCS_DB_BOX_REST_SHORT" : "DCS_DB_BOX_AUTO")}
         onChange={(event) => {
           const next = Number(event.target.value);
-          onChange(Number.isFinite(next) && next > 0 ? { value: next, unit } : null);
+          onChange(Number.isFinite(next) && next > 0 ? { value: next, unit: unit === "rest" ? "%" : unit } : null);
         }}
       />
       <select
         className="dcs-over-time-select"
-        style={{ width: 64 }}
+        style={{ width: 72 }}
         value={unit}
         aria-label={translate(labelKey)}
-        disabled={!length}
-        onChange={(event) => onChange({ value: Number(length.value), unit: event.target.value })}
+        onChange={(event) => pick_unit(event.target.value)}
       >
-        {UNITS.map((entry) => (
+        {list.map((entry) => (
           <option key={entry} value={entry}>
-            {entry}
+            {entry === "rest" ? translate("DCS_DB_BOX_REST_SHORT") : entry}
           </option>
         ))}
       </select>
@@ -82,7 +97,7 @@ export default function BoxSettings({ box, onChange }) {
         {LENGTH_KEYS.map((key) => (
           <LengthField
             key={key}
-            labelKey={LABELS[key]}
+            labelKey={LENGTH_LABELS[key]}
             length={current[key] || null}
             onChange={(length) => {
               const next = Object.assign({}, current);
