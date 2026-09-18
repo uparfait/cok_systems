@@ -53,6 +53,15 @@ module.exports = {
 
   DASHBOARD_LINK_CREATED: "Share link created successfully",
 
+  TRANSLATION_LINKS_FETCHED: "Translation links fetched successfully",
+  TRANSLATION_LINK_CREATED: "Translation link created successfully",
+  TRANSLATION_LINK_DELETED: "Translation link deleted successfully",
+  TRANSLATION_LINK_NOT_FOUND: "This translation link does not exist or was removed",
+  TRANSLATION_LINK_TITLE_TOO_LONG: "The link name is too long",
+  TRANSLATION_FORM_FETCHED: "Form texts fetched successfully",
+  TRANSLATION_SAVED: "Translations saved into the form",
+  TRANSLATION_NO_CHANGES: "No changeable text was sent - locked texts cannot be changed through this link",
+
   DASHBOARD_LINK_UPDATED: "Share link updated successfully",
 
   DASHBOARD_LINK_DELETED: "Share link deleted successfully",
@@ -124,6 +133,7 @@ module.exports = {
   PROJECT_DEPARTMENT_OPTIONAL: "Department and department unit are optional",
   FORM_VERSION_IMMUTABLE: "Existing form versions can not be modified or deleted",
   VALIDATION_FIELD_REQUIRED: "This field is required",
+  VALIDATION_EXCLUSIVE_OPTION: "This choice cannot be combined with the other options",
   ACCESS_RULES_FETCHED: "Access rules fetched successfully",
   ACCESS_RULES_SAVED: "Access rules saved successfully",
   ACCESS_RULES_INVALID: "The access rules submitted are not valid",

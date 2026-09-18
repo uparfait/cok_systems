@@ -216,7 +216,7 @@ const FIELD_TYPE_DOCS = {
   multi_select: {
     description: "Choose zero or more options, rendered as checkboxes.",
     extra_properties: {
-      options: "Array of { id, label, value } - value must be unique across the field's own options. Ignored when parent_dependency_enabled is true.",
+      options: "Array of { id, label, value, exclusive? } - value must be unique across the field's own options. Ignored when parent_dependency_enabled is true. An option with exclusive: true STANDS ALONE ('Not yet evaluated', 'None of the above'): ticking it clears and blocks every other option, ticking any other option blocks it, and a submission that combines them is refused by the client and the server. Use it instead of writing 'do not tick this together with...' as an instruction.",
       parent_dependency_enabled: "Optional boolean, default false. When true, options come from parent_option_groups instead of the flat 'options' list.",
       parent_option_groups: "Only used when parent_dependency_enabled is true - array of { id, parent_field_id, operator, value, options }. operator is one of equals/not_equals/includes/not_includes/less_than/greater_than, compared against the current answer of parent_field_id. Every group whose condition currently matches contributes its own 'options' (same shape as the top-level options) to what the respondent sees; with none matching, every checkbox is disabled. Different groups may reference entirely different parent fields.",
     },

@@ -122,3 +122,33 @@ export function get_public_form_field_options(form_group_id, field_id, parent_va
   const query = parent_value === undefined ? "" : `?parent_value=${encodeURIComponent(parent_value)}`;
   return dcs_request(`/public/forms/${form_group_id}/field-options/${field_id}${query}`, "GET");
 }
+
+/**
+ * Translation links: a form editor hands one to a translator, who opens the
+ * whole form - hidden fields included - and rewrites its texts in every
+ * language, except the kinds the link locks. The public side needs no
+ * sign-in; the token is the whole authorization.
+ */
+export function list_translation_links(form_group_id) {
+  return dcs_request(`/forms/${form_group_id}/translation-links`, "GET");
+}
+
+export function create_translation_link(form_group_id, link) {
+  return dcs_request(`/forms/${form_group_id}/translation-links`, "POST", link);
+}
+
+export function delete_translation_link(form_group_id, link_id) {
+  return dcs_request(`/forms/${form_group_id}/translation-links/${link_id}`, "DELETE");
+}
+
+export function translation_link_url(token) {
+  return `${window.location.origin}/dcs-translate/${token}`;
+}
+
+export function get_public_translation(token) {
+  return dcs_request(`/public/translate/${token}`, "GET");
+}
+
+export function save_public_translation(token, changes) {
+  return dcs_request(`/public/translate/${token}`, "PUT", { changes });
+}

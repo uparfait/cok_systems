@@ -3,6 +3,7 @@ const { flatten_fields, build_dependency_graph, build_field_parent_map, is_visib
 const { effective_rule_condition } = require("./validation_condition.js");
 const { resolve_preset_value } = require("./preset_fields.js");
 const { translate } = require("../i18n/index.js");
+const { has_exclusive_conflict } = require("./exclusive_options.js");
 const { file_extension_allowed } = require("../constants/file_type_groups.js");
 
 const MEDIA_TYPES = ["image", "video", "audio", "file_upload", "signature"];
@@ -234,6 +235,10 @@ function validate_submission_data(schema, submitted_data, language) {
       field_errors[field_id] = (field_errors[field_id] || []).concat([
         pick_translated_message(field.required_message, language) || translate("VALIDATION_FIELD_REQUIRED", language),
       ]);
+    }
+
+    if (field.type === "multi_select" && has_exclusive_conflict(field, working_data[field_id])) {
+      field_errors[field_id] = (field_errors[field_id] || []).concat([translate("VALIDATION_EXCLUSIVE_OPTION", language)]);
     }
 
     if (MEDIA_TYPES.includes(field.type)) {

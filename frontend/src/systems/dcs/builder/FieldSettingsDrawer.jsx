@@ -1219,6 +1219,12 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                             value={option.value}
                             onChange={(event) => update_option(option.id, { value: event.target.value })}
                           />
+                          {draft.type === "multi_select" && (
+                            <label className="flex items-center gap-2 text-sm cursor-pointer">
+                              <input type="checkbox" checked={option.exclusive === true} onChange={(event) => update_option(option.id, { exclusive: event.target.checked })} style={{ accentColor: "#056daa" }} />
+                              {translate("DCS_SETTINGS_OPTION_EXCLUSIVE")}
+                            </label>
+                          )}
                           {is_cascading && (cascading_parent_field && DCS_SELECT_LIKE_TYPES.includes(cascading_parent_field.type) ? (
                             <select
                               className="cok-auth-input w-full py-3"

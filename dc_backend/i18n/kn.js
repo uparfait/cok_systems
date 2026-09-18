@@ -52,6 +52,15 @@ module.exports = {
 
   DASHBOARD_LINK_CREATED: "Ihuza ryo gusangira ryakozwe neza",
 
+  TRANSLATION_LINKS_FETCHED: "Amahuza yo guhindura indimi yabonetse neza",
+  TRANSLATION_LINK_CREATED: "Ihuza ryo guhindura indimi ryakozwe neza",
+  TRANSLATION_LINK_DELETED: "Ihuza ryo guhindura indimi ryasibwe neza",
+  TRANSLATION_LINK_NOT_FOUND: "Iri huza ryo guhindura indimi ntiribaho cyangwa ryasibwe",
+  TRANSLATION_LINK_TITLE_TOO_LONG: "Izina ry'ihuza ni rirerire cyane",
+  TRANSLATION_FORM_FETCHED: "Inyandiko z'ifishi zabonetse neza",
+  TRANSLATION_SAVED: "Ubusobanuro bwabitswe mu ifishi",
+  TRANSLATION_NO_CHANGES: "Nta nyandiko ishobora guhindurwa yoherejwe - inyandiko zafunzwe ntizishobora guhindurwa binyuze kuri iri huza",
+
   DASHBOARD_LINK_UPDATED: "Ihuza ryo gusangira ryavuguruwe neza",
 
   DASHBOARD_LINK_DELETED: "Ihuza ryo gusangira ryasibwe neza",
@@ -124,6 +133,7 @@ module.exports = {
   PROJECT_DEPARTMENT_OPTIONAL: "Ishami n'igice byo ntibisabwa",
   FORM_VERSION_IMMUTABLE: "Verisiyo z'ifishi zisanzwe ntizishobora guhindurwa cyangwa gusibwa",
   VALIDATION_FIELD_REQUIRED: "Iki kibazo gisabwa gusubizwa",
+  VALIDATION_EXCLUSIVE_OPTION: "Iri hitamo ntirishobora guhuzwa n'andi mahitamo",
   ACCESS_RULES_FETCHED: "Amategeko y'uburenganzira yabonetse neza",
   ACCESS_RULES_SAVED: "Amategeko y'uburenganzira yabitswe neza",
   ACCESS_RULES_INVALID: "Amategeko y'uburenganzira yoherejwe ntabwo ari meza",

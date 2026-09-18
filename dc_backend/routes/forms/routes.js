@@ -14,6 +14,7 @@ const delete_design_file = require("../../controllers/forms/delete_design_file.j
 const search_forms = require("../../controllers/forms/search_forms.js");
 const get_form_approvers = require("../../controllers/forms/get_form_approvers.js");
 const get_form_submission_stats = require("../../controllers/forms/get_form_submission_stats.js");
+const { list_translation_links, create_translation_link, delete_translation_link } = require("../../controllers/forms/translation_links.js");
 const { upload_design_file: upload_design_file_middleware } = require("../../utilities/upload.js");
 
 /**
@@ -211,5 +212,19 @@ Router.put("/:form_group_id/active-version", set_active_version);
  *         description: Version deleted successfully
  */
 Router.delete("/:form_group_id/versions/:version", delete_form_version);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/translation-links:
+ *   get:
+ *     summary: List the form's translation links (form editors only)
+ *     tags: [Forms]
+ *   post:
+ *     summary: Create a translation link - its holder may rewrite the form's texts in every language, except the locked kinds
+ *     tags: [Forms]
+ */
+Router.get("/:form_group_id/translation-links", list_translation_links);
+Router.post("/:form_group_id/translation-links", create_translation_link);
+Router.delete("/:form_group_id/translation-links/:link_id", delete_translation_link);
 
 module.exports = Router;

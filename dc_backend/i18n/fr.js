@@ -53,6 +53,15 @@ module.exports = {
 
   DASHBOARD_LINK_CREATED: "Lien de partage créé avec succès",
 
+  TRANSLATION_LINKS_FETCHED: "Liens de traduction récupérés avec succès",
+  TRANSLATION_LINK_CREATED: "Lien de traduction créé avec succès",
+  TRANSLATION_LINK_DELETED: "Lien de traduction supprimé avec succès",
+  TRANSLATION_LINK_NOT_FOUND: "Ce lien de traduction n'existe pas ou a été supprimé",
+  TRANSLATION_LINK_TITLE_TOO_LONG: "Le nom du lien est trop long",
+  TRANSLATION_FORM_FETCHED: "Textes du formulaire récupérés avec succès",
+  TRANSLATION_SAVED: "Traductions enregistrées dans le formulaire",
+  TRANSLATION_NO_CHANGES: "Aucun texte modifiable n'a été envoyé - les textes verrouillés ne peuvent pas être modifiés par ce lien",
+
   DASHBOARD_LINK_UPDATED: "Lien de partage mis à jour avec succès",
 
   DASHBOARD_LINK_DELETED: "Lien de partage supprimé avec succès",
@@ -124,6 +133,7 @@ module.exports = {
   PROJECT_DEPARTMENT_OPTIONAL: "Le département et l'unité sont optionnels",
   FORM_VERSION_IMMUTABLE: "Les versions existantes du formulaire ne peuvent être ni modifiées ni supprimées",
   VALIDATION_FIELD_REQUIRED: "Ce champ est obligatoire",
+  VALIDATION_EXCLUSIVE_OPTION: "Ce choix ne peut pas être combiné avec les autres options",
   ACCESS_RULES_FETCHED: "Règles d'accès récupérées avec succès",
   ACCESS_RULES_SAVED: "Règles d'accès enregistrées avec succès",
   ACCESS_RULES_INVALID: "Les règles d'accès soumises ne sont pas valides",

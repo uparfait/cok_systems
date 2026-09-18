@@ -1,4 +1,5 @@
 import { evaluate_rule, build_trimmed_evaluation_data } from "./engine.js";
+import { has_exclusive_conflict } from "../fields/exclusiveOptions.js";
 import { flatten_fields, build_dependency_graph, build_field_parent_map, is_visible_through_ancestors } from "./dependencyGraph.js";
 import { build_validation_condition } from "../builder/validationOperators.js";
 import { get_field_text, get_field_options_state } from "../fields/fieldText.js";
@@ -155,6 +156,10 @@ export function validate_submission_client_side(schema, submitted_data, language
       field_errors[field_id] = (field_errors[field_id] || []).concat([
         get_field_text(field.required_message, language) || translate("DCS_REQUIRED_FIELD_ERROR"),
       ]);
+    }
+
+    if (field.type === "multi_select" && has_exclusive_conflict(field, working_data[field_id])) {
+      field_errors[field_id] = (field_errors[field_id] || []).concat([translate("DCS_VALIDATION_EXCLUSIVE_OPTION")]);
     }
 
     (field.validation_rules || []).forEach((validation_rule) => {

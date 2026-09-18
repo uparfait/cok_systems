@@ -12139,9 +12139,9 @@
                 "fr": "Sélectionner tout ce qui s'applique pour évaluation du site d'évacuation"
               },
               "help_text": {
-                "en": "Select all that apply.",
+                "en": "Tick every criterion that is met. \"Site not yet evaluated\" cannot be combined with any criterion.",
                 "kn": "",
-                "fr": "Sélectionnez toutes les réponses applicables."
+                "fr": "Cochez chaque critère rempli. « Site pas encore évalué » ne peut pas être combiné avec un critère."
               },
               "required_message": {
                 "en": "",
@@ -12246,7 +12246,8 @@
                     "kn": "",
                     "fr": "Site pas encore évalué"
                   },
-                  "value": "site_not_evaluated"
+                  "value": "site_not_evaluated",
+                  "exclusive": true
                 }
               ],
               "parent_dependency_enabled": false,
@@ -12266,9 +12267,9 @@
                 "fr": ""
               },
               "help_text": {
-                "en": "Derived by the system: all seven criteria ticked - Confirmed; any unticked - Not Confirmed; 'Site not yet evaluated' - Not evaluated.",
+                "en": "Derived by the system: all seven criteria ticked - Confirmed; any unticked - Not Confirmed; Site not yet evaluated - Not evaluated.",
                 "kn": "",
-                "fr": "Calculé par le système : les sept critères cochés - Confirmé ; un critère manquant - Non confirmé ; « Site pas encore évalué » - Non évalué."
+                "fr": "Calculé par le système : les sept critères cochés - Confirmé ; un critère manquant - Non confirmé ; Site pas encore évalué - Non évalué."
               },
               "required_message": {
                 "en": "",
@@ -13112,11 +13113,11 @@
               "default_value": null,
               "default_config": null,
               "visibility_condition": {
-                "in": [
-                  "site_capacity_confirmed",
+                "==": [
                   {
-                    "var": "multi_select_28d292"
-                  }
+                    "var": "hidden_allok7"
+                  },
+                  "yes"
                 ]
               },
               "validation_rules": [],
@@ -13785,11 +13786,11 @@
               "default_value": null,
               "default_config": null,
               "visibility_condition": {
-                "in": [
-                  "written_agreement",
+                "==": [
                   {
-                    "var": "multi_select_28d292"
-                  }
+                    "var": "hidden_allok7"
+                  },
+                  "yes"
                 ]
               },
               "validation_rules": [],

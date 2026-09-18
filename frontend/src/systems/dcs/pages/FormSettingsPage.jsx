@@ -9,6 +9,7 @@ import { is_approval_config_complete } from "../builder/ApprovalFlowSection.jsx"
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsFormNameField from "../components/DcsFormNameField.jsx";
 import { validate_form_schema } from "../builder/validateSchema.js";
+import TranslationLinksDialog from "../translation/TranslationLinksDialog.jsx";
 
 export default function FormSettingsPage() {
   const { form_group_id, form, refreshForm } = useOutletContext();
@@ -19,6 +20,7 @@ export default function FormSettingsPage() {
   const [approval_config, setApprovalConfig] = useState(form.approval_config || null);
   const [publishing, setPublishing] = useState(false);
   const [schema_errors, setSchemaErrors] = useState([]);
+  const [translation_links_open, setTranslationLinksOpen] = useState(false);
   const loaded_form_id_ref = useRef(form._id);
   const { resolveFieldOptions, resolveFullFieldOptions } = useLazyFieldResolvers("form", form_group_id, get_form_field_options);
 
@@ -81,8 +83,12 @@ export default function FormSettingsPage() {
             {public_link}
           </p>
         </div>
-        <DcsButtonOutline onClick={copy_link}>{translate("DCS_FORM_COPY_LINK")}</DcsButtonOutline>
+        <div className="flex gap-2 flex-wrap">
+          <DcsButtonOutline onClick={copy_link}>{translate("DCS_FORM_COPY_LINK")}</DcsButtonOutline>
+          <DcsButtonOutline onClick={() => setTranslationLinksOpen(true)}>{translate("DCS_TRANSLATION_LINKS_BUTTON")}</DcsButtonOutline>
+        </div>
       </div>
+      {translation_links_open && <TranslationLinksDialog formGroupId={form_group_id} onClose={() => setTranslationLinksOpen(false)} />}
 
       <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
         <DcsFormNameField value={form_name} onChange={setFormName} />
