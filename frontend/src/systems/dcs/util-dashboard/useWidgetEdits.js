@@ -15,9 +15,10 @@ import { fold_family } from "./chartCatalog.js";
  *
  * Kept out of the page itself so the page is about what is on screen.
  */
-export function useWidgetEdits({ form, widgets, data, translate, showSuccess, showError, onCommit }) {
+export function useWidgetEdits({ form, widgets, data, translate, showSuccess, showError, showInfo, onCommit }) {
   const [saving_widget_id, setSavingWidgetId] = useState(null);
   const [removing, setRemoving] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const save = async (next_widgets) => {
     const saved = await save_dashboard(form, next_widgets);
@@ -50,6 +51,31 @@ export function useWidgetEdits({ form, widgets, data, translate, showSuccess, sh
   };
 
   /**
+   * Adds one widget - a new empty section, from the board's own menu - and
+   * saves the board with it. It is said while it happens and answered in
+   * the server's words when it lands; the data of everything already on
+   * the board is settled, so nothing else is fetched again over it.
+   */
+  const add_widget = async (made) => {
+    if (!made || adding) return { ok: false, message: "" };
+    const next_widgets = widgets.concat([made]).map((widget, index) => ({ ...widget, position: index }));
+    setAdding(true);
+    if (showInfo) showInfo(translate("DCS_DB_CANVAS_ADDING"), 2500);
+    try {
+      const { message } = await save(next_widgets);
+      const said = message || translate("DCS_DB_CANVAS_ADDED");
+      showSuccess(said);
+      return { ok: true, message: said };
+    } catch (error) {
+      const text = request_error_text(error, translate("DCS_ERROR_GENERIC"));
+      showError(text);
+      return { ok: false, message: text };
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  /**
    * Removing a widget takes whatever was INSIDE it with it: a canvas that
    * is gone cannot hold anything, and children left behind would name a
    * parent that no longer exists.
@@ -70,7 +96,7 @@ export function useWidgetEdits({ form, widgets, data, translate, showSuccess, sh
     const next_widgets = widgets.filter((widget) => !doomed.has(widget.id)).map((widget, index) => ({ ...widget, position: index }));
     setRemoving(true);
     try {
-      const final_widgets = await save(next_widgets);
+      const { final_widgets } = await save(next_widgets);
       data.keep_only(final_widgets);
       showSuccess(translate("DCS_DB_WIDGET_REMOVED"));
     } catch (error) {
@@ -81,5 +107,5 @@ export function useWidgetEdits({ form, widgets, data, translate, showSuccess, sh
     }
   };
 
-  return { saving_widget_id, removing, update_widget, remove_widget };
+  return { saving_widget_id, removing, adding, update_widget, remove_widget, add_widget };
 }

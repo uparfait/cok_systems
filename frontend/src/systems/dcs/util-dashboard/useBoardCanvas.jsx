@@ -64,7 +64,7 @@ export function new_canvas_widget(form, title, parent_id) {
   };
 }
 
-export function useBoardCanvas({ form, widgets, editable, isDark, arranging, studio, onCommit, onSettings, onReconfigure, onAddWidget }) {
+export function useBoardCanvas({ form, editable, isDark, arranging, studio, onAdd, onSettings, onReconfigure, onAddWidget, onRemove }) {
   const [menu, setMenu] = useState(null);
   const close = useCallback(() => setMenu(null), []);
 
@@ -86,10 +86,9 @@ export function useBoardCanvas({ form, widgets, editable, isDark, arranging, stu
     setMenu({ x: event.clientX, y: event.clientY, widget, dark: isDark });
   };
 
-  const add_canvas = (parent_id) => {
-    const made = new_canvas_widget(form, "", parent_id);
-    onCommit(widgets.concat([made]).map((widget, index) => ({ ...widget, position: index })));
-  };
+  // A new section is handed to the board to SAVE, not just to show: the
+  // board says it is adding, stores it, and answers when it has.
+  const add_canvas = (parent_id) => onAdd(new_canvas_widget(form, "", parent_id));
 
   const target = menu ? menu.widget : null;
   const is_canvas = !!target && target.chart_type === "canvas";
@@ -109,6 +108,9 @@ export function useBoardCanvas({ form, widgets, editable, isDark, arranging, stu
         editable && is_canvas && onAddWidget ? { key: "add", labelKey: "DCS_DB_CANVAS_ADD", onPick: () => onAddWidget(target) } : null,
         editable && target && onSettings ? { key: "settings", labelKey: "DCS_DB_COLOR_SETTINGS", onPick: () => onSettings(target) } : null,
         editable && target && !is_canvas && onReconfigure ? { key: "reconfigure", labelKey: "DCS_DB_RECONFIGURE", onPick: () => onReconfigure(target) } : null,
+        // Last, because it is the one that cannot be taken back. A section
+        // that still holds widgets is refused with a count of them.
+        editable && target && onRemove ? { key: "remove", labelKey: "DCS_DB_REMOVE_WIDGET", onPick: () => onRemove(target) } : null,
       ];
 
   return {

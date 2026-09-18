@@ -162,8 +162,11 @@ export function canvas_frame(canvas) {
   // "The rest" is not a length at all: it is left out here and handed to
   // the flex plumbing instead, which is the only thing that knows what the
   // rest of the row came to.
+  // Wider than the board it is on, a section is drawn at the board: the
+  // width asked for is read as the smaller of it and the whole.
+  const asked = is_rest(settings.width) ? undefined : across(settings.width);
   return {
-    width: is_rest(settings.width) ? undefined : across(settings.width),
+    width: asked ? `min(${asked}, 100%)` : undefined,
     height: is_rest(settings.height) ? undefined : down(settings.height),
   };
 }

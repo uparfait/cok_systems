@@ -1785,6 +1785,8 @@ background-color: #056daa;
    scroll pane is the one place that is allowed to scroll. */
 .dcs-board-root:not(.dcs-studio-scroll) {
   overflow-x: hidden;
+  width: 100%;
+  min-height: 70vh;
 }
 .dcs-canvas-free {
   overflow: hidden;

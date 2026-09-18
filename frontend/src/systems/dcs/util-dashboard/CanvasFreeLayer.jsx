@@ -36,6 +36,9 @@ import { spot_of, FREE_PAD } from "./boxLayout.js";
 // smaller, so it needs the height correcting.
 const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "1");
 
+// The air kept between a box and every edge of its surface.
+const EDGE_PAD = 5;
+
 const EDGES = ["n", "s", "e", "w"];
 const GRIPS = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
 const CLOSE_MARK = (
@@ -59,10 +62,15 @@ export default function CanvasFreeLayer({ list, width, height, scale, placeable,
   const { translate } = useDcsLanguage();
   const remove_label = translate("DCS_DB_REMOVE_WIDGET");
 
-  const rects = list.map((entry, index) => Object.assign({ id: entry.widget.id }, spot_of(entry.widget.box, index)));
-  rects_ref.current = rects;
   // How wide the surface really is, which is what a widget is held inside.
   const bounds = { w: width || room, h: 0 };
+  // Drawn as well as dragged inside the edges: a spot saved on a wider
+  // screen is pulled in rather than left hanging off the side.
+  const rects = list.map((entry, index) => {
+    const spot = Object.assign({ id: entry.widget.id }, spot_of(entry.widget.box, index));
+    return bounds.w > 0 ? clamp_rect(spot, bounds, EDGE_PAD) : spot;
+  });
+  rects_ref.current = rects;
   const bounds_ref = useRef(bounds);
   bounds_ref.current = bounds;
   // The surface is as tall as the lowest thing on it, and never shorter
@@ -93,10 +101,10 @@ export default function CanvasFreeLayer({ list, width, height, scale, placeable,
       }
       event.preventDefault();
       const moved_rect = gesture.kind === "move" ? move_rect(gesture.start, dx, dy) : resize_rect(gesture.start, gesture.kind, dx, dy);
-      const raw = clamp_rect(moved_rect, bounds_ref.current);
+      const raw = clamp_rect(moved_rect, bounds_ref.current, EDGE_PAD);
       const others = rects_ref.current.filter((entry) => entry.id !== gesture.id);
       const snapped = snap_rect(raw, gesture.kind, others, canvas_size(others.concat([raw]), base));
-      snapped.rect = clamp_rect(snapped.rect, bounds_ref.current);
+      snapped.rect = clamp_rect(snapped.rect, bounds_ref.current, EDGE_PAD);
       setGuides(snapped.guides);
       onPlace(gesture.id, replace_item([gesture.start], gesture.id, snapped.rect)[0]);
     };

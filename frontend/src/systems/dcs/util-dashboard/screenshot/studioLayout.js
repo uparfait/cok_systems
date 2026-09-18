@@ -67,19 +67,23 @@ export function resize_rect(start, direction, dx, dy) {
  * fit has no inside position to be clamped to.
  *
  * A surface with no height given (one that grows downwards as things are
- * pushed past its bottom) is only clamped across.
+ * pushed past its bottom) is only clamped across. inset is the air kept
+ * between a box and every edge, so nothing sits flush on the side.
  */
-export function clamp_rect(rect, room) {
+export function clamp_rect(rect, room, inset) {
+  const pad = Number(inset) > 0 ? Number(inset) : 0;
   const wide = Number(room && room.w) > 0 ? Number(room.w) : 0;
   const tall = Number(room && room.h) > 0 ? Number(room.h) : 0;
-  const w = wide ? Math.max(Math.min(rect.w, wide), Math.min(MIN_W, wide)) : rect.w;
-  const h = tall ? Math.max(Math.min(rect.h, tall), Math.min(MIN_H, tall)) : rect.h;
+  const across = wide ? Math.max(1, wide - pad * 2) : 0;
+  const down = tall ? Math.max(1, tall - pad * 2) : 0;
+  const w = across ? Math.max(Math.min(rect.w, across), Math.min(MIN_W, across)) : rect.w;
+  const h = down ? Math.max(Math.min(rect.h, down), Math.min(MIN_H, down)) : rect.h;
   return {
     ...rect,
     w,
     h,
-    x: wide ? Math.max(0, Math.min(rect.x, wide - w)) : Math.max(0, rect.x),
-    y: tall ? Math.max(0, Math.min(rect.y, tall - h)) : Math.max(0, rect.y),
+    x: across ? Math.max(pad, Math.min(rect.x, pad + across - w)) : Math.max(pad, rect.x),
+    y: down ? Math.max(pad, Math.min(rect.y, pad + down - h)) : Math.max(pad, rect.y),
   };
 }
 

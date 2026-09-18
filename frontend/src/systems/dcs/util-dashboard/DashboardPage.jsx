@@ -17,6 +17,7 @@ import BoardWidgetDialogs from "./BoardWidgetDialogs.jsx";
 import { builder_fields } from "./builder/composeWidgets.js";
 import BoardEmptyState from "./BoardEmptyState.jsx";
 import { useBoardContents } from "./useBoardContents.js";
+import { descendants_of } from "./studio/useBoardStudio.js";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import StudioBoard from "./studio/StudioBoard.jsx";
 import { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
@@ -50,7 +51,7 @@ export default function DashboardPage({ form }) {
 
 function DashboardBoard({ form }) {
   const { translate, language } = useDcsLanguage();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const board = useBoardTheme();
   const library = useDashboards(form.form_group_id);
   const { active_id, can_edit } = library;
@@ -198,7 +199,7 @@ function DashboardBoard({ form }) {
   // Click-to-edit on a card (title, description, look, size, icon, colors,
   // and the box it takes inside a canvas), and removing one - both saved
   // right away with a per-card spinner. See useWidgetEdits.
-  const edits = useWidgetEdits({ form: scoped_form, widgets, data, translate, showSuccess, showError, onCommit: commit_widgets });
+  const edits = useWidgetEdits({ form: scoped_form, widgets, data, translate, showSuccess, showError, showInfo, onCommit: commit_widgets });
 
   // Right-clicking the board makes canvases; right-clicking a widget acts
   // on that one. Both need the board to be editable.
@@ -206,6 +207,18 @@ function DashboardBoard({ form }) {
     setIntoCanvas(canvas.id);
     setBuilderTab("charts");
   };
+  // Removing is asked for; a section that still holds widgets is refused
+  // with the count of what has to go first.
+  const request_remove = (target) => {
+    if (!target) return;
+    const inside = descendants_of(widgets, target.id).size;
+    if (inside > 0) {
+      showError(translate("DCS_DB_CANVAS_HAS_CHILDREN", { count: inside }));
+      return;
+    }
+    setWidgetToRemove(target);
+  };
+
   const canvas_menu = useBoardCanvas({
     form: scoped_form,
     widgets,
@@ -216,13 +229,14 @@ function DashboardBoard({ form }) {
     // always its first entry.
     arranging: selecting,
     studio: studio_api,
-    onCommit: (next) => commit_widgets(next),
+    onAdd: (made) => edits.add_widget(made),
     onSettings: (target) => setAppearanceWidget(target),
     onReconfigure: (target) => {
       setReconfiguring(target);
       setBuilderTab("charts");
     },
     onAddWidget: open_builder_in,
+    onRemove: request_remove,
   });
 
   const saving_widget_id = edits.saving_widget_id;
@@ -373,7 +387,7 @@ function DashboardBoard({ form }) {
             editable={can_edit && !generating}
             savingWidgetId={saving_widget_id}
             onUpdateWidget={handle_update_widget}
-            onRemoveWidget={(widget) => setWidgetToRemove(widget)}
+            onRemoveWidget={request_remove}
             onRetryWidget={data.retry_widget}
             onShowSkipped={(target) => setSkippedWidget(target)}
             onPickIcon={(target) => setIconWidget(target)}

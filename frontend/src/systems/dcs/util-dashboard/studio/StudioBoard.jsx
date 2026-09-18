@@ -9,7 +9,7 @@ import DcsConfirmDialog from "../../components/DcsConfirmDialog.jsx";
 import { IconButton, CLOSE_SVG } from "../BoardIcons.jsx";
 import BoardGrid from "../BoardGrid.jsx";
 import StudioToolbar from "./StudioToolbar.jsx";
-import { useBoardStudio } from "./useBoardStudio.js";
+import { useBoardStudio, descendants_of } from "./useBoardStudio.js";
 import { is_studio, board_width, studio_layout } from "../boxLayout.js";
 import { portal_root } from "../portalRoot.js";
 
@@ -88,6 +88,17 @@ export default function StudioBoard({ form, fields, widgets, layout, editable, o
     if (onSelectionApi) onSelectionApi(api.current);
   }, [onSelectionApi]);
 
+  // A section still holding widgets is not removed: the person is told
+  // how many are inside and removes those first.
+  const remove_one = (id) => {
+    const inside = descendants_of(studio.working, id).size;
+    if (inside > 0) {
+      showError(translate("DCS_DB_CANVAS_HAS_CHILDREN", { count: inside }));
+      return;
+    }
+    studio.remove(id);
+  };
+
   const handle_save = async () => {
     setSaving(true);
     try {
@@ -113,7 +124,7 @@ export default function StudioBoard({ form, fields, widgets, layout, editable, o
       layout={studio.active ? studio.layout : layout}
       widgets={studio.active ? studio.working : widgets}
       editable={editable && !studio.active}
-      studio={studio.active ? { onMove: studio.move, onResize: studio.resize, onPlace: studio.place, onRemove: studio.remove } : null}
+      studio={studio.active ? { onMove: studio.move, onResize: studio.resize, onPlace: studio.place, onRemove: remove_one } : null}
     />
   );
 
