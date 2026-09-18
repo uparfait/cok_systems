@@ -191,7 +191,8 @@ export default function MapChart({
   };
 
   const label_font = Math.max(8, size.font - 1);
-  const mark_size = Math.max(12, Math.round(size.font * 1.3));
+  // A marker is a badge big enough to carry its own number.
+  const mark_size = Math.max(24, Math.round(size.font * 2.2));
   const marker_icon = marker || MARKER_SET[0];
   const label_text = (shape) => {
     const value = value_of(shape);
@@ -389,8 +390,10 @@ export default function MapChart({
         const point = anchor_of(shape);
         if ((!label && marks.length === 0) || !box || !point) return null;
         const needed = [
-          Math.max(label ? label.length * label_font * LETTER_WIDTH + 6 : 0, marks.length * (mark_size + 22)),
-          (label ? label_font * 1.6 : 0) + (marks.length > 0 ? mark_size + 4 : 0),
+          // Only the NAME needs its boundary to have room: a marker is
+          // planted however small the place is on screen.
+          label ? label.length * label_font * LETTER_WIDTH + 6 : 0,
+          label ? label_font * 1.6 : 0,
         ];
         return { key: `${shape.name}-${index}`, point, box, needed, label, marks, font: label_font };
       })
@@ -399,6 +402,13 @@ export default function MapChart({
   }, [drawing, signature, is_heat]);
   const shown = usePlaceMarkers(map_of(), ready, places);
 
+  // A click on a marker takes the viewer to that place.
+  const zoom_to = (place) => {
+    const map = map_of();
+    if (!map || !place || !place.box) return;
+    map.fitBounds(map_bounds(place.box), { padding: 40, duration: 500, maxZoom: 15 });
+    setTip(null);
+  };
   const zoom_by = (step) => {
     const map = map_of();
     if (map) map.easeTo({ zoom: map.getZoom() + step, duration: 260 });
@@ -455,7 +465,7 @@ export default function MapChart({
         {/* MapLibre's own stylesheet would take this element's height away
             from it, so its size is written where no stylesheet can reach. */}
         <div ref={host_ref} className="dcs-map-canvas" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
-        <PlaceLabels shown={shown} icon={marker_icon} size={mark_size} colors={colors} halo={halo} format={number_text} />
+        <PlaceLabels shown={shown} icon={marker_icon} size={mark_size} colors={colors} halo={halo} format={number_text} onZoom={zoom_to} />
         <MapTools colors={colors} translate={translate} onZoom={zoom_by} onReset={reset_view} />
         <MapTip tip={tip} row={tip_row} colors={colors} split={split_values} colorOf={value_color} translate={translate} format={number_text} />
         {(failed || waiting) && (

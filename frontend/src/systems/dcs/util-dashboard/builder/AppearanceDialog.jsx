@@ -13,6 +13,7 @@ import { resolve_appearance, build_palette, auto_color, random_color, MODE_DEFAU
 import { portal_root } from "../portalRoot.js";
 import NameSettings from "./NameSettings.jsx";
 import CanvasSettings from "./CanvasSettings.jsx";
+import { HEAT_LOW, HEAT_HIGH } from "../charts/heatScale.js";
 
 // A widget's background may be see-through, so that one carries an
 // opacity slider; nothing else does.
@@ -84,7 +85,7 @@ function compact(appearance) {
  * the color of whatever heading it carries - and the way its contents are
  * arranged. Everything else is hidden rather than shown and ignored.
  */
-export default function AppearanceDialog({ form, title, description, naming, valuesField, appearance, box, dataless, canvas, onApply, onClose }) {
+export default function AppearanceDialog({ form, title, description, naming, valuesField, appearance, box, dataless, canvas, heat, onApply, onClose }) {
   const { translate } = useDcsLanguage();
   const [draft, setDraft] = useState(() => resolve_appearance(appearance));
   // The name and the description are set HERE now, not by clicking the
@@ -153,6 +154,7 @@ export default function AppearanceDialog({ form, title, description, naming, val
         appearance: compact(draft),
         box: draft_box,
         canvas: draft_canvas,
+        heat: draft_heat,
         title: named,
         description: String(draft_name.description || "").trim() || null,
       });
@@ -175,6 +177,9 @@ export default function AppearanceDialog({ form, title, description, naming, val
   // A section has a surface and a layout; everything else on this dialog
   // is about numbers and values it does not have.
   const [draft_canvas, setDraftCanvas] = useState(() => (canvas ? { ...canvas } : null));
+  // A heat map's scale runs between two colors of its own; they are set
+  // here, beside the rest of the widget's colors.
+  const [draft_heat, setDraftHeat] = useState(() => (heat ? { ...heat } : null));
   const colors_shown = dataless ? MODE_KEYS.filter((entry) => entry.id !== "number") : MODE_KEYS;
 
   return createPortal(
@@ -361,6 +366,18 @@ export default function AppearanceDialog({ form, title, description, naming, val
           )}
 
           {draft_canvas && <CanvasSettings canvas={draft_canvas} onChange={setDraftCanvas} />}
+          {draft_heat && (
+            <section>
+              <p className="text-xs font-bold uppercase mb-1" style={{ color: TEXT_DARK, letterSpacing: "0.5px", ...HEADING_FONT }}>
+                {translate("DCS_DB_MAP_HEAT_COLORS")}
+              </p>
+              <p className="text-xs mb-2" style={{ color: TEXT_MUTED }}>{translate("DCS_DB_MAP_HEAT_COLORS_HINT")}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <ColorInput label={translate("DCS_DB_MAP_HEAT_LOW")} value={draft_heat.low || HEAT_LOW} onChange={(low) => setDraftHeat((current) => ({ ...current, low }))} onClear={draft_heat.low ? () => setDraftHeat((current) => ({ ...current, low: null })) : null} />
+                <ColorInput label={translate("DCS_DB_MAP_HEAT_HIGH")} value={draft_heat.high || HEAT_HIGH} onChange={(high) => setDraftHeat((current) => ({ ...current, high }))} onClear={draft_heat.high ? () => setDraftHeat((current) => ({ ...current, high: null })) : null} />
+              </div>
+            </section>
+          )}
 
           {!dataless && (
           <section>

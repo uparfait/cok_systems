@@ -198,15 +198,21 @@ export const heat_geojson = (points) => ({
   })),
 });
 
+// Where the heat hands over to the circles: heat alone below, circles
+// alone above, the two crossing over between.
+const HANDOVER = { from: 13, to: 15 };
+
 /**
- * A heat map, drawn the way heat maps are drawn: every record spreads heat
- * of its own weight, the spread grows with the zoom, and the burn fades out
- * as the viewer arrives - where the single points take over, each one drawn
- * as a dot so a dense place can still be read apart.
+ * A heat map, drawn the way MapLibre's own heatmap example draws it: every
+ * record spreads heat of its own weight, the spread grows with the zoom,
+ * and as the viewer comes in the heat FADES OUT while a circle layer takes
+ * over - one circle per record, sized and colored by its weight along the
+ * same scale, white-edged - so a dense place is still read apart, record
+ * by record, without ever becoming a scatter of flat dots.
  *
- * Split into values, there is one layer per value, each in its own color,
- * so two values over the same ground are told apart by hue rather than
- * washed into one.
+ * Split into values, there is one pair of layers per value, each in its own
+ * color, so two values over the same ground are told apart by hue rather
+ * than washed into one.
  */
 export function set_heat_map(map, plan) {
   ((map.getStyle() && map.getStyle().layers) || [])
@@ -218,31 +224,48 @@ export function set_heat_map(map, plan) {
   const spread = { radius: Number(plan.radius) || spread_of().radius, intensity: Number(plan.intensity) || spread_of().intensity };
   const top = Math.max(1, Number(plan.high) || 1);
   const layers = plan.layers && plan.layers.length > 0 ? plan.layers : [{ key: "", low: plan.low, high: plan.hot }];
+  let spec_max_zoom = 24;
   layers.forEach((entry, index) => {
     const paint = {
       "heatmap-weight": ["interpolate", ["linear"], ["get", "weight"], 0, 0, top, 1],
       "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 6, spread.intensity * 0.6, 16, spread.intensity * 2.2],
       "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"]].concat(heat_ramp(entry.low, entry.high)),
       "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 6, spread.radius * 0.5, 12, spread.radius, 18, spread.radius * 2.4],
-      "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.95, 16, 0.75, 18, 0.35],
+      // Full from far out, gone once the circles have taken over.
+      "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.95, HANDOVER.from, 0.9, HANDOVER.to, 0],
     };
-    const spec = { id: HEAT_LAYER + "-" + index, type: "heatmap", source: HEAT_SOURCE, paint };
+    spec_max_zoom = HANDOVER.to;
+    const spec = { id: HEAT_LAYER + "-" + index, type: "heatmap", source: HEAT_SOURCE, maxzoom: spec_max_zoom, paint };
     if (entry.key) spec.filter = ["==", ["get", "group"], entry.key];
     map.addLayer(spec);
   });
   if (plan.dots === false) return;
+  // The records themselves, once close enough to see them one by one: a
+  // circle sized by its weight and by the zoom, colored along the same
+  // scale the heat used, fading in exactly as the heat fades out.
   layers.forEach((entry, index) => {
+    const cool = entry.low || plan.low;
+    const hot = entry.high || plan.hot;
     const spec = {
       id: HEAT_DOTS + "-" + index,
       type: "circle",
       source: HEAT_SOURCE,
-      minzoom: 13,
+      minzoom: HANDOVER.from,
       paint: {
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 2.5, 18, 7],
-        "circle-color": entry.high || plan.hot,
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          HANDOVER.from,
+          ["interpolate", ["linear"], ["get", "weight"], 0, 3, top, 8],
+          18,
+          ["interpolate", ["linear"], ["get", "weight"], 0, 8, top, 40],
+        ],
+        "circle-color": ["interpolate", ["linear"], ["get", "weight"], 0, cool, top, hot],
         "circle-stroke-color": "#FFFFFF",
-        "circle-stroke-width": 0.8,
-        "circle-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 15, 0.85],
+        "circle-stroke-width": 1,
+        "circle-opacity": ["interpolate", ["linear"], ["zoom"], HANDOVER.from, 0, HANDOVER.to, 0.9],
+        "circle-stroke-opacity": ["interpolate", ["linear"], ["zoom"], HANDOVER.from, 0, HANDOVER.to, 1],
       },
     };
     if (entry.key) spec.filter = ["==", ["get", "group"], entry.key];

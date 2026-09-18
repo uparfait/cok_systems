@@ -534,6 +534,8 @@ const kn = {
   DCS_DB_MAP_SPREAD_BALANCED: "Biringaniye",
   DCS_DB_MAP_SPREAD_WIDE: "Byagutse",
   DCS_DB_MAP_SHOW_POINTS: "Erekana buri gisubizo nk'akadomo iyo wegereje",
+  DCS_DB_MAP_HEAT_COLORS: "Amabara y'ubushyuhe",
+  DCS_DB_MAP_HEAT_COLORS_HINT: "Impera zombi z'urugero: ibara rikonje aho ibisubizo ari bike, ibara rishyushye aho ari byinshi. Uduziga tugaragara iyo wegereje dukoresha urugero rumwe.",
   DCS_DB_MAP_HEAT_LOW: "Bike",
   DCS_DB_MAP_HEAT_HIGH: "Byinshi",
   DCS_DB_MAP_HEAT_DEFAULT_TITLE: "Aho {measure} iva",

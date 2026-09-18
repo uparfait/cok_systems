@@ -534,6 +534,8 @@ const fr = {
   DCS_DB_MAP_SPREAD_BALANCED: "Equilibre",
   DCS_DB_MAP_SPREAD_WIDE: "Large",
   DCS_DB_MAP_SHOW_POINTS: "Montrer chaque reponse en point une fois zoome",
+  DCS_DB_MAP_HEAT_COLORS: "Couleurs de la chaleur",
+  DCS_DB_MAP_HEAT_COLORS_HINT: "Les deux bouts de l'echelle : la couleur froide ou les reponses sont rares, la couleur chaude ou elles sont denses. Les cercles qui apparaissent en zoomant suivent la meme echelle.",
   DCS_DB_MAP_HEAT_LOW: "Le moins",
   DCS_DB_MAP_HEAT_HIGH: "Le plus",
   DCS_DB_MAP_HEAT_DEFAULT_TITLE: "D'ou vient {measure}",

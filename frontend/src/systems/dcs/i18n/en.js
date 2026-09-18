@@ -534,6 +534,8 @@ const en = {
   DCS_DB_MAP_SPREAD_BALANCED: "Balanced",
   DCS_DB_MAP_SPREAD_WIDE: "Wide",
   DCS_DB_MAP_SHOW_POINTS: "Show each answer as a dot once zoomed in",
+  DCS_DB_MAP_HEAT_COLORS: "Heat colors",
+  DCS_DB_MAP_HEAT_COLORS_HINT: "The two ends of the heat scale: the cool color where answers are few, the hot color where they are dense. The circles that appear as you zoom in use the same scale.",
   DCS_DB_MAP_HEAT_LOW: "Fewest",
   DCS_DB_MAP_HEAT_HIGH: "Most",
   DCS_DB_MAP_HEAT_DEFAULT_TITLE: "Where {measure} comes from",

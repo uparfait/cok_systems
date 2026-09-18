@@ -35,6 +35,8 @@ export default function BoardWidgetDialogs({ form, fields, widgets, savingWidget
           // out everything about numbers, units and legends.
           dataless={appearanceWidget.chart_type === "canvas"}
           canvas={appearanceWidget.chart_type === "canvas" ? appearanceWidget.canvas || { flow: "row", gap: 12, height: null } : null}
+          // A heat map's two scale colors travel with its map settings.
+          heat={is_map(appearanceWidget) && appearanceWidget.map && appearanceWidget.map.mode === "heat" ? { low: appearanceWidget.map.low_color || null, high: appearanceWidget.map.high_color || null } : null}
           onClose={onCloseAppearance}
           onApply={async (result) => {
             // The name and the description are set in this dialog too, so
@@ -43,6 +45,7 @@ export default function BoardWidgetDialogs({ form, fields, widgets, savingWidget
             // A widget on the board itself has no box: the grid places it.
             if (appearanceWidget.parent_id) changes.box = result.box;
             if (result.canvas) changes.canvas = result.canvas;
+            if (result.heat) changes.map = Object.assign({}, appearanceWidget.map, { low_color: result.heat.low || undefined, high_color: result.heat.high || undefined });
             // The dialog shows the save happening and what came back, and
             // closes itself once that has been read.
             return onUpdate(appearanceWidget.id, changes);

@@ -1,4 +1,5 @@
 import React from "react";
+import { readable_on } from "../appearance.js";
 import { createPortal } from "react-dom";
 import LibraryIcon from "../icons/LibraryIcon.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
@@ -135,18 +136,33 @@ export function MapVeil({ failed, message, colors, translate, onRetry }) {
  * The names and markers themselves, rendered into the elements MapLibre
  * holds over each place (see mapOverlay) - React content on a real map.
  */
-export function PlaceLabels({ shown, icon, size, colors, halo, format }) {
+export function PlaceLabels({ shown, icon, size, colors, halo, format, onZoom }) {
   return shown.map((place) =>
     createPortal(
       <React.Fragment key={place.key}>
         {place.marks.length > 0 && (
           <span className="dcs-map-marker">
-            {place.marks.map((mark) => (
-              <span key={mark.key} className="dcs-map-mark">
-                <LibraryIcon icon={icon} size={size} color={mark.color} />
-                <b style={{ color: colors.text, textShadow: halo }}>{format(mark.count)}</b>
-              </span>
-            ))}
+            {place.marks.map((mark) => {
+              // The number is written ON the marker, in whichever of dark
+              // or light reads against the marker's own color.
+              const ink = readable_on(mark.color, null);
+              return (
+                <button
+                  key={mark.key}
+                  type="button"
+                  className="dcs-map-mark dcs-no-drill"
+                  title={format(mark.count)}
+                  style={{ backgroundColor: mark.color, color: ink, minWidth: size, height: size, fontSize: Math.max(10, Math.round(size * 0.42)) }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (onZoom) onZoom(place);
+                  }}
+                >
+                  <LibraryIcon icon={icon} size={Math.round(size * 0.55)} color={ink} />
+                  <b>{format(mark.count)}</b>
+                </button>
+              );
+            })}
           </span>
         )}
         {place.label && (
