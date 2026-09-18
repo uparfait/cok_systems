@@ -140,13 +140,17 @@ export function fit_text(text, max_px, font) {
 /** Row height for horizontal bars so wrapped labels never overlap. */
 export const bar_row_height = (labels, max_px, base, font) => Math.max(base, max_lines(labels, max_px, font) * ((font || 11) + 2) + 10);
 
-/** The widest any of these numbers renders as, in pixels. */
-export const number_room = (values, font) =>
+/** How a number reads when nobody has said otherwise. */
+const plain_number = (value) => (typeof value === "number" ? Math.round(value).toLocaleString("en-US") : String(value === undefined || value === null ? "" : value));
+
+/**
+ * The widest any of these numbers renders as, in pixels - measured as the
+ * finished text, unit and shortening included, so the room reserved is the
+ * room the label actually takes.
+ */
+export const number_room = (values, font, format) =>
   Math.ceil(
-    (values || []).reduce((best, value) => {
-      const text = typeof value === "number" ? Math.round(value).toLocaleString("en-US") : String(value === undefined || value === null ? "" : value);
-      return Math.max(best, text_width(text, font));
-    }, 8),
+    (values || []).reduce((best, value) => Math.max(best, text_width((format || plain_number)(value), font)), 8),
   ) + 6;
 
 /** Room a numeric axis needs so its largest tick is never clipped. */

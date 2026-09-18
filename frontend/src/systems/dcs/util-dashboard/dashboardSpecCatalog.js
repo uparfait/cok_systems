@@ -70,7 +70,10 @@ const CHART_TEXT = {
   heatmap: "A grid of group_by values by split_by values, colored by the measure.",
   kpi: "A single big number card, optionally with a legend (legend_by) listing the counts per value of a choice field.",
   canvas:
-    "Free space on the board that OTHER widgets sit inside. It reads no field, takes no formula, no group_by, no period and no over_time - it is a place, not a question. Widgets join it by naming its id in their parent_id, and lay themselves out inside it with their own box. Use one to put a few widgets side by side at sizes the board's own grid cannot give them; do not wrap a single widget in one, and do not use one where the ordinary grid would do.",
+    "A SECTION OF THE LAYOUT - free space that other widgets sit inside. It is design, not data: it reads no field, takes no formula, no group_by, no period, no over_time, and it draws no chart, no legend and no total. Nothing is fetched for it and nothing can be clicked into it. " +
+    "Its title and description are OPTIONAL, unlike every other widget - a canvas that simply holds three widgets side by side needs no heading, so leave the title as an empty string unless a heading genuinely helps the page read. " +
+    "Think of it as a SECTION of the page: a section holds widgets, a widget holds data. Nothing about data belongs on a canvas - no unit, no compact, no legend_position, no value_colors, no icon, no size. Give it only its own colors (background, border, and text if it carries a heading) and its canvas layout. " +
+    "Widgets join it by naming its id in their parent_id and lay themselves out inside it with their own box. Use one to group related widgets, or to put a few side by side at sizes the board's own grid cannot give them; do not wrap a single widget in one, and do not use one where the ordinary grid would do.",
 };
 
 function role_of(field) {
@@ -112,7 +115,7 @@ export function describe_form_fields(schema) {
 function widget_shape() {
   return {
     id: "Optional unique string; generated when missing.",
-    title: "Required, 1-120 characters. What the card shows, in plain words.",
+    title: "Required, 1-120 characters. What the card shows, in plain words. The one exception is a canvas, whose title may be an empty string because it is a section of the layout rather than a question.",
     description: "Optional, up to 300 characters, shown under the title.",
     chart_type: `One of: ${Object.keys(CHART_TEXT).join(", ")} (see chart_types).`,
     metric: "{ aggregation, field_id } - the measure. aggregation is one of the formulas; field_id is a numeric field for numeric formulas, any field (or null for whole submissions) for count, any field for count_distinct. Point charts (scatter, bubble) ignore metric.",
@@ -143,7 +146,8 @@ function widget_shape() {
       "Every length is { value, unit } with unit \"px\" or \"%\" - a percent is of the canvas, a pixel count is absolute, and percentages are capped at 100. " +
       "LEAVE OUT what you do not care about: a widget with no width takes whatever is left of its row, which is usually what is wanted. A sensible pair of widgets side by side is two boxes of { flow: \"row\", width: { value: 50, unit: \"%\" } }; give the first one min_width so they stack rather than crush on a phone.",
     canvas:
-      "Canvases only: { flow, gap, height } - which way its children run (\"row\" or \"column\"), the pixels between them (0-64, 12 reads well), and a height of its own as { value, unit } or null to grow to what it holds.",
+      "Canvases only: { flow, gap, width, height } - which way its children run (\"row\" or \"column\"), the pixels between them (0-64, 12 reads well), and its own size as { value, unit } each, or null. " +
+      "A canvas is NOT sized by the board's small / medium / large - it is a band of the page, so ignore the size key on it and give it a width instead, or leave width null for the full row. Height null lets it grow to whatever it holds, which is usually right.",
     over_time:
       "Optional, and the way to ask a question about CHANGE rather than about totals: { enabled: true, field_id, granularity, axis }. null (or left out) on every widget that is read all at once. " +
       "It is not a chart type - it is a way of reading one. The widget keeps its formula, its filters and its split_by, and the time line takes over the axis its categories had, so \"average age by district\" turned over time becomes \"average age per month\", and with a split_by, one line or one stack per value of that field. Whatever the widget grouped by is set aside while it is on. " +
@@ -155,7 +159,8 @@ function widget_shape() {
     icon: "KPI cards only, optional: '<library>:<IconName>' from icon_libraries, e.g. 'lucide:Users' or 'tabler:IconChartBar'. An icon its library does not carry is looked up by the same name in the others, so a near-miss still draws something rather than nothing - but name it correctly. null otherwise.",
     appearance:
       "Optional look: { theme: 'light'|'dark', legend_position: 'bottom'|'top'|'right'|'left', light: { background, text, number, border }, dark: { background, text, number, border }, value_colors: { '<answer value>': '#rrggbb' }, value_labels: { '<answer value>': 'Shown as' } } - null for the default look. " +
-      "unit is what the numbers are measured in: { text, at } with at \"start\" ($12) or \"end\" (1200RWF). The text is used EXACTLY as given, so write \" RWF\" with its leading space and \"$\" without one; it reaches every number the widget prints, not only the big one on a KPI card. " +
+      "unit is what the numbers are measured in: { text, at } with at \"start\" or \"end\". Spacing is handled for you - a unit at the start is joined to the digits (\"$100k\") and one at the end is given exactly one space (\"100k Rwf\") whatever spacing you write around it - so just give the word or symbol. It reaches every number the widget prints, not only the big one on a KPI card. " +
+      "compact shortens long numbers: 1,200 reads as 1.2k, 4,000,000 as 4m, then bn, tn, qd, qt, sx, sp, og, nn, dc. It is ON unless you set compact: false, and you should leave it on - a board is read at a glance. Turn it off only where exact figures are the point, such as a reference table of amounts. " +
       "Colors are a six-digit hex, or EIGHT digits when the background should be see-through ('#1e2a3580' is half-transparent, '#00000000' invisible) so the board shows through the card - only background takes an alpha, text, number, border and value_colors stay solid. " +
       "border is the card's own outline color. " +
       "legend_position is obeyed on every widget at every card size, so 'right' really does put the legend beside the chart, the map or the ring on a small card too - do not set it to a side unless the widget's legend is short enough to read in a narrow column. " +

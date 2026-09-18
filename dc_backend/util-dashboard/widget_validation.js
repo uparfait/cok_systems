@@ -288,7 +288,10 @@ function validate_widget(widget, index, form_versions_by_group, project_id, erro
   if (typeof widget.id !== "string" || !widget.id.trim()) {
     errors.push(`${describe}: missing id`);
   }
-  if (typeof widget.title !== "string" || !widget.title.trim() || widget.title.length > LIMITS.MAX_TITLE_LENGTH) {
+  // A canvas is a section of the layout, so its heading is optional: one
+  // that simply holds three widgets side by side has nothing to say.
+  const titled = typeof widget.title === "string" && widget.title.trim();
+  if (widget.chart_type === "canvas" ? typeof widget.title !== "string" || widget.title.length > LIMITS.MAX_TITLE_LENGTH : !titled || widget.title.length > LIMITS.MAX_TITLE_LENGTH) {
     errors.push(`${describe}: title is required (max ${LIMITS.MAX_TITLE_LENGTH} characters)`);
   }
   if (widget.description !== null && widget.description !== undefined) {

@@ -42,6 +42,8 @@ function sanitize_appearance(appearance) {
   // What the widget's numbers are measured in, and which side it goes.
   // Kept exactly as typed, spaces and all: "$" wants none after it and
   // " RWF" wants one before it, and only the author knows which.
+  // Long numbers are shortened (1.2k, 4m, 1.2bn) unless turned off.
+  if (appearance.compact === false) out.compact = false;
   if (appearance.unit && typeof appearance.unit === "object") {
     const text = typeof appearance.unit.text === "string" ? appearance.unit.text.slice(0, 12) : "";
     if (text.trim()) out.unit = { text, at: appearance.unit.at === "start" ? "start" : "end" };
@@ -164,7 +166,10 @@ function sanitize_canvas(widget) {
   return {
     flow: BOX_FLOWS.includes(clean_string(raw.flow)) ? clean_string(raw.flow) : "row",
     gap: Number.isFinite(gap) && gap >= 0 && gap <= 64 ? Math.round(gap) : 12,
-    // A canvas grows to its contents unless it was given a height of its own.
+    // A section is sized in width and height rather than by the board's
+    // small / medium / large: it is a band of the page, not a card.
+    width: sanitize_length(raw.width),
+    // It grows to its contents unless it was given a height of its own.
     height: height || null,
   };
 }

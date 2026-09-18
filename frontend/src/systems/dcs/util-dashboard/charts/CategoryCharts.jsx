@@ -53,7 +53,7 @@ const value_cells = (rows, palette) => rows.map((row, index) => <Cell key={`${ro
 // Room above a column for the value written on top of it, and beside a bar
 // for the value written after it.
 const top_room = (density) => (density.show_values ? density.value_font + 12 : 10);
-const right_room = (density, values) => (density.show_values ? number_room(values, density.value_font) + 10 : 12);
+const right_room = (density, values, format) => (density.show_values ? number_room(values, density.value_font, format) + 10 : 12);
 
 /**
  * How wide a category axis may grow: normally under half the card, but
@@ -113,7 +113,7 @@ function HorizontalBars({ rows, onItemClick, palette, animate, density, fitMode 
   const width = y_axis_width(labels, cap, density.font);
   const room = y_label_room(width);
   const height = Math.max(density.height, rows.length * bar_row_height(labels, room, density.row_base, density.font));
-  const margin = { top: 10, right: right_room(density, values_of(rows)), left: 0, bottom: 5 };
+  const margin = { top: 10, right: right_room(density, values_of(rows), palette.number_text), left: 0, bottom: 5 };
   return (
     <ScrollFrame height={height} fit={fitMode} density={density}>
     <ResponsiveContainer width="100%" height={height}>
@@ -139,7 +139,7 @@ function VerticalMarks({ rows, onItemClick, palette, animate, density, shape, fi
   const y_width = value_axis_width(values, density.font);
   const margin = { top: top_room(density), right: 14, left: 0, bottom: 5 };
   // The room one column must have if its number is to be written over it.
-  const number_px = density.show_values ? number_room(values, density.value_font) + 10 : 0;
+  const number_px = density.show_values ? number_room(values, density.value_font, palette.number_text) + 10 : 0;
   const frame = category_frame(labels, rows.length, density, y_width + margin.right + 8, fitMode, number_px);
   const axis = category_axis(labels, frame.room, density.font, palette, y_width);
   const height = density.height + axis.height - 30;
@@ -150,9 +150,9 @@ function VerticalMarks({ rows, onItemClick, palette, animate, density, shape, fi
   // the step is 1: every column carries its number. Fit mode cannot widen,
   // so there the figures shrink first and are thinned only if even the
   // smallest will not fit - the tooltip still carries every one of them.
-  const fitted = density.show_values ? fit_value_font(values, frame.room, density.value_font, MIN_VALUE_FONT) : 0;
+  const fitted = density.show_values ? fit_value_font(values, frame.room, density.value_font, MIN_VALUE_FONT, palette.number_text) : 0;
   const number_font = fitted || MIN_VALUE_FONT;
-  const number_step = !density.show_values || fitted ? 1 : value_step(values, frame.room, MIN_VALUE_FONT);
+  const number_step = !density.show_values || fitted ? 1 : value_step(values, frame.room, MIN_VALUE_FONT, palette.number_text);
   const data = with_value_labels(rows, "value", number_step);
   const number_key = number_step > 1 ? VALUE_LABEL_KEY : "value";
   const axes = (
@@ -232,12 +232,12 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
   const y_width = horizontal ? y_axis_width(row_labels, category_axis_cap(row_labels, density), density.font) : value_axis_width(peak, density.font);
   const y_room = y_label_room(y_width);
   const margin = horizontal
-    ? { top: 10, right: right_room(density, peak), left: 0, bottom: 5 }
+    ? { top: 10, right: right_room(density, peak, palette.number_text), left: 0, bottom: 5 }
     : { top: top_room(density), right: 14, left: 0, bottom: 5 };
   // A grouped category carries one number per series side by side, a
   // stacked one carries them above each other, so the room a category
   // needs is the number's width times the number of columns in it.
-  const number_px = density.show_values ? (number_room(peak, base_segment_font) + 8) * (stacked ? 1 : Math.max(1, series.length)) : 0;
+  const number_px = density.show_values ? (number_room(peak, base_segment_font, palette.number_text) + 8) * (stacked ? 1 : Math.max(1, series.length)) : 0;
   const frame = horizontal ? { room: 0, width: 0 } : category_frame(row_labels, rows.length, density, y_width + margin.right + 8, fitMode, number_px);
   const axis = horizontal ? null : category_axis(row_labels, frame.room, density.font, palette, y_width);
   // A grouped column is a fraction of its category's room and a stacked
@@ -249,7 +249,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
   const slot = horizontal ? Infinity : frame.room / Math.max(1, stacked ? 1 : series.length);
   // Never zero: outside fit mode the frame above made the room, and inside
   // it the smallest readable size is still written rather than nothing.
-  const segment_font = fit_value_font(peak, slot, base_segment_font, MIN_VALUE_FONT) || MIN_VALUE_FONT;
+  const segment_font = fit_value_font(peak, slot, base_segment_font, MIN_VALUE_FONT, palette.number_text) || MIN_VALUE_FONT;
   const show_numbers = density.show_values;
   const height = horizontal
     ? Math.max(density.height, rows.length * bar_row_height(row_labels, y_room, stacked ? density.row_base + 2 : Math.max(density.row_base - 8, series.length * (density.font + 7)), density.font))

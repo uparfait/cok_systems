@@ -157,15 +157,65 @@ export const UNIT_SIDES = ["start", "end"];
 const MAX_UNIT = 12;
 
 /**
- * What a number is measured IN, written where the reader expects it: "$12"
- * puts it at the start, "1200RWF" at the end. The text is used exactly as
- * it was typed - a space before "RWF" is a space the author wanted, and
- * nobody wants one after "$" - so nothing is inserted and nothing is
- * trimmed away from the middle.
+ * The short names of the powers of a thousand, largest first. A dashboard
+ * is read at a glance and "1,240,000,000" is not read at a glance - "1.2bn"
+ * is. Stopping at a thousand is deliberate: below it there is nothing to
+ * shorten, and 840 shortened to "0.8k" says less than 840 does.
+ */
+const MAGNITUDES = [
+  { power: 33, suffix: "dc" },
+  { power: 30, suffix: "nn" },
+  { power: 27, suffix: "og" },
+  { power: 24, suffix: "sp" },
+  { power: 21, suffix: "sx" },
+  { power: 18, suffix: "qt" },
+  { power: 15, suffix: "qd" },
+  { power: 12, suffix: "tn" },
+  { power: 9, suffix: "bn" },
+  { power: 6, suffix: "m" },
+  { power: 3, suffix: "k" },
+];
+
+/**
+ * A number at a glance: 1200 -> "1.2k", 4000000 -> "4m", -2500 -> "-2.5k".
+ *
+ * One decimal at most, and never a trailing zero - "4m", not "4.0m". The
+ * magnitude joins the digits with NO space, because "4 m" reads as a
+ * measurement in metres and "4m" reads as four million. Anything under a
+ * thousand is left exactly as it is.
+ */
+export function compact_number(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  const size = Math.abs(number);
+  if (size < 1000) return (Math.round(number * 100) / 100).toLocaleString("en-US");
+  const at = MAGNITUDES.findIndex((entry) => size >= Math.pow(10, entry.power));
+  if (at < 0) return Math.round(number).toLocaleString("en-US");
+  const step = (index) => {
+    const magnitude = MAGNITUDES[index];
+    const rounded = Math.round((number / Math.pow(10, magnitude.power)) * 10) / 10;
+    return { magnitude, rounded };
+  };
+  let { magnitude, rounded } = step(at);
+  // Rounding can carry past its own magnitude: 999,999 rounds to 1000.0k,
+  // which is 1m and should say so.
+  if (Math.abs(rounded) >= 1000 && at > 0) ({ magnitude, rounded } = step(at - 1));
+  const digits = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return `${digits}${magnitude.suffix}`;
+}
+
+/**
+ * What a number is measured IN, written where the reader expects it.
+ *
+ * A unit BEFORE the number is joined to it - "$100k" - because a currency
+ * symbol belongs against its digits. A unit AFTER is given exactly one
+ * space - "100k Rwf" - whatever spacing was typed around it, because a
+ * word needs air and one space is the only amount that is ever right.
  */
 export function unit_text(number, unit) {
-  if (!unit || !unit.text) return number;
-  return unit.at === "start" ? `${unit.text}${number}` : `${number}${unit.text}`;
+  const text = unit && unit.text ? String(unit.text).trim() : "";
+  if (!text) return number;
+  return unit.at === "start" ? `${text}${number}` : `${number} ${text}`;
 }
 
 /** The stored appearance completed with defaults; null when nothing was customized. */
@@ -176,7 +226,10 @@ export function resolve_appearance(raw) {
   const legend_position = LEGEND_POSITIONS.includes(source.legend_position) ? source.legend_position : "bottom";
   const held = source.unit && typeof source.unit === "object" ? source.unit : {};
   const unit = { text: String(held.text === undefined || held.text === null ? "" : held.text).slice(0, MAX_UNIT), at: held.at === "start" ? "start" : "end" };
-  return { theme, legend_position, unit, light: mode("light"), dark: mode("dark"), value_colors: { ...(source.value_colors || {}) }, value_labels: { ...(source.value_labels || {}) } };
+  // Shortened by default: a board is read at a glance, and every widget
+  // that has to spell out 1,240,000,000 has already lost the reader.
+  const compact = source.compact !== false;
+  return { theme, legend_position, unit, compact, light: mode("light"), dark: mode("dark"), value_colors: { ...(source.value_colors || {}) }, value_labels: { ...(source.value_labels || {}) } };
 }
 
 /**
@@ -214,7 +267,8 @@ export function build_palette(raw, board_theme) {
   // "1200RWF" in another.
   const number_text = (value) => {
     if (value === null || value === undefined || value === "") return "";
-    const shown = typeof value === "number" ? (Math.round(value * 100) / 100).toLocaleString("en-US") : String(value);
+    if (typeof value !== "number") return unit_text(String(value), appearance.unit);
+    const shown = appearance.compact ? compact_number(value) : (Math.round(value * 100) / 100).toLocaleString("en-US");
     return unit_text(shown, appearance.unit);
   };
   return {
@@ -222,6 +276,7 @@ export function build_palette(raw, board_theme) {
     is_dark: appearance.theme === "dark",
     legend_position: appearance.legend_position,
     unit: appearance.unit,
+    compact: appearance.compact,
     number_text,
     background: mode.background,
     background_solid: solid,

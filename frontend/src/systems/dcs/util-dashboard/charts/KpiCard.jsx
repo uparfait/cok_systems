@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { build_palette } from "../appearance.js";
 import { chart_density } from "./density.js";
+import { fit_text_font } from "./labelDensity.jsx";
 
 const GOOD = "#27AE60";
 const BAD = "#E74C3C";
@@ -76,8 +77,13 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
   const colors = palette || build_palette(null);
   const size = density || chart_density();
   // The number is the card's whole point, so it takes as much of the card's
-  // width as it can without ever spilling out of a narrow one.
-  const number_font = Math.max(17, Math.min(28, Math.round(size.width / 8)));
+  // width as it can without ever spilling out of a narrow one - and then,
+  // if the finished text is still too long for that, it SHRINKS to fit
+  // rather than wrapping. "$1.2bn Rwf" comes out smaller than "42" does,
+  // which is right: a number broken across two lines has stopped being a
+  // number anyone can read at a glance.
+  const roomy_font = Math.max(17, Math.min(28, Math.round(size.width / 8)));
+  const number_font = fit_text_font(colors.number_text(value), Math.max(60, size.width - 24), roomy_font, 11);
   const direction = changePct === null || changePct === undefined ? null : changePct >= 0 ? "up" : "down";
   const has_legend = Array.isArray(legend) && legend.length > 0;
   const { translate } = useDcsLanguage();

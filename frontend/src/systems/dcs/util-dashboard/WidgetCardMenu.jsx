@@ -83,6 +83,9 @@ function OverTimeSection({ widget, fields, translate, onOverTime, sectionTitle, 
 }
 
 export default function CardMenu({ widget, palette, canMap, canHeat, fields, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onMapMode, onOverTime, onReconfigure }) {
+  // A canvas draws no data, so there is nothing in it to reconfigure and
+  // no other look to turn it into: its menu is about size and colors.
+  const is_canvas = widget.chart_type === "canvas";
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
   const button_ref = useRef(null);
@@ -132,7 +135,7 @@ export default function CardMenu({ widget, palette, canMap, canHeat, fields, onC
       </button>
       <MenuPopover open={open} anchorRef={button_ref} onClose={() => setOpen(false)} minWidth={200}>
         <>
-          {onChangeSize && (
+          {onChangeSize && !is_canvas && (
             <>
               {section_title("DCS_DB_SIZE")}
               <div className="flex gap-1 px-3 pb-2">
@@ -192,7 +195,7 @@ export default function CardMenu({ widget, palette, canMap, canHeat, fields, onC
           {onOverTime && can_over_time(widget) && (
             <OverTimeSection widget={widget} fields={fields} translate={translate} onOverTime={(next) => pick(() => onOverTime(next))} sectionTitle={section_title} itemStyle={item_style} />
           )}
-          {onReconfigure && (
+          {onReconfigure && !is_canvas && (
             <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onReconfigure)}>
               {translate("DCS_DB_RECONFIGURE")}
             </button>

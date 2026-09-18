@@ -23,6 +23,12 @@ const WIDGET_TIMEOUT_MS = 180000;
  * initialFilterValues seeds them (a share link's locked values). `blocked` pauses the signature-driven fetch
  * (a review list open), frozen_ref.current pauses the silent refresh.
  */
+/**
+ * A canvas holds widgets; it reads nothing. It is left out of every data
+ * request, never waits, and never shows a loading or an empty state.
+ */
+export const reads_data = (widget) => !!widget && widget.chart_type !== "canvas";
+
 export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref, fetch_batch, initialFilterValues }) {
   const [data_by_widget, setDataByWidget] = useState({});
   const [data_loading, setDataLoading] = useState(false);
@@ -65,8 +71,12 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
         }
       });
 
-  const fetch_data = (widget_list, applied_period, silent) => {
-    if (!widget_list || widget_list.length === 0) {
+  const fetch_data = (all_widgets, applied_period, silent) => {
+    // Canvases are dropped here rather than filtered by every caller: they
+    // are layout, and a request that carries them asks the server to
+    // compute nothing at all for them.
+    const widget_list = (all_widgets || []).filter(reads_data);
+    if (widget_list.length === 0) {
       setDataByWidget({});
       return;
     }

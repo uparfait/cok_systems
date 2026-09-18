@@ -182,6 +182,9 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
+  // A canvas is a section of the layout: no data, so no total, no records
+  // behind it, and no heading unless one was actually written.
+  const is_canvas = widget.chart_type === "canvas";
   // The card paints itself from the widget's own appearance (light or dark
   // mode with its background, text and number colors) - unless the viewer
   // switched the whole board to dark mode, which paints every card dark.
@@ -219,7 +222,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // card's own handler, reached next as the event bubbles, stays quiet.
   const is_map = widget.chart_type === "map";
   const consumed_ref = useRef(false);
-  const can_drill = !!onOpenRecords && !!data && !data.error && !data.locked && !selectable;
+  const can_drill = !is_canvas && !!onOpenRecords && !!data && !data.error && !data.locked && !selectable;
   const pick_records = can_drill
     ? (pick) => {
         consumed_ref.current = true;
@@ -356,7 +359,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
 
       {total !== null && (
         <p className="px-3 pb-2 text-xs font-semibold text-right mt-auto" style={{ color: palette.number, fontFamily: "'Montserrat', sans-serif" }}>
-          {translate("DCS_DB_TOTAL")}: {total.toLocaleString("en-US")}
+          {translate("DCS_DB_TOTAL")}: {palette.number_text(total)}
         </p>
       )}
     </div>

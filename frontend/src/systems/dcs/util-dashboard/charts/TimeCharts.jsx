@@ -50,7 +50,7 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
   // A point is never closer to the next than the number it carries is
   // wide: the line widens and scrolls inside the card rather than give up
   // on writing its values.
-  const point_px = size.show_values ? Math.max(size.point_px, number_room(peak, value_font) + 10) : size.point_px;
+  const point_px = size.show_values ? Math.max(size.point_px, number_room(peak, value_font, colors.number_text) + 10) : size.point_px;
   const inner_width = fitMode ? size.width : Math.max(rows.length * point_px, size.width);
   const x_room = Math.max(6, Math.max(80, inner_width - y_width - margin.right - 8) / Math.max(1, rows.length) - 6);
   const labels = rows.map((row) => row.label);
@@ -63,10 +63,10 @@ export default function TimeCharts({ chartType, rows, series, fitMode, palette, 
   // writes its numbers only where they already fit.
   // Written as small as they need to be to fit between the points, before
   // any of them is moved below the line or dropped.
-  const number_font = size.show_values ? fit_value_font(peak, x_room * 2, value_font, MIN_VALUE_FONT) || MIN_VALUE_FONT : value_font;
-  const numbers = size.show_values && !has_series ? stagger_values(rows, "value", x_room, peak, number_font) : { rows, above: "value", below: null };
+  const number_font = size.show_values ? fit_value_font(peak, x_room * 2, value_font, MIN_VALUE_FONT, colors.number_text) || MIN_VALUE_FONT : value_font;
+  const numbers = size.show_values && !has_series ? stagger_values(rows, "value", x_room, peak, number_font, colors.number_text) : { rows, above: "value", below: null };
   const data = numbers.rows;
-  const series_numbers = size.show_values && has_series && value_step(peak, x_room, number_font) === 1;
+  const series_numbers = size.show_values && has_series && value_step(peak, x_room, number_font, colors.number_text) === 1;
   // Recharts reports the hovered category as activeLabel: that is the bucket clicked.
   const show_value = value_text(colors);
   const on_chart_click = onItemClick ? (state) => state && state.activeLabel !== undefined && onItemClick(String(state.activeLabel)) : undefined;

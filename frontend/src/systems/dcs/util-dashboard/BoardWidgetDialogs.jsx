@@ -30,11 +30,18 @@ export default function BoardWidgetDialogs({ form, fields, widgets, savingWidget
           valuesField={appearance_values_field(appearanceWidget, fields)}
           appearance={appearanceWidget.appearance}
           box={appearanceWidget.parent_id ? appearanceWidget.box || { flow: "row" } : null}
+          // A canvas is a section: it draws no data, so the dialog leaves
+          // out everything about numbers, units and legends.
+          dataless={appearanceWidget.chart_type === "canvas"}
+          canvas={appearanceWidget.chart_type === "canvas" ? appearanceWidget.canvas || { flow: "row", gap: 12, height: null } : null}
           onClose={onCloseAppearance}
-          onApply={async (appearance, box) => {
+          onApply={async (appearance, box, canvas) => {
             onCloseAppearance();
+            const changes = { appearance };
             // A widget on the board itself has no box: the grid places it.
-            await onUpdate(appearanceWidget.id, appearanceWidget.parent_id ? { appearance, box } : { appearance });
+            if (appearanceWidget.parent_id) changes.box = box;
+            if (canvas) changes.canvas = canvas;
+            await onUpdate(appearanceWidget.id, changes);
           }}
         />
       )}

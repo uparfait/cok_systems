@@ -26,7 +26,7 @@ export function HeatmapChart({ rows, series, fitMode, palette, density, onItemCl
   const size = density || chart_density();
   const max = rows.reduce((best, row) => series.reduce((inner, key) => Math.max(inner, row[key] || 0), best), 0);
   // Every number in the grid written at a size the cells can hold.
-  const cell_font = fit_value_font([max], size.cell_px - 8, size.font, MIN_VALUE_FONT) || MIN_VALUE_FONT;
+  const cell_font = fit_value_font([max], size.cell_px - 8, size.font, MIN_VALUE_FONT, colors.number_text) || MIN_VALUE_FONT;
   const label_width = Math.round(Math.max(56, Math.min(size.y_max, size.width * 0.28)));
   const cell_height = Math.max(22, Math.round(size.cell_px / 2.2));
   return (

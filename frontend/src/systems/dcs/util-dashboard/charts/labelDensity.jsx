@@ -102,7 +102,7 @@ export function category_axis(labels, per_px, font, palette, left_px) {
 export const VALUE_LABEL_KEY = "__shown_value";
 
 /** One in how many marks can carry its number without the numbers touching. */
-export const value_step = (values, per_px, font) => Math.max(1, Math.ceil((number_room(values, font) + 6) / Math.max(1, per_px)));
+export const value_step = (values, per_px, font, format) => Math.max(1, Math.ceil((number_room(values, font, format) + 6) / Math.max(1, per_px)));
 
 /** Smaller than this a number is no longer worth writing. */
 export const MIN_VALUE_FONT = 7;
@@ -118,15 +118,33 @@ export const MIN_VALUE_FONT = 7;
  * pixel ones usually do. Below MIN_VALUE_FONT there is nothing legible
  * left to draw, and only then is the number left to the tooltip.
  */
-export function fit_value_font(values, per_px, max_font, min_font) {
+export function fit_value_font(values, per_px, max_font, min_font, format) {
   const floor = min_font || MIN_VALUE_FONT;
   const room = Number(per_px);
   const top = Math.max(floor, Math.round(max_font || 11));
   if (!Number.isFinite(room)) return top;
   for (let font = top; font >= floor; font -= 1) {
-    if (number_room(values, font) + 4 <= room) return font;
+    if (number_room(values, font, format) + 4 <= room) return font;
   }
   return 0;
+}
+
+/**
+ * The largest size ONE piece of text can be written at and still fit a
+ * given width - a number scaled to its own length rather than wrapped or
+ * cut. "$1.2bn Rwf" simply comes out smaller than "42" does, which is the
+ * right answer: a number that has to break across two lines has stopped
+ * being a number to read at a glance.
+ */
+export function fit_text_font(text, max_px, max_font, min_font) {
+  const floor = Math.max(1, min_font || MIN_VALUE_FONT);
+  const top = Math.max(floor, Math.round(max_font || 11));
+  const room = Number(max_px);
+  if (!Number.isFinite(room) || room <= 0) return top;
+  for (let font = top; font > floor; font -= 1) {
+    if (text_width(text, font) <= room) return font;
+  }
+  return floor;
 }
 
 /**
@@ -157,8 +175,8 @@ export const BELOW_KEY = "__value_below";
  * "below" field is null when the numbers fit on one side and there is no
  * reason to make the eye jump.
  */
-export function stagger_values(rows, source_key, per_px, values, font) {
-  const need = number_room(values, font) + 6;
+export function stagger_values(rows, source_key, per_px, values, font, format) {
+  const need = number_room(values, font, format) + 6;
   const room = Math.max(1, per_px);
   const stagger = need > room;
   const step = Math.max(1, Math.ceil(need / (stagger ? room * 2 : room)));

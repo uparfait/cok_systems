@@ -25,7 +25,7 @@ const LABELS = {
   max_height: "DCS_DB_BOX_MAX_HEIGHT",
 };
 
-function LengthField({ labelKey, length, onChange }) {
+export function LengthField({ labelKey, length, onChange }) {
   const { translate } = useDcsLanguage();
   const value = length && Number(length.value) > 0 ? String(length.value) : "";
   const unit = (length && length.unit) || "%";

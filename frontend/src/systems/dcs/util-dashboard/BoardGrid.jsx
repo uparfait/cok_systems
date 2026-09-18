@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import WidgetCard from "./WidgetCard.jsx";
 import CanvasWidget from "./CanvasWidget.jsx";
+import { css_length } from "./boxLayout.js";
 import ExpandableSlot from "./ExpandableSlot.jsx";
 import { build_palette } from "./appearance.js";
 import { useBoardTheme } from "./boardTheme.jsx";
@@ -83,6 +84,15 @@ export default function BoardGrid({
     children_of.get(widget.parent_id).push(widget);
   });
   const on_board = (widget) => !widget.parent_id;
+  // A SECTION is not small, medium or large: it is as wide and as tall as
+  // it was told to be. Given no width it simply takes the row, because a
+  // section is a band of the page rather than a card sharing one.
+  const canvas_span = (widget) => (widget.chart_type === "canvas" ? "grow-0 basis-auto" : "");
+  const canvas_box = (widget) => {
+    if (widget.chart_type !== "canvas") return undefined;
+    const settings = widget.canvas || {};
+    return { width: css_length(settings.width) || "100%", height: css_length(settings.height) || undefined };
+  };
   const kpi_widgets = widgets.filter((widget) => on_board(widget) && widget.chart_type === "kpi" && !emptied_by_filters(widget));
   const chart_widgets = widgets.filter((widget) => on_board(widget) && widget.chart_type !== "kpi" && !emptied_by_filters(widget));
   const selecting = !!selection;
@@ -205,7 +215,8 @@ export default function BoardGrid({
             key={widget.id}
             // A lone widget always spans the whole board - a small card
             // floating in empty space reads as broken, not minimal.
-            className={`${chart_widgets.length === 1 ? SIZE_CLASSES.full : SIZE_CLASSES[widget.size] || SIZE_CLASSES.medium} ${item_class(widget)}`}
+            className={`${canvas_span(widget) || (chart_widgets.length === 1 ? SIZE_CLASSES.full : SIZE_CLASSES[widget.size] || SIZE_CLASSES.medium)} ${item_class(widget)}`}
+            style={canvas_box(widget)}
             {...drag_props(widget)}
           >
             {render_card(widget)}

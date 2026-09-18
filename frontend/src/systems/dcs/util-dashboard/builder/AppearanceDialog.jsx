@@ -7,7 +7,7 @@ import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
 import { ChipGrid, PRIMARY, BORDER, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builderUi.jsx";
 import ColorInput from "./ColorInput.jsx";
-import BoxSettings from "./BoxSettings.jsx";
+import BoxSettings, { LengthField } from "./BoxSettings.jsx";
 import { useFanOutValues } from "./useFanOutValues.js";
 import { resolve_appearance, build_palette, auto_color, random_color, MODE_DEFAULTS, LEGEND_POSITIONS, UNIT_SIDES } from "../appearance.js";
 import { portal_root } from "../portalRoot.js";
@@ -45,6 +45,8 @@ function compact(appearance) {
   if (Object.keys(value_labels).length > 0) out.value_labels = value_labels;
   // A unit of nothing is no unit at all.
   if (appearance.unit && String(appearance.unit.text || "").trim()) out.unit = { text: appearance.unit.text, at: appearance.unit.at === "start" ? "start" : "end" };
+  // Shortening is the default, so only turning it OFF is worth storing.
+  if (appearance.compact === false) out.compact = false;
   return out;
 }
 
@@ -69,8 +71,15 @@ function compact(appearance) {
  * BoxSettings) - the same two values its drag handles write - so one
  * dialog covers everything about how a widget looks and how much room it
  * takes.
+ *
+ * A CANVAS itself is offered far less, and deliberately. It is a section:
+ * it holds widgets and draws no data of its own, so it has no numbers to
+ * put a unit on, nothing to shorten, no values to color and no legend to
+ * place. What it has is a surface - its mode, its background, its border,
+ * the color of whatever heading it carries - and the way its contents are
+ * arranged. Everything else is hidden rather than shown and ignored.
  */
-export default function AppearanceDialog({ form, title, valuesField, appearance, box, onApply, onClose }) {
+export default function AppearanceDialog({ form, title, valuesField, appearance, box, dataless, canvas, onApply, onClose }) {
   const { translate } = useDcsLanguage();
   const [draft, setDraft] = useState(() => resolve_appearance(appearance));
   // Only a widget that sits in a canvas has a size of its own to set; on
@@ -112,6 +121,10 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
     { id: "dark", label: translate("DCS_DB_COLOR_DARK") },
   ];
   const preview_values = values.list.slice(0, 4);
+  // A section has a surface and a layout; everything else on this dialog
+  // is about numbers and values it does not have.
+  const [draft_canvas, setDraftCanvas] = useState(() => (canvas ? { ...canvas } : null));
+  const colors_shown = dataless ? MODE_KEYS.filter((entry) => entry.id !== "number") : MODE_KEYS;
 
   return createPortal(
     <div className="fixed inset-0 z-[10020] flex items-center justify-center p-3 sm:p-4">
@@ -143,18 +156,31 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
               <p className="text-sm font-semibold truncate" style={{ color: palette.text, ...HEADING_FONT }}>
                 {title}
               </p>
-              <p className="font-bold" style={{ color: palette.number, fontSize: 26, lineHeight: 1.1, ...HEADING_FONT }}>
-                1,234
-              </p>
+              {dataless ? (
+                <p className="text-xs" style={{ color: palette.muted }}>{translate("DCS_DB_CANVAS_PREVIEW_HINT")}</p>
+              ) : (
+                <p className="font-bold" style={{ color: palette.number, fontSize: 26, lineHeight: 1.1, ...HEADING_FONT }}>
+                  1,234
+                </p>
+              )}
             </div>
-            <div className="flex flex-col gap-1">
-              {(preview_values.length > 0 ? preview_values : ["A", "B", "C"]).map((label, index) => (
-                <span key={String(label)} className="flex items-center gap-2 text-xs">
-                  <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: palette.color_for(label, index), transition: "background-color 220ms ease" }} />
-                  <span className="truncate" style={{ color: palette.text, maxWidth: 140 }}>{String(label)}</span>
-                </span>
-              ))}
-            </div>
+            {dataless ? (
+              // Three empty boxes: what a section holds is widgets.
+              <div className="flex gap-2">
+                {[0, 1, 2].map((slot) => (
+                  <span key={slot} style={{ width: 34, height: 26, border: `1px solid ${palette.border}`, backgroundColor: palette.soft, transition: "background-color 220ms ease" }} />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {(preview_values.length > 0 ? preview_values : ["A", "B", "C"]).map((label, index) => (
+                  <span key={String(label)} className="flex items-center gap-2 text-xs">
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: palette.color_for(label, index), transition: "background-color 220ms ease" }} />
+                    <span className="truncate" style={{ color: palette.text, maxWidth: 140 }}>{String(label)}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <section>
@@ -172,7 +198,7 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
               {translate("DCS_DB_COLOR_MODE_HINT")}
             </p>
             <div className="flex flex-col gap-2">
-              {MODE_KEYS.map((entry) => (
+              {colors_shown.map((entry) => (
                 <ColorInput
                   key={`${draft.theme}-${entry.id}`}
                   label={translate(entry.labelKey)}
@@ -194,12 +220,27 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
             </section>
           )}
 
+          {!dataless && (
           <section>
             <p className="text-xs font-bold uppercase mb-1" style={{ color: TEXT_DARK, letterSpacing: "0.5px", ...HEADING_FONT }}>
               {translate("DCS_DB_UNIT")}
             </p>
             <p className="text-xs mb-2" style={{ color: TEXT_MUTED }}>
               {translate("DCS_DB_UNIT_HINT")}
+            </p>
+            <label className="flex items-center gap-2 mb-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={draft.compact !== false}
+                style={{ accentColor: PRIMARY }}
+                onChange={(event) => setDraft((current) => ({ ...current, compact: event.target.checked }))}
+              />
+              <span className="text-xs" style={{ color: TEXT_DARK, ...HEADING_FONT }}>
+                {translate("DCS_DB_COMPACT")}
+              </span>
+            </label>
+            <p className="text-xs mb-2" style={{ color: TEXT_MUTED }}>
+              {translate("DCS_DB_COMPACT_HINT")}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <input
@@ -218,7 +259,9 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
               />
             </div>
           </section>
+          )}
 
+          {!dataless && (
           <section>
             <p className="text-xs font-bold uppercase mb-2" style={{ color: TEXT_DARK, letterSpacing: "0.5px", ...HEADING_FONT }}>
               {translate("DCS_DB_LEGEND_POSITION")}
@@ -230,7 +273,45 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
               columns="grid-cols-2 sm:grid-cols-4"
             />
           </section>
+          )}
 
+          {draft_canvas && (
+            <section>
+              <p className="text-xs font-bold uppercase mb-2" style={{ color: TEXT_DARK, letterSpacing: "0.5px", ...HEADING_FONT }}>
+                {translate("DCS_DB_CANVAS_LAYOUT")}
+              </p>
+              <p className="text-xs mb-2" style={{ color: TEXT_MUTED }}>{translate("DCS_DB_CANVAS_LAYOUT_HINT")}</p>
+              <ChipGrid
+                options={[
+                  { id: "row", label: translate("DCS_DB_CANVAS_FLOW_ROW") },
+                  { id: "column", label: translate("DCS_DB_CANVAS_FLOW_COLUMN") },
+                ]}
+                value={draft_canvas.flow === "column" ? "column" : "row"}
+                onChange={(flow) => setDraftCanvas((current) => ({ ...current, flow }))}
+                columns="grid-cols-2 sm:w-64"
+              />
+              <label className="flex items-center gap-2 mt-2">
+                <span className="text-xs flex-1" style={{ color: TEXT_DARK, ...HEADING_FONT }}>{translate("DCS_DB_CANVAS_GAP")}</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="64"
+                  className="dcs-rename-input"
+                  style={{ width: 84 }}
+                  value={Number.isFinite(Number(draft_canvas.gap)) ? draft_canvas.gap : 12}
+                  onChange={(event) => setDraftCanvas((current) => ({ ...current, gap: Math.max(0, Math.min(64, Number(event.target.value) || 0)) }))}
+                />
+              </label>
+              {/* A section takes the size it is given, not one of three
+                  named widths - it is a piece of the page's layout. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                <LengthField labelKey="DCS_DB_BOX_WIDTH" length={draft_canvas.width || null} onChange={(width) => setDraftCanvas((current) => ({ ...current, width }))} />
+                <LengthField labelKey="DCS_DB_BOX_HEIGHT" length={draft_canvas.height || null} onChange={(height) => setDraftCanvas((current) => ({ ...current, height }))} />
+              </div>
+            </section>
+          )}
+
+          {!dataless && (
           <section>
             <p className="text-xs font-bold uppercase mb-1" style={{ color: TEXT_DARK, letterSpacing: "0.5px", ...HEADING_FONT }}>
               {valuesField ? translate("DCS_DB_COLOR_VALUES", { field: valuesField.label }) : translate("DCS_DB_COLOR_VALUES_NONE_TITLE")}
@@ -290,6 +371,7 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
               </>
             )}
           </section>
+          )}
         </div>
 
         <div className="flex-shrink-0 px-4 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-2" style={{ borderTop: `1px solid ${BORDER}` }}>
@@ -299,7 +381,7 @@ export default function AppearanceDialog({ form, title, valuesField, appearance,
           <DcsButtonOutline className="sm:w-32" onClick={onClose}>
             {translate("DCS_DB_BUILDER_CANCEL")}
           </DcsButtonOutline>
-          <DcsButtonPrimary className="sm:w-44" onClick={() => onApply(compact(draft), draft_box)}>
+          <DcsButtonPrimary className="sm:w-44" onClick={() => onApply(compact(draft), draft_box, draft_canvas)}>
             {translate("DCS_DB_COLOR_APPLY")}
           </DcsButtonPrimary>
         </div>
