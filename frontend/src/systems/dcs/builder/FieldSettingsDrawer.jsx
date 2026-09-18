@@ -388,7 +388,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
   const is_likert = draft.type === "likert_scale";
   const is_media = ["image", "video", "audio", "file_upload"].includes(draft.type);
   const is_large_text = draft.type === "large_text";
-  const is_placeholder_capable = ["text", "large_text", "number", "email", "url", "phone"].includes(draft.type);
+  const is_placeholder_capable = ["text", "large_text", "number", "email", "url", "phone", "image", "video", "audio", "file_upload"].includes(draft.type);
   const is_date_like = ["date", "date_time"].includes(draft.type);
   const is_horizontal_line = draft.type === "horizontal_line";
   const design = draft.design || {};
@@ -1276,6 +1276,22 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                     <p className="text-xs" style={{ color: "#9E9E9E" }}>
                       {translate("DCS_DESIGN_POSITION_HINT")}
                     </p>
+                  )}
+                  {(is_header || draft.type === "paragraph") && (
+                    <>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={!!design.show_all_languages}
+                          onChange={(event) => update_design({ show_all_languages: event.target.checked })}
+                          style={{ accentColor: "#056daa" }}
+                        />
+                        {translate("DCS_DESIGN_SHOW_ALL_LANGUAGES")}
+                      </label>
+                      <p className="text-xs" style={{ color: "#9E9E9E" }}>
+                        {translate("DCS_DESIGN_SHOW_ALL_LANGUAGES_HINT")}
+                      </p>
+                    </>
                   )}
                 </>
               )}

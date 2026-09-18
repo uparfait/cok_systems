@@ -56,9 +56,9 @@
       "id": "header_8carzd",
       "type": "header",
       "label": {
-        "en": "MURAHO,\nTURABASABA GUKUSANYA AMAKURU AJYANYE N'IBIZA MU MUJYI WA KIGALI MU BURYO BWIZEWE KANDI KU GIHE. IBI BIZADUFASHA GUTANGA UBUTUMWA BWO KUBURIRA HAKIRI KARE NO GUTANGA UBUTABAZI MUBURYO BWIHUSE KU BABUKENEYE.",
-        "kn": "",
-        "fr": ""
+        "en": "Hello,\n\nWe kindly ask you to collect reliable and timely information regarding disasters in the City of Kigali. This will help us issue early warnings and provide prompt assistance to those in need.",
+        "kn": "MURAHO,\nTURABASABA GUKUSANYA AMAKURU AJYANYE N'IBIZA MU MUJYI WA KIGALI MU BURYO BWIZEWE KANDI KU GIHE. IBI BIZADUFASHA GUTANGA UBUTUMWA BWO KUBURIRA HAKIRI KARE NO GUTANGA UBUTABAZI MUBURYO BWIHUSE KU BABUKENEYE.",
+        "fr": "Bonjour,\n\nNous vous demandons de collecter des informations fiables et actualisées sur les catastrophes naturelles dans la ville de Kigali. Cela nous aidera à émettre des alertes précoces et à fournir une assistance rapide à ceux qui en ont besoin."
       },
       "placeholder": {
         "en": "",
@@ -99,7 +99,8 @@
         "border_color": "#E0E0E0",
         "border_width": 1,
         "font_family": null,
-        "list_type": null
+        "list_type": null,
+        "show_all_languages": true
       },
       "level": 6
     },
@@ -12607,6 +12608,171 @@
               }
             },
             {
+              "id": "hidden_miss7fr",
+              "type": "hidden",
+              "label": {
+                "en": "Outstanding criteria (French)",
+                "kn": "",
+                "fr": "Critères en attente (français)"
+              },
+              "placeholder": {
+                "en": "",
+                "kn": "",
+                "fr": ""
+              },
+              "help_text": {
+                "en": "Derived by the system: the criteria not yet met, in French, one per line.",
+                "kn": "",
+                "fr": "Calculé par le système : les critères non encore remplis, en français, un par ligne."
+              },
+              "required_message": {
+                "en": "",
+                "kn": "",
+                "fr": ""
+              },
+              "valid_message": {
+                "en": "",
+                "kn": "",
+                "fr": ""
+              },
+              "mandatory": false,
+              "default_value": null,
+              "default_config": null,
+              "visibility_condition": null,
+              "validation_rules": [],
+              "computed": {
+                "enabled": true,
+                "formula": {
+                  "if": [
+                    {
+                      "!=": [
+                        {
+                          "var": "single_select_243f20"
+                        },
+                        "not_confirmed"
+                      ]
+                    },
+                    "",
+                    {
+                      "cat": [
+                        {
+                          "if": [
+                            {
+                              "in": [
+                                "site_identified_accessible",
+                                {
+                                  "var": "multi_select_28d292"
+                                }
+                              ]
+                            },
+                            "",
+                            "1. Site identifié et accessible par la route\n"
+                          ]
+                        },
+                        {
+                          "if": [
+                            {
+                              "in": [
+                                "site_capacity_confirmed",
+                                {
+                                  "var": "multi_select_28d292"
+                                }
+                              ]
+                            },
+                            "",
+                            "2. Capacité du site confirmée (ménages/personnes)\n"
+                          ]
+                        },
+                        {
+                          "if": [
+                            {
+                              "in": [
+                                "site_outside_hazard",
+                                {
+                                  "var": "multi_select_28d292"
+                                }
+                              ]
+                            },
+                            "",
+                            "3. Site hors zone de danger (sans inondation/glissement)\n"
+                          ]
+                        },
+                        {
+                          "if": [
+                            {
+                              "in": [
+                                "water_sanitation_available",
+                                {
+                                  "var": "multi_select_28d292"
+                                }
+                              ]
+                            },
+                            "",
+                            "4. Eau et assainissement disponibles ou rapidement déployables\n"
+                          ]
+                        },
+                        {
+                          "if": [
+                            {
+                              "in": [
+                                "lighting_security",
+                                {
+                                  "var": "multi_select_28d292"
+                                }
+                              ]
+                            },
+                            "",
+                            "5. Site doté d'éclairage / de dispositif de sécurité\n"
+                          ]
+                        },
+                        {
+                          "if": [
+                            {
+                              "in": [
+                                "written_agreement",
+                                {
+                                  "var": "multi_select_28d292"
+                                }
+                              ]
+                            },
+                            "",
+                            "6. Accord écrit avec le propriétaire du site (école, église, stade, salle publique) en place\n"
+                          ]
+                        },
+                        {
+                          "if": [
+                            {
+                              "in": [
+                                "accessible_disability",
+                                {
+                                  "var": "multi_select_28d292"
+                                }
+                              ]
+                            },
+                            "",
+                            "7. Accessible aux personnes handicapées, âgées et femmes enceintes\n"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "design": {
+                "offset_percent": 0,
+                "full_device_width": false,
+                "width_percent": null,
+                "text_color": null,
+                "background_color": null,
+                "border_enabled": false,
+                "border_color": "#E0E0E0",
+                "border_width": 1,
+                "font_family": null,
+                "list_type": null,
+                "spacing_below_px": 16
+              }
+            },
+            {
               "id": "hidden_cnt7ok",
               "type": "hidden",
               "label": {
@@ -12935,7 +13101,7 @@
                   "content": {
                     "en": "SITE NOT CONFIRMED - {{hidden_cnt7ok}} of 7 criteria confirmed. Still outstanding:\n{{large_text_6bfe13}}",
                     "kn": "",
-                    "fr": "SITE NON CONFIRMÉ - {{hidden_cnt7ok}} critères sur 7 confirmés. Encore en attente :\n{{large_text_6bfe13}}"
+                    "fr": "SITE NON CONFIRMÉ - {{hidden_cnt7ok}} critères sur 7 confirmés. Encore en attente :\n{{hidden_miss7fr}}"
                   }
                 }
               ]
@@ -15182,9 +15348,9 @@
       "id": "header_8j1ben",
       "type": "header",
       "label": {
-        "en": "MURAKOZE KU BUFATANYE.",
-        "kn": "",
-        "fr": ""
+        "en": "THANK YOU FOR YOUR COOPERATION.",
+        "kn": "MURAKOZE KU BUFATANYE.",
+        "fr": "MERCI POUR VOTRE COLLABORATION."
       },
       "placeholder": {
         "en": "",
@@ -15225,7 +15391,8 @@
         "border_color": "#E0E0E0",
         "border_width": 1,
         "font_family": null,
-        "list_type": null
+        "list_type": null,
+        "show_all_languages": true
       },
       "level": 4
     }

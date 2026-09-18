@@ -68,6 +68,7 @@ const FIELD_TYPE_DOCS = {
     usage_notes:
       "Use for instructions, section intros or disclaimers. Design.list_type turns it into a bulleted/numbered list. " +
       "A paragraph can QUOTE A LIVE ANSWER: write the field id in double braces and it is replaced with the current value as the person fills the form - '{{hidden_count}} of 7 criteria confirmed' or 'Outstanding:\n{{hidden_missing}}'. Pair it with a hidden computed field for totals and lists, and put the paragraph inside a group with a visibility_condition so the note appears only when it applies (a green 'confirmed' note when the derived status is 'confirmed', an amber 'x of 7' warning when it is not). " +
+      "A NOTE EVERYONE MUST READ SHOWS EVERY LANGUAGE: a greeting, a consent statement or a closing thank-you gets design.show_all_languages = true and its text written in en, kn and fr, so the block reads in all three at once with each language named, the reader's own first. " +
       "A NOTE THAT CARRIES A VERDICT IS COLORED: design.background_color + design.text_color (white on green for success, dark amber on a pale amber for a warning); a paragraph or header with a background is drawn as a framed card automatically.",
     example: { id: "paragraph_ab12cd", type: "paragraph", content: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Please answer every question honestly." }), design: { spacing_below_px: 16 } },
   },
@@ -372,7 +373,7 @@ export function build_form_creation_guide(selected_types) {
       id: "Required, unique string across the whole form.",
       type: "Required. One of the keys listed in field_types below.",
       label: "Translated text object - the question/heading text. Not used by 'paragraph' or 'file'.",
-      placeholder: "Translated text object - only meaningful for text, number, email, url, phone.",
+      placeholder: "Translated text object - for text, large_text, number, email, url, phone AND for image, video, audio, file_upload, where it is the text shown inside the empty file box ('Take or upload a photo', 'Attach the signed agreement') in place of the default 'Choose a file'. Write it in en and fr on every input, media included. The box itself is the trigger: with allow_link_input it opens a chooser (paste a link or select a file), otherwise the device's file picker.",
       help_text: "Translated text object - small hint shown under the label.",
       mandatory: "Boolean - whether an answer is required. Not applicable to content-only types (paragraph, header, file, image_block, horizontal_line, section) or 'hidden'.",
       required_message: "Translated text object - error shown when mandatory and left blank.",
@@ -388,6 +389,7 @@ export function build_form_creation_guide(selected_types) {
     design_object: {
       spacing_below_px: "Number, default 16 - the vertical gap left below this component before the next one.",
       full_device_width: "Boolean, content types only (paragraph, header, file, image_block, horizontal_line, section) - true breaks the component out to the full device width instead of the form's own column width.",
+      show_all_languages: "Boolean, header/paragraph only - true draws every language the text was written in, one under the other with its language named, the reader's language first. Use it for a welcome, a consent note or a thank-you that a mixed audience must read without switching the form's language; write the text in every language (en, kn, fr) when you set it.",
       width_percent: "Number 0-100, content types only (except image_block), ignored when full_device_width is true - how wide this component's own column is, as a percent of the form width.",
       offset_percent: "Number 0-100, content types only (except image_block), ignored when full_device_width is true - horizontal position of the column within the remaining slack (0 = flush left, 100 = flush right).",
       background_color: "Hex color string or null - box background color. Applies to every type except horizontal_line.",

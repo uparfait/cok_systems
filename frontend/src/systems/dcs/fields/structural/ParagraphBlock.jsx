@@ -10,6 +10,8 @@ import {
   find_link_overlapping_range,
 } from "../textLinkSegments.js";
 import { fill_text_tokens } from "../textTokens.js";
+import { language_blocks, LANGUAGE_NAME_KEYS } from "../languageBlocks.js";
+import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 
 const ALLOWED_LIST_TYPES = ["disc", "circle", "square", "decimal", "lower-roman", "upper-roman", "none"];
 const ORDERED_LIST_TYPES = ["decimal", "lower-roman", "upper-roman"];
@@ -22,28 +24,44 @@ export default function ParagraphBlock({ field, language, mode, onFieldChange, a
   const text_links = (field.text_links && field.text_links[language]) || [];
   const textarea_ref = useRef(null);
   const [link_menu, setLinkMenu] = useState(null);
+  const { translate } = useDcsLanguage();
 
   if (!is_builder) {
     const text_style = { color: design.text_color || "#555555", fontFamily: design.font_family || undefined };
-    const live = fill_text_tokens(content_text, text_links, allValues);
-
-    if (ALLOWED_LIST_TYPES.includes(design.list_type) && design.list_type !== "none") {
-      const lines_with_offsets = split_lines_with_offsets(live.text).filter((entry) => entry.line.trim().length > 0);
-      const ListTag = ORDERED_LIST_TYPES.includes(design.list_type) ? "ol" : "ul";
+    const is_list = ALLOWED_LIST_TYPES.includes(design.list_type) && design.list_type !== "none";
+    const ListTag = ORDERED_LIST_TYPES.includes(design.list_type) ? "ol" : "ul";
+    const draw = (block) => {
+      const live = fill_text_tokens(block.text, (field.text_links && field.text_links[block.language]) || [], allValues);
+      if (is_list) {
+        const lines_with_offsets = split_lines_with_offsets(live.text).filter((entry) => entry.line.trim().length > 0);
+        return (
+          <ListTag className="text-sm pl-6" style={Object.assign({ listStyleType: design.list_type }, text_style)}>
+            {lines_with_offsets.map((entry, index) => (
+              <li key={index}>
+                <DcsLinkedText text={entry.line} links={shift_links_to_range(live.links, entry.start, entry.end)} />
+              </li>
+            ))}
+          </ListTag>
+        );
+      }
       return (
-        <ListTag className="text-sm pl-6" style={Object.assign({ listStyleType: design.list_type }, text_style)}>
-          {lines_with_offsets.map((entry, index) => (
-            <li key={index}>
-              <DcsLinkedText text={entry.line} links={shift_links_to_range(live.links, entry.start, entry.end)} />
-            </li>
-          ))}
-        </ListTag>
+        <div className="text-sm" style={Object.assign({ whiteSpace: "pre-wrap" }, text_style)}>
+          <DcsLinkedText text={live.text} links={live.links} />
+        </div>
       );
-    }
-
+    };
+    const blocks = language_blocks(field, field.content, language);
+    if (blocks.length === 1) return draw(blocks[0]);
     return (
-      <div className="text-sm" style={Object.assign({ whiteSpace: "pre-wrap" }, text_style)}>
-        <DcsLinkedText text={live.text} links={live.links} />
+      <div className="space-y-3">
+        {blocks.map((block) => (
+          <div key={block.language}>
+            <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: text_style.color, opacity: 0.7 }}>
+              {translate(LANGUAGE_NAME_KEYS[block.language])}
+            </p>
+            {draw(block)}
+          </div>
+        ))}
       </div>
     );
   }

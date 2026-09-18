@@ -4,6 +4,8 @@ import DcsLinkedText from "../../components/DcsLinkedText.jsx";
 import DcsTextLinkMenu from "../../components/DcsTextLinkMenu.jsx";
 import { add_link_to_range, remove_links_overlapping_range, find_link_overlapping_range } from "../textLinkSegments.js";
 import { fill_text_tokens } from "../textTokens.js";
+import { language_blocks, LANGUAGE_NAME_KEYS } from "../languageBlocks.js";
+import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 
 // clamp(min, viewport-scaled, max) - the max is the size on a wide enough
 // screen, the min is a sane floor on a small phone, and the vw term shrinks
@@ -29,21 +31,33 @@ export default function HeaderBlock({ field, language, mode, onFieldChange, allV
   const text_links = (field.text_links && field.text_links[language]) || [];
   const textarea_ref = useRef(null);
   const [link_menu, setLinkMenu] = useState(null);
+  const { translate } = useDcsLanguage();
 
   if (!is_builder) {
-    const live = fill_text_tokens(text_value, text_links, allValues);
-    return React.createElement(
-      HeadingTag,
-      {
-        style: {
-          fontFamily: design.font_family || "'Montserrat', sans-serif",
-          fontWeight: 700,
-          color: design.text_color || "#333333",
-          fontSize: HEADING_SIZES[level],
-          whiteSpace: "pre-wrap",
-        },
-      },
-      <DcsLinkedText key="linked" text={live.text} links={live.links} />,
+    const heading_style = {
+      fontFamily: design.font_family || "'Montserrat', sans-serif",
+      fontWeight: 700,
+      color: design.text_color || "#333333",
+      fontSize: HEADING_SIZES[level],
+      whiteSpace: "pre-wrap",
+    };
+    const draw = (block) => {
+      const live = fill_text_tokens(block.text, (field.text_links && field.text_links[block.language]) || [], allValues);
+      return React.createElement(HeadingTag, { style: heading_style }, <DcsLinkedText key="linked" text={live.text} links={live.links} />);
+    };
+    const blocks = language_blocks(field, field.label, language);
+    if (blocks.length === 1) return draw(blocks[0]);
+    return (
+      <div className="space-y-3">
+        {blocks.map((block) => (
+          <div key={block.language}>
+            <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: heading_style.color, opacity: 0.7 }}>
+              {translate(LANGUAGE_NAME_KEYS[block.language])}
+            </p>
+            {draw(block)}
+          </div>
+        ))}
+      </div>
     );
   }
 

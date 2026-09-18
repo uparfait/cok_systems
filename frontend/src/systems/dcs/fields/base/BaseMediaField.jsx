@@ -26,6 +26,7 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
   const media_upload = useMediaUpload();
   const label = get_field_text(field.label, language);
   const help_text = get_field_text(field.help_text, language);
+  const placeholder_text = get_field_text(field.placeholder, language) || translate("DCS_RENDERER_UPLOAD_PROMPT");
   const valid_message = ruleValidMessage || (field.mandatory && get_field_text(field.valid_message, language));
   const input_ref = useRef(null);
   const [is_drag_over, setIsDragOver] = useState(false);
@@ -143,6 +144,22 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
 
   const viewer_url = is_pending_upload ? local_preview_url : value && value.url;
 
+  // The empty box is the one trigger: with links allowed it opens a small
+  // chooser (paste a link, or select a file); otherwise the file dialog
+  // opens straight away.
+  const open_picker = () => {
+    if (is_builder || is_busy) return;
+    if (field.allow_link_input) {
+      setIsLinkMode(true);
+      return;
+    }
+    if (input_ref.current) input_ref.current.click();
+  };
+  const choose_file = () => {
+    setIsLinkMode(false);
+    if (input_ref.current) input_ref.current.click();
+  };
+
   return (
     <div
       className="w-full"
@@ -160,32 +177,36 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
 
+      <input
+        ref={input_ref}
+        type="file"
+        accept={accept}
+        capture={capture}
+        className="hidden"
+        disabled={is_builder}
+        onChange={handle_file_selected}
+      />
       {is_link_mode ? (
         <div className="flex flex-col gap-2">
+          <p className="text-xs" style={{ color: "#9E9E9E" }}>
+            {translate("DCS_FILE_PICK_HINT")}
+          </p>
           <input
             className="cok-auth-input w-full py-3"
             placeholder="https://..."
             value={link_value}
             onChange={(event) => setLinkValue(event.target.value)}
           />
-          <div className="flex gap-2">
-            <DcsButtonOutline disabled={is_busy} onClick={apply_link}>
+          <div className="flex gap-2 flex-wrap">
+            <DcsButtonOutline disabled={is_busy || !link_value.trim()} onClick={apply_link}>
               {is_deleting_old ? translate("DCS_WAITING_GENERIC") : translate("DCS_BTN_USE_LINK")}
             </DcsButtonOutline>
+            <DcsButtonOutline disabled={is_busy} onClick={choose_file}>{translate("DCS_BTN_SELECT_FILE")}</DcsButtonOutline>
             <DcsButtonOutline disabled={is_busy} onClick={() => setIsLinkMode(false)}>{translate("DCS_BTN_CANCEL")}</DcsButtonOutline>
           </div>
         </div>
       ) : (
         <>
-          <input
-            ref={input_ref}
-            type="file"
-            accept={accept}
-            capture={capture}
-            className="hidden"
-            disabled={is_builder}
-            onChange={handle_file_selected}
-          />
           <div className="flex items-center gap-3 flex-wrap">
             {/* Looks and behaves like a text input: the whole box is the
                 trigger, the file dialog opens on click or Enter/Space, and
@@ -195,11 +216,11 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
               tabIndex={is_builder || is_busy ? -1 : 0}
               aria-disabled={is_builder || is_busy}
               className={`dcs-file-input cok-auth-input flex-1 min-w-0 py-3 flex items-center justify-between gap-3 ${is_builder || is_busy ? "is-disabled" : ""}`}
-              onClick={() => !is_builder && !is_busy && input_ref.current && input_ref.current.click()}
+              onClick={open_picker}
               onKeyDown={(event) => {
-                if (is_builder || is_busy || (event.key !== "Enter" && event.key !== " ")) return;
+                if (event.key !== "Enter" && event.key !== " ") return;
                 event.preventDefault();
-                if (input_ref.current) input_ref.current.click();
+                open_picker();
               }}
             >
               <span className={`truncate ${value ? "" : "dcs-file-input-placeholder"}`} title={value ? value.name : undefined}>
@@ -209,7 +230,7 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
                     ? translate("DCS_UPLOADING_PERCENT", { percent: upload_percent })
                     : value
                       ? value.name
-                      : translate("DCS_RENDERER_UPLOAD_PROMPT")}
+                      : placeholder_text}
               </span>
               {/* A paperclip says "attach a file" in every language the
                   form speaks, and gives the long name beside it the room
@@ -220,11 +241,6 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
                 </svg>
               </span>
             </div>
-            {field.allow_link_input && !is_builder && !value && (
-              <button type="button" className="text-xs underline cursor-pointer" style={{ color: "#056daa" }} onClick={() => setIsLinkMode(true)}>
-                {translate("DCS_BTN_USE_LINK_INSTEAD")}
-              </button>
-            )}
           </div>
           {!is_builder && !value && (
             <p className="text-xs mt-1" style={{ color: "#9E9E9E" }}>
