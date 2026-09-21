@@ -51,6 +51,10 @@ Scope: the public data collection page (`/dcs-form/:id`), the builder's review r
 ## 9. Shared dashboards
 - [x] Switching dashboards behind one share link clears the previous board's filters and data (`useBoardData` resets on scope change)
 - [x] A dashboard that is still loading shows a board-shaped skeleton (header, KPI row, chart cards with a soft sweep) on the shared and the signed-in page
+- [x] Switching dashboards also resets the period to the default (this year); the filter bar Clear puts the date back too (`reset_period`)
+- [x] Skeleton follows the board theme (dark class passed in) with a slow back-and-forth sweep; the shared page picks dashboards with the same themed DashboardSwitcher as the signed-in board
+- [x] A dashboard page lists share links that combine it as an extra board (query on `extra_dashboards.dashboard_id`), marked "Shared from X", editable under that board
+- [x] Shared links render the SAME arrangement as the editor: the public dashboard answer now carries the saved `layout` (studio grid / free surface, sizes, positions) and the shared page hands it to the same BoardGrid
 - [x] A failed widget on a shared board shows the error and Retry only; the "consider removing this widget" hint appears only where the board is editable
 
 ## 10. Excel export of responses

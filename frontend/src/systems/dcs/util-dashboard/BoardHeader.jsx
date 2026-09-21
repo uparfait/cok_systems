@@ -60,6 +60,7 @@ export default function BoardHeader({
   onShare,
   onDelete,
   onScreenshot,
+  onResetPeriod,
 }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
@@ -153,6 +154,7 @@ export default function BoardHeader({
                 lockedIds={lockedFilterIds}
                 disabled={deleting}
                 onReorder={onChangeFilters}
+                onClearPeriod={onResetPeriod}
                 refreshKey={`${JSON.stringify(filterValues || {})}|${period}|${from}|${to}`}
               />
             )}

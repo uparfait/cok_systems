@@ -715,6 +715,7 @@ const fr = {
   DCS_DB_SHARE_PRIMARY_TAG: "(ce tableau de bord)",
   DCS_DB_SHARE_WIDGETS_COUNT: "{{count}} widgets",
   DCS_DB_SHARE_CHIP_COMBINED: "+{{count}} tableaux de bord",
+  DCS_DB_SHARE_CHIP_VIA: "Partagé depuis {{name}}",
   DCS_DB_PUBLIC_PICK_DASHBOARD: "Tableau de bord",
   DCS_DB_SHARE_TITLE_REQUIRED: "Donnez un titre au lien.",
   DCS_DB_SHARE_EXPIRY_REQUIRED: "Choisissez une date et une heure d'expiration, ou cochez N'expire jamais.",

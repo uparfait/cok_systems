@@ -293,7 +293,7 @@ function DashboardBoard({ form }) {
     }
   };
 
-  if (library.list_loading) return <BoardSkeleton />;
+  if (library.list_loading) return <BoardSkeleton dark={board.is_dark} />;
 
   const has_board = !!active_id;
   const empty_state = (
@@ -346,6 +346,7 @@ function DashboardBoard({ form }) {
         to={data.to}
         setTo={data.setTo}
         onApplyPeriod={data.handle_period_apply}
+        onResetPeriod={data.reset_period}
         filters={filters}
         fields={form_fields}
         widgets={widgets}

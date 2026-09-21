@@ -12,9 +12,9 @@ function Block({ className, style }) {
   return <div className={`dcs-skeleton-block ${className || ""}`} style={style} />;
 }
 
-export default function BoardSkeleton() {
+export default function BoardSkeleton({ dark }) {
   return (
-    <div className="dcs-board-root flex-1 min-w-0 max-w-full p-3 sm:p-5 space-y-4" style={{ backgroundColor: "var(--board-bg, #F4F7F9)" }} aria-busy="true">
+    <div className={`dcs-board-root dcs-board-public flex-1 min-w-0 max-w-full p-3 sm:p-5 space-y-4 ${dark ? "dcs-board-dark" : ""}`} style={{ backgroundColor: "var(--board-bg, #F4F7F9)" }} aria-busy="true">
       <div className="dcs-board-chrome p-3 sm:p-4 flex items-center justify-between gap-3 flex-wrap">
         <div className="space-y-2 min-w-0">
           <Block style={{ width: 220, maxWidth: "60vw", height: 18 }} />

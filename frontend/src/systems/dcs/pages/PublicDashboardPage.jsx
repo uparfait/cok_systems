@@ -15,6 +15,7 @@ import SkippedDetailsModal from "../util-dashboard/SkippedDetailsModal.jsx";
 import ScreenshotStudio from "../util-dashboard/screenshot/ScreenshotStudio.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import BoardSkeleton from "../util-dashboard/BoardSkeleton.jsx";
+import DashboardSwitcher from "../util-dashboard/DashboardSwitcher.jsx";
 
 const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "2");
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
@@ -81,23 +82,9 @@ function PublicBoard() {
   const board_title = (config.show_title && info && info.link && info.link.title) || (info && info.dashboard_name) || (info && info.form_name) || "";
   const locked_ids = useMemo(() => new Set(locked ? (config.locked_filters || []).map((entry) => entry.field_id) : []), [locked, config.locked_filters]);
   const fetch_filter_values = (field_id) => get_public_filter_values(token, field_id, data.applied_filters_ref.current, data.applied_period_ref.current, open_id).then((response) => (response.data && response.data.values) || []);
-  // Several dashboards behind one link: the viewer picks which to open.
-  const dashboard_picker =
-    shared.length > 1 ? (
-      <select
-        className="dcs-board-chrome text-sm font-bold py-1 px-2 cursor-pointer"
-        style={{ color: "var(--board-text, #333333)", backgroundColor: "var(--board-card, #FFFFFF)", border: "1px solid var(--board-border, #E0E0E0)", maxWidth: "100%", ...FONT }}
-        value={open_id}
-        onChange={(event) => pick_dashboard(event.target.value)}
-        aria-label={translate("DCS_DB_PUBLIC_PICK_DASHBOARD")}
-      >
-        {shared.map((entry) => (
-          <option key={entry.id} value={entry.id}>
-            {entry.name}
-          </option>
-        ))}
-      </select>
-    ) : null;
+  // Several dashboards behind one link: the viewer picks which to open,
+  // with the same switcher (and theme) as the signed-in board.
+  const dashboard_picker = shared.length > 1 ? <DashboardSwitcher dashboards={shared.map((entry) => ({ id: entry.id, name: entry.name }))} activeId={open_id} canEdit={false} onSelect={pick_dashboard} onRename={() => {}} onCreate={() => {}} /> : null;
   const { container_ref, grid_ref, is_fullscreen, is_fallback, enter, exit, fs_mode, setFsMode, fit_scale, header_visible, show_header, schedule_header_hide } = useBoardFullscreen();
 
   // The screenshot studio: the board as it stands right now - each card's
@@ -117,7 +104,7 @@ function PublicBoard() {
   };
   frozen_ref.current = shot !== null || records !== null;
 
-  if (loading) return <BoardSkeleton />;
+  if (loading) return <BoardSkeleton dark={board.is_dark} />;
 
   if (failure || !info) {
     return (
@@ -172,6 +159,7 @@ function PublicBoard() {
         to={data.to}
         setTo={data.setTo}
         onApplyPeriod={data.handle_period_apply}
+        onResetPeriod={data.reset_period}
         filters={info.filters || []}
         fields={info.filter_fields || []}
         widgets={widgets}
@@ -197,6 +185,7 @@ function PublicBoard() {
             dataByWidget={data.data_by_widget}
             dataLoading={data.data_loading}
             fitMode={is_fullscreen && fs_mode === "fit"}
+            layout={info.layout || null}
             editable={false}
             savingWidgetId={null}
             onUpdateWidget={() => {}}

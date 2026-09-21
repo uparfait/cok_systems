@@ -715,6 +715,7 @@ const en = {
   DCS_DB_SHARE_PRIMARY_TAG: "(this dashboard)",
   DCS_DB_SHARE_WIDGETS_COUNT: "{{count}} widgets",
   DCS_DB_SHARE_CHIP_COMBINED: "+{{count}} dashboards",
+  DCS_DB_SHARE_CHIP_VIA: "Shared from {{name}}",
   DCS_DB_PUBLIC_PICK_DASHBOARD: "Dashboard",
   DCS_DB_SHARE_TITLE_REQUIRED: "Give the link a title.",
   DCS_DB_SHARE_EXPIRY_REQUIRED: "Pick an expiry date and time, or tick Never expires.",

@@ -62,6 +62,10 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     run_seq_ref.current += 1;
     setFilterValues(initialFilterValues || {});
     applied_filters_ref.current = applied_filter_list(initialFilterValues || {});
+    setPeriod("this_year");
+    setFrom("");
+    setTo("");
+    applied_period_ref.current = { preset: "this_year", from: null, to: null };
     setDataByWidget({});
     data_signature_ref.current = "";
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,6 +180,13 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
+  /** Back to the default period (this year) - what "clear" means for the date. */
+  const reset_period = () => {
+    setFrom("");
+    setTo("");
+    setPeriod("this_year");
+  };
+
   /** Applies several filter values at once ("" clears one) and refetches the whole board under them. */
   const set_filter_values = (patch) => {
     const next = { ...filter_values };
@@ -221,6 +232,7 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     applied_period_ref,
     applied_filters_ref,
     filter_values,
+    reset_period,
     set_filter_value,
     set_filter_values,
     prune_filters,

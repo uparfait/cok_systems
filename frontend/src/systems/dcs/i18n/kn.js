@@ -715,6 +715,7 @@ const kn = {
   DCS_DB_SHARE_PRIMARY_TAG: "(iyi mbonerahamwe)",
   DCS_DB_SHARE_WIDGETS_COUNT: "Ibice {{count}}",
   DCS_DB_SHARE_CHIP_COMBINED: "+{{count}} imbonerahamwe",
+  DCS_DB_SHARE_CHIP_VIA: "Yasangiwe kuva kuri {{name}}",
   DCS_DB_PUBLIC_PICK_DASHBOARD: "Imbonerahamwe",
   DCS_DB_SHARE_TITLE_REQUIRED: "Ha ihuza umutwe.",
   DCS_DB_SHARE_EXPIRY_REQUIRED: "Hitamo itariki n'isaha byo kurangira, cyangwa ushyire akamenyetso kuri Ntirirangira.",
