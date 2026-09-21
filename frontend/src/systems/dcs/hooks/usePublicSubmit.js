@@ -41,7 +41,7 @@ export function usePublicSubmit(context) {
         set.submit_state("error");
         const unanswered = Object.keys(validation_result.field_errors || {});
         window.requestAnimationFrame(() => scroll_to_first_error(unanswered));
-        if (!reviewing_queue_id_ref.current && has_meaningful_answers(resolved_values)) {
+        if (!reviewing_queue_id_ref.current && has_meaningful_answers(resolved_values, form.schema)) {
           await save_form_draft(form_group_id, form.version, resolved_values);
           await refresh_draft();
         }

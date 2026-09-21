@@ -6,7 +6,6 @@ import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_field_text } from "./fieldText.js";
-import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import GeoDetailsPanel from "./geo/GeoDetailsPanel.jsx";
 import { useDevicePosition } from "./geo/useDevicePosition.js";
 import {
@@ -72,7 +71,7 @@ export default function GeolocationField({ field, language, mode, value, onChang
   const map_container_ref = useRef(null);
   const map_ref = useRef(null);
   const marker_ref = useRef(null);
-  const auto_requested_ref = useRef(false);
+  const starting_ref = useRef(false);
   const details_ref = useRef(details);
   details_ref.current = details;
   const on_change_ref = useRef(onChange);
@@ -156,6 +155,7 @@ export default function GeolocationField({ field, language, mode, value, onChang
    */
   const apply_device_reading = ({ latitude, longitude, accuracy }) => {
     const current = details_ref.current;
+    starting_ref.current = false;
     if (!override_manual_ref.current && !is_better_reading(current, accuracy)) return;
     override_manual_ref.current = false;
     setFailure(null);
@@ -189,6 +189,7 @@ export default function GeolocationField({ field, language, mode, value, onChang
   };
 
   const handle_failure = (geo_error) => {
+    starting_ref.current = false;
     const kind = failure_kind(geo_error);
     setFailure(kind);
     setStatus({ type: "error", message: translate(FAILURE_MESSAGE_KEYS[kind]) });
@@ -205,12 +206,15 @@ export default function GeolocationField({ field, language, mode, value, onChang
     position.start();
   };
 
+  // No real position and no watch running (first load, a resumed draft
+  // whose coordinates were dropped, a watch that ended empty): detect
+  // without waiting for a tap. A failure waits for the guide's button.
   useEffect(() => {
-    if (is_builder || auto_requested_ref.current) return;
-    auto_requested_ref.current = true;
-    if (!has_real) handle_detect();
+    if (is_builder || has_real || failure || position.watching || starting_ref.current) return;
+    starting_ref.current = true;
+    handle_detect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [is_builder]);
+  }, [is_builder, has_real, failure, position.watching]);
 
   // Permission granted from the browser's own settings while the guide was
   // showing: start again without asking for another tap.
@@ -329,12 +333,23 @@ export default function GeolocationField({ field, language, mode, value, onChang
         </p>
       )}
       {guide && !is_builder && (
-        <div className="text-xs mb-3 border p-3 flex flex-col gap-2" style={{ borderColor: "#E74C3C", color: "#842029", backgroundColor: "rgba(231,76,60,0.06)", borderRadius: 8 }}>
-          <span style={{ whiteSpace: "pre-line" }}>{translate(guide)}</span>
+        <div className="text-xs mb-3 border p-3 flex items-center gap-3" style={{ borderColor: "#E74C3C", color: "#842029", backgroundColor: "rgba(231,76,60,0.06)", borderRadius: 8 }}>
+          <span style={{ whiteSpace: "pre-line", flex: 1, minWidth: 0 }}>{translate(guide)}</span>
           {failure !== "insecure" && (
-            <DcsButtonOutline onClick={handle_detect} style={{ width: "auto", alignSelf: "flex-start" }}>
-              {translate("DCS_GEO_ALLOW_BUTTON")}
-            </DcsButtonOutline>
+            <button
+              type="button"
+              onClick={handle_detect}
+              title={translate("DCS_GEO_ALLOW_BUTTON")}
+              aria-label={translate("DCS_GEO_ALLOW_BUTTON")}
+              className="cursor-pointer flex items-center justify-center flex-shrink-0"
+              style={{ width: 36, height: 36, borderRadius: "50%", border: "1px solid #056daa", background: "#FFFFFF" }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                <circle cx="12" cy="12" r="8" />
+              </svg>
+            </button>
           )}
         </div>
       )}

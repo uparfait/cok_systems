@@ -1,4 +1,8 @@
 import { storage_get, storage_set, storage_del } from "./offlineStorage.js";
+import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
+import { preset_config } from "../fields/presetFields.js";
+
+const AUTO_FILLED_TYPES = ["geolocation", "hidden", "section", "paragraph", "header", "file", "group", "image_block", "horizontal_line"];
 
 /**
  * One saved draft per form, ever - never a growing list. Filling in the
@@ -40,13 +44,28 @@ function is_empty_answer(value) {
 }
 
 /**
- * Whether saved answers are worth offering back. The location field
- * detects the device position on its own the moment the form opens, so a
- * draft holding nothing but coordinates was never typed by anyone - and
- * the position will have changed anyway - so it does not count.
+ * The ids of the fields a respondent actually answers: everything except
+ * the location (detected on its own), hidden and computed fields and
+ * preset defaults, which the engine fills in without anyone typing.
  */
-export function has_meaningful_answers(data) {
-  return Object.values(data || {}).some((value) => !is_empty_answer(value) && !is_geolocation_value(value));
+function respondent_field_ids(schema) {
+  if (!schema || !Array.isArray(schema.fields)) return null;
+  return new Set(
+    flatten_fields(schema.fields)
+      .filter((field) => field && !AUTO_FILLED_TYPES.includes(field.type) && !(field.computed && field.computed.enabled) && !preset_config(field))
+      .map((field) => field.id),
+  );
+}
+
+/**
+ * Whether saved answers are worth offering back: at least one respondent
+ * field holds a real answer. A draft holding nothing but the auto-detected
+ * position (plus whatever the engine derived from it) was never typed by
+ * anyone - and the position will have changed anyway.
+ */
+export function has_meaningful_answers(data, schema) {
+  const ids = respondent_field_ids(schema);
+  return Object.entries(data || {}).some(([field_id, value]) => (!ids || ids.has(field_id)) && !is_empty_answer(value) && !is_geolocation_value(value));
 }
 
 /**

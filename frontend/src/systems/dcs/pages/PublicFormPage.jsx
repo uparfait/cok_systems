@@ -67,6 +67,7 @@ function PublicFormPageContent() {
   const [approval_notices, setApprovalNotices] = useState([]);
   const [queued_notice_visible, setQueuedNoticeVisible] = useState(false);
   const [storage_backend_name, setStorageBackendName] = useState(null);
+  const [pending_draft_check, setPendingDraftCheck] = useState(null);
   const [respondent, setRespondent] = useState(null);
   const [saved_respondent] = useState(() => read_respondent());
   const reviewing_queue_id_ref = useRef(null);
@@ -75,6 +76,19 @@ function PublicFormPageContent() {
     if (form) apply_form_manifest({ name: form.form_name || translate("DCS_PUBLIC_FORM_TITLE_FALLBACK"), language });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form]);
+
+  // A stored draft is offered only once the schema can say whether it holds
+  // a typed answer; one with only the auto-detected location is dropped.
+  useEffect(() => {
+    if (!form || !pending_draft_check) return;
+    setPendingDraftCheck(null);
+    if (has_meaningful_answers(pending_draft_check.data, form.schema)) {
+      setResumePromptVisible(true);
+    } else {
+      clear_form_draft(form_group_id).then(() => refresh_draft());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, pending_draft_check]);
 
   useEffect(() => {
     const prevent_default = (event) => event.preventDefault();
@@ -146,15 +160,8 @@ function PublicFormPageContent() {
     });
     load_form();
     refresh_queue();
-    // A draft holding only auto-detected coordinates is dropped, not offered back.
-    refresh_draft().then(async (stored_draft) => {
-      if (!stored_draft || !is_mounted) return;
-      if (has_meaningful_answers(stored_draft.data)) {
-        setResumePromptVisible(true);
-      } else {
-        await clear_form_draft(form_group_id);
-        await refresh_draft();
-      }
+    refresh_draft().then((stored_draft) => {
+      if (stored_draft && is_mounted) setPendingDraftCheck(stored_draft);
     });
 
     const handle_online_change = () => setIsOnline(window.navigator.onLine);
@@ -194,9 +201,8 @@ function PublicFormPageContent() {
     };
   }, [form_group_id, refresh_queue, refresh_draft]);
 
-  // Autosave into the one draft slot; skipped while reviewing a queued record.
   useEffect(() => {
-    if (!form || reviewing_queue_id_ref.current || !has_meaningful_answers(values)) return;
+    if (!form || reviewing_queue_id_ref.current || !has_meaningful_answers(values, form.schema)) return;
     save_form_draft(form_group_id, form.version, values).then(() => refresh_draft());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [values]);

@@ -4,6 +4,9 @@ import { GEOLOCATION_OPTIONS } from "./geoHelpers.js";
 // A watch keeps improving the fix for this long, then stops on its own to
 // spare the battery; the Allow / Detect button starts it again.
 const WATCH_MAX_MS = 120000;
+// When the high-accuracy watch times out (no GPS fix, e.g. indoors or on a
+// laptop) a network-based reading is tried before giving up.
+const LOW_ACCURACY_OPTIONS = { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 };
 
 /**
  * The device's own position, as a continuous watch (each reading is handed
@@ -66,17 +69,25 @@ export function useDevicePosition({ onReading, onFailure }) {
       return;
     }
     stop();
+    const geolocation = window.navigator.geolocation;
     const on_success = (position) => {
       const { latitude, longitude, accuracy } = position.coords;
       setPermissionState("granted");
       if (on_reading_ref.current) on_reading_ref.current({ latitude, longitude, accuracy: accuracy == null ? null : accuracy });
     };
-    const on_error = (geo_error) => {
+    const fail = (geo_error) => {
       stop();
       if (geo_error && geo_error.code === 1) setPermissionState("denied");
       if (on_failure_ref.current) on_failure_ref.current(geo_error || { code: "unknown" });
     };
-    const geolocation = window.navigator.geolocation;
+    const on_error = (geo_error) => {
+      if (geo_error && geo_error.code === 3) {
+        stop();
+        geolocation.getCurrentPosition(on_success, fail, LOW_ACCURACY_OPTIONS);
+        return;
+      }
+      fail(geo_error);
+    };
     if (typeof geolocation.watchPosition === "function") {
       watch_id_ref.current = geolocation.watchPosition(on_success, on_error, GEOLOCATION_OPTIONS);
       setWatching(true);
