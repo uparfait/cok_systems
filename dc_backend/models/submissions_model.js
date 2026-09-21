@@ -372,6 +372,30 @@ async function list_submissions(form_group_id, version, page, limit, date_bounds
   return { items, total };
 }
 
+function range_filter(form_group_id, bounds) {
+  const filter = { form_group_id };
+  if (bounds && bounds.start && bounds.end) filter.submitted_at = { $gte: bounds.start, $lte: bounds.end };
+  return filter;
+}
+
+/** How many submissions an export over this range will write. */
+async function count_in_range(form_group_id, bounds) {
+  return get_db().collection(COLLECTION_NAME).countDocuments(range_filter(form_group_id, bounds));
+}
+
+/**
+ * Every submission of the range as ONE cursor, oldest first, only the
+ * fields an export writes - streamed in batches instead of page after page
+ * of skip/limit queries.
+ */
+function stream_in_range(form_group_id, bounds, batch_size) {
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .find(range_filter(form_group_id, bounds), { projection: { data: 1, version: 1, submitted_at: 1, respondent: 1 } })
+    .sort({ submitted_at: 1 })
+    .batchSize(batch_size || 1000);
+}
+
 /**
  * Total submissions ever collected for a form, across every version - the
  * form overview's all-time "total data collected" stat.
@@ -534,6 +558,8 @@ module.exports = {
   list_submissions,
   count_by_form_group_id,
   list_submitted_at_within,
+  count_in_range,
+  stream_in_range,
   delete_by_form_group_ids,
   count_submissions_for_version,
   delete_by_form_group_and_version,

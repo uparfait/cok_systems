@@ -52,3 +52,8 @@ Scope: the public data collection page (`/dcs-form/:id`), the builder's review r
 - [x] Switching dashboards behind one share link clears the previous board's filters and data (`useBoardData` resets on scope change)
 - [x] A dashboard that is still loading shows a board-shaped skeleton (header, KPI row, chart cards with a soft sweep) on the shared and the signed-in page
 - [x] A failed widget on a shared board shows the error and Retry only; the "consider removing this widget" hint appears only where the board is editable
+
+## 10. Excel export of responses
+- [x] Export runs as a background job: POST `/submissions/export/:form_group_id/start` (202 with job id and total), long-poll `GET /submissions/export-jobs/:job_id`, `GET .../download`, `POST .../cancel`; the dialog shows counting, then "Writing row X of Y", then download progress, and lets the user stop it
+- [x] Speed: one Mongo cursor over the range (projection, batches of 1000, no skip/limit pages, one count), rows streamed into a zipped .xlsx by a hand-rolled writer (`utilities/xlsx_stream_writer.js`: inline strings, no cell objects, constant memory) - measured 0.25 ms per 40-column row (20k rows in 4.9 s, 23 MB heap) against 1.48 ms with ExcelJS streaming and minutes with the old page-by-page workbook; file read back by ExcelJS with styles and values intact
+- [x] File answers export as full addresses on the site (frontend origin + path); locations as "lat, lng - address"; multi-selects joined; Submitted by column included; the old one-shot GET export reuses the same column and cell helpers
