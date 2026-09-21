@@ -224,6 +224,33 @@ Router.delete("/:form_group_id/versions/:version", delete_form_version);
  *     summary: Create a translation link - its holder may rewrite the form's texts in every language, except the locked kinds
  *     tags: [Forms]
  */
+const { list_data_tokens, create_data_token, rotate_data_token, delete_data_token } = require("../../controllers/data_feed/data_tokens.js");
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/data-tokens:
+ *   get:
+ *     summary: The data-feed tokens of a form (editors only) - each one lets an external tool such as Power BI read the responses
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *   post:
+ *     summary: Create a data-feed token (name, expires_in: never | 7d | 30d | 90d | 365d | ISO date, scope: version, from, to)
+ *     tags: [Forms]
+ * /dcs/api/forms/{form_group_id}/data-tokens/{token_id}:
+ *   delete:
+ *     summary: Revoke a data-feed token
+ *     tags: [Forms]
+ * /dcs/api/forms/{form_group_id}/data-tokens/{token_id}/rotate:
+ *   post:
+ *     summary: Give a data-feed token a new secret; URLs built on the old one stop working
+ *     tags: [Forms]
+ */
+Router.get("/:form_group_id/data-tokens", list_data_tokens);
+Router.post("/:form_group_id/data-tokens", create_data_token);
+Router.delete("/:form_group_id/data-tokens/:token_id", delete_data_token);
+Router.post("/:form_group_id/data-tokens/:token_id/rotate", rotate_data_token);
+
 Router.get("/:form_group_id/translation-links", list_translation_links);
 Router.post("/:form_group_id/translation-links", create_translation_link);
 Router.delete("/:form_group_id/translation-links/:link_id", delete_translation_link);

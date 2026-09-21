@@ -17,6 +17,7 @@ import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsExportDialog from "../components/DcsExportDialog.jsx";
+import DcsDataFeedDialog from "../components/DcsDataFeedDialog.jsx";
 import { approval_status_label_key } from "../components/DcsApprovalStatusChip.jsx";
 import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
 import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
@@ -208,6 +209,7 @@ export default function FormAllDataPage() {
   const [confirming_delete_id, setConfirmingDeleteId] = useState(null);
   const [deleting_id, setDeletingId] = useState(null);
   const [is_export_open, setIsExportOpen] = useState(false);
+  const [is_feed_open, setIsFeedOpen] = useState(false);
   const [is_schedule_open, setIsScheduleOpen] = useState(false);
   const [details_submission_id, setDetailsSubmissionId] = useState(null);
 
@@ -278,6 +280,22 @@ export default function FormAllDataPage() {
         </button>
         <button
           type="button"
+          onClick={() => setIsFeedOpen(true)}
+          title={translate("DCS_FEED_TITLE")}
+          aria-label={translate("DCS_FEED_TITLE")}
+          className="flex-shrink-0 flex items-center justify-center text-white rounded-none transition-colors cursor-pointer"
+          style={{ width: 40, height: 40, backgroundColor: "#056daa" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
+            <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
+          </svg>
+        </button>
+        <button
+          type="button"
           onClick={() => setIsScheduleOpen(true)}
           className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white rounded-none transition-colors cursor-pointer"
           style={{ fontFamily: "'Montserrat', sans-serif", height: 40, backgroundColor: "#056daa" }}
@@ -315,6 +333,8 @@ export default function FormAllDataPage() {
           onCancel={() => setConfirmingDeleteId(null)}
         />
       )}
+
+      {is_feed_open && <DcsDataFeedDialog formGroupId={form_group_id} versions={versions} onClose={() => setIsFeedOpen(false)} />}
 
       <DcsExportDialog
         open={is_export_open}

@@ -255,6 +255,22 @@ Router.post("/batch-approvals/:token/upload", upload_approval_file.single("file"
  *     summary: Who is translating - finds the translator by email for this link or creates them, remembers their page
  *     tags: [Public]
  */
+const { get_data_feed, get_data_feed_schema } = require("../../controllers/data_feed/data_feed.js");
+
+/**
+ * @swagger
+ * /dcs/api/public/data-feed/{token}:
+ *   get:
+ *     summary: A form's responses for an external tool (Power BI, Excel) - JSON pages (count, next, previous, results) or ?format=csv; filters from, to, since, version, page, limit, keys=id|label; 401 bad token, 410 expired
+ *     tags: [Public]
+ * /dcs/api/public/data-feed/{token}/schema:
+ *   get:
+ *     summary: The columns the feed returns, with the field each comes from
+ *     tags: [Public]
+ */
+Router.get("/data-feed/:token/schema", get_data_feed_schema);
+Router.get("/data-feed/:token", get_data_feed);
+
 Router.get("/translate/:token", get_public_translation);
 Router.put("/translate/:token", save_public_translation);
 Router.post("/translate/:token/translator", identify_translator);

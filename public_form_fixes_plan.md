@@ -61,3 +61,10 @@ Scope: the public data collection page (`/dcs-form/:id`), the builder's review r
 - [x] Export runs as a background job: POST `/submissions/export/:form_group_id/start` (202 with job id and total), long-poll `GET /submissions/export-jobs/:job_id`, `GET .../download`, `POST .../cancel`; the dialog shows counting, then "Writing row X of Y", then download progress, and lets the user stop it
 - [x] Speed: one Mongo cursor over the range (projection, batches of 1000, no skip/limit pages, one count), rows streamed into a zipped .xlsx by a hand-rolled writer (`utilities/xlsx_stream_writer.js`: inline strings, no cell objects, constant memory) - measured 0.25 ms per 40-column row (20k rows in 4.9 s, 23 MB heap) against 1.48 ms with ExcelJS streaming and minutes with the old page-by-page workbook; file read back by ExcelJS with styles and values intact
 - [x] File answers export as full addresses on the site (frontend origin + path); locations as "lat, lng - address"; multi-selects joined; Submitted by column included; the old one-shot GET export reuses the same column and cell helpers
+
+## 11. Data feed for analysis tools (Power BI, Excel)
+- [x] Access tokens per form (`dcs_data_feed_tokens`): name, expiry (never / 7d / 30d / 90d / 1 year / a date), scope (one version, a date window), uses and last use, renew (new secret) and revoke; editors only (`/forms/:id/data-tokens`)
+- [x] Public feed `GET /public/data-feed/:token` - JSON pages { count, next, previous, results } or ?format=csv streamed; filters from, to, since, version, page, limit, keys=id|label, always inside the token scope; `/schema` lists the columns; 401 invalid, 410 expired; token also accepted as ?token= or Bearer
+- [x] Rows keyed by field label (unique), file answers as full URLs, locations as "lat, lng - address", id / version / submitted by / submitted at included
+- [x] Data page: share icon above the table opens the tokens dialog with CSV / JSON / schema links to copy, Power BI steps, create / renew / revoke
+- [x] Export cancel message shortened to "Cancelling export..."
