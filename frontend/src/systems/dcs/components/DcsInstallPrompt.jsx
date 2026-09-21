@@ -1,33 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { apply_form_manifest, detect_platform, is_standalone_display, pending_install_prompt } from "../pwa/dynamicManifest.js";
-import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
-import DcsButtonOutline from "./DcsButtonOutline.jsx";
+import { detect_platform, is_standalone_display, pending_install_prompt } from "../pwa/dynamicManifest.js";
 
 const FONT = "'Montserrat', sans-serif";
 
-function dismiss_key(form_group_id) {
-  return `dcs_install_dismissed_${form_group_id}`;
-}
-
-function read_dismissed(form_group_id) {
-  try {
-    return window.localStorage.getItem(dismiss_key(form_group_id)) === "1";
-  } catch (storage_error) {
-    return false;
-  }
-}
-
-export default function DcsInstallPrompt({ formGroupId, formName, language }) {
+export default function DcsInstallPrompt() {
   const { translate } = useDcsLanguage();
   const [prompt_event, setPromptEvent] = useState(() => pending_install_prompt());
-  const [dismissed, setDismissed] = useState(() => read_dismissed(formGroupId));
   const [installed, setInstalled] = useState(() => is_standalone_display());
   const [installing, setInstalling] = useState(false);
+  const [show_ios_steps, setShowIosSteps] = useState(false);
   const platform = detect_platform();
 
   useEffect(() => {
-    apply_form_manifest({ name: formName, short_name: formName, language });
     const handle_available = (event) => setPromptEvent((event.detail && event.detail.prompt) || pending_install_prompt());
     const handle_installed = () => setInstalled(true);
     window.addEventListener("pwa-install-available", handle_available);
@@ -36,19 +21,13 @@ export default function DcsInstallPrompt({ formGroupId, formName, language }) {
       window.removeEventListener("pwa-install-available", handle_available);
       window.removeEventListener("pwa-installed", handle_installed);
     };
-  }, [formName, language]);
-
-  const handle_dismiss = () => {
-    try {
-      window.localStorage.setItem(dismiss_key(formGroupId), "1");
-    } catch (storage_error) {
-      return setDismissed(true);
-    }
-    setDismissed(true);
-  };
+  }, []);
 
   const handle_install = async () => {
-    if (!prompt_event) return;
+    if (!prompt_event) {
+      setShowIosSteps((previous) => !previous);
+      return;
+    }
     setInstalling(true);
     try {
       await prompt_event.prompt();
@@ -62,29 +41,40 @@ export default function DcsInstallPrompt({ formGroupId, formName, language }) {
     }
   };
 
-  if (installed || dismissed) return null;
+  if (installed) return null;
   if (!prompt_event && platform !== "ios") return null;
 
   return (
-    <div className="dcs-no-print w-full min-[760px]:max-w-[700px] bg-white border-2 p-3 mt-3 min-[760px]:mt-0 flex flex-col min-[480px]:flex-row min-[480px]:items-center justify-between gap-3" style={{ borderColor: "#056daa" }}>
-      <div className="min-w-0">
-        <p className="text-sm font-bold" style={{ color: "#056daa", fontFamily: FONT }}>
+    <div className="flex flex-col gap-2 pt-2">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs" style={{ color: "#555555", fontFamily: FONT }}>
           {translate("DCS_INSTALL_TITLE")}
         </p>
-        <p className="text-xs mt-1" style={{ color: "#555555", fontFamily: FONT }}>
-          {prompt_event ? translate("DCS_INSTALL_HINT") : translate("DCS_INSTALL_IOS_STEPS")}
+        <button
+          type="button"
+          onClick={handle_install}
+          disabled={installing}
+          title={translate("DCS_INSTALL_BTN")}
+          aria-label={translate("DCS_INSTALL_BTN")}
+          className="cursor-pointer flex items-center justify-center flex-shrink-0"
+          style={{ width: 36, height: 36, borderRadius: "50%", border: "1px solid #056daa", background: "#FFFFFF", opacity: installing ? 0.6 : 1 }}
+        >
+          {installing ? (
+            <span className="dcs-inline-spinner" style={{ color: "#056daa" }} />
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          )}
+        </button>
+      </div>
+      {show_ios_steps && !prompt_event && (
+        <p className="text-xs" style={{ color: "#9E9E9E", fontFamily: FONT }}>
+          {translate("DCS_INSTALL_IOS_STEPS")}
         </p>
-      </div>
-      <div className="flex gap-2 flex-shrink-0">
-        {prompt_event && (
-          <DcsButtonPrimary onClick={handle_install} disabled={installing}>
-            {installing ? translate("DCS_WAITING_GENERIC") : translate("DCS_INSTALL_BTN")}
-          </DcsButtonPrimary>
-        )}
-        <DcsButtonOutline onClick={handle_dismiss} disabled={installing}>
-          {translate("DCS_INSTALL_LATER")}
-        </DcsButtonOutline>
-      </div>
+      )}
     </div>
   );
 }

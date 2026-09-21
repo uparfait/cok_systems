@@ -33,6 +33,7 @@ export default function DcsQueuePanel({
   isOnline,
   isSyncing,
   storageBackend,
+  installSlot,
   onClose,
   onSelectRecord,
   onContinueDraft,
@@ -194,6 +195,7 @@ export default function DcsQueuePanel({
                 {translate("DCS_STORAGE_MEMORY_ONLY")}
               </p>
             )}
+            {installSlot}
           </div>
         </div>
       </div>

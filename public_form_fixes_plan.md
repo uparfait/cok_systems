@@ -23,7 +23,7 @@ Scope: the public data collection page (`/dcs-form/:id`), the builder's review r
 
 ## 4. Install / add to home screen
 - [x] On `/dcs-form/...` the manifest is swapped at startup for a dynamic one whose `start_url`, `id` and `scope` are the form's own URL (`pwa/dynamicManifest.js`), so the installed icon opens the form, not `/`
-- [x] `DcsInstallPrompt` on the public page: Install button (native prompt) or the Share > Add to Home Screen steps on iPhone; dismiss remembered per form
+- [x] `DcsInstallPrompt` lives inside the saved-records panel under the notes: the text "For faster form access, install this form" with a download icon that opens the native install prompt (on iPhone it reveals the Share > Add to Home Screen steps); page indicators (wifi, saved count, chevron tab, print) stay icons
 
 ## 5. Review rehearsal
 - [x] ReviewOverlay card uses the public form's border (5 px, `rgba(5,109,170,0.35)`, rounded) and page padding

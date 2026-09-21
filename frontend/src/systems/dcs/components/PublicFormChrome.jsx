@@ -5,7 +5,7 @@ const FONT = "'Montserrat', sans-serif";
 const TOP_PROGRESS_BAR_HEIGHT_PX = 4;
 const TOP_BADGE_OFFSET = `calc(${TOP_PROGRESS_BAR_HEIGHT_PX}px + 8px + env(safe-area-inset-top, 0px))`;
 const GLASS_STYLE = {
-  backgroundColor: "rgba(255,255,255,0.7)",
+  backgroundColor: "rgba(255,255,255,0.55)",
   backdropFilter: "blur(10px)",
   WebkitBackdropFilter: "blur(10px)",
   border: "1px solid rgba(255,255,255,0.6)",
@@ -30,23 +30,50 @@ export default function PublicFormChrome({ progressPercent, isOnline, queueCount
         type="button"
         onClick={onOpenQueue}
         disabled={disabled}
-        className="dcs-no-print dcs-queue-edge-tab"
+        className="dcs-no-print flex items-center justify-center"
         title={translate("DCS_QUEUE_BUTTON_LABEL")}
-        style={{ opacity: disabled ? 0.6 : 1, cursor: disabled ? "not-allowed" : "pointer" }}
+        style={{
+          position: "fixed",
+          left: 0,
+          top: "50%",
+          transform: "translateY(-50%)",
+          zIndex: 30,
+          backgroundColor: "#056daa",
+          border: "none",
+          width: 16,
+          height: 36,
+          opacity: disabled ? 0.6 : 1,
+          cursor: disabled ? "not-allowed" : "pointer",
+        }}
       >
-        <span>{translate("DCS_QUEUE_EDGE_LABEL")}</span>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3">
+          <polyline points="7 5 13 12 7 19" />
+          <polyline points="13 5 19 12 13 19" />
+        </svg>
       </button>
 
-      <div className="dcs-no-print flex items-center gap-2 text-xs font-semibold" style={Object.assign({ position: "fixed", top: TOP_BADGE_OFFSET, left: 34, zIndex: 30, padding: "0.3rem 0.6rem", fontFamily: FONT }, GLASS_STYLE)}>
-        <span className="flex items-center gap-1" style={{ color: status_color }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: status_color, display: "inline-block" }} />
-          {translate(isOnline ? "DCS_QUEUE_STATUS_ONLINE" : "DCS_QUEUE_STATUS_OFFLINE")}
+      <div className="dcs-no-print flex items-center gap-2" style={Object.assign({ position: "fixed", top: TOP_BADGE_OFFSET, left: 26, zIndex: 30, padding: "0.3rem 0.5rem" }, GLASS_STYLE)}>
+        <span title={translate(isOnline ? "DCS_QUEUE_STATUS_ONLINE" : "DCS_QUEUE_STATUS_OFFLINE")} className="flex items-center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={status_color} strokeWidth="2">
+            <path d="M2 8.5a15 15 0 0120 0" />
+            <path d="M5.5 12.5a10 10 0 0113 0" />
+            <path d="M9 16.5a5 5 0 016 0" />
+            <circle cx="12" cy="20" r="1" fill={status_color} stroke="none" />
+            {!isOnline && <line x1="3" y1="3" x2="21" y2="21" />}
+          </svg>
         </span>
-        <span style={{ color: "#333333" }} title={translate("DCS_QUEUE_TOTAL_SAVED")}>
-          {translate("DCS_QUEUE_SAVED_COUNT", { count: queueCount })}
+        <span title={translate("DCS_QUEUE_TOTAL_SAVED")} className="flex items-center gap-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2">
+            <path d="M3 7l9-4 9 4-9 4-9-4z" />
+            <path d="M3 12l9 4 9-4" />
+            <path d="M3 17l9 4 9-4" />
+          </svg>
+          <span className="text-xs font-semibold" style={{ color: "#333333", fontFamily: FONT }}>
+            {queueCount}
+          </span>
         </span>
         {storageBackend === "memory" && (
-          <span style={{ color: "#B9770E" }} title={translate("DCS_STORAGE_MEMORY_ONLY")}>
+          <span className="text-xs font-semibold" style={{ color: "#B9770E", fontFamily: FONT }} title={translate("DCS_STORAGE_MEMORY_ONLY")}>
             {translate("DCS_STORAGE_MEMORY_SHORT")}
           </span>
         )}

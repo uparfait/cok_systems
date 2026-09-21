@@ -13,6 +13,7 @@ import { probe_storage } from "../offline/offlineStorage.js";
 import { read_respondent } from "../offline/respondentStore.js";
 import { warm_offline_cache } from "../offline/warmCache.js";
 import { export_ready_records } from "../offline/exportReadyRecords.js";
+import { apply_form_manifest } from "../pwa/dynamicManifest.js";
 import { compute_derived_values, compute_form_progress_percent } from "../renderer/formEngine.js";
 import { MediaUploadProvider } from "../renderer/MediaUploadContext.jsx";
 import { validate_submission_client_side } from "../jsonlogic/validateSubmission.js";
@@ -38,9 +39,7 @@ function extract_form_group_id(raw_id) {
   return raw_id.split("__v")[0];
 }
 
-/**
- * Public, offline-first data collection page behind /dcs-form/:id.
- */
+/** Public, offline-first data collection page behind /dcs-form/:id. */
 function PublicFormPageContent() {
   const { id } = useParams();
   const { translate, language } = useDcsLanguage();
@@ -70,8 +69,12 @@ function PublicFormPageContent() {
   const [storage_backend_name, setStorageBackendName] = useState(null);
   const [respondent, setRespondent] = useState(null);
   const [saved_respondent] = useState(() => read_respondent());
-  // Set only while reviewing an already-queued record: submitting then updates that record, not the draft.
   const reviewing_queue_id_ref = useRef(null);
+
+  useEffect(() => {
+    if (form) apply_form_manifest({ name: form.form_name || translate("DCS_PUBLIC_FORM_TITLE_FALLBACK"), language });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form]);
 
   useEffect(() => {
     const prevent_default = (event) => event.preventDefault();
@@ -157,7 +160,6 @@ function PublicFormPageContent() {
     const handle_online_change = () => setIsOnline(window.navigator.onLine);
     window.addEventListener("online", handle_online_change);
     window.addEventListener("offline", handle_online_change);
-    // Some browsers miss the online/offline events; polling keeps the badge honest.
     const online_poll_interval = window.setInterval(handle_online_change, 10000);
 
     const stop_auto_sync = start_auto_sync({
@@ -192,9 +194,7 @@ function PublicFormPageContent() {
     };
   }, [form_group_id, refresh_queue, refresh_draft]);
 
-  // Every answer, the instant it changes, overwrites the one draft slot for
-  // this form. Skipped while reviewing an already-queued record: that is a
-  // separate editing session and must never overwrite the draft.
+  // Autosave into the one draft slot; skipped while reviewing a queued record.
   useEffect(() => {
     if (!form || reviewing_queue_id_ref.current || !has_meaningful_answers(values)) return;
     save_form_draft(form_group_id, form.version, values).then(() => refresh_draft());
@@ -362,8 +362,6 @@ function PublicFormPageContent() {
           </div>
         )}
 
-        <DcsInstallPrompt formGroupId={form_group_id} formName={form.form_name || translate("DCS_PUBLIC_FORM_TITLE_FALLBACK")} language={language} />
-
         <div
           className="w-full min-[760px]:max-w-[700px] bg-white p-4 border-0 min-[760px]:border-[5px] min-[760px]:rounded-[5px] mt-0 min-[760px]:mt-3 mb-0 min-[760px]:mb-6 grow min-[760px]:grow-0 dcs-print-form-card"
           style={{ borderColor: "rgba(5,109,170,0.35)" }}
@@ -376,10 +374,15 @@ function PublicFormPageContent() {
               type="button"
               onClick={() => window.print()}
               disabled={submitting}
-              className="cursor-pointer text-xs font-semibold flex-shrink-0"
-              style={{ color: "#056daa", fontFamily: FONT, background: "none", border: "1px solid #056daa", padding: "0.25rem 0.6rem", opacity: submitting ? 0.6 : 1 }}
+              title={translate("DCS_BTN_PRINT")}
+              className="flex items-center justify-center flex-shrink-0"
+              style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #056daa", opacity: submitting ? 0.6 : 1, cursor: submitting ? "not-allowed" : "pointer" }}
             >
-              {translate("DCS_BTN_PRINT")}
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2">
+                <polyline points="6 9 6 2 18 2 18 9" />
+                <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
+                <rect x="6" y="14" width="12" height="8" />
+              </svg>
             </button>
           </div>
 
@@ -435,6 +438,7 @@ function PublicFormPageContent() {
             isOnline={is_online}
             isSyncing={is_syncing}
             storageBackend={storage_backend_name}
+            installSlot={<DcsInstallPrompt />}
             onClose={() => setIsQueueOpen(false)}
             onSelectRecord={handle_select_record}
             onContinueDraft={() => {
@@ -485,10 +489,7 @@ function PublicFormPageContent() {
   );
 }
 
-/**
- * Wraps the page with its own language provider - this is a standalone
- * public route, not nested under the authenticated DCS shell.
- */
+/** Standalone public route: wrapped in its own language provider. */
 export default function PublicFormPage() {
   return (
     <DcsErrorBoundary>

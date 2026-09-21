@@ -1996,33 +1996,6 @@ background-color: #056daa;
   background-color: rgba(5, 109, 170, 0.03);
 }
 
-/* The public form's "saved records" tab on the left edge: a thin vertical
-   text label instead of an icon. */
-.dcs-queue-edge-tab {
-  position: fixed;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 30;
-  background-color: #056daa;
-  color: #FFFFFF;
-  border: none;
-  border-radius: 0 4px 4px 0;
-  padding: 10px 5px;
-  font-family: var(--cok-font-heading);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-.dcs-queue-edge-tab > span {
-  display: inline-block;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  line-height: 1;
-}
-
 /* On narrow screens the bar's links do not all fit, so the row itself
    scrolls sideways (thin scrollbar, touch friendly) instead of wrapping or
    squeezing; the centered context links keep enough room for "More". */
