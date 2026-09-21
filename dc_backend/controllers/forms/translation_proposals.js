@@ -52,7 +52,7 @@ async function store_fields(active_version, fields, req) {
 /** A proposal with what the form holds right now next to it. */
 function with_current(active_version) {
   const fields = active_version.schema.fields || [];
-  return (proposal) => Object.assign(strip_proposal(proposal), { current_value: current_text(fields, proposal.field_id, proposal.path, proposal.language), previous_value: proposal.previous_value === undefined ? null : proposal.previous_value, link_title: proposal.link_title || "" });
+  return (proposal) => Object.assign(strip_proposal(proposal, null, true), { current_value: current_text(fields, proposal.field_id, proposal.path, proposal.language), previous_value: proposal.previous_value === undefined ? null : proposal.previous_value, link_title: proposal.link_title || "" });
 }
 
 async function list_translation_proposals(req, res) {

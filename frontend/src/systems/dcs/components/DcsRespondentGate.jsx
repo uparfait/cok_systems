@@ -12,7 +12,7 @@ const FIELDS = [
   { key: "phone", labelKey: "DCS_RESPONDENT_PHONE", type: "tel", autoComplete: "tel" },
 ];
 
-export default function DcsRespondentGate({ saved, onConfirm }) {
+export default function DcsRespondentGate({ saved, onConfirm, titleKey, messageKey }) {
   const { translate } = useDcsLanguage();
   const [mode, setMode] = useState(saved ? "confirm" : "edit");
   const [draft, setDraft] = useState(saved || { name: "", email: "", phone: "" });
@@ -46,7 +46,7 @@ export default function DcsRespondentGate({ saved, onConfirm }) {
   }
 
   return (
-    <DcsCenterOverlay title={translate("DCS_RESPONDENT_TITLE")} message={translate("DCS_RESPONDENT_MESSAGE")}>
+    <DcsCenterOverlay title={translate(titleKey || "DCS_RESPONDENT_TITLE")} message={translate(messageKey || "DCS_RESPONDENT_MESSAGE")}>
       <div className="flex flex-col gap-3">
         {FIELDS.map((field) => (
           <div key={field.key}>

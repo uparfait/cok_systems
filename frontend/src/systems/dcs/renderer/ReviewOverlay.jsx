@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import { read_respondent } from "../offline/respondentStore.js";
-import DcsRespondentGate from "../components/DcsRespondentGate.jsx";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { validate_submission_client_side } from "../jsonlogic/validateSubmission.js";
@@ -36,9 +34,6 @@ export default function ReviewOverlay({ schema, onClose, onPublish, publishing, 
   const [test_submitting, setTestSubmitting] = useState(false);
   const [submit_state, setSubmitState] = useState("idle");
   const [reveal_all_errors, setRevealAllErrors] = useState(false);
-  // The rehearsal asks who is filling in, exactly as the public page does.
-  const [respondent, setRespondent] = useState(null);
-  const [saved_respondent] = useState(() => read_respondent());
 
   const handle_value_change = (field_id, value) => {
     setSubmitState("idle");
@@ -81,19 +76,12 @@ export default function ReviewOverlay({ schema, onClose, onPublish, publishing, 
         </DcsButtonOutlineReverse>
       </div>
 
-      {!respondent && <DcsRespondentGate saved={saved_respondent} onConfirm={setRespondent} />}
-
       {/* The same card as PublicFormPage: 5 px rounded border in the
           system blue at 35%, edge to edge on phones. */}
       <div
         className="w-full min-[760px]:max-w-[700px] bg-white p-4 border-0 min-[760px]:border-[5px] min-[760px]:rounded-[5px] mt-0 min-[760px]:mt-3 mb-0 min-[760px]:mb-6 grow min-[760px]:grow-0"
         style={{ borderColor: "rgba(5,109,170,0.35)" }}
       >
-        {respondent && (
-          <p className="text-xs mb-3 truncate" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}>
-            {translate("DCS_RESPONDENT_FILLING_AS", { name: respondent.name })}
-          </p>
-        )}
         <RendererEngine
           schema={schema}
           mode="renderer"

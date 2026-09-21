@@ -1,7 +1,7 @@
 const Router = require("express").Router();
 
 const get_public_form = require("../../controllers/forms/get_public_form.js");
-const { get_public_translation, save_public_translation } = require("../../controllers/forms/public_translation.js");
+const { get_public_translation, save_public_translation, identify_translator } = require("../../controllers/forms/public_translation.js");
 const get_public_form_field_options = require("../../controllers/forms/get_public_form_field_options.js");
 const submit_response = require("../../controllers/submissions/submit_response.js");
 const upload_file = require("../../controllers/public/upload_file.js");
@@ -248,10 +248,15 @@ Router.post("/batch-approvals/:token/upload", upload_approval_file.single("file"
  *     summary: Every field and text of the form behind a translation link, hidden ones included, no auth (404 unknown token)
  *     tags: [Public]
  *   put:
- *     summary: Save translated texts into the form's active version - texts only, locked kinds refused, schema re-validated
+ *     summary: Save translated texts as proposals (translator named, a field owned by another translator refused with 409)
+ *     tags: [Public]
+ * /dcs/api/public/translate/{token}/translator:
+ *   post:
+ *     summary: Who is translating - finds the translator by email for this link or creates them, remembers their page
  *     tags: [Public]
  */
 Router.get("/translate/:token", get_public_translation);
 Router.put("/translate/:token", save_public_translation);
+Router.post("/translate/:token/translator", identify_translator);
 
 module.exports = Router;

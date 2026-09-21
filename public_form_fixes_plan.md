@@ -41,3 +41,9 @@ Scope: the public data collection page (`/dcs-form/:id`), the builder's review r
 - [x] `node --check` on every changed backend file
 - [x] Offline proof of the storage fallback serialisation (scratch script)
 - [x] Frontend build green
+
+## 8. Translation links (translator identity)
+- [x] Every translator first says who they are (name, email, phone) in the same identity overlay as the public form; POST `/public/translate/:token/translator` finds them by email for this link or creates them (`dcs_form_translators`), remembers the page they are on, and returns their proposals - a returning translator resumes on that page
+- [x] Every proposal stores its translator; a field one translator worked on is theirs alone: others see it read-only with "Translated by NAME", and the server refuses their saves on it (409 TRANSLATION_FIELD_TAKEN)
+- [x] The editor review names each proposal translator with email and phone
+- [x] Page restyled to the system look: white cards with the system shadow instead of borders, plain text language switch, fewer colors, compact sticky bottom bar with safe-area padding, phone gutters

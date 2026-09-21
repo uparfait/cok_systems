@@ -1,5 +1,6 @@
 const links_model = require("../../models/form_translation_links_model.js");
 const proposals_model = require("../../models/form_translation_proposals_model.js");
+const translators_model = require("../../models/form_translators_model.js");
 const forms_model = require("../../models/forms_model.js");
 const projects_model = require("../../models/projects_model.js");
 const project_access = require("../../utilities/project_access.js");
@@ -96,6 +97,7 @@ async function delete_translation_link(req, res) {
     }
     await links_model.delete_link(existing._id);
     await proposals_model.delete_by_link(existing._id.toString());
+    await translators_model.delete_by_link(existing._id.toString());
     return res.status(200).json(success_response(req, "TRANSLATION_LINK_DELETED", { id: existing._id.toString() }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));

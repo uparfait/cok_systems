@@ -145,12 +145,16 @@ export function translation_link_url(token) {
   return `${window.location.origin}/dcs-translate/${token}`;
 }
 
-export function get_public_translation(token) {
-  return dcs_request(`/public/translate/${token}`, "GET");
+export function get_public_translation(token, email) {
+  return dcs_request(`/public/translate/${token}${email ? `?email=${encodeURIComponent(email)}` : ""}`, "GET");
 }
 
-export function save_public_translation(token, changes) {
-  return dcs_request(`/public/translate/${token}`, "PUT", { changes });
+export function identify_translator(token, translator, page) {
+  return dcs_request(`/public/translate/${token}/translator`, "POST", { translator, page });
+}
+
+export function save_public_translation(token, changes, translator, page) {
+  return dcs_request(`/public/translate/${token}`, "PUT", { changes, translator, page });
 }
 
 export function list_translation_proposals(form_group_id, link_id) {

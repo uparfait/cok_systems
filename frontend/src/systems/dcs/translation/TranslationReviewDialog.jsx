@@ -135,13 +135,13 @@ export default function TranslationReviewDialog({ formGroupId, link, fields, onC
             </p>
           )}
           {shown.map((group) => (
-            <div key={group.field_id} className="border p-3 sm:p-4 space-y-3" style={{ borderColor: BORDER }}>
+            <div key={group.field_id} className="p-3 sm:p-4 space-y-3 cok-auth-card">
               <p className="text-xs font-bold uppercase" style={{ color: PRIMARY, ...FONT }}>
                 {group.field ? field_type_name(group.field.type, translate) : translate("DCS_TRANSLATION_KIND_LABEL")}
                 {group.field && group.field.label && get_field_text(group.field.label, language) ? ` - ${get_field_text(group.field.label, language)}` : ""}
               </p>
               {group.items.map((item) => (
-                <label key={item.id} className="grid gap-2 p-3 cursor-pointer" style={{ gridTemplateColumns: "auto 1fr", backgroundColor: "#F7F9FB", border: `1px solid ${BORDER}` }}>
+                <label key={item.id} className="grid gap-2 p-3 cursor-pointer" style={{ gridTemplateColumns: "auto 1fr", backgroundColor: "#F7F9FB" }}>
                   <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggle(item.id)} disabled={busy} style={{ accentColor: PRIMARY, marginTop: 4 }} />
                   <div className="min-w-0 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -151,10 +151,17 @@ export default function TranslationReviewDialog({ formGroupId, link, fields, onC
                       <span className="text-xs font-semibold" style={{ color: TEXT, ...FONT }}>
                         {row_title(item.path, group.field, translate, language)}
                       </span>
-                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ color: STATUS_COLOR[item.status] || MUTED, border: `1px solid ${STATUS_COLOR[item.status] || MUTED}`, ...FONT }}>
+                      <span className="text-[10px] font-bold uppercase" style={{ color: STATUS_COLOR[item.status] || MUTED, ...FONT }}>
                         {translate(STATUS_KEY[item.status] || "DCS_TRANSLATION_STATUS_PENDING")}
                       </span>
                     </div>
+                    {item.translator && (
+                      <p className="text-xs" style={{ color: MUTED, ...FONT }}>
+                        {translate("DCS_TRANSLATION_BY", { name: item.translator.name })}
+                        {item.translator.email ? ` - ${item.translator.email}` : ""}
+                        {item.translator.phone ? ` - ${item.translator.phone}` : ""}
+                      </p>
+                    )}
                     <p className="text-xs" style={{ color: MUTED, ...FONT }}>
                       {translate("DCS_TRANSLATION_CURRENT")}: <span style={{ color: TEXT, whiteSpace: "pre-wrap" }}>{item.current_value || translate("DCS_TRANSLATION_EMPTY_TEXT")}</span>
                     </p>
