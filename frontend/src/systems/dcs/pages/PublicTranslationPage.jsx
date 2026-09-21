@@ -11,7 +11,7 @@ import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import DcsRespondentGate from "../components/DcsRespondentGate.jsx";
 import TranslationFieldCard from "../translation/TranslationFieldCard.jsx";
-import { translatable_entries, set_change, count_changes, index_proposals, owners_by_field, page_count, page_slice, LANGUAGES, LANGUAGE_NAME_KEYS } from "../translation/translationTexts.js";
+import { translatable_entries, set_change, count_changes, index_proposals, page_count, page_slice, LANGUAGES, LANGUAGE_NAME_KEYS } from "../translation/translationTexts.js";
 
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 const MUTED = "#9E9E9E";
@@ -26,9 +26,10 @@ const first_name = (name) => String(name || "").trim().split(" ")[0];
  * own saved texts and the page they stopped on; a new one is created. The
  * fields that carry a text a respondent sees are shown three at a time,
  * each drawn as the respondent sees it, with English, Kinyarwanda and
- * French stacked under every text. A field one translator has worked on is
- * theirs alone - others see it, with their name, but cannot change it.
- * Saving stores PROPOSALS: the form changes only when its owner applies them.
+ * French stacked under every text. Every translator works alone on the
+ * form as it is: they see only their own saved texts, never anyone else's,
+ * and may change any field. Saving stores PROPOSALS: the form changes only
+ * when its owner reviews a translator's work and applies it.
  */
 function TranslationWorkbench() {
   const { token } = useParams();
@@ -61,7 +62,6 @@ function TranslationWorkbench() {
 
   const entries = useMemo(() => (translator ? translatable_entries(work.fields, translate, language) : []), [translator, work.fields, translate, language]);
   const proposals = useMemo(() => index_proposals(work.proposals), [work.proposals]);
-  const owners = useMemo(() => owners_by_field(work.proposals), [work.proposals]);
   const pages = page_count(entries.length);
   const shown = page_slice(entries, page);
   const pending = count_changes(changes);
@@ -188,7 +188,6 @@ function TranslationWorkbench() {
             lockedLanguages={locked}
             changes={changes}
             proposals={proposals}
-            owner={owners.get(entry.field.id) || null}
             onChange={(field_id, key, code, value) => setChanges((current) => set_change(current, field_id, key, code, value))}
           />
         ))}

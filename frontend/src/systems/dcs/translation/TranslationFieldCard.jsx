@@ -90,13 +90,11 @@ function FieldPreview({ field, language, text_of }) {
  * or paragraph once per language, any other field once in the reader's
  * language - then every text it carries with the three languages STACKED,
  * each in its own full-width box. A locked language is shown but cannot be
- * typed. The field names who translated it; when that is someone else the
- * whole field is read-only for this translator.
+ * typed; a text this translator already saved shows how far it got.
  */
-export default function TranslationFieldCard({ entry, lockedLanguages, changes, proposals, owner, onChange, index }) {
+export default function TranslationFieldCard({ entry, lockedLanguages, changes, proposals, onChange, index }) {
   const { translate, language } = useDcsLanguage();
   const { field, rows } = entry;
-  const taken = !!(owner && !owner.mine);
 
   const text_of = (key, code) => {
     const row = rows.find((item) => item.key === key);
@@ -107,22 +105,10 @@ export default function TranslationFieldCard({ entry, lockedLanguages, changes, 
   const preview_languages = field.type === "header" || field.type === "paragraph" ? LANGUAGES : [language];
 
   return (
-    <div className="bg-white cok-auth-card p-4 sm:p-5 space-y-4" style={{ opacity: taken ? 0.85 : 1 }}>
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-[11px] font-bold uppercase" style={{ color: MUTED, letterSpacing: "0.5px", ...FONT }}>
-          {index}. {field_type_name(field.type, translate)}
-        </p>
-        {owner && (
-          <p className="text-xs" style={{ color: taken ? MUTED : PRIMARY, ...FONT }}>
-            {owner.mine ? translate("DCS_TRANSLATION_BY_YOU") : translate("DCS_TRANSLATION_BY", { name: owner.name })}
-          </p>
-        )}
-      </div>
-      {taken && (
-        <p className="text-xs" style={{ color: MUTED, ...FONT }}>
-          {translate("DCS_TRANSLATION_TAKEN")}
-        </p>
-      )}
+    <div className="bg-white cok-auth-card p-4 sm:p-5 space-y-4">
+      <p className="text-[11px] font-bold uppercase" style={{ color: MUTED, letterSpacing: "0.5px", ...FONT }}>
+        {index}. {field_type_name(field.type, translate)}
+      </p>
 
       <div className="space-y-3 p-3" style={{ backgroundColor: PREVIEW_BG }}>
         {preview_languages.map((code) => (
@@ -144,7 +130,7 @@ export default function TranslationFieldCard({ entry, lockedLanguages, changes, 
           </p>
           {LANGUAGES.map((code) => {
             const locked = lockedLanguages.includes(code);
-            const disabled = locked || taken;
+            const disabled = locked;
             const held = proposals.get(proposal_key(field.id, row.key, code));
             const value = read_change(changes, field.id, row.key, code, held && held.status === "pending" ? held.value : row.value[code] || "");
             return (

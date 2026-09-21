@@ -1,5 +1,6 @@
 const links_model = require("../../models/form_translation_links_model.js");
 const proposals_model = require("../../models/form_translation_proposals_model.js");
+const translators_model = require("../../models/form_translators_model.js");
 const forms_model = require("../../models/forms_model.js");
 const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { apply_texts, current_text } = require("../../utilities/translation_texts.js");
@@ -52,15 +53,19 @@ async function store_fields(active_version, fields, req) {
 /** A proposal with what the form holds right now next to it. */
 function with_current(active_version) {
   const fields = active_version.schema.fields || [];
-  return (proposal) => Object.assign(strip_proposal(proposal, null, true), { current_value: current_text(fields, proposal.field_id, proposal.path, proposal.language), previous_value: proposal.previous_value === undefined ? null : proposal.previous_value, link_title: proposal.link_title || "" });
+  return (proposal) => Object.assign(strip_proposal(proposal, true), { current_value: current_text(fields, proposal.field_id, proposal.path, proposal.language), previous_value: proposal.previous_value === undefined ? null : proposal.previous_value, link_title: proposal.link_title || "" });
 }
 
 async function list_translation_proposals(req, res) {
   try {
     const context = await link_of(req, res);
     if (!context) return undefined;
-    const proposals = await proposals_model.list_by_link(context.link._id.toString());
-    return res.status(200).json(success_response(req, "TRANSLATION_PROPOSALS_FETCHED", { proposals: proposals.map(with_current(context.active_version)) }));
+    const link_id = context.link._id.toString();
+    const [proposals, translators] = await Promise.all([proposals_model.list_by_link(link_id), translators_model.list_by_link(link_id)]);
+    // Every translator of the link, even one who saved nothing yet, so the
+    // editor can pick a name and see the whole form with that person's changes.
+    const people = translators.map((entry) => ({ name: entry.name, email: entry.email, phone: entry.phone, last_page: entry.last_page || 0, last_seen_at: entry.last_seen_at || null }));
+    return res.status(200).json(success_response(req, "TRANSLATION_PROPOSALS_FETCHED", { proposals: proposals.map(with_current(context.active_version)), translators: people }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }
@@ -85,7 +90,7 @@ async function apply_translation_proposals(req, res) {
       landed.map((entry) => ({ _id: entry.proposal._id, previous_value: entry.result.previous })),
       req.user.user_id.toString(),
     );
-    return res.status(200).json(success_response(req, "TRANSLATION_PROPOSALS_APPLIED", { applied: landed.length, version: active_version.version }));
+    return res.status(200).json(success_response(req, "TRANSLATION_PROPOSALS_APPLIED", { applied: landed.length, version: active_version.version }, { applied: landed.length }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }
@@ -111,7 +116,7 @@ async function restore_translation_proposals(req, res) {
     if (!stored.valid) return res.status(400).json(warning_response(req, "FORM_SCHEMA_INVALID", null, { errors: stored.errors }));
 
     await proposals_model.mark_restored(landed.map((proposal) => proposal._id), req.user.user_id.toString());
-    return res.status(200).json(success_response(req, "TRANSLATION_PROPOSALS_RESTORED", { restored: landed.length, version: active_version.version }));
+    return res.status(200).json(success_response(req, "TRANSLATION_PROPOSALS_RESTORED", { restored: landed.length, version: active_version.version }, { restored: landed.length }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }
@@ -124,7 +129,7 @@ async function dismiss_translation_proposals(req, res) {
     const chosen = (await proposals_model.get_by_ids(ids_of(req.body))).filter((proposal) => proposal.link_id === context.link._id.toString() && proposal.status !== "applied");
     if (chosen.length === 0) return res.status(400).json(warning_response(req, "TRANSLATION_NOTHING_SELECTED"));
     const deleted = await proposals_model.delete_many(chosen.map((proposal) => proposal._id));
-    return res.status(200).json(success_response(req, "TRANSLATION_PROPOSALS_DISMISSED", { dismissed: deleted }));
+    return res.status(200).json(success_response(req, "TRANSLATION_PROPOSALS_DISMISSED", { dismissed: deleted }, { dismissed: deleted }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

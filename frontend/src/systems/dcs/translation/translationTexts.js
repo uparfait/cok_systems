@@ -110,16 +110,3 @@ export function index_proposals(proposals) {
 }
 
 export const proposal_key = (field_id, key, language) => `${field_id}|${key}|${language}`;
-
-/** field_id -> { name, mine }: the translator who first worked on the field through this link. */
-export function owners_by_field(proposals) {
-  const map = new Map();
-  (proposals || [])
-    .slice()
-    .sort((a, b) => String(a.proposed_at).localeCompare(String(b.proposed_at)))
-    .forEach((proposal) => {
-      if (!proposal.translator || map.has(proposal.field_id)) return;
-      map.set(proposal.field_id, { name: proposal.translator.name || "", mine: proposal.mine === true });
-    });
-  return map;
-}

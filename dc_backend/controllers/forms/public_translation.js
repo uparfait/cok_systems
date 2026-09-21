@@ -14,11 +14,11 @@ const { success_response, warning_response, error_response } = require("../../ut
  * - nothing to translate yet. The translator then says who they are (name,
  * email, phone): a known email gets back their saved texts and the page
  * they stopped on, an unknown one is created; that answer carries every
- * field of the form's active version and every proposal saved through the
- * link, each naming its translator. PUT stores PROPOSALS -
- * nothing is written into the form until its editor applies them - and a
- * field one translator has already worked on is refused to any other, so
- * two people never touch the same text.
+ * field of the form's active version exactly as the form holds it, plus
+ * that translator's OWN proposals only - translators never see each
+ * other's work and every one of them may change any text. PUT stores
+ * PROPOSALS per translator; nothing is written into the form until its
+ * editor picks a translator and applies their texts.
  */
 async function resolve_link(req, res) {
   const link = await links_model.get_link_by_token(req.params.token);
@@ -43,10 +43,10 @@ function translator_of(raw) {
 
 /**
  * A proposal as a page shows it: where, which language, what, how far it
- * got and who wrote it. The public page sees the translator's name and
- * whether the proposal is the viewer's own; the editor sees the contact.
+ * got and who wrote it (name only on the public page, the contact for the
+ * editor).
  */
-function strip_proposal(proposal, viewer_email, full) {
+function strip_proposal(proposal, full) {
   const translator = proposal.translator || null;
   return {
     id: proposal._id.toString(),
@@ -58,7 +58,6 @@ function strip_proposal(proposal, viewer_email, full) {
     proposed_at: proposal.proposed_at,
     applied_at: proposal.applied_at || null,
     translator: translator ? (full ? translator : { name: translator.name }) : null,
-    mine: !!(translator && viewer_email && translator.email === viewer_email),
   };
 }
 
@@ -91,8 +90,8 @@ async function get_public_translation(req, res) {
 /**
  * Who is translating: finds them by email for this link or creates them,
  * remembers the page they are on, and answers with their record, the
- * fields to translate and every proposal of the link marked mine / not
- * mine. This is the only way the texts leave the server.
+ * fields to translate as the form holds them and this translator's own
+ * proposals - nobody else's. This is the only way the texts leave the server.
  */
 async function identify_translator(req, res) {
   try {
@@ -103,12 +102,12 @@ async function identify_translator(req, res) {
     if (!translator) return res.status(400).json(warning_response(req, "TRANSLATION_TRANSLATOR_REQUIRED"));
     const page = Number.isInteger((req.body || {}).page) ? (req.body || {}).page : undefined;
     const stored = await translators_model.upsert(link._id.toString(), active_version.form_group_id, translator, page);
-    const proposals = await proposals_model.list_by_link(link._id.toString());
+    const proposals = await proposals_model.list_by_translator(link._id.toString(), translator.email);
     return res.status(200).json(
       success_response(req, "TRANSLATION_TRANSLATOR_FETCHED", {
         translator: translator_view(stored),
         fields: strip_lazy_options_from_fields(active_version.schema.fields || []),
-        proposals: proposals.map((proposal) => strip_proposal(proposal, translator.email)),
+        proposals: proposals.map((proposal) => strip_proposal(proposal)),
       }),
     );
   } catch (error) {
@@ -131,19 +130,7 @@ async function save_public_translation(req, res) {
     const real = entries.filter((entry) => current_text(fields, entry.field_id, entry.path, entry.language) !== entry.value);
     if (real.length === 0) return res.status(400).json(warning_response(req, "TRANSLATION_NO_CHANGES"));
 
-    // A field another translator already worked on through this link is
-    // theirs: nobody else may change any of its texts.
     const link_id = link._id.toString();
-    const existing = await proposals_model.list_by_link(link_id);
-    const owner_by_field = new Map();
-    existing.forEach((proposal) => {
-      if (proposal.translator && proposal.translator.email && !owner_by_field.has(proposal.field_id)) owner_by_field.set(proposal.field_id, proposal.translator);
-    });
-    const taken = real.find((entry) => owner_by_field.has(entry.field_id) && owner_by_field.get(entry.field_id).email !== translator.email);
-    if (taken) {
-      return res.status(409).json(warning_response(req, "TRANSLATION_FIELD_TAKEN", { field_id: taken.field_id, translator: owner_by_field.get(taken.field_id).name }));
-    }
-
     for (const entry of real) {
       await proposals_model.upsert_pending({
         form_group_id: active_version.form_group_id,
@@ -160,8 +147,8 @@ async function save_public_translation(req, res) {
     }
     const page = Number.isInteger(body.page) ? body.page : undefined;
     await Promise.all([links_model.count_save(link._id), translators_model.upsert(link_id, active_version.form_group_id, translator, page)]);
-    const proposals = await proposals_model.list_by_link(link_id);
-    return res.status(200).json(success_response(req, "TRANSLATION_SAVED", { saved: real.length, proposals: proposals.map((proposal) => strip_proposal(proposal, translator.email)) }));
+    const proposals = await proposals_model.list_by_translator(link_id, translator.email);
+    return res.status(200).json(success_response(req, "TRANSLATION_SAVED", { saved: real.length, proposals: proposals.map((proposal) => strip_proposal(proposal)) }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

@@ -43,8 +43,7 @@ Scope: the public data collection page (`/dcs-form/:id`), the builder's review r
 - [x] Frontend build green
 
 ## 8. Translation links (translator identity)
-- [x] The texts leave the server only for an identified translator: GET returns the form name and locked languages alone, the identify call returns fields plus proposals; the page shows no text before the identity is confirmed
-- [x] Every translator first says who they are (name, email, phone) in the same identity overlay as the public form; POST `/public/translate/:token/translator` finds them by email for this link or creates them (`dcs_form_translators`), remembers the page they are on, and returns their proposals - a returning translator resumes on that page
-- [x] Every proposal stores its translator; a field one translator worked on is theirs alone: others see it read-only with "Translated by NAME", and the server refuses their saves on it (409 TRANSLATION_FIELD_TAKEN)
-- [x] The editor review names each proposal translator with email and phone
-- [x] Page restyled to the system look: white cards with the system shadow instead of borders, plain text language switch, fewer colors, compact sticky bottom bar with safe-area padding, phone gutters
+- [x] The texts leave the server only for an identified translator: GET returns the form name and locked languages alone; the identify call (name, email, phone) finds or creates the translator for the link (`dcs_form_translators`), remembers their page, and returns the fields as the form holds them plus that translator's OWN proposals only
+- [x] Translators work in isolation: nobody sees anyone else's texts, everyone may change every field; proposals are stored per translator (same text by two translators = two documents)
+- [x] Editor review: first the translators by name (contact, pending / applied counts, page reached); opening one shows the WHOLE form field by field with that person's proposed texts beside the current ones (untouched fields read "No change"); apply / restore / dismiss act on that translator's texts
+- [x] Identity overlay shows "Waiting..." while the identify request runs; page restyled to the system look (shadow cards, plain language switch, fewer colors, compact sticky bottom bar, phone gutters)

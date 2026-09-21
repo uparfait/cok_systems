@@ -62,7 +62,6 @@ module.exports = {
   TRANSLATION_NO_CHANGES: "Nta nyandiko ishobora guhindurwa yoherejwe - inyandiko zafunzwe ntizishobora guhindurwa binyuze kuri iri huza",
   TRANSLATION_TRANSLATOR_REQUIRED: "Vuga uwahindura ururimi: izina, imeyili na telefoni birakenewe",
   TRANSLATION_TRANSLATOR_FETCHED: "Umuhinduzi yiteguye",
-  TRANSLATION_FIELD_TAKEN: "Undi muhinduzi ari gukora kuri uyu mwanya; ni we wenyine ushobora kuwuhindura",
   TRANSLATION_PROPOSALS_FETCHED: "Ubusobanuro bwatanzwe bwabonetse",
   TRANSLATION_PROPOSALS_APPLIED: "Ubusobanuro {{applied}} bwashyizwe ku ifishi",
   TRANSLATION_PROPOSALS_RESTORED: "Inyandiko {{restored}} zagaruwe ku ifishi",

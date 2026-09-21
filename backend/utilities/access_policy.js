@@ -112,7 +112,25 @@ const EVENTS = ['link:events', 'link:rooms', 'link:booking-requests', 'slug:even
 
 const DEPARTMENT_MANAGER = ['link:my-employees', 'link:hod-feedback', 'slug:department-manager'].concat(ADMIN);
 
-const REQUESTS = ['link:requests', 'slug:receptionist', 'slug:department-manager', 'slug:mayor', 'link:feedback-analysis'].concat(ADMIN);
+// Creating, editing and archiving a request stays with the front office,
+// the head of department and the mayor's office.
+const REQUESTS_WRITE = ['link:requests', 'slug:receptionist', 'slug:department-manager', 'slug:mayor', 'link:feedback-analysis'].concat(ADMIN);
+
+// Reading them is wider on purpose: the request figures (GET
+// /requests/statistics) sit on the employee dashboard as well as the
+// receptionist one, and they refresh every 5 s. A role that can open one
+// of those dashboards but cannot read the figures gets a 403 carrying
+// forbidden_resource, which the frontend turns into a forced logout - the
+// employee could not stay signed in at all. The gate officer is left out:
+// its dashboard is the parking one and shows no request figures.
+const REQUESTS_READ = Array.from(new Set([].concat(
+    REQUESTS_WRITE,
+    ['link:visitors', 'link:assigned-visitors', 'link:history', 'link:queue', 'link:my-employees', 'link:hod-feedback'],
+    ['slug:employee'],
+)));
+
+// Kept for callers that do not split by method.
+const REQUESTS = REQUESTS_WRITE;
 
 const FEEDBACK_READ = ['link:service-delivery', 'link:hod-feedback', 'link:feedback-analysis', 'slug:mayor', 'slug:department-manager'].concat(ADMIN);
 
@@ -140,6 +158,8 @@ module.exports = {
         EVENTS,
         DEPARTMENT_MANAGER,
         REQUESTS,
+        REQUESTS_READ,
+        REQUESTS_WRITE,
         FEEDBACK_READ,
         ANALYTICS,
         TASKS,

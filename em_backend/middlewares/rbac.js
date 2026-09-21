@@ -51,7 +51,19 @@ function hasSlug(nav, slug) {
   return !!nav && String(nav.role_slug || '').toLowerCase() === String(slug).toLowerCase();
 }
 
+/**
+ * The System Admin reaches every backend, exactly as in the main backend
+ * (utilities/access_policy.js concatenates its ADMIN group into every
+ * other group). Without this the admin holds no 'events' link and is
+ * refused by every gate here, which logged them out of the follow-ups
+ * page.
+ */
+function isFullAdmin(nav) {
+  return hasSlug(nav, 'system-admin') || hasLink(nav, 'admin');
+}
+
 function satisfies(nav, requirements) {
+  if (isFullAdmin(nav)) return true;
   return requirements.some((requirement) => {
     if (requirement.startsWith('slug:')) return hasSlug(nav, requirement.slice(5));
     return hasLink(nav, requirement);
@@ -119,4 +131,4 @@ function requireLinks(...requirements) {
   });
 }
 
-module.exports = { EVENT_LINKS, FORBIDDEN_MESSAGE, validateBearerIfPresent, requireLinksIfSignedIn, requireLinks };
+module.exports = { EVENT_LINKS, FORBIDDEN_MESSAGE, isFullAdmin, validateBearerIfPresent, requireLinksIfSignedIn, requireLinks };

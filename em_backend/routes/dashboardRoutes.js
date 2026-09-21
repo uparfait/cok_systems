@@ -5,7 +5,9 @@ const rbac = require('../middlewares/rbac');
 
 // The dashboard figures belong to the event-manager dashboard; the calendar
 // feeds every signed-in role's calendar page and the public booking form.
-Router.get('/stats', rbac.requireLinks('events', 'rooms', 'booking-requests'), GetDashboardStatsController.handle);
+// The mayor's events page reads the same figures as the event-manager
+// dashboard, so its slug is accepted here too.
+Router.get('/stats', rbac.requireLinks('events', 'rooms', 'booking-requests', 'slug:mayor'), GetDashboardStatsController.handle);
 Router.get('/calendar', GetCalendarEventsController.handle);
 Router.get('/calendar/availability', GetCalendarEventsController.availability);
 

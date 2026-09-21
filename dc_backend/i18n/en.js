@@ -63,7 +63,6 @@ module.exports = {
   TRANSLATION_NO_CHANGES: "No changeable text was sent - locked texts cannot be changed through this link",
   TRANSLATION_TRANSLATOR_REQUIRED: "Say who is translating: name, email and telephone are needed",
   TRANSLATION_TRANSLATOR_FETCHED: "Translator ready",
-  TRANSLATION_FIELD_TAKEN: "Another translator is already working on this field; only they can change it",
   TRANSLATION_PROPOSALS_FETCHED: "Proposed translations fetched successfully",
   TRANSLATION_PROPOSALS_APPLIED: "{{applied}} translations applied to the form",
   TRANSLATION_PROPOSALS_RESTORED: "{{restored}} texts restored on the form",

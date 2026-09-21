@@ -63,7 +63,6 @@ module.exports = {
   TRANSLATION_NO_CHANGES: "Aucun texte modifiable n'a été envoyé - les textes verrouillés ne peuvent pas être modifiés par ce lien",
   TRANSLATION_TRANSLATOR_REQUIRED: "Indiquez qui traduit : nom, e-mail et téléphone sont requis",
   TRANSLATION_TRANSLATOR_FETCHED: "Traducteur prêt",
-  TRANSLATION_FIELD_TAKEN: "Un autre traducteur travaille déjà sur ce champ ; lui seul peut le modifier",
   TRANSLATION_PROPOSALS_FETCHED: "Traductions proposées récupérées",
   TRANSLATION_PROPOSALS_APPLIED: "{{applied}} traductions appliquées au formulaire",
   TRANSLATION_PROPOSALS_RESTORED: "{{restored}} textes restaurés sur le formulaire",

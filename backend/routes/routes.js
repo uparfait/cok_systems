@@ -21,7 +21,7 @@ const system_permission = require("./system_permission/routes.js")
 const docs = require("./docs/routes.js")
 const feedback = require("./feedback/routes.js")
 const authenticate = require('../middlewares/authenticate.js')
-const { authorize } = require('../middlewares/authorize.js')
+const { authorize, authorizeByMethod } = require('../middlewares/authorize.js')
 const { GROUPS } = require('../utilities/access_policy.js')
 const roles_managment = require('./roles_managment/routes.js')
 const statistics = require('./statistics/routes.js')
@@ -68,7 +68,10 @@ Router.use('/department-manager', authenticate, authorize(GROUPS.DEPARTMENT_MANA
 Router.use('/tasks', authenticate, authorize(GROUPS.TASKS), task_management)
 Router.use('/notifications', authenticate, notifications)
 Router.use('/performance', authenticate, authorize(GROUPS.ANALYTICS), performance)
-Router.use('/requests', authenticate, authorize(GROUPS.REQUESTS), requests)
+// Reading requests (the statistics cards on the receptionist and employee
+// dashboards, the list, the export) is open to every service-delivery
+// role; creating, editing and archiving one is not.
+Router.use('/requests', authenticate, authorizeByMethod({ read: GROUPS.REQUESTS_READ, write: GROUPS.REQUESTS_WRITE }), requests)
 Router.use('/v1/event-actions', authenticate, authorize(GROUPS.EVENTS), event_management)
 Router.use('/data-management', authenticate, authorize(GROUPS.ADMIN_STORAGE), data_management)
 Router.use('/webpush', require('./webpush/routes.js'))
