@@ -1,37 +1,37 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import ExcelJS from "exceljs";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_public_form, get_public_form_field_options } from "../services/formsService.js";
 import { useLazyFieldResolvers } from "../hooks/useLazyFieldResolvers.js";
+import { usePublicSubmit } from "../hooks/usePublicSubmit.js";
 import { cache_form, get_cached_form } from "../offline/formCache.js";
-import {
-  enqueue_submission,
-  update_queue_item,
-  remove_from_queue,
-  process_queue_once,
-  list_queue,
-  start_auto_sync,
-  submit_direct,
-  generate_client_submission_id,
-} from "../offline/submissionQueue.js";
+import { process_queue_once, list_queue, start_auto_sync } from "../offline/submissionQueue.js";
 import { save_form_draft, get_form_draft, clear_form_draft } from "../offline/draftStore.js";
+import { probe_storage } from "../offline/offlineStorage.js";
+import { read_respondent } from "../offline/respondentStore.js";
+import { warm_offline_cache } from "../offline/warmCache.js";
+import { export_ready_records } from "../offline/exportReadyRecords.js";
 import { compute_derived_values, compute_form_progress_percent } from "../renderer/formEngine.js";
 import { MediaUploadProvider } from "../renderer/MediaUploadContext.jsx";
 import { validate_submission_client_side } from "../jsonlogic/validateSubmission.js";
-import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
-import { get_field_text } from "../fields/fieldText.js";
 import RendererEngine from "../renderer/RendererEngine.jsx";
-import { scroll_to_first_error } from "../renderer/scrollToError.js";
 import DcsSubmitControl from "../components/DcsSubmitControl.jsx";
 import DcsFormLoadingSpinner from "../components/DcsFormLoadingSpinner.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import DcsQueuePanel from "../components/DcsQueuePanel.jsx";
+import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
+import DcsCenterOverlay from "../components/DcsCenterOverlay.jsx";
+import DcsRespondentGate from "../components/DcsRespondentGate.jsx";
+import DcsInstallPrompt from "../components/DcsInstallPrompt.jsx";
+import PublicFormChrome from "../components/PublicFormChrome.jsx";
+
+const FONT = "'Montserrat', sans-serif";
+const AMBER = "#B9770E";
 
 /**
  * Strips any "__v<version>" suffix from a shared link - the public link
@@ -41,79 +41,6 @@ import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
 function extract_form_group_id(raw_id) {
   return raw_id.split("__v")[0];
 }
-
-/**
- * Every field anywhere in the schema (recursing into group/section
- * children) still marked lazy_options - see dc_backend/jsonlogic/
- * lazy_options.js - i.e. one whose real options this device has never
- * actually fetched yet.
- */
-function collect_lazy_field_ids(fields, accumulator) {
-  const ids = accumulator || [];
-  (fields || []).forEach((field) => {
-    if (!field) return;
-    if (field.lazy_options) ids.push(field.id);
-    if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
-      collect_lazy_field_ids(field.children, ids);
-    }
-  });
-  return ids;
-}
-
-/**
- * Splices each lazy field's now-fully-resolved data (keyed by field id) back
- * into the schema, dropping the lazy_options marker - used to turn the
- * lazily-loaded schema this page started with into the complete one it
- * hands to the offline cache.
- */
-function apply_full_field_data(fields, data_by_id) {
-  return (fields || []).map((field) => {
-    if (!field) return field;
-    if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
-      return Object.assign({}, field, { children: apply_full_field_data(field.children, data_by_id) });
-    }
-    if (field.lazy_options && data_by_id.has(field.id)) {
-      return Object.assign({}, field, data_by_id.get(field.id), { lazy_options: undefined, options_count: undefined });
-    }
-    return field;
-  });
-}
-
-/**
- * Best-effort background warm-up: fully resolves every lazy field's real
- * options and re-caches the whole form with them filled in, so a session
- * that goes offline after this finishes - or one that never had a live
- * connection to begin with, on a device that already loaded this form once
- * before - still has everything available, never stuck on a field this
- * device has never actually fetched. Fires immediately after a successful
- * online load without blocking it; a failure here (e.g. going offline right
- * away) just means this device's offline copy stays lazy for now, exactly
- * as any offline-first cache already behaves before its first full sync.
- */
-async function warm_offline_cache(form_group_id, loaded_form) {
-  const lazy_field_ids = collect_lazy_field_ids(loaded_form.schema.fields);
-  if (lazy_field_ids.length === 0) return;
-  try {
-    const resolved_entries = await Promise.all(
-      lazy_field_ids.map((field_id) =>
-        get_public_form_field_options(form_group_id, field_id).then((response) => [field_id, response.data]),
-      ),
-    );
-    const data_by_id = new Map(resolved_entries);
-    const full_fields = apply_full_field_data(loaded_form.schema.fields, data_by_id);
-    await cache_form(
-      form_group_id,
-      Object.assign({}, loaded_form, { schema: Object.assign({}, loaded_form.schema, { fields: full_fields }) }),
-    );
-  } catch (warm_error) {
-    console.error(warm_error);
-  }
-}
-
-const TOP_PROGRESS_BAR_HEIGHT_PX = 4;
-// Everything else fixed at the top (the status badge, the percent badge)
-// sits below the bar itself, never on top of it.
-const TOP_BADGE_OFFSET = `calc(${TOP_PROGRESS_BAR_HEIGHT_PX}px + 8px + env(safe-area-inset-top, 0px))`;
 
 /**
  * Public, offline-first data collection page behind /dcs-form/:id.
@@ -138,18 +65,16 @@ function PublicFormPageContent() {
   const [draft, setDraft] = useState(null);
   const [resume_prompt_visible, setResumePromptVisible] = useState(false);
   const [is_syncing, setIsSyncing] = useState(false);
-  // "saved" while device-saved (queued) records are being sent - the
-  // auto-sync loop or the manual upload button - "direct" while a normal
-  // online submit is in flight, so the floating indicator can say which
-  // one is actually happening.
   const [sync_kind, setSyncKind] = useState(null);
   const [file_upload_percent, setFileUploadPercent] = useState(null);
   const [is_online, setIsOnline] = useState(window.navigator.onLine);
   const [is_queue_open, setIsQueueOpen] = useState(false);
   const [approval_notices, setApprovalNotices] = useState([]);
-  // Set only while reviewing/fixing an already-queued (pending/error)
-  // record - submitting then updates that same record instead of both
-  // creating a duplicate AND clobbering the separate, single draft slot.
+  const [queued_notice_visible, setQueuedNoticeVisible] = useState(false);
+  const [storage_backend_name, setStorageBackendName] = useState(null);
+  const [respondent, setRespondent] = useState(null);
+  const [saved_respondent] = useState(() => read_respondent());
+  // Set only while reviewing an already-queued record: submitting then updates that record, not the draft.
   const reviewing_queue_id_ref = useRef(null);
 
   useEffect(() => {
@@ -201,15 +126,12 @@ function PublicFormPageContent() {
         } catch (error) {
           last_error = error;
           if (!is_mounted) return;
-          if (attempt < max_retries) {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          }
+          if (attempt < max_retries) await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
 
       if (!is_mounted) return;
-
-      if (last_error && last_error.is_network_error && !window.navigator.onLine) {
+      if (last_error && last_error.is_network_error) {
         const cached_form = await get_cached_form(form_group_id);
         if (cached_form && is_mounted) {
           setForm(cached_form);
@@ -217,10 +139,12 @@ function PublicFormPageContent() {
           return;
         }
       }
-
       if (is_mounted) setLoadState(last_error && last_error.status_code === 409 ? "no_active_version" : "not_found");
     }
 
+    probe_storage().then((backend) => {
+      if (is_mounted) setStorageBackendName(backend);
+    });
     load_form();
     refresh_queue();
     refresh_draft().then((stored_draft) => {
@@ -230,10 +154,7 @@ function PublicFormPageContent() {
     const handle_online_change = () => setIsOnline(window.navigator.onLine);
     window.addEventListener("online", handle_online_change);
     window.addEventListener("offline", handle_online_change);
-    // The online/offline events only fire on an actual network interface
-    // transition, which some browsers miss (e.g. wifi still connected but
-    // no internet) - polling navigator.onLine directly keeps the icon
-    // accurate even when no event ever fires.
+    // Some browsers miss the online/offline events; polling keeps the badge honest.
     const online_poll_interval = window.setInterval(handle_online_change, 10000);
 
     const stop_auto_sync = start_auto_sync({
@@ -248,14 +169,9 @@ function PublicFormPageContent() {
         setIsSyncing(false);
         setSyncKind(null);
         setFileUploadPercent(null);
-        // A record queued offline can land during a background sync - its approval link must still surface.
         if (result.approval_notices && result.approval_notices.length > 0) {
           setApprovalNotices((previous) => previous.concat(result.approval_notices));
         }
-        // A silent, empty tick (nothing queued) happens every single
-        // minute the page is left open - toasting that would just be
-        // background noise. Only something that actually happened (a
-        // record went out, or one was rejected) is worth interrupting for.
         if (result.blocked_item) {
           showError(result.blocked_item.message || translate("DCS_ERROR_GENERIC"));
         } else if (result.sent_count > 0) {
@@ -273,11 +189,9 @@ function PublicFormPageContent() {
     };
   }, [form_group_id, refresh_queue, refresh_draft]);
 
-  // Every answer, the instant it changes, overwrites the one draft slot
-  // for this form - never creating another - so nothing is lost to a
-  // closed tab, a dead battery or a lost connection mid-response. Skipped
-  // while reviewing an already-queued record: that is a separate editing
-  // session and must never overwrite the "new entry in progress" draft.
+  // Every answer, the instant it changes, overwrites the one draft slot for
+  // this form. Skipped while reviewing an already-queued record: that is a
+  // separate editing session and must never overwrite the draft.
   useEffect(() => {
     if (!form || reviewing_queue_id_ref.current || Object.keys(values).length === 0) return;
     save_form_draft(form_group_id, form.version, values).then(() => refresh_draft());
@@ -292,12 +206,6 @@ function PublicFormPageContent() {
       const validation_result = validate_submission_client_side(form.schema, resolved_values, language, translate);
       setFieldErrors(validation_result.field_errors);
       setFieldValidMessages(validation_result.field_valid_messages);
-      // A field that was visible (and answered) a moment ago can go
-      // invisible the instant an earlier answer changes - its stale answer
-      // must never linger in state to be autosaved, counted toward
-      // progress, or submitted alongside the questions actually asked.
-      // resolved_data is the same working data validated above, with every
-      // now-hidden/locked field's own value already stripped.
       return validation_result.resolved_data;
     });
   };
@@ -314,9 +222,6 @@ function PublicFormPageContent() {
   const load_values_for_review = (data) => {
     const resolved_values = compute_derived_values(form.schema, data || {});
     const validation_result = validate_submission_client_side(form.schema, resolved_values, language, translate);
-    // resolved_data has every field the current data no longer makes
-    // visible already stripped - a queued/draft record can predate a later
-    // schema or answer change that hides a field it had answered.
     setValues(validation_result.resolved_data);
     setFieldErrors(validation_result.field_errors);
     setFieldValidMessages(validation_result.field_valid_messages);
@@ -366,234 +271,50 @@ function PublicFormPageContent() {
     }
   };
 
-  // A media answer's real value is {name, type, size, url} - the file
-  // itself lives on disk, not in this export - so only the filename (or a
-  // generic placeholder) is exported for those.
-  const stringify_export_cell = (value) => {
-    if (value === null || value === undefined) return "";
-    if (Array.isArray(value)) return value.join(", ");
-    if (typeof value === "object") return value.name || "file";
-    return String(value);
-  };
-
   const handle_export_ready = async () => {
     const ready_records = queue_records.filter((record) => record.status === "pending");
     if (ready_records.length === 0) {
       showError(translate("DCS_TOAST_NOTHING_TO_EXPORT"));
       return;
     }
-
-    const fields_by_id = new Map(flatten_fields(form.schema.fields).map((field) => [field.id, field]));
-    const field_ids = [...new Set(ready_records.flatMap((record) => Object.keys(record.data || {})))];
-    const header_labels = ["Submitted at"].concat(
-      field_ids.map((field_id) => {
-        const field = fields_by_id.get(field_id);
-        return (field && get_field_text(field.label, language)) || field_id;
-      }),
-    );
-
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Submissions");
-    worksheet.columns = header_labels.map(() => ({ width: 26 }));
-
-    // The header row is the actual question text, highlighted so it reads
-    // as a label at a glance rather than a bare column key.
-    const header_row = worksheet.getRow(1);
-    header_labels.forEach((label_text, index) => {
-      const cell = header_row.getCell(index + 1);
-      cell.value = label_text;
-      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF056DAA" } };
-    });
-
-    ready_records.forEach((record, row_index) => {
-      const row = worksheet.getRow(row_index + 2);
-      row.getCell(1).value = record.created_at ? new Date(record.created_at).toLocaleString() : "";
-      field_ids.forEach((field_id, column_index) => {
-        row.getCell(column_index + 2).value = stringify_export_cell(record.data ? record.data[field_id] : undefined);
-      });
-    });
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `dcs_ready_submissions_${Date.now()}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    await export_ready_records(form, ready_records, language);
   };
 
-  const handle_submit = async () => {
-    setSubmitting(true);
-    try {
-      const derived_values = compute_derived_values(form.schema, values);
-      const validation_result = validate_submission_client_side(form.schema, derived_values, language, translate);
-      // resolved_data is derived_values with every hidden/locked field's own
-      // stale answer already stripped - never queue or draft-save a stray
-      // answer left behind from before the respondent changed an earlier
-      // question and hid it.
-      const resolved_values = validation_result.resolved_data;
-      setFieldErrors(validation_result.field_errors);
-      setFieldValidMessages(validation_result.field_valid_messages);
-      if (!validation_result.valid) {
-        setRevealAllErrors(true);
-        setSubmitState("error");
-        // After the paint that reveals them - the highlighted fields have
-        // to be on the page before one of them can be scrolled to.
-        const unanswered = Object.keys(validation_result.field_errors || {});
-        window.requestAnimationFrame(() => scroll_to_first_error(unanswered));
-        // Invalid data is never queued for upload - it is not a completed
-        // response - but it must not simply vanish either, so a submit
-        // attempt on an incomplete/invalid form guarantees it is at least
-        // saved as the respondent's draft (autosave already does this on
-        // every value change, but this covers submitting before any change
-        // has fired that effect, e.g. a completely untouched form).
-        if (!reviewing_queue_id_ref.current) {
-          await save_form_draft(form_group_id, form.version, resolved_values);
-          await refresh_draft();
-        }
-        return;
-      }
-
-      // A reviewed queued record keeps its own client_submission_id; a fresh
-      // response gets one now, BEFORE the direct attempt, so that queueing it
-      // after a network failure retries under the exact same idempotency key
-      // and the server can never store the response twice.
-      const reviewing_id = reviewing_queue_id_ref.current;
-      let reviewing_record = null;
-      if (reviewing_id) {
-        const current_queue = await list_queue();
-        reviewing_record = current_queue.find((item) => item.id === reviewing_id) || null;
-      }
-      const client_submission_id = reviewing_record
-        ? reviewing_record.client_submission_id
-        : generate_client_submission_id();
-
-      // Saves this exact response to the device for a later automatic send -
-      // reached ONLY when the device is offline or the direct submit just
-      // failed with a network error, never as a step of a normal submit.
-      const store_for_later = async (data_to_store) => {
-        if (reviewing_record) {
-          await update_queue_item(reviewing_record.id, {
-            data: data_to_store,
-            version: form.version,
-            status: "pending",
-            field_errors: null,
-            updated_at: new Date().toISOString(),
-          });
-        } else {
-          await enqueue_submission(form_group_id, form.version, data_to_store, { client_submission_id });
-          await clear_form_draft(form_group_id);
-          await refresh_draft();
-        }
-        await refresh_queue();
-      };
-
-      const reset_after_submit = (was_sent_immediately) => {
-        reviewing_queue_id_ref.current = null;
-        setValues({});
-        setFieldErrors({});
-        setFieldValidMessages({});
-        setRevealAllErrors(false);
-        setRenderResetKey((previous_key) => previous_key + 1);
-        setSubmitState(was_sent_immediately ? "success_submitted" : "success_offline");
-        showSuccess(translate(was_sent_immediately ? "DCS_PUBLIC_DATA_RECORDED" : "DCS_PUBLIC_SUBMIT_QUEUED_OFFLINE"));
-      };
-
-      // Offline: never attempt the network at all - store the response and
-      // let the auto-sync loop send it once the connection is back.
-      if (!window.navigator.onLine) {
-        await store_for_later(resolved_values);
-        reset_after_submit(false);
-        return;
-      }
-
-      setIsSyncing(true);
-      setSyncKind("direct");
-      try {
-        const direct_result = await submit_direct(
-          form_group_id,
-          form.version,
-          resolved_values,
-          client_submission_id,
-          ({ percent }) => setFileUploadPercent(percent),
-        );
-
-        if (reviewing_record) {
-          await remove_from_queue(reviewing_record.id);
-        } else {
-          await clear_form_draft(form_group_id);
-          await refresh_draft();
-        }
-        await refresh_queue();
-
-        const approval = direct_result.response && direct_result.response.data && direct_result.response.data.approval;
-        if (approval && Array.isArray(approval.active_links) && approval.active_links.length > 0) {
-          setApprovalNotices((previous) => previous.concat([{ form_group_id, mode: approval.mode, links: approval.active_links }]));
-        }
-
-        reset_after_submit(true);
-      } catch (direct_error) {
-        // partial_data carries any file uploads that DID land before the
-        // failure, so the stored copy never re-uploads them on retry.
-        const failed_data = (direct_error && direct_error.partial_data) || resolved_values;
-
-        if (direct_error && direct_error.is_network_error) {
-          await store_for_later(failed_data);
-          reset_after_submit(false);
-          return;
-        }
-
-        // A definitive backend rejection: keep the response on the device as
-        // an error record the respondent can reopen, fix and resubmit.
-        const server_field_errors = (direct_error && direct_error.field_errors) || null;
-        if (reviewing_record) {
-          await update_queue_item(reviewing_record.id, {
-            data: failed_data,
-            version: form.version,
-            status: "error",
-            field_errors: server_field_errors,
-            updated_at: new Date().toISOString(),
-          });
-        } else {
-          const error_item = await enqueue_submission(form_group_id, form.version, failed_data, {
-            client_submission_id,
-            status: "error",
-            field_errors: server_field_errors,
-          });
-          reviewing_queue_id_ref.current = error_item.id;
-          await clear_form_draft(form_group_id);
-          await refresh_draft();
-        }
-        await refresh_queue();
-
-        setValues(failed_data);
-        setFieldErrors(server_field_errors || {});
-        setFieldValidMessages({});
-        setRevealAllErrors(true);
-        setSubmitState("error");
-        showError((direct_error && direct_error.message) || translate("DCS_ERROR_GENERIC"));
-      } finally {
-        setIsSyncing(false);
-        setSyncKind(null);
-        setFileUploadPercent(null);
-      }
-    } catch (submit_error) {
-      setSubmitState("error");
-      showError(submit_error.message || translate("DCS_ERROR_GENERIC"));
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const { handle_submit } = usePublicSubmit({
+    form,
+    form_group_id,
+    language,
+    translate,
+    values,
+    respondent,
+    reviewing_queue_id_ref,
+    refresh_queue,
+    refresh_draft,
+    showSuccess,
+    showError,
+    set: {
+      submitting: setSubmitting,
+      values: setValues,
+      field_errors: setFieldErrors,
+      field_valid_messages: setFieldValidMessages,
+      reveal_all_errors: setRevealAllErrors,
+      render_reset_key: setRenderResetKey,
+      submit_state: setSubmitState,
+      is_syncing: setIsSyncing,
+      sync_kind: setSyncKind,
+      file_upload_percent: setFileUploadPercent,
+      approval_notices: setApprovalNotices,
+      queued_notice_visible: setQueuedNoticeVisible,
+    },
+  });
 
   if (load_state === "loading") return <DcsFormLoadingSpinner />;
   if (load_state === "not_found") return <DcsEmptyState messageKey="DCS_PUBLIC_NOT_FOUND" />;
   if (load_state === "no_active_version") return <DcsEmptyState messageKey="DCS_PUBLIC_NO_ACTIVE_VERSION" />;
 
   const progress_percent = compute_form_progress_percent(form.schema.fields, values);
+  const is_success_screen = submit_state === "success_submitted" || submit_state === "success_offline";
+  const queued_message = translate("DCS_PUBLIC_QUEUED_MESSAGE") + (storage_backend_name === "memory" ? "\n\n" + translate("DCS_STORAGE_MEMORY_ONLY") : "");
 
   return (
     <>
@@ -601,237 +322,161 @@ function PublicFormPageContent() {
         <title>{form.form_name || translate("DCS_PUBLIC_FORM_TITLE_FALLBACK")}</title>
       </Helmet>
       <div
-      className="min-h-screen p-0 min-[760px]:px-6 pt-[env(safe-area-inset-top,0px)] min-[760px]:pt-[calc(52px+env(safe-area-inset-top,0px))] pb-[env(safe-area-inset-bottom,0px)] min-[760px]:pb-[calc(24px+env(safe-area-inset-bottom,0px))] flex flex-col items-center dcs-print-page-bg"
-      style={{ backgroundColor: "#F7F9FB" }}
-    >
-      {/* Fixed to the true top of the viewport, outside the form and never
-          part of the scrollable page - a persistent indicator of how much
-          is left, not a progress bar that scrolls away with the content
-          it's meant to be tracking. */}
-      <div
-        className="dcs-no-print"
-        title={translate("DCS_RENDERER_PROGRESS_LABEL", { percent: progress_percent })}
-        style={{ position: "fixed", top: 0, left: 0, width: "100%", zIndex: 40, backgroundColor: "#E0E0E0" }}
+        className="min-h-screen p-0 min-[760px]:px-6 pt-[env(safe-area-inset-top,0px)] min-[760px]:pt-[calc(52px+env(safe-area-inset-top,0px))] pb-[env(safe-area-inset-bottom,0px)] min-[760px]:pb-[calc(24px+env(safe-area-inset-bottom,0px))] flex flex-col items-center dcs-print-page-bg"
+        style={{ backgroundColor: "#F7F9FB" }}
       >
-        <div style={{ height: TOP_PROGRESS_BAR_HEIGHT_PX, width: `${progress_percent}%`, backgroundColor: "#056daa", transition: "width 0.3s ease" }} />
-      </div>
+        <PublicFormChrome
+          progressPercent={progress_percent}
+          isOnline={is_online}
+          queueCount={queue_records.length}
+          onOpenQueue={() => setIsQueueOpen(true)}
+          disabled={submitting}
+          isSyncing={is_syncing}
+          syncKind={sync_kind}
+          fileUploadPercent={file_upload_percent}
+          storageBackend={storage_backend_name}
+        />
 
-      <button
-        type="button"
-        onClick={() => setIsQueueOpen(true)}
-        disabled={submitting}
-        className="dcs-no-print flex items-center justify-center"
-        title={translate("DCS_QUEUE_BUTTON_LABEL")}
-        style={{
-          position: "fixed",
-          left: 0,
-          top: "50%",
-          transform: "translateY(-50%)",
-          zIndex: 30,
-          backgroundColor: "#056daa",
-          border: "none",
-          width: 16,
-          height: 36,
-          opacity: submitting ? 0.6 : 1,
-          cursor: submitting ? "not-allowed" : "pointer",
-        }}
-      >
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3">
-          <polyline points="7 5 13 12 7 19" />
-          <polyline points="13 5 19 12 13 19" />
-        </svg>
-      </button>
+        {approval_notices.some((notice) => notice.links.some((link_info) => link_info.email_sent)) && (
+          <div className="dcs-no-print w-full min-[760px]:max-w-[700px] bg-white border-2 p-4 mb-3" style={{ borderColor: "#056daa" }}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-bold" style={{ color: "#056daa", fontFamily: FONT }}>
+                {translate("DCS_APPROVAL_LINK_PANEL_TITLE")}
+              </p>
+              <button type="button" onClick={() => setApprovalNotices([])} className="cursor-pointer text-xs font-semibold" style={{ color: "#9E9E9E", fontFamily: FONT, background: "none", border: "none" }}>
+                {translate("DCS_BTN_CLOSE")}
+              </button>
+            </div>
+            {approval_notices.map((notice, notice_index) =>
+              notice.links
+                .filter((link_info) => link_info.email_sent)
+                .map((link_info, link_index) => (
+                  <p key={`${notice_index}_${link_index}`} className="mt-3 text-sm px-3 py-2" style={{ backgroundColor: "rgba(76,175,80,0.12)", color: "#4CAF50", fontFamily: FONT }}>
+                    {translate("DCS_APPROVAL_LINK_EMAILED", { name: link_info.name, role: link_info.role })}
+                  </p>
+                )),
+            )}
+          </div>
+        )}
 
-      <div
-        className="dcs-no-print flex items-center gap-2"
-        style={{
-          position: "fixed",
-          top: TOP_BADGE_OFFSET,
-          left: 26,
-          zIndex: 30,
-          backgroundColor: "rgba(255,255,255,0.55)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-          border: "1px solid rgba(255,255,255,0.6)",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-          padding: "0.3rem 0.5rem",
-        }}
-      >
-        <span title={translate(is_online ? "DCS_QUEUE_STATUS_ONLINE" : "DCS_QUEUE_STATUS_OFFLINE")} className="flex items-center">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={is_online ? "#4CAF50" : "#E74C3C"} strokeWidth="2">
-            <path d="M2 8.5a15 15 0 0120 0" />
-            <path d="M5.5 12.5a10 10 0 0113 0" />
-            <path d="M9 16.5a5 5 0 016 0" />
-            <circle cx="12" cy="20" r="1" fill={is_online ? "#4CAF50" : "#E74C3C"} stroke="none" />
-            {!is_online && <line x1="3" y1="3" x2="21" y2="21" />}
-          </svg>
-        </span>
-        <span title={translate("DCS_QUEUE_TOTAL_SAVED")} className="flex items-center gap-1">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2">
-            <path d="M3 7l9-4 9 4-9 4-9-4z" />
-            <path d="M3 12l9 4 9-4" />
-            <path d="M3 17l9 4 9-4" />
-          </svg>
-          <span className="text-xs font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-            {queue_records.length}
-          </span>
-        </span>
-      </div>
+        <DcsInstallPrompt formGroupId={form_group_id} formName={form.form_name || translate("DCS_PUBLIC_FORM_TITLE_FALLBACK")} language={language} />
 
-      {approval_notices.some((notice) => notice.links.some((link_info) => link_info.email_sent)) && (
-        <div className="dcs-no-print w-full min-[760px]:max-w-[700px] bg-white border-2 p-4 mb-3" style={{ borderColor: "#056daa" }}>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-bold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
-              {translate("DCS_APPROVAL_LINK_PANEL_TITLE")}
+        <div
+          className="w-full min-[760px]:max-w-[700px] bg-white p-4 border-0 min-[760px]:border-[5px] min-[760px]:rounded-[5px] mt-0 min-[760px]:mt-3 mb-0 min-[760px]:mb-6 grow min-[760px]:grow-0 dcs-print-form-card"
+          style={{ borderColor: "rgba(5,109,170,0.35)" }}
+        >
+          <div className="flex items-center justify-between gap-2 mb-3 dcs-no-print">
+            <p className="text-xs truncate" style={{ color: "#9E9E9E", fontFamily: FONT }}>
+              {respondent ? translate("DCS_RESPONDENT_FILLING_AS", { name: respondent.name }) : ""}
             </p>
             <button
               type="button"
-              onClick={() => setApprovalNotices([])}
-              className="cursor-pointer text-xs font-semibold"
-              style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif", background: "none", border: "none" }}
+              onClick={() => window.print()}
+              disabled={submitting}
+              className="cursor-pointer text-xs font-semibold flex-shrink-0"
+              style={{ color: "#056daa", fontFamily: FONT, background: "none", border: "1px solid #056daa", padding: "0.25rem 0.6rem", opacity: submitting ? 0.6 : 1 }}
             >
-              {translate("DCS_BTN_CLOSE")}
+              {translate("DCS_BTN_PRINT")}
             </button>
           </div>
-          {/* A failed email is deliberately silent here - its link is printed in the backend console instead. */}
-          {approval_notices.map((notice, notice_index) =>
-            notice.links
-              .filter((link_info) => link_info.email_sent)
-              .map((link_info, link_index) => (
-                <p key={`${notice_index}_${link_index}`} className="mt-3 text-sm px-3 py-2" style={{ backgroundColor: "rgba(76,175,80,0.12)", color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
-                  {translate("DCS_APPROVAL_LINK_EMAILED", { name: link_info.name, role: link_info.role })}
-                </p>
-              )),
+
+          {is_success_screen ? (
+            <div className="w-full py-12 flex flex-col items-center text-center gap-3">
+              <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 20, color: submit_state === "success_submitted" ? "#333333" : AMBER, textTransform: "uppercase" }}>
+                {translate(submit_state === "success_submitted" ? "DCS_PUBLIC_RESPONSE_SAVED_TITLE" : "DCS_PUBLIC_QUEUED_TITLE")}
+              </span>
+              <span style={{ fontFamily: FONT, fontSize: 14, color: "#666666", maxWidth: 460, whiteSpace: "pre-line" }}>
+                {submit_state === "success_submitted" ? translate("DCS_PUBLIC_RESPONSE_SAVED_DESCRIPTION") : queued_message}
+              </span>
+              <button type="button" onClick={() => setSubmitState("idle")} className="cursor-pointer underline bg-transparent border-0 p-0 mt-2" style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: "#056daa" }}>
+                {translate("DCS_PUBLIC_SUBMIT_ANOTHER")}
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={submitting ? { pointerEvents: "none", opacity: 0.6 } : undefined}>
+                <MediaUploadProvider formGroupId={form_group_id} version={form.version} isOnline={is_online}>
+                  <RendererEngine
+                    key={render_reset_key}
+                    schema={form.schema}
+                    mode="renderer"
+                    values={values}
+                    onValueChange={handle_value_change}
+                    fieldErrors={field_errors}
+                    fieldValidMessages={field_valid_messages}
+                    revealAllErrors={reveal_all_errors}
+                    resolveFieldOptions={resolveFieldOptions}
+                  />
+                </MediaUploadProvider>
+              </div>
+
+              <DcsSubmitControl
+                submitting={submitting}
+                submitState={submit_state}
+                onSubmit={handle_submit}
+                onIdle={() => setSubmitState("idle")}
+                secondary={
+                  <DcsButtonOutline onClick={handle_save_draft_click} disabled={submitting}>
+                    {translate("DCS_BTN_SAVE_DRAFT")}
+                  </DcsButtonOutline>
+                }
+              />
+            </>
           )}
         </div>
-      )}
 
-      {resume_prompt_visible && draft && (
-        <div className="dcs-no-print w-full min-[760px]:max-w-[700px] bg-white border-2 p-3 mb-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: "#056daa" }}>
-          <span className="text-sm" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-            {translate("DCS_PUBLIC_RESUME_DRAFT_TITLE")}
-          </span>
-          <div className="flex gap-2">
-            <DcsButtonOutline onClick={handle_resume_draft} disabled={submitting}>{translate("DCS_BTN_REFILL_FORM")}</DcsButtonOutline>
-            <DcsButtonOutlineDanger onClick={handle_discard_draft} disabled={submitting}>{translate("DCS_BTN_DISCARD_DRAFT")}</DcsButtonOutlineDanger>
-          </div>
-        </div>
-      )}
-
-      <div
-        className="w-full min-[760px]:max-w-[700px] bg-white p-4 border-0 min-[760px]:border-[5px] min-[760px]:rounded-[5px] mt-0 min-[760px]:mt-3 mb-0 min-[760px]:mb-6 grow min-[760px]:grow-0 dcs-print-form-card"
-        style={{ borderColor: "rgba(5,109,170,0.35)" }}
-      >
-        <div className="flex items-center justify-end mb-3 dcs-no-print">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            disabled={submitting}
-            title={translate("DCS_BTN_PRINT")}
-            className="flex items-center justify-center"
-            style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #056daa", opacity: submitting ? 0.6 : 1, cursor: submitting ? "not-allowed" : "pointer" }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2">
-              <polyline points="6 9 6 2 18 2 18 9" />
-              <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
-              <rect x="6" y="14" width="12" height="8" />
-            </svg>
-          </button>
-        </div>
-
-        {submit_state === "success_submitted" || submit_state === "success_offline" ? (
-          <div className="w-full py-12 flex flex-col items-center text-center gap-3">
-            <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 20, color: "#333333", textTransform: "uppercase" }}>
-              {translate(submit_state === "success_submitted" ? "DCS_PUBLIC_RESPONSE_SAVED_TITLE" : "DCS_PUBLIC_SAVED_OFFLINE_TITLE")}
-            </span>
-            <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 14, color: "#666666", maxWidth: 460 }}>
-              {translate(submit_state === "success_submitted" ? "DCS_PUBLIC_RESPONSE_SAVED_DESCRIPTION" : "DCS_PUBLIC_SUBMIT_QUEUED_OFFLINE")}
-            </span>
-            <button
-              type="button"
-              onClick={() => setSubmitState("idle")}
-              className="cursor-pointer underline bg-transparent border-0 p-0 mt-2"
-              style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 14, fontWeight: 600, color: "#056daa" }}
-            >
-              {translate("DCS_PUBLIC_SUBMIT_ANOTHER")}
-            </button>
-          </div>
-        ) : (
-          <>
-            <div style={submitting ? { pointerEvents: "none", opacity: 0.6 } : undefined}>
-              <MediaUploadProvider formGroupId={form_group_id} version={form.version} isOnline={is_online}>
-                <RendererEngine
-                  key={render_reset_key}
-                  schema={form.schema}
-                  mode="renderer"
-                  values={values}
-                  onValueChange={handle_value_change}
-                  fieldErrors={field_errors}
-                  fieldValidMessages={field_valid_messages}
-                  revealAllErrors={reveal_all_errors}
-                  resolveFieldOptions={resolveFieldOptions}
-                />
-              </MediaUploadProvider>
-            </div>
-
-            <DcsSubmitControl
-              submitting={submitting}
-              submitState={submit_state}
-              onSubmit={handle_submit}
-              onIdle={() => setSubmitState("idle")}
-              secondary={
-                <DcsButtonOutline onClick={handle_save_draft_click} disabled={submitting}>
-                  {translate("DCS_BTN_SAVE_DRAFT")}
-                </DcsButtonOutline>
-              }
-            />
-          </>
+        {is_queue_open && (
+          <DcsQueuePanel
+            records={queue_records}
+            draft={draft}
+            isOnline={is_online}
+            isSyncing={is_syncing}
+            storageBackend={storage_backend_name}
+            onClose={() => setIsQueueOpen(false)}
+            onSelectRecord={handle_select_record}
+            onContinueDraft={() => {
+              handle_resume_draft();
+              setIsQueueOpen(false);
+            }}
+            onDeleteDraft={handle_discard_draft}
+            onUpload={handle_force_upload}
+            onExportReady={handle_export_ready}
+          />
         )}
-      </div>
 
-      {is_syncing && is_online && (
-        <div
-          className="dcs-no-print flex items-center gap-2"
-          style={{
-            position: "fixed",
-            bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 30,
-            backgroundColor: "rgba(255,255,255,0.55)",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-            border: "1px solid rgba(255,255,255,0.6)",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-            padding: "0.5rem 1rem",
-          }}
-        >
-          <span className="dcs-inline-spinner" style={{ color: "#056daa", flexShrink: 0 }} />
-          <span className="text-xs font-semibold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
-            {file_upload_percent !== null
-              ? translate("DCS_PUBLIC_UPLOADING_FILES_INDICATOR", { percent: file_upload_percent })
-              : translate(sync_kind === "saved" ? "DCS_PUBLIC_SUBMITTING_INDICATOR" : "DCS_PUBLIC_SUBMITTING_DIRECT_INDICATOR")}
-          </span>
-        </div>
-      )}
+        {!respondent && <DcsRespondentGate saved={saved_respondent} onConfirm={setRespondent} />}
 
-      {is_queue_open && (
-        <DcsQueuePanel
-          records={queue_records}
-          draft={draft}
-          isOnline={is_online}
-          isSyncing={is_syncing}
-          onClose={() => setIsQueueOpen(false)}
-          onSelectRecord={handle_select_record}
-          onContinueDraft={() => {
-            handle_resume_draft();
-            setIsQueueOpen(false);
-          }}
-          onDeleteDraft={handle_discard_draft}
-          onUpload={handle_force_upload}
-          onExportReady={handle_export_ready}
-        />
-      )}
+        {respondent && resume_prompt_visible && draft && (
+          <DcsCenterOverlay title={translate("DCS_PUBLIC_RESUME_DRAFT_TITLE")} message={translate("DCS_PUBLIC_RESUME_DRAFT_MESSAGE", { date: new Date(draft.updated_at).toLocaleString() })}>
+            <div className="flex flex-col min-[480px]:flex-row gap-2">
+              <DcsButtonPrimary className="flex-1" onClick={handle_resume_draft} disabled={submitting}>
+                {translate("DCS_BTN_CONTINUE_DRAFT")}
+              </DcsButtonPrimary>
+              <DcsButtonOutlineDanger className="flex-1" onClick={handle_discard_draft} disabled={submitting}>
+                {translate("DCS_BTN_DISCARD_DRAFT")}
+              </DcsButtonOutlineDanger>
+            </div>
+          </DcsCenterOverlay>
+        )}
+
+        {queued_notice_visible && (
+          <DcsCenterOverlay accent={AMBER} title={translate("DCS_PUBLIC_QUEUED_TITLE")} message={queued_message}>
+            <div className="flex flex-col min-[480px]:flex-row gap-2">
+              <DcsButtonPrimary className="flex-1" onClick={() => setQueuedNoticeVisible(false)}>
+                {translate("DCS_PUBLIC_QUEUED_UNDERSTOOD")}
+              </DcsButtonPrimary>
+              <DcsButtonOutline
+                className="flex-1"
+                onClick={() => {
+                  setQueuedNoticeVisible(false);
+                  setIsQueueOpen(true);
+                }}
+              >
+                {translate("DCS_QUEUE_BUTTON_LABEL")}
+              </DcsButtonOutline>
+            </div>
+          </DcsCenterOverlay>
+        )}
       </div>
     </>
   );

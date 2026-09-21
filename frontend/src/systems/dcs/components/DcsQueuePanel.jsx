@@ -32,6 +32,7 @@ export default function DcsQueuePanel({
   draft,
   isOnline,
   isSyncing,
+  storageBackend,
   onClose,
   onSelectRecord,
   onContinueDraft,
@@ -185,6 +186,14 @@ export default function DcsQueuePanel({
             <p className="text-xs" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}>
               {translate("DCS_QUEUE_FORCE_UPLOAD_NOTE")}
             </p>
+            <p className="text-xs" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}>
+              {translate("DCS_QUEUE_NO_DELETE_NOTE")}
+            </p>
+            {storageBackend === "memory" && (
+              <p className="text-xs font-semibold" style={{ color: "#B9770E", fontFamily: "'Montserrat', sans-serif" }}>
+                {translate("DCS_STORAGE_MEMORY_ONLY")}
+              </p>
+            )}
           </div>
         </div>
       </div>

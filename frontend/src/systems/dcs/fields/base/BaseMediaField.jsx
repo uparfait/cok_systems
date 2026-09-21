@@ -110,7 +110,10 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
   };
 
   const handle_file_selected = (event) => {
-    apply_selected_file(event.target.files && event.target.files[0]);
+    const file = event.target.files && event.target.files[0];
+    // Cleared so picking the very same file again still fires a change.
+    event.target.value = "";
+    apply_selected_file(file);
   };
 
   const handle_drop = (event) => {
@@ -144,21 +147,37 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
 
   const viewer_url = is_pending_upload ? local_preview_url : value && value.url;
 
-  // The empty box is the one trigger: with links allowed it opens a small
-  // chooser (paste a link, or select a file); otherwise the file dialog
-  // opens straight away.
+  // The box reads like a text input but the real file input lies over it,
+  // transparent: a tap lands on the native control itself, so the OS
+  // chooser (camera, gallery, files) opens in every browser and in-app
+  // webview - no programmatic click, no display:none input. With links
+  // allowed the box opens a small chooser (paste a link, or select a file)
+  // and the file input then sits over the "Select a file" button instead.
+  const is_disabled = is_builder || is_busy;
+  const link_trigger = !!field.allow_link_input;
   const open_picker = () => {
-    if (is_builder || is_busy) return;
-    if (field.allow_link_input) {
-      setIsLinkMode(true);
-      return;
-    }
-    if (input_ref.current) input_ref.current.click();
+    if (is_disabled || !link_trigger) return;
+    setIsLinkMode(true);
   };
-  const choose_file = () => {
-    setIsLinkMode(false);
-    if (input_ref.current) input_ref.current.click();
-  };
+  const display_text = is_deleting_old
+    ? translate("DCS_WAITING_GENERIC")
+    : is_uploading
+      ? translate("DCS_UPLOADING_PERCENT", { percent: upload_percent })
+      : value
+        ? value.name
+        : placeholder_text;
+  const render_file_input = (aria_label, on_change) => (
+    <input
+      ref={input_ref}
+      type="file"
+      accept={accept}
+      capture={capture}
+      className="dcs-file-input-overlay"
+      aria-label={aria_label}
+      title=""
+      onChange={on_change}
+    />
+  );
 
   return (
     <div
@@ -177,15 +196,6 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
 
-      <input
-        ref={input_ref}
-        type="file"
-        accept={accept}
-        capture={capture}
-        className="hidden"
-        disabled={is_builder}
-        onChange={handle_file_selected}
-      />
       {is_link_mode ? (
         <div className="flex flex-col gap-2">
           <p className="text-xs" style={{ color: "#9E9E9E" }}>
@@ -201,45 +211,53 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
             <DcsButtonOutline disabled={is_busy || !link_value.trim()} onClick={apply_link}>
               {is_deleting_old ? translate("DCS_WAITING_GENERIC") : translate("DCS_BTN_USE_LINK")}
             </DcsButtonOutline>
-            <DcsButtonOutline disabled={is_busy} onClick={choose_file}>{translate("DCS_BTN_SELECT_FILE")}</DcsButtonOutline>
+            <span className="relative inline-flex">
+              <DcsButtonOutline disabled={is_busy}>{translate("DCS_BTN_SELECT_FILE")}</DcsButtonOutline>
+              {!is_busy &&
+                render_file_input(translate("DCS_BTN_SELECT_FILE"), (event) => {
+                  setIsLinkMode(false);
+                  handle_file_selected(event);
+                })}
+            </span>
             <DcsButtonOutline disabled={is_busy} onClick={() => setIsLinkMode(false)}>{translate("DCS_BTN_CANCEL")}</DcsButtonOutline>
           </div>
         </div>
       ) : (
         <>
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Looks and behaves like a text input: the whole box is the
-                trigger, the file dialog opens on click or Enter/Space, and
-                the chosen file's name sits where typed text would. */}
-            <div
-              role="button"
-              tabIndex={is_builder || is_busy ? -1 : 0}
-              aria-disabled={is_builder || is_busy}
-              className={`dcs-file-input cok-auth-input flex-1 min-w-0 py-3 flex items-center justify-between gap-3 ${is_builder || is_busy ? "is-disabled" : ""}`}
-              onClick={open_picker}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter" && event.key !== " ") return;
-                event.preventDefault();
-                open_picker();
-              }}
-            >
-              <span className={`truncate ${value ? "" : "dcs-file-input-placeholder"}`} title={value ? value.name : undefined}>
-                {is_deleting_old
-                  ? translate("DCS_WAITING_GENERIC")
-                  : is_uploading
-                    ? translate("DCS_UPLOADING_PERCENT", { percent: upload_percent })
-                    : value
-                      ? value.name
-                      : placeholder_text}
-              </span>
-              {/* A paperclip says "attach a file" in every language the
-                  form speaks, and gives the long name beside it the room
-                  the word "BROWSE" was taking. */}
-              <span className="dcs-file-input-browse flex-shrink-0 flex items-center" title={translate("DCS_BTN_BROWSE_FILE")} aria-label={translate("DCS_BTN_BROWSE_FILE")}>
+            {/* Looks like a text input (focus ring, pointer), reads the
+                chosen file's name where typed text would sit, but nothing
+                can be typed: the transparent file input over it takes the
+                tap and opens the device's own chooser. */}
+            <div className={`dcs-file-input-shell relative flex-1 min-w-0 ${is_disabled ? "is-disabled" : ""}`}>
+              <input
+                type="text"
+                readOnly
+                tabIndex={link_trigger && !is_disabled ? 0 : -1}
+                aria-hidden={!link_trigger}
+                aria-disabled={is_disabled}
+                className={`dcs-file-input cok-auth-input w-full py-3 truncate ${is_disabled ? "is-disabled" : ""} ${value ? "" : "dcs-file-input-placeholder"}`}
+                style={{ paddingRight: 44 }}
+                value={display_text}
+                title={value ? value.name : undefined}
+                onClick={open_picker}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  open_picker();
+                }}
+              />
+              <span
+                className="dcs-file-input-browse flex items-center"
+                style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                title={translate("DCS_BTN_BROWSE_FILE")}
+                aria-label={translate("DCS_BTN_BROWSE_FILE")}
+              >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M21.44 11.05l-8.49 8.49a5.5 5.5 0 01-7.78-7.78l8.49-8.49a3.67 3.67 0 015.18 5.18l-8.49 8.49a1.83 1.83 0 01-2.59-2.59l7.78-7.78" />
                 </svg>
               </span>
+              {!is_disabled && !link_trigger && render_file_input(label, handle_file_selected)}
             </div>
           </div>
           {!is_builder && !value && (

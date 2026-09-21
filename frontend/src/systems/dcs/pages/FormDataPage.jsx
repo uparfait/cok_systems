@@ -21,6 +21,7 @@ import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import { approval_status_label_key } from "../components/DcsApprovalStatusChip.jsx";
 import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
 import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
+import { format_respondent } from "../offline/respondentStore.js";
 
 function build_rows(submissions, data_fields, translate) {
   return (submissions || []).map((submission) => {
@@ -35,6 +36,7 @@ function build_rows(submissions, data_fields, translate) {
         row[field.id] = Array.isArray(raw_value) ? raw_value.join(", ") : raw_value != null ? String(raw_value) : "";
       }
     });
+    row.submitted_by = format_respondent(submission.respondent) || "-";
     row.submitted_at = submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "";
     // Plain text (not a chip) so the table can measure the column's real width - it never bleeds into the next column.
     // Status on the left, approver progress ("1-out-2") pushed to the far end of the cell.
@@ -91,7 +93,7 @@ export default function FormDataPage() {
         field.type === "geolocation" ? { minWidthPx: GEO_CELL_TABLE_MIN_WIDTH_PX } : {},
       ),
     )
-    .concat([{ key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" }]));
+    .concat([{ key: "submitted_by", labelKey: "DCS_TABLE_SUBMITTED_BY" }, { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" }]));
 
   const rows = build_rows(table.submissions, data_fields, translate);
 

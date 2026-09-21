@@ -3,6 +3,7 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import RendererEngine from "../renderer/RendererEngine.jsx";
 import DcsPagerButton from "./DcsPagerButton.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
+import { format_respondent } from "../offline/respondentStore.js";
 
 const FORM_BORDER = "rgba(5,109,170,0.35)";
 const GRAY = "#9E9E9E";
@@ -51,6 +52,7 @@ export default function DcsApprovalFormView({
           <div className="mt-5 pt-4 flex items-center justify-between gap-3 flex-wrap" style={{ borderTop: `1px solid #E0E0E0` }}>
             <p className="text-xs" style={{ color: GRAY, fontFamily: fontHeading }}>
               {record.submitted_at ? new Date(record.submitted_at).toLocaleString() : ""}
+              {record.respondent ? ` - ${translate("DCS_TABLE_SUBMITTED_BY")}: ${format_respondent(record.respondent)}` : ""}
             </p>
             {decisionSlot}
           </div>

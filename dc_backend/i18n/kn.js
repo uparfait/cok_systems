@@ -180,6 +180,7 @@ module.exports = {
   NO_DATA_TO_EXPORT: "Nta makuru yo shyira hanze ku gihe cyatoranyijwe",
   TABLE_VERSION: "Verisiyo",
   TABLE_SUBMITTED_AT: "Yoherejwe ku",
+  TABLE_SUBMITTED_BY: "Yoherejwe na",
   TABLE_TOTAL: "Igiteranyo",
   TABLE_DATA_IN_RANGE: "Amakuru mu Gihe",
   NO_DATA_TO_EXPORT: "Nta makuru yo shyira hanze ku gihe cyatoranyijwe",

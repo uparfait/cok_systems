@@ -5,6 +5,7 @@ const project_access = require("../../utilities/project_access.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
 const { warning_response, error_response } = require("../../utilities/response.js");
 const { translate } = require("../../i18n/index.js");
+const { format_respondent } = require("../../utilities/respondent.js");
 
 const EXPORT_PAGE_SIZE = 500;
 
@@ -56,6 +57,7 @@ function build_diffed_columns(versions, language) {
       columns: [
         ...active_fields.filter(has_any_label).map((field) => build_column_entry(field, language)),
         { key: "version", label: translate("TABLE_VERSION", language) },
+        { key: "submitted_by", label: translate("TABLE_SUBMITTED_BY", language) },
         { key: "submitted_at", label: translate("TABLE_SUBMITTED_AT", language) },
       ],
       field_type_by_id: new Map(active_fields.map((field) => [field.id, field.type])),
@@ -90,6 +92,7 @@ function build_diffed_columns(versions, language) {
     ...active_columns,
     ...removed_columns,
     { key: "version", label: translate("TABLE_VERSION", language) },
+    { key: "submitted_by", label: translate("TABLE_SUBMITTED_BY", language) },
     { key: "submitted_at", label: translate("TABLE_SUBMITTED_AT", language) },
   ];
 
@@ -183,6 +186,7 @@ async function export_submissions(req, res) {
           }
         });
         row_data["version"] = submission.version || "";
+        row_data["submitted_by"] = format_respondent(submission.respondent);
         row_data["submitted_at"] = submission.submitted_at ? new Date(submission.submitted_at).toISOString() : "";
         sheet.addRow(row_data);
       }

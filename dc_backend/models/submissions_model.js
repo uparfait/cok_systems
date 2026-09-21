@@ -329,6 +329,21 @@ async function list_submissions(form_group_id, version, page, limit, date_bounds
           },
         },
       },
+      {
+        $addFields: {
+          __search_text: {
+            $concat: [
+              "$__search_text",
+              " ",
+              { $ifNull: ["$respondent.name", ""] },
+              " ",
+              { $ifNull: ["$respondent.email", ""] },
+              " ",
+              { $ifNull: ["$respondent.phone", ""] },
+            ],
+          },
+        },
+      },
       { $match: { __search_text: search_regex } },
       { $sort: { submitted_at: sort_direction } },
       {

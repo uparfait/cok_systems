@@ -180,6 +180,7 @@ module.exports = {
   NO_DATA_TO_EXPORT: "Aucune donnée à exporter pour la période sélectionnée",
   TABLE_VERSION: "Version",
   TABLE_SUBMITTED_AT: "Soumis le",
+  TABLE_SUBMITTED_BY: "Soumis par",
   TABLE_TOTAL: "Total",
   TABLE_DATA_IN_RANGE: "Donnees dans la plage",
   NO_DATA_TO_EXPORT: "Aucune donnée à exporter pour la période sélectionnée",

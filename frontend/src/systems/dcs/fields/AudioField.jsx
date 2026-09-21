@@ -8,5 +8,5 @@ import { build_accept_attribute } from "./fileTypeGroups.js";
 export default function AudioField(props) {
   const { field } = props;
   const accept = build_accept_attribute(field.allowed_file_type_groups) || "audio/*";
-  return <BaseMediaField {...props} accept={accept} capture="environment" />;
+  return <BaseMediaField {...props} accept={accept} />;
 }

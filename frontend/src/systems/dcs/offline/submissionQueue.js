@@ -1,9 +1,12 @@
-import { get, set } from "idb-keyval";
+import { storage_get, storage_set } from "./offlineStorage.js";
 import { submit_response } from "../services/submissionsService.js";
 import { upload_file_with_progress } from "../services/uploadService.js";
 
 const QUEUE_KEY = "dcs_submission_queue";
 const RETRY_INTERVAL_MS = 60000;
+// The 'online' event fires while the interface is still settling; a short
+// pause lets the first request actually reach the network.
+const ONLINE_FLUSH_DELAY_MS = 1500;
 
 /**
  * Generates a client-side idempotency key so a retried submission can never
@@ -18,7 +21,7 @@ export function generate_client_submission_id() {
  * Reads the whole offline queue.
  */
 async function read_queue() {
-  const queue = await get(QUEUE_KEY);
+  const queue = await storage_get(QUEUE_KEY);
   return Array.isArray(queue) ? queue : [];
 }
 
@@ -26,7 +29,7 @@ async function read_queue() {
  * Persists the whole offline queue.
  */
 async function write_queue(queue) {
-  await set(QUEUE_KEY, queue);
+  await storage_set(QUEUE_KEY, queue);
 }
 
 /**
@@ -39,6 +42,7 @@ async function write_queue(queue) {
  * end up mixed together. options.client_submission_id carries over the key
  * an already-attempted direct submit used, so the retry can never be stored
  * twice server-side even if the failed attempt actually landed.
+ * options.respondent is who filled the form in, sent along with the data.
  */
 export async function enqueue_submission(form_group_id, version, data, options) {
   const queue = await read_queue();
@@ -48,6 +52,7 @@ export async function enqueue_submission(form_group_id, version, data, options) 
     form_group_id,
     version,
     data,
+    respondent: (options && options.respondent) || null,
     status: (options && options.status) || "pending",
     attempts: 0,
     field_errors: (options && options.field_errors) || null,
@@ -67,8 +72,9 @@ export async function list_queue() {
 }
 
 /**
- * Removes an item from the queue once it has been sent successfully, or at
- * the respondent's own request (e.g. discarding a failed one).
+ * Removes an item from the queue once it has been sent successfully. A
+ * saved response is never deleted at the respondent's request - only a
+ * draft can be discarded - so this is the sole path out of the queue.
  */
 export async function remove_from_queue(item_id) {
   const queue = await read_queue();
@@ -145,7 +151,7 @@ async function upload_pending_files(item, on_file_progress) {
  * replaced by its real URL, so the caller can queue that instead of the
  * original and a later retry never re-uploads those files.
  */
-export async function submit_direct(form_group_id, version, data, client_submission_id, on_file_progress) {
+export async function submit_direct(form_group_id, version, data, client_submission_id, on_file_progress, respondent) {
   let latest_data = data;
   try {
     latest_data = await upload_pending_files_for_data(form_group_id, version, data, on_file_progress, (next_data) => {
@@ -155,6 +161,7 @@ export async function submit_direct(form_group_id, version, data, client_submiss
       version,
       data: latest_data,
       client_submission_id,
+      respondent: respondent || null,
     });
     return { response, data: latest_data };
   } catch (error) {
@@ -190,6 +197,7 @@ export async function process_queue_once(on_item_result, on_file_progress) {
         version: item.version,
         data: uploaded_data,
         client_submission_id: item.client_submission_id,
+        respondent: item.respondent || null,
       });
       // A response to an approval-gated form hands back the first actionable approver link(s) to pass on.
       const approval = response && response.data && response.data.approval;
@@ -219,19 +227,20 @@ export async function process_queue_once(on_item_result, on_file_progress) {
 
 /**
  * Starts the background retry loop. Only ever attempts a sync while the
- * browser reports being online, checking every RETRY_INTERVAL_MS (and never
+ * browser reports being online, checking every RETRY_INTERVAL_MS and also
+ * the moment the browser announces the connection is back (and never
  * overlapping a still-running attempt). onStart fires the instant a check
  * actually begins (so the caller can show a "submitting" indicator only
  * while something is really happening, not on every idle tick), onItemResult
  * fires after each individual item, onFileProgress fires with a live
  * percentage while a pending attachment is uploading, and onComplete fires
  * once the whole attempt is done. Returns a stop function to clear the
- * interval on unmount.
+ * interval and the listener on unmount.
  */
 export function start_auto_sync({ onStart, onItemResult, onFileProgress, onComplete } = {}) {
   let is_syncing = false;
 
-  const interval_id = window.setInterval(async () => {
+  const tick = async () => {
     if (!window.navigator.onLine || is_syncing) return;
     is_syncing = true;
     if (onStart) onStart();
@@ -243,7 +252,19 @@ export function start_auto_sync({ onStart, onItemResult, onFileProgress, onCompl
     } finally {
       is_syncing = false;
     }
-  }, RETRY_INTERVAL_MS);
+  };
 
-  return () => window.clearInterval(interval_id);
+  const interval_id = window.setInterval(tick, RETRY_INTERVAL_MS);
+  let online_timer = null;
+  const handle_online = () => {
+    window.clearTimeout(online_timer);
+    online_timer = window.setTimeout(tick, ONLINE_FLUSH_DELAY_MS);
+  };
+  window.addEventListener("online", handle_online);
+
+  return () => {
+    window.clearInterval(interval_id);
+    window.clearTimeout(online_timer);
+    window.removeEventListener("online", handle_online);
+  };
 }

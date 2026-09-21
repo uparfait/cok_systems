@@ -21,6 +21,7 @@ import { approval_status_label_key } from "../components/DcsApprovalStatusChip.j
 import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
 import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
 import DcsFormNav from "../components/DcsFormNav.jsx";
+import { format_respondent } from "../offline/respondentStore.js";
 
 const ACTIONS_COLUMN_WIDTH_PX = 56;
 
@@ -106,6 +107,7 @@ function build_diffed_columns(versions, language) {
       columns: [
         ...active_fields.filter(has_any_label).map((field) => build_column_entry(field, language)),
         { key: "version", labelKey: "DCS_TABLE_VERSION" },
+        { key: "submitted_by", labelKey: "DCS_TABLE_SUBMITTED_BY" },
         { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" },
       ],
       field_type_by_id: new Map(active_fields.map((field) => [field.id, field.type])),
@@ -143,6 +145,7 @@ function build_diffed_columns(versions, language) {
     ...active_columns,
     ...removed_columns,
     { key: "version", labelKey: "DCS_TABLE_VERSION" },
+    { key: "submitted_by", labelKey: "DCS_TABLE_SUBMITTED_BY" },
     { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" },
   ];
 
@@ -163,6 +166,7 @@ function build_rows(submissions, field_type_by_id, on_delete_click, deleting_id,
       }
     });
     row.version = submission.version;
+    row.submitted_by = format_respondent(submission.respondent) || "-";
     row.submitted_at = submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "";
     // Plain text (not a chip) so the table can measure the column's real width - it never bleeds into the next column.
     // Status on the left, approver progress ("1-out-2") pushed to the far end of the cell.

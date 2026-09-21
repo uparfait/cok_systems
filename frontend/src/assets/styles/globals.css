@@ -1964,6 +1964,65 @@ background-color: #056daa;
   opacity: 1;
 }
 
+/* The real file input laid transparently over the read-only box: the tap
+   reaches the native control itself (works in every mobile browser and
+   in-app webview), while the box underneath shows focus and hover exactly
+   like a text input. */
+.dcs-file-input-shell .dcs-file-input {
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+
+.dcs-file-input-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+  font-size: 0;
+}
+
+.dcs-file-input-shell.is-disabled .dcs-file-input-overlay {
+  display: none;
+}
+
+.dcs-file-input-shell:hover:not(.is-disabled) .dcs-file-input,
+.dcs-file-input-shell:focus-within .dcs-file-input {
+  border-color: #056daa !important;
+  box-shadow: 0 0 0 3px rgba(5, 109, 170, 0.15);
+  background-color: rgba(5, 109, 170, 0.03);
+}
+
+/* The public form's "saved records" tab on the left edge: a thin vertical
+   text label instead of an icon. */
+.dcs-queue-edge-tab {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  background-color: #056daa;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  padding: 10px 5px;
+  font-family: var(--cok-font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.dcs-queue-edge-tab > span {
+  display: inline-block;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  line-height: 1;
+}
+
 /* On narrow screens the bar's links do not all fit, so the row itself
    scrolls sideways (thin scrollbar, touch friendly) instead of wrapping or
    squeezing; the centered context links keep enough room for "More". */

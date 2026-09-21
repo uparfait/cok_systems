@@ -1,4 +1,4 @@
-import { get, set, del } from "idb-keyval";
+import { storage_get, storage_set, storage_del } from "./offlineStorage.js";
 
 /**
  * One saved draft per form, ever - never a growing list. Filling in the
@@ -15,15 +15,15 @@ function draft_key(form_group_id) {
 
 export async function save_form_draft(form_group_id, version, data) {
   const draft = { form_group_id, version, data, updated_at: new Date().toISOString() };
-  await set(draft_key(form_group_id), draft);
+  await storage_set(draft_key(form_group_id), draft);
   return draft;
 }
 
 export async function get_form_draft(form_group_id) {
-  const draft = await get(draft_key(form_group_id));
+  const draft = await storage_get(draft_key(form_group_id));
   return draft || null;
 }
 
 export async function clear_form_draft(form_group_id) {
-  await del(draft_key(form_group_id));
+  await storage_del(draft_key(form_group_id));
 }

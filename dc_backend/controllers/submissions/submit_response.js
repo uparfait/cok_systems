@@ -8,6 +8,7 @@ const { notify_approval_steps, resolve_client_origin } = require("../../utilitie
 const { check_count_triggers } = require("../../utilities/batch_approval.js");
 const approval_schedules_model = require("../../models/approval_schedules_model.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
+const { sanitize_respondent } = require("../../utilities/respondent.js");
 
 /** Strips every step token; a failed email's link is only ever printed to the backend console, never handed to the browser. */
 function to_submitter_view(submission, notified_steps) {
@@ -38,7 +39,7 @@ function to_submitter_view(submission, notified_steps) {
 async function submit_response(req, res) {
   try {
     const { form_group_id } = req.params;
-    const { version, data, client_submission_id } = req.body || {};
+    const { version, data, client_submission_id, respondent } = req.body || {};
 
     if (!form_group_id || version === undefined || version === null) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
@@ -88,6 +89,9 @@ async function submit_response(req, res) {
       project_id: form_version.project_id,
       data: validation_result.resolved_data,
       client_submission_id: client_submission_id || null,
+      // Who filled the form in on the device (name, email, phone), as
+      // captured by the public page; null for anything that sent none.
+      respondent: sanitize_respondent(respondent),
       approval: active_schedule ? null : build_approval_state(effective_approval_config, location_chain, validation_result.resolved_data),
     });
 

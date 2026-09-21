@@ -6,6 +6,22 @@ import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_field_text } from "./fieldText.js";
+import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import GeoDetailsPanel from "./geo/GeoDetailsPanel.jsx";
+import { useDevicePosition } from "./geo/useDevicePosition.js";
+import {
+  RWANDA_CENTER,
+  DEFAULT_ZOOM,
+  FOUND_ZOOM,
+  REGEOCODE_DISTANCE_M,
+  MIN_GEOCODE_GAP_MS,
+  build_geo_value,
+  has_real_coordinates,
+  distance_meters,
+  is_better_reading,
+  reverse_geocode,
+  forward_geocode,
+} from "./geo/geoHelpers.js";
 
 // Leaflet's default marker image URLs assume a plain <script> tag setup and
 // resolve to nothing under a bundler - pointing them at the actual bundled
@@ -13,100 +29,32 @@ import { get_field_text } from "./fieldText.js";
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow });
 
-const RWANDA_CENTER = [-1.9403, 29.8739];
-const DEFAULT_ZOOM = 8;
-const FOUND_ZOOM = 17;
-const GEOLOCATION_OPTIONS = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
-const REFRESH_INTERVAL_MS = 10000;
+const ONLINE_POLL_MS = 10000;
+const FAILURE_MESSAGE_KEYS = {
+  unsupported: "DCS_GEO_STATUS_NOT_SUPPORTED",
+  insecure: "DCS_GEO_STATUS_INSECURE",
+  denied: "DCS_GEO_STATUS_PERMISSION_DENIED",
+  unavailable: "DCS_GEO_STATUS_UNAVAILABLE",
+  timeout: "DCS_GEO_STATUS_TIMEOUT",
+  unknown: "DCS_GEO_STATUS_UNKNOWN_ERROR",
+};
 
-const GEO_DETAIL_ROWS = [
-  { key: "latitude", labelKey: "DCS_GEO_LATITUDE_LABEL" },
-  { key: "longitude", labelKey: "DCS_GEO_LONGITUDE_LABEL" },
-  { key: "accuracy", labelKey: "DCS_GEO_ACCURACY_LABEL", is_accuracy: true },
-  { key: "province", labelKey: "DCS_GEO_PROVINCE_LABEL" },
-  { key: "district", labelKey: "DCS_GEO_DISTRICT_LABEL" },
-  { key: "sector", labelKey: "DCS_GEO_SECTOR_LABEL" },
-  { key: "cell", labelKey: "DCS_GEO_CELL_LABEL" },
-  { key: "village", labelKey: "DCS_GEO_VILLAGE_LABEL" },
-  { key: "street", labelKey: "DCS_GEO_STREET_LABEL" },
-  { key: "full_address", labelKey: "DCS_GEO_FULL_ADDRESS_LABEL", full_width: true },
-];
-
-function build_geo_value(overrides) {
-  return Object.assign(
-    {
-      // A fixed, unambiguous marker every geolocation answer carries -
-      // never toggled per-instance - so any code inspecting a submission's
-      // raw stored data (a generic export, a DB tool, a future field type
-      // that also happens to store a plain object) can tell a geolocation
-      // answer apart from anything else on sight, with no risk of
-      // confusing it for some other object-shaped answer.
-      __map__location__data: true,
-      latitude: null,
-      longitude: null,
-      accuracy: null,
-      province: null,
-      district: null,
-      sector: null,
-      cell: null,
-      village: null,
-      street: null,
-      full_address: null,
-      is_manual: false,
-    },
-    overrides,
-  );
+function failure_kind(geo_error) {
+  const code = geo_error && geo_error.code;
+  if (code === "unsupported" || code === "insecure") return code;
+  if (code === 1) return "denied";
+  if (code === 2) return "unavailable";
+  if (code === 3) return "timeout";
+  return "unknown";
 }
 
 /**
- * Reverse-geocodes coordinates into Rwanda's administrative levels via the
- * public Nominatim API - OpenStreetMap area names vary by region, so each
- * level tries a couple of plausible OSM address keys before giving up.
- */
-async function reverse_geocode(latitude, longitude) {
-  const url =
-    "https://nominatim.openstreetmap.org/reverse?format=json" +
-    `&lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&addressdetails=1`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("reverse_geocode_failed");
-  const data = await response.json();
-  const address = data.address || {};
-  return {
-    province: address.state || address.region || address.province || null,
-    district: address.city_district || address.district || address.county || null,
-    sector: address.sector || address.municipality || address.suburb || null,
-    cell: address.cell || address.neighbourhood || address.quarter || null,
-    village: address.village || address.hamlet || address.locality || null,
-    street: address.road || address.street || address.pedestrian || address.footway || address.path || null,
-    full_address: data.display_name || null,
-  };
-}
-
-/**
- * Forward-geocodes free text into coordinates, restricted to Rwanda.
- */
-async function forward_geocode(query) {
-  const url =
-    "https://nominatim.openstreetmap.org/search?format=json" +
-    `&q=${encodeURIComponent(query)}&addressdetails=1&limit=1&countrycodes=rw`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("search_failed");
-  const results = await response.json();
-  if (!results || results.length === 0) return null;
-  return { latitude: parseFloat(results[0].lat), longitude: parseFloat(results[0].lon) };
-}
-
-/**
- * GeoLocation field: search a place by name or auto-detect the
- * respondent's position, drop a pin on a map, and show the full breakdown
- * of Rwandan administrative levels. Coordinates only ever come from the
- * device's own location detection (never typed) and fall back to (0, 0)
- * when detection is unavailable; the address-detail fields simply read
- * "Not available" when reverse geocoding could not run (offline) or found
- * nothing for a given level - there is no manual-entry override for any of
- * it right now. Unlike every other data field this one carries no question
- * label of its own (matches paragraph/file) since its own section title
- * and sections already explain themselves.
+ * GeoLocation field: the device's own position, watched continuously so a
+ * more precise fix replaces a rougher one (never the other way round), or
+ * a place searched by name; a pin on a map and the Rwandan administrative
+ * breakdown looked up for it. When the browser refuses (permission, GPS
+ * off, insecure page) the respondent is told what to do and given a
+ * button that re-opens the browser's own permission popup.
  */
 export default function GeolocationField({ field, language, mode, value, onChange, error, ruleValidMessage }) {
   const { translate } = useDcsLanguage();
@@ -114,8 +62,10 @@ export default function GeolocationField({ field, language, mode, value, onChang
   const help_text = get_field_text(field.help_text, language);
   const details = value || build_geo_value();
   const has_value = details.latitude != null && details.longitude != null;
+  const has_real = has_real_coordinates(details);
 
   const [status, setStatus] = useState(null);
+  const [failure, setFailure] = useState(null);
   const [search_text, setSearchText] = useState("");
   const [is_online, setIsOnline] = useState(window.navigator.onLine);
 
@@ -123,36 +73,34 @@ export default function GeolocationField({ field, language, mode, value, onChang
   const map_ref = useRef(null);
   const marker_ref = useRef(null);
   const auto_requested_ref = useRef(false);
+  const details_ref = useRef(details);
+  details_ref.current = details;
+  const on_change_ref = useRef(onChange);
+  on_change_ref.current = onChange;
+  const last_geocoded_ref = useRef(null);
+  const geocode_timer_ref = useRef(null);
+  const announced_ref = useRef(false);
+  const override_manual_ref = useRef(false);
 
-  // The 'online'/'offline' events only fire on an actual network interface
-  // transition, which some browsers miss (e.g. wifi still connected but no
-  // internet) - polling navigator.onLine directly (same interval as the
-  // location refresh below) keeps this accurate even when no event fires.
   useEffect(() => {
     const sync_online_state = () => setIsOnline(window.navigator.onLine);
     window.addEventListener("online", sync_online_state);
     window.addEventListener("offline", sync_online_state);
-    const poll_interval_id = window.setInterval(sync_online_state, REFRESH_INTERVAL_MS);
+    const poll_interval_id = window.setInterval(sync_online_state, ONLINE_POLL_MS);
     return () => {
       window.removeEventListener("online", sync_online_state);
       window.removeEventListener("offline", sync_online_state);
       window.clearInterval(poll_interval_id);
+      window.clearTimeout(geocode_timer_ref.current);
     };
   }, []);
 
-  // The map (and its tile layer) is only ever created while online and
-  // actually shown - going offline unmounts the container div entirely
-  // (see the render below), so this tears the Leaflet instance down and,
-  // once back online, builds a brand new one against the fresh container
-  // rather than trying to resurrect one still holding failed/blank tiles
-  // from before the connection dropped.
+  // The map only exists while online and shown; offline unmounts it and a
+  // fresh instance is built once the connection is back.
   useEffect(() => {
     if (is_builder || !is_online || !map_container_ref.current || map_ref.current) return;
     const map = L.map(map_container_ref.current).setView(RWANDA_CENTER, DEFAULT_ZOOM);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
-    }).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
     map_ref.current = map;
     return () => {
       map.remove();
@@ -163,113 +111,119 @@ export default function GeolocationField({ field, language, mode, value, onChang
 
   useEffect(() => {
     const map = map_ref.current;
-    if (!map || !has_value) return;
-    // (0, 0) is this field's own "detection unavailable" sentinel, never a
-    // real reading - jumping the map there at high zoom would be
-    // meaningless and misleading, so it is simply left showing Rwanda.
-    if (details.latitude === 0 && details.longitude === 0) return;
+    if (!map || !has_real) return;
     if (marker_ref.current) map.removeLayer(marker_ref.current);
     map.setView([details.latitude, details.longitude], FOUND_ZOOM);
     marker_ref.current = L.marker([details.latitude, details.longitude]).addTo(map);
-    // is_online is included so the marker is re-added onto the brand new
-    // map instance created above the moment connectivity comes back, even
-    // when the coordinates themselves haven't changed at all.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [is_online, has_value, details.latitude, details.longitude]);
+  }, [is_online, has_real, details.latitude, details.longitude]);
 
-  const apply_coordinates = async (latitude, longitude, accuracy, is_silent) => {
-    if (!window.navigator.onLine) {
-      // Offline: coordinates still come straight from the device, but
-      // reverse geocoding needs a network call that would just fail - skip
-      // it outright and leave every address field "Not available" rather
-      // than firing (and failing) a doomed fetch.
-      onChange(build_geo_value({ latitude, longitude, accuracy }));
-      if (!is_silent) setStatus({ type: "success", message: translate("DCS_GEO_STATUS_OFFLINE_SAVED") });
+  /**
+   * Looks the address up for whatever coordinates are current, debounced so
+   * a burst of improving fixes costs one request, and only applied when the
+   * coordinates have not moved on in the meantime.
+   */
+  const schedule_geocode = (announce) => {
+    window.clearTimeout(geocode_timer_ref.current);
+    geocode_timer_ref.current = window.setTimeout(async () => {
+      const current = details_ref.current;
+      if (!has_real_coordinates(current) || !window.navigator.onLine) return;
+      const { latitude, longitude } = current;
+      const last = last_geocoded_ref.current;
+      if (last && Date.now() - last.at < MIN_GEOCODE_GAP_MS) return schedule_geocode(announce);
+      if (announce) setStatus({ type: "loading", message: translate("DCS_GEO_STATUS_LOOKING_UP_ADDRESS") });
+      try {
+        const address = await reverse_geocode(latitude, longitude);
+        last_geocoded_ref.current = { latitude, longitude, at: Date.now() };
+        const latest = details_ref.current;
+        if (latest.latitude !== latitude || latest.longitude !== longitude) return;
+        const next = build_geo_value(Object.assign({}, latest, address));
+        details_ref.current = next;
+        on_change_ref.current(next);
+        if (announce) setStatus({ type: "success", message: translate("DCS_GEO_STATUS_FOUND") });
+      } catch (reverse_error) {
+        last_geocoded_ref.current = { latitude, longitude, at: Date.now() };
+        if (announce) setStatus({ type: "error", message: translate("DCS_GEO_STATUS_ADDRESS_FAILED") });
+      }
+    }, 1200);
+  };
+
+  /**
+   * A device reading: kept only when it is at least as good as what is
+   * stored (see is_better_reading); the address is kept when the point has
+   * barely moved, refreshed otherwise. The first accepted fix is announced,
+   * the refinements after it arrive silently.
+   */
+  const apply_device_reading = ({ latitude, longitude, accuracy }) => {
+    const current = details_ref.current;
+    if (!override_manual_ref.current && !is_better_reading(current, accuracy)) return;
+    override_manual_ref.current = false;
+    setFailure(null);
+    const last = last_geocoded_ref.current;
+    const moved = last ? distance_meters(last.latitude, last.longitude, latitude, longitude) : Infinity;
+    const keep_address = moved < REGEOCODE_DISTANCE_M && !!current.full_address;
+    const next = build_geo_value(Object.assign({}, keep_address ? current : {}, { latitude, longitude, accuracy, is_manual: false }));
+    details_ref.current = next;
+    on_change_ref.current(next);
+    const announce = !announced_ref.current;
+    announced_ref.current = true;
+    if (keep_address) {
+      if (announce) setStatus({ type: "success", message: translate("DCS_GEO_STATUS_FOUND") });
       return;
     }
-    if (!is_silent) setStatus({ type: "loading", message: translate("DCS_GEO_STATUS_LOOKING_UP_ADDRESS") });
-    try {
-      const address = await reverse_geocode(latitude, longitude);
-      onChange(build_geo_value(Object.assign({ latitude, longitude, accuracy }, address)));
-      if (!is_silent) setStatus({ type: "success", message: translate("DCS_GEO_STATUS_FOUND") });
-    } catch (reverse_error) {
-      onChange(build_geo_value({ latitude, longitude, accuracy }));
-      if (!is_silent) setStatus({ type: "error", message: translate("DCS_GEO_STATUS_ADDRESS_FAILED") });
+    if (!window.navigator.onLine) {
+      if (announce) setStatus({ type: "success", message: translate("DCS_GEO_STATUS_OFFLINE_SAVED") });
+      return;
     }
+    schedule_geocode(announce);
   };
 
-  // Keeps the answer (and the map/marker) current on its own every few
-  // seconds - most importantly, the moment connectivity comes back after a
-  // stretch offline, since nothing else would otherwise prompt a fresh
-  // reverse-geocode of whatever coordinates were last captured. Runs
-  // quietly: never touches the status line, and any failure (permission
-  // still denied, GPS momentarily unavailable) is simply ignored rather
-  // than clobbering a perfectly good existing reading.
-  const silent_refresh = () => {
-    if (!window.navigator.geolocation) return;
-    window.navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        apply_coordinates(latitude, longitude, accuracy, true);
-      },
-      () => {},
-      GEOLOCATION_OPTIONS,
-    );
-  };
-
-  useEffect(() => {
-    if (is_builder) return;
-    const interval_id = window.setInterval(silent_refresh, REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(interval_id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [is_builder]);
-
-  // Coordinates may only ever come from the device's own location
-  // detection - never typed - so a failed/unavailable reading still needs
-  // a stored value rather than leaving the answer blank forever: (0, 0)
-  // is that sentinel. Never overwrites an already-captured real reading
-  // (e.g. a transient timeout on a retry).
+  // Coordinates only ever come from the device or a search - a failed
+  // detection still needs a stored value, so (0, 0) is that sentinel. It
+  // never overwrites a real reading.
   const apply_failed_detection = () => {
-    if (has_value) return;
-    onChange(build_geo_value({ latitude: 0, longitude: 0 }));
+    if (has_real_coordinates(details_ref.current)) return;
+    const next = build_geo_value({ latitude: 0, longitude: 0 });
+    details_ref.current = next;
+    on_change_ref.current(next);
   };
+
+  const handle_failure = (geo_error) => {
+    const kind = failure_kind(geo_error);
+    setFailure(kind);
+    setStatus({ type: "error", message: translate(FAILURE_MESSAGE_KEYS[kind]) });
+    apply_failed_detection();
+  };
+
+  const position = useDevicePosition({ onReading: apply_device_reading, onFailure: handle_failure });
 
   const handle_detect = () => {
-    if (!window.navigator.geolocation) {
-      setStatus({ type: "error", message: translate("DCS_GEO_STATUS_NOT_SUPPORTED") });
-      apply_failed_detection();
-      return;
-    }
+    setFailure(null);
+    announced_ref.current = false;
+    override_manual_ref.current = true;
     setStatus({ type: "loading", message: translate("DCS_GEO_STATUS_DETECTING") });
-    window.navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        apply_coordinates(latitude, longitude, accuracy);
-      },
-      (geo_error) => {
-        const is_permission_denied = geo_error.code === geo_error.PERMISSION_DENIED;
-        const message_by_code = {
-          [geo_error.PERMISSION_DENIED]: translate("DCS_GEO_STATUS_PERMISSION_DENIED"),
-          [geo_error.POSITION_UNAVAILABLE]: translate("DCS_GEO_STATUS_UNAVAILABLE"),
-          [geo_error.TIMEOUT]: translate("DCS_GEO_STATUS_TIMEOUT"),
-        };
-        setStatus({
-          type: "error",
-          message: message_by_code[geo_error.code] || translate("DCS_GEO_STATUS_UNKNOWN_ERROR"),
-          show_guide: is_permission_denied,
-        });
-        apply_failed_detection();
-      },
-      GEOLOCATION_OPTIONS,
-    );
+    position.start();
   };
 
   useEffect(() => {
-    if (is_builder || auto_requested_ref.current || has_value) return;
+    if (is_builder || auto_requested_ref.current) return;
     auto_requested_ref.current = true;
-    handle_detect();
+    if (!has_real) handle_detect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [is_builder]);
+
+  // Permission granted from the browser's own settings while the guide was
+  // showing: start again without asking for another tap.
+  useEffect(() => {
+    if (!is_builder && failure === "denied" && position.permission_state === "granted") handle_detect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [position.permission_state]);
+
+  // Back online with coordinates but no address yet: look it up now.
+  useEffect(() => {
+    if (!is_builder && is_online && has_real && !details.full_address) schedule_geocode(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [is_online]);
 
   const handle_search = async () => {
     const query = search_text.trim();
@@ -288,14 +242,26 @@ export default function GeolocationField({ field, language, mode, value, onChang
         setStatus({ type: "error", message: translate("DCS_GEO_STATUS_SEARCH_NOT_FOUND") });
         return;
       }
-      await apply_coordinates(found.latitude, found.longitude, null);
+      position.stop();
+      setFailure(null);
+      const next = build_geo_value({ latitude: found.latitude, longitude: found.longitude, accuracy: null, is_manual: true });
+      details_ref.current = next;
+      on_change_ref.current(next);
+      last_geocoded_ref.current = null;
+      schedule_geocode(true);
     } catch (search_error) {
       setStatus({ type: "error", message: translate("DCS_GEO_STATUS_SEARCH_FAILED") });
     }
   };
 
-  const format_accuracy = (accuracy_meters) =>
-    accuracy_meters == null ? translate("DCS_GEO_NOT_AVAILABLE") : translate("DCS_GEO_ACCURACY_METERS", { value: Math.round(accuracy_meters) });
+  const guide_key = () => {
+    if (failure === "denied") return position.permission_state === "denied" ? "DCS_GEO_GUIDE_BLOCKED" : "DCS_GEO_GUIDE_PROMPT";
+    if (failure === "unavailable") return "DCS_GEO_GUIDE_DEVICE_OFF";
+    if (failure === "timeout") return "DCS_GEO_GUIDE_TIMEOUT";
+    if (failure === "insecure") return "DCS_GEO_GUIDE_INSECURE";
+    return null;
+  };
+  const guide = guide_key();
 
   return (
     <div className="dcs-geo-section w-full" style={{ border: "1px solid #E0E0E0", borderRadius: 14, padding: "1rem" }}>
@@ -362,9 +328,14 @@ export default function GeolocationField({ field, language, mode, value, onChang
           {status.message}
         </p>
       )}
-      {status && status.show_guide && (
-        <div className="text-xs mb-3 border p-2" style={{ borderColor: "#E74C3C", color: "#842029", backgroundColor: "rgba(231,76,60,0.06)", borderRadius: 8 }}>
-          {translate("DCS_GEO_ENABLE_LOCATION_GUIDE")}
+      {guide && !is_builder && (
+        <div className="text-xs mb-3 border p-3 flex flex-col gap-2" style={{ borderColor: "#E74C3C", color: "#842029", backgroundColor: "rgba(231,76,60,0.06)", borderRadius: 8 }}>
+          <span style={{ whiteSpace: "pre-line" }}>{translate(guide)}</span>
+          {failure !== "insecure" && (
+            <DcsButtonOutline onClick={handle_detect} style={{ width: "auto", alignSelf: "flex-start" }}>
+              {translate("DCS_GEO_ALLOW_BUTTON")}
+            </DcsButtonOutline>
+          )}
         </div>
       )}
 
@@ -388,31 +359,7 @@ export default function GeolocationField({ field, language, mode, value, onChang
           ) : (
             <div ref={map_container_ref} className="dcs-geo-map mb-3" style={{ width: "100%", borderRadius: 10, border: "1px solid #E0E0E0", overflow: "hidden" }} />
           )}
-
-          <div className="p-3" style={{ border: "1px solid #E0E0E0", borderRadius: 10 }}>
-            <p className="text-xs font-semibold uppercase mb-2" style={{ color: "#9E9E9E", letterSpacing: "0.5px" }}>
-              {translate("DCS_GEO_DETAILS_TITLE")}
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.75rem" }}>
-              {GEO_DETAIL_ROWS.map((row) => {
-                const raw_value = row.is_accuracy ? details.accuracy : details[row.key];
-                return (
-                  <div key={row.key} style={{ gridColumn: row.full_width ? "1 / -1" : undefined, minWidth: 0 }}>
-                    <p className="text-xs" style={{ color: "#9E9E9E" }}>
-                      {translate(row.labelKey)}
-                    </p>
-                    <p className="text-sm font-semibold" style={{ color: "#333333", wordBreak: "break-word" }}>
-                      {row.is_accuracy
-                        ? format_accuracy(details.accuracy)
-                        : raw_value == null || raw_value === ""
-                          ? translate("DCS_GEO_NOT_AVAILABLE")
-                          : raw_value}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <GeoDetailsPanel details={details} />
         </>
       ) : (
         <p className="text-xs mb-3 border p-2" style={{ color: "#9E9E9E", borderColor: "#E0E0E0", borderRadius: 8 }}>
