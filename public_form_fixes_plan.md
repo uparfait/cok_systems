@@ -14,6 +14,7 @@ Scope: the public data collection page (`/dcs-form/:id`), the builder's review r
 - [x] Saved (ready) records cannot be deleted from the panel - only the draft has a delete; unchanged and re-verified
 - [x] The draft found on load is offered in a centered overlay (Continue / Discard) instead of the top bar
 - [x] Queue is flushed the moment the `online` event fires, not only on the 60 s tick
+- [x] A draft holding only auto-detected GPS coordinates is never autosaved or offered back (it is cleared on load); a resumed real draft drops its stored coordinates so a fresh position is detected
 
 ## 3. Location
 - [x] `watchPosition` with high accuracy; a new reading replaces the stored one only when its accuracy is better (smaller); a place picked by search is never overwritten by device readings

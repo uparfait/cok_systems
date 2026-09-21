@@ -27,3 +27,36 @@ export async function get_form_draft(form_group_id) {
 export async function clear_form_draft(form_group_id) {
   await storage_del(draft_key(form_group_id));
 }
+
+/** A geolocation answer, as GeolocationField stores it. */
+export function is_geolocation_value(value) {
+  return !!value && typeof value === "object" && value.__map__location__data === true;
+}
+
+function is_empty_answer(value) {
+  if (value === null || value === undefined || value === "") return true;
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+/**
+ * Whether saved answers are worth offering back. The location field
+ * detects the device position on its own the moment the form opens, so a
+ * draft holding nothing but coordinates was never typed by anyone - and
+ * the position will have changed anyway - so it does not count.
+ */
+export function has_meaningful_answers(data) {
+  return Object.values(data || {}).some((value) => !is_empty_answer(value) && !is_geolocation_value(value));
+}
+
+/**
+ * The draft's answers without any stored coordinates: a resumed draft gets
+ * a fresh position detected instead of yesterday's.
+ */
+export function strip_geolocation_values(data) {
+  const next = {};
+  Object.entries(data || {}).forEach(([field_id, value]) => {
+    if (!is_geolocation_value(value)) next[field_id] = value;
+  });
+  return next;
+}

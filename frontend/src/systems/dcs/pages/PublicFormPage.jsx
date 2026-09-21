@@ -8,7 +8,7 @@ import { useLazyFieldResolvers } from "../hooks/useLazyFieldResolvers.js";
 import { usePublicSubmit } from "../hooks/usePublicSubmit.js";
 import { cache_form, get_cached_form } from "../offline/formCache.js";
 import { process_queue_once, list_queue, start_auto_sync } from "../offline/submissionQueue.js";
-import { save_form_draft, get_form_draft, clear_form_draft } from "../offline/draftStore.js";
+import { save_form_draft, get_form_draft, clear_form_draft, has_meaningful_answers, strip_geolocation_values } from "../offline/draftStore.js";
 import { probe_storage } from "../offline/offlineStorage.js";
 import { read_respondent } from "../offline/respondentStore.js";
 import { warm_offline_cache } from "../offline/warmCache.js";
@@ -33,11 +33,7 @@ import PublicFormChrome from "../components/PublicFormChrome.jsx";
 const FONT = "'Montserrat', sans-serif";
 const AMBER = "#B9770E";
 
-/**
- * Strips any "__v<version>" suffix from a shared link - the public link
- * always resolves to whichever version is currently active on the server,
- * regardless of which version number was embedded when it was shared.
- */
+/** Strips any __v<version> suffix: the public link always resolves to the active version. */
 function extract_form_group_id(raw_id) {
   return raw_id.split("__v")[0];
 }
@@ -147,8 +143,15 @@ function PublicFormPageContent() {
     });
     load_form();
     refresh_queue();
-    refresh_draft().then((stored_draft) => {
-      if (stored_draft && is_mounted) setResumePromptVisible(true);
+    // A draft holding only auto-detected coordinates is dropped, not offered back.
+    refresh_draft().then(async (stored_draft) => {
+      if (!stored_draft || !is_mounted) return;
+      if (has_meaningful_answers(stored_draft.data)) {
+        setResumePromptVisible(true);
+      } else {
+        await clear_form_draft(form_group_id);
+        await refresh_draft();
+      }
     });
 
     const handle_online_change = () => setIsOnline(window.navigator.onLine);
@@ -193,7 +196,7 @@ function PublicFormPageContent() {
   // this form. Skipped while reviewing an already-queued record: that is a
   // separate editing session and must never overwrite the draft.
   useEffect(() => {
-    if (!form || reviewing_queue_id_ref.current || Object.keys(values).length === 0) return;
+    if (!form || reviewing_queue_id_ref.current || !has_meaningful_answers(values)) return;
     save_form_draft(form_group_id, form.version, values).then(() => refresh_draft());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [values]);
@@ -231,7 +234,7 @@ function PublicFormPageContent() {
 
   const handle_resume_draft = () => {
     reviewing_queue_id_ref.current = null;
-    load_values_for_review(draft.data);
+    load_values_for_review(strip_geolocation_values(draft.data));
     setResumePromptVisible(false);
   };
 

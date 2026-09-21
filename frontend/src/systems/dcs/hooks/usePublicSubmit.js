@@ -1,5 +1,5 @@
 import { enqueue_submission, update_queue_item, remove_from_queue, list_queue, submit_direct, generate_client_submission_id } from "../offline/submissionQueue.js";
-import { save_form_draft, clear_form_draft } from "../offline/draftStore.js";
+import { save_form_draft, clear_form_draft, has_meaningful_answers } from "../offline/draftStore.js";
 import { compute_derived_values } from "../renderer/formEngine.js";
 import { validate_submission_client_side } from "../jsonlogic/validateSubmission.js";
 import { scroll_to_first_error } from "../renderer/scrollToError.js";
@@ -41,7 +41,7 @@ export function usePublicSubmit(context) {
         set.submit_state("error");
         const unanswered = Object.keys(validation_result.field_errors || {});
         window.requestAnimationFrame(() => scroll_to_first_error(unanswered));
-        if (!reviewing_queue_id_ref.current) {
+        if (!reviewing_queue_id_ref.current && has_meaningful_answers(resolved_values)) {
           await save_form_draft(form_group_id, form.version, resolved_values);
           await refresh_draft();
         }
