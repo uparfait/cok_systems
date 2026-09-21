@@ -154,7 +154,8 @@ export default function BoardHeader({
                 lockedIds={lockedFilterIds}
                 disabled={deleting}
                 onReorder={onChangeFilters}
-                onClearPeriod={onResetPeriod}
+                onClearPeriod={lockedPeriod ? undefined : onResetPeriod}
+                periodChanged={!lockedPeriod && (period !== "this_year" || !!from || !!to)}
                 refreshKey={`${JSON.stringify(filterValues || {})}|${period}|${from}|${to}`}
               />
             )}

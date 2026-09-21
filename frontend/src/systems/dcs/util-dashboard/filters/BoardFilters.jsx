@@ -36,7 +36,7 @@ import { filter_candidates, field_label_of, parent_filter_of, descendant_filters
  * Editors reorder the filters by dragging a filter's grip onto another;
  * the new order is saved with the dashboard (onReorder).
  */
-export default function BoardFilters({ filters, fields, values, onValue, onValues, fetchValues, lockedIds, disabled, refreshKey, onReorder, onClearPeriod }) {
+export default function BoardFilters({ filters, fields, values, onValue, onValues, fetchValues, lockedIds, disabled, refreshKey, onReorder, onClearPeriod, periodChanged }) {
   const [dragging, setDragging] = useState(null);
   const [over, setOver] = useState(null);
   const drop_on = (target_id) => {
@@ -144,7 +144,7 @@ export default function BoardFilters({ filters, fields, values, onValue, onValue
           </div>
         );
       })}
-      {defs.some((def) => has(def.field_id) && !locked.has(def.field_id)) && (
+      {(defs.some((def) => has(def.field_id) && !locked.has(def.field_id)) || (periodChanged && onClearPeriod)) && (
         <button
           type="button"
           className="dcs-board-filter-clear dcs-link-action"

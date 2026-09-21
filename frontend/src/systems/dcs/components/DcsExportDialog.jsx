@@ -53,6 +53,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
   const [download_percent, setDownloadPercent] = useState(null);
   const [is_exporting, setIsExporting] = useState(false);
   const [is_complete, setIsComplete] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const cancel_ref = useRef(false);
   const job_id_ref = useRef("");
 
@@ -66,15 +67,31 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
     setDownloadPercent(null);
     setIsExporting(false);
     setIsComplete(false);
+    setCancelling(false);
     cancel_ref.current = false;
     job_id_ref.current = "";
   };
 
-  const handle_cancel = async () => {
+  const handle_close = () => {
     cancel_ref.current = true;
     if (job_id_ref.current) cancel_export_job(job_id_ref.current).catch(() => {});
     reset_state();
     onOpenChange(false);
+  };
+
+  const handle_cancel = async () => {
+    if (!is_exporting || !job_id_ref.current) {
+      handle_close();
+      return;
+    }
+    setCancelling(true);
+    setStage("cancelling");
+    try {
+      await cancel_export_job(job_id_ref.current);
+    } catch (error) {
+      setCancelling(false);
+      showError(error.message || translate("DCS_EXPORT_ERROR_FAILED"));
+    }
   };
 
   const handle_export = async () => {
@@ -95,11 +112,13 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
         current = response.data;
         known_percent = current.percent;
         setJob(current);
-        setStage(current.stage);
+        setStage(current.cancel_requested && current.status === "running" ? "cancelling" : current.stage);
       }
       if (cancel_ref.current) return;
       if (current.status === "cancelled") {
         setStage("cancelled");
+        setCancelling(false);
+        showSuccess(translate("DCS_EXPORT_CANCELLED_TOAST"));
         return;
       }
       if (current.status !== "completed") throw new Error(current.error || translate("DCS_EXPORT_ERROR_FAILED"));
@@ -125,6 +144,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
   const stage_text = () => {
     if (stage === "counting") return translate("DCS_EXPORT_COUNTING");
     if (stage === "writing" || stage === "finishing") return translate("DCS_EXPORT_WRITING", { processed: job ? job.processed : 0, total: job ? job.total : 0 });
+    if (stage === "cancelling") return translate("DCS_EXPORT_CANCELLING");
     if (stage === "downloading") return translate("DCS_EXPORT_DOWNLOADING");
     if (stage === "complete") return translate("DCS_EXPORT_COMPLETE");
     if (stage === "cancelled") return translate("DCS_EXPORT_CANCELLED");
@@ -134,7 +154,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
   const can_export = !is_exporting && (period !== "custom" || from);
 
   return (
-    <Dialog.Root open={open} onOpenChange={handle_cancel}>
+    <Dialog.Root open={open} onOpenChange={handle_close}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-none bg-white p-5 sm:p-6 shadow-xl">
@@ -189,15 +209,17 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
           )}
 
           <div className="flex justify-end gap-2 mt-4">
-            {!is_complete && (
+            {!is_complete && stage !== "cancelled" && (
               <>
-                <DcsButtonOutline onClick={handle_cancel}>{translate("DCS_EXPORT_BTN_CANCEL")}</DcsButtonOutline>
-                <DcsButtonPrimary onClick={handle_export} disabled={!can_export}>
+                <DcsButtonOutline onClick={handle_cancel} disabled={cancelling}>
+                  {cancelling ? translate("DCS_EXPORT_CANCELLING_BTN") : translate("DCS_EXPORT_BTN_CANCEL")}
+                </DcsButtonOutline>
+                <DcsButtonPrimary onClick={handle_export} disabled={!can_export || cancelling}>
                   {is_exporting ? translate("DCS_WAITING_GENERIC") : translate("DCS_EXPORT_BTN_EXPORT")}
                 </DcsButtonPrimary>
               </>
             )}
-            {is_complete && <DcsButtonPrimary onClick={handle_cancel}>{translate("DCS_EXPORT_BTN_CLOSE")}</DcsButtonPrimary>}
+            {(is_complete || stage === "cancelled") && <DcsButtonPrimary onClick={handle_close}>{translate("DCS_EXPORT_BTN_CLOSE")}</DcsButtonPrimary>}
           </div>
         </Dialog.Content>
       </Dialog.Portal>
