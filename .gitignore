@@ -4,6 +4,9 @@ npm-debug.log
 yarn-error.log
 win_app_dir_exe/
 backend/uploads/tasks/attachments
+# Runtime approval attachments, keep the folder but not the uploaded files
+dc_backend/uploads/approvals/*
+!dc_backend/uploads/approvals/.gitkeep
 docker-compose.yml
 # Ignore all files and subfolders within any 'upload' directory
 **/upload/**
