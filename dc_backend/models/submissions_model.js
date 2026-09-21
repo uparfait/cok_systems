@@ -412,12 +412,18 @@ async function count_feed(form_group_id, filter) {
   return get_db().collection(COLLECTION_NAME).countDocuments(feed_query(form_group_id, filter));
 }
 
-/** A page (or, with limit 0, everything) of the feed as a cursor, oldest first. */
+/**
+ * A page (or, with limit 0, everything) of the feed as a cursor, oldest
+ * first. The sort rides the form_group_submitted_at index; disk use is the
+ * safety net for a window the index cannot fully serve, so a large form
+ * never fails with the in-memory sort limit.
+ */
 function stream_feed(form_group_id, filter, skip, limit, batch_size) {
   let cursor = get_db()
     .collection(COLLECTION_NAME)
     .find(feed_query(form_group_id, filter), { projection: { data: 1, version: 1, submitted_at: 1, respondent: 1 } })
-    .sort({ submitted_at: 1, _id: 1 })
+    .sort({ submitted_at: 1 })
+    .allowDiskUse(true)
     .batchSize(batch_size || 1000);
   if (skip) cursor = cursor.skip(skip);
   if (limit) cursor = cursor.limit(limit);

@@ -10,6 +10,30 @@ const { translate } = require("../../i18n/index.js");
 const DEFAULT_LIMIT = 1000;
 const MAX_LIMIT = 5000;
 const BATCH_SIZE = 1000;
+const VERSIONS_CACHE_MS = 60000;
+const versions_cache = new Map();
+
+/** A form's versions kept a minute, so a tool paging through the feed does not refetch the schema per page. */
+async function cached_versions(form_group_id) {
+  const hit = versions_cache.get(form_group_id);
+  if (hit && Date.now() - hit.at < VERSIONS_CACHE_MS) return hit.versions;
+  const versions = await forms_model.get_versions_by_group(form_group_id);
+  versions_cache.set(form_group_id, { at: Date.now(), versions });
+  return versions;
+}
+
+/** Resolves when the response can take more, or when the reader has gone away. */
+function drained(res) {
+  return new Promise((resolve) => {
+    const done = () => {
+      res.off("drain", done);
+      res.off("close", done);
+      resolve();
+    };
+    res.once("drain", done);
+    res.once("close", done);
+  });
+}
 
 /**
  * The public data feed an external tool reads a form's responses from,
@@ -37,7 +61,7 @@ async function resolve_token(req, res) {
     res.status(410).json(warning_response(req, "DATA_TOKEN_EXPIRED"));
     return null;
   }
-  const versions = await forms_model.get_versions_by_group(token.form_group_id);
+  const versions = await cached_versions(token.form_group_id);
   if (!versions || versions.length === 0) {
     res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
     return null;
@@ -122,13 +146,14 @@ async function get_data_feed(req, res) {
       const cursor = submissions_model.stream_feed(form_group_id, filter, 0, 0, BATCH_SIZE);
       let written = 0;
       for await (const submission of cursor) {
+        if (res.destroyed || res.writableEnded) break;
         const values = row_values(submission, columns.slice(1), field_type_by_id, origin);
         const line = [submission._id.toString()].concat(values).map(csv_escape).join(",") + "\r\n";
-        if (!res.write(line)) await new Promise((resolve) => res.once("drain", resolve));
+        if (!res.write(line)) await drained(res);
         written += 1;
         if (written % 500 === 0) await new Promise((resolve) => setImmediate(resolve));
       }
-      res.end();
+      if (!res.destroyed) res.end();
       return undefined;
     }
 
@@ -160,6 +185,13 @@ async function get_data_feed(req, res) {
       results,
     });
   } catch (error) {
+    // A failure once the CSV has started cannot become a status code any
+    // more; cutting the connection is what tells the reader the file is
+    // incomplete.
+    if (res.headersSent) {
+      res.destroy(error);
+      return undefined;
+    }
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }
 }
