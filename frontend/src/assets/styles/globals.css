@@ -1788,8 +1788,12 @@ background-color: #056daa;
   width: 100%;
   min-height: 70vh;
 }
+/* The cards stack by their own z order (one more on every bring-to-front),
+   which must stay inside the board: without its own stacking context a
+   board with many widgets climbs above the fixed sidebar and hides it. */
 .dcs-canvas-free {
   overflow: hidden;
+  isolation: isolate;
 }
 
 .dcs-board-public {

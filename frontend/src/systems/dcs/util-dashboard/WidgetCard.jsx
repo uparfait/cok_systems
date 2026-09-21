@@ -7,6 +7,7 @@ import { chart_definition } from "./chartCatalog.js";
 import { build_palette, with_alpha } from "./appearance.js";
 import CardMenu from "./WidgetCardMenu.jsx";
 import { useBoardTheme } from "./boardTheme.jsx";
+import { chart_density } from "./charts/density.js";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -211,6 +212,15 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // Lifted to fill the screen, the chart grows to the room it is given
   // (minus the axis and padding under it) instead of its usual height.
   const fill_height = expanded ? Math.max(0, chart_size.height - 56) : 0;
+  // What the area needs on its own, for a surface that sizes the card to
+  // its content (see freeFlow): the chart at the height its width earns,
+  // plus the room under it, or the state area while there is no chart.
+  // A chart that FILLS the room it was given says so, because its drawn
+  // height then tells nothing about what it needs.
+  const has_chart = !!data && !data.error && !data.locked && !loading;
+  const base_chart_height = chart_density(chart_size.width).height;
+  const base_need = is_canvas ? 0 : !has_chart ? state_height : is_kpi ? 0 : base_chart_height + 56;
+  const filled = has_chart && !is_kpi && !is_canvas && fill_height > base_chart_height;
   useEffect(() => {
     if (data && !data.error && !data.locked) drawn_ref.current = true;
   }, [data]);
@@ -289,7 +299,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
       {/* The chart area never widens the card: it is the measured box the
           chart sizes itself to, and anything still wider than it (a long
           time range, a wide heatmap) scrolls inside here instead. */}
-      <div ref={chart_ref} className={`${is_canvas ? "" : `px-2 ${is_kpi ? "pb-2" : "pb-3"}`} flex-1 min-w-0 max-w-full`} style={{ overflowX: "auto", overflowY: "hidden" }}>
+      <div ref={chart_ref} className={`dcs-widget-area ${is_canvas ? "" : `px-2 ${is_kpi ? "pb-2" : "pb-3"}`} flex-1 min-w-0 max-w-full`} style={{ overflowX: "auto", overflowY: "hidden" }} data-base-need={base_need} data-filled={filled ? "1" : "0"}>
         {slot ? (
           // A canvas has no data to wait for or fail at: what it holds is
           // handed in and drawn straight away.

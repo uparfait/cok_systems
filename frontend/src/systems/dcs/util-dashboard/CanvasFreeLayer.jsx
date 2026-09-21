@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { canvas_size, move_rect, resize_rect, snap_rect, bring_to_front, replace_item, clamp_rect } from "./screenshot/studioLayout.js";
 import { spot_of, FREE_PAD } from "./boxLayout.js";
-import FitScale from "./FitScale.jsx";
+import { grow_rect, settle_rects, stack_rects, measure_need } from "./freeFlow.js";
 
 /**
  * FREE PLACEMENT inside a section, worked exactly the way the screenshot
@@ -26,6 +26,17 @@ import FitScale from "./FitScale.jsx";
  * its own GROWS downwards with whatever is pushed past its bottom, so
  * nothing is cut off either.
  *
+ * Nor is anything cut off INSIDE a box. The box the author drew is the
+ * least a widget gets; what it holds is measured, and a widget taller than
+ * its box - a chart resized under its own height, a title on two lines, a
+ * section whose widgets grew - opens the box to fit, moving whatever was
+ * designed below it down by as much (see freeFlow). A resize is held at
+ * the content, so an edge stops where the chart would start to vanish.
+ *
+ * On a phone the arrangement gives way to a single column in reading
+ * order, every widget the full width and as tall as it needs, instead of
+ * the whole design drawn at postage-stamp size.
+ *
  * A SECTION carries what is in it. Its widgets are drawn inside it, so
  * moving the section moves them with it and nothing has to be worked out.
  *
@@ -48,16 +59,63 @@ const CLOSE_MARK = (
   </svg>
 );
 
-export default function CanvasFreeLayer({ list, width, height, scale, placeable, onPlace, onRemove }) {
+/**
+ * Watches one box's body for anything that changes what it needs: its
+ * own size, the chart area's, the children of the area (a chart arriving
+ * after its loading state, rows opened, a section growing) and the marks
+ * the card leaves on the area. Every change asks for one measurement on
+ * the next frame.
+ */
+function watch_body(body, on_change) {
+  let frame = null;
+  const schedule = () => {
+    if (frame) window.cancelAnimationFrame(frame);
+    frame = window.requestAnimationFrame(() => {
+      frame = null;
+      on_change();
+    });
+  };
+  const sizes = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null;
+  const observe_area = () => {
+    if (!sizes) return;
+    const area = body.querySelector(".dcs-widget-area");
+    if (!area) return;
+    sizes.observe(area);
+    Array.from(area.children).forEach((child) => sizes.observe(child));
+  };
+  if (sizes) sizes.observe(body);
+  observe_area();
+  const changes =
+    typeof MutationObserver !== "undefined"
+      ? new MutationObserver(() => {
+          observe_area();
+          schedule();
+        })
+      : null;
+  if (changes) changes.observe(body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-filled", "data-base-need"] });
+  schedule();
+  return () => {
+    if (frame) window.cancelAnimationFrame(frame);
+    if (sizes) sizes.disconnect();
+    if (changes) changes.disconnect();
+  };
+}
+
+export default function CanvasFreeLayer({ list, width, height, scale, placeable, stacked, onPlace, onRemove }) {
   // The pointer travels in screen pixels; the surface may be drawn smaller.
   const factor = Number(scale) > 0 ? Number(scale) : 1;
   const factor_ref = useRef(factor);
   factor_ref.current = factor;
   const surface_ref = useRef(null);
+  const bodies_ref = useRef(new Map());
   const [room, setRoom] = useState(0);
   const [active_id, setActiveId] = useState(null);
   const [guides, setGuides] = useState({ x: [], y: [] });
   const [moving_id, setMovingId] = useState(null);
+  // What each box's content needs, by widget id: { h, firm }.
+  const [wants, setWants] = useState({});
+  const wants_ref = useRef(wants);
+  wants_ref.current = wants;
   const gesture_ref = useRef(null);
   const rects_ref = useRef([]);
   const { translate } = useDcsLanguage();
@@ -67,20 +125,24 @@ export default function CanvasFreeLayer({ list, width, height, scale, placeable,
   const bounds = { w: width || room, h: 0 };
   // Drawn as well as dragged inside the edges: a spot saved on a wider
   // screen is pulled in rather than left hanging off the side.
-  const rects = list.map((entry, index) => {
+  const designed = list.map((entry, index) => {
     const spot = Object.assign({ id: entry.widget.id }, spot_of(entry.widget.box, index));
     return bounds.w > 0 ? clamp_rect(spot, bounds, EDGE_PAD) : spot;
   });
-  rects_ref.current = rects;
+  rects_ref.current = designed;
   const bounds_ref = useRef(bounds);
   bounds_ref.current = bounds;
+  const needs = designed.map((rect) => wants[rect.id]);
+  // What is DRAWN: the design opened up to its content, or, on a phone,
+  // one column of it.
+  const rects = stacked && bounds.w > 0 ? stack_rects(designed, needs, bounds.w, EDGE_PAD) : settle_rects(designed, designed.map((rect, index) => grow_rect(rect, needs[index])));
   // The surface is as tall as the lowest thing on it, and never shorter
   // than the room the section itself was given.
   const base = { w: 0, h: Math.max(height || 0, 160) };
   const surface = canvas_size(rects, base);
   // Wider than the room it has, a surface is drawn smaller to fit, so the
   // widgets on it never run out past the section's right edge.
-  const fit = !width && room > 0 && surface.w > room ? room / surface.w : 1;
+  const fit = !stacked && !width && room > 0 && surface.w > room ? room / surface.w : 1;
   const fit_ref = useRef(fit);
   fit_ref.current = fit;
 
@@ -106,6 +168,13 @@ export default function CanvasFreeLayer({ list, width, height, scale, placeable,
       const others = rects_ref.current.filter((entry) => entry.id !== gesture.id);
       const snapped = snap_rect(raw, gesture.kind, others, canvas_size(others.concat([raw]), base));
       snapped.rect = clamp_rect(snapped.rect, bounds_ref.current, EDGE_PAD);
+      // A resize stops at the content: the box is never dragged shorter
+      // than what it holds. From the top edge, the bottom stays put.
+      const want = wants_ref.current[gesture.id];
+      if (gesture.kind !== "move" && want && want.firm && snapped.rect.h < want.h) {
+        if (gesture.kind.indexOf("n") >= 0) snapped.rect.y = gesture.start.y + gesture.start.h - want.h;
+        snapped.rect.h = want.h;
+      }
       setGuides(snapped.guides);
       onPlace(gesture.id, replace_item([gesture.start], gesture.id, snapped.rect)[0]);
     };
@@ -152,6 +221,33 @@ export default function CanvasFreeLayer({ list, width, height, scale, placeable,
     };
   }, []);
 
+  // Every box's content is watched and measured; a need is only written
+  // when it really changed, so measuring never re-renders for nothing.
+  const ids_key = list.map((entry) => entry.widget.id).join("|");
+  useEffect(() => {
+    const stops = [];
+    bodies_ref.current.forEach((body, id) => {
+      if (!body) return;
+      stops.push(
+        watch_body(body, () => {
+          const need = measure_need(body);
+          if (!need) return;
+          setWants((current) => {
+            const held = current[id];
+            if (held && Math.abs(held.h - need.h) <= 1 && held.firm === need.firm) return current;
+            return Object.assign({}, current, { [id]: need });
+          });
+        }),
+      );
+    });
+    return () => stops.forEach((stop) => stop());
+  }, [ids_key]);
+
+  const hold_body = (id) => (element) => {
+    if (element) bodies_ref.current.set(id, element);
+    else bodies_ref.current.delete(id);
+  };
+
   return (
     <div
       ref={surface_ref}
@@ -182,10 +278,8 @@ export default function CanvasFreeLayer({ list, width, height, scale, placeable,
             style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, zIndex: rect.z }}
             onPointerDown={start(id, "move")}
           >
-            {/* Resized smaller than its content needs, a widget is drawn
-                smaller as a whole rather than cut off at the edge. */}
-            <div className={`dcs-canvas-spot-body ${placeable ? "is-still" : ""}`}>
-              <FitScale>{entry.node}</FitScale>
+            <div ref={hold_body(id)} className={`dcs-canvas-spot-body ${placeable ? "is-still" : ""}`}>
+              {entry.node}
             </div>
             {placeable && (
               <>

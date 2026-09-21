@@ -208,7 +208,7 @@ const authenticate = async (req, res, next) => {
       success: false,
       type: "error",
       message: "Authentication failed",
-      error: "Authentication failed"
+      error: "Authentication failed
     });
   }
 };

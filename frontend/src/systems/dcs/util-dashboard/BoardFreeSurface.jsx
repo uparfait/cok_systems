@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import CanvasFreeLayer from "./CanvasFreeLayer.jsx";
 import { BOARD_WIDTH, board_width } from "./boxLayout.js";
+import { useNarrowViewport } from "./useNarrowViewport.js";
 
 /**
  * STUDIO MODE for a whole board: every widget placed and sized by hand,
@@ -22,6 +23,12 @@ import { BOARD_WIDTH, board_width } from "./boxLayout.js";
  * pointer's travel is undone by the same scale, exactly as the screenshot
  * studio does it, so a box lands under the pointer whatever size the board
  * is drawn at.
+ *
+ * The one exception is a PHONE, where a whole board scaled to a hand's
+ * width is a picture of a dashboard rather than a dashboard. There the
+ * design gives way: the widgets are read as one column, each the full
+ * width and as tall as it needs (see CanvasFreeLayer). Arranging still
+ * happens on the design itself, so the studio keeps the scaled board.
  */
 
 // zoom re-lays-out at the new size (crisp text, real box sizes); the
@@ -52,8 +59,10 @@ export default function BoardFreeSurface({ list, layout, placeable, onPlace, onR
     };
   }, []);
 
-  const design = board_width(layout);
-  const scale = room > 0 ? Math.min(3, room / design) : 1;
+  const narrow = useNarrowViewport();
+  const stacked = narrow && !placeable;
+  const design = stacked ? room || board_width(layout) : board_width(layout);
+  const scale = stacked ? 1 : room > 0 ? Math.min(3, room / design) : 1;
 
   return (
     <div
@@ -71,7 +80,7 @@ export default function BoardFreeSurface({ list, layout, placeable, onPlace, onR
         className="dcs-studio-canvas"
         style={Object.assign({ backgroundColor: "var(--board-bg, #F4F7F9)" }, SUPPORTS_ZOOM ? { width: design, zoom: scale } : { width: design, transform: `scale(${scale})`, transformOrigin: "top left" })}
       >
-        <CanvasFreeLayer list={list} width={design} height={BOARD_WIDTH.min_height} scale={scale} placeable={placeable} onPlace={onPlace} onRemove={onRemove} />
+        <CanvasFreeLayer list={list} width={design} height={stacked ? 0 : BOARD_WIDTH.min_height} scale={scale} placeable={placeable} stacked={stacked} onPlace={onPlace} onRemove={onRemove} />
       </div>
     </div>
   );

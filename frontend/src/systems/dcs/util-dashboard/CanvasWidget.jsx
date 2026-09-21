@@ -3,6 +3,7 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { child_style, breaks_row, canvas_style, default_box, is_free } from "./boxLayout.js";
 import CanvasFreeLayer from "./CanvasFreeLayer.jsx";
 import FitScale from "./FitScale.jsx";
+import { useNarrowViewport } from "./useNarrowViewport.js";
 
 /**
  * A CANVAS: a widget whose content is other widgets.
@@ -45,6 +46,7 @@ function CanvasChild({ widget, gap, dragProps, dropClass, children }) {
 
 export default function CanvasWidget({ widget, children, editable, placeable, onPlace, onRemove, onAddWidget, dragPropsFor, dropClass, height }) {
   const { translate } = useDcsLanguage();
+  const narrow = useNarrowViewport();
   const box_ref = useRef(null);
   const list = children || [];
   const settings = widget.canvas || {};
@@ -65,7 +67,7 @@ export default function CanvasWidget({ widget, children, editable, placeable, on
 
   // Placed rather than queued: every widget where it was dragged to.
   if (is_free(settings)) {
-    return <CanvasFreeLayer list={list} height={height} placeable={placeable} onPlace={onPlace} onRemove={onRemove} />;
+    return <CanvasFreeLayer list={list} height={height} placeable={placeable} stacked={narrow && !placeable} onPlace={onPlace} onRemove={onRemove} />;
   }
 
   return (
