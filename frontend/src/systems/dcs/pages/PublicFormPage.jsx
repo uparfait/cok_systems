@@ -34,12 +34,10 @@ import PublicFormChrome from "../components/PublicFormChrome.jsx";
 const FONT = "'Montserrat', sans-serif";
 const AMBER = "#B9770E";
 
-/** Strips any __v<version> suffix: the public link always resolves to the active version. */
 function extract_form_group_id(raw_id) {
   return raw_id.split("__v")[0];
 }
 
-/** Public, offline-first data collection page behind /dcs-form/:id. */
 function PublicFormPageContent() {
   const { id } = useParams();
   const { translate, language } = useDcsLanguage();
@@ -74,11 +72,9 @@ function PublicFormPageContent() {
 
   useEffect(() => {
     if (form) apply_form_manifest({ name: form.form_name || translate("DCS_PUBLIC_FORM_TITLE_FALLBACK"), language });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form]);
+  }, [form]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A stored draft is offered only once the schema can say whether it holds
-  // a typed answer; one with only the auto-detected location is dropped.
+  // A stored draft is offered only when the schema says it holds a typed answer.
   useEffect(() => {
     if (!form || !pending_draft_check) return;
     setPendingDraftCheck(null);
@@ -87,8 +83,7 @@ function PublicFormPageContent() {
     } else {
       clear_form_draft(form_group_id).then(() => refresh_draft());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, pending_draft_check]);
+  }, [form, pending_draft_check]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const prevent_default = (event) => event.preventDefault();
@@ -204,8 +199,7 @@ function PublicFormPageContent() {
   useEffect(() => {
     if (!form || reviewing_queue_id_ref.current || !has_meaningful_answers(values, form.schema)) return;
     save_form_draft(form_group_id, form.version, values).then(() => refresh_draft());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [values]);
+  }, [values]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handle_value_change = (field_id, next_value) => {
     setSubmitState("idle");
@@ -374,7 +368,7 @@ function PublicFormPageContent() {
         >
           <div className="flex items-center justify-between gap-2 mb-3 dcs-no-print">
             <p className="text-xs truncate" style={{ color: "#9E9E9E", fontFamily: FONT }}>
-              {respondent ? translate("DCS_RESPONDENT_FILLING_AS", { name: respondent.name }) : ""}
+              {respondent ? translate("DCS_RESPONDENT_FILLING_AS", { name: String(respondent.name || "").trim().split(" ")[0] }) : ""}
             </p>
             <button
               type="button"
@@ -495,7 +489,6 @@ function PublicFormPageContent() {
   );
 }
 
-/** Standalone public route: wrapped in its own language provider. */
 export default function PublicFormPage() {
   return (
     <DcsErrorBoundary>

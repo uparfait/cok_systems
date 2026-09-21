@@ -20,6 +20,8 @@ Scope: the public data collection page (`/dcs-form/:id`), the builder's review r
 - [x] `watchPosition` with high accuracy; a new reading replaces the stored one only when its accuracy is better (smaller); a place picked by search is never overwritten by device readings
 - [x] Denied / off / timed out: a clear message plus an "Allow location" button that re-triggers the browser's native permission prompt; when the browser has it blocked, step-by-step instructions; insecure (http) pages explained
 - [x] Address lookup re-runs once connectivity returns when coordinates exist without an address
+- [x] Detection starts by itself whenever no real position is stored and nothing is being watched (first load, resumed draft, after a StrictMode effect re-run); high-accuracy timeout falls back to a network fix; the guide button and the district cascade Retry are inline icons
+- [x] Draft check is schema-aware: hidden, computed and preset values do not make a draft; "Continue as" shows the first name only; the public form loading indicator is the writing-pen icon (`DcsWritingPenIcon`)
 
 ## 4. Install / add to home screen
 - [x] On `/dcs-form/...` the manifest is swapped at startup for a dynamic one whose `start_url`, `id` and `scope` are the form's own URL (`pwa/dynamicManifest.js`), so the installed icon opens the form, not `/`

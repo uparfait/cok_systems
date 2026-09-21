@@ -35,7 +35,7 @@ export default function DcsRespondentGate({ saved, onConfirm }) {
         </div>
         <div className="flex flex-col min-[480px]:flex-row gap-2">
           <DcsButtonPrimary className="flex-1" onClick={() => onConfirm(saved)}>
-            {translate("DCS_RESPONDENT_CONTINUE_AS", { name: saved.name })}
+            {translate("DCS_RESPONDENT_CONTINUE_AS", { name: String(saved.name || "").trim().split(" ")[0] })}
           </DcsButtonPrimary>
           <DcsButtonOutline className="flex-1" onClick={() => setMode("edit")}>
             {translate("DCS_RESPONDENT_CHANGE")}

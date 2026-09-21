@@ -213,6 +213,9 @@ export default function GeolocationField({ field, language, mode, value, onChang
     if (is_builder || has_real || failure || position.watching || starting_ref.current) return;
     starting_ref.current = true;
     handle_detect();
+    return () => {
+      starting_ref.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [is_builder, has_real, failure, position.watching]);
 

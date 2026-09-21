@@ -174,10 +174,15 @@ function RetryButton({ onClick, disabled }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium rounded-none border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-      style={{ fontFamily: "'Montserrat', sans-serif" }}
+      title="Retry"
+      aria-label="Retry"
+      className="ml-2 inline-flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+      style={{ width: 28, height: 28, borderRadius: "50%", border: "1px solid #056daa", background: "#FFFFFF" }}
     >
-      Retry
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12a9 9 0 11-3.5-7.14" />
+        <polyline points="21 3 21 9 15 9" />
+      </svg>
     </button>
   );
 }
