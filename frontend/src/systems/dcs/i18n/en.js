@@ -1410,6 +1410,7 @@ const en = {
   DCS_TRANSLATION_NEXT: "Next",
   DCS_TRANSLATION_SAVED_NOTE: "Saved texts wait for the form owner, who reviews and applies them.",
   DCS_TRANSLATION_WHO_TITLE: "Who is translating?",
+  DCS_TRANSLATION_IDENTIFY_FIRST: "Say who you are to open the texts of this form.",
   DCS_TRANSLATION_WHO_MESSAGE: "Your name, email and telephone are kept with every text you save, so you can come back and continue where you stopped.",
   DCS_TRANSLATION_AS: "Translating as {{name}}",
   DCS_TRANSLATION_BY: "Translated by {{name}}",

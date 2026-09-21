@@ -35,14 +35,13 @@ async function upsert(link_id, form_group_id, translator, last_page) {
   await ensure_indexes_once();
   const now = new Date();
   const set = { name: translator.name, phone: translator.phone, last_seen_at: now, updated_at: now };
+  const on_insert = { link_id, form_group_id, email: translator.email, created_at: now };
+  // A path may live in $set or $setOnInsert, never both.
   if (Number.isInteger(last_page) && last_page >= 0) set.last_page = last_page;
+  else on_insert.last_page = 0;
   await get_db()
     .collection(COLLECTION_NAME)
-    .updateOne(
-      { link_id, email: translator.email },
-      { $set: set, $setOnInsert: { link_id, form_group_id, email: translator.email, created_at: now, last_page: Number.isInteger(last_page) ? last_page : 0 } },
-      { upsert: true },
-    );
+    .updateOne({ link_id, email: translator.email }, { $set: set, $setOnInsert: on_insert }, { upsert: true });
   return get_by_email(link_id, translator.email);
 }
 

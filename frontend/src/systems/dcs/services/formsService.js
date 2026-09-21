@@ -145,8 +145,8 @@ export function translation_link_url(token) {
   return `${window.location.origin}/dcs-translate/${token}`;
 }
 
-export function get_public_translation(token, email) {
-  return dcs_request(`/public/translate/${token}${email ? `?email=${encodeURIComponent(email)}` : ""}`, "GET");
+export function get_public_translation(token) {
+  return dcs_request(`/public/translate/${token}`, "GET");
 }
 
 export function identify_translator(token, translator, page) {

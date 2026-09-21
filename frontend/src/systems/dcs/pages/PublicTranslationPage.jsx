@@ -41,6 +41,8 @@ function TranslationWorkbench() {
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(0);
   const [translator, setTranslator] = useState(null);
+  // The texts arrive only with an identified translator - never before.
+  const [work, setWork] = useState({ fields: [], proposals: [] });
   const [gate_open, setGateOpen] = useState(true);
   const [saved_identity] = useState(() => read_respondent());
   const page_timer_ref = useRef(null);
@@ -57,9 +59,9 @@ function TranslationWorkbench() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  const entries = useMemo(() => (info ? translatable_entries(info.fields, translate, language) : []), [info, translate, language]);
-  const proposals = useMemo(() => index_proposals(info ? info.proposals : []), [info]);
-  const owners = useMemo(() => owners_by_field(info ? info.proposals : []), [info]);
+  const entries = useMemo(() => (translator ? translatable_entries(work.fields, translate, language) : []), [translator, work.fields, translate, language]);
+  const proposals = useMemo(() => index_proposals(work.proposals), [work.proposals]);
+  const owners = useMemo(() => owners_by_field(work.proposals), [work.proposals]);
   const pages = page_count(entries.length);
   const shown = page_slice(entries, page);
   const pending = count_changes(changes);
@@ -79,9 +81,11 @@ function TranslationWorkbench() {
     try {
       const response = await identify_translator(token, identity);
       const data = response.data || {};
+      const fields = data.fields || [];
       setTranslator(data.translator || identity);
-      setInfo((current) => Object.assign({}, current, { proposals: data.proposals || (current && current.proposals) || [] }));
-      const resume = Math.min(pages - 1, Math.max(0, (data.translator && data.translator.last_page) || 0));
+      setWork({ fields, proposals: data.proposals || [] });
+      const total = page_count(translatable_entries(fields, translate, language).length);
+      const resume = Math.min(total - 1, Math.max(0, (data.translator && data.translator.last_page) || 0));
       setPage(resume);
       setChanges({});
       setGateOpen(false);
@@ -105,7 +109,7 @@ function TranslationWorkbench() {
       const response = await save_public_translation(token, changes, translator, page);
       showSuccess(response.message || translate("DCS_TRANSLATION_SAVED"));
       setChanges({});
-      setInfo((current) => Object.assign({}, current, { proposals: (response.data && response.data.proposals) || (current && current.proposals) || [] }));
+      setWork((current) => Object.assign({}, current, { proposals: (response.data && response.data.proposals) || current.proposals }));
     } catch (error) {
       showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
     } finally {
@@ -188,7 +192,12 @@ function TranslationWorkbench() {
             onChange={(field_id, key, code, value) => setChanges((current) => set_change(current, field_id, key, code, value))}
           />
         ))}
-        {entries.length === 0 && (
+        {!translator && (
+          <p className="text-sm" style={{ color: MUTED, ...FONT }}>
+            {translate("DCS_TRANSLATION_IDENTIFY_FIRST")}
+          </p>
+        )}
+        {translator && entries.length === 0 && (
           <p className="text-sm" style={{ color: MUTED, ...FONT }}>
             {translate("DCS_TRANSLATION_NO_TEXTS")}
           </p>

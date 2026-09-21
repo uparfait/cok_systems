@@ -1410,6 +1410,7 @@ const kn = {
   DCS_TRANSLATION_NEXT: "Komeza",
   DCS_TRANSLATION_SAVED_NOTE: "Inyandiko zabitswe zitegereje nyir'ifishi, uzisuzuma akazishyira ku ifishi.",
   DCS_TRANSLATION_WHO_TITLE: "Ni nde uhindura ururimi?",
+  DCS_TRANSLATION_IDENTIFY_FIRST: "Vuga uwo uri we kugira ngo ufungure inyandiko z'iyi fishi.",
   DCS_TRANSLATION_WHO_MESSAGE: "Izina, imeyili na telefoni yawe bibikwa kuri buri nyandiko ubitse, kugira ngo ubashe kugaruka ukomeze aho wagarukiye.",
   DCS_TRANSLATION_AS: "Uhindura ururimi: {{name}}",
   DCS_TRANSLATION_BY: "Byahinduwe na {{name}}",

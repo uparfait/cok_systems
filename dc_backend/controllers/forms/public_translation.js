@@ -8,12 +8,14 @@ const { sanitize_respondent } = require("../../utilities/respondent.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
- * The public side of a translation link, no sign-in: the token is the whole
- * authorization. Every translator first says who they are (name, email,
- * phone): a known email gets their saved texts and the page they stopped
- * on, an unknown one is created. GET hands over every field of the form's
- * active version, the languages this link locks, and every proposal saved
- * through the link, each naming its translator. PUT stores PROPOSALS -
+ * The public side of a translation link, no sign-in: the token opens the
+ * link, but the texts themselves are handed over only to an identified
+ * translator. GET says which form it is and which languages the link locks
+ * - nothing to translate yet. The translator then says who they are (name,
+ * email, phone): a known email gets back their saved texts and the page
+ * they stopped on, an unknown one is created; that answer carries every
+ * field of the form's active version and every proposal saved through the
+ * link, each naming its translator. PUT stores PROPOSALS -
  * nothing is written into the form until its editor applies them - and a
  * field one translator has already worked on is refused to any other, so
  * two people never touch the same text.
@@ -31,8 +33,6 @@ async function resolve_link(req, res) {
   }
   return { link, active_version };
 }
-
-const email_of = (raw) => String(raw || "").trim().toLowerCase().slice(0, 120);
 
 /** A translator as the request names them; null unless all three details are there. */
 function translator_of(raw) {
@@ -73,11 +73,6 @@ async function get_public_translation(req, res) {
     if (!context) return undefined;
     const { link, active_version } = context;
     await links_model.count_view(link._id);
-    const viewer_email = email_of(req.query && req.query.email);
-    const [proposals, translator] = await Promise.all([
-      proposals_model.list_by_link(link._id.toString()),
-      viewer_email ? translators_model.get_by_email(link._id.toString(), viewer_email) : null,
-    ]);
     return res.status(200).json(
       success_response(req, "TRANSLATION_FORM_FETCHED", {
         form_group_id: active_version.form_group_id,
@@ -86,9 +81,6 @@ async function get_public_translation(req, res) {
         title: link.title,
         locked_languages: link.locked_languages || [],
         languages: LANGUAGES,
-        fields: strip_lazy_options_from_fields(active_version.schema.fields || []),
-        proposals: proposals.map((proposal) => strip_proposal(proposal, viewer_email)),
-        translator: translator_view(translator),
       }),
     );
   } catch (error) {
@@ -98,8 +90,9 @@ async function get_public_translation(req, res) {
 
 /**
  * Who is translating: finds them by email for this link or creates them,
- * remembers the page they are on, and answers with their record plus every
- * proposal of the link marked mine / not mine.
+ * remembers the page they are on, and answers with their record, the
+ * fields to translate and every proposal of the link marked mine / not
+ * mine. This is the only way the texts leave the server.
  */
 async function identify_translator(req, res) {
   try {
@@ -114,6 +107,7 @@ async function identify_translator(req, res) {
     return res.status(200).json(
       success_response(req, "TRANSLATION_TRANSLATOR_FETCHED", {
         translator: translator_view(stored),
+        fields: strip_lazy_options_from_fields(active_version.schema.fields || []),
         proposals: proposals.map((proposal) => strip_proposal(proposal, translator.email)),
       }),
     );

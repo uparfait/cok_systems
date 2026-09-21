@@ -1410,6 +1410,7 @@ const fr = {
   DCS_TRANSLATION_NEXT: "Suivant",
   DCS_TRANSLATION_SAVED_NOTE: "Les textes enregistrés attendent le propriétaire du formulaire, qui les examine et les applique.",
   DCS_TRANSLATION_WHO_TITLE: "Qui traduit ?",
+  DCS_TRANSLATION_IDENTIFY_FIRST: "Indiquez qui vous êtes pour ouvrir les textes de ce formulaire.",
   DCS_TRANSLATION_WHO_MESSAGE: "Votre nom, e-mail et téléphone accompagnent chaque texte enregistré, pour que vous puissiez revenir et continuer où vous vous êtes arrêté.",
   DCS_TRANSLATION_AS: "Traduction par {{name}}",
   DCS_TRANSLATION_BY: "Traduit par {{name}}",
