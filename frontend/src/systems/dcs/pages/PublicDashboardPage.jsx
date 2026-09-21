@@ -14,7 +14,7 @@ import BoardGrid from "../util-dashboard/BoardGrid.jsx";
 import SkippedDetailsModal from "../util-dashboard/SkippedDetailsModal.jsx";
 import ScreenshotStudio from "../util-dashboard/screenshot/ScreenshotStudio.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
-import DcsLoadingState from "../components/DcsLoadingState.jsx";
+import BoardSkeleton from "../util-dashboard/BoardSkeleton.jsx";
 
 const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "2");
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
@@ -117,7 +117,7 @@ function PublicBoard() {
   };
   frozen_ref.current = shot !== null || records !== null;
 
-  if (loading) return <DcsLoadingState />;
+  if (loading) return <BoardSkeleton />;
 
   if (failure || !info) {
     return (

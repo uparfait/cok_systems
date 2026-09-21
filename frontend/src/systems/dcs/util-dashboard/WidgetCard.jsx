@@ -307,9 +307,11 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             <p className="text-xs text-center px-4 font-semibold" style={{ color: DANGER, fontFamily: "'Montserrat', sans-serif" }}>
               {translate(data.error === "TIMEOUT" ? "DCS_DB_WIDGET_SLOW" : "DCS_DB_WIDGET_ERROR")}
             </p>
-            <p className="text-xs text-center px-4" style={{ color: DANGER }}>
-              {translate("DCS_DB_WIDGET_REMOVE_HINT")}
-            </p>
+            {editable && (
+              <p className="text-xs text-center px-4" style={{ color: DANGER }}>
+                {translate("DCS_DB_WIDGET_REMOVE_HINT")}
+              </p>
+            )}
             {onRetry && (
               <button
                 type="button"

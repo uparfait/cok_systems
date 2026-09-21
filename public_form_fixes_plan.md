@@ -47,3 +47,8 @@ Scope: the public data collection page (`/dcs-form/:id`), the builder's review r
 - [x] Translators work in isolation: nobody sees anyone else's texts, everyone may change every field; proposals are stored per translator (same text by two translators = two documents)
 - [x] Editor review: first the translators by name (contact, pending / applied counts, page reached); opening one shows the WHOLE form field by field with that person's proposed texts beside the current ones (untouched fields read "No change"); apply / restore / dismiss act on that translator's texts
 - [x] Identity overlay shows "Waiting..." while the identify request runs; page restyled to the system look (shadow cards, plain language switch, fewer colors, compact sticky bottom bar, phone gutters)
+
+## 9. Shared dashboards
+- [x] Switching dashboards behind one share link clears the previous board's filters and data (`useBoardData` resets on scope change)
+- [x] A dashboard that is still loading shows a board-shaped skeleton (header, KPI row, chart cards with a soft sweep) on the shared and the signed-in page
+- [x] A failed widget on a shared board shows the error and Retry only; the "consider removing this widget" hint appears only where the board is editable
