@@ -4,6 +4,7 @@ import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
 import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "./DcsButtonOutlineDanger.jsx";
 import DcsConfirmDialog from "./DcsConfirmDialog.jsx";
+import DcsRespondentGate from "./DcsRespondentGate.jsx";
 
 const STATUS_LABEL_KEYS = {
   pending: "DCS_QUEUE_STATUS_PENDING",
@@ -34,6 +35,8 @@ export default function DcsQueuePanel({
   isSyncing,
   storageBackend,
   installSlot,
+  respondent,
+  onRespondentChange,
   onClose,
   onSelectRecord,
   onContinueDraft,
@@ -54,6 +57,8 @@ export default function DcsQueuePanel({
   // A draft was never finished, so discarding it only needs a plain "are
   // you sure" confirmation.
   const [draft_delete_pending, setDraftDeletePending] = useState(false);
+  // Change opens who is filling in on this device for editing.
+  const [profile_open, setProfileOpen] = useState(false);
 
   const run_action = (action_key, action_fn) => async () => {
     setLoadingAction(action_key);
@@ -114,6 +119,19 @@ export default function DcsQueuePanel({
               <span className="font-semibold" style={{ color: "#333333" }}>{total_count}</span>
             </div>
           </div>
+
+          {onRespondentChange && respondent && (
+            <div className="bg-white border-2 p-3 flex items-center justify-between gap-3" style={{ borderColor: "#E0E0E0" }}>
+              <div className="min-w-0">
+                <p className="text-sm font-bold truncate" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>{respondent.name}</p>
+                <p className="text-xs truncate" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif" }}>{respondent.email}</p>
+                <p className="text-xs" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif" }}>{respondent.phone}</p>
+              </div>
+              <DcsButtonOutline onClick={() => setProfileOpen(true)} disabled={is_busy}>
+                {translate("DCS_RESPONDENT_CHANGE")}
+              </DcsButtonOutline>
+            </div>
+          )}
 
           <div>
             <p className="text-xs font-semibold uppercase mb-2" style={{ color: "#9E9E9E", letterSpacing: "0.5px" }}>
@@ -199,6 +217,16 @@ export default function DcsQueuePanel({
           </div>
         </div>
       </div>
+
+      {profile_open && (
+        <DcsRespondentGate
+          saved={respondent}
+          onConfirm={(next) => {
+            onRespondentChange(next);
+            setProfileOpen(false);
+          }}
+        />
+      )}
 
       {draft_delete_pending && (
         <DcsConfirmDialog

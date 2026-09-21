@@ -31,8 +31,7 @@ import DcsRespondentGate from "../components/DcsRespondentGate.jsx";
 import DcsInstallPrompt from "../components/DcsInstallPrompt.jsx";
 import PublicFormChrome from "../components/PublicFormChrome.jsx";
 
-const FONT = "'Montserrat', sans-serif";
-const AMBER = "#B9770E";
+const FONT = "'Montserrat', sans-serif", AMBER = "#B9770E";
 
 function extract_form_group_id(raw_id) {
   return raw_id.split("__v")[0];
@@ -74,7 +73,6 @@ function PublicFormPageContent() {
     if (form) apply_form_manifest({ name: form.form_name || translate("DCS_PUBLIC_FORM_TITLE_FALLBACK"), language });
   }, [form]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A stored draft is offered only when the schema says it holds a typed answer.
   useEffect(() => {
     if (!form || !pending_draft_check) return;
     setPendingDraftCheck(null);
@@ -439,6 +437,8 @@ function PublicFormPageContent() {
             isSyncing={is_syncing}
             storageBackend={storage_backend_name}
             installSlot={<DcsInstallPrompt />}
+            respondent={respondent}
+            onRespondentChange={setRespondent}
             onClose={() => setIsQueueOpen(false)}
             onSelectRecord={handle_select_record}
             onContinueDraft={() => {
