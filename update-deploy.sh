@@ -70,12 +70,40 @@ compose() {
   if docker compose version >/dev/null 2>&1; then docker compose "$@"; else docker-compose "$@"; fi
 }
 
-# The first IPv4 address of a compose service's container, or "" when it has none yet.
+# The container of a compose service (running or not), or "".
+container_id() { compose ps -a -q "$1" 2>/dev/null | head -n 1; }
+
+# "running", "exited", "created", "restarting"... or "missing" when there is no container.
+container_state() {
+  local id
+  id="$(container_id "$1")"
+  [ -n "$id" ] || { echo "missing"; return 0; }
+  docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo "missing"
+}
+
+# The first IPv4 address of a RUNNING container, or "" - never anything that
+# is not an address, so a stopped container cannot leak "invalid" into nginx.
 container_ip() {
   local id
-  id="$(compose ps -q "$1" 2>/dev/null | head -n 1)"
+  id="$(container_id "$1")"
   [ -n "$id" ] || return 0
-  docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' "$id" 2>/dev/null | awk '{print $1}'
+  [ "$(container_state "$1")" = "running" ] || return 0
+  docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{"\n"}}{{end}}' "$id" 2>/dev/null | grep -E -m1 '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true
+}
+
+# A service that has no running container is started from scratch: its image
+# is built if missing, the container (re)created, mongo left alone.
+ensure_running() {
+  local service="$1" state
+  state="$(container_state "$service")"
+  [ "$state" = "running" ] && return 0
+  warn "${LABEL[$service]} container is '$state' - starting it from scratch"
+  [ "$state" = "missing" ] || show_logs "$service"
+  if [ "$BUILD" = 1 ]; then
+    compose up -d --build --no-deps --force-recreate "$service"
+  else
+    compose up -d --no-deps --force-recreate "$service"
+  fi
 }
 
 # HTTP status of a URL, "000" when nothing answered. curl prints 000 AND
@@ -143,12 +171,23 @@ log "Reading container addresses"
 declare -A IP
 for service in "${SERVICES[@]}"; do
   ip=""
-  for _ in $(seq 1 30); do
-    ip="$(container_ip "$service")"
+  # Two rounds: read the address; if the container is not running, start it
+  # from scratch and read again.
+  for round in 1 2; do
+    for _ in $(seq 1 15); do
+      ip="$(container_ip "$service")"
+      [ -n "$ip" ] && break
+      sleep 2
+    done
     [ -n "$ip" ] && break
-    sleep 2
+    if [ "$round" = 1 ] && [ "$DRY_RUN" = 0 ]; then ensure_running "$service"; fi
   done
-  [ -n "$ip" ] || die "no container address for '$service' - is it running? (docker compose ps)"
+  if [ -z "$ip" ]; then
+    warn "${LABEL[$service]} has no running container (state: $(container_state "$service"))"
+    show_logs "$service"
+    compose ps -a "$service" 2>/dev/null | sed 's/^/   | /' || true
+    die "'$service' could not be started - fix the cause shown above, then run this script again"
+  fi
   IP[$service]="$ip"
   ok "${LABEL[$service]} -> $ip:${PORT[$service]}"
 done
