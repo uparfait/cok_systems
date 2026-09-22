@@ -396,7 +396,7 @@ cd /path/to/cok_systems
 sudo ./update-deploy.sh
 ```
 
-It pulls the latest code, rebuilds and restarts every service except `mongo` (which keeps running), reads the private address Docker gave each container, regenerates `/etc/nginx/sites-available/default` from those addresses, tests it with `nginx -t`, reloads nginx and finally checks every public URL. The previous nginx file is kept as `default.bak.<date>` and restored automatically if the new one fails the test.
+It pulls the latest code, rebuilds and restarts every service except `mongo` (which keeps running), reads the private address Docker gave each container, regenerates `/etc/nginx/sites-available/default` from those addresses, tests it with `nginx -t`, restarts nginx and finally checks every public URL. The previous nginx file is kept as `default.bak.<date>` and restored automatically if the new one fails the test.
 
 Public hosts the generated file serves:
 

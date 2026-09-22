@@ -11,10 +11,13 @@
 #   1. pulls the latest code (unless --no-pull)
 #   2. rebuilds and starts every Docker service EXCEPT mongo, which is
 #      already running and is never touched
-#   3. reads the private IP address Docker gave each container
+#   3. reads the private IP address Docker gave each container and waits
+#      until every container really answers (a backend connects to its
+#      database first, which takes a while); a container that never
+#      answers has its logs printed
 #   4. regenerates /etc/nginx/sites-available/default from those addresses,
 #      including the Data Collection System backend on dcms.kigalicity.gov.rw
-#   5. tests the new nginx file, installs it and reloads nginx; the previous
+#   5. tests the new nginx file, installs it and restarts nginx; the previous
 #      file is kept as a timestamped backup and restored if the test fails
 #   6. checks every public URL against its container and reports which to use
 # =============================================================================
@@ -30,6 +33,10 @@ HOST_FRONTEND_UAT="uat-ikaze.kigalicity.gov.rw"
 HOST_BACKEND="uatps-ikaze.kigalicity.gov.rw"
 HOST_EVENTS="uate-ikaze.kigalicity.gov.rw"
 HOST_DCS="dcms.kigalicity.gov.rw"
+
+# How long to wait for one container to start answering. A backend connects
+# to the database and builds its indexes before it listens.
+WAIT_SECONDS="${WAIT_SECONDS:-240}"
 
 # Docker Compose service -> internal port -> a path that answers without a login.
 # Any HTTP status at all (even 401 or 404) proves the container is up.
@@ -47,7 +54,7 @@ for arg in "$@"; do
     --no-pull) PULL=0 ;;
     --no-build) BUILD=0 ;;
     --dry-run) DRY_RUN=1 ;;
-    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -71,11 +78,37 @@ container_ip() {
   docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' "$id" 2>/dev/null | awk '{print $1}'
 }
 
-# HTTP status of a URL, "000" when nothing answered.
-http_status() { curl -k -s -o /dev/null -m 10 -w '%{http_code}' "$1" 2>/dev/null || echo "000"; }
+# HTTP status of a URL, "000" when nothing answered. curl prints 000 AND
+# exits non-zero on a refused connection, so both are read as one "000".
+http_status() {
+  local code
+  code="$(curl -k -s -o /dev/null -m 10 -w '%{http_code}' "$1" 2>/dev/null)" || true
+  case "$code" in ''|000*) echo "000" ;; *) echo "$code" ;; esac
+}
+
+# A public URL tried a few times over: right after a restart nginx answers
+# 502 until the container behind it is listening.
+public_status() {
+  local code
+  for _ in $(seq 1 6); do
+    code="$(http_status "$1")"
+    case "$code" in 000|502|503|504) sleep 5 ;; *) break ;; esac
+  done
+  echo "$code"
+}
+
+show_logs() {
+  echo "   ---- last lines of 'docker compose logs $1' ----"
+  compose logs --tail 40 --no-color "$1" 2>/dev/null | sed 's/^/   | /' || true
+  echo "   ------------------------------------------------"
+}
+
+restart_nginx() {
+  if systemctl restart nginx 2>/dev/null || nginx -s reload; then ok "nginx restarted"; else die "nginx could not be restarted"; fi
+}
 
 # ------------------------------------------------------------------ preflight
-[ "$DRY_RUN" = 1 ] || [ "$(id -u)" = 0 ] || die "run with sudo: it writes $NGINX_DEFAULT and reloads nginx"
+[ "$DRY_RUN" = 1 ] || [ "$(id -u)" = 0 ] || die "run with sudo: it writes $NGINX_DEFAULT and restarts nginx"
 need_cmd docker
 need_cmd curl
 [ "$DRY_RUN" = 1 ] || need_cmd nginx
@@ -120,15 +153,28 @@ for service in "${SERVICES[@]}"; do
   ok "${LABEL[$service]} -> $ip:${PORT[$service]}"
 done
 
-log "Waiting for the containers to answer"
+log "Waiting for the containers to answer (up to ${WAIT_SECONDS}s each)"
+NOT_ANSWERING=()
 for service in "${SERVICES[@]}"; do
   status="000"
-  for _ in $(seq 1 30); do
+  waited=0
+  printf '   %s ' "${LABEL[$service]}"
+  while :; do
     status="$(http_status "http://${IP[$service]}:${PORT[$service]}${PROBE[$service]}")"
     [ "$status" != "000" ] && break
-    sleep 2
+    [ "$waited" -ge "$WAIT_SECONDS" ] && break
+    printf '.'
+    sleep 3
+    waited=$((waited + 3))
   done
-  if [ "$status" != "000" ]; then ok "${LABEL[$service]} answers (HTTP $status)"; else warn "${LABEL[$service]} is not answering yet at ${IP[$service]}:${PORT[$service]}"; fi
+  printf '\n'
+  if [ "$status" != "000" ]; then
+    ok "${LABEL[$service]} answers (HTTP $status after ${waited}s)"
+  else
+    warn "${LABEL[$service]} is not answering at ${IP[$service]}:${PORT[$service]} after ${WAIT_SECONDS}s"
+    NOT_ANSWERING+=("$service")
+    show_logs "$service"
+  fi
 done
 
 # ------------------------------------------------------------------ 4. nginx file
@@ -245,8 +291,9 @@ if [ "$DRY_RUN" = 1 ]; then
 fi
 
 if [ -f "$NGINX_DEFAULT" ] && cmp -s "$NEW_FILE" "$NGINX_DEFAULT"; then
-  ok "nginx configuration already matches - nothing to change"
+  ok "nginx configuration already matches"
   rm -f "$NEW_FILE"
+  restart_nginx
 else
   BACKUP="${NGINX_DEFAULT}.bak.$(date '+%Y%m%d-%H%M%S')"
   [ -f "$NGINX_DEFAULT" ] && cp "$NGINX_DEFAULT" "$BACKUP" && ok "previous file kept at $BACKUP"
@@ -254,7 +301,7 @@ else
   rm -f "$NEW_FILE"
   [ -e /etc/nginx/sites-enabled/default ] || ln -s "$NGINX_DEFAULT" /etc/nginx/sites-enabled/default
   if nginx -t; then
-    if systemctl reload nginx 2>/dev/null || nginx -s reload; then ok "nginx reloaded"; else die "nginx could not be reloaded"; fi
+    restart_nginx
   else
     if [ -n "${BACKUP:-}" ] && [ -f "$BACKUP" ]; then cp "$BACKUP" "$NGINX_DEFAULT"; fi
     die "the generated nginx file failed 'nginx -t' - the previous file was restored"
@@ -267,18 +314,29 @@ declare -A URL=([frontend]="https://${HOST_FRONTEND}" [backend]="https://${HOST_
 printf '   %-14s %-22s %-8s %-8s %s\n' "SERVICE" "CONTAINER" "DIRECT" "URL" "RESULT"
 for service in "${SERVICES[@]}"; do
   direct="$(http_status "http://${IP[$service]}:${PORT[$service]}${PROBE[$service]}")"
-  public="$(http_status "${URL[$service]}${PROBE[$service]}")"
-  if [ "$public" != "000" ] && [ "$public" != "502" ] && [ "$public" != "504" ]; then
-    result="OK - ${URL[$service]}"
-  elif [ "$direct" != "000" ]; then
-    result="URL not reachable (DNS or certificate) - use http://${IP[$service]}:${PORT[$service]} meanwhile"
-  else
-    result="container not answering - docker compose logs ${service}"
-  fi
+  public="$(public_status "${URL[$service]}${PROBE[$service]}")"
+  case "$public" in
+    000) result="URL not reachable at all (DNS record or certificate for this host) - use http://${IP[$service]}:${PORT[$service]} meanwhile" ;;
+    502|503|504)
+      if [ "$direct" != "000" ]; then
+        result="nginx cannot reach the container although it answers directly - run this script again"
+      else
+        result="container not answering - see its logs above, or: docker compose logs -f ${service}"
+      fi ;;
+    *) result="OK - ${URL[$service]}" ;;
+  esac
   printf '   %-14s %-22s %-8s %-8s %s\n' "$service" "${IP[$service]}:${PORT[$service]}" "$direct" "$public" "$result"
 done
-uat="$(http_status "https://${HOST_FRONTEND_UAT}/")"
+uat="$(public_status "https://${HOST_FRONTEND_UAT}/")"
 printf '   %-14s %-22s %-8s %-8s %s\n' "frontend-uat" "${IP[frontend]}:${PORT[frontend]}" "-" "$uat" "https://${HOST_FRONTEND_UAT}"
+
+if [ "${#NOT_ANSWERING[@]}" -gt 0 ]; then
+  log "Not answering: ${NOT_ANSWERING[*]}"
+  echo "   Read their logs above and fix the cause (usually the database connection or a missing .env value)."
+  echo "   Then run this script again - a restarted container may get a new address."
+  echo "   Useful: docker compose ps | docker compose logs -f <service> | docker compose restart <service>"
+  exit 1
+fi
 
 log "Done"
 echo "   Container addresses change whenever a container is recreated: run this script again after any restart."
