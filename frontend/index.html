@@ -2,64 +2,132 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon.png">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>IKAZE - City of Kigali Digital Services</title>
 
-    <!-- PWA Manifest and Meta Tags -->
+    <!-- What the platform is, in plain words. Kept under 160 characters for search results. -->
+    <meta name="description" content="IKAZE, the City of Kigali digital services platform: service delivery, smart parking, events and rooms, tasks, data collection with dashboards, and administration." />
+    <meta name="keywords" content="IKAZE, City of Kigali, Kigali city, service delivery, visitor check-in, smart parking, event management, room booking, meetings, task management, follow-ups, data collection, forms, dashboards, approvals, administration, Rwanda" />
+    <meta name="author" content="City of Kigali" />
+    <meta name="application-name" content="IKAZE" />
+    <meta name="robots" content="index, follow" />
+    <meta name="googlebot" content="index, follow" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="color-scheme" content="light" />
+    <link rel="canonical" href="https://ikaze.kigalicity.gov.rw/" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="shortcut icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/LOGO_COK.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/LOGO_COK.png" />
+    <link rel="apple-touch-icon" sizes="120x120" href="/LOGO_COK.png" />
+    <link rel="apple-touch-icon" sizes="76x76" href="/LOGO_COK.png" />
+
+    <!-- Installable app -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#056daa" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="IKAZE" />
     <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Windows tiles -->
     <meta name="msapplication-TileColor" content="#056daa" />
+    <meta name="msapplication-TileImage" content="/LOGO_COK.png" />
     <meta name="msapplication-config" content="/browserconfig.xml" />
-
-    <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/LOGO_COK.png" />
-    <link rel="apple-touch-icon" sizes="152x152" href="/LOGO_COK.png" />
-    <link rel="apple-touch-icon" sizes="120x120" href="/LOGO_COK.png" />
-    <link rel="apple-touch-icon" sizes="76x76" href="/LOGO_COK.png" />
-
-    <!-- Microsoft Tile Icons -->
     <meta name="msapplication-square70x70logo" content="/LOGO_COK.png" />
     <meta name="msapplication-square150x150logo" content="/LOGO_COK.png" />
     <meta name="msapplication-wide310x150logo" content="/LOGO_COK.png" />
     <meta name="msapplication-square310x310logo" content="/LOGO_COK.png" />
 
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="IKAZE - City of Kigali Service Delivery & Parking Monitoring" />
-    <meta property="og:description" content="Smart Entry & Service Management portal for the City of Kigali. Manage administrative tasks, visitor services, and parking monitoring efficiently." />
-    <meta property="og:image" content="/LOGO_COK.png" />
-    <meta property="og:url" content="/" />
+    <!-- Link preview when the address is shared: WhatsApp, Facebook, Messenger,
+         Instagram, LinkedIn, Telegram, Slack, Discord, Teams, iMessage and
+         every other reader of Open Graph tags. Image addresses must be
+         absolute, so they point at the public site. -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="IKAZE - City of Kigali" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="fr_RW" />
+    <meta property="og:locale:alternate" content="rw_RW" />
+    <meta property="og:url" content="https://ikaze.kigalicity.gov.rw/" />
+    <meta property="og:title" content="IKAZE - City of Kigali Digital Services" />
+    <meta property="og:description" content="One platform for City of Kigali services. Service Delivery: visitor check-in, requests and feedback. Smart Parking: vehicle and person entry and exit. Events: rooms, meetings, bookings and attendance. Tasks: assignments and follow-ups. Data Collection: forms that work offline, approvals, exports and dashboards. Administration: departments, employees, roles and audit." />
+    <meta property="og:image" content="https://ikaze.kigalicity.gov.rw/LOGO_COK.png" />
+    <meta property="og:image:secure_url" content="https://ikaze.kigalicity.gov.rw/LOGO_COK.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="400" />
+    <meta property="og:image:height" content="400" />
+    <meta property="og:image:alt" content="City of Kigali logo" />
 
-    <!-- Twitter Card Meta Tags -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="IKAZE - City of Kigali Service Delivery & Parking Monitoring" />
-    <meta name="twitter:description" content="Smart Entry & Service Management portal for the City of Kigali. Manage administrative tasks, visitor services, and parking monitoring efficiently." />
-    <meta name="twitter:image" content="/LOGO_COK.png" />
+    <!-- X (Twitter) cards -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="IKAZE - City of Kigali Digital Services" />
+    <meta name="twitter:description" content="City of Kigali platform for service delivery, smart parking, events and rooms, tasks, data collection with dashboards, and administration." />
+    <meta name="twitter:image" content="https://ikaze.kigalicity.gov.rw/LOGO_COK.png" />
+    <meta name="twitter:image:alt" content="City of Kigali logo" />
 
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="Smart Entry & Service Management portal for the City of Kigali. Manage administrative tasks, visitor services, and parking monitoring efficiently." />
-    <meta name="keywords" content="City of Kigali, Service Delivery, Parking Monitoring, Smart Entry, Administrative Portal, Municipal Services" />
-    <meta name="author" content="City of Kigali" />
-    <meta name="robots" content="noindex, nofollow" />
+    <!-- Structured description of the platform and each of its systems, for search engines and assistants. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "IKAZE",
+      "alternateName": "IKAZE - City of Kigali Digital Services",
+      "url": "https://ikaze.kigalicity.gov.rw/",
+      "image": "https://ikaze.kigalicity.gov.rw/LOGO_COK.png",
+      "description": "The City of Kigali digital services platform. It brings together service delivery, smart parking, event and room management, task management, data collection with dashboards, and administration.",
+      "applicationCategory": "GovernmentApplication",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires a modern web browser",
+      "inLanguage": ["en", "fr", "rw"],
+      "publisher": {
+        "@type": "GovernmentOrganization",
+        "name": "City of Kigali",
+        "url": "https://www.kigalicity.gov.rw/",
+        "logo": "https://ikaze.kigalicity.gov.rw/LOGO_COK.png"
+      },
+      "hasPart": [
+        {
+          "@type": "WebApplication",
+          "name": "Service Delivery",
+          "description": "Visitors check in at reception, are directed to the right department and employee, and can leave feedback. Departments track requests, service time and performance."
+        },
+        {
+          "@type": "WebApplication",
+          "name": "Smart Parking",
+          "description": "Entry and exit of vehicles and people at city premises, live parking slot status, staff cars and flagged vehicles."
+        },
+        {
+          "@type": "WebApplication",
+          "name": "Event Management",
+          "description": "Meeting rooms, live and upcoming events, room booking requests, invitations, attendance with QR codes and meeting minutes."
+        },
+        {
+          "@type": "WebApplication",
+          "name": "Task Management",
+          "description": "Tasks, follow-ups and requests assigned across departments, with comments, checklists and notifications."
+        },
+        {
+          "@type": "WebApplication",
+          "name": "Data Collection System",
+          "description": "Build forms, collect responses online or offline in the field, route them for approval, translate forms, export data, share dashboards and connect analysis tools."
+        },
+        {
+          "@type": "WebApplication",
+          "name": "Administration",
+          "description": "Departments, employees, user accounts, roles and access, system audit, storage and analytics for the whole platform."
+        }
+      ]
+    }
+    </script>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;1,300&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <title>IKAZE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;1,300&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
-
-
-
-
-
-

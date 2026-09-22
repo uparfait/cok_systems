@@ -1,0 +1,15 @@
+# Merged automatically by "docker compose" on top of docker-compose.yml.
+#
+# docker-compose.yml is git-ignored (every server keeps its own), so anything
+# the code itself depends on lives here, where git carries it to the server.
+#
+# The Data Collection System backend is built from the repository root instead
+# of its own folder: at startup it requires ../location.min.json, and its maps
+# read ../../geojson-maped/. Both sit beside dc_backend, and a Dockerfile can
+# only copy what is inside its build context. The root .dockerignore keeps the
+# rest of the repository out of that context.
+services:
+  dc-backend:
+    build:
+      context: .
+      dockerfile: dc_backend/Dockerfile

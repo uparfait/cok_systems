@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /cok/api/
+Disallow: /dcs/api/

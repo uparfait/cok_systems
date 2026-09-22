@@ -411,6 +411,8 @@ Options: `--no-pull` keeps the code as it is, `--no-build` restarts without rebu
 
 The final table shows, per service, whether the container answers directly and whether its public URL answers. When a URL fails but the container answers, the DNS record or the certificate for that host is the problem and the script prints the `http://<container-ip>:<port>` address to use meanwhile.
 
+The Data Collection System image is built from the repository root (not from `dc_backend/`) because it ships two files that live beside that folder: `location.min.json` and `geojson-maped/`. Both are tracked in git, so `git pull` brings them to the server. The build context is set by `docker-compose.override.yml`, which is tracked in git and merged automatically by `docker compose` (the server's own `docker-compose.yml` is git-ignored and needs no change). The root `.dockerignore` keeps everything else out of that build. Keep both files in the repository or the container fails at startup with "Cannot find module '../../../location.min.json'".
+
 For the Data Collection System backend to accept browser calls from every frontend host, its `dc_backend/.env` must list them all in `CLIENT_URL_SET`, separated by commas, for example `CLIENT_URL_SET=https://ikaze.kigalicity.gov.rw,https://uat-ikaze.kigalicity.gov.rw`.
 
 ### Monitoring
