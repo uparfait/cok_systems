@@ -389,15 +389,29 @@ Uploaded files are stored in Docker volumes named `backend_uploads` and `em_uplo
 
 ### Updating the Application
 
-To deploy a new version of the code:
+One script does the whole update. Run it from the project folder on the server:
 
 ```bash
 cd /path/to/cok_systems
-git pull origin main
-docker compose up -d --build
+sudo ./update-deploy.sh
 ```
 
-The `--build` flag rebuilds only the images that changed. Docker reuses existing layers when possible, so this is usually fast. Verify the deployment with `docker compose ps` and a quick browser test.
+It pulls the latest code, rebuilds and restarts every service except `mongo` (which keeps running), reads the private address Docker gave each container, regenerates `/etc/nginx/sites-available/default` from those addresses, tests it with `nginx -t`, reloads nginx and finally checks every public URL. The previous nginx file is kept as `default.bak.<date>` and restored automatically if the new one fails the test.
+
+Public hosts the generated file serves:
+
+| Host | Goes to |
+|---|---|
+| `ikaze.kigalicity.gov.rw`, `uat-ikaze.kigalicity.gov.rw` | frontend container, port 5713 (which itself proxies `/cok/api`, `/cok/api/v1` and `/dcs/api`) |
+| `uatps-ikaze.kigalicity.gov.rw` | main backend, port 2026 |
+| `uate-ikaze.kigalicity.gov.rw` | event backend, port 2027 |
+| `dcms.kigalicity.gov.rw` | Data Collection System backend, port 8765 |
+
+Options: `--no-pull` keeps the code as it is, `--no-build` restarts without rebuilding images, `--dry-run` only prints the nginx file it would install. Container addresses change whenever a container is recreated, so run the script again after any manual `docker compose up` or restart.
+
+The final table shows, per service, whether the container answers directly and whether its public URL answers. When a URL fails but the container answers, the DNS record or the certificate for that host is the problem and the script prints the `http://<container-ip>:<port>` address to use meanwhile.
+
+For the Data Collection System backend to accept browser calls from every frontend host, its `dc_backend/.env` must list them all in `CLIENT_URL_SET`, separated by commas, for example `CLIENT_URL_SET=https://ikaze.kigalicity.gov.rw,https://uat-ikaze.kigalicity.gov.rw`.
 
 ### Monitoring
 
