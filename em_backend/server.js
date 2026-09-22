@@ -50,6 +50,7 @@ const config = require("./configurations/config");
 const logger = require("./configurations/logger");
 const connect_db = require("./database_connection/main");
 const monitorEvents = require("./utilities/MonitorEvents");
+const { runAuthCheck } = require("./utilities/authCheck");
 
 const PORT = config.port;
 
@@ -104,6 +105,9 @@ connect_db()
         db_name: response.db_name,
       });
       startServer();
+
+      // Whether tokens from the main backend can be accepted here.
+      runAuthCheck().catch((error) => logger.warn("[AUTH CHECK] failed", { error: error.message }));
 
       // Start monitoring events in the background every 30 seconds
       setInterval(() => {

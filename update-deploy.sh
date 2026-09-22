@@ -157,6 +157,82 @@ if [ "$PULL" = 1 ] && [ -d .git ]; then
   if git pull --ff-only; then ok "code is up to date"; else warn "git pull failed - continuing with the code already on disk"; fi
 fi
 
+# ------------------------------------------------------------------ 1b. sign-in settings
+# The event and data-collection backends never issue tokens: they verify the
+# main backend's token with the same JWT_SECRET and read the account from the
+# main system's "cok" database on THEIR OWN Mongo connection. Sign-in on them
+# fails silently when either differs, so the three .env files are compared.
+env_value() {
+  local file="$1" key="$2" line
+  [ -f "$file" ] || return 0
+  line="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$file" | tail -n 1)" || true
+  [ -n "$line" ] || return 0
+  line="${line#*=}"
+  line="$(printf '%s' "$line" | sed -E "s/^[[:space:]]*//; s/[[:space:]]*$//; s/^\"(.*)\"$/\\1/; s/^'(.*)'$/\\1/")"
+  printf '%s' "$line"
+}
+
+# host part of a Mongo connection string, credentials removed
+mongo_host_of() {
+  printf '%s' "$1" | sed -E 's#^[a-z+]+://##I; s#^[^@]*@##; s#[/?].*$##'
+}
+
+# The Mongo SERVER a connection string names, in a form two spellings of the
+# same server share: ports dropped, and an Atlas cluster reduced to its
+# cluster domain (mongodb+srv://x.abc12.mongodb.net and the member list
+# ac-...-00.abc12.mongodb.net:27017,... are the same cluster).
+mongo_cluster_of() {
+  mongo_host_of "$1" | tr ',' '\n' | sed -E 's/:[0-9]+$//' | awk -F. '{ if (NF >= 3) print $(NF-2) "." $(NF-1) "." $NF; else print $0 }' | sort -u | tr '\n' ' ' | sed -E 's/ $//'
+}
+
+# Whether two connection strings reach the same Mongo server.
+same_mongo_server() {
+  local a b word
+  a="$(mongo_cluster_of "$1")"
+  b="$(mongo_cluster_of "$2")"
+  for word in $a; do
+    case " $b " in *" $word "*) return 0 ;; esac
+  done
+  return 1
+}
+
+log "Checking shared sign-in settings across the three backends"
+MAIN_SECRET="$(env_value backend/.env JWT_SECRET)"
+EM_SECRET="$(env_value em_backend/.env JWT_SECRET)"
+DC_SECRET="$(env_value dc_backend/.env JWT_SECRET)"
+if [ -z "$MAIN_SECRET" ]; then
+  warn "backend/.env has no JWT_SECRET (the main backend then signs with its development default)"
+fi
+for pair in "em_backend:$EM_SECRET" "dc_backend:$DC_SECRET"; do
+  name="${pair%%:*}"
+  value="${pair#*:}"
+  if [ -z "$value" ]; then
+    warn "$name/.env has no JWT_SECRET - tokens from the main backend will be refused there (invalid signature)"
+  elif [ "$value" != "$MAIN_SECRET" ]; then
+    warn "$name/.env JWT_SECRET differs from backend/.env - every sign-in on $name fails with 'invalid signature'. Copy the value from backend/.env."
+  else
+    ok "$name/.env JWT_SECRET matches backend/.env"
+  fi
+done
+
+MAIN_DB="$(env_value backend/.env conne_string)"
+EM_DB="$(env_value em_backend/.env DATABASE_URL2)"
+DC_DB="$(env_value dc_backend/.env conne_string)"
+for name in em_backend dc_backend; do
+  if [ "$name" = em_backend ]; then key="DATABASE_URL2"; value="$EM_DB"; else key="conne_string"; value="$DC_DB"; fi
+  if [ -z "$value" ]; then
+    warn "$name/.env has no $key"
+  elif [ -n "$MAIN_DB" ] && ! same_mongo_server "$MAIN_DB" "$value"; then
+    warn "$name/.env $key points at Mongo '$(mongo_cluster_of "$value")' but the main backend uses '$(mongo_cluster_of "$MAIN_DB")' - the accounts (database 'cok') live on the main backend's server, so sign-in on $name finds no user. Use the same server."
+  else
+    ok "$name/.env $key reaches the same Mongo server as the main backend ($(mongo_cluster_of "$value"))"
+  fi
+done
+for name in em_backend dc_backend; do
+  cok_name="$(env_value $name/.env COK_DB_NAME)"
+  [ -z "$cok_name" ] || [ "$cok_name" = "cok" ] || warn "$name/.env COK_DB_NAME is '$cok_name' - the main backend's accounts are in 'cok'"
+done
+
 # ------------------------------------------------------------------ 2. docker
 log "Checking MongoDB (left untouched)"
 if [ -n "$(compose ps -q mongo 2>/dev/null)" ] && [ "$(compose ps --status running -q mongo 2>/dev/null | wc -l)" -gt 0 ]; then
@@ -239,6 +315,18 @@ for service in "${SERVICES[@]}"; do
     fi
     NOT_ANSWERING+=("$service")
     show_logs "$service"
+  fi
+done
+
+# What each backend found at startup about sign-in (see their [AUTH CHECK] logs).
+log "What the backends report about sign-in"
+for service in em-backend dc-backend; do
+  lines="$(compose logs --tail 200 --no-color "$service" 2>/dev/null | grep -F "[AUTH CHECK]" | tail -n 4 | sed -E 's/^[^|]*\|[[:space:]]*//')" || true
+  if [ -n "$lines" ]; then
+    printf '   %s:\n' "${LABEL[$service]}"
+    printf '%s\n' "$lines" | sed 's/^/      /'
+  else
+    warn "${LABEL[$service]} has not reported yet (it prints [AUTH CHECK] lines right after connecting)"
   fi
 done
 

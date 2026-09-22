@@ -18,6 +18,8 @@ const {
     ensure_submission_indexes
 } = require("./models/submissions_model.js");
 
+const { run_auth_check } = require("./utilities/auth_check.js");
+
 const {
     ensure_location_indexes
 } = require("./models/locations_model.js");
@@ -548,6 +550,9 @@ connect_databases()
         await step("Approval request indexes", ensure_approval_request_indexes);
 
         await step("Form approver indexes", ensure_form_approver_indexes);
+
+        // Whether tokens from the main backend can be accepted here.
+        await run_auth_check();
 
         // Fires "at this date and time" approval schedules once a minute.
         start_approval_schedule_runner();
