@@ -93,9 +93,13 @@ const web_socket_service = new WebSocketService(server);
 // Stores an audit row for every response that is not a 200/201 (see middlewares/audit_response.js)
 app.use(auditResponse);
 
+// Browser origins allowed to call this API: CLIENT_URL_SET holds one or
+// several, separated by commas (the deployed frontend has more than one host).
 app.use(
   cors({
-    origin: process.env.CLIENT_URL_SET || [
+    origin: process.env.CLIENT_URL_SET
+      ? process.env.CLIENT_URL_SET.split(",").map((origin) => origin.trim().replace(/\/+$/, "")).filter(Boolean)
+      : [
       "https://cok-fr.vercel.app",
       "http://localhost:5173",
       "http://localhost:3000",

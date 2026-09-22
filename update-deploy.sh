@@ -5,10 +5,16 @@
 #   sudo ./update-deploy.sh            pull, rebuild, restart, rewire nginx
 #   sudo ./update-deploy.sh --no-pull  same, but keep the code as it is
 #   sudo ./update-deploy.sh --no-build restart without rebuilding the images
-#   sudo ./update-deploy.sh --dry-run  show the nginx file it would install
+#   sudo ./update-deploy.sh --dry-run  show what it would change, change nothing
+#   sudo ./update-deploy.sh --keep-env leave the three .env files untouched
 #
 # What it does, in order:
 #   1. pulls the latest code (unless --no-pull)
+#   1a. puts the deployment values into backend/.env, em_backend/.env and
+#      dc_backend/.env (uploaded by hand, never through git): every database
+#      line on the compose mongo with the credentials from docker-compose.yml,
+#      the public frontend hosts as allowed browser origins, one JWT_SECRET
+#      for all three. Replaced lines stay as comments; a backup is kept.
 #   2. rebuilds and starts every Docker service EXCEPT mongo, which is
 #      already running and is never touched
 #   3. reads the private IP address Docker gave each container and waits
@@ -49,11 +55,14 @@ STARTED_SERVICES=(backend em-backend dc-backend frontend certbot)
 PULL=1
 BUILD=1
 DRY_RUN=0
+FIX_ENV=1
+STAMP="$(date '+%Y%m%d-%H%M%S')"
 for arg in "$@"; do
   case "$arg" in
     --no-pull) PULL=0 ;;
     --no-build) BUILD=0 ;;
     --dry-run) DRY_RUN=1 ;;
+    --keep-env) FIX_ENV=0 ;;
     -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
@@ -143,6 +152,17 @@ restart_nginx() {
   if systemctl restart nginx 2>/dev/null || nginx -s reload; then ok "nginx restarted"; else die "nginx could not be restarted"; fi
 }
 
+# The value of KEY in a .env file (last active line wins), quotes and spaces trimmed, "" when absent.
+env_value() {
+  local file="$1" key="$2" line
+  [ -f "$file" ] || return 0
+  line="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$file" | tail -n 1 | tr -d '\r')" || true
+  [ -n "$line" ] || return 0
+  line="${line#*=}"
+  line="$(printf '%s' "$line" | sed -E "s/^[[:space:]]*//; s/[[:space:]]*$//; s/^\"(.*)\"$/\\1/; s/^'(.*)'$/\\1/")"
+  printf '%s' "$line"
+}
+
 # ------------------------------------------------------------------ preflight
 [ "$DRY_RUN" = 1 ] || [ "$(id -u)" = 0 ] || die "run with sudo: it writes $NGINX_DEFAULT and restarts nginx"
 need_cmd docker
@@ -157,20 +177,115 @@ if [ "$PULL" = 1 ] && [ -d .git ]; then
   if git pull --ff-only; then ok "code is up to date"; else warn "git pull failed - continuing with the code already on disk"; fi
 fi
 
+# ------------------------------------------------------------------ 1a. env files
+# The .env files are uploaded by hand and never come through git, so the
+# script puts the deployment values in them itself. Each backend names its
+# database line differently (conne_string / DATABASE_URL2), all point at the
+# compose "mongo" service, whose credentials are read from docker-compose.yml.
+MONGO_SERVICE_HOST="mongo:27017"
+ORIGINS="https://${HOST_FRONTEND},https://${HOST_FRONTEND_UAT}"
+CHANGED_ENV=()
+
+url_encode() {
+  local text="$1" out="" i c
+  for (( i = 0; i < ${#text}; i++ )); do
+    c="${text:i:1}"
+    case "$c" in
+      [A-Za-z0-9.~_-]) out+="$c" ;;
+      *) out+="$(printf '%%%02X' "'$c")" ;;
+    esac
+  done
+  printf '%s' "$out"
+}
+
+# "KEY: value" of the mongo service in docker-compose.yml, quotes removed.
+compose_value() {
+  grep -E "^[[:space:]]*$1:" docker-compose.yml | head -n 1 | sed -E "s/^[^:]*:[[:space:]]*//; s/[[:space:]]*$//; s/^\"(.*)\"$/\\1/; s/^'(.*)'$/\\1/"
+}
+
+# Sets KEY=value in a .env file: the first active line for the key becomes
+# the new value and is kept underneath as a comment, any other active line
+# for the same key is commented out too (a leftover localhost or Atlas line),
+# and a missing key is appended. Nothing is written when the value already
+# matches, so the run is repeatable.
+set_env_key() {
+  local file="$1" key="$2" value="$3"
+  [ "$(env_value "$file" "$key")" = "$value" ] && return 0
+  CHANGED_ENV+=("$file: $key")
+  [ "$DRY_RUN" = 1 ] && return 0
+  awk -v key="$key" -v value="$value" '
+    BEGIN { done = 0; pattern = "^[[:space:]]*" key "[[:space:]]*=" }
+    $0 ~ pattern && !done { print key "=" value; print "# previous: " $0; done = 1; next }
+    $0 ~ pattern { print "# previous: " $0; next }
+    { print }
+    END { if (!done) print key "=" value }
+  ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+}
+
+fix_env_files() {
+  local user pass cred mongo_url main_secret file backup
+  user="$(compose_value MONGO_INITDB_ROOT_USERNAME)"
+  pass="$(compose_value MONGO_INITDB_ROOT_PASSWORD)"
+  if [ -z "$user" ] || [ -z "$pass" ]; then
+    warn "docker-compose.yml has no MONGO_INITDB_ROOT_USERNAME / MONGO_INITDB_ROOT_PASSWORD - database lines are left as they are"
+    return 0
+  fi
+  cred="$(url_encode "$user"):$(url_encode "$pass")"
+  mongo_url="mongodb://${cred}@${MONGO_SERVICE_HOST}"
+  main_secret="$(env_value backend/.env JWT_SECRET)"
+  [ -n "$main_secret" ] || warn "backend/.env has no JWT_SECRET - the other two are left as they are; add one and run again"
+  for file in backend/.env em_backend/.env dc_backend/.env; do
+    if [ ! -f "$file" ]; then
+      warn "$file is missing - upload it, then run again"
+      continue
+    fi
+    backup="$file.bak.$STAMP"
+    if [ "$DRY_RUN" = 0 ]; then
+      cp "$file" "$backup"
+      # Files edited on Windows carry CR line endings, which end up inside the values.
+      sed -i 's/\r$//' "$file"
+    fi
+    case "$file" in
+      backend/.env)
+        set_env_key "$file" conne_string "${mongo_url}/cok?authSource=admin"
+        set_env_key "$file" CLIENT_URL_SET "$ORIGINS"
+        ;;
+      em_backend/.env)
+        set_env_key "$file" DATABASE_URL2 "${mongo_url}/COK_EVENT_MNG?authSource=admin"
+        set_env_key "$file" DATABASE_NAME2 "COK_EVENT_MNG"
+        set_env_key "$file" COK_DB_NAME "cok"
+        set_env_key "$file" CORS_ORIGIN "$ORIGINS"
+        set_env_key "$file" FRONTEND_URL "https://${HOST_FRONTEND}"
+        [ -z "$main_secret" ] || set_env_key "$file" JWT_SECRET "$main_secret"
+        ;;
+      dc_backend/.env)
+        set_env_key "$file" conne_string "${mongo_url}/data_collection_system?authSource=admin"
+        set_env_key "$file" COK_DB_NAME "cok"
+        set_env_key "$file" CLIENT_URL_SET "$ORIGINS"
+        [ -z "$main_secret" ] || set_env_key "$file" JWT_SECRET "$main_secret"
+        ;;
+    esac
+    if [ "$DRY_RUN" = 0 ] && [ -f "$backup" ]; then
+      if cmp -s "$file" "$backup"; then rm -f "$backup"; else ok "$file updated - previous copy at $backup"; fi
+    fi
+  done
+  if [ "${#CHANGED_ENV[@]}" -eq 0 ]; then
+    ok "all three .env files already carry the deployment values"
+  else
+    printf '   %s\n' "${CHANGED_ENV[@]}" | sed 's/^   /   set: /'
+  fi
+}
+
+if [ "$FIX_ENV" = 1 ]; then
+  log "Putting the deployment values into the .env files (mongo service '${MONGO_SERVICE_HOST}', origins ${ORIGINS})"
+  fix_env_files
+fi
+
 # ------------------------------------------------------------------ 1b. sign-in settings
 # The event and data-collection backends never issue tokens: they verify the
 # main backend's token with the same JWT_SECRET and read the account from the
 # main system's "cok" database on THEIR OWN Mongo connection. Sign-in on them
 # fails silently when either differs, so the three .env files are compared.
-env_value() {
-  local file="$1" key="$2" line
-  [ -f "$file" ] || return 0
-  line="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$file" | tail -n 1)" || true
-  [ -n "$line" ] || return 0
-  line="${line#*=}"
-  line="$(printf '%s' "$line" | sed -E "s/^[[:space:]]*//; s/[[:space:]]*$//; s/^\"(.*)\"$/\\1/; s/^'(.*)'$/\\1/")"
-  printf '%s' "$line"
-}
 
 # host part of a Mongo connection string, credentials removed
 mongo_host_of() {

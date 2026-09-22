@@ -396,7 +396,7 @@ cd /path/to/cok_systems
 sudo ./update-deploy.sh
 ```
 
-It pulls the latest code, rebuilds and restarts every service except `mongo` (which keeps running), reads the private address Docker gave each container, regenerates `/etc/nginx/sites-available/default` from those addresses, tests it with `nginx -t`, restarts nginx and finally checks every public URL. The previous nginx file is kept as `default.bak.<date>` and restored automatically if the new one fails the test.
+It pulls the latest code, puts the deployment values into the three `.env` files (see below), rebuilds and restarts every service except `mongo` (which keeps running), reads the private address Docker gave each container, regenerates `/etc/nginx/sites-available/default` from those addresses, tests it with `nginx -t`, restarts nginx and finally checks every public URL. The previous nginx file is kept as `default.bak.<date>` and restored automatically if the new one fails the test.
 
 Public hosts the generated file serves:
 
@@ -407,11 +407,21 @@ Public hosts the generated file serves:
 | `uate-ikaze.kigalicity.gov.rw` | event backend, port 2027 |
 | `dcms.kigalicity.gov.rw` | Data Collection System backend, port 8765 |
 
-Options: `--no-pull` keeps the code as it is, `--no-build` restarts without rebuilding images, `--dry-run` only prints the nginx file it would install. Container addresses change whenever a container is recreated, so run the script again after any manual `docker compose up` or restart.
+Options: `--no-pull` keeps the code as it is, `--no-build` restarts without rebuilding images, `--keep-env` leaves the `.env` files untouched, `--dry-run` prints what it would change and changes nothing. Container addresses change whenever a container is recreated, so run the script again after any manual `docker compose up` or restart.
 
 The final table shows, per service, whether the container answers directly and whether its public URL answers. When a URL fails but the container answers, the DNS record or the certificate for that host is the problem and the script prints the `http://<container-ip>:<port>` address to use meanwhile.
 
 The Data Collection System image is built from the repository root (not from `dc_backend/`) because it ships two files that live beside that folder: `location.min.json` and `geojson-maped/`. Both are tracked in git, so `git pull` brings them to the server. The build context is set by `docker-compose.override.yml`, which is tracked in git and merged automatically by `docker compose` (the server's own `docker-compose.yml` is git-ignored and needs no change). The root `.dockerignore` keeps everything else out of that build. Keep both files in the repository or the container fails at startup with "Cannot find module '../../../location.min.json'".
+
+**The `.env` files.** `backend/.env`, `em_backend/.env` and `dc_backend/.env` are git-ignored and uploaded by hand. On every run the script sets their deployment values, so a file copied from a development machine is corrected on the spot:
+
+| File | Keys set |
+|---|---|
+| `backend/.env` | `conne_string` to the compose mongo (`cok` database), `CLIENT_URL_SET` to the two frontend hosts |
+| `em_backend/.env` | `DATABASE_URL2` to the compose mongo (`COK_EVENT_MNG`), `DATABASE_NAME2`, `COK_DB_NAME=cok`, `CORS_ORIGIN` to the two frontend hosts, `FRONTEND_URL`, `JWT_SECRET` copied from `backend/.env` |
+| `dc_backend/.env` | `conne_string` to the compose mongo (`data_collection_system`), `COK_DB_NAME=cok`, `CLIENT_URL_SET` to the two frontend hosts, `JWT_SECRET` copied from `backend/.env` |
+
+The mongo user and password are read from `MONGO_INITDB_ROOT_USERNAME` / `MONGO_INITDB_ROOT_PASSWORD` in `docker-compose.yml` and URL-encoded. Any other active line for the same key (a `localhost` or Atlas string) is commented out and kept as `# previous:`; a copy of each changed file is kept as `.env.bak.<date>`. Windows line endings are removed. Running the script twice changes nothing the second time.
 
 **Sign-in on the event and data collection backends.** These two services never issue tokens. They verify the main backend's token with the same `JWT_SECRET` and then read the account from the main system's `cok` database on their own Mongo connection (`DATABASE_URL2` for `em_backend`, `conne_string` for `dc_backend`). Both settings must therefore agree with `backend/.env`: the same `JWT_SECRET` value, and a connection string that reaches the same Mongo server. A different secret refuses every token with "invalid signature"; a different server finds no account. The update script compares the three `.env` files and warns, and each backend prints `[AUTH CHECK]` lines at startup saying which database it reads accounts from and how many users it sees (zero means the wrong server). The refusal sent to the browser also carries the reason.
 For the Data Collection System backend to accept browser calls from every frontend host, its `dc_backend/.env` must list them all in `CLIENT_URL_SET`, separated by commas, for example `CLIENT_URL_SET=https://ikaze.kigalicity.gov.rw,https://uat-ikaze.kigalicity.gov.rw`.

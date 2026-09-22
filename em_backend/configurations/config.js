@@ -14,7 +14,10 @@ module.exports = {
   // backend are stored in its shared "audits" collection.
   cokDbName: process.env.COK_DB_NAME || 'cok',
   cors: {
-    origin: process.env.CORS_ORIGIN || '*',
+    // One origin, several separated by commas, or * for any.
+    origin: process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.trim() !== '*'
+      ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim().replace(/\/+$/, '')).filter(Boolean)
+      : process.env.CORS_ORIGIN || '*',
     methods: process.env.CORS_METHODS || 'GET,POST,PUT,DELETE',
     allowedHeaders: process.env.CORS_ALLOWED_HEADERS || 'Content-Type,Authorization',
     credentials: process.env.CORS_CREDENTIALS || 'true',
