@@ -524,21 +524,30 @@ connect_databases()
                 result.error
             );
 
-            return;
+            // Leaving the process alive without a server would look like a
+            // hang from outside; exiting lets Docker restart it and makes
+            // the failure visible in the container's state and logs.
+            process.exit(1);
         }
 
 
-        await ensure_submission_indexes();
+        const step = async (name, run) => {
+            const started = Date.now();
+            await run();
+            console.log(name + " ready in " + (Date.now() - started) + " ms");
+        };
 
-        await ensure_location_indexes();
+        await step("Submission indexes", ensure_submission_indexes);
 
-        await ensure_approval_schedule_indexes();
+        await step("Location indexes", ensure_location_indexes);
 
-        await ensure_approval_settings_indexes();
+        await step("Approval schedule indexes", ensure_approval_schedule_indexes);
 
-        await ensure_approval_request_indexes();
+        await step("Approval settings indexes", ensure_approval_settings_indexes);
 
-        await ensure_form_approver_indexes();
+        await step("Approval request indexes", ensure_approval_request_indexes);
+
+        await step("Form approver indexes", ensure_form_approver_indexes);
 
         // Fires "at this date and time" approval schedules once a minute.
         start_approval_schedule_runner();
@@ -557,8 +566,10 @@ connect_databases()
     .catch((error) => {
 
         console.error(
-            "Error connecting to databases:",
+            "Error starting the server:",
             error
         );
+
+        process.exit(1);
 
     });

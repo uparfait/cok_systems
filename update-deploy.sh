@@ -81,6 +81,14 @@ container_state() {
   docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo "missing"
 }
 
+# How many times Docker has restarted the container (a crash loop counts up).
+container_restarts() {
+  local id
+  id="$(container_id "$1")"
+  [ -n "$id" ] || { echo 0; return 0; }
+  docker inspect -f '{{.RestartCount}}' "$id" 2>/dev/null || echo 0
+}
+
 # The first IPv4 address of a RUNNING container, or "" - never anything that
 # is not an address, so a stopped container cannot leak "invalid" into nginx.
 container_ip() {
@@ -197,20 +205,38 @@ NOT_ANSWERING=()
 for service in "${SERVICES[@]}"; do
   status="000"
   waited=0
+  restarts_before="$(container_restarts "$service")"
+  gave_up=""
   printf '   %s ' "${LABEL[$service]}"
   while :; do
     status="$(http_status "http://${IP[$service]}:${PORT[$service]}${PROBE[$service]}")"
     [ "$status" != "000" ] && break
     [ "$waited" -ge "$WAIT_SECONDS" ] && break
+    # A container that crashes and is restarted by Docker will never answer:
+    # stop waiting and show why instead of dotting for four minutes.
+    if [ "$(container_state "$service")" != "running" ] || [ "$(container_restarts "$service")" != "$restarts_before" ]; then
+      gave_up="crashed"
+      break
+    fi
     printf '.'
     sleep 3
     waited=$((waited + 3))
+    # Every 30 seconds, a glimpse of what the container is doing.
+    if [ $((waited % 30)) -eq 0 ]; then
+      printf '\n'
+      compose logs --tail 3 --no-color "$service" 2>/dev/null | sed 's/^/      log: /' || true
+      printf '   %s ' "${LABEL[$service]}"
+    fi
   done
   printf '\n'
   if [ "$status" != "000" ]; then
     ok "${LABEL[$service]} answers (HTTP $status after ${waited}s)"
   else
-    warn "${LABEL[$service]} is not answering at ${IP[$service]}:${PORT[$service]} after ${WAIT_SECONDS}s"
+    if [ "$gave_up" = "crashed" ]; then
+      warn "${LABEL[$service]} keeps crashing and being restarted by Docker (state: $(container_state "$service"))"
+    else
+      warn "${LABEL[$service]} is not answering at ${IP[$service]}:${PORT[$service]} after ${WAIT_SECONDS}s"
+    fi
     NOT_ANSWERING+=("$service")
     show_logs "$service"
   fi
