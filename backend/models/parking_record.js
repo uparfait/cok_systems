@@ -16,6 +16,9 @@ const parking_record_schema = new mongoose.Schema({
     check_out: { type: Date,  },
     duration: { type: String, default: '0 mins'  },
     is_flagged: { type: Boolean, default: false, default: false  },
+    // Permanent flag history: set once when flagged, never cleared by a later check-in
+    flagged_at: { type: Date, default: null },
+    flag_reason: { type: String, default: null },
     badge_number: { type: String },
     checked_in_by: { type: String, default: "Not Specified"  }
 },{

@@ -587,6 +587,8 @@ export const parkingService = {
   verifyCar: (plateNumber: string) => post('/smartparking/vehicle/verify', { plate_number: plateNumber }),
   getFlagged: () => get('/smartparking/vehicle/flagged'),
   getFlaggedVehicles: () => get('/smartparking/vehicle/flagged'),
+  // Permanent history of every flag, kept even after the vehicle checks in again
+  getFlagHistory: (page: number = 1, limit: number = 20, query: string = '') => get(`/smartparking/vehicle/flag-history?page=${page}&limit=${limit}${query ? `&query=${encodeURIComponent(query)}` : ''}`),
   registerSingle: (data: any) => post('/smartparking/register-single', data),
   bulkUpload: (formData: FormData) => post('/smartparking/bulk-upload', formData),
   flagVehicle: (plateNumber: string, reason: string) => post('/smartparking/vehicle/flag', { plate_number: plateNumber, reason }),

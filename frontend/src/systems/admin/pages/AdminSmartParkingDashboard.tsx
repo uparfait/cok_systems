@@ -7,7 +7,7 @@ import { smartParkingService, statisticsService } from '../../../core/services/a
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Table from '../../../core/components/Table';
-import { FiTruck, FiRefreshCw, FiFlag, FiCheckCircle, FiMapPin, FiEdit } from 'react-icons/fi';
+import { FiTruck, FiRefreshCw, FiFlag, FiCheckCircle, FiMapPin, FiEdit, FiClock, FiArrowLeft } from 'react-icons/fi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ParkingSlotConfigModal from './sub/ParkingSlotConfigModal';
 
@@ -28,6 +28,10 @@ interface HourlyData { hour: number; check_in: number; check_out: number; }
 interface ParkingStats { todayVehicles: number; currentlyParked: number; availableSlots: number; flaggedInside: number; flaggedTotal: number; totalCapacity: number; }
 interface FlaggedVehicle { _id: string; plate_no: string; driver_name: string; driver_type: string; entry_time: string; exit_time: string | null; duration: string; status: string; }
 type FlaggedScope = 'active' | 'completed' | 'all';
+// Permanent flag record from /vehicle/flag-history, kept even after the plate checks in again
+interface FlagHistoryEntry { _id: string; plate_number: string; driver_name?: string; driver_telephone?: string; driver_type?: string; status: 'active' | 'completed'; check_in: string | null; check_out: string | null; flagged_at: string | null; flagged_at_estimated: boolean; flag_reason: string; is_flagged: boolean; total_duration_minutes: number | null; overstay_minutes: number | null; }
+
+const formatMinutes = (mins: number | null | undefined) => { if (mins === null || mins === undefined) return '-'; const h = Math.floor(mins / 60); const m = mins % 60; return h > 0 ? `${h}h ${m}m` : `${m}m`; };
 
 const AdminSmartParkingDashboard: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -48,6 +52,13 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [flaggedPage, setFlaggedPage] = useState(1);
   const [flaggedTotal, setFlaggedTotal] = useState(0);
   const [flaggedScope, setFlaggedScope] = useState<FlaggedScope>('active');
+  // Flag history view inside the flagged modal
+  const [showFlagHistory, setShowFlagHistory] = useState(false);
+  const [flagHistory, setFlagHistory] = useState<FlagHistoryEntry[]>([]);
+  const [flagHistoryLoading, setFlagHistoryLoading] = useState(false);
+  const [flagHistoryPage, setFlagHistoryPage] = useState(1);
+  const [flagHistoryTotal, setFlagHistoryTotal] = useState(0);
+  const [flagHistoryQuery, setFlagHistoryQuery] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -120,6 +131,17 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const openFlagged = (scope: FlaggedScope = stats.flaggedInside > 0 ? 'active' : 'all') => { setFlaggedScope(scope); setShowFlaggedModal(true); fetchFlagged(1, scope); };
   const changeFlaggedScope = (scope: FlaggedScope) => { setFlaggedScope(scope); fetchFlagged(1, scope); };
 
+  const fetchFlagHistory = useCallback(async (page = 1, query = flagHistoryQuery) => {
+    setFlagHistoryLoading(true);
+    try {
+      const r = await smartParkingService.getFlagHistory(page, PAGE_SIZE, query.trim());
+      setFlagHistory(r?.success ? r.data : []); setFlagHistoryTotal(r?.total || 0); setFlagHistoryPage(page);
+    } catch (error) { setFlagHistory([]); } finally { setFlagHistoryLoading(false); }
+  }, [flagHistoryQuery]);
+
+  const openFlagHistory = () => { setShowFlagHistory(true); fetchFlagHistory(1); };
+  const closeFlaggedModal = () => { setShowFlaggedModal(false); setShowFlagHistory(false); };
+
   useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); }, [authLoading, isAuthenticated, navigate]);
   useEffect(() => { if (isAuthenticated && !authLoading) fetchData(); }, [isAuthenticated, authLoading, fetchData]);
 
@@ -180,27 +202,68 @@ const AdminSmartParkingDashboard: React.FC = () => {
         <ParkingSlotConfigModal show={showSlotConfig} slotConfig={slotConfig} saving={savingSlot} onClose={() => setShowSlotConfig(false)} onChange={(e) => { const { name, value } = e.target; setSlotConfig(p => ({ ...p, [name]: value === '' ? 0 : parseInt(value) || 0 })); }} onSave={async () => { setSavingSlot(true); try { const r = await smartParkingService.updateSlotConfig(slotConfig); if (r.success) { showSuccess('Slot config updated'); setShowSlotConfig(false); fetchData(); } else showError(r.message || 'Failed'); } catch (err: any) { showError(err?.message || 'Failed'); } finally { setSavingSlot(false); } }} />
 
         {showFlaggedModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4" onClick={() => setShowFlaggedModal(false)}>
-            <div className="bg-white w-full max-w-4xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="p-3 sm:p-4 flex items-center justify-between gap-2 bg-gray-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4" onClick={closeFlaggedModal}>
+            <div className={`bg-white w-full ${showFlagHistory ? 'max-w-6xl' : 'max-w-4xl'} max-h-[92vh] overflow-hidden shadow-2xl flex flex-col`} onClick={e => e.stopPropagation()}>
+              <div className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-gray-50">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-[rgba(243,156,18,0.12)] flex items-center justify-center"><FiFlag className="w-4 h-4 text-[#F39C12]" /></div>
+                  <div className="w-8 h-8 bg-[rgba(243,156,18,0.12)] flex items-center justify-center">{showFlagHistory ? <FiClock className="w-4 h-4 text-[#F39C12]" /> : <FiFlag className="w-4 h-4 text-[#F39C12]" />}</div>
                   <div>
-                    <h3 className="text-sm font-bold text-[#333333]">Flagged Vehicles</h3>
-                    <p className="text-xs text-[#9E9E9E]">{flaggedTotal} vehicle{flaggedTotal === 1 ? '' : 's'} {flaggedScope === 'active' ? 'flagged and still parked' : flaggedScope === 'completed' ? 'flagged and already checked out' : 'flagged in total'}</p>
+                    <h3 className="text-sm font-bold text-[#333333]">{showFlagHistory ? 'Flag History' : 'Flagged Vehicles'}</h3>
+                    {showFlagHistory
+                      ? <p className="text-xs text-[#9E9E9E]">{flagHistoryTotal} flag{flagHistoryTotal === 1 ? '' : 's'} recorded. Entries stay here even after the vehicle checks in again.</p>
+                      : <p className="text-xs text-[#9E9E9E]">{flaggedTotal} vehicle{flaggedTotal === 1 ? '' : 's'} {flaggedScope === 'active' ? 'flagged and still parked' : flaggedScope === 'completed' ? 'flagged and already checked out' : 'flagged in total'}</p>}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <select value={flaggedScope} onChange={e => changeFlaggedScope(e.target.value as FlaggedScope)} className="cok-auth-input text-xs w-40 cursor-pointer" style={{ paddingLeft: '10px', minHeight: '32px' }}>
-                    <option value="active">Inside now</option>
-                    <option value="completed">Checked out</option>
-                    <option value="all">All flagged</option>
-                  </select>
-                  <button onClick={() => fetchFlagged(flaggedPage)} disabled={flaggedLoading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer disabled:opacity-50"><FiRefreshCw className={`w-3.5 h-3.5 ${flaggedLoading ? 'animate-spin' : ''}`} />Refresh</button>
-                  <button onClick={() => setShowFlaggedModal(false)} className="p-1.5 hover:bg-gray-200 cursor-pointer shrink-0">X</button>
-                </div>
+                {showFlagHistory ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button onClick={() => setShowFlagHistory(false)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer"><FiArrowLeft className="w-3.5 h-3.5" />Back</button>
+                    <input type="text" placeholder="Plate, driver or phone" value={flagHistoryQuery} onChange={e => setFlagHistoryQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') fetchFlagHistory(1); }} className="cok-auth-input text-xs w-44" style={{ paddingLeft: '10px', minHeight: '32px' }} />
+                    <button onClick={() => fetchFlagHistory(1)} className="px-3 py-1.5 text-white text-xs font-medium cursor-pointer" style={{ backgroundColor: PRIMARY, minHeight: '32px' }}>Search</button>
+                    {flagHistoryQuery && <button onClick={() => { setFlagHistoryQuery(''); fetchFlagHistory(1, ''); }} className="text-xs text-[#555555] hover:underline cursor-pointer">Clear</button>}
+                    <button onClick={() => fetchFlagHistory(flagHistoryPage)} disabled={flagHistoryLoading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer disabled:opacity-50"><FiRefreshCw className={`w-3.5 h-3.5 ${flagHistoryLoading ? 'animate-spin' : ''}`} />Refresh</button>
+                    <button onClick={closeFlaggedModal} className="p-1.5 hover:bg-gray-200 cursor-pointer shrink-0">X</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select value={flaggedScope} onChange={e => changeFlaggedScope(e.target.value as FlaggedScope)} className="cok-auth-input text-xs w-40 cursor-pointer" style={{ paddingLeft: '10px', minHeight: '32px' }}>
+                      <option value="active">Inside now</option>
+                      <option value="completed">Checked out</option>
+                      <option value="all">All flagged</option>
+                    </select>
+                    <button onClick={openFlagHistory} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#F39C12] text-[#B9770E] text-xs font-medium hover:bg-[rgba(243,156,18,0.08)] cursor-pointer"><FiClock className="w-3.5 h-3.5" />Flag History</button>
+                    <button onClick={() => fetchFlagged(flaggedPage)} disabled={flaggedLoading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer disabled:opacity-50"><FiRefreshCw className={`w-3.5 h-3.5 ${flaggedLoading ? 'animate-spin' : ''}`} />Refresh</button>
+                    <button onClick={closeFlaggedModal} className="p-1.5 hover:bg-gray-200 cursor-pointer shrink-0">X</button>
+                  </div>
+                )}
               </div>
               <div className="flex-1 overflow-y-auto p-3">
+                {showFlagHistory ? (
+                <Table
+                  headers={[{ key: 'plate', label: 'Plate' }, { key: 'driver', label: 'Driver' }, { key: 'type', label: 'Type' }, { key: 'flagged_at', label: 'Flagged At' }, { key: 'entry', label: 'Entry Time' }, { key: 'exit', label: 'Check-out' }, { key: 'total', label: 'Total Stay' }, { key: 'overstay', label: 'Overstay' }, { key: 'status', label: 'Status' }, { key: 'reason', label: 'Reason' }]}
+                  data={flagHistory}
+                  loading={flagHistoryLoading}
+                  emptyMessage={flagHistoryQuery ? 'No flagged vehicles match your search.' : 'No vehicle has been flagged yet.'}
+                  maxHeight="none"
+                  minWidth="1100px"
+                  headerStyle={{ backgroundColor: '#F39C12' }}
+                  renderCell={(header, r: any) => {
+                    switch (header.key) {
+                      case 'plate': return <span className="text-sm font-mono font-bold text-[#E74C3C] whitespace-nowrap">{r.plate_number || '-'}</span>;
+                      case 'driver': return <span className="text-sm text-[#333333] whitespace-nowrap truncate max-w-[160px] inline-block align-middle" title={r.driver_telephone}>{r.driver_name || '-'}</span>;
+                      case 'type': return <span className="text-xs px-2 py-0.5 bg-[rgba(51,51,51,0.08)] text-[#333333] whitespace-nowrap">{r.driver_type || '-'}</span>;
+                      case 'flagged_at': return <span className="text-xs text-[#333333] font-medium whitespace-nowrap">{r.flagged_at ? new Date(r.flagged_at).toLocaleString() : '-'}{r.flagged_at_estimated && <em className="block text-[10px] text-[#9E9E9E] font-normal">estimated</em>}</span>;
+                      case 'entry': return <span className="text-xs text-[#555555] whitespace-nowrap">{r.check_in ? new Date(r.check_in).toLocaleString() : '-'}</span>;
+                      case 'exit': return <span className="text-xs text-[#555555] whitespace-nowrap">{r.check_out ? new Date(r.check_out).toLocaleString() : <em className="text-[#388E3C]">still inside</em>}</span>;
+                      case 'total': return <span className="text-xs px-2 py-0.5 bg-[rgba(51,51,51,0.08)] text-[#555555] whitespace-nowrap">{formatMinutes(r.total_duration_minutes)}</span>;
+                      case 'overstay': return <span className="text-xs px-2 py-0.5 bg-[rgba(231,76,60,0.12)] text-[#E74C3C] whitespace-nowrap">{formatMinutes(r.overstay_minutes)}</span>;
+                      case 'status': return <span className="whitespace-nowrap"><span className={`text-xs px-2 py-0.5 ${r.status === 'active' ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{r.status === 'active' ? 'inside' : 'checked out'}</span>{!r.is_flagged && <em className="block text-[10px] text-[#9E9E9E] mt-0.5">flag cleared</em>}</span>;
+                      case 'reason': return <span className="text-xs text-[#555555] inline-block min-w-[180px]">{r.flag_reason || '-'}</span>;
+                      default: return <span className="text-sm">{r[header.key] || '-'}</span>;
+                    }
+                  }}
+                  pagination={flagHistoryTotal > PAGE_SIZE ? { currentPage: flagHistoryPage, totalPages: Math.max(1, Math.ceil(flagHistoryTotal / PAGE_SIZE)), totalCount: flagHistoryTotal, itemsPerPage: PAGE_SIZE, onPageChange: (page) => fetchFlagHistory(page), loading: flagHistoryLoading } : undefined}
+                />
+                ) : (
                 <Table
                   headers={[{ key: 'plate', label: 'Plate' }, { key: 'driver', label: 'Driver' }, { key: 'type', label: 'Type' }, { key: 'entry', label: 'Entry Time' }, { key: 'exit', label: 'Check-out' }, { key: 'duration', label: 'Time Parked' }, { key: 'status', label: 'Status' }]}
                   data={flaggedRecords}
@@ -223,6 +286,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
                   }}
                   pagination={flaggedTotal > PAGE_SIZE ? { currentPage: flaggedPage, totalPages: Math.max(1, Math.ceil(flaggedTotal / PAGE_SIZE)), totalCount: flaggedTotal, itemsPerPage: PAGE_SIZE, onPageChange: (page) => fetchFlagged(page), loading: flaggedLoading } : undefined}
                 />
+                )}
               </div>
             </div>
           </div>

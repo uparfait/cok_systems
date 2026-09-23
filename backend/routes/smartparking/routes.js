@@ -16,6 +16,7 @@ const check_in = require('../../controllers/smart_parking/check_in.js')
 const check_out = require('../../controllers/smart_parking/check_out.js')
 const get_parking_record_by_id = require('../../controllers/smart_parking/get_parking_record_by_id.js')
 const list_flagged_cars = require('../../controllers/smart_parking/list_flagged_cars.js')
+const flag_history = require('../../controllers/smart_parking/flag_history.js')
 const list_parking = require('../../controllers/smart_parking/list_parking.js')
 const search_inparking_records = require('../../controllers/smart_parking/search_inparking_records.js')
 const verify_acar = require('../../controllers/smart_parking/verify_acar.js')
@@ -550,6 +551,39 @@ Router.get('/vehicle/search', auditSuccess('READ', 'vehicles'), search_inparking
  *         description: Internal server error
  */
 Router.get('/vehicle/flagged', auditSuccess('READ', 'vehicles'), list_flagged_cars)
+
+/**
+ * @swagger
+ * /smartparking/vehicle/flag-history:
+ *   get:
+ *     summary: "Flag history"
+ *     description: "Every parking session that was ever flagged, kept even after the vehicle checks in again. Includes when it was flagged, reason, total and overstay durations."
+ *     tags: [Smart Parking]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *       - in: query
+ *         name: query
+ *         description: "Filter by plate number, driver name or telephone"
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Flag history retrieved successfully
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/vehicle/flag-history', auditSuccess('READ', 'vehicles'), flag_history)
 
 /**
  * @swagger
