@@ -93,12 +93,20 @@ interface PastFlagInfo {
   flag_reason: string;
 }
 
+// Minutes to "5d 3h 38m" / "3h 59m" / "42m"
 const formatMinutes = (mins: number | null | undefined) => {
   if (mins === null || mins === undefined) return '-';
-  const h = Math.floor(mins / 60);
+  const d = Math.floor(mins / 1440);
+  const h = Math.floor((mins % 1440) / 60);
   const m = mins % 60;
+  if (d > 0) return `${d}d ${h}h ${m}m`;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
+
+const formatFlagDate = (value: string | null | undefined) =>
+  value ? new Date(value).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+const formatFlagTime = (value: string | null | undefined) =>
+  value ? new Date(value).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
 
 interface UnknownVehicleForm {
   plate_number: string;
@@ -776,32 +784,70 @@ const CheckInVehiclePage: React.FC = () => {
 
       {/* Past flag warning: backend flags the plate, history endpoint supplies the details */}
       {(verifiedData?.was_ever_flagged || pastFlag) && (
-        <div className="mx-4 sm:mx-6 mt-4 p-3 flex gap-3" style={{ backgroundColor: 'rgba(231,76,60,0.08)', borderLeft: `4px solid ${DANGER}` }}>
-          <FiFlag className="w-5 h-5 shrink-0 mt-0.5" style={{ color: DANGER }} />
-          <div className="text-xs sm:text-sm" style={{ color: NEUTRAL_DARK }}>
-            <p className="font-semibold" style={{ color: DANGER, fontFamily: fontHeading }}>
-              This vehicle was flagged before{pastFlag && pastFlag.count > 1 ? ` (${pastFlag.count} times)` : ''}
-            </p>
-            {pastFlagLoading ? (
-              <p className="mt-1" style={{ color: '#555555' }}>Loading flag details...</p>
-            ) : pastFlag?.flagged_at || pastFlag?.total_duration_minutes != null ? (
-              <>
-                <p className="mt-1">
-                  {pastFlag.flagged_at && <>Flagged on <span className="font-medium">{new Date(pastFlag.flagged_at).toLocaleString()}</span>. </>}
-                  Parked for <span className="font-medium">{formatMinutes(pastFlag.total_duration_minutes)}</span>
-                  {pastFlag.overstay_minutes != null && pastFlag.overstay_minutes > 0 && <>, overstayed by <span className="font-medium" style={{ color: DANGER }}>{formatMinutes(pastFlag.overstay_minutes)}</span></>}.
-                </p>
-                {pastFlag.check_in && (
-                  <p className="mt-0.5" style={{ color: '#555555' }}>
-                    Entered {new Date(pastFlag.check_in).toLocaleString()}{pastFlag.check_out ? `, left ${new Date(pastFlag.check_out).toLocaleString()}` : ', never checked out'}.
-                  </p>
-                )}
-                <p className="mt-0.5 italic" style={{ color: '#555555' }}>{pastFlag.flag_reason}</p>
-              </>
-            ) : (
-              <p className="mt-1" style={{ color: '#555555' }}>It overstayed its allowed parking time on a previous visit. Please verify the driver before allowing entry.</p>
+        <div className="mx-4 sm:mx-6 mt-4" style={{ border: `1px solid rgba(231,76,60,0.35)`, borderLeft: `4px solid ${DANGER}`, backgroundColor: WHITE }}>
+          {/* Title row */}
+          <div className="flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5" style={{ backgroundColor: 'rgba(231,76,60,0.08)' }}>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(231,76,60,0.14)' }}>
+                <FiFlag className="w-4 h-4" style={{ color: DANGER }} />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase" style={{ color: DANGER, fontFamily: fontHeading, letterSpacing: '1px' }}>Previously flagged</p>
+                <p className="text-xs" style={{ color: '#555555' }}>{pastFlag?.flag_reason || 'Exceeded allowed parking duration'}</p>
+              </div>
+            </div>
+            {pastFlag && pastFlag.count > 0 && (
+              <span className="shrink-0 px-2 py-1 text-xs font-bold whitespace-nowrap" style={{ backgroundColor: DANGER, color: WHITE, fontFamily: fontHeading }}>
+                {pastFlag.count}× flagged
+              </span>
             )}
           </div>
+
+          {pastFlagLoading ? (
+            <div className="flex items-center gap-2 px-3 sm:px-4 py-3 text-xs" style={{ color: '#555555' }}>
+              <SpiralLoader color={DANGER} padded={false} size={14} />
+              Loading flag details...
+            </div>
+          ) : pastFlag?.flagged_at || pastFlag?.total_duration_minutes != null ? (
+            <div className="px-3 sm:px-4 py-3">
+              {/* Stat tiles */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="p-2.5" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+                  <p className="text-[10px] uppercase font-semibold" style={{ color: GRAY_DISABLED, letterSpacing: '0.5px' }}>Time parked</p>
+                  <p className="text-base sm:text-lg font-bold leading-tight" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{formatMinutes(pastFlag.total_duration_minutes)}</p>
+                </div>
+                <div className="p-2.5" style={{ backgroundColor: 'rgba(231,76,60,0.08)' }}>
+                  <p className="text-[10px] uppercase font-semibold" style={{ color: DANGER, letterSpacing: '0.5px' }}>Overstayed by</p>
+                  <p className="text-base sm:text-lg font-bold leading-tight" style={{ color: DANGER, fontFamily: fontHeading }}>{formatMinutes(pastFlag.overstay_minutes)}</p>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <div className="grid grid-cols-3 gap-1 text-center relative">
+                <div className="absolute left-[16%] right-[16%] top-[5px] h-px" style={{ backgroundColor: BORDER }} />
+                {[
+                  { label: 'Entered', value: pastFlag.check_in, color: SUCCESS },
+                  { label: 'Flagged', value: pastFlag.flagged_at, color: DANGER },
+                  { label: 'Left', value: pastFlag.check_out, color: GRAY_DISABLED, fallback: 'Never checked out' },
+                ].map((step) => (
+                  <div key={step.label} className="relative">
+                    <span className="block w-2.5 h-2.5 rounded-full mx-auto mb-1.5 relative z-10" style={{ backgroundColor: step.color, boxShadow: `0 0 0 2px ${WHITE}` }} />
+                    <p className="text-[10px] uppercase font-semibold" style={{ color: step.color, letterSpacing: '0.5px' }}>{step.label}</p>
+                    {step.value ? (
+                      <>
+                        <p className="text-xs font-medium" style={{ color: NEUTRAL_DARK }}>{formatFlagDate(step.value)}</p>
+                        <p className="text-[11px]" style={{ color: '#555555' }}>{formatFlagTime(step.value)}</p>
+                      </>
+                    ) : (
+                      <p className="text-[11px] italic" style={{ color: '#555555' }}>{step.fallback || '-'}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="px-3 sm:px-4 py-3 text-xs" style={{ color: '#555555' }}>It overstayed its allowed parking time on a previous visit. Please verify the driver before allowing entry.</p>
+          )}
         </div>
       )}
 
