@@ -162,8 +162,12 @@ mongo_user() { compose_value "$REPO_DIR/docker-compose.yml" MONGO_INITDB_ROOT_US
 mongo_pass() { compose_value "$REPO_DIR/docker-compose.yml" MONGO_INITDB_ROOT_PASSWORD; }
 
 # Runs a mongosh script (stdin) against one database of this stack's mongo.
+# The script goes in through --eval: fed on stdin, mongosh would echo its
+# prompt and every line into the output.
 mongo_run() {
-  compose exec -T mongo mongosh --quiet -u "$(mongo_user)" -p "$(mongo_pass)" --authenticationDatabase admin "$1"
+  local script
+  script="$(cat)"
+  compose exec -T mongo mongosh --quiet -u "$(mongo_user)" -p "$(mongo_pass)" --authenticationDatabase admin "$1" --eval "$script"
 }
 
 start_stack() {

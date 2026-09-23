@@ -433,11 +433,14 @@ The mongo user and password come from `MONGO_INITDB_ROOT_USERNAME` / `MONGO_INIT
 **Databases of the two stacks: `db.sh`.** Works straight on the mongo containers with `mongosh`, `mongodump` and `mongorestore`:
 
 ```bash
-sudo ./db.sh --list-db --source all                 # or uat / ikaze: databases, collections, documents, size
+sudo ./db.sh --list-db --source all                                   # or uat / ikaze
+sudo ./db.sh --list-collections --source uat --db-name cok
 sudo ./db.sh --copy-db-data --from uat --to ikaze --db-name 'cok,COK_EVENT_MNG'
+sudo ./db.sh --copy-collection --from uat --to ikaze --db-name cok --collection 'users,roles'
+sudo ./db.sh --copy-collection --from uat --to uat --db-name cok --collection users --to-db-name cok_copy --to-collection users_backup
 ```
 
-A copy streams each database from one container to the other under the same name. A database missing on the destination is created; on an existing one the documents are added and documents with the same `_id` are kept as they are on the destination. `--replace` drops each destination database first so it becomes an exact copy. Copying into production first dumps the destination database to `backups/` in the production checkout. `--dry-run` shows the plan without copying.
+A copy streams the data from one container to the other. Whole databases keep their names; collections may land in another database (`--to-db-name`) or, for a single collection, under another name (`--to-collection`), in which case source and destination stack may be the same. Whatever is missing on the destination, database or collection, is created. On an existing one the documents are added and documents with the same `_id` are kept as they are on the destination; `--replace` drops the destination database or collection first so it becomes an exact copy. Copying into production first dumps what is about to change to `backups/`. `--dry-run` shows the plan without copying. The listings leave out MongoDB's own `admin`, `config` and `local` databases.
 **The Data Collection System image** is built from the repository root (not from `dc_backend/`) because it ships `location.min.json` and `geojson-maped/`, which sit beside that folder. `docker-compose.override.yml` (tracked) sets that build context and the root `.dockerignore` keeps everything else out. Keep both files in the repository or the container fails at startup with "Cannot find module '../../../location.min.json'".
 ### Monitoring
 
