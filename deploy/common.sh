@@ -91,7 +91,7 @@ env_value() {
 set_env_key() {
   local file="$1" key="$2" value="$3"
   [ "$(env_value "$file" "$key")" = "$value" ] && return 0
-  CHANGED_ENV+=("$(basename "$(dirname "$file")")/.env: $key")
+  CHANGED_ENV+=("$(basename "$(dirname "$file")")/$(basename "$file"): $key")
   [ "$DRY_RUN" = 1 ] && return 0
   awk -v key="$key" -v value="$value" '
     BEGIN { done = 0; pattern = "^[[:space:]]*" key "[[:space:]]*=" }

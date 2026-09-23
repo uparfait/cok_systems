@@ -2,12 +2,13 @@
 # =============================================================================
 # update-deploy.sh - one command to update the IKAZE deployments on the server.
 #
-# Two STACKS live side by side, each a separate Docker Compose project with
-# its own network, containers, mongo and volumes, its own .env files and its
-# own public hosts, so nothing of one can touch the other:
+# Two STACKS run side by side, both built from THIS folder, each from its
+# own branch. Each is a separate Docker Compose project with its own network,
+# containers, mongo and volumes, its own set of .env files and its own public
+# hosts, so nothing of one can touch the other:
 #
-#   ikaze      production   branch "ikaze"   this checkout          project cok-systems
-#   uat-ikaze  acceptance   branch "uat"     ../<this folder>-uat   project cok-systems-uat
+#   ikaze      production   branch "ikaze"   project cok-systems
+#   uat-ikaze  acceptance   branch "uat"     project cok-systems-uat
 #
 #   sudo ./update-deploy.sh                  both stacks (UAT first), same as --all
 #   sudo ./update-deploy.sh --ikaze          production only
@@ -23,20 +24,20 @@
 # Databases are never deleted by this script.
 #
 # For each stack, in order:
-#   1. the checkout is put on its branch and pulled (cloned the first time)
-#   2. docker-compose.yml and the three .env files are copied from production
-#      when missing, then given this stack's own values: every database line
-#      on the stack's own mongo (credentials from its docker-compose.yml), its
-#      own frontend host as the allowed browser origin, one JWT_SECRET for its
-#      three backends that differs from the other stack's
+#   1. the folder is switched to the stack's branch and pulled
+#   2. the stack's .env files (deploy/env/<stack>/, started from the uploaded
+#      <service>/.env files the first time) are given the stack's own values -
+#      every database line on the stack's own mongo (credentials from
+#      docker-compose.yml), its frontend host as the allowed browser origin,
+#      one JWT_SECRET for its three backends that differs from the other
+#      stack's - and copied into place
 #   3. mongo is started if needed, the services are rebuilt and restarted
 #   4. container addresses are read, every container is waited for, the
 #      sign-in settings are checked and the backends' own report is shown
-#   5. production only: an accounts database that is still empty (a first
-#      deployment) gets its first user copied from UAT (the script asks for
-#      the email)
+#   5. production only: the first user is copied from UAT (see --admin-email)
 #   6. the stack's nginx file is written from the container addresses
-# Then nginx is tested and restarted once, and every public URL is verified.
+# Then nginx is tested and restarted once, every public URL is verified, and
+# the folder is left on the production branch with production's .env files.
 # =============================================================================
 set -euo pipefail
 
@@ -54,8 +55,9 @@ FIX_ENV=1
 ADMIN_EMAIL=""
 STAMP="$(date '+%Y%m%d-%H%M%S')"
 STACKS=()
+STARTED_WORK=0
 
-usage() { sed -n '3,36p' "$0"; }
+usage() { sed -n '3,40p' "$0"; }
 
 parse_args() {
   local arg
@@ -82,18 +84,32 @@ preflight() {
   need_cmd curl
   need_cmd git
   [ "$DRY_RUN" = 1 ] || need_cmd nginx
-  [ -f "$PROD_DIR/docker-compose.yml" ] || die "docker-compose.yml not found in $PROD_DIR"
+  [ -f "$REPO_DIR/docker-compose.yml" ] || die "docker-compose.yml not found in $REPO_DIR"
+  [ -d "$REPO_DIR/.git" ] || die "$REPO_DIR is not a git checkout"
+}
+
+# The folder's resting state is production: its branch checked out and its
+# .env files in place, whatever was deployed last. Runs at the end, and also
+# when the script stops early.
+restore_production() {
+  [ "$DRY_RUN" = 0 ] && [ "$STARTED_WORK" = 1 ] || return 0
+  select_stack ikaze
+  if [ "$(current_branch)" != "$PROD_BRANCH" ]; then
+    if git -C "$REPO_DIR" checkout "$PROD_BRANCH" >/dev/null 2>&1; then ok "folder back on branch $PROD_BRANCH"; else warn "could not switch the folder back to branch $PROD_BRANCH"; fi
+  fi
+  place_env_files >/dev/null 2>&1 || true
 }
 
 run_stack() {
   select_stack "$1"
-  log "===== $STACK  (branch $STACK_BRANCH, project $STACK_PROJECT, $STACK_DIR) ====="
+  log "===== $STACK  (branch $STACK_BRANCH, project $STACK_PROJECT) ====="
   prepare_checkout
   ensure_stack_files
   if [ "$FIX_ENV" = 1 ]; then
     log "Own values into the $STACK .env files (mongo '${MONGO_SERVICE_HOST}' of project ${STACK_PROJECT}, origin https://${STACK_FRONT})"
     fix_env_files
   fi
+  place_env_files
   start_stack
   read_addresses
   wait_for_answers
@@ -107,6 +123,8 @@ main() {
   parse_args "$@"
   preflight
   declare -g -A STACK_RESULT_NOT_ANSWERING=()
+  STARTED_WORK=1
+  trap restore_production EXIT
   local name failed=""
   for name in "${STACKS[@]}"; do
     run_stack "$name"

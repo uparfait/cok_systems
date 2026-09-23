@@ -1,22 +1,36 @@
 #!/usr/bin/env bash
 # The two stacks, shared by update-deploy.sh and db.sh. Sourced; expects
-# REPO_DIR (the production checkout, where these scripts live).
+# REPO_DIR (this checkout, where these scripts live).
+#
+# Both stacks are built from THIS ONE FOLDER: the script checks out the
+# stack's branch, builds and starts the stack's compose project, then moves
+# on. What tells them apart at runtime is the compose project name (own
+# network, containers, mongo, volumes), the public hosts, and the .env files,
+# of which each stack keeps its own set under deploy/env/<stack>/ (git-ignored)
+# that the script copies into place before building.
+
+REPO_BRANCH_PROD="ikaze"
+REPO_BRANCH_UAT="uat"
 
 PROD_DIR="$REPO_DIR"
-PROD_BRANCH="ikaze"
+PROD_BRANCH="$REPO_BRANCH_PROD"
 PROD_PROJECT="cok-systems"
 PROD_FRONT="ikaze.kigalicity.gov.rw"
 PROD_BACKEND_HOST=""
 PROD_EVENTS_HOST=""
 PROD_DCS_HOST=""
 
-UAT_DIR="$(dirname "$REPO_DIR")/$(basename "$REPO_DIR")-uat"
-UAT_BRANCH="uat"
+UAT_DIR="$REPO_DIR"
+UAT_BRANCH="$REPO_BRANCH_UAT"
 UAT_PROJECT="cok-systems-uat"
 UAT_FRONT="uat-ikaze.kigalicity.gov.rw"
 UAT_BACKEND_HOST="uatps-ikaze.kigalicity.gov.rw"
 UAT_EVENTS_HOST="uate-ikaze.kigalicity.gov.rw"
 UAT_DCS_HOST="dcms.kigalicity.gov.rw"
+
+# Where each stack's .env files live between runs: deploy/env/<stack>/<service>.env
+ENV_STORE="$REPO_DIR/deploy/env"
+ENV_SERVICES=(backend em_backend dc_backend)
 
 # "ikaze" or "uat-ikaze" from the spellings people type; "" when unknown.
 stack_name_of() {

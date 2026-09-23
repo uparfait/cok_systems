@@ -389,16 +389,18 @@ Uploaded files are stored in Docker volumes named `backend_uploads` and `em_uplo
 
 ### Updating the Application
 
-Two environments run side by side on the server, each a separate Docker Compose project with its own network, containers, MongoDB, volumes, `.env` files and public hosts, so nothing of one can touch the other:
+Two environments run side by side on the server, both built from the one `cok_systems` folder, each from its own branch. Each is a separate Docker Compose project with its own network, containers, MongoDB, volumes, `.env` files and public hosts, so nothing of one can touch the other:
 
-| Stack | Branch | Checkout | Compose project | Public hosts |
-|---|---|---|---|---|
-| `ikaze` (production) | `ikaze` | the folder the script is in | `cok-systems` | `ikaze.kigalicity.gov.rw` |
-| `uat-ikaze` (acceptance) | `uat` | the sibling folder `<checkout>-uat` (cloned automatically) | `cok-systems-uat` | `uat-ikaze`, `uatps-ikaze`, `uate-ikaze`, `dcms.kigalicity.gov.rw` |
+| Stack | Branch | Compose project | Public hosts |
+|---|---|---|---|
+| `ikaze` (production) | `ikaze` | `cok-systems` | `ikaze.kigalicity.gov.rw` |
+| `uat-ikaze` (acceptance) | `uat` | `cok-systems-uat` | `uat-ikaze`, `uatps-ikaze`, `uate-ikaze`, `dcms.kigalicity.gov.rw` |
+
+The script switches the folder to a stack's branch, builds and starts that stack's project, then moves on to the next; images carry the code they were built from, so the running containers are not affected by later branch switches. At the end the folder is left on the `ikaze` branch with production's `.env` files in place.
 
 Production has no direct backend hosts: users, shared links, public forms and the data feed all go through the frontend host, whose nginx proxies the three APIs to the production containers. The `main` branch is no longer deployed.
 
-One script does the whole update. Run it from the production checkout:
+One script does the whole update. Run it from the folder:
 
 ```bash
 cd /path/to/cok_systems
@@ -412,11 +414,11 @@ The script never deletes a database. `--admin-email=<email>` marks the first pro
 
 Other options: `--no-pull` keeps the code as it is, `--no-build` restarts without rebuilding images, `--keep-env` leaves the `.env` files untouched, `--dry-run` prints what would change and changes nothing. The script is `update-deploy.sh` with its parts in `deploy/`.
 
-For each stack it: puts the checkout on its branch and pulls (cloning it the first time); copies `docker-compose.yml` and the three `.env` files from production when missing and gives them the stack's own values (see below); starts mongo if needed and rebuilds and restarts the services; reads the container addresses, waits for every container (printing its logs when it crashes), checks the sign-in settings and shows the backends' `[AUTH CHECK]` report; for production only, copies the first user from UAT as described above; writes the stack's nginx file. Then nginx is tested and restarted once and every public URL is verified.
+For each stack it: switches the folder to the stack's branch and pulls; gives the stack's own `.env` files their values (see below) and copies them into place; starts mongo if needed and rebuilds and restarts the services; reads the container addresses, waits for every container (printing its logs when it crashes), checks the sign-in settings and shows the backends' `[AUTH CHECK]` report; for production only, copies the first user from UAT as described above; writes the stack's nginx file. Then nginx is tested and restarted once and every public URL is verified.
 
 **Nginx.** One generated file per stack in `/etc/nginx/sites-available` (`ikaze`, `uat-ikaze`), each `proxy_pass` pointing at that stack's container addresses, plus `default` holding only the port 80 redirect for every host. Previous files are kept as `.bak.<date>` and restored if the test fails. Container addresses change when a container is recreated, so run the script again after any manual restart.
 
-**The `.env` files.** They are git-ignored and never come through git. On every run the script sets each stack's values, so a file copied from a development machine or from the other stack is corrected on the spot:
+**The `.env` files.** They are git-ignored and never come through git. Each stack keeps its own set in `deploy/env/<stack>/<service>.env` (git-ignored); the first time a stack is deployed its set is started from the `backend/.env`, `em_backend/.env` and `dc_backend/.env` uploaded into the folder. On every run the script sets the stack's values in its set and copies the set into place before building, so a file copied from a development machine or from the other stack is corrected on the spot:
 
 | File | Keys set |
 |---|---|

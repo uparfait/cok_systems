@@ -48,3 +48,6 @@ temp/
 tsconfig.tsbuildinfo
 
 .early.coverage
+# Per-stack .env sets and database dumps written by update-deploy.sh / db.sh
+deploy/env/
+backups/
