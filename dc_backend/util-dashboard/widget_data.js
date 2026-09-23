@@ -372,6 +372,9 @@ async function heat_data(widget, bounds) {
  */
 async function widget_data_of(raw_widget, form_version, period_override) {
   const catalog = build_field_catalog(form_version.schema);
+  // A tracked form's pipelines read each updatable field as it stood at
+  // the period's end (see tracking_stage.js); the config rides the widget.
+  raw_widget.tracking = form_version.tracking || null;
   const bounds = effective_bounds(raw_widget, period_override);
   let kind = (CHART_TYPES[raw_widget.chart_type] || {}).kind;
   // A canvas is a place, not a question: there is nothing to compute.

@@ -1,4 +1,5 @@
 const { resolve_period_bounds } = require("../utilities/period_bounds.js");
+const { tracking_stages } = require("./tracking_stage.js");
 
 /**
  * Builds the base $match of every widget pipeline: the form's submissions
@@ -80,8 +81,21 @@ function build_match_stage(widget, bounds) {
   return { $match: match };
 }
 
+/**
+ * The opening of every widget pipeline: the base $match, then - on a
+ * tracked form read inside a period - the rewrite of each updatable field
+ * to the value it held at that period's end (see tracking_stage.js).
+ * match_bounds is what the $match window uses; value_bounds (defaulting
+ * to it) is the window whose end decides the values.
+ */
+function base_stages(widget, match_bounds, value_bounds) {
+  return [build_match_stage(widget, match_bounds)].concat(tracking_stages(widget, value_bounds === undefined ? match_bounds : value_bounds));
+}
+
 module.exports = {
   build_match_stage,
+  base_stages,
+  tracking_stages,
   effective_bounds,
   numeric_expr,
   value_candidates,

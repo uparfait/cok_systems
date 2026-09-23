@@ -357,9 +357,36 @@ export function build_form_creation_guide(selected_types) {
       "After pasting, choose 'Add pasted fields' to append them after whatever is already on the canvas, or 'Overwrite with pasted fields' to replace the canvas entirely.",
       "Instead of writing every field of a saved template out by hand, one entry in 'fields' can be a template placeholder (see template_placeholder_shape) referencing it by id - it is expanded into real fields automatically.",
       "To fix a data field to one answer without asking the respondent (for example a form that only ever concerns Kigali), give it a default_config (see default_config): the field is hidden, always submitted with that answer, and everything that depends on it only offers what that answer allows.",
+      "When the same person or thing will be recorded ONCE and updated later (a person whose status moves from birth to growth to death, a plot whose owner changes), add a top-level 'tracking' object next to 'fields' (see record_tracking): one field is the KEY that finds the record again, and a list of fields may be changed on later updates; every change is kept with its date and time.",
     ],
     top_level_form_shape: {
-      fields: "Array of field objects, in the order they should render top to bottom. This is the entire schema - there is no other top-level key.",
+      fields: "Array of field objects, in the order they should render top to bottom.",
+      tracking: "Optional record tracking config (see record_tracking). Leave it out for a form whose every submission is a new, independent response.",
+      ask_respondent: "Optional boolean, default true - whether the public form first asks who is filling it in (name, email, phone, saved with every response). false opens the form straight on its questions. Set in the builder with the switch above the form name; not read from pasted JSON.",
+    },
+    record_tracking: {
+      description:
+        "Record tracking turns a form into a register: a record is created once, then found again by its KEY value and updated on the fields listed as updatable. On the public form the key field shows a search button; searching lists every record holding that key (titled by the date it was recorded, with its answers and its whole change history), loading one fills the form, locks every non-updatable field, and Submit becomes Update. Each update is stored with its date and time, who made it, and each changed field's previous and new value; each updatable field also keeps the periods its values held (value, from, to), which the dashboards read: inside a selected period every updatable field counts with the value it held at that period's END, not today's value.",
+      shape: {
+        enabled: "Boolean - true to turn tracking on.",
+        key_field_id: "The id of the key field: a text, number, email, phone, url, date, hidden or select-like (single_select, select_group, cascading_select) field - typically a national id, a phone number or a plot number.",
+        key_unique: "Boolean. true: one record per key - a second submission with an existing key is refused and the person is sent to update the existing record. false: several records may share a key; the search lists them all.",
+        editable_field_ids: "The ids of the fields a later update may change. Never the key itself, never a paragraph, header, file, image_block, horizontal_line, section, group or geolocation.",
+      },
+      rules: [
+        "Put 'tracking' at the top level of the JSON, beside 'fields' - never inside a field.",
+        "Every id named in tracking must exist among the form's fields (inside groups too).",
+        "Fields NOT listed in editable_field_ids stay exactly as first recorded - choose the fields whose value genuinely changes over time (a status, a phone number, an address), and keep identity fields (a name, a birth date) out of the list.",
+        "An approval flow, when the form has one, runs again on every update exactly as on a new submission.",
+      ],
+      example: {
+        fields: [
+          { id: "text_nid001", type: "text", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "National ID" }), mandatory: true, validation_rules: [], design: { spacing_below_px: 16 } },
+          { id: "text_name01", type: "text", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Full name" }), mandatory: true, validation_rules: [], design: { spacing_below_px: 16 } },
+          { id: "single_select_stat1", type: "single_select", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Status" }), mandatory: true, validation_rules: [], options: [{ id: "opt_b", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Birth" }), value: "birth" }, { id: "opt_g", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Growth" }), value: "growth" }, { id: "opt_d", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Death" }), value: "death" }], design: { spacing_below_px: 16 } },
+        ],
+        tracking: { enabled: true, key_field_id: "text_nid001", key_unique: true, editable_field_ids: ["single_select_stat1"] },
+      },
     },
     template_placeholder_shape: {
       description: "One entry in 'fields' (or in a group/section's 'children') can be this shape instead of a real field, to import a previously saved template's fields in place.",

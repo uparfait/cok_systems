@@ -13,6 +13,7 @@ const {
   is_test_approver,
 } = require("../../utilities/approval.js");
 const { strip_creator } = require("../../utilities/owner.js");
+const { validate_tracking_config, normalize_tracking_config } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -27,7 +28,7 @@ const { success_response, warning_response, error_response } = require("../../ut
 async function update_form(req, res) {
   try {
     const { form_group_id } = req.params;
-    const { schema, form_name, approval_config } = req.body || {};
+    const { schema, form_name, approval_config, tracking, ask_respondent } = req.body || {};
 
     if (!form_group_id) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
@@ -103,6 +104,17 @@ async function update_form(req, res) {
       }
     }
 
+    // Record tracking: an omitted config keeps the stored one; a sent one
+    // (or null, to switch it off) is checked against the schema being
+    // published so its key and updatable fields always exist.
+    const tracking_validation = validate_tracking_config(tracking, resolved_schema);
+    if (!tracking_validation.valid) {
+      return res.status(400).json(warning_response(req, "TRACKING_CONFIG_INVALID", null, { errors: tracking_validation.errors }));
+    }
+    const next_tracking = tracking === undefined ? active_version.tracking || null : normalize_tracking_config(tracking);
+    // An omitted flag keeps what the active version has; anything but an explicit false means on.
+    const next_ask_respondent = ask_respondent === undefined ? active_version.ask_respondent !== false : ask_respondent !== false;
+
     const should_bump_version = has_data_field_set_changed(active_version.schema, resolved_schema);
 
     const form = should_bump_version
@@ -112,6 +124,8 @@ async function update_form(req, res) {
           form_name_normalized: next_form_name.toLowerCase(),
           schema: resolved_schema,
           approval_config: next_approval_config,
+          tracking: next_tracking,
+          ask_respondent: next_ask_respondent,
           created_by: req.user.user_id.toString(),
           created_by_name: req.user.full_name,
         })
@@ -120,6 +134,8 @@ async function update_form(req, res) {
           form_name_normalized: next_form_name.toLowerCase(),
           schema: resolved_schema,
           approval_config: next_approval_config,
+          tracking: next_tracking,
+          ask_respondent: next_ask_respondent,
           updated_by: req.user.user_id.toString(),
           updated_by_name: req.user.full_name,
         });

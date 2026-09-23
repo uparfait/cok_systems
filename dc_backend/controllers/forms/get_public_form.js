@@ -32,6 +32,10 @@ async function get_public_form(req, res) {
       version: active_form.version,
       is_active: active_form.is_active,
       schema: Object.assign({}, active_form.schema, { fields: strip_lazy_options_from_fields(active_form.schema.fields) }),
+      // Record tracking drives the public page's search and update controls.
+      tracking: active_form.tracking || null,
+      // Whether the page first asks who is filling the form in.
+      ask_respondent: active_form.ask_respondent !== false,
     };
 
     return res.status(200).json(success_response(req, "FORM_FETCHED", stripped_form));

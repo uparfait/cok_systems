@@ -22,10 +22,15 @@ import { approval_status_label_key } from "../components/DcsApprovalStatusChip.j
 import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
 import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
 import { format_respondent } from "../offline/respondentStore.js";
+import RecordHistoryDialog, { RecordHistoryButton } from "../tracking/RecordHistoryDialog.jsx";
+import { is_tracking_enabled } from "../tracking/trackingConfig.js";
 
-function build_rows(submissions, data_fields, translate) {
+function build_rows(submissions, data_fields, translate, on_history_click) {
   return (submissions || []).map((submission) => {
     const row = { dcs_row_key: submission._id };
+    // Tracked forms only: when the record last changed, and its history.
+    row.updated_at = submission.updated_at ? new Date(submission.updated_at).toLocaleString() : "-";
+    row.history = on_history_click ? <RecordHistoryButton onClick={() => on_history_click(submission)} count={Math.max(0, (submission.history || []).length - 1)} /> : "";
     data_fields.forEach((field) => {
       const raw_value = submission.data ? submission.data[field.id] : undefined;
       if (MEDIA_ANSWER_TYPES.includes(field.type)) {
@@ -72,6 +77,7 @@ export default function FormDataPage() {
   const table = useSubmissionsTable(form_group_id, version);
   const [is_schedule_open, setIsScheduleOpen] = useState(false);
   const [details_submission_id, setDetailsSubmissionId] = useState(null);
+  const [history_record, setHistoryRecord] = useState(null);
 
   const { data: versions, loading: loading_versions } = useSilentPolling(
     () => get_form_versions(form_group_id).then((res) => res.data || []),
@@ -95,7 +101,11 @@ export default function FormDataPage() {
     )
     .concat([{ key: "submitted_by", labelKey: "DCS_TABLE_SUBMITTED_BY" }, { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" }]));
 
-  const rows = build_rows(table.submissions, data_fields, translate);
+  const tracking = is_tracking_enabled(version_doc.tracking) ? version_doc.tracking : null;
+  if (tracking) {
+    columns.push({ key: "updated_at", labelKey: "DCS_TRACKING_TABLE_UPDATED_AT" }, { key: "history", labelKey: "DCS_TRACKING_TABLE_HISTORY", minWidthPx: 96 });
+  }
+  const rows = build_rows(table.submissions, data_fields, translate, tracking ? setHistoryRecord : null);
 
   return (
     <div className="h-full flex flex-col pb-4">
@@ -136,6 +146,10 @@ export default function FormDataPage() {
 
       {details_submission_id && (
         <DcsApprovalDetailsDialog submission_id={details_submission_id} onClose={() => setDetailsSubmissionId(null)} />
+      )}
+
+      {history_record && tracking && (
+        <RecordHistoryDialog record={history_record} fields={version_doc.schema.fields} tracking={tracking} onClose={() => setHistoryRecord(null)} />
       )}
     </div>
   );

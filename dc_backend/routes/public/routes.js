@@ -4,6 +4,8 @@ const get_public_form = require("../../controllers/forms/get_public_form.js");
 const { get_public_translation, save_public_translation, identify_translator } = require("../../controllers/forms/public_translation.js");
 const get_public_form_field_options = require("../../controllers/forms/get_public_form_field_options.js");
 const submit_response = require("../../controllers/submissions/submit_response.js");
+const search_public_records = require("../../controllers/submissions/search_public_records.js");
+const update_public_record = require("../../controllers/submissions/update_public_record.js");
 const upload_file = require("../../controllers/public/upload_file.js");
 const delete_uploaded_file = require("../../controllers/public/delete_uploaded_file.js");
 const get_approval_by_token = require("../../controllers/approvals/get_approval_by_token.js");
@@ -116,6 +118,25 @@ Router.get("/forms/:form_group_id/field-options/:field_id", get_public_form_fiel
  *         description: Response failed validation
  */
 Router.post("/forms/:form_group_id/submit", submit_response);
+
+/**
+ * @swagger
+ * /dcs/api/public/forms/{form_group_id}/records:
+ *   get:
+ *     summary: Records of a TRACKED form holding the given key (?key=), newest first, with their change history (no auth)
+ *     tags: [Public]
+ * /dcs/api/public/forms/{form_group_id}/records/{submission_id}:
+ *   put:
+ *     summary: Update the updatable fields of one record of a tracked form; every change is kept with its date and time (no auth)
+ *     tags: [Public]
+ *     responses:
+ *       200:
+ *         description: Record updated
+ *       422:
+ *         description: An updatable field failed validation
+ */
+Router.get("/forms/:form_group_id/records", search_public_records);
+Router.put("/forms/:form_group_id/records/:submission_id", update_public_record);
 
 /**
  * @swagger

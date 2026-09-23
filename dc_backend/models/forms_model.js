@@ -74,6 +74,8 @@ async function update_version_in_place(form_group_id, version, form_data) {
           form_name_normalized: form_data.form_name_normalized,
           schema: form_data.schema,
           approval_config: form_data.approval_config === undefined ? null : form_data.approval_config,
+          tracking: form_data.tracking === undefined ? null : form_data.tracking,
+          ask_respondent: form_data.ask_respondent !== false,
           updated_by: form_data.updated_by,
           updated_by_name: form_data.updated_by_name,
           updated_at: now,

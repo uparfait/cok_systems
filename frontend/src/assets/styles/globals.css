@@ -4109,3 +4109,351 @@ background-color: #056daa;
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ---------------------------------------------------------------------
+   Record tracking (systems/dcs/tracking): the key-index bar and setup
+   overlay in the builder, the search button beside the key field, the
+   locked fields of a loaded record, the history lists and the floating
+   history button on the public form. Mobile first: overlays fill the
+   screen on a phone and become centered cards from 640px up.
+   ------------------------------------------------------------------- */
+.dcs-tracking-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px dashed #056daa;
+  background-color: rgba(5, 109, 170, 0.05);
+}
+
+.dcs-tracking-key-button {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #056daa;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dcs-tracking-key-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dcs-tracking-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+/* Full screen below 750px; from 750px up an 80% by 80% card in the middle. */
+.dcs-tracking-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: #FFFFFF;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.dcs-tracking-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #E0E0E0;
+  flex-shrink: 0;
+}
+
+.dcs-tracking-footer .cok-btn-primary,
+.dcs-tracking-footer .cok-btn-outlined,
+.dcs-tracking-footer .cok-btn-outlined-danger {
+  min-height: 44px;
+}
+
+@media (min-width: 750px) {
+  .dcs-tracking-overlay {
+    align-items: center;
+  }
+
+  .dcs-tracking-panel {
+    width: 80vw;
+    height: 80vh;
+    max-width: 80vw;
+    max-height: 80vh;
+    border: 2px solid #056daa;
+    padding-bottom: 0;
+  }
+}
+
+.dcs-tracking-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #E0E0E0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.dcs-tracking-row:hover {
+  border-color: #056daa;
+}
+
+/* The key field with its search icon INSIDE the input, at the right end
+   (InputSearchIcon.jsx measures the input and centers on it). The record
+   finder reuses the same wrapper for its own search box. */
+.dcs-key-field {
+  position: relative;
+  width: 100%;
+}
+
+.dcs-key-field input:not([type="checkbox"]):not([type="radio"]),
+.dcs-key-field select {
+  padding-right: 48px;
+}
+
+.dcs-key-search-icon {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: #056daa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.dcs-key-search-icon:hover:not(:disabled),
+.dcs-key-search-icon:focus-visible {
+  background-color: #056daa;
+  color: #FFFFFF;
+  border-color: #056daa;
+  transform: translateY(-50%) scale(1.06);
+}
+
+.dcs-key-search-icon:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* A field the loaded record does not let this person change. */
+.dcs-locked-field {
+  position: relative;
+  opacity: 0.72;
+}
+
+.dcs-locked-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  cursor: not-allowed;
+  background-color: rgba(247, 249, 251, 0.35);
+}
+
+.dcs-locked-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background-color: rgba(5, 109, 170, 0.08);
+  border: 1px solid rgba(5, 109, 170, 0.35);
+}
+
+/* One change in a history entry: field, previous value, current value.
+   Stacked on a phone, three columns from 480px up. */
+.dcs-history-change {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px 10px;
+  padding: 6px 0;
+  border-top: 1px solid #F0F0F0;
+}
+
+.dcs-history-change > span {
+  min-width: 0;
+}
+
+.dcs-history-head {
+  display: none;
+}
+
+@media (min-width: 480px) {
+  .dcs-history-change {
+    grid-template-columns: 1.2fr 1fr 1fr;
+    align-items: center;
+  }
+
+  .dcs-history-head {
+    display: grid;
+    border-top: none;
+    padding-bottom: 4px;
+  }
+
+  .dcs-history-head > span {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #9E9E9E;
+  }
+}
+
+/* The round history button pinned to the bottom right of a tracked form. */
+.dcs-record-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 35;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background-color: #056daa;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dcs-record-fab:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+.dcs-record-fab:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dcs-record-fab-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background-color: #F39C12;
+  color: #FFFFFF;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Every answer of a tracked record beside its history: one card per field,
+   two per row from 480px up, the updatable ones drawn in blue. */
+.dcs-record-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.dcs-record-field {
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid;
+}
+
+@media (min-width: 480px) {
+  .dcs-record-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* "Show N more" under a long record history or value timeline. */
+.dcs-history-more {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px dashed #056daa;
+  background-color: rgba(5, 109, 170, 0.04);
+  color: #056daa;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.dcs-history-more:hover {
+  background-color: rgba(5, 109, 170, 0.1);
+}
+
+/* An animated on/off switch (RespondentGateToggle.jsx): the knob slides
+   and the track fills with the system blue when on. */
+.dcs-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  border: none;
+  background-color: #C8CDD3;
+  cursor: pointer;
+  transition: background-color 0.25s ease;
+}
+
+.dcs-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dcs-switch[aria-checked="true"] {
+  background-color: #056daa;
+}
+
+.dcs-switch[aria-checked="true"]::after {
+  transform: translateX(20px);
+}
+
+.dcs-switch:focus-visible {
+  outline: 2px solid rgba(5, 109, 170, 0.5);
+  outline-offset: 2px;
+}
+
+.dcs-switch:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

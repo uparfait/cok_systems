@@ -12,8 +12,14 @@ export function get_forms_by_project(project_id) {
  * internal-only label used to tell forms apart when listing them - never
  * shown to a respondent - and must be unique within the project.
  */
-export function create_form(project_id, form_name, schema, approval_config) {
-  return dcs_request(`/forms/project/${project_id}`, "POST", { form_name, schema, approval_config });
+export function create_form(project_id, form_name, schema, approval_config, tracking, ask_respondent) {
+  return dcs_request(`/forms/project/${project_id}`, "POST", {
+    form_name,
+    schema,
+    approval_config,
+    tracking: tracking === undefined ? null : tracking,
+    ask_respondent: ask_respondent !== false,
+  });
 }
 
 /**
@@ -27,8 +33,13 @@ export function get_form(form_group_id) {
  * Publishes an edit as a brand new form version. form_name can rename the
  * form (still checked for uniqueness within its project).
  */
-export function update_form(form_group_id, form_name, schema, approval_config) {
-  return dcs_request(`/forms/${form_group_id}`, "PUT", { form_name, schema, approval_config });
+export function update_form(form_group_id, form_name, schema, approval_config, tracking, ask_respondent) {
+  const body = { form_name, schema, approval_config };
+  // Left out entirely, the stored record tracking config (and the
+  // ask-respondent flag) are kept as they are.
+  if (tracking !== undefined) body.tracking = tracking;
+  if (ask_respondent !== undefined) body.ask_respondent = ask_respondent !== false;
+  return dcs_request(`/forms/${form_group_id}`, "PUT", body);
 }
 
 /**

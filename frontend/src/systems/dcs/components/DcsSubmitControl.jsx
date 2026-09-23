@@ -21,7 +21,7 @@ const SUCCESS_REVERT_MS = 5000;
  * easiest to hit, and beside it from tablet width up, both sized to their
  * own words (see .dcs-form-actions).
  */
-export default function DcsSubmitControl({ submitting, submitState, onSubmit, onIdle, secondary }) {
+export default function DcsSubmitControl({ submitting, submitState, onSubmit, onIdle, secondary, submitLabelKey }) {
   const { translate } = useDcsLanguage();
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function DcsSubmitControl({ submitting, submitState, onSubmit, on
               disabled={submitting}
               style={submitState === "success" ? { backgroundColor: SUCCESS_COLOR, borderColor: SUCCESS_COLOR } : undefined}
             >
-              {submitState === "success" ? translate("DCS_PUBLIC_DATA_RECORDED") : translate("DCS_RENDERER_SUBMIT")}
+              {submitState === "success" ? translate("DCS_PUBLIC_DATA_RECORDED") : translate(submitLabelKey || "DCS_RENDERER_SUBMIT")}
             </DcsButtonPrimary>
           </div>
         )}

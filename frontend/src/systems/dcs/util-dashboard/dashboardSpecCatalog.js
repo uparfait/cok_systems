@@ -254,6 +254,11 @@ export function build_dashboard_creation_guide(form) {
       "Titles are plain language for the readers of the board (e.g. 'Submissions per district'); keep them under 120 characters and unique.",
       `A dashboard holds at most ${MAX_WIDGETS} widgets in total, including the ones already on the board when adding.`,
       "The server validates every widget against the form; an invalid widget list is refused as a whole with the first violation shown, so follow the rules exactly.",
+      ...(form.tracking && form.tracking.enabled === true
+        ? [
+            `RECORD TRACKING. This form is a register: its records are found again by the key field '${form.tracking.key_field_id}' and updated on the fields ${JSON.stringify(form.tracking.editable_field_ids || [])}. Inside any selected period, every widget reads each of those updatable fields with the value it held at that period's END (the record keeps every value with the moment it started and ended), never today's value - so a status chart of last year shows last year's statuses. A widget over time by 'updated_at' charts when records were changed.`,
+          ]
+        : []),
     ],
     top_level_shape: {
       filters: "Optional. The board's filter fields: an array of { field_id } - see board_filters. Viewers pick a value in each and every widget follows.",

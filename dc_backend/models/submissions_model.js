@@ -44,7 +44,9 @@ async function ensure_submission_indexes() {
  * group and version it was collected against.
  */
 async function create_submission(submission_data) {
-  const document = Object.assign({}, submission_data, { submitted_at: new Date() });
+  // A caller that stamped the time itself (a tracked record, whose first
+  // value period starts at that very moment) keeps it.
+  const document = Object.assign({}, submission_data, { submitted_at: submission_data.submitted_at instanceof Date ? submission_data.submitted_at : new Date() });
   const result = await get_db().collection(COLLECTION_NAME).insertOne(document);
   return Object.assign({ _id: result.insertedId }, document);
 }

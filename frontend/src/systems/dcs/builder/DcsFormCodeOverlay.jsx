@@ -9,16 +9,18 @@ import { resolve_template_placeholders } from "../jsonlogic/resolveTemplates.js"
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
+import { is_tracking_enabled, normalize_tracking, tracking_payload } from "../tracking/trackingConfig.js";
 
 /**
- * Reads either { fields: [...] } or a bare [...] as the pasted payload, so
- * a form copied from "Copy created form" and a bare fields array an author
- * might hand-author both work the same way.
+ * Reads either { fields: [...], tracking? } or a bare [...] as the pasted
+ * payload, so a form copied from "Copy created form" and a bare fields
+ * array an author might hand-author both work the same way. An optional
+ * tracking config (the key field and the updatable fields) rides along.
  */
-function parse_pasted_fields(raw_text) {
+function parse_pasted_payload(raw_text) {
   const parsed = JSON.parse(raw_text);
-  if (Array.isArray(parsed)) return parsed;
-  if (parsed && Array.isArray(parsed.fields)) return parsed.fields;
+  if (Array.isArray(parsed)) return { fields: parsed, tracking: null };
+  if (parsed && Array.isArray(parsed.fields)) return { fields: parsed.fields, tracking: parsed.tracking || null };
   throw new Error("not_a_field_array");
 }
 
@@ -41,7 +43,7 @@ function summarize_rules(field) {
  * replacement of the canvas, and copying the schema documentation out to
  * an external AI.
  */
-export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, onClose }) {
+export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, onClose, tracking, onTrackingChange }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const [pasted_code, setPastedCode] = useState("");
@@ -85,9 +87,15 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
     showSuccess(translate("DCS_TOAST_CREATION_RULES_COPIED"));
   };
 
+  // The record tracking config travels with the copy, trimmed to the
+  // fields actually copied, so a pasted form keeps its key and updatable
+  // fields wherever they still exist.
   const handle_copy_created_form = () => {
     const selected_fields = fields.filter((field) => selected_copy_ids.has(field.id));
-    window.navigator.clipboard.writeText(JSON.stringify({ fields: selected_fields }, null, 2));
+    const payload = { fields: selected_fields };
+    const copied_tracking = tracking_payload(normalize_tracking(tracking, selected_fields));
+    if (copied_tracking) payload.tracking = copied_tracking;
+    window.navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
     showSuccess(translate("DCS_TOAST_FORM_JSON_COPIED"));
   };
 
@@ -95,13 +103,13 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
     setParseError("");
     setRemovedLabelCount(0);
     try {
-      const parsed_fields = parse_pasted_fields(pasted_code);
+      const parsed = parse_pasted_payload(pasted_code);
       // A hand-authored/pasted field list can itself contain a
       // __is__template__ placeholder ({__is__template__: "<id>", fields:
       // []}) instead of writing every field out by hand - resolved here
       // exactly like every other entry point, before it ever reaches the
       // canvas.
-      const next_fields = await resolve_template_placeholders(parsed_fields);
+      const next_fields = await resolve_template_placeholders(parsed.fields);
       // Pasted code is the usual way a label ends up on a container, so it
       // is corrected here rather than a moment later by the canvas - and
       // the total is left on screen, not only flashed in a toast, since
@@ -109,6 +117,11 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
       const stripped = strip_container_labels(next_fields);
       setRemovedLabelCount(stripped.stripped_count);
       onCreateForm(stripped.fields, mode);
+      // A pasted tracking config is applied against the form as it will
+      // stand after the paste, so it only ever names fields that exist.
+      if (onTrackingChange && parsed.tracking && is_tracking_enabled(parsed.tracking)) {
+        onTrackingChange(normalize_tracking(parsed.tracking, mode === "add" ? fields.concat(stripped.fields) : stripped.fields));
+      }
       showSuccess(translate("DCS_TOAST_FORM_CREATED_FROM_CODE"));
     } catch (error) {
       setParseError(translate("DCS_ERROR_INVALID_FORM_CODE"));

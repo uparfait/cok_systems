@@ -1,5 +1,5 @@
 const { get_db } = require("../db_connection/db.js");
-const { build_match_stage, numeric_expr } = require("./match_stage.js");
+const { build_match_stage, base_stages, numeric_expr } = require("./match_stage.js");
 const { is_multi_value } = require("./field_catalog.js");
 const { LIMITS, SUBMITTED_AT_FIELD, UPDATED_AT_FIELD } = require("./constants.js");
 
@@ -64,7 +64,7 @@ async function category_rows(widget, bounds, catalog) {
   const sort =
     widget.sort === "label_asc" ? { _id: 1 } : widget.sort === "value_asc" ? { value: 1, _id: 1 } : { value: -1, _id: 1 };
   const pipeline = [
-    build_match_stage(widget, bounds),
+    ...base_stages(widget, bounds),
     ...unwind_stages(catalog, [group_field]),
     { $match: { [`data.${group_field}`]: { $nin: [null, ""] } } },
     { $group: { _id: `$data.${group_field}`, value: metric_accumulator(widget.metric) } },
@@ -95,7 +95,7 @@ async function split_rows(widget, bounds, catalog) {
   const id = { g: `$data.${group_field}`, s: `$data.${split_field}` };
   if (pattern_field) id.p = `$data.${pattern_field}`;
   const pipeline = [
-    build_match_stage(widget, bounds),
+    ...base_stages(widget, bounds),
     ...unwind_stages(catalog, fields),
     { $match: answered },
     { $group: { _id: id, value: metric_accumulator(widget.metric) } },
@@ -135,7 +135,7 @@ async function time_rows(widget, bounds, granularity, catalog, split_field) {
 
   const group_id = split_field ? { b: bucket_expr, s: `$data.${split_field}` } : bucket_expr;
   const pipeline = [
-    build_match_stage(widget, bounds),
+    ...base_stages(widget, bounds),
     ...(split_field ? unwind_stages(catalog, [split_field]) : []),
     ...(split_field ? [{ $match: { [`data.${split_field}`]: { $nin: [null, ""] } } }] : []),
     { $group: { _id: group_id, value: metric_accumulator(widget.metric) } },
@@ -173,7 +173,7 @@ async function point_rows(widget, bounds) {
   };
   if (widget.size_field_id) projection.size = numeric_expr(widget.size_field_id);
   const pipeline = [
-    build_match_stage(widget, bounds),
+    ...base_stages(widget, bounds),
     { $project: projection },
     { $match: { x: { $ne: null }, y: { $ne: null } } },
     { $limit: LIMITS.MAX_POINTS },
@@ -204,7 +204,7 @@ async function heat_points(widget, bounds) {
   };
   if (split) projection.group = { $convert: { input: `$data.${split}`, to: "string", onError: null, onNull: null } };
   const pipeline = [
-    build_match_stage(widget, bounds),
+    ...base_stages(widget, bounds),
     { $project: projection },
     { $match: { lat: { $ne: null }, lng: { $ne: null } } },
     { $limit: LIMITS.MAX_HEAT_POINTS },
@@ -248,7 +248,7 @@ async function occurrence_rows(widget, bounds, catalog) {
   const scope = widget.occurrence_scope === "all" ? "all" : "matching";
   const sort = widget.sort === "label_asc" ? { "_id.k": 1 } : widget.sort === "value_asc" ? { value: 1, "_id.k": 1 } : { value: -1, "_id.k": 1 };
   const pipeline = [
-    build_match_stage(scoped, bounds),
+    ...base_stages(scoped, bounds),
     ...unwind_stages(catalog, [key_field].concat(open_same.map((entry) => entry.field_id))),
     { $match: answered },
     // Newest first, so $first picks the latest answer of each display field.
@@ -281,7 +281,7 @@ async function tree_rows(widget, bounds, catalog, parent_field_id) {
   const child_field = widget.group_by.field_id;
   const group_id = parent_field_id ? { p: `$data.${parent_field_id}`, c: `$data.${child_field}` } : { c: `$data.${child_field}` };
   const pipeline = [
-    build_match_stage(widget, bounds),
+    ...base_stages(widget, bounds),
     ...unwind_stages(catalog, [child_field]),
     { $match: { [`data.${child_field}`]: { $nin: [null, ""] } } },
     { $group: { _id: group_id, value: metric_accumulator(widget.metric) } },
@@ -310,7 +310,7 @@ async function dimension_counts(widget, bounds, catalog, field_ids) {
       { $count: "value" },
     ];
   });
-  const rows = await run_pipeline([build_match_stage(widget, bounds), { $facet: facets }]);
+  const rows = await run_pipeline([...base_stages(widget, bounds), { $facet: facets }]);
   const facet = rows[0] || {};
   return field_ids.map((field_id, index) => {
     const bucket = facet[`f${index}`];

@@ -9,6 +9,9 @@ import DcFormBuilderSection from "../builder/DcFormBuilderSection.jsx";
 import DcsWizardSteps from "../components/DcsWizardSteps.jsx";
 import DcsUnderDevelopmentPanel from "../components/DcsUnderDevelopmentPanel.jsx";
 import DcsFormNameField from "../components/DcsFormNameField.jsx";
+import TrackingSetupButton from "../tracking/TrackingSetupButton.jsx";
+import RespondentGateToggle from "../builder/RespondentGateToggle.jsx";
+import { empty_tracking, normalize_tracking, tracking_payload } from "../tracking/trackingConfig.js";
 
 const DRAFT_FIELDS_KEY_PREFIX = "dcs_draft_fields_";
 
@@ -33,6 +36,8 @@ export default function NewProjectPage() {
   const [creating_project, setCreatingProject] = useState(false);
   const [fields, setFields] = useState([]);
   const [form_name, setFormName] = useState("");
+  const [tracking, setTracking] = useState(empty_tracking);
+  const [ask_respondent, setAskRespondent] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [current_step, setCurrentStep] = useState(0);
 
@@ -66,7 +71,7 @@ export default function NewProjectPage() {
   const handle_publish = async (schema) => {
     setPublishing(true);
     try {
-      const response = await create_form(project._id, form_name, schema);
+      const response = await create_form(project._id, form_name, schema, null, tracking_payload(tracking), ask_respondent);
       window.localStorage.removeItem(`${DRAFT_FIELDS_KEY_PREFIX}${project._id}`);
       showSuccess(translate("DCS_TOAST_FORM_PUBLISHED"));
       navigate(`/dcs-system/project/${project._id}/forms/${response.data.form_group_id}/details`);
@@ -94,8 +99,20 @@ export default function NewProjectPage() {
           <h2 className="mb-4" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 18, color: "#333333" }}>
             {translate("DCS_SECTION_DC_FORM")}
           </h2>
+          <RespondentGateToggle value={ask_respondent} onChange={setAskRespondent} />
+          <TrackingSetupButton fields={fields} tracking={tracking} onChange={setTracking} />
           <DcsFormNameField value={form_name} onChange={setFormName} />
-          <DcFormBuilderSection fields={fields} onFieldsChange={setFields} onPublish={handle_publish} publishing={publishing} />
+          <DcFormBuilderSection
+            fields={fields}
+            onFieldsChange={(next_fields) => {
+              setFields(next_fields);
+              setTracking((previous) => normalize_tracking(previous, next_fields));
+            }}
+            onPublish={handle_publish}
+            publishing={publishing}
+            tracking={tracking}
+            onTrackingChange={setTracking}
+          />
         </div>
       )}
 

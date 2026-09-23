@@ -6,6 +6,9 @@ import { create_form } from "../services/formsService.js";
 import DcFormBuilderSection from "../builder/DcFormBuilderSection.jsx";
 import DcsFormNameField from "../components/DcsFormNameField.jsx";
 import { validate_form_schema } from "../builder/validateSchema.js";
+import TrackingSetupButton from "../tracking/TrackingSetupButton.jsx";
+import RespondentGateToggle from "../builder/RespondentGateToggle.jsx";
+import { empty_tracking, normalize_tracking, tracking_payload } from "../tracking/trackingConfig.js";
 
 export default function NewFormPage() {
   const { project_id } = useParams();
@@ -18,10 +21,14 @@ export default function NewFormPage() {
   const [publishing, setPublishing] = useState(false);
   const [schema_errors, setSchemaErrors] = useState([]);
   const [validation_result, setValidationResult] = useState({ valid: true, errors: [] });
+  const [tracking, setTracking] = useState(empty_tracking);
+  const [ask_respondent, setAskRespondent] = useState(true);
 
+  // A deleted key or updatable field drops out of the tracking config too.
   const handle_fields_change = (next_fields) => {
     setSchemaErrors([]);
     setFields(next_fields);
+    setTracking((previous) => normalize_tracking(previous, next_fields));
   };
 
   const handle_validation_change = (result) => {
@@ -40,7 +47,7 @@ export default function NewFormPage() {
     try {
       // Approvals are not configured at creation time - the form's own
       // Approval tab manages them once the form exists.
-      const response = await create_form(project_id, form_name, schema, null);
+      const response = await create_form(project_id, form_name, schema, null, tracking_payload(tracking), ask_respondent);
       showSuccess(translate("DCS_TOAST_FORM_PUBLISHED"));
       navigate(`/dcs-system/project/${project_id}/forms/${response.data.form_group_id}/details`);
       return true;
@@ -59,6 +66,8 @@ export default function NewFormPage() {
         {translate("DCS_SECTION_DC_FORM")}
       </h2>
       <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
+        <RespondentGateToggle value={ask_respondent} onChange={setAskRespondent} />
+        <TrackingSetupButton fields={fields} tracking={tracking} onChange={setTracking} />
         <DcsFormNameField value={form_name} onChange={setFormName} />
         <DcFormBuilderSection
           fields={fields}
@@ -68,6 +77,8 @@ export default function NewFormPage() {
           schemaErrors={schema_errors}
           onValidationChange={handle_validation_change}
           trackingScopeId={`new-form:${project_id}`}
+          tracking={tracking}
+          onTrackingChange={setTracking}
         />
       </div>
     </div>

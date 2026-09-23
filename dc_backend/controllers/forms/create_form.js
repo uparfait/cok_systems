@@ -4,6 +4,7 @@ const project_access = require("../../utilities/project_access.js");
 const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { resolve_template_placeholders } = require("../../jsonlogic/resolve_templates.js");
 const { validate_approval_config, normalize_approval_config } = require("../../utilities/approval.js");
+const { validate_tracking_config, normalize_tracking_config } = require("../../utilities/tracking.js");
 const { strip_creator } = require("../../utilities/owner.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
@@ -17,7 +18,7 @@ const { is_valid_object_id } = require("../../utilities/object_id.js");
 async function create_form(req, res) {
   try {
     const { project_id } = req.params;
-    const { schema, form_name, approval_config } = req.body || {};
+    const { schema, form_name, approval_config, tracking, ask_respondent } = req.body || {};
 
     if (!is_valid_object_id(project_id)) {
       return res.status(400).json(warning_response(req, "INVALID_ID"));
@@ -58,12 +59,22 @@ async function create_form(req, res) {
       return res.status(400).json(warning_response(req, "APPROVAL_CONFIG_INVALID", null, { errors: approval_validation.errors }));
     }
 
+    // Record tracking (one key field, a set of updatable fields) is checked
+    // against the very schema being published.
+    const tracking_validation = validate_tracking_config(tracking, resolved_schema);
+    if (!tracking_validation.valid) {
+      return res.status(400).json(warning_response(req, "TRACKING_CONFIG_INVALID", null, { errors: tracking_validation.errors }));
+    }
+
     const form = await forms_model.create_form_version_one({
       project_id,
       form_name: form_name.toString().trim(),
       form_name_normalized: form_name.toString().trim().toLowerCase(),
       schema: resolved_schema,
       approval_config: normalize_approval_config(approval_config),
+      tracking: normalize_tracking_config(tracking),
+      // Whether the public form first asks who is filling it in (on unless switched off).
+      ask_respondent: ask_respondent !== false,
       created_by: req.user.user_id.toString(),
       created_by_name: req.user.full_name,
     });

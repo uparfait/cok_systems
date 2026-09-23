@@ -30,7 +30,7 @@ export default function DcFormBuilderSection(props) {
   );
 }
 
-function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishing, schemaErrors, publishLabelKey, resolveFieldOptions, resolveFullFieldOptions, onValidationChange, trackingScopeId }) {
+function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishing, schemaErrors, publishLabelKey, resolveFieldOptions, resolveFullFieldOptions, onValidationChange, trackingScopeId, tracking, onTrackingChange }) {
   const { translate, language } = useDcsLanguage();
   const { showSuccess, showInfo } = useToast();
   const { is_uploading, average_percent } = useDesignUpload();
@@ -384,6 +384,8 @@ function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishi
         <DcsFormCodeOverlay
           fields={fields}
           allFields={all_flat_fields}
+          tracking={tracking}
+          onTrackingChange={onTrackingChange}
           onCreateForm={(next_fields, mode) => handle_tracked_fields_change(mode === "add" ? fields.concat(next_fields) : next_fields)}
           onClose={() => setIsCodeOverlayOpen(false)}
         />

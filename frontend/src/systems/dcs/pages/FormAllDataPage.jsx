@@ -23,6 +23,8 @@ import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.j
 import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
 import DcsFormNav from "../components/DcsFormNav.jsx";
 import { format_respondent } from "../offline/respondentStore.js";
+import RecordHistoryDialog, { RecordHistoryButton } from "../tracking/RecordHistoryDialog.jsx";
+import { is_tracking_enabled } from "../tracking/trackingConfig.js";
 
 const ACTIONS_COLUMN_WIDTH_PX = 56;
 
@@ -153,9 +155,12 @@ function build_diffed_columns(versions, language) {
   return { columns, field_type_by_id, has_diff };
 }
 
-function build_rows(submissions, field_type_by_id, on_delete_click, deleting_id, translate) {
+function build_rows(submissions, field_type_by_id, on_delete_click, deleting_id, translate, on_history_click) {
   return (submissions || []).map((submission) => {
     const row = { dcs_row_key: submission._id };
+    // Tracked forms only: when the record last changed, and its history.
+    row.updated_at = submission.updated_at ? new Date(submission.updated_at).toLocaleString() : "-";
+    row.history = on_history_click ? <RecordHistoryButton onClick={() => on_history_click(submission)} count={Math.max(0, (submission.history || []).length - 1)} /> : "";
     field_type_by_id.forEach((field_type, field_id) => {
       const raw_value = submission.data ? submission.data[field_id] : undefined;
       if (MEDIA_ANSWER_TYPES.includes(field_type)) {
@@ -212,6 +217,7 @@ export default function FormAllDataPage() {
   const [is_feed_open, setIsFeedOpen] = useState(false);
   const [is_schedule_open, setIsScheduleOpen] = useState(false);
   const [details_submission_id, setDetailsSubmissionId] = useState(null);
+  const [history_record, setHistoryRecord] = useState(null);
 
   const { data: versions, loading: loading_versions } = useSilentPolling(
     () => get_form_versions(form_group_id).then((res) => res.data || []),
@@ -231,10 +237,16 @@ export default function FormAllDataPage() {
   }
 
   const { columns: data_columns, field_type_by_id, has_diff } = build_diffed_columns(versions, language);
+  const active_version = versions.find((entry) => entry.is_active) || versions[0];
+  const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
+  const tracking_columns = tracking
+    ? [{ key: "updated_at", labelKey: "DCS_TRACKING_TABLE_UPDATED_AT" }, { key: "history", labelKey: "DCS_TRACKING_TABLE_HISTORY", minWidthPx: 96 }]
+    : [];
   const columns = [{ key: "approval", labelKey: "DCS_TABLE_APPROVAL", minWidthPx: 210 }]
     .concat(data_columns)
+    .concat(tracking_columns)
     .concat([{ key: "actions", label: "", minWidthPx: ACTIONS_COLUMN_WIDTH_PX }]);
-  const rows = build_rows(table.submissions, field_type_by_id, setConfirmingDeleteId, deleting_id, translate);
+  const rows = build_rows(table.submissions, field_type_by_id, setConfirmingDeleteId, deleting_id, translate, tracking ? setHistoryRecord : null);
 
   const handle_delete = async () => {
     setDeletingId(confirming_delete_id);
@@ -348,6 +360,10 @@ export default function FormAllDataPage() {
 
       {details_submission_id && (
         <DcsApprovalDetailsDialog submission_id={details_submission_id} onClose={() => setDetailsSubmissionId(null)} />
+      )}
+
+      {history_record && tracking && (
+        <RecordHistoryDialog record={history_record} fields={active_version.schema.fields} tracking={tracking} onClose={() => setHistoryRecord(null)} />
       )}
     </div>
   );

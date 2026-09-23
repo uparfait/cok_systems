@@ -235,7 +235,7 @@ const { list_data_tokens, create_data_token, rotate_data_token, delete_data_toke
  *     security:
  *       - BearerAuth: []
  *   post:
- *     summary: Create a data-feed token (name, expires_in: never | 7d | 30d | 90d | 365d | ISO date, scope: version, from, to)
+ *     summary: "Create a data-feed token (name, expires_in of never, 7d, 30d, 90d, 365d or an ISO date, scope of version, from, to)"
  *     tags: [Forms]
  * /dcs/api/forms/{form_group_id}/data-tokens/{token_id}:
  *   delete:

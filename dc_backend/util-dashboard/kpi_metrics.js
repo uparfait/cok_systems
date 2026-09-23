@@ -1,5 +1,5 @@
 const { get_db } = require("../db_connection/db.js");
-const { build_match_stage, numeric_expr } = require("./match_stage.js");
+const { build_match_stage, base_stages, numeric_expr } = require("./match_stage.js");
 const { is_multi_value } = require("./field_catalog.js");
 const { NUMERIC_AGGREGATIONS } = require("./constants.js");
 
@@ -186,7 +186,7 @@ async function kpi_metric_result(widget, bounds, catalog) {
     ];
   }
 
-  const rows = await run_pipeline([build_match_stage(widget, null), { $facet: facets }]);
+  const rows = await run_pipeline([...base_stages(widget, null, windows.current), { $facet: facets }]);
   const facet = rows[0] || {};
   let current = facet_value(aggregation, facet.current);
   let previous = windows.previous ? facet_value(aggregation, facet.previous) : null;
@@ -214,7 +214,7 @@ async function kpi_skipped_rows(widget, bounds, limit, catalog, offset) {
   const skip = Number.isInteger(offset) && offset > 0 ? offset : 0;
   const windows = kpi_windows(aggregation, bounds);
   const pipeline = [
-    build_match_stage(widget, null),
+    ...base_stages(widget, null, windows.skipped),
     ...window_match(windows.skipped),
     answered_match(field_id),
     { $project: { submitted_at: 1, raw: `$data.${field_id}`, n: numeric_expr(field_id) } },

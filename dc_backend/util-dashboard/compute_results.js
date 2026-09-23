@@ -2,7 +2,7 @@ const { get_db } = require("../db_connection/db.js");
 const { sanitize_widgets, sanitize_widget, sanitize_period_override } = require("./sanitize.js");
 const { validate_dashboard } = require("./widget_validation.js");
 const { compute_widget_data } = require("./widget_data.js");
-const { effective_bounds, build_match_stage } = require("./match_stage.js");
+const { effective_bounds, base_stages } = require("./match_stage.js");
 const { build_field_catalog, is_multi_value } = require("./field_catalog.js");
 const { kpi_skipped_rows } = require("./kpi_metrics.js");
 const { sanitize_applied_filters, merge_applied, apply_board_filters, can_filter_field, MAX_FILTER_VALUES } = require("./board_filters.js");
@@ -77,6 +77,7 @@ async function compute_skipped_page(body, form_group_id, form_version, project_i
   const period_override = sanitize_period_override(body.period);
   const catalog = build_field_catalog(form_version.schema);
   const shaped = apply_board_filters(widget, applied_filters(body, forced_filters), catalog).widget;
+  shaped.tracking = form_version.tracking || null;
   const bounds = effective_bounds(shaped, period_override);
   const offset = bounded_int(body.offset, 0, 0, Number.MAX_SAFE_INTEGER);
   const limit = bounded_int(body.limit, DEFAULT_PAGE, 1, MAX_PAGE);
@@ -98,10 +99,10 @@ async function compute_filter_values(body, form_group_id, form_version, forced_f
   if (!can_filter_field(field)) return { invalid: "not a filter field" };
   const period_override = sanitize_period_override(body.period);
   const others = applied_filters(body, forced_filters).filter((entry) => entry.field_id !== field_id);
-  const probe = { form_group_id, filters: others.map((entry) => ({ field_id: entry.field_id, operator: "eq", value: entry.value })) };
+  const probe = { form_group_id, tracking: form_version.tracking || null, filters: others.map((entry) => ({ field_id: entry.field_id, operator: "eq", value: entry.value })) };
   const bounds = effective_bounds(probe, period_override);
   const pipeline = [
-    build_match_stage(probe, bounds),
+    ...base_stages(probe, bounds),
     ...(is_multi_value(catalog, field_id) ? [{ $unwind: { path: `$data.${field_id}`, preserveNullAndEmptyArrays: false } }] : []),
     { $match: { [`data.${field_id}`]: { $nin: [null, ""] } } },
     { $group: { _id: `$data.${field_id}`, count: { $sum: 1 } } },

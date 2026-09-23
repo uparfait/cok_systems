@@ -18,6 +18,10 @@ const {
     ensure_submission_indexes
 } = require("./models/submissions_model.js");
 
+const {
+    ensure_tracked_record_indexes
+} = require("./models/tracked_records_model.js");
+
 const { run_auth_check } = require("./utilities/auth_check.js");
 
 const {
@@ -316,6 +320,7 @@ function getCompressionEncoding(acceptEncoding) {
     }
 
 
+
     // Gzip fallback
     if (
         /\bgzip\b/.test(value) &&
@@ -540,6 +545,8 @@ connect_databases()
         };
 
         await step("Submission indexes", ensure_submission_indexes);
+
+        await step("Tracked record indexes", ensure_tracked_record_indexes);
 
         await step("Location indexes", ensure_location_indexes);
 

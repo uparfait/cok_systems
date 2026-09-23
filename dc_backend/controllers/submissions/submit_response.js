@@ -9,6 +9,14 @@ const { check_count_triggers } = require("../../utilities/batch_approval.js");
 const approval_schedules_model = require("../../models/approval_schedules_model.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { sanitize_respondent } = require("../../utilities/respondent.js");
+const tracked_records_model = require("../../models/tracked_records_model.js");
+const { is_enabled: is_tracking_enabled, record_key_of, tracking_fields_for_new, key_field_label } = require("../../utilities/tracking.js");
+
+const { translate } = require("../../i18n/index.js");
+
+function translate_key_exists(req, vars) {
+  return translate("TRACKING_KEY_EXISTS", req.language, vars);
+}
 
 /** Strips every step token; a failed email's link is only ever printed to the backend console, never handed to the browser. */
 function to_submitter_view(submission, notified_steps) {
@@ -64,6 +72,19 @@ async function submit_response(req, res) {
       );
     }
 
+    // A tracked form whose key must be unique refuses a second record with
+    // the same key: the existing one is meant to be found and updated.
+    const tracking = form_version.tracking;
+    const respondent_clean = sanitize_respondent(respondent);
+    if (is_tracking_enabled(tracking) && tracking.key_unique) {
+      const key = record_key_of(validation_result.resolved_data[tracking.key_field_id]);
+      if (key && (await tracked_records_model.count_by_record_key(form_group_id, key)) > 0) {
+        // Worded with the field's own name ("National ID"), as the respondent knows it.
+        const vars = { field: key_field_label(form_version.schema, tracking, req.language) };
+        return res.status(409).json(warning_response(req, "TRACKING_KEY_EXISTS", vars, { field_errors: { [tracking.key_field_id]: [translate_key_exists(req, vars)] }, record_key: key }));
+      }
+    }
+
     // An active approval schedule takes over completely: no per-submission
     // approval is built and no approver hears about this record now - the
     // schedule (count/datetime/manual send) decides when the batch links go
@@ -83,17 +104,26 @@ async function submit_response(req, res) {
       ? await resolve_location_chain(validation_result.resolved_data)
       : [];
 
-    const submission = await submissions_model.create_submission({
-      form_group_id,
-      version: Number(version),
-      project_id: form_version.project_id,
-      data: validation_result.resolved_data,
-      client_submission_id: client_submission_id || null,
-      // Who filled the form in on the device (name, email, phone), as
-      // captured by the public page; null for anything that sent none.
-      respondent: sanitize_respondent(respondent),
-      approval: active_schedule ? null : build_approval_state(effective_approval_config, location_chain, validation_result.resolved_data),
-    });
+    const submitted_at = new Date();
+    const submission = await submissions_model.create_submission(
+      Object.assign(
+        {
+          form_group_id,
+          version: Number(version),
+          project_id: form_version.project_id,
+          submitted_at,
+          data: validation_result.resolved_data,
+          client_submission_id: client_submission_id || null,
+          // Who filled the form in on the device (name, email, phone), as
+          // captured by the public page; null for anything that sent none.
+          respondent: respondent_clean,
+          approval: active_schedule ? null : build_approval_state(effective_approval_config, location_chain, validation_result.resolved_data),
+        },
+        // A tracked form's record: its key, the opening value period of
+        // every updatable field, and the first history entry.
+        tracking_fields_for_new(tracking, validation_result.resolved_data, submitted_at, respondent_clean),
+      ),
+    );
 
     // The system itself emails every approver allowed to act right away - the first one,
     // plus each one after any force-OFF approver (they are notified at the same time).

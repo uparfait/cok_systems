@@ -23,15 +23,19 @@ import DcsFormLoadingSpinner from "../components/DcsFormLoadingSpinner.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import DcsQueuePanel from "../components/DcsQueuePanel.jsx";
-import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
-import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
-import DcsCenterOverlay from "../components/DcsCenterOverlay.jsx";
+import { ResumeDraftDialog, QueuedNoticeDialog } from "../components/PublicFormDialogs.jsx";
 import DcsRespondentGate from "../components/DcsRespondentGate.jsx";
 import DcsInstallPrompt from "../components/DcsInstallPrompt.jsx";
 import PublicFormChrome from "../components/PublicFormChrome.jsx";
+import PublicApprovalNotices from "../components/PublicApprovalNotices.jsx";
+import PublicSuccessScreen from "../components/PublicSuccessScreen.jsx";
+import PublicFormCardHeader from "../components/PublicFormCardHeader.jsx";
+import { useRecordTracking } from "../tracking/useRecordTracking.jsx";
+import { is_tracking_enabled } from "../tracking/trackingConfig.js";
+import { RecordFloatingButton } from "../tracking/RecordFieldWrap.jsx";
+import RecordLookupOverlay from "../tracking/RecordLookupOverlay.jsx";
 
-const FONT = "'Montserrat', sans-serif", AMBER = "#B9770E";
 
 function extract_form_group_id(raw_id) {
   return raw_id.split("__v")[0];
@@ -40,7 +44,7 @@ function extract_form_group_id(raw_id) {
 function PublicFormPageContent() {
   const { id } = useParams();
   const { translate, language } = useDcsLanguage();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showWarning } = useToast();
   const form_group_id = extract_form_group_id(id);
   const { resolveFieldOptions } = useLazyFieldResolvers("public_form", form_group_id, get_public_form_field_options);
 
@@ -76,7 +80,7 @@ function PublicFormPageContent() {
   useEffect(() => {
     if (!form || !pending_draft_check) return;
     setPendingDraftCheck(null);
-    if (has_meaningful_answers(pending_draft_check.data, form.schema)) {
+    if (!is_tracking_enabled(form.tracking) && has_meaningful_answers(pending_draft_check.data, form.schema)) {
       setResumePromptVisible(true);
     } else {
       clear_form_draft(form_group_id).then(() => refresh_draft());
@@ -127,7 +131,7 @@ function PublicFormPageContent() {
           setForm(response.data);
           await cache_form(form_group_id, response.data);
           setLoadState("ready");
-          warm_offline_cache(form_group_id, response.data);
+          if (!is_tracking_enabled(response.data.tracking)) warm_offline_cache(form_group_id, response.data);
           return;
         } catch (error) {
           last_error = error;
@@ -139,6 +143,11 @@ function PublicFormPageContent() {
       if (!is_mounted) return;
       if (last_error && last_error.is_network_error) {
         const cached_form = await get_cached_form(form_group_id);
+        // A tracked form is never filled in offline: its records live on the server.
+        if (cached_form && is_mounted && is_tracking_enabled(cached_form.tracking)) {
+          setLoadState("needs_connection");
+          return;
+        }
         if (cached_form && is_mounted) {
           setForm(cached_form);
           setLoadState("ready");
@@ -194,8 +203,24 @@ function PublicFormPageContent() {
     };
   }, [form_group_id, refresh_queue, refresh_draft]);
 
+  // A loaded tracked record is edited in place, never saved as a draft.
+  const put_record_values = useCallback((data) => {
+    setValues(form ? compute_derived_values(form.schema, data || {}) : {});
+    setFieldErrors({});
+    setFieldValidMessages({});
+    setRevealAllErrors(false);
+    setSubmitState("idle");
+  }, [form]);
+  const clear_record_values = useCallback(() => {
+    put_record_values({});
+    setRenderResetKey((previous_key) => previous_key + 1);
+  }, [put_record_values]);
+  const tracking = useRecordTracking({ form, values, applyValues: put_record_values, clearValues: clear_record_values });
+
+  // A tracked form keeps no draft on the device at all: its record has to
+  // be created or updated on the server, in one go, while connected.
   useEffect(() => {
-    if (!form || reviewing_queue_id_ref.current || !has_meaningful_answers(values, form.schema)) return;
+    if (!form || tracking.enabled || reviewing_queue_id_ref.current || !has_meaningful_answers(values, form.schema)) return;
     save_form_draft(form_group_id, form.version, values).then(() => refresh_draft());
   }, [values]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -293,6 +318,8 @@ function PublicFormPageContent() {
     refresh_draft,
     showSuccess,
     showError,
+    showWarning,
+    tracking,
     set: {
       submitting: setSubmitting,
       values: setValues,
@@ -311,10 +338,13 @@ function PublicFormPageContent() {
 
   if (load_state === "loading") return <DcsFormLoadingSpinner />;
   if (load_state === "not_found") return <DcsEmptyState messageKey="DCS_PUBLIC_NOT_FOUND" />;
+  if (load_state === "needs_connection") return <DcsEmptyState messageKey="DCS_TRACKING_FORM_NEEDS_CONNECTION" />;
   if (load_state === "no_active_version") return <DcsEmptyState messageKey="DCS_PUBLIC_NO_ACTIVE_VERSION" />;
 
   const progress_percent = compute_form_progress_percent(form.schema.fields, values);
-  const is_success_screen = submit_state === "success_submitted" || submit_state === "success_offline";
+  // The who-is-filling-in card only when the form asks for it and nobody answered it yet.
+  const gate_needed = form.ask_respondent !== false && !respondent;
+  const is_success_screen = submit_state === "success_submitted" || submit_state === "success_offline" || submit_state === "success_updated";
   const queued_message = translate("DCS_PUBLIC_QUEUED_MESSAGE") + (storage_backend_name === "memory" ? "\n\n" + translate("DCS_STORAGE_MEMORY_ONLY") : "");
 
   return (
@@ -338,64 +368,25 @@ function PublicFormPageContent() {
           storageBackend={storage_backend_name}
         />
 
-        {approval_notices.some((notice) => notice.links.some((link_info) => link_info.email_sent)) && (
-          <div className="dcs-no-print w-full min-[760px]:max-w-[700px] bg-white border-2 p-4 mb-3" style={{ borderColor: "#056daa" }}>
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-bold" style={{ color: "#056daa", fontFamily: FONT }}>
-                {translate("DCS_APPROVAL_LINK_PANEL_TITLE")}
-              </p>
-              <button type="button" onClick={() => setApprovalNotices([])} className="cursor-pointer text-xs font-semibold" style={{ color: "#9E9E9E", fontFamily: FONT, background: "none", border: "none" }}>
-                {translate("DCS_BTN_CLOSE")}
-              </button>
-            </div>
-            {approval_notices.map((notice, notice_index) =>
-              notice.links
-                .filter((link_info) => link_info.email_sent)
-                .map((link_info, link_index) => (
-                  <p key={`${notice_index}_${link_index}`} className="mt-3 text-sm px-3 py-2" style={{ backgroundColor: "rgba(76,175,80,0.12)", color: "#4CAF50", fontFamily: FONT }}>
-                    {translate("DCS_APPROVAL_LINK_EMAILED", { name: link_info.name, role: link_info.role })}
-                  </p>
-                )),
-            )}
-          </div>
-        )}
+        <PublicApprovalNotices notices={approval_notices} onClose={() => setApprovalNotices([])} />
 
         <div
           className="w-full min-[760px]:max-w-[700px] bg-white p-4 border-0 min-[760px]:border-[5px] min-[760px]:rounded-[5px] mt-0 min-[760px]:mt-3 mb-0 min-[760px]:mb-6 grow min-[760px]:grow-0 dcs-print-form-card"
           style={{ borderColor: "rgba(5,109,170,0.35)" }}
         >
-          <div className="flex items-center justify-between gap-2 mb-3 dcs-no-print">
-            <p className="text-xs truncate" style={{ color: "#9E9E9E", fontFamily: FONT }}>
-              {respondent ? translate("DCS_RESPONDENT_FILLING_AS", { name: String(respondent.name || "").trim().split(" ")[0] }) : ""}
-            </p>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              disabled={submitting}
-              title={translate("DCS_BTN_PRINT")}
-              className="flex items-center justify-center flex-shrink-0"
-              style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #056daa", opacity: submitting ? 0.6 : 1, cursor: submitting ? "not-allowed" : "pointer" }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2">
-                <polyline points="6 9 6 2 18 2 18 9" />
-                <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
-                <rect x="6" y="14" width="12" height="8" />
-              </svg>
-            </button>
-          </div>
+          <PublicFormCardHeader respondent={respondent} disabled={submitting} />
 
           {is_success_screen ? (
-            <div className="w-full py-12 flex flex-col items-center text-center gap-3">
-              <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 20, color: submit_state === "success_submitted" ? "#333333" : AMBER, textTransform: "uppercase" }}>
-                {translate(submit_state === "success_submitted" ? "DCS_PUBLIC_RESPONSE_SAVED_TITLE" : "DCS_PUBLIC_QUEUED_TITLE")}
-              </span>
-              <span style={{ fontFamily: FONT, fontSize: 14, color: "#666666", maxWidth: 460, whiteSpace: "pre-line" }}>
-                {submit_state === "success_submitted" ? translate("DCS_PUBLIC_RESPONSE_SAVED_DESCRIPTION") : queued_message}
-              </span>
-              <button type="button" onClick={() => setSubmitState("idle")} className="cursor-pointer underline bg-transparent border-0 p-0 mt-2" style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: "#056daa" }}>
-                {translate("DCS_PUBLIC_SUBMIT_ANOTHER")}
-              </button>
-            </div>
+            <PublicSuccessScreen
+              state={submit_state}
+              queuedMessage={queued_message}
+              onAnother={() => {
+                // Back from an update starts a fresh, empty new record: the
+                // loaded record and its history are let go.
+                if (submit_state === "success_updated") tracking.clear_record();
+                setSubmitState("idle");
+              }}
+            />
           ) : (
             <>
               <div style={submitting ? { pointerEvents: "none", opacity: 0.6 } : undefined}>
@@ -410,6 +401,7 @@ function PublicFormPageContent() {
                     fieldValidMessages={field_valid_messages}
                     revealAllErrors={reveal_all_errors}
                     resolveFieldOptions={resolveFieldOptions}
+                    wrapField={tracking.wrap_field}
                   />
                 </MediaUploadProvider>
               </div>
@@ -419,15 +411,38 @@ function PublicFormPageContent() {
                 submitState={submit_state}
                 onSubmit={handle_submit}
                 onIdle={() => setSubmitState("idle")}
+                submitLabelKey={tracking.loaded_record ? "DCS_TRACKING_BTN_UPDATE" : undefined}
                 secondary={
-                  <DcsButtonOutline onClick={handle_save_draft_click} disabled={submitting}>
-                    {translate("DCS_BTN_SAVE_DRAFT")}
-                  </DcsButtonOutline>
+                  tracking.loaded_record ? (
+                    <DcsButtonOutline onClick={tracking.clear_record} disabled={submitting}>
+                      {translate("DCS_TRACKING_CANCEL_UPDATE")}
+                    </DcsButtonOutline>
+                  ) : tracking.enabled ? null : (
+                    <DcsButtonOutline onClick={handle_save_draft_click} disabled={submitting}>
+                      {translate("DCS_BTN_SAVE_DRAFT")}
+                    </DcsButtonOutline>
+                  )
                 }
               />
             </>
           )}
         </div>
+
+        {tracking.enabled && !is_success_screen && (
+          <RecordFloatingButton onClick={() => tracking.open_lookup()} count={tracking.history_count} disabled={submitting} />
+        )}
+
+        {tracking.lookup && (
+          <RecordLookupOverlay
+            formGroupId={form_group_id}
+            fields={form.schema.fields}
+            tracking={tracking.tracking}
+            initialKey={tracking.lookup.initial_key}
+            loadedRecord={tracking.loaded_record}
+            onLoad={tracking.load_record}
+            onClose={tracking.close_lookup}
+          />
+        )}
 
         {is_queue_open && (
           <DcsQueuePanel
@@ -451,38 +466,21 @@ function PublicFormPageContent() {
           />
         )}
 
-        {!respondent && <DcsRespondentGate saved={saved_respondent} onConfirm={setRespondent} />}
+        {gate_needed && <DcsRespondentGate saved={saved_respondent} onConfirm={setRespondent} />}
 
-        {respondent && resume_prompt_visible && draft && (
-          <DcsCenterOverlay title={translate("DCS_PUBLIC_RESUME_DRAFT_TITLE")} message={translate("DCS_PUBLIC_RESUME_DRAFT_MESSAGE", { date: new Date(draft.updated_at).toLocaleString() })}>
-            <div className="flex flex-col min-[480px]:flex-row gap-2">
-              <DcsButtonPrimary className="flex-1" onClick={handle_resume_draft} disabled={submitting}>
-                {translate("DCS_BTN_CONTINUE_DRAFT")}
-              </DcsButtonPrimary>
-              <DcsButtonOutlineDanger className="flex-1" onClick={handle_discard_draft} disabled={submitting}>
-                {translate("DCS_BTN_DISCARD_DRAFT")}
-              </DcsButtonOutlineDanger>
-            </div>
-          </DcsCenterOverlay>
+        {!gate_needed && resume_prompt_visible && draft && (
+          <ResumeDraftDialog draft={draft} submitting={submitting} onResume={handle_resume_draft} onDiscard={handle_discard_draft} />
         )}
 
         {queued_notice_visible && (
-          <DcsCenterOverlay accent={AMBER} title={translate("DCS_PUBLIC_QUEUED_TITLE")} message={queued_message}>
-            <div className="flex flex-col min-[480px]:flex-row gap-2">
-              <DcsButtonPrimary className="flex-1" onClick={() => setQueuedNoticeVisible(false)}>
-                {translate("DCS_PUBLIC_QUEUED_UNDERSTOOD")}
-              </DcsButtonPrimary>
-              <DcsButtonOutline
-                className="flex-1"
-                onClick={() => {
-                  setQueuedNoticeVisible(false);
-                  setIsQueueOpen(true);
-                }}
-              >
-                {translate("DCS_QUEUE_BUTTON_LABEL")}
-              </DcsButtonOutline>
-            </div>
-          </DcsCenterOverlay>
+          <QueuedNoticeDialog
+            message={queued_message}
+            onUnderstood={() => setQueuedNoticeVisible(false)}
+            onOpenQueue={() => {
+              setQueuedNoticeVisible(false);
+              setIsQueueOpen(true);
+            }}
+          />
         )}
       </div>
     </>

@@ -10,6 +10,9 @@ import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsFormNameField from "../components/DcsFormNameField.jsx";
 import { validate_form_schema } from "../builder/validateSchema.js";
 import TranslationLinksDialog from "../translation/TranslationLinksDialog.jsx";
+import TrackingSetupButton from "../tracking/TrackingSetupButton.jsx";
+import RespondentGateToggle from "../builder/RespondentGateToggle.jsx";
+import { normalize_tracking, tracking_payload } from "../tracking/trackingConfig.js";
 
 export default function FormSettingsPage() {
   const { form_group_id, form, refreshForm } = useOutletContext();
@@ -18,15 +21,19 @@ export default function FormSettingsPage() {
   const [fields, setFields] = useState(form.schema.fields);
   const [form_name, setFormName] = useState(form.form_name || "");
   const [approval_config, setApprovalConfig] = useState(form.approval_config || null);
+  const [tracking, setTracking] = useState(() => normalize_tracking(form.tracking, form.schema.fields));
+  const [ask_respondent, setAskRespondent] = useState(form.ask_respondent !== false);
   const [publishing, setPublishing] = useState(false);
   const [schema_errors, setSchemaErrors] = useState([]);
   const [translation_links_open, setTranslationLinksOpen] = useState(false);
   const loaded_form_id_ref = useRef(form._id);
   const { resolveFieldOptions, resolveFullFieldOptions } = useLazyFieldResolvers("form", form_group_id, get_form_field_options);
 
+  // A deleted key or updatable field drops out of the tracking config too.
   const handle_fields_change = (next_fields) => {
     setSchemaErrors([]);
     setFields(next_fields);
+    setTracking((previous) => normalize_tracking(previous, next_fields));
   };
 
   useEffect(() => {
@@ -35,6 +42,8 @@ export default function FormSettingsPage() {
     setFields(form.schema.fields);
     setFormName(form.form_name || "");
     setApprovalConfig(form.approval_config || null);
+    setTracking(normalize_tracking(form.tracking, form.schema.fields));
+    setAskRespondent(form.ask_respondent !== false);
   }, [form]);
 
   const public_link = `${window.location.origin}/dcs-form/${form_group_id}`;
@@ -58,7 +67,7 @@ export default function FormSettingsPage() {
     }
     setPublishing(true);
     try {
-      const response = await update_form(form_group_id, form_name, schema, approval_config);
+      const response = await update_form(form_group_id, form_name, schema, approval_config, tracking_payload(tracking), ask_respondent);
       setSchemaErrors([]);
       showSuccess(response.message || translate("DCS_TOAST_FORM_PUBLISHED"));
       refreshForm();
@@ -91,6 +100,8 @@ export default function FormSettingsPage() {
       {translation_links_open && <TranslationLinksDialog formGroupId={form_group_id} form={form} onClose={() => setTranslationLinksOpen(false)} />}
 
       <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
+        <RespondentGateToggle value={ask_respondent} onChange={setAskRespondent} />
+        <TrackingSetupButton fields={fields} tracking={tracking} onChange={setTracking} />
         <DcsFormNameField value={form_name} onChange={setFormName} />
         <DcFormBuilderSection
           fields={fields}
@@ -101,6 +112,8 @@ export default function FormSettingsPage() {
           resolveFieldOptions={resolveFieldOptions}
           resolveFullFieldOptions={resolveFullFieldOptions}
           trackingScopeId={`form:${form_group_id}`}
+          tracking={tracking}
+          onTrackingChange={setTracking}
         />
       </div>
     </div>
