@@ -82,6 +82,24 @@ interface VehicleData {
   parking_details?: any;
 }
 
+// Latest flag record for a plate, from /vehicle/flag-history
+interface PastFlagInfo {
+  count: number;
+  flagged_at: string | null;
+  check_in: string | null;
+  check_out: string | null;
+  total_duration_minutes: number | null;
+  overstay_minutes: number | null;
+  flag_reason: string;
+}
+
+const formatMinutes = (mins: number | null | undefined) => {
+  if (mins === null || mins === undefined) return '-';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
 interface UnknownVehicleForm {
   plate_number: string;
   driver_name: string;
@@ -177,6 +195,8 @@ const CheckInVehiclePage: React.FC = () => {
   });
 
   const [verifiedData, setVerifiedData] = useState<VehicleData | null>(null);
+  const [pastFlag, setPastFlag] = useState<PastFlagInfo | null>(null);
+  const [pastFlagLoading, setPastFlagLoading] = useState(false);
   const [unknownForm, setUnknownForm] = useState<UnknownVehicleForm>({
     plate_number: '',
     driver_name: '',
@@ -209,6 +229,33 @@ const CheckInVehiclePage: React.FC = () => {
 
 
 
+  // Backend only says was_ever_flagged; the history endpoint gives the when and how long for the warning
+  const loadPastFlag = useCallback(async (plate: string) => {
+    setPastFlagLoading(true);
+    try {
+      const r = await smartParkingService.getFlagHistory(1, 1, plate);
+      const latest = r?.success && Array.isArray(r.data) ? r.data.find((e: any) => e.plate_number === plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()) || r.data[0] : null;
+      const info: PastFlagInfo = {
+        count: r?.total || (latest ? 1 : 0),
+        flagged_at: latest?.flagged_at || null,
+        check_in: latest?.check_in || null,
+        check_out: latest?.check_out || null,
+        total_duration_minutes: latest?.total_duration_minutes ?? null,
+        overstay_minutes: latest?.overstay_minutes ?? null,
+        flag_reason: latest?.flag_reason || 'Exceeded allowed parking duration',
+      };
+      setPastFlag(info);
+      showWarning(latest?.total_duration_minutes != null
+        ? `This vehicle was flagged before: parked ${formatMinutes(latest.total_duration_minutes)}, overstayed ${formatMinutes(latest.overstay_minutes)}.`
+        : 'This vehicle was flagged before for overstaying.');
+    } catch (error) {
+      setPastFlag({ count: 1, flagged_at: null, check_in: null, check_out: null, total_duration_minutes: null, overstay_minutes: null, flag_reason: 'Exceeded allowed parking duration' });
+      showWarning('This vehicle was flagged before for overstaying.');
+    } finally {
+      setPastFlagLoading(false);
+    }
+  }, [showWarning]);
+
   // Define handleVerify before using it in useParkingEvents
   const handleVerify = useCallback(async (plate?: string) => {
     const searchPlate = plate || plateNumber.trim();
@@ -220,10 +267,15 @@ const CheckInVehiclePage: React.FC = () => {
     setVerifying(true);
     // Reset verified data before new verification
     setVerifiedData(null);
+    setPastFlag(null);
 
     try {
       const response = await smartParkingService.verifyCar(searchPlate);
-      
+
+      if (response?.data?.was_ever_flagged) {
+        loadPastFlag(response.data.plate_number || searchPlate);
+      }
+
       if (response.success && response.data) {
         const data = response.data;
         setVerifiedData(data);
@@ -276,7 +328,7 @@ const CheckInVehiclePage: React.FC = () => {
     } finally {
       setVerifying(false);
     }
-  }, [plateNumber, showWarning, showError, showInfo, smartParkingService]);
+  }, [plateNumber, showWarning, showError, showInfo, smartParkingService, loadPastFlag]);
 
 
 
@@ -467,6 +519,7 @@ const CheckInVehiclePage: React.FC = () => {
     setShowAlreadyParkedModal(false);
     setShowFlaggedModal(false);
     setVerifiedData(null);
+    setPastFlag(null);
     setIsEditingDriver(false);
     setPlateNumber('');
   };
@@ -720,6 +773,37 @@ const CheckInVehiclePage: React.FC = () => {
               : 'This vehicle is not registered. Please register visitor details to grant one-time access.'}
         </p>
       </div>
+
+      {/* Past flag warning: backend flags the plate, history endpoint supplies the details */}
+      {(verifiedData?.was_ever_flagged || pastFlag) && (
+        <div className="mx-4 sm:mx-6 mt-4 p-3 flex gap-3" style={{ backgroundColor: 'rgba(231,76,60,0.08)', borderLeft: `4px solid ${DANGER}` }}>
+          <FiFlag className="w-5 h-5 shrink-0 mt-0.5" style={{ color: DANGER }} />
+          <div className="text-xs sm:text-sm" style={{ color: NEUTRAL_DARK }}>
+            <p className="font-semibold" style={{ color: DANGER, fontFamily: fontHeading }}>
+              This vehicle was flagged before{pastFlag && pastFlag.count > 1 ? ` (${pastFlag.count} times)` : ''}
+            </p>
+            {pastFlagLoading ? (
+              <p className="mt-1" style={{ color: '#555555' }}>Loading flag details...</p>
+            ) : pastFlag?.flagged_at || pastFlag?.total_duration_minutes != null ? (
+              <>
+                <p className="mt-1">
+                  {pastFlag.flagged_at && <>Flagged on <span className="font-medium">{new Date(pastFlag.flagged_at).toLocaleString()}</span>. </>}
+                  Parked for <span className="font-medium">{formatMinutes(pastFlag.total_duration_minutes)}</span>
+                  {pastFlag.overstay_minutes != null && pastFlag.overstay_minutes > 0 && <>, overstayed by <span className="font-medium" style={{ color: DANGER }}>{formatMinutes(pastFlag.overstay_minutes)}</span></>}.
+                </p>
+                {pastFlag.check_in && (
+                  <p className="mt-0.5" style={{ color: '#555555' }}>
+                    Entered {new Date(pastFlag.check_in).toLocaleString()}{pastFlag.check_out ? `, left ${new Date(pastFlag.check_out).toLocaleString()}` : ', never checked out'}.
+                  </p>
+                )}
+                <p className="mt-0.5 italic" style={{ color: '#555555' }}>{pastFlag.flag_reason}</p>
+              </>
+            ) : (
+              <p className="mt-1" style={{ color: '#555555' }}>It overstayed its allowed parking time on a previous visit. Please verify the driver before allowing entry.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="p-4 sm:p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
