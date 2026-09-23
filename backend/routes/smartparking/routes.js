@@ -536,6 +536,13 @@ Router.get('/vehicle/search', auditSuccess('READ', 'vehicles'), search_inparking
  *           type: integer
  *           default: 10
  *         example: 10
+ *       - in: query
+ *         name: status
+ *         description: "active = still parked (default), completed = already checked out, all = both"
+ *         schema:
+ *           type: string
+ *           enum: [active, completed, all]
+ *           default: active
  *     responses:
  *       200:
  *         description: Flagged vehicles retrieved successfully

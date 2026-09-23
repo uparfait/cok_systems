@@ -2,15 +2,14 @@ const ParkingRecord = require('../../models/parking_record.js')
 
 module.exports = async function list_flagged_cars(req, res, next) {
     try {
-        let {  limit = 10, page = 1 } = req.query || {}
+        let { limit = 10, page = 1, status = 'active' } = req.query || {}
 
         const limit_val = Math.min(parseInt(limit), 50)
         const skip_val = (parseInt(page) - 1) * limit_val
-        let status = 'active' // default to active
 
-        // Base filter: MUST be flagged
+        // Base filter: MUST be flagged; ?status=active (default) | completed | all
         let filter = { is_flagged: true }
-        if (status === 'active') {
+        if (['active', 'completed'].includes(status)) {
             filter.status = status
         }
 
@@ -24,7 +23,7 @@ module.exports = async function list_flagged_cars(req, res, next) {
         return res.status(200).json({
             success: true,
             type: "success",
-            message: "Active Flagged vehicle records",
+            message: filter.status ? `${filter.status} flagged vehicle records` : "All flagged vehicle records",
             total: total_count,
             page: parseInt(page),
             data: records
