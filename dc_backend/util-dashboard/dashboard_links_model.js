@@ -24,9 +24,17 @@ async function create_link(link) {
 }
 
 /** The links of one form, narrowed to one dashboard when a dashboard id is given. */
+/**
+ * The links of a form, or - given a dashboard - every link that opens that
+ * dashboard: as its own board or as one of the extra boards another link
+ * combines, so the dashboard page shows and edits both kinds.
+ */
 async function list_links_by_form(form_group_id, dashboard_id) {
   const query = { form_group_id: form_group_id.toString() };
-  if (dashboard_id) query.dashboard_id = dashboard_id.toString();
+  if (dashboard_id) {
+    const id = dashboard_id.toString();
+    query.$or = [{ dashboard_id: id }, { "extra_dashboards.dashboard_id": id }];
+  }
   return get_db().collection(COLLECTION_NAME).find(query).sort({ created_at: -1 }).toArray();
 }
 

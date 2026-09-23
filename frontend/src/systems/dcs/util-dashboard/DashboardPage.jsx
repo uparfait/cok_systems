@@ -18,7 +18,7 @@ import { builder_fields } from "./builder/composeWidgets.js";
 import BoardEmptyState from "./BoardEmptyState.jsx";
 import { useBoardContents } from "./useBoardContents.js";
 import { descendants_of } from "./studio/useBoardStudio.js";
-import DcsLoadingState from "../components/DcsLoadingState.jsx";
+import BoardSkeleton from "./BoardSkeleton.jsx";
 import StudioBoard from "./studio/StudioBoard.jsx";
 import { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
 import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
@@ -293,7 +293,7 @@ function DashboardBoard({ form }) {
     }
   };
 
-  if (library.list_loading) return <DcsLoadingState />;
+  if (library.list_loading) return <BoardSkeleton dark={board.is_dark} />;
 
   const has_board = !!active_id;
   const empty_state = (
@@ -346,6 +346,7 @@ function DashboardBoard({ form }) {
         to={data.to}
         setTo={data.setTo}
         onApplyPeriod={data.handle_period_apply}
+        onResetPeriod={data.reset_period}
         filters={filters}
         fields={form_fields}
         widgets={widgets}

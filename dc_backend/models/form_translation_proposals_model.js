@@ -28,20 +28,27 @@ const ensure_indexes_once = (() => {
 })();
 
 /**
- * Saves one proposal: a pending proposal for the same text of the same link
- * is replaced (a translator correcting themself), anything already applied
- * or restored stays as history and a new pending one is written.
+ * Saves one proposal: the same translator's pending proposal for the same
+ * text of the same link is replaced (a translator correcting themself);
+ * another translator's proposal for that text is a separate document, and
+ * anything already applied or restored stays as history.
  */
 async function upsert_pending(proposal) {
   await ensure_indexes_once();
   const now = new Date();
-  const filter = { link_id: proposal.link_id, field_id: proposal.field_id, path_key: proposal.path_key, language: proposal.language, status: "pending" };
+  const email = proposal.translator && proposal.translator.email ? proposal.translator.email : null;
+  const filter = { link_id: proposal.link_id, field_id: proposal.field_id, path_key: proposal.path_key, language: proposal.language, status: "pending", "translator.email": email };
   const document = Object.assign({}, proposal, { status: "pending", proposed_at: now, updated_at: now });
   await get_db().collection(COLLECTION_NAME).updateOne(filter, { $set: document }, { upsert: true });
 }
 
 async function list_by_link(link_id) {
   return get_db().collection(COLLECTION_NAME).find({ link_id }).sort({ proposed_at: 1 }).toArray();
+}
+
+/** One translator's own proposals through a link, oldest first. */
+async function list_by_translator(link_id, email) {
+  return get_db().collection(COLLECTION_NAME).find({ link_id, "translator.email": email }).sort({ proposed_at: 1 }).toArray();
 }
 
 async function list_by_form(form_group_id) {
@@ -101,6 +108,7 @@ async function delete_by_link(link_id) {
 module.exports = {
   upsert_pending,
   list_by_link,
+  list_by_translator,
   list_by_form,
   count_by_link,
   get_by_ids,

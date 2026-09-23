@@ -1788,8 +1788,12 @@ background-color: #056daa;
   width: 100%;
   min-height: 70vh;
 }
+/* The cards stack by their own z order (one more on every bring-to-front),
+   which must stay inside the board: without its own stacking context a
+   board with many widgets climbs above the fixed sidebar and hides it. */
 .dcs-canvas-free {
   overflow: hidden;
+  isolation: isolate;
 }
 
 .dcs-board-public {
@@ -1798,6 +1802,24 @@ background-color: #056daa;
 
 .dcs-board-public .dcs-widget-card {
   max-width: 100%;
+}
+
+/* Dashboard loading skeleton: card-shaped placeholders with a soft sweep,
+   so a board that is still loading already looks like a board. */
+.dcs-skeleton-block {
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--board-border, #E0E0E0) 30%, var(--board-surface-hover, #EEF2F6) 50%, var(--board-border, #E0E0E0) 70%);
+  background-size: 220% 100%;
+  animation: dcs-skeleton-sweep 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes dcs-skeleton-sweep {
+  from { background-position: 100% 0; }
+  to { background-position: 0% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dcs-skeleton-block { animation: none; }
 }
 
 .dcs-board-chrome {

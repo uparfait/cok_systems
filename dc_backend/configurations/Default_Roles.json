@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "comment": "Default (unchangeable) roles and the shared link catalog. Paths use the {roleSlug} placeholder which is replaced with the role's slug when navigation is served. link_catalog holds only slug-generic links that custom roles may toggle; links tied to backend-hardcoded roles live only inside the default role definitions below.",
+  "version": 2,
+  "comment": "Default (unchangeable) roles and the shared link catalog. Paths use the {roleSlug} placeholder which is replaced with the role's slug when navigation is served. link_catalog holds EVERY link any role can be given, so Roles Management lists them all and a custom role can be granted the same areas a default role has. Each default role below still declares its own links verbatim (its own labels and paths); the catalog is what custom roles toggle. A link id must exist here or a custom role can never reach that area, and utilities/access_policy.js turns these same ids into API permissions.",
   "link_catalog": [
     {
       "id": "calender",
@@ -8,6 +8,78 @@
       "path": "/calendar",
       "icon": "FiCalendar",
       "default_enabled": true,
+      "children": []
+    },
+    {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "path": "/{roleSlug}/dashboard",
+      "icon": "FiHome",
+      "default_enabled": false,
+      "children": []
+    },
+    {
+      "id": "visitors",
+      "label": "Visitors",
+      "path": "/{roleSlug}/visitors",
+      "icon": "FiUsers",
+      "default_enabled": false,
+      "children": []
+    },
+    {
+      "id": "assigned-visitors",
+      "label": "Assigned Visitors",
+      "path": "/{roleSlug}/assigned",
+      "icon": "FiUserCheck",
+      "default_enabled": false,
+      "children": []
+    },
+    {
+      "id": "requests",
+      "label": "Requests",
+      "path": "/{roleSlug}/requests",
+      "icon": "FiFile",
+      "default_enabled": false,
+      "children": []
+    },
+    {
+      "id": "history",
+      "label": "Service History",
+      "path": "/{roleSlug}/dashboard?tab=history",
+      "icon": "FiFileText",
+      "default_enabled": false,
+      "children": []
+    },
+    {
+      "id": "queue",
+      "label": "Department Queue",
+      "path": "/{roleSlug}/dashboard?tab=queue",
+      "icon": "FiList",
+      "default_enabled": false,
+      "children": []
+    },
+    {
+      "id": "my-employees",
+      "label": "My Employees",
+      "path": "/{roleSlug}/hod/employees",
+      "icon": "FiUsers",
+      "default_enabled": false,
+      "children": []
+    },
+    {
+      "id": "hod-feedback",
+      "label": "Department Feedback",
+      "path": "/{roleSlug}/hod/feedback",
+      "icon": "FiStar",
+      "default_enabled": false,
+      "children": []
+    },
+    {
+      "id": "feedback-analysis",
+      "label": "Feedback Analysis",
+      "path": "/{roleSlug}/feedback-analysis",
+      "icon": "FiMessageSquare",
+      "default_enabled": false,
       "children": []
     },
     {

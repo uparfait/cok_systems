@@ -101,8 +101,8 @@ export default function DashboardSwitcher({ dashboards, activeId, canEdit, onSel
                   <span className="min-w-0 flex-1">
                     <span className="dcs-board-switcher-item-name">{entry.name}</span>
                     <span className="dcs-board-switcher-item-meta">
-                      {translate("DCS_DB_WIDGETS_COUNT", { count: entry.widgets_count || 0 })}
-                      {is_active ? ` - ${translate("DCS_DB_SWITCH_ACTIVE")}` : ""}
+                      {Number.isFinite(entry.widgets_count) ? translate("DCS_DB_WIDGETS_COUNT", { count: entry.widgets_count }) : ""}
+                      {is_active ? `${Number.isFinite(entry.widgets_count) ? " - " : ""}${translate("DCS_DB_SWITCH_ACTIVE")}` : ""}
                     </span>
                   </span>
                 </button>

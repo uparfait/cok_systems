@@ -41,3 +41,30 @@ Scope: the public data collection page (`/dcs-form/:id`), the builder's review r
 - [x] `node --check` on every changed backend file
 - [x] Offline proof of the storage fallback serialisation (scratch script)
 - [x] Frontend build green
+
+## 8. Translation links (translator identity)
+- [x] The texts leave the server only for an identified translator: GET returns the form name and locked languages alone; the identify call (name, email, phone) finds or creates the translator for the link (`dcs_form_translators`), remembers their page, and returns the fields as the form holds them plus that translator's OWN proposals only
+- [x] Translators work in isolation: nobody sees anyone else's texts, everyone may change every field; proposals are stored per translator (same text by two translators = two documents)
+- [x] Editor review: first the translators by name (contact, pending / applied counts, page reached); opening one shows the WHOLE form field by field with that person's proposed texts beside the current ones (untouched fields read "No change"); apply / restore / dismiss act on that translator's texts
+- [x] Identity overlay shows "Waiting..." while the identify request runs; page restyled to the system look (shadow cards, plain language switch, fewer colors, compact sticky bottom bar, phone gutters)
+
+## 9. Shared dashboards
+- [x] Switching dashboards behind one share link clears the previous board's filters and data (`useBoardData` resets on scope change)
+- [x] A dashboard that is still loading shows a board-shaped skeleton (header, KPI row, chart cards with a soft sweep) on the shared and the signed-in page
+- [x] Switching dashboards also resets the period to the default (this year); the filter bar Clear puts the date back too (`reset_period`)
+- [x] Skeleton follows the board theme (dark class passed in) with a slow back-and-forth sweep; the shared page picks dashboards with the same themed DashboardSwitcher as the signed-in board
+- [x] A dashboard page lists share links that combine it as an extra board (query on `extra_dashboards.dashboard_id`), marked "Shared from X", editable under that board
+- [x] Shared links render the SAME arrangement as the editor: the public dashboard answer now carries the saved `layout` (studio grid / free surface, sizes, positions) and the shared page hands it to the same BoardGrid
+- [x] A failed widget on a shared board shows the error and Retry only; the "consider removing this widget" hint appears only where the board is editable
+
+## 10. Excel export of responses
+- [x] Export runs as a background job: POST `/submissions/export/:form_group_id/start` (202 with job id and total), long-poll `GET /submissions/export-jobs/:job_id`, `GET .../download`, `POST .../cancel`; the dialog shows counting, then "Writing row X of Y", then download progress, and lets the user stop it
+- [x] Speed: one Mongo cursor over the range (projection, batches of 1000, no skip/limit pages, one count), rows streamed into a zipped .xlsx by a hand-rolled writer (`utilities/xlsx_stream_writer.js`: inline strings, no cell objects, constant memory) - measured 0.25 ms per 40-column row (20k rows in 4.9 s, 23 MB heap) against 1.48 ms with ExcelJS streaming and minutes with the old page-by-page workbook; file read back by ExcelJS with styles and values intact
+- [x] File answers export as full addresses on the site (frontend origin + path); locations as "lat, lng - address"; multi-selects joined; Submitted by column included; the old one-shot GET export reuses the same column and cell helpers
+
+## 11. Data feed for analysis tools (Power BI, Excel)
+- [x] Access tokens per form (`dcs_data_feed_tokens`): name, expiry (never / 7d / 30d / 90d / 1 year / a date), scope (one version, a date window), uses and last use, renew (new secret) and revoke; editors only (`/forms/:id/data-tokens`)
+- [x] Public feed `GET /public/data-feed/:token` - JSON pages { count, next, previous, results } or ?format=csv streamed; filters from, to, since, version, page, limit, keys=id|label, always inside the token scope; `/schema` lists the columns; 401 invalid, 410 expired; token also accepted as ?token= or Bearer
+- [x] Rows keyed by field label (unique), file answers as full URLs, locations as "lat, lng - address", id / version / submitted by / submitted at included
+- [x] Data page: share icon above the table opens the tokens dialog with CSV / JSON / schema links to copy, Power BI steps, create / renew / revoke
+- [x] Export cancel message shortened to "Cancelling export..."

@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const config = require('../configurations/config');
 const { cokCollection } = require('../utilities/cokDb');
+const { mongoHost } = require('../utilities/authCheck');
 
 /**
  * Verifies the Bearer token issued by the main backend's login flow (same
@@ -34,7 +35,10 @@ async function authenticateBearer(authHeader) {
   try {
     decoded = jwt.verify(token, config.jwt.secret);
   } catch (error) {
-    return refusal(401, 'Your are required to login', error.message);
+    // "invalid signature" means this service's JWT_SECRET differs from the
+    // main backend's; "jwt expired" means the session really ended.
+    const reason = error.message === 'invalid signature' ? "invalid signature: this service's JWT_SECRET differs from the main backend's" : error.message;
+    return refusal(401, 'Your are required to login', reason);
   }
 
   if (!decoded || !decoded.userId || !mongoose.Types.ObjectId.isValid(String(decoded.userId))) {
@@ -50,7 +54,8 @@ async function authenticateBearer(authHeader) {
     return refusal(500, 'Authentication failed', error.message, false);
   }
 
-  if (!user) return refusal(401, "Sorry we can't find your account yet!", 'User associated with token no longer exists');
+  // Says where it looked, since a wrong Mongo server is the usual cause.
+  if (!user) return refusal(401, "Sorry we can't find your account yet!", `account ${decoded.userId} is not in database '${config.cokDbName}' on ${mongoHost(config.database.url)}`);
   if (!user.is_account_activated) return refusal(403, 'Account not activated', 'Please activate your account first', false);
   if (user.access_control && user.access_control.is_locked) {
     return refusal(403, 'Account is locked', user.access_control.reason || 'Your account has been locked. Please contact administrator.', false);

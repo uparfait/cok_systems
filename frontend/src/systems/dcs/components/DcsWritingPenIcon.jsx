@@ -139,7 +139,7 @@ function run_animation(refs) {
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduced) {
-    render(crossEnd + 40);
+    render(writeEnd);
     return () => {};
   }
   let t0 = null;
@@ -185,11 +185,11 @@ export default function DcsWritingPenIcon({ size }) {
           <g ref={ink_ref} className="dcs-pen-ink" />
           <g ref={cross_ref} className="dcs-pen-cross" transform="translate(56,60)">
             <g className="dcs-pen-floater">
-              <line ref={c1_ref} className="dcs-pen-cross-stroke" x1="-16" y1="-16" x2="16" y2="16" />
-              <line ref={c2_ref} className="dcs-pen-cross-stroke" x1="16" y1="-16" x2="-16" y2="16" />
+              <line ref={c1_ref} className="dcs-pen-cross-stroke" x1="-16" y1="-16" x2="16" y2="16" strokeDasharray={CROSS_LEN} strokeDashoffset={CROSS_LEN} />
+              <line ref={c2_ref} className="dcs-pen-cross-stroke" x1="16" y1="-16" x2="-16" y2="16" strokeDasharray={CROSS_LEN} strokeDashoffset={CROSS_LEN} />
             </g>
           </g>
-          <g ref={pen_ref}>
+          <g ref={pen_ref} transform="translate(34,50)">
             <g transform="rotate(34)">
               <path fill="#056daa" d="M -1.6 -6 L 0 0 L 1.6 -6 Z" />
               <rect fill="#056daa" x="-2" y="-29" width="4" height="24" rx="1.6" />

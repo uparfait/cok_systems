@@ -372,6 +372,64 @@ async function list_submissions(form_group_id, version, page, limit, date_bounds
   return { items, total };
 }
 
+function range_filter(form_group_id, bounds) {
+  const filter = { form_group_id };
+  if (bounds && bounds.start && bounds.end) filter.submitted_at = { $gte: bounds.start, $lte: bounds.end };
+  return filter;
+}
+
+/** How many submissions an export over this range will write. */
+async function count_in_range(form_group_id, bounds) {
+  return get_db().collection(COLLECTION_NAME).countDocuments(range_filter(form_group_id, bounds));
+}
+
+/**
+ * Every submission of the range as ONE cursor, oldest first, only the
+ * fields an export writes - streamed in batches instead of page after page
+ * of skip/limit queries.
+ */
+function stream_in_range(form_group_id, bounds, batch_size) {
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .find(range_filter(form_group_id, bounds), { projection: { data: 1, version: 1, submitted_at: 1, respondent: 1 } })
+    .sort({ submitted_at: 1 })
+    .batchSize(batch_size || 1000);
+}
+
+/** The data feed's filter: a form, an optional version and an optional submitted_at window. */
+function feed_query(form_group_id, filter) {
+  const query = { form_group_id };
+  if (filter && Number.isFinite(filter.version)) query.version = filter.version;
+  if (filter && (filter.start || filter.end)) {
+    query.submitted_at = {};
+    if (filter.start) query.submitted_at.$gte = filter.start;
+    if (filter.end) query.submitted_at.$lte = filter.end;
+  }
+  return query;
+}
+
+async function count_feed(form_group_id, filter) {
+  return get_db().collection(COLLECTION_NAME).countDocuments(feed_query(form_group_id, filter));
+}
+
+/**
+ * A page (or, with limit 0, everything) of the feed as a cursor, oldest
+ * first. The sort rides the form_group_submitted_at index; disk use is the
+ * safety net for a window the index cannot fully serve, so a large form
+ * never fails with the in-memory sort limit.
+ */
+function stream_feed(form_group_id, filter, skip, limit, batch_size) {
+  let cursor = get_db()
+    .collection(COLLECTION_NAME)
+    .find(feed_query(form_group_id, filter), { projection: { data: 1, version: 1, submitted_at: 1, respondent: 1 } })
+    .sort({ submitted_at: 1 })
+    .allowDiskUse(true)
+    .batchSize(batch_size || 1000);
+  if (skip) cursor = cursor.skip(skip);
+  if (limit) cursor = cursor.limit(limit);
+  return cursor;
+}
+
 /**
  * Total submissions ever collected for a form, across every version - the
  * form overview's all-time "total data collected" stat.
@@ -534,6 +592,10 @@ module.exports = {
   list_submissions,
   count_by_form_group_id,
   list_submitted_at_within,
+  count_in_range,
+  stream_in_range,
+  count_feed,
+  stream_feed,
   delete_by_form_group_ids,
   count_submissions_for_version,
   delete_by_form_group_and_version,

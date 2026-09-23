@@ -481,15 +481,17 @@ function updateCacheInBackground(request, responseClone) {
  * =========================================================
  */
 
+const API_PREFIXES = ["/api", "/dcs/api", "/cok/api"];
+
 function isApiRequest(request) {
 
     const url = new URL(request.url);
 
     return (
         url.origin === self.location.origin &&
-        (
-            url.pathname === "/api" ||
-            url.pathname.startsWith("/api/")
+        API_PREFIXES.some(prefix =>
+            url.pathname === prefix ||
+            url.pathname.startsWith(prefix + "/")
         )
     );
 
@@ -690,6 +692,17 @@ self.addEventListener("fetch", event => {
         isSameOrigin &&
         requestUrl.pathname === "/sw.js"
     ) {
+        return;
+    }
+
+    /*
+     * A backend URL opened directly in the browser (a data
+     * feed, a download) is the server's own answer. It is
+     * left to the network entirely, so a slow or failing
+     * server never gets the cached application served in
+     * its place.
+     */
+    if (isNavigationRequest(request) && isApiRequest(request)) {
         return;
     }
 

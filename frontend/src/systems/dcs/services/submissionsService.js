@@ -70,6 +70,45 @@ export function export_submissions_excel(form_group_id, period, from, to, title,
 }
 
 /**
+ * The background export: start a job (202 with job_id and total), follow
+ * it by long-poll (known_percent holds the answer until progress moves),
+ * download the finished file, or stop it.
+ */
+export function start_export_job(form_group_id, payload) {
+  return dcs_request(`/submissions/export/${form_group_id}/start`, "POST", payload);
+}
+
+export function get_export_job(job_id, known_percent) {
+  const query = Number.isFinite(known_percent) ? `?known_percent=${known_percent}` : "";
+  return dcs_request(`/submissions/export-jobs/${job_id}${query}`, "GET");
+}
+
+export function cancel_export_job(job_id) {
+  return dcs_request(`/submissions/export-jobs/${job_id}/cancel`, "POST");
+}
+
+export function download_export_job(job_id, on_progress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", `/dcs/api/submissions/export-jobs/${job_id}/download`, true);
+    xhr.responseType = "blob";
+    const token = window.localStorage.getItem("accessToken");
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.onprogress = (event) => {
+      if (event.lengthComputable && on_progress) on_progress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) return reject(new Error(`Download failed (${xhr.status})`));
+      const disposition = xhr.getResponseHeader("Content-Disposition") || "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      resolve({ blob: xhr.response, filename: match ? match[1] : "export.xlsx" });
+    };
+    xhr.onerror = () => reject(new Error("Network error during download"));
+    xhr.send();
+  });
+}
+
+/**
  * Fetches ALL collected submissions for a form (no pagination) within an
  * optional date range - backs the Excel export feature. Returns the raw
  * submission records so the caller can build the spreadsheet.

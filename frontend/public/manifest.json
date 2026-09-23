@@ -1,29 +1,17 @@
 {
-  "name": "COK Systems - City of Kigali Service Delivery & Parking Monitoring",
-  "short_name": "COK Systems",
-  "description": "Smart Entry & Service Management portal for the City of Kigali. Manage administrative tasks, visitor services, and parking monitoring efficiently.",
+  "name": "IKAZE - City of Kigali Digital Services",
+  "short_name": "IKAZE",
+  "description": "City of Kigali platform for service delivery, smart parking, event and room management, task management, data collection with dashboards, and administration.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#1a73e8",
-  "orientation": "portrait-primary",
+  "theme_color": "#056daa",
+  "orientation": "any",
   "scope": "/",
   "lang": "en",
   "dir": "ltr",
-  "categories": ["business", "productivity", "utilities"],
+  "categories": ["government", "business", "productivity", "utilities"],
   "icons": [
-    {
-      "src": "/LOGO_COK.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/LOGO_COK.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
     {
       "src": "/LOGO_COK.png",
       "sizes": "72x72",
@@ -47,53 +35,50 @@
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/LOGO_COK.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/LOGO_COK.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "short_name": "Dashboard",
-      "description": "Access your main dashboard",
-      "url": "/admin/dashboard",
-      "icons": [
-        {
-          "src": "/LOGO_COK.png",
-          "sizes": "96x96"
-        }
-      ]
+      "name": "Events and rooms",
+      "short_name": "Events",
+      "description": "Live and upcoming events, book a room",
+      "url": "/",
+      "icons": [{ "src": "/LOGO_COK.png", "sizes": "96x96" }]
     },
     {
-      "name": "Service Delivery",
-      "short_name": "Services",
-      "description": "Manage visitor services",
-      "url": "/service-delivery/receptionist",
-      "icons": [
-        {
-          "src": "/LOGO_COK.png",
-          "sizes": "96x96"
-        }
-      ]
+      "name": "Data Collection System",
+      "short_name": "Data collection",
+      "description": "Forms, responses, approvals and dashboards",
+      "url": "/dcs-system",
+      "icons": [{ "src": "/LOGO_COK.png", "sizes": "96x96" }]
     },
     {
-      "name": "Smart Parking",
-      "short_name": "Parking",
-      "description": "Monitor parking activities",
-      "url": "/smart-parking/dashboard",
-      "icons": [
-        {
-          "src": "/LOGO_COK.png",
-          "sizes": "96x96"
-        }
-      ]
+      "name": "Feedback",
+      "short_name": "Feedback",
+      "description": "Tell the city about a service",
+      "url": "/feedback",
+      "icons": [{ "src": "/LOGO_COK.png", "sizes": "96x96" }]
     }
   ],
   "screenshots": [
     {
       "src": "/cok_hall.jpg",
-      "sizes": "1280x720",
+      "sizes": "1000x667",
       "type": "image/jpeg",
       "form_factor": "wide",
-      "label": "City of Kigali Service Management Dashboard"
+      "label": "City of Kigali"
     }
   ]
 }

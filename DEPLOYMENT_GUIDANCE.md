@@ -389,16 +389,59 @@ Uploaded files are stored in Docker volumes named `backend_uploads` and `em_uplo
 
 ### Updating the Application
 
-To deploy a new version of the code:
+Two environments run side by side on the server, both built from the one `cok_systems` folder, each from its own branch. Each is a separate Docker Compose project with its own network, containers, MongoDB, volumes, `.env` files and public hosts, so nothing of one can touch the other:
+
+| Stack | Branch | Compose project | Public hosts |
+|---|---|---|---|
+| `uat-ikaze` (acceptance) | `uat` | `cok-systems` (the project that existed before the split, so its mongo volume with the data collected so far stays with UAT) | `uat-ikaze`, `uatps-ikaze`, `uate-ikaze`, `dcms.kigalicity.gov.rw` |
+| `ikaze` (production) | `ikaze` | `cok-systems-ikaze` (new, starts with an empty database) | `ikaze.kigalicity.gov.rw` |
+
+The script switches the folder to a stack's branch, builds and starts that stack's project, then moves on to the next; images carry the code they were built from, so the running containers are not affected by later branch switches. At the end the folder is left on the `ikaze` branch with production's `.env` files in place.
+
+Production has no direct backend hosts: users, shared links, public forms and the data feed all go through the frontend host, whose nginx proxies the three APIs to the production containers. The `main` branch is no longer deployed.
+
+One script does the whole update. Run it from the folder:
 
 ```bash
 cd /path/to/cok_systems
-git pull origin main
-docker compose up -d --build
+sudo ./update-deploy.sh                # both stacks, UAT first
+sudo ./update-deploy.sh --ikaze        # production only
+sudo ./update-deploy.sh --uat-ikaze    # UAT only
+sudo ./update-deploy.sh --all --admin-email=someone@kigalicity.gov.rw   # first production deployment
 ```
 
-The `--build` flag rebuilds only the images that changed. Docker reuses existing layers when possible, so this is usually fast. Verify the deployment with `docker compose ps` and a quick browser test.
+The script never deletes a database. `--admin-email=<email>` marks the first production deployment: that person is looked up in the UAT accounts and copied into production (account, role, department, activated) without a question; an account that already exists in production is left as it is. Without the option, the copy is offered only when production has no account yet.
 
+Other options: `--no-pull` keeps the code as it is, `--no-build` restarts without rebuilding images, `--keep-env` leaves the `.env` files untouched, `--dry-run` prints what would change and changes nothing. The script is `update-deploy.sh` with its parts in `deploy/`.
+
+For each stack it: switches the folder to the stack's branch and pulls; gives the stack's own `.env` files their values (see below) and copies them into place; starts mongo if needed and rebuilds and restarts the services; reads the container addresses, waits for every container (printing its logs when it crashes), checks the sign-in settings and shows the backends' `[AUTH CHECK]` report; for production only, copies the first user from UAT as described above; writes the stack's nginx file. Then nginx is tested and restarted once and every public URL is verified.
+
+**Nginx.** One generated file per stack in `/etc/nginx/sites-available` (`ikaze`, `uat-ikaze`), each `proxy_pass` pointing at that stack's container addresses, plus `default` holding only the port 80 redirect for every host. Previous files are kept as `.bak.<date>` and restored if the test fails. Container addresses change when a container is recreated, so run the script again after any manual restart.
+
+**The `.env` files.** They are git-ignored and never come through git. Each stack keeps its own set in `deploy/env/<stack>/<service>.env` (git-ignored); the first time a stack is deployed its set is started from the `backend/.env`, `em_backend/.env` and `dc_backend/.env` uploaded into the folder. On every run the script sets the stack's values in its set and copies the set into place before building, so a file copied from a development machine or from the other stack is corrected on the spot:
+
+| File | Keys set |
+|---|---|
+| `backend/.env` | `conne_string` to the stack's mongo (`cok`), `CLIENT_URL_SET` to the stack's frontend host, `JWT_SECRET` |
+| `em_backend/.env` | `DATABASE_URL2` to the stack's mongo (`COK_EVENT_MNG`), `DATABASE_NAME2`, `COK_DB_NAME=cok`, `CORS_ORIGIN` and `FRONTEND_URL` to the stack's frontend host, `JWT_SECRET` |
+| `dc_backend/.env` | `conne_string` to the stack's mongo (`data_collection_system`), `COK_DB_NAME=cok`, `CLIENT_URL_SET` to the stack's frontend host, `JWT_SECRET` |
+
+The mongo user and password come from `MONGO_INITDB_ROOT_USERNAME` / `MONGO_INITDB_ROOT_PASSWORD` in the stack's `docker-compose.yml`, URL-encoded. Each stack has one `JWT_SECRET` shared by its three backends and different from the other stack's; a missing, default or shared secret is replaced by a new random one (everyone signed in on that stack signs in again). Replaced lines are kept as `# previous:`, changed files as `.env.bak.<date>`, Windows line endings are removed, and a second run changes nothing.
+
+**Sign-in on the event and data collection backends.** These two never issue tokens. They verify the main backend's token with the same `JWT_SECRET` and read the account from the `cok` database on their own Mongo connection, which is why the values above must agree within a stack. Each backend prints `[AUTH CHECK]` lines at startup saying which database it reads accounts from and how many users it sees (zero means the wrong server or an empty database), and the refusal sent to the browser carries the reason.
+
+**Databases of the two stacks: `db.sh`.** Works straight on the mongo containers with `mongosh`, `mongodump` and `mongorestore`:
+
+```bash
+sudo ./db.sh --list-db --source all                                   # or uat / ikaze
+sudo ./db.sh --list-collections --source uat --db-name cok
+sudo ./db.sh --copy-db-data --from uat --to ikaze --db-name 'cok,COK_EVENT_MNG'
+sudo ./db.sh --copy-collection --from uat --to ikaze --db-name cok --collection 'users,roles'
+sudo ./db.sh --copy-collection --from uat --to uat --db-name cok --collection users --to-db-name cok_copy --to-collection users_backup
+```
+
+A copy streams the data from one container to the other. Whole databases keep their names; collections may land in another database (`--to-db-name`) or, for a single collection, under another name (`--to-collection`), in which case source and destination stack may be the same. Whatever is missing on the destination, database or collection, is created. On an existing one the documents are added and documents with the same `_id` are kept as they are on the destination; `--replace` drops the destination database or collection first so it becomes an exact copy. Copying into production first dumps what is about to change to `backups/`. `--dry-run` shows the plan without copying. The listings leave out MongoDB's own `admin`, `config` and `local` databases.
+**The Data Collection System image** is built from the repository root (not from `dc_backend/`) because it ships `location.min.json` and `geojson-maped/`, which sit beside that folder. `docker-compose.override.yml` (tracked) sets that build context and the root `.dockerignore` keeps everything else out. Keep both files in the repository or the container fails at startup with "Cannot find module '../../../location.min.json'".
 ### Monitoring
 
 Use these commands to check the health of the system:

@@ -12,17 +12,27 @@ const FIELDS = [
   { key: "phone", labelKey: "DCS_RESPONDENT_PHONE", type: "tel", autoComplete: "tel" },
 ];
 
-export default function DcsRespondentGate({ saved, onConfirm }) {
+export default function DcsRespondentGate({ saved, onConfirm, titleKey, messageKey }) {
   const { translate } = useDcsLanguage();
   const [mode, setMode] = useState(saved ? "confirm" : "edit");
   const [draft, setDraft] = useState(saved || { name: "", email: "", phone: "" });
   const [errors, setErrors] = useState({});
+  const [busy, setBusy] = useState(false);
+
+  const run = async (action) => {
+    setBusy(true);
+    try {
+      await action();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handle_save = () => {
     const result = validate_respondent(draft, translate);
     setErrors(result.errors);
-    if (!result.valid) return;
-    onConfirm(save_respondent(result.respondent));
+    if (!result.valid || busy) return;
+    run(() => onConfirm(save_respondent(result.respondent)));
   };
 
   if (mode === "confirm" && saved) {
@@ -34,10 +44,10 @@ export default function DcsRespondentGate({ saved, onConfirm }) {
           <p className="text-sm" style={{ color: "#555555", fontFamily: FONT }}>{saved.phone}</p>
         </div>
         <div className="flex flex-col min-[480px]:flex-row gap-2">
-          <DcsButtonPrimary className="flex-1" onClick={() => onConfirm(saved)}>
-            {translate("DCS_RESPONDENT_CONTINUE_AS", { name: String(saved.name || "").trim().split(" ")[0] })}
+          <DcsButtonPrimary className="flex-1" onClick={() => run(() => onConfirm(saved))} disabled={busy}>
+            {busy ? translate("DCS_WAITING_GENERIC") : translate("DCS_RESPONDENT_CONTINUE_AS", { name: String(saved.name || "").trim().split(" ")[0] })}
           </DcsButtonPrimary>
-          <DcsButtonOutline className="flex-1" onClick={() => setMode("edit")}>
+          <DcsButtonOutline className="flex-1" onClick={() => setMode("edit")} disabled={busy}>
             {translate("DCS_RESPONDENT_CHANGE")}
           </DcsButtonOutline>
         </div>
@@ -46,7 +56,7 @@ export default function DcsRespondentGate({ saved, onConfirm }) {
   }
 
   return (
-    <DcsCenterOverlay title={translate("DCS_RESPONDENT_TITLE")} message={translate("DCS_RESPONDENT_MESSAGE")}>
+    <DcsCenterOverlay title={translate(titleKey || "DCS_RESPONDENT_TITLE")} message={translate(messageKey || "DCS_RESPONDENT_MESSAGE")}>
       <div className="flex flex-col gap-3">
         {FIELDS.map((field) => (
           <div key={field.key}>
@@ -75,11 +85,11 @@ export default function DcsRespondentGate({ saved, onConfirm }) {
         ))}
       </div>
       <div className="flex flex-col min-[480px]:flex-row gap-2 mt-5">
-        <DcsButtonPrimary className="flex-1" onClick={handle_save}>
-          {translate("DCS_RESPONDENT_SAVE")}
+        <DcsButtonPrimary className="flex-1" onClick={handle_save} disabled={busy}>
+          {busy ? translate("DCS_WAITING_GENERIC") : translate("DCS_RESPONDENT_SAVE")}
         </DcsButtonPrimary>
         {saved && (
-          <DcsButtonOutline className="flex-1" onClick={() => setMode("confirm")}>
+          <DcsButtonOutline className="flex-1" onClick={() => setMode("confirm")} disabled={busy}>
             {translate("DCS_BTN_CANCEL")}
           </DcsButtonOutline>
         )}

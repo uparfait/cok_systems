@@ -1,0 +1,15 @@
+# Build context rules for images built FROM THE REPOSITORY ROOT.
+# Only the Data Collection System backend is built this way (see
+# docker-compose.yml): it needs two files that live beside it, not inside it -
+# location.min.json (administrative locations, loaded at startup) and the
+# geojson-maped/ outlines the dashboard maps draw. Everything else stays out
+# so the build context is small.
+*
+!dc_backend
+dc_backend/node_modules
+dc_backend/uploads
+dc_backend/tests
+dc_backend/*.log
+dc_backend/.dockerignore
+!location.min.json
+!geojson-maped

@@ -5,11 +5,11 @@ const DC_CONFIG = {
   cok_database_name: process.env.COK_DB_NAME || "cok",
   // Base URL of the main backend, used for server-to-server calls (in-app approval notifications).
   cok_api_url: process.env.COK_API_URL || "http://localhost:2026/cok/api",
-  client_url_set: process.env.CLIENT_URL_SET || [
-    "https://cok-fr.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000",
-  ],
+  // Browser origins allowed to call this API: CLIENT_URL_SET holds one or
+  // several, separated by commas (the production frontend has more than one host).
+  client_url_set: process.env.CLIENT_URL_SET
+    ? process.env.CLIENT_URL_SET.split(",").map((origin) => origin.trim().replace(/\/+$/, "")).filter(Boolean)
+    : ["https://cok-fr.vercel.app", "http://localhost:5173", "http://localhost:3000"],
   upload_dir: "uploads",
   email: {
     host: process.env.EMAIL_HOST || "mail.kigalicity.gov.rw",

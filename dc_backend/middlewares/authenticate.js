@@ -2,6 +2,8 @@ const jwt = require("../utilities/jwt.js");
 const { get_cok_db } = require("../db_connection/db.js");
 const { to_object_id } = require("../utilities/object_id.js");
 const { warning_response, error_response } = require("../utilities/response.js");
+const config = require("../configurations/config.js");
+const { mongo_host } = require("../utilities/auth_check.js");
 
 /**
  * Verifies the Bearer token issued by the main backend's login flow and
@@ -25,7 +27,11 @@ async function authenticate(req, res, next) {
 
     const verification = jwt.verify_access_token(token);
     if (!verification.valid) {
-      return res.status(401).json(warning_response(req, "AUTH_TOKEN_INVALID", null, { goto_login: true }));
+      // The reason travels with the refusal: "invalid signature" means this
+      // service's JWT_SECRET differs from the main backend's, "jwt expired"
+      // means the session really ended.
+      const reason = verification.error === "invalid signature" ? "invalid signature: this service's JWT_SECRET differs from the main backend's" : verification.error;
+      return res.status(401).json(warning_response(req, "AUTH_TOKEN_INVALID", null, { goto_login: true, error: reason }));
     }
 
     const user_id = to_object_id(verification.decoded.userId);
@@ -36,7 +42,9 @@ async function authenticate(req, res, next) {
     const user = await get_cok_db().collection("users").findOne({ _id: user_id });
 
     if (!user) {
-      return res.status(401).json(warning_response(req, "AUTH_USER_NOT_FOUND", null, { goto_login: true }));
+      // Says where it looked, since a wrong Mongo server is the usual cause.
+      const where = `account ${user_id} is not in database '${config.cok_database_name}' on ${mongo_host(config.connection_string)}`;
+      return res.status(401).json(warning_response(req, "AUTH_USER_NOT_FOUND", null, { goto_login: true, error: where }));
     }
 
     if (!user.is_account_activated) {

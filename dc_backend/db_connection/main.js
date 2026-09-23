@@ -11,11 +11,13 @@ require("dotenv").config({ quiet: true });
  */
 async function connect_databases() {
   try {
-    const client = new MongoClient(config.connection_string);
-    console.log(config.connection_string)
+    // A database that cannot be reached is reported within 20 seconds
+    // instead of the driver's silent half-minute wait.
+    const client = new MongoClient(config.connection_string, { serverSelectionTimeoutMS: 20000 });
+    const hosts = String(config.connection_string).replace(/\/\/[^@]*@/, "//***@");
+    console.log("Connecting to the database at " + hosts);
     await client.connect();
-
-    console.log(process.env)
+    console.log("Database connected.");
 
     const primary_db = client.db();
     const cok_db = client.db(config.cok_database_name);

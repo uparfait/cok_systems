@@ -58,6 +58,13 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
   const [saving, setSaving] = useState(false);
   // "new", a link id being edited, or null.
   const [editing, setEditing] = useState(null);
+  // The board a link belongs to: this one, or the other board whose link
+  // combines this one as an extra.
+  const primary_of = (link) => {
+    if (!link || !link.dashboard_id || link.dashboard_id === form.dashboard_id) return { id: form.dashboard_id, name: form.dashboard_name };
+    const other = (dashboards || []).find((entry) => entry.id === link.dashboard_id);
+    return { id: link.dashboard_id, name: other ? other.name : "" };
+  };
   const [deleting, setDeleting] = useState(null);
   // Every field a records table can show, across all versions of the form -
   // what a link's owner picks from when viewers may open the records.
@@ -167,7 +174,7 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
               {links.map((link) =>
                 editing === link.id ? (
                   <li key={link.id}>
-                    <LinkForm initial={link} saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} filters={filters} fields={fields} fetchValues={fetchFilterValues} recordFields={record_fields} primary={{ id: form.dashboard_id, name: form.dashboard_name }} dashboards={dashboards} fetchDashboardFilters={fetchDashboardFilters} />
+                    <LinkForm initial={link} saving={saving} onSubmit={submit} onCancel={() => setEditing(null)} filters={filters} fields={fields} fetchValues={fetchFilterValues} recordFields={record_fields} primary={primary_of(link)} dashboards={dashboards} fetchDashboardFilters={fetchDashboardFilters} />
                   </li>
                 ) : (
                   <li key={link.id} className="dcs-share-link-card border-2 bg-white" style={{ borderColor: link.expired ? "rgba(231,76,60,0.5)" : BORDER, borderLeft: `4px solid ${link.expired ? "#E74C3C" : PRIMARY}`, opacity: link.expired ? 0.85 : 1 }}>
@@ -186,6 +193,11 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
                         {link.config && link.config.filter_mode === "locked" && (
                           <span className="text-[10px] font-bold uppercase px-2 py-0.5" style={{ color: PRIMARY, border: `1px solid ${PRIMARY}`, letterSpacing: "0.4px", ...FONT }}>
                             {translate("DCS_DB_SHARE_CHIP_LOCKED", { count: (link.config.locked_filters || []).length + (link.config.locked_period ? 1 : 0) })}
+                          </span>
+                        )}
+                        {link.dashboard_id && link.dashboard_id !== form.dashboard_id && (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5" style={{ color: "#B9770E", border: "1px solid #B9770E", letterSpacing: "0.4px", ...FONT }}>
+                            {translate("DCS_DB_SHARE_CHIP_VIA", { name: primary_of(link).name })}
                           </span>
                         )}
                         {Array.isArray(link.extra_dashboards) && link.extra_dashboards.length > 0 && (

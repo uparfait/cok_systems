@@ -139,6 +139,9 @@ async function get_public_dashboard(req, res) {
         project_name: context.project.name || "",
         link: { title: context.link.title, description: context.link.description || "", expires_at: context.link.expires_at || null, config: link_config(context.link, dashboard._id.toString()) },
         widgets: (dashboard && dashboard.widgets) || [],
+        // The board arrangement saved from studio mode (grid or free surface,
+        // sizes, positions): viewers see exactly what the editor arranged.
+        layout: (dashboard && dashboard.layout) || null,
         filters: (dashboard && dashboard.filters) || [],
         filter_fields: filter_fields(dashboard, context.form_version),
         updated_at: dashboard ? dashboard.updated_at : null,

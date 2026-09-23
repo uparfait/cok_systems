@@ -2,8 +2,11 @@
 <browserconfig>
     <msapplication>
         <tile>
+            <square70x70logo src="/LOGO_COK.png"/>
             <square150x150logo src="/LOGO_COK.png"/>
-            <TileColor>#1a73e8</TileColor>
+            <wide310x150logo src="/LOGO_COK.png"/>
+            <square310x310logo src="/LOGO_COK.png"/>
+            <TileColor>#056daa</TileColor>
         </tile>
     </msapplication>
 </browserconfig>

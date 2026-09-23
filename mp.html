@@ -1,2428 +1,1169 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
-
-<title>Kigali Interactive Map</title>
-
-<!-- =====================================================
-     LEAFLET
-===================================================== -->
-
-<link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
-
-<script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-</script>
 
 
 <style>
+*{ text-decoration:none;}
+</style><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Application Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&display=swap" rel="stylesheet">
+<style>
+:root {
+    --ur-primary: #00628b;
+    --ur-primary-dark: #004b6b;
+    --ur-primary-deep: #00384f;
+    --ur-primary-pale: #f5fbfd;
+    --ur-white: #ffffff;
+    --ur-bg: #f3f7fa;
+    --ur-text: #172b3a;
+    --ur-text-muted: #667b89;
+    --ur-border: #dce7ed;
+    --ur-gold: #8ACFF8;
 
-/* =====================================================
-   RESET
-===================================================== */
+    /* National (Rwandan) branch � amber/gold accents */
+    --nat-accent:       #b8860b;      /* dark goldenrod */
+    --nat-accent-soft:  #fdf6e3;      /* warm ivory */
+    --nat-accent-mid:   #f5e6b8;      /* soft amber */
+    --nat-accent-deep:  #8b6508;      /* deep gold */
 
-* {
-    box-sizing: border-box;
+    /* International branch � teal/emerald accents (replaces harsh red) */
+    --intl-accent:      #0e7490;      /* teal-700 */
+    --intl-accent-soft: #f0fbfd;      /* very light teal */
+    --intl-accent-mid:  #cffafe;      /* light cyan */
+    --intl-accent-deep: #155e75;      /* teal-800 */
+
+    --ur-success: #0f9f6e;
+    --ur-error: #d92d20;
+    --ur-purple: #6b4fd8;
+    --ur-purple-light: #f2eeff;
 }
-
-html,
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 body {
+    font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--ur-text);
+    min-height: 100vh;
     margin: 0;
     padding: 0;
-    width: 100%;
-    height: 100%;
-    font-family:
-        Inter,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
+    background:
+        radial-gradient(circle at 8% 18%, rgba(0,98,139,.08), transparent 25%),
+        radial-gradient(circle at 92% 30%, rgba(242,183,5,.07), transparent 22%),
+        linear-gradient(180deg, #eef6f9 0%, #f7fafc 58%, #eef5f8 100%);
 }
-
-body {
-    overflow: hidden;
-    background: #07111f;
-}
-
-
-/* =====================================================
-   MAP
-===================================================== */
-
-#map {
-    width: 100%;
-    height: 100%;
-}
-
-
-/* =====================================================
-   TOP LEFT PANEL
-===================================================== */
-
-.dashboard {
-
-    position: absolute;
-
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--ur-primary) 0 88%, var(--ur-gold) 88% 100%);
     z-index: 1000;
-
-    top: 20px;
-    left: 20px;
-
-    width: 340px;
-
-    padding: 20px;
-
-    border-radius: 20px;
-
-    background:
-        rgba(7, 17, 31, 0.92);
-
-    backdrop-filter:
-        blur(18px);
-
-    -webkit-backdrop-filter:
-        blur(18px);
-
-    border:
-        1px solid
-        rgba(255,255,255,0.12);
-
-    box-shadow:
-        0 20px 60px
-        rgba(0,0,0,0.35);
-
-    color: white;
-
-    animation:
-        panelIn 0.8s ease;
 }
-
-
-@keyframes panelIn {
-
-    from {
-        opacity: 0;
-        transform:
-            translateY(-25px)
-            scale(0.97);
-    }
-
-    to {
-        opacity: 1;
-        transform:
-            translateY(0)
-            scale(1);
-    }
+.container { width: min(1340px, 100%); min-height: 100vh; margin: 0 auto; background: transparent; }
+.ur-header {
+    position: relative;
+    background: radial-gradient(circle at 92% 15%, rgba(255,255,255,.13), transparent 26%),
+                linear-gradient(135deg, var(--ur-primary-deep), var(--ur-primary) 62%, #08779f);
+    color: var(--ur-white);
+    min-height: 122px;
+    padding: 18px clamp(22px, 5vw, 72px) 20px;
+    border-bottom: 4px solid var(--ur-gold);
+    overflow: hidden; isolation: isolate;
+    display: flex; justify-content: space-between; align-items: center; gap: 24px;
 }
-
-
-/* =====================================================
-   HEADER
-===================================================== */
-
-.title-row {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 12px;
-
-    margin-bottom: 4px;
+.ur-header::after {
+    content: ''; position: absolute; right: -70px; top: -90px;
+    width: 390px; height: 250px;
+    border-left: 70px solid rgba(255,255,255,.07);
+    border-radius: 55% 0 0 55%; transform: rotate(18deg); z-index: -1;
 }
-
-
-.flag {
-
-    font-size: 28px;
+.ur-brand { display: flex; align-items: center; gap: 22px; min-width: 0; }
+.ur-logo { width: 105px; height: 82px; flex: 0 0 105px; display: flex; align-items: center; justify-content: center; }
+.ur-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ur-logo-fallback { width: 100%; height: 100%; display: none; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 1.45rem; }
+.ur-brand-text { min-width: 0; }
+.ur-kicker { font-size: .72rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; opacity: .82; margin-bottom: 4px; }
+.ur-header h1 { font-weight: 800; font-size: clamp(1.65rem, 3vw, 2.15rem); letter-spacing: -.025em; line-height: 1.15; }
+.ur-header p { opacity: .92; font-size: .95rem; margin-top: 5px; }
+.btn-home {
+    background: rgba(255,255,255,.08); color: white; padding: 12px 22px; border-radius: 999px;
+    text-decoration: none; font-weight: 700; font-size: .88rem; transition: all .2s ease;
+    border: 1px solid rgba(255,255,255,.42); white-space: nowrap;
 }
-
-
-.title {
-
-    font-size: 23px;
-
-    font-weight: 800;
-
-    letter-spacing: -0.5px;
+.btn-home:hover { background: rgba(255,255,255,.22); transform: translateY(-2px); }
+.registration-steps {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    max-width: 1340px; margin: 0 auto;
+    padding: 0 clamp(14px, 5vw, 78px);
+    min-height: 64px; background: #fff; border-bottom: 1px solid var(--ur-border);
 }
-
-
-.subtitle {
-
-    color: #94a3b8;
-
-    font-size: 13px;
-
-    margin-left: 40px;
-
-    margin-bottom: 18px;
+.registration-step {
+    position: relative; display: flex; align-items: center; gap: 10px;
+    min-height: 64px; padding: 12px 18px;
+    color: var(--ur-text-muted); font-size: .8rem; font-weight: 700;
 }
+.registration-step:not(:last-child)::after {
+    content: ''; position: absolute; right: 0; top: 50%; width: 1px; height: 30px;
+    transform: translateY(-50%); background: var(--ur-border);
+}
+.step-number {
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    background: #eef3f6; color: var(--ur-text-muted); font-size: .75rem; flex: 0 0 30px;
+}
+.registration-step.active { color: var(--ur-primary); background: #f8fcfe; }
+.registration-step.active .step-number { background: var(--ur-primary); color: #fff; box-shadow: 0 4px 12px rgba(0,98,139,.25); }
+.card {
+    max-width: 1210px; margin: 18px auto 0;
+    padding: clamp(28px, 4vw, 46px) clamp(20px, 4vw, 42px);
+    background: rgba(255,255,255,.98);
+    border: 1px solid rgba(0,98,139,.08);
+    border-radius: 14px;
+    box-shadow: 0 10px 35px rgba(0,56,79,.07);
+}
+.card h2 { color: var(--ur-primary-deep); font-size: 1.15rem; font-weight: 800; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
 
-
-/* =====================================================
-   STATS
-===================================================== */
-
-.stats {
-
+.form-grid {
     display: grid;
-
-    grid-template-columns:
-        repeat(3, 1fr);
-
-    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 24px;
 }
+.form-grid > .form-group { min-width: 0; }
+.form-group { display: flex; flex-direction: column; }
+.form-group label { font-weight: 700; font-size: .82rem; color: var(--ur-text); margin-bottom: 6px; }
+.form-group label .required { color: var(--ur-error); }
+.form-group input, .form-group select {
+    padding: 12px 13px; font-size: .92rem; color: var(--ur-text);
+    border: 1.5px solid var(--ur-border); border-radius: 10px;
+    transition: border-color .2s, box-shadow .2s, background .2s; outline: none;
+    background: #fbfdfe; width: 100%;
+}
+.form-group input:hover, .form-group select:hover { border-color: #b8cbd5; }
+.form-group input:focus, .form-group select:focus { border-color: var(--ur-primary); background: #fff; box-shadow: 0 0 0 4px rgba(0,98,139,.10); }
+.form-group input.filled-imported { border-color: #a995ed; background: #faf8ff; }
+.form-group .hint { font-size: .7rem; color: var(--ur-text-muted); margin-top: 5px; }
+.form-group .badge { display: inline-block; font-size: .6rem; font-weight: 800; padding: 3px 8px; border-radius: 999px; margin-left: 6px; }
+.badge-imported { background: #eeeaff; color: #5b42a8; }
+.badge-manual { background: #eaf6fd; color: #075b80; }
+.badge-rwandan { background: #e5f3fa; color: #075b80; }
+.badge-foreign { background: #cffafe; color: #155e75; }
+.badge-graduate { background: #eeeaff; color: #5b42a8; }
 
+.btn {
+    padding: 12px 24px; border: none; border-radius: 999px; font-size: .9rem; font-weight: 700;
+    cursor: pointer; transition: transform .2s, box-shadow .2s, background .2s;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.12); }
+.btn-primary { background: var(--ur-primary); color: white; }
+.btn-primary:hover { background: var(--ur-primary-dark); }
+.btn-success { background: var(--ur-success); color: white; }
+.btn-success:hover { background: #0b875d; }
+.btn-secondary { background: #edf2f5; color: var(--ur-text); }
+.btn-secondary:hover { background: #dce5ea; }
+.btn-purple { background: var(--ur-primary); color: white; }
+.btn-purple:hover { background: #004b6b; }
+.btn-graduate { background: var(--ur-primary); color: white; }
+.btn-graduate:hover { background: #004b6b; }
+.btn-home-action { background: var(--ur-primary); color: white; }
+.btn-group { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+.alert { padding: 13px 16px; border-radius: 10px; margin-bottom: 16px; border-left: 5px solid; font-size: .88rem; line-height: 1.5; }
+.alert-success { background: #e8f8f1; color: #086747; border-color: #0f9f6e; }
+.alert-error { background: #fff0ef; color: #a3241a; border-color: #d92d20; }
+.alert-info { background: #eef5ff; color: #1d4ed8; border-color: #2563eb; }
+.alert-purple { background: #f3efff; color: #5b42a8; border-color: #00628b; }
+.reg-number-display {
+    position: relative; background: linear-gradient(145deg, #f3fbfd, #e7f5f9);
+    border: 1px solid #c9e3ed; padding: 28px 20px; border-radius: 16px;
+    text-align: center; margin: 18px 0; overflow: hidden;
+}
+.reg-number-display::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: linear-gradient(180deg, var(--ur-primary), var(--ur-gold)); }
+.reg-number-display .label { font-size: .72rem; color: var(--ur-text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: .12em; }
+.reg-number-display .number { font-size: clamp(2.1rem, 6vw, 3.2rem); font-weight: 900; color: var(--ur-primary-deep); letter-spacing: 3px; line-height: 1.15; margin-top: 5px; }
+.reg-number-display .format { font-size: .82rem; color: var(--ur-text-muted); margin-top: 7px; }
+.reg-number-display .info { font-size: .78rem; color: var(--ur-text-muted); margin-top: 8px; }
+.reg-number-display .pin-box { background: #fff; border: 1.5px dashed var(--ur-gold); padding: 16px; margin: 14px auto; max-width: 310px; border-radius: 12px; }
+.reg-number-display .pin-box .pin-label { font-size: .68rem; color: var(--ur-text-muted); text-transform: uppercase; letter-spacing: 2px; }
+.reg-number-display .pin-box .pin-value { font-size: 2rem; font-weight: 900; color: var(--ur-primary-deep); letter-spacing: 6px; margin-top: 3px; }
+.success-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
 
-.stat {
-
-    padding: 12px 8px;
-
-    border-radius: 12px;
-
-    background:
-        rgba(255,255,255,0.06);
-
+/* ============================================================
+   CATEGORY SELECTION � flowchart style
+   ============================================================ */
+.flow-intro {
     text-align: center;
+    max-width: 820px;
+    margin: 0 auto 30px;
+}
+.flow-intro h2 {
+    display: block;
+    justify-content: center;
+    font-size: clamp(1.35rem, 2.6vw, 1.75rem);
+    letter-spacing: -.025em;
+    margin-bottom: 8px;
+}
+.flow-intro p { color: var(--ur-text-muted); font-size: .95rem; line-height: 1.55; }
+
+.flow-branches {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 26px;
+    margin-bottom: 30px;
+    align-items: stretch;
 }
 
+.flow-column {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 24px 22px 26px;
+    border-radius: 18px;
+    position: relative;
+    transition: all .25s ease;
+}
+.flow-column.flow-column-rwandan {
+    border: 2px solid var(--nat-accent-mid);
+    background: linear-gradient(180deg, var(--nat-accent-soft) 0%, #fdfbf3 100%);
+}
+.flow-column.flow-column-international {
+    border: 2px solid var(--intl-accent-mid);
+    background: linear-gradient(180deg, var(--intl-accent-soft) 0%, #eefbfd 100%);
+}
 
-.stat-number {
+/* Caption above each column */
+.flow-caption {
+    text-align: center;
+    font-size: .85rem;
+    font-weight: 700;
+    line-height: 1.4;
+    padding: 0 8px 4px;
+    position: relative;
+}
+.flow-column-rwandan .flow-caption { color: var(--nat-accent-deep); }
+.flow-column-international .flow-caption { color: var(--intl-accent-deep); }
+.flow-caption::after {
+    content: '';
+    display: block;
+    width: 42px;
+    height: 3px;
+    border-radius: 999px;
+    margin: 10px auto 0;
+}
+.flow-column-rwandan .flow-caption::after { background: var(--nat-accent); }
+.flow-column-international .flow-caption::after { background: var(--intl-accent); }
 
-    font-size: 22px;
+/* Title strip inside each column */
+.flow-title {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    font-size: 1rem; font-weight: 800; text-align: center;
+}
+.flow-column-rwandan .flow-title { color: var(--nat-accent-deep); }
+.flow-column-international .flow-title { color: var(--intl-accent-deep); }
+.flow-title .flag-icon {
+    width: 26px; height: 18px; border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12);
+    flex: 0 0 auto;
+    overflow: hidden;
+    display: inline-block;
+}
+.flow-title .flag-icon svg { display: block; width: 100%; height: 100%; }
 
+.flow-stage-label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
     font-weight: 800;
+    text-align: center;
+    margin-top: 4px;
+}
+.flow-column-rwandan .flow-stage-label { color: var(--nat-accent); }
+.flow-column-international .flow-stage-label { color: var(--intl-accent); }
 
-    color: #38bdf8;
+.flow-options {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
 }
 
-
-.stat-label {
-
-    font-size: 10px;
-
-    color: #94a3b8;
-
-    margin-top: 2px;
+.flow-option {
+    display: block;
+    text-align: left;
+    padding: 16px 18px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all .18s ease;
+    position: relative;
+    font-family: inherit;
+    width: 100%;
+    background: #ffffff;
+}
+.flow-column-rwandan .flow-option { border: 1.5px solid var(--nat-accent-mid); }
+.flow-column-rwandan .flow-option:hover { border-color: var(--nat-accent); box-shadow: 0 6px 18px rgba(184,134,11,.12); transform: translateY(-1px); }
+.flow-column-rwandan .flow-option.active {
+    border: 2px solid var(--nat-accent);
+    background: linear-gradient(180deg, #fffaf0 0%, #fdf1d6 100%);
+    box-shadow: 0 8px 22px rgba(184,134,11,.18);
+}
+.flow-column-international .flow-option { border: 1.5px solid var(--intl-accent-mid); }
+.flow-column-international .flow-option:hover { border-color: var(--intl-accent); box-shadow: 0 6px 18px rgba(14,116,144,.12); transform: translateY(-1px); }
+.flow-column-international .flow-option.active {
+    border: 2px solid var(--intl-accent);
+    background: linear-gradient(180deg, #f0fbfd 0%, #d9f3f8 100%);
+    box-shadow: 0 8px 22px rgba(14,116,144,.18);
 }
 
+.flow-option-head {
+    display: flex; align-items: center; gap: 10px;
+    font-size: .95rem; font-weight: 800; line-height: 1.3;
+}
+.flow-column-rwandan .flow-option-head { color: var(--nat-accent-deep); }
+.flow-column-international .flow-option-head { color: var(--intl-accent-deep); }
 
-/* =====================================================
-   SEARCH
-===================================================== */
+.flow-option-head .icon {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: grid; place-items: center; font-size: 1.05rem;
+    flex: 0 0 34px;
+}
+.flow-column-rwandan .flow-option-head .icon { background: var(--nat-accent-soft); color: var(--nat-accent); }
+.flow-column-international .flow-option-head .icon { background: var(--intl-accent-soft); color: var(--intl-accent); }
 
-.search-container {
+.flow-option-head .flag-inline {
+    width: 24px; height: 17px; border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    flex: 0 0 auto; overflow: hidden; display: inline-block;
+}
+.flow-option-head .flag-inline svg { display: block; width: 100%; height: 100%; }
 
-    margin-top: 15px;
+.flow-option-sub {
+    margin-top: 6px;
+    font-size: .78rem;
+    color: var(--ur-text-muted);
+    font-weight: 600;
+    padding-left: 44px;
+    line-height: 1.4;
+}
 
+/* Central divider note */
+.flow-central-note {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-size: .85rem;
+    font-weight: 800;
+    color: var(--ur-primary-dark);
+    background: #fff;
+    border: 1.5px dashed #b6d9e7;
+    border-radius: 12px;
+    padding: 12px 18px;
+    margin: -6px 0 4px;
     position: relative;
 }
 
-
-#search {
-
-    width: 100%;
-
-    padding: 12px 14px;
-
-    border: none;
-
-    outline: none;
-
-    border-radius: 12px;
-
-    background:
-        rgba(255,255,255,0.08);
-
-    color: white;
-
-    font-size: 13px;
-}
-
-
-#search::placeholder {
-
-    color: #94a3b8;
-}
-
-
-.search-results {
-
-    position: absolute;
-
-    top: 48px;
-
-    left: 0;
-
-    right: 0;
-
-    max-height: 230px;
-
-    overflow-y: auto;
-
-    background:
-        rgba(7,17,31,0.98);
-
-    border-radius: 12px;
-
-    display: none;
-
-    border:
-        1px solid
-        rgba(255,255,255,0.1);
-
-    box-shadow:
-        0 15px 40px
-        rgba(0,0,0,0.4);
-}
-
-
-.search-result {
-
-    padding: 11px 13px;
-
-    cursor: pointer;
-
-    border-bottom:
-        1px solid
-        rgba(255,255,255,0.05);
-
-    transition:
-        background 0.2s ease;
-}
-
-
-.search-result:hover {
-
-    background:
-        rgba(56,189,248,0.15);
-}
-
-
-.result-sector {
-
-    font-weight: 700;
-
-    font-size: 13px;
-}
-
-
-.result-district {
-
-    color: #94a3b8;
-
-    font-size: 11px;
-
-    margin-top: 2px;
-}
-
-
-/* =====================================================
-   BUTTON
-===================================================== */
-
-.reset-button {
-
-    width: 100%;
-
-    margin-top: 10px;
-
-    padding: 11px;
-
-    border: none;
-
-    border-radius: 12px;
-
-    cursor: pointer;
-
-    background:
-        #38bdf8;
-
-    color:
-        #06111d;
-
-    font-weight: 800;
-
-    transition:
-        transform 0.2s ease,
-        filter 0.2s ease;
-}
-
-
-.reset-button:hover {
-
-    transform:
-        translateY(-2px);
-
-    filter:
-        brightness(1.1);
-}
-
-
-/* =====================================================
-   BOTTOM RIGHT INFO
-===================================================== */
-
-.info-card {
-
-    position: absolute;
-
-    z-index: 1000;
-
-    right: 20px;
-
-    bottom: 20px;
-
-    min-width: 260px;
-
-    padding: 18px;
-
+/* Continuation cards */
+.flow-continuation {
+    grid-column: 1 / -1;
+    padding: 26px 24px;
     border-radius: 18px;
-
-    background:
-        rgba(7,17,31,0.94);
-
-    backdrop-filter:
-        blur(18px);
-
-    border:
-        1px solid
-        rgba(255,255,255,0.12);
-
-    box-shadow:
-        0 20px 50px
-        rgba(0,0,0,0.35);
-
-    color: white;
-
-    transform:
-        translateY(130px);
-
-    opacity: 0;
-
-    transition:
-        transform 0.5s ease,
-        opacity 0.5s ease;
+    text-align: center;
 }
-
-
-.info-card.visible {
-
-    transform:
-        translateY(0);
-
-    opacity: 1;
-}
-
-
-.info-title {
-
-    font-size: 20px;
-
-    font-weight: 800;
-
-    margin-bottom: 5px;
-}
-
-
-.info-district {
-
-    color: #38bdf8;
-
-    font-size: 13px;
-
-    font-weight: 600;
-
+.flow-continuation .icon-big {
+    font-size: 2.3rem;
+    display: block;
     margin-bottom: 8px;
 }
-
-
-.info-description {
-
-    color: #94a3b8;
-
-    font-size: 12px;
-
+.flow-continuation h3 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+.flow-continuation p {
+    font-size: .9rem;
+    margin-bottom: 6px;
     line-height: 1.5;
 }
 
-
-/* =====================================================
-   DISTRICT LEGEND
-===================================================== */
-
-.legend {
-
-    position: absolute;
-
-    z-index: 1000;
-
-    left: 20px;
-
-    bottom: 20px;
-
-    padding: 14px 16px;
-
-    border-radius: 15px;
-
-    background:
-        rgba(7,17,31,0.92);
-
-    backdrop-filter:
-        blur(15px);
-
-    border:
-        1px solid
-        rgba(255,255,255,0.1);
-
-    color: white;
-
-    box-shadow:
-        0 15px 40px
-        rgba(0,0,0,0.3);
+/* Graduate continuation (purple) */
+.flow-continuation-graduate {
+    border: 2px solid #d0c6f4;
+    background: linear-gradient(180deg, #f6f3ff 0%, #efeaff 100%);
 }
+.flow-continuation-graduate .icon-big { color: #5b42a8; }
+.flow-continuation-graduate h3 { color: #4a2fa8; }
+.flow-continuation-graduate p { color: #5b42a8; }
 
-
-.legend-title {
-
-    font-size: 12px;
-
-    font-weight: 800;
-
-    margin-bottom: 9px;
-
-    color: #cbd5e1;
+/* International continuation (teal) */
+.flow-continuation-international {
+    border: 2px solid var(--intl-accent-mid);
+    background: linear-gradient(180deg, var(--intl-accent-soft) 0%, #e0f7fa 100%);
 }
-
-
-.legend-item {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 8px;
-
-    font-size: 11px;
-
-    color: #cbd5e1;
-
-    margin: 6px 0;
+.flow-continuation-international .icon-big { color: var(--intl-accent); }
+.flow-continuation-international h3 { color: var(--intl-accent-deep); }
+.flow-continuation-international p { color: var(--intl-accent-deep); }
+.flow-continuation-international .btn {
+    background: var(--intl-accent);
+    color: #fff;
+    margin-top: 14px;
+    padding: 13px 28px;
+    font-size: .92rem;
 }
+.flow-continuation-international .btn:hover { background: var(--intl-accent-deep); }
 
-
-.legend-color {
-
-    width: 13px;
-
-    height: 13px;
-
-    border-radius: 4px;
+/* Equivalence continuation (national/gold) */
+.flow-continuation-equivalence {
+    border: 2px solid var(--nat-accent-mid);
+    background: linear-gradient(180deg, var(--nat-accent-soft) 0%, #fdf1d6 100%);
 }
-
-
-/* =====================================================
-   KIGALI LABEL
-===================================================== */
-
-.kigali-label {
-
-    background: transparent !important;
-
-    border: none !important;
+.flow-continuation-equivalence .icon-big { color: var(--nat-accent); }
+.flow-continuation-equivalence h3 { color: var(--nat-accent-deep); }
+.flow-continuation-equivalence p { color: var(--nat-accent-deep); }
+.flow-continuation-equivalence .btn {
+    background: var(--nat-accent);
+    color: #fff;
+    margin-top: 14px;
+    padding: 13px 28px;
+    font-size: .92rem;
 }
+.flow-continuation-equivalence .btn:hover { background: var(--nat-accent-deep); }
 
-
-/* =====================================================
-   LEAFLET POPUP
-===================================================== */
-
-.leaflet-popup-content-wrapper {
-
-    background:
-        #07111f;
-
-    color: white;
-
+/* Index lookup area */
+.flow-lookup {
+    grid-column: 1 / -1;
+    padding: 22px clamp(18px, 3vw, 30px);
     border-radius: 14px;
-
-    box-shadow:
-        0 15px 40px
-        rgba(0,0,0,0.35);
+    border: 1.5px solid var(--nat-accent-mid);
+    background: linear-gradient(180deg, #fdfaf2 0%, #fdf6e3 100%);
+    margin-top: 4px;
 }
-
-
-.leaflet-popup-tip {
-
-    background:
-        #07111f;
-}
-
-
-.popup {
-
-    min-width: 160px;
-}
-
-
-.popup h3 {
-
-    margin: 0 0 5px;
-
-    font-size: 17px;
-}
-
-
-.popup p {
-
-    margin: 3px 0;
-
-    color: #94a3b8;
-
-    font-size: 12px;
-}
-
-
-/* =====================================================
-   LOADING SCREEN
-===================================================== */
-
-.loading {
-
-    position: absolute;
-
-    inset: 0;
-
-    z-index: 2000;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    background:
-        #07111f;
-
-    color: white;
-
-    transition:
-        opacity 0.6s ease;
-}
-
-
-.loading.hidden {
-
-    opacity: 0;
-
-    pointer-events: none;
-}
-
-
-.loader-content {
-
+.flow-lookup h4 {
     text-align: center;
+    color: var(--nat-accent-deep);
+    font-size: .95rem;
+    font-weight: 800;
+    margin-bottom: 6px;
 }
-
-
-.spinner {
-
-    width: 45px;
-
-    height: 45px;
-
-    border-radius: 50%;
-
-    border:
-        3px solid
-        rgba(255,255,255,0.1);
-
-    border-top-color:
-        #38bdf8;
-
-    animation:
-        spin 0.9s linear infinite;
-
-    margin:
-        0 auto 15px;
+.flow-lookup p.helper {
+    text-align: center;
+    color: var(--ur-text-muted);
+    font-size: .8rem;
+    margin-bottom: 14px;
 }
-
-
-@keyframes spin {
-
-    to {
-        transform:
-            rotate(360deg);
-    }
+.flow-lookup .lookup-row {
+    display: flex; gap: 12px; align-items: flex-end;
+    max-width: 760px; margin: 0 auto;
 }
+.flow-lookup .lookup-row .form-group { flex: 1; text-align: left; }
+.flow-lookup .lookup-row .btn { min-height: 48px; padding-left: 25px; padding-right: 25px; white-space: nowrap; }
+.flow-lookup .btn-purple { background: var(--nat-accent); color: #fff; }
+.flow-lookup .btn-purple:hover { background: var(--nat-accent-deep); }
 
-
-/* =====================================================
-   MOBILE
-===================================================== */
-
-@media (max-width: 700px) {
-
-    .dashboard {
-
-        top: 10px;
-        left: 10px;
-        right: 10px;
-
-        width: auto;
-
-        padding: 15px;
-    }
-
-
-    .title {
-
-        font-size: 19px;
-    }
-
-
-    .legend {
-
-        display: none;
-    }
-
-
-    .info-card {
-
-        left: 10px;
-        right: 10px;
-
-        bottom: 10px;
-
-        min-width: 0;
-    }
-
+.db-status { display: flex; gap: 10px; margin-top: 12px; justify-content: center; flex-wrap: wrap; }
+.db-status .badge { padding: 5px 12px; border-radius: 999px; font-size: .7rem; font-weight: 800; }
+.db-status .badge-success { background: #e8f8f1; color: #086747; }
+.db-status .badge-error { background: #fff0ef; color: #a3241a; }
+.db-status .badge-info { background: #eef5ff; color: #1d4ed8; }
+.icon-symbol { font-size: 1.1rem; display: inline-block; margin-right: 5px; }
+.ur-footer {
+    max-width: none; margin-top: 18px;
+    padding: 22px clamp(22px, 5vw, 80px);
+    min-height: 74px;
+    color: #d8eef5; background: var(--ur-primary-deep);
+    border-top: 3px solid rgba(242,183,5,.9);
+    display: flex; justify-content: space-between; align-items: center; gap: 15px; font-size: .74rem;
 }
+.ur-footer strong { color: #fff; }
+.gender-auto-note { font-size: .72rem; color: #086747; background: #e8f8f1; padding: 8px 12px; border-radius: 8px; margin-top: 6px; border-left: 3px solid #0f9f6e; }
+.gender-manual-note { font-size: .72rem; color: #a3241a; background: #fff0ef; padding: 8px 12px; border-radius: 8px; margin-top: 6px; border-left: 3px solid #d92d20; }
+.load-error { font-size: .72rem; color: #a3241a; margin-top: 5px; }
 
+@media (max-width: 900px) {
+    .ur-logo { width: 86px; height: 70px; flex-basis: 86px; }
+    .ur-brand { gap: 15px; }
+    .card { margin-left: 12px; margin-right: 12px; }
+    .flow-branches { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .registration-steps { grid-template-columns: 1fr; }
+    .registration-step:not(:last-child)::after { display: none; }
+    .ur-header { flex-direction: column; align-items: flex-start; gap: 16px; min-height: auto; padding: 18px 18px 20px; }
+    .ur-brand { width: 100%; }
+    .ur-logo { width: 78px; height: 62px; flex-basis: 78px; }
+    .ur-header h1 { font-size: 1.4rem; }
+    .btn-home { width: 100%; text-align: center; }
+    .registration-steps { padding: 0 10px; }
+    .registration-step { justify-content: center; padding: 9px 6px; font-size: .7rem; }
+    .card { margin: 10px 8px 0; padding: 24px 16px; border-radius: 12px; }
+    .flow-lookup .lookup-row { flex-direction: column; align-items: stretch; }
+    .flow-lookup .lookup-row .btn { width: 100%; }
+    .ur-footer { flex-direction: column; text-align: center; }
+}
+@media (max-width: 480px) {
+    .ur-logo { width: 66px; height: 54px; flex-basis: 66px; }
+    .ur-header h1 { font-size: 1.18rem; }
+    .ur-brand { gap: 11px; }
+    .registration-steps { min-height: 56px; }
+    .registration-step { min-height: 56px; font-size: .62rem; gap: 6px; }
+    .step-number { width: 26px; height: 26px; flex-basis: 26px; }
+    .card { padding: 22px 16px; }
+    .reg-number-display .number { font-size: 2rem; letter-spacing: 2px; }
+}
 </style>
 </head>
-
-
 <body>
-
-
-<!-- =====================================================
-     LOADING
-===================================================== -->
-
-<div
-    id="loading"
-    class="loading"
->
-
-    <div class="loader-content">
-
-        <div class="spinner"></div>
-
-        <div>
-            Loading Kigali map...
-        </div>
-
-    </div>
-
-</div>
-
-
-<!-- =====================================================
-     MAP
-===================================================== -->
-
-<div id="map"></div>
-
-
-<!-- =====================================================
-     DASHBOARD
-===================================================== -->
-
-<div class="dashboard">
-
-    <div class="title-row">
-
-        <div class="flag">
-            🇷🇼
-        </div>
-
-        <div class="title">
-            Kigali City
-        </div>
-
-    </div>
-
-
-    <div class="subtitle">
-        Interactive district & sector map
-    </div>
-
-
-    <div class="stats">
-
-        <div class="stat">
-
-            <div
-                id="districtCount"
-                class="stat-number"
-            >
-                3
+<div class="container">
+    <header class="ur-header">
+        <div class="ur-brand">
+            <div class="ur-logo" aria-label="University of Rwanda logo">
+                                    <img src="/public-details/q/logo/uselogo.png" alt="University of Rwanda"
+                         onerror="this.style.display='none'; document.getElementById('ur-logo-fallback').style.display='flex';">
+                                <span id="ur-logo-fallback" class="ur-logo-fallback" aria-hidden="true">UR</span>
             </div>
-
-            <div class="stat-label">
-                DISTRICTS
+            <div class="ur-brand-text">
+                <div class="ur-kicker">The University of Rwanda</div>
+                <h1>Student Application Portal</h1>
+                <p>New Student Application Portal</p>
             </div>
-
         </div>
+        <a href="index.php" class="btn-home"><span class="icon-symbol">&#127968;</span> Back to Home</a>
+    </header>
 
+    <div class="registration-steps" aria-label="Registration progress">
+        <div class="registration-step active"><span class="step-number">1</span><span>Identify Student</span></div>
+        <div class="registration-step active"><span class="step-number">2</span><span>Complete Application</span></div>
+        <div class="registration-step active"><span class="step-number">3</span><span>Confirmation &amp; PIN</span></div>
+    </div>
 
-        <div class="stat">
+    
+    
+    
+            <div class="card">
+            <h2><span class="icon-symbol">&#128203;</span> Complete your Application Information</h2>
 
-            <div
-                id="sectorCount"
-                class="stat-number"
-            >
-                35
-            </div>
+                            <div class="alert alert-purple">
+                    <span class="icon-symbol">&#9989;</span>
+                    <div>
+                        <strong>Applicant Information imported from NESA!</strong>
+                        <span style="display:block; margin-top:4px; font-size:0.85rem;">
+                            <span class="student-category-badge rwandan">&#127482;&#127472; Rwandan</span>
+                            <span class="student-category-badge undergraduate">&#127891; Undergraduate</span>
+                        </span>
+                    </div>
+                </div>
+            
+            <form method="POST" id="registrationForm">
+                <input type="hidden" name="action" value="save_bio">
+                <input type="hidden" name="student_category" value="rwandan_with_index">
+                <input type="hidden" name="applicant_id" value="195843">
+                <input type="hidden" name="student_code" value="">
+                <input type="hidden" name="school_code" value="270605">
+                <input type="hidden" name="academic_year" value="2025/2026">
+                <input type="hidden" name="combination_full_name" value="Software Development">
 
-            <div class="stat-label">
-                SECTORS
-            </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Full Name <span class="required">*</span></label>
+                        <input type="text" name="names" id="names" placeholder="e.g., GASANA ANGE MARIE" required
+                               value="HIRWA Raenne Duke"
+                               class="filled-imported">
+                    </div>
 
+                    <div class="form-group">
+                        <label>Student Level <span class="required">*</span></label>
+                        <input type="text" id="student_level_display"
+                               value="Undergraduate"
+                               readonly style="background:#f8fafc; cursor:not-allowed; font-weight:600;">
+                    </div>
+
+                                        <div class="form-group">
+                        <label>S.6 Index Number <span class="required">*</span></label>
+                        <input type="text" name="index_number" id="index_number" required
+                               value="270605SOD0122026" class="filled-imported" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Date of Birth <span class="required">*</span></label>
+                        <input type="date" name="dob" id="dob" required
+                               value="">
+                    </div>
+
+                                        <div class="form-group">
+                        <label>National ID Number </label>
+                        <input type="text" name="national_id" id="national_id"
+                               placeholder="e.g., 1198980056866002" maxlength="16"
+                               value="1200780210938048"
+                               class="filled-imported">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Personal Phone Number <span class="required">*</span></label>
+                        <input type="tel" name="phone" id="phone" required
+                               maxlength="10" inputmode="numeric" pattern="(072|073|078|079)[0-9]{7}"
+                               title="Must be exactly 10 digits starting with 072, 073, 078, or 079"
+                               value="">
+                        <span class="hint">10 digits starting with 072, 073, 078, or 079</span>
+                    </div>
+
+                    <div class="form-group" id="titleGroup">
+                        <label>Title <span class="required">*</span></label>
+                        <input type="hidden" name="title" id="title" value="MR">
+                        <input type="text" id="title_display"
+                               value="Mr"
+                               readonly style="background:#f8fafc; cursor:not-allowed; font-weight:600; ">
+                        <select name="title_manual" id="title_manual" style="display:none;">
+                            <option value="">-- Select Title --</option>
+                            <option value="MR">Mr</option>
+                            <option value="MS">Ms</option>
+                            <option value="MRS">Mrs</option>
+                            <option value="DR">Dr</option>
+                            <option value="PROF">Prof</option>
+                            <option value="REV">Rev</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="genderGroup">
+                        <label>Gender <span class="required">*</span></label>
+                        <input type="hidden" name="gender" id="gender" value="M">
+                        <input type="text" id="gender_display"
+                               value="Male (M)"
+                               readonly style="background:#f8fafc; cursor:not-allowed; font-weight:600; ">
+                        <select name="gender_manual" id="gender_manual" style="display:none;">
+                            <option value="">-- Select Gender --</option>
+                            <option value="M">Male</option>
+                            <option value="F">Female</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Marital Status</label>
+                        <select name="marital_status" id="marital_status">
+                            <option value="">-- Select --</option>
+                            <option value="S">Single</option>
+                            <option value="M">Married</option>
+                            <option value="D">Divorced</option>
+                            <option value="W">Widowed</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Disability <span class="required">*</span></label>
+                        <select name="disability" id="disability" required>
+                            <option value="">-- Select --</option>
+                            <option value="N">None</option>
+                            <option value="P">Physical</option>
+                            <option value="V">Visual</option>
+                            <option value="H">Hearing</option>
+                            <option value="L">Learning</option>
+                            <option value="O">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Personal E-Mail Address <span class="required">*</span></label>
+                        <input type="email" name="email" id="email" required
+                               value="">
+                        <span class="hint"><span style="color:red;">Use a working email.</span></span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Citizenship <span class="required">*</span></label>
+                        <input type="text" name="citizenship_display" id="citizenship_display"
+                               value="Rwandan"
+                               readonly style="background:#f8fafc; cursor:not-allowed; font-weight:600;">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Father Names</label>
+                        <input type="text" name="father_name" id="father_name"
+                               value="Sinigenga    François"
+                               class="filled-imported">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mother Names</label>
+                        <input type="text" name="mother_name" id="mother_name"
+                               value="Nyiranzabamwita   Christine"
+                               class="filled-imported">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Guardian / Next of Kin <span class="required">*</span></label>
+                        <input type="text" name="guardian_name" id="guardian_name"
+                               value=""
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Next of Kin Phone <span class="required">*</span></label>
+                        <input type="tel" name="guardian_phone" id="guardian_phone"
+                               maxlength="10" inputmode="numeric" pattern="(072|073|078|079)[0-9]{7}"
+                               title="Must be exactly 10 digits starting with 072, 073, 078, or 079"
+                               value=""
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>School Year of Completion <span class="required">*</span></label>
+                                                <input type="text" name="school_year" id="school_year" required
+                               value="202609"
+                               class="filled-imported">
+                    </div>
+
+                    <div class="form-group">
+                        <label>School Name</label>
+                        <input type="text" name="school_name" id="school_name"
+                               value="270605-BULINGA TVET SCHOOL"
+                               class="filled-imported">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Combination <span class="required">*</span></label>
+                        <input type="text" name="combination" id="combination" required
+                               value="SOD"
+                               class="filled-imported">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Combination Full Name</label>
+                        <input type="text" name="combination_full_name_display" id="combinationFullNameDisplay"
+                               value="Software Development"
+                               readonly style="background:#f8fafc; cursor:not-allowed;">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Aggregate Score</label>
+                        <input type="text" name="aggregate" id="aggregate"
+                               value="59.70"
+                               class="filled-imported">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Student Type <span class="required">*</span></label>
+                        <select name="student_type" id="student_type" required>
+                            <option value="">-- Select --</option>
+                            <option value="General Education" >General Education</option>
+                            <option value="TVET" selected>TVET</option>
+                            <option value="International" >International</option>
+                            <option value="Graduate" >Graduate</option>
+                            <option value="PhD" >PhD</option>
+                            <option value="Other" >Other</option>
+                        </select>
+                    </div>
+
+                                        <div class="form-group" style="display:none;">
+                        <input type="hidden" name="passport" value="">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Postal Address</label>
+                        <input type="text" name="postal" id="postal"
+                               value="PO BOX 4285 Kigali-Rwanda">
+                    </div>
+
+                                        <div class="form-group">
+                        <label>Province <span class="required">*</span></label>
+                        <select name="province_id" id="province_id" required>
+                            <option value="">-- Select Province --</option>
+                                                            <option value="2" >
+                                    East                                </option>
+                                                            <option value="5" >
+                                    Kigali city                                </option>
+                                                            <option value="6" >
+                                    NA                                </option>
+                                                            <option value="4" >
+                                    North                                </option>
+                                                            <option value="1" >
+                                    South                                </option>
+                                                            <option value="3" >
+                                    West                                </option>
+                                                    </select>
+                        <input type="hidden" name="province" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label>District <span class="required">*</span></label>
+                        <select name="district_id" id="district_id" required>
+                            <option value="">-- Select District --</option>
+                                                    </select>
+                        <input type="hidden" name="district" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Sector <span class="required">*</span></label>
+                        <select name="sector_id" id="sector_id" required>
+                            <option value="">-- Select Sector --</option>
+                                                    </select>
+                        <input type="hidden" name="sector" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Cell <span class="required">*</span></label>
+                        <select name="cell_id" id="cell_id" required>
+                            <option value="">-- Select Cell --</option>
+                                                    </select>
+                        <input type="hidden" name="cell" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Village (Umudugudu)</label>
+                        <input type="text" name="village" id="village"
+                               value="">
+                    </div>
+                                    </div>
+
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-success"><span class="icon-symbol">&#128190;</span> Submit</button>
+                    <a href="index.php" class="btn btn-secondary"><span class="icon-symbol">&#127968;</span> Back to Home</a>
+                </div>
+            </form>
         </div>
-
-
-        <div class="stat">
-
-            <div
-                id="selectedCount"
-                class="stat-number"
-            >
-                0
-            </div>
-
-            <div class="stat-label">
-                SELECTED
-            </div>
-
-        </div>
-
     </div>
-
-
-    <!-- SEARCH -->
-
-    <div class="search-container">
-
-        <input
-            id="search"
-            type="text"
-            placeholder="Search sector..."
-            autocomplete="off"
-        >
-
-        <div
-            id="searchResults"
-            class="search-results"
-        ></div>
-
-    </div>
-
-
-    <!-- RESET -->
-
-    <button
-        id="resetButton"
-        class="reset-button"
-    >
-        ⌖ Back to Kigali
-    </button>
-
-</div>
-
-
-<!-- =====================================================
-     LEGEND
-===================================================== -->
-
-<div class="legend">
-
-    <div class="legend-title">
-        KIGALI DISTRICTS
-    </div>
-
-
-    <div class="legend-item">
-
-        <div
-            class="legend-color"
-            style="background:#38bdf8"
-        ></div>
-
-        <span>
-            Gasabo — 15 sectors
-        </span>
-
-    </div>
-
-
-    <div class="legend-item">
-
-        <div
-            class="legend-color"
-            style="background:#a78bfa"
-        ></div>
-
-        <span>
-            Kicukiro — 10 sectors
-        </span>
-
-    </div>
-
-
-    <div class="legend-item">
-
-        <div
-            class="legend-color"
-            style="background:#fb7185"
-        ></div>
-
-        <span>
-            Nyarugenge — 10 sectors
-        </span>
-
-    </div>
-
-</div>
-
-
-<!-- =====================================================
-     INFORMATION CARD
-===================================================== -->
-
-<div
-    id="infoCard"
-    class="info-card"
->
-
-    <div
-        id="infoTitle"
-        class="info-title"
-    >
-        Kigali
-    </div>
-
-
-    <div
-        id="infoDistrict"
-        class="info-district"
-    >
-        Rwanda
-    </div>
-
-
-    <div
-        id="infoDescription"
-        class="info-description"
-    >
-        Hover over a sector to see its information.
-    </div>
-
-</div>
-
-
 
 <script>
+// ============================================================
+// AJAX endpoint � dedicated file, no query-string conflicts
+// ============================================================
+const AJAX_ENDPOINT = 'ajax_locations.php';
 
-/* =====================================================
-   CONFIGURATION
-===================================================== */
+// ============================================================
+// NID -> Title & Gender
+// ============================================================
+function detectFromNIDClient(nid) {
+    nid = (nid || '').replace(/\D+/g, '');
+    if (nid.length < 6) return { gender: '', title: '' };
+    const p = nid.charAt(5);
+    if (p === '7') return { gender: 'F', title: 'MS' };
+    if (p === '8') return { gender: 'M', title: 'MR' };
+    return { gender: '', title: '' };
+}
 
+function applyFromNID() {
+    const nidInput = document.getElementById('national_id');
+    const gH = document.getElementById('gender');
+    const gD = document.getElementById('gender_display');
+    const gM = document.getElementById('gender_manual');
+    const tH = document.getElementById('title');
+    const tD = document.getElementById('title_display');
+    const tM = document.getElementById('title_manual');
+    if (!gH || !tH) return;
 
-/*
-   Kigali center
-*/
+    const detected = detectFromNIDClient(nidInput ? nidInput.value.trim() : '');
 
-const KIGALI_CENTER = [
-    -1.9441,
-    30.0619
-];
+    if (detected.gender !== '') {
+        gH.value = detected.gender;
+        if (gD) { gD.value = (detected.gender === 'M') ? 'Male (M)' : 'Female (F)'; gD.style.display = 'block'; }
+        if (gM) { gM.style.display = 'none'; gM.removeAttribute('required'); gM.value = ''; }
+        tH.value = detected.title;
+        if (tD) { tD.value = (detected.title === 'MR') ? 'Mr' : 'Ms'; tD.style.display = 'block'; }
+        if (tM) { tM.style.display = 'none'; tM.removeAttribute('required'); tM.value = ''; }
+    } else {
+        gH.value = '';
+        if (gD) { gD.value = ''; gD.style.display = 'none'; }
+        if (gM) { gM.style.display = 'block'; gM.setAttribute('required', 'required'); }
+        tH.value = '';
+        if (tD) { tD.value = ''; tD.style.display = 'none'; }
+        if (tM) { tM.style.display = 'block'; tM.setAttribute('required', 'required'); }
+    }
+}
 
+// ============================================================
+// CATEGORY TOGGLE
+// ============================================================
+function toggleCategory(category) {
+    const categoryInput = document.getElementById('categoryInput');
+    if (categoryInput) categoryInput.value = category;
 
-/*
-   Kigali approximate radius
-*/
+    const rI = document.getElementById('rwandanIndexTab');
+    const rN = document.getElementById('rwandanNoIndexTab');
+    const iT = document.getElementById('internationalTab');
+    const eT = document.getElementById('equivalenceTab');
+    const iL = document.getElementById('indexLookupArea');
+    const rNN = document.getElementById('rwandanNoIndexNotice');
+    const fN = document.getElementById('foreignNotice');
+    const eN = document.getElementById('equivalenceNotice');
 
-const KIGALI_RADIUS = 11500;
+    [rI, rN, iT, eT].forEach(el => el?.classList.remove('active'));
 
+    if (iL) iL.style.display = 'none';
+    if (rNN) rNN.style.display = 'none';
+    if (fN) fN.style.display = 'none';
+    if (eN) eN.style.display = 'none';
 
-/*
-   Official Rwanda GIS sector layer.
+    if (category === 'rwandan_with_index') {
+        rI?.classList.add('active');
+        if (iL) iL.style.display = 'block';
+    } else if (category === 'rwandan_without_index') {
+        rN?.classList.add('active');
+        if (rNN) rNN.style.display = 'block';
+    } else if (category === 'foreign_international') {
+        iT?.classList.add('active');
+        if (fN) fN.style.display = 'block';
+    } else if (category === 'national_equivalence') {
+        eT?.classList.add('active');
+        if (eN) eN.style.display = 'block';
+    }
+}
 
-   Layer 1 = Sector Boundary.
-*/
+// ============================================================
+// AJAX LOADERS
+// ============================================================
+function loadDistricts(provinceId, districtSelect, sectorSelect, cellSelect) {
+    if (!districtSelect) return;
+    districtSelect.innerHTML = '<option value="">Loading...</option>';
+    if (sectorSelect) sectorSelect.innerHTML = '<option value="">-- Select Sector --</option>';
+    if (cellSelect)   cellSelect.innerHTML   = '<option value="">-- Select Cell --</option>';
 
-const SECTOR_API =
-    "https://moegis.environment.gov.rw/server/rest/services/Hosted/Administrative_boundaries/FeatureServer/1/query";
+    if (!provinceId) {
+        districtSelect.innerHTML = '<option value="">-- Select District --</option>';
+        return;
+    }
 
+    const url = AJAX_ENDPOINT + '?action=get_districts&province_id=' + encodeURIComponent(provinceId);
 
-/*
-   Only request Kigali districts.
-*/
+    fetch(url, { cache: 'no-store', credentials: 'same-origin' })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        })
+        .then(text => {
+            let data;
+            try { data = JSON.parse(text); }
+            catch (e) { throw new Error('Invalid JSON: ' + text.substring(0, 100)); }
 
-const queryParams = new URLSearchParams({
+            if (data.error) throw new Error(data.error);
 
-    where:
-        "district IN ('Gasabo','Kicukiro','Nyarugenge')",
+            districtSelect.innerHTML = '<option value="">-- Select District --</option>';
+            if (!Array.isArray(data) || data.length === 0) {
+                districtSelect.innerHTML = '<option value="">No districts found</option>';
+                return;
+            }
+            data.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.DistrictID;
+                opt.textContent = d.DistrictName;
+                districtSelect.appendChild(opt);
+            });
+        })
+        .catch(err => {
+            console.error('[AJAX] District load failed:', err);
+            districtSelect.innerHTML = '<option value="">Error loading districts</option>';
+            const hint = document.createElement('span');
+            hint.className = 'load-error';
+            hint.textContent = 'Could not load districts. ' + err.message;
+            districtSelect.parentElement.appendChild(hint);
+        });
+}
 
-    outFields:
-        "province,district,sector,district_id,sector_id",
+function loadSectors(districtId, sectorSelect, cellSelect) {
+    if (!sectorSelect) return;
+    sectorSelect.innerHTML = '<option value="">Loading...</option>';
+    if (cellSelect) cellSelect.innerHTML = '<option value="">-- Select Cell --</option>';
 
-    returnGeometry:
-        "true",
+    if (!districtId) {
+        sectorSelect.innerHTML = '<option value="">-- Select Sector --</option>';
+        return;
+    }
 
-    outSR:
-        "4326",
+    const url = AJAX_ENDPOINT + '?action=get_sectors&district_id=' + encodeURIComponent(districtId);
 
-    returnIdsOnly:
-        "false",
+    fetch(url, { cache: 'no-store', credentials: 'same-origin' })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        })
+        .then(text => {
+            let data;
+            try { data = JSON.parse(text); }
+            catch (e) { throw new Error('Invalid JSON: ' + text.substring(0, 100)); }
 
-    f:
-        "geojson"
+            if (data.error) throw new Error(data.error);
 
+            sectorSelect.innerHTML = '<option value="">-- Select Sector --</option>';
+            if (!Array.isArray(data) || data.length === 0) {
+                sectorSelect.innerHTML = '<option value="">No sectors found</option>';
+                return;
+            }
+            data.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.Sector_ID;
+                opt.textContent = s.SectorName;
+                sectorSelect.appendChild(opt);
+            });
+        })
+        .catch(err => {
+            console.error('[AJAX] Sector load failed:', err);
+            sectorSelect.innerHTML = '<option value="">Error loading sectors</option>';
+        });
+}
+
+function loadCells(sectorId, cellSelect) {
+    if (!cellSelect) return;
+    cellSelect.innerHTML = '<option value="">Loading...</option>';
+
+    if (!sectorId) {
+        cellSelect.innerHTML = '<option value="">-- Select Cell --</option>';
+        return;
+    }
+
+    const url = AJAX_ENDPOINT + '?action=get_cells&sector_id=' + encodeURIComponent(sectorId);
+
+    fetch(url, { cache: 'no-store', credentials: 'same-origin' })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        })
+        .then(text => {
+            let data;
+            try { data = JSON.parse(text); }
+            catch (e) { throw new Error('Invalid JSON: ' + text.substring(0, 100)); }
+
+            if (data.error) throw new Error(data.error);
+
+            cellSelect.innerHTML = '<option value="">-- Select Cell --</option>';
+            if (!Array.isArray(data) || data.length === 0) {
+                cellSelect.innerHTML = '<option value="">No cells found</option>';
+                return;
+            }
+            data.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.Cell_ID;
+                opt.textContent = c.CellName;
+                cellSelect.appendChild(opt);
+            });
+        })
+        .catch(err => {
+            console.error('[AJAX] Cell load failed:', err);
+            cellSelect.innerHTML = '<option value="">Error loading cells</option>';
+        });
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+document.addEventListener('DOMContentLoaded', function () {
+    const provinceSelect = document.getElementById('province_id');
+    const districtSelect = document.getElementById('district_id');
+    const sectorSelect   = document.getElementById('sector_id');
+    const cellSelect     = document.getElementById('cell_id');
+
+    if (provinceSelect) {
+        provinceSelect.addEventListener('change', function () {
+            loadDistricts(this.value, districtSelect, sectorSelect, cellSelect);
+        });
+    }
+
+    if (districtSelect) {
+        districtSelect.addEventListener('change', function () {
+            loadSectors(this.value, sectorSelect, cellSelect);
+        });
+    }
+
+    if (sectorSelect) {
+        sectorSelect.addEventListener('change', function () {
+            loadCells(this.value, cellSelect);
+        });
+    }
+
+    if (provinceSelect && provinceSelect.value) {
+        const preProvince = provinceSelect.value;
+        const preDistrict = districtSelect ? districtSelect.value : '';
+        const preSector   = sectorSelect ? sectorSelect.value : '';
+
+        loadDistricts(preProvince, districtSelect, sectorSelect, cellSelect);
+        if (preDistrict) {
+            setTimeout(() => {
+                if (districtSelect) districtSelect.value = preDistrict;
+                loadSectors(preDistrict, sectorSelect, cellSelect);
+                if (preSector) {
+                    setTimeout(() => {
+                        if (sectorSelect) sectorSelect.value = preSector;
+                        loadCells(preSector, cellSelect);
+                    }, 500);
+                }
+            }, 500);
+        }
+    }
+
+    const nidInput = document.getElementById('national_id');
+    if (nidInput) {
+        applyFromNID();
+        nidInput.addEventListener('input', function () {
+            this.value = this.value.replace(/\D+/g, '');
+            applyFromNID();
+        });
+        nidInput.addEventListener('change', applyFromNID);
+    }
 });
 
+// ============================================================
+// FORM VALIDATION
+// ============================================================
+document.getElementById('registrationForm')?.addEventListener('submit', function (e) {
+    const cat = document.querySelector('input[name="student_category"]')?.value || 'rwandan_with_index';
+    const isRwandan = ['rwandan_with_index','rwandan_without_index','national_equivalence'].includes(cat);
+    const hasIndex  = cat === 'rwandan_with_index';
+    const isForeign = cat === 'foreign_international';
 
-const SECTOR_URL =
-    SECTOR_API +
-    "?" +
-    queryParams.toString();
+    const required = ['names', 'dob', 'phone', 'email', 'student_type', 'school_year'];
+    if (hasIndex) required.push('index_number');
+    if (isRwandan) { required.push('province_id', 'district_id'); }
+    if (isForeign) required.push('passport');
+    if (cat === 'national_equivalence') required.push('national_id', 'equivalence_number');
 
-
-
-/* =====================================================
-   DISTRICT INFORMATION
-===================================================== */
-
-const DISTRICTS = {
-
-    Gasabo: {
-        sectors: 15,
-        color: "#38bdf8"
-    },
-
-    Kicukiro: {
-        sectors: 10,
-        color: "#a78bfa"
-    },
-
-    Nyarugenge: {
-        sectors: 10,
-        color: "#fb7185"
+    let missing = [];
+    for (const field of required) {
+        const input = document.getElementById(field);
+        if (!input || !input.value.trim()) {
+            missing.push(field.replace('_', ' ').toUpperCase());
+            if (input) input.style.borderColor = '#dc2626';
+        } else if (input) input.style.borderColor = '';
     }
 
-};
+    const gH = document.getElementById('gender');
+    const gM = document.getElementById('gender_manual');
+    if (!(gH && gH.value) && !(gM && gM.value)) missing.push('GENDER');
 
+    const tH = document.getElementById('title');
+    const tM = document.getElementById('title_manual');
+    if (!(tH && tH.value) && !(tM && tM.value)) missing.push('TITLE');
 
+    const p = document.getElementById('phone');
+    if (p && p.value.trim() && !/^(072|073|078|079)\d{7}$/.test(p.value.trim()))
+        missing.push('VALID PHONE (10 digits starting with 072, 073, 078, or 079)');
 
-/* =====================================================
-   SECTOR COLORS
-===================================================== */
+    const gp = document.getElementById('guardian_phone');
+    if (gp && gp.value.trim() && !/^(072|073|078|079)\d{7}$/.test(gp.value.trim()))
+        missing.push('VALID NEXT-OF-KIN PHONE (10 digits starting with 072, 073, 078, or 079)');
 
-const SECTOR_COLORS = [
-
-    "#38bdf8",
-    "#22c55e",
-    "#f59e0b",
-    "#ef4444",
-    "#a78bfa",
-    "#ec4899",
-    "#14b8a6",
-    "#f97316",
-    "#84cc16",
-    "#06b6d4",
-
-    "#8b5cf6",
-    "#eab308",
-    "#10b981",
-    "#f43f5e",
-    "#6366f1",
-    "#d946ef",
-    "#0ea5e9",
-    "#65a30d",
-    "#dc2626",
-    "#9333ea",
-
-    "#0891b2",
-    "#ca8a04",
-    "#059669",
-    "#db2777",
-    "#7c3aed",
-    "#ea580c",
-    "#16a34a",
-    "#2563eb",
-    "#c026d3",
-    "#0284c7",
-
-    "#e11d48",
-    "#4f46e5",
-    "#15803d",
-    "#b45309",
-    "#be123c"
-
-];
-
-
-
-/* =====================================================
-   MAP
-===================================================== */
-
-const map = L.map(
-    "map",
-    {
-
-        zoomControl: true,
-
-        minZoom: 9,
-
-        maxZoom: 19,
-
-        zoomAnimation: true,
-
-        fadeAnimation: true,
-
-        markerZoomAnimation: true
-
+    if (missing.length) {
+        e.preventDefault();
+        alert('Please correct the following:\n\n- ' + missing.join('\n- '));
     }
-);
-
-
-
-/* =====================================================
-   ARC GIS BASE MAP
-===================================================== */
-
-/*
-   IMPORTANT:
-
-   We are NOT using:
-
-   tile.openstreetmap.org
-
-   because your screenshot showed
-   OpenStreetMap returning 403.
-
-   Instead we use ArcGIS tiles.
-*/
-
-L.tileLayer(
-
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-
-    {
-
-        maxZoom: 19,
-
-        attribution:
-            "Tiles &copy; Esri — Sources: Esri, TomTom, Garmin, FAO, NOAA, USGS, OpenStreetMap contributors"
-
-    }
-
-).addTo(map);
-
-
-
-/* =====================================================
-   START POSITION
-===================================================== */
-
-map.setView(
-    KIGALI_CENTER,
-    11
-);
-
-
-
-/* =====================================================
-   KIGALI CIRCLE
-===================================================== */
-
-const kigaliCircle = L.circle(
-
-    KIGALI_CENTER,
-
-    {
-
-        radius:
-            KIGALI_RADIUS,
-
-        color:
-            "#38bdf8",
-
-        weight:
-            3,
-
-        opacity:
-            0.9,
-
-        fillColor:
-            "#38bdf8",
-
-        fillOpacity:
-            0.05,
-
-        dashArray:
-            "10 10",
-
-        interactive:
-            false
-
-    }
-
-).addTo(map);
-
-
-
-/* =====================================================
-   ANIMATED CIRCLE
-===================================================== */
-
-let pulseDirection = 1;
-
-let pulseOpacity = 0.05;
-
-
-setInterval(
-    () => {
-
-        pulseOpacity +=
-            0.003 *
-            pulseDirection;
-
-
-        if (
-            pulseOpacity >= 0.12
-        ) {
-
-            pulseDirection = -1;
-
-        }
-
-
-        if (
-            pulseOpacity <= 0.03
-        ) {
-
-            pulseDirection = 1;
-
-        }
-
-
-        kigaliCircle.setStyle({
-
-            fillOpacity:
-                pulseOpacity
-
-        });
-
-    },
-    60
-);
-
-
-
-/* =====================================================
-   KIGALI LABEL
-===================================================== */
-
-const kigaliLabel =
-    L.marker(
-
-        KIGALI_CENTER,
-
-        {
-
-            icon:
-                L.divIcon({
-
-                    className:
-                        "kigali-label",
-
-                    html: `
-
-                        <div style="
-                            background:
-                                rgba(7,17,31,.92);
-
-                            color:
-                                white;
-
-                            padding:
-                                8px 15px;
-
-                            border-radius:
-                                30px;
-
-                            border:
-                                1px solid #38bdf8;
-
-                            font-weight:
-                                800;
-
-                            font-size:
-                                13px;
-
-                            box-shadow:
-                                0 8px 25px
-                                rgba(0,0,0,.4);
-
-                            white-space:
-                                nowrap;
-                        ">
-                            🇷🇼 KIGALI
-                        </div>
-
-                    `,
-
-                    iconSize:
-                        [100, 35],
-
-                    iconAnchor:
-                        [50, 17]
-
-                }),
-
-            interactive:
-                false
-
-        }
-
-    ).addTo(map);
-
-
-
-/* =====================================================
-   LAYERS
-===================================================== */
-
-let sectorLayer = null;
-
-let districtLayers = {};
-
-let sectorFeatures = [];
-
-let selectedLayer = null;
-
-
-
-/* =====================================================
-   UI ELEMENTS
-===================================================== */
-
-const infoCard =
-    document.getElementById(
-        "infoCard"
-    );
-
-const infoTitle =
-    document.getElementById(
-        "infoTitle"
-    );
-
-const infoDistrict =
-    document.getElementById(
-        "infoDistrict"
-    );
-
-const infoDescription =
-    document.getElementById(
-        "infoDescription"
-    );
-
-const selectedCount =
-    document.getElementById(
-        "selectedCount"
-    );
-
-const searchInput =
-    document.getElementById(
-        "search"
-    );
-
-const searchResults =
-    document.getElementById(
-        "searchResults"
-    );
-
-
-
-/* =====================================================
-   SHOW INFO
-===================================================== */
-
-function showInfo(
-    sector,
-    district
-) {
-
-    infoTitle.textContent =
-        sector;
-
-    infoDistrict.textContent =
-        district + " District";
-
-    infoDescription.textContent =
-        "Click this sector to zoom in and explore the area.";
-
-    infoCard.classList.add(
-        "visible"
-    );
-
-}
-
-
-
-/* =====================================================
-   HIDE INFO
-===================================================== */
-
-function hideInfo() {
-
-    infoCard.classList.remove(
-        "visible"
-    );
-
-}
-
-
-
-/* =====================================================
-   GET SECTOR COLOR
-===================================================== */
-
-const sectorColorMap = {};
-
-let colorIndex = 0;
-
-
-
-/* =====================================================
-   CREATE SECTOR COLOR
-===================================================== */
-
-function getSectorColor(
-    sector
-) {
-
-    if (
-        !sectorColorMap[sector]
-    ) {
-
-        sectorColorMap[sector] =
-            SECTOR_COLORS[
-                colorIndex %
-                SECTOR_COLORS.length
-            ];
-
-        colorIndex++;
-
-    }
-
-    return sectorColorMap[
-        sector
-    ];
-
-}
-
-
-
-/* =====================================================
-   SECTOR STYLE
-===================================================== */
-
-function sectorStyle(
-    feature
-) {
-
-    const props =
-        feature.properties || {};
-
-    const sector =
-        props.sector ||
-        "Unknown";
-
-    const district =
-        props.district ||
-        "Kigali";
-
-
-    return {
-
-        color:
-            DISTRICTS[district]?.color ||
-            "#ffffff",
-
-        weight:
-            1.5,
-
-        opacity:
-            0.9,
-
-        fillColor:
-            getSectorColor(
-                sector
-            ),
-
-        fillOpacity:
-            0.68
-
+});
+
+document.getElementById('names')?.addEventListener('input', function () { this.value = this.value.toUpperCase(); });
+document.getElementById('phone')?.addEventListener('input', function () { this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10); });
+document.getElementById('guardian_phone')?.addEventListener('input', function () { this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10); });
+
+document.getElementById('combination')?.addEventListener('blur', function () {
+    const map = {
+        'MCB':'Mathematics, Chemistry, Biology','PCM':'Physics, Chemistry, Mathematics',
+        'PCB':'Physics, Chemistry, Biology','HEG':'History, Economics, Geography',
+        'MEG':'Mathematics, Economics, Geography','MCE':'Mathematics, Chemistry, Economics',
+        'BCE':'Biology, Chemistry, Economics','PEM':'Physics, Economics, Mathematics',
+        'BMF':'Business, Mathematics, French','HLP':'History, Literature, Political Science',
+        'MET':'Mathematics, Economics, Tourism','ICT':'Information Technology, Computer Science'
     };
-
-}
-
-
-
-/* =====================================================
-   HOVER STYLE
-===================================================== */
-
-function hoverStyle(
-    layer
-) {
-
-    layer.setStyle({
-
-        weight:
-            4,
-
-        color:
-            "#ffffff",
-
-        fillOpacity:
-            0.92
-
-    });
-
-}
-
-
-
-/* =====================================================
-   NORMAL STYLE
-===================================================== */
-
-function normalStyle(
-    layer
-) {
-
-    if (
-        sectorLayer
-    ) {
-
-        sectorLayer.resetStyle(
-            layer
-        );
-
-    }
-
-}
-
-
-
-/* =====================================================
-   SELECT SECTOR
-===================================================== */
-
-function selectSector(
-    layer
-) {
-
-    const props =
-        layer.feature.properties ||
-        {};
-
-    const sector =
-        props.sector ||
-        "Unknown";
-
-    const district =
-        props.district ||
-        "Kigali";
-
-
-    /*
-       Remove previous selection.
-    */
-
-    if (
-        selectedLayer &&
-        selectedLayer !== layer
-    ) {
-
-        normalStyle(
-            selectedLayer
-        );
-
-    }
-
-
-    selectedLayer =
-        layer;
-
-
-    /*
-       Highlight selected sector.
-    */
-
-    layer.setStyle({
-
-        weight:
-            5,
-
-        color:
-            "#ffffff",
-
-        fillOpacity:
-            0.95
-
-    });
-
-
-    /*
-       Smooth zoom.
-    */
-
-    map.fitBounds(
-
-        layer.getBounds(),
-
-        {
-
-            padding:
-                [70, 70],
-
-            animate:
-                true,
-
-            duration:
-                1.2
-
-        }
-
-    );
-
-
-    /*
-       Show popup.
-    */
-
-    L.popup({
-
-        closeButton:
-            true,
-
-        autoPan:
-            true
-
-    })
-
-    .setLatLng(
-        layer.getBounds()
-            .getCenter()
-    )
-
-    .setContent(`
-
-        <div class="popup">
-
-            <h3>
-                ${sector}
-            </h3>
-
-            <p>
-                District:
-                <strong>
-                    ${district}
-                </strong>
-            </p>
-
-            <p>
-                Sector ID:
-                ${props.sector_id || "N/A"}
-            </p>
-
-        </div>
-
-    `)
-
-    .openOn(map);
-
-
-    showInfo(
-        sector,
-        district
-    );
-
-
-    selectedCount.textContent =
-        "1";
-
-}
-
-
-
-/* =====================================================
-   SECTOR EVENTS
-===================================================== */
-
-function onEachSector(
-    feature,
-    layer
-) {
-
-    const props =
-        feature.properties ||
-        {};
-
-    const sector =
-        props.sector ||
-        "Unknown";
-
-    const district =
-        props.district ||
-        "Kigali";
-
-
-    /*
-       Save for search.
-    */
-
-    sectorFeatures.push({
-
-        name:
-            sector,
-
-        district:
-            district,
-
-        layer:
-            layer,
-
-        feature:
-            feature
-
-    });
-
-
-    /*
-       Mouse enters.
-    */
-
-    layer.on(
-
-        "mouseover",
-
-        function() {
-
-            hoverStyle(
-                layer
-            );
-
-            layer.bringToFront();
-
-            showInfo(
-                sector,
-                district
-            );
-
-        }
-
-    );
-
-
-    /*
-       Mouse leaves.
-    */
-
-    layer.on(
-
-        "mouseout",
-
-        function() {
-
-            if (
-                selectedLayer !==
-                layer
-            ) {
-
-                normalStyle(
-                    layer
-                );
-
-            }
-
-        }
-
-    );
-
-
-    /*
-       Click.
-    */
-
-    layer.on(
-
-        "click",
-
-        function(e) {
-
-            L.DomEvent.stopPropagation(
-                e
-            );
-
-            selectSector(
-                layer
-            );
-
-        }
-
-    );
-
-
-
-    /*
-       Tooltip.
-    */
-
-    layer.bindTooltip(
-
-        `<strong>${sector}</strong><br>${district} District`,
-
-        {
-
-            sticky:
-                true,
-
-            direction:
-                "top",
-
-            opacity:
-                0.95
-
-        }
-
-    );
-
-}
-
-
-
-/* =====================================================
-   LOAD REAL RWANDA SECTOR DATA
-===================================================== */
-
-fetch(
-    SECTOR_URL
-)
-
-.then(
-    response => {
-
-        if (
-            !response.ok
-        ) {
-
-            throw new Error(
-                "GIS server returned " +
-                response.status
-            );
-
-        }
-
-        return response.json();
-
-    }
-)
-
-.then(
-    data => {
-
-        console.log(
-            "Kigali GIS data:",
-            data
-        );
-
-
-        /*
-           Create GeoJSON.
-        */
-
-        sectorLayer =
-            L.geoJSON(
-
-                data,
-
-                {
-
-                    style:
-                        sectorStyle,
-
-                    onEachFeature:
-                        onEachSector
-
-                }
-
-            ).addTo(map);
-
-
-        /*
-           Store features.
-        */
-
-        const features =
-            data.features || [];
-
-
-        /*
-           Update sector count
-           based on actual returned data.
-        */
-
-        if (
-            features.length > 0
-        ) {
-
-            document
-                .getElementById(
-                    "sectorCount"
-                )
-                .textContent =
-                    features.length;
-
-        }
-
-
-        /*
-           Smoothly zoom to Kigali.
-        */
-
-        setTimeout(
-            () => {
-
-                const bounds =
-                    sectorLayer
-                        .getBounds();
-
-
-                if (
-                    bounds.isValid()
-                ) {
-
-                    map.flyToBounds(
-
-                        bounds,
-
-                        {
-
-                            padding:
-                                [80, 80],
-
-                            duration:
-                                2.0,
-
-                            easeLinearity:
-                                0.25
-
-                        }
-
-                    );
-
-                }
-
-            },
-            500
-        );
-
-
-        /*
-           Hide loading screen.
-        */
-
-        setTimeout(
-            () => {
-
-                document
-                    .getElementById(
-                        "loading"
-                    )
-                    .classList.add(
-                        "hidden"
-                    );
-
-            },
-            800
-        );
-
-    }
-)
-
-.catch(
-    error => {
-
-        console.error(
-            "Could not load GIS data:",
-            error
-        );
-
-
-        document
-            .getElementById(
-                "loading"
-            )
-            .innerHTML = `
-
-                <div
-                    class="loader-content"
-                    style="
-                        max-width:400px;
-                        padding:30px;
-                    "
-                >
-
-                    <div
-                        style="
-                            font-size:45px;
-                            margin-bottom:15px;
-                        "
-                    >
-                        ⚠️
-                    </div>
-
-                    <div
-                        style="
-                            font-size:20px;
-                            font-weight:800;
-                            margin-bottom:10px;
-                        "
-                    >
-                        Map data could not load
-                    </div>
-
-                    <div
-                        style="
-                            color:#94a3b8;
-                            font-size:13px;
-                            line-height:1.6;
-                        "
-                    >
-                        Please check your internet
-                        connection and reload the page.
-                    </div>
-
-                </div>
-
-            `;
-
-    }
-);
-
-
-
-/* =====================================================
-   SEARCH
-===================================================== */
-
-searchInput.addEventListener(
-
-    "input",
-
-    function() {
-
-        const value =
-            this.value
-                .trim()
-                .toLowerCase();
-
-
-        searchResults.innerHTML =
-            "";
-
-
-        if (
-            !value
-        ) {
-
-            searchResults.style.display =
-                "none";
-
-            return;
-
-        }
-
-
-        const matches =
-            sectorFeatures
-                .filter(
-                    item =>
-                        item.name
-                            .toLowerCase()
-                            .includes(value)
-                        ||
-                        item.district
-                            .toLowerCase()
-                            .includes(value)
-                )
-                .slice(
-                    0,
-                    8
-                );
-
-
-        if (
-            matches.length === 0
-        ) {
-
-            searchResults.innerHTML = `
-
-                <div
-                    class="search-result"
-                    style="color:#94a3b8"
-                >
-                    No sector found
-                </div>
-
-            `;
-
-        }
-
-
-        matches.forEach(
-            item => {
-
-                const div =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                div.className =
-                    "search-result";
-
-
-                div.innerHTML = `
-
-                    <div class="result-sector">
-                        ${item.name}
-                    </div>
-
-                    <div class="result-district">
-                        ${item.district} District
-                    </div>
-
-                `;
-
-
-                div.addEventListener(
-
-                    "click",
-
-                    () => {
-
-                        searchInput.value =
-                            item.name;
-
-                        searchResults.style.display =
-                            "none";
-
-
-                        selectSector(
-                            item.layer
-                        );
-
-                    }
-
-                );
-
-
-                searchResults.appendChild(
-                    div
-                );
-
-            }
-        );
-
-
-        searchResults.style.display =
-            "block";
-
-    }
-
-);
-
-
-
-/* =====================================================
-   CLICK OUTSIDE SEARCH
-===================================================== */
-
-document.addEventListener(
-
-    "click",
-
-    function(event) {
-
-        if (
-            !event.target.closest(
-                ".search-container"
-            )
-        ) {
-
-            searchResults.style.display =
-                "none";
-
-        }
-
-    }
-
-);
-
-
-
-/* =====================================================
-   RESET KIGALI
-===================================================== */
-
-document
-    .getElementById(
-        "resetButton"
-    )
-    .addEventListener(
-
-        "click",
-
-        function() {
-
-            /*
-               Remove selection.
-            */
-
-            if (
-                selectedLayer
-            ) {
-
-                normalStyle(
-                    selectedLayer
-                );
-
-            }
-
-
-            selectedLayer =
-                null;
-
-
-            selectedCount.textContent =
-                "0";
-
-
-            /*
-               Close popup.
-            */
-
-            map.closePopup();
-
-
-            /*
-               Hide info.
-            */
-
-            hideInfo();
-
-
-            /*
-               Clear search.
-            */
-
-            searchInput.value =
-                "";
-
-            searchResults.style.display =
-                "none";
-
-
-            /*
-               Zoom back to Kigali.
-            */
-
-            if (
-                sectorLayer &&
-                sectorLayer
-                    .getBounds()
-                    .isValid()
-            ) {
-
-                map.flyToBounds(
-
-                    sectorLayer
-                        .getBounds(),
-
-                    {
-
-                        padding:
-                            [80, 80],
-
-                        duration:
-                            1.8,
-
-                        easeLinearity:
-                            0.25
-
-                    }
-
-                );
-
-            } else {
-
-                map.flyTo(
-
-                    KIGALI_CENTER,
-
-                    11,
-
-                    {
-
-                        duration:
-                            1.5
-
-                    }
-
-                );
-
-            }
-
-        }
-
-    );
-
-
-
-/* =====================================================
-   MAP CLICK
-===================================================== */
-
-map.on(
-
-    "click",
-
-    function() {
-
-        /*
-           If user clicks empty map,
-           remove selection.
-        */
-
-        if (
-            selectedLayer
-        ) {
-
-            normalStyle(
-                selectedLayer
-            );
-
-        }
-
-
-        selectedLayer =
-            null;
-
-
-        selectedCount.textContent =
-            "0";
-
-
-        map.closePopup();
-
-    }
-
-);
-
-
-
-/* =====================================================
-   ZOOM BEHAVIOR
-===================================================== */
-
-map.on(
-
-    "zoomend",
-
-    function() {
-
-        const zoom =
-            map.getZoom();
-
-
-        /*
-           At close zoom, make
-           Kigali circle subtle.
-        */
-
-        if (
-            zoom >= 14
-        ) {
-
-            kigaliCircle.setStyle({
-
-                opacity:
-                    0.25,
-
-                fillOpacity:
-                    0.015
-
-            });
-
-
-            kigaliLabel.setOpacity(
-                0
-            );
-
-        } else {
-
-            kigaliCircle.setStyle({
-
-                opacity:
-                    0.9,
-
-                fillOpacity:
-                    pulseOpacity
-
-            });
-
-
-            kigaliLabel.setOpacity(
-                1
-            );
-
-        }
-
-    }
-
-);
-
+    const f = document.getElementById('combinationFullNameDisplay');
+    if (f) f.value = map[this.value.toUpperCase().trim()] || '';
+});
+
+document.getElementById('index_lookup')?.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('checkBtn')?.click(); }
+});
 </script>
 
+<footer class="ur-footer">
+    <div><strong>University of Rwanda</strong> &nbsp;|&nbsp; Student Application Portal</div>
+    <div>&copy; 2026 University of Rwanda. All rights reserved.</div>
+</footer>
 </body>
 </html>

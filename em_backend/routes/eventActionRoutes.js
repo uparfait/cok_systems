@@ -8,9 +8,12 @@ const GetEventActionByIdController = require('../controllers/GetEventActionByIdC
 const upload = require('../utilities/upload');
 const rbac = require('../middlewares/rbac');
 
-// Organizers manage actions from the public event pages (no bearer); a
-// signed-in caller must be an event manager or the mayor.
-const manageActionsIfSignedIn = rbac.requireLinksIfSignedIn('events', 'slug:mayor');
+// Organizers manage actions from the public event pages (no bearer). A
+// signed-in caller must be an event manager, the mayor, or a holder of the
+// task-manager link: the Follow-ups board of the task manager is built on
+// these same event actions, so every role that can open that page has to
+// be able to create and update one.
+const manageActionsIfSignedIn = rbac.requireLinksIfSignedIn('events', 'task-manager', 'slug:mayor');
 
 // specific routes before /:id wildcard
 Router.post('/my-tasks/request-token', GetMyTasksController.requestToken);
