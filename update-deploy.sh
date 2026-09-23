@@ -1,610 +1,137 @@
 #!/usr/bin/env bash
 # =============================================================================
-# update-deploy.sh - one command to update the IKAZE deployment on the server.
+# update-deploy.sh - one command to update the IKAZE deployments on the server.
 #
-#   sudo ./update-deploy.sh            pull, rebuild, restart, rewire nginx
-#   sudo ./update-deploy.sh --no-pull  same, but keep the code as it is
-#   sudo ./update-deploy.sh --no-build restart without rebuilding the images
-#   sudo ./update-deploy.sh --dry-run  show what it would change, change nothing
-#   sudo ./update-deploy.sh --keep-env leave the three .env files untouched
+# Two STACKS live side by side, each a separate Docker Compose project with
+# its own network, containers, mongo and volumes, its own .env files and its
+# own public hosts, so nothing of one can touch the other:
 #
-# What it does, in order:
-#   1. pulls the latest code (unless --no-pull)
-#   1a. puts the deployment values into backend/.env, em_backend/.env and
-#      dc_backend/.env (uploaded by hand, never through git): every database
-#      line on the compose mongo with the credentials from docker-compose.yml,
-#      the public frontend hosts as allowed browser origins, one JWT_SECRET
-#      for all three. Replaced lines stay as comments; a backup is kept.
-#   2. rebuilds and starts every Docker service EXCEPT mongo, which is
-#      already running and is never touched
-#   3. reads the private IP address Docker gave each container and waits
-#      until every container really answers (a backend connects to its
-#      database first, which takes a while); a container that never
-#      answers has its logs printed
-#   4. regenerates /etc/nginx/sites-available/default from those addresses,
-#      including the Data Collection System backend on dcms.kigalicity.gov.rw
-#   5. tests the new nginx file, installs it and restarts nginx; the previous
-#      file is kept as a timestamped backup and restored if the test fails
-#   6. checks every public URL against its container and reports which to use
+#   ikaze      production   branch "ikaze"   this checkout          project cok-systems
+#   uat-ikaze  acceptance   branch "uat"     ../<this folder>-uat   project cok-systems-uat
+#
+#   sudo ./update-deploy.sh                  both stacks (UAT first), same as --all
+#   sudo ./update-deploy.sh --ikaze          production only
+#   sudo ./update-deploy.sh --uat-ikaze      UAT only
+#   sudo ./update-deploy.sh --ikaze-fresh    production, databases started from scratch
+#   sudo ./update-deploy.sh --uat-ikaze-fresh
+#   sudo ./update-deploy.sh --all-fresh      both, databases started from scratch
+#   options: --no-pull  --no-build  --keep-env  --dry-run  --admin-email=<email>
+#
+# For each stack, in order:
+#   1. the checkout is put on its branch and pulled (cloned the first time)
+#   2. docker-compose.yml and the three .env files are copied from production
+#      when missing, then given this stack's own values: every database line
+#      on the stack's own mongo (credentials from its docker-compose.yml), its
+#      own frontend host as the allowed browser origin, one JWT_SECRET for its
+#      three backends that differs from the other stack's
+#   3. with -fresh: production is backed up, then the stack's mongo container
+#      and data volume are removed (upload volumes are kept)
+#   4. mongo is started if needed, the services are rebuilt and restarted
+#   5. container addresses are read, every container is waited for, the
+#      sign-in settings are checked and the backends' own report is shown
+#   6. production only: an empty accounts database gets its first user copied
+#      from UAT (the script asks for the email)
+#   7. the stack's nginx file is written from the container addresses
+# Then nginx is tested and restarted once, and every public URL is verified.
 # =============================================================================
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NGINX_DEFAULT="/etc/nginx/sites-available/default"
-SSL_CERT="/etc/nginx/certs/kigalicity.gov.rw.crt"
-SSL_KEY="/etc/nginx/certs/kigalicity.gov.rw.key"
-
-HOST_FRONTEND="ikaze.kigalicity.gov.rw"
-HOST_FRONTEND_UAT="uat-ikaze.kigalicity.gov.rw"
-HOST_BACKEND="uatps-ikaze.kigalicity.gov.rw"
-HOST_EVENTS="uate-ikaze.kigalicity.gov.rw"
-HOST_DCS="dcms.kigalicity.gov.rw"
-
-# How long to wait for one container to start answering. A backend connects
-# to the database and builds its indexes before it listens.
-WAIT_SECONDS="${WAIT_SECONDS:-240}"
-
-# Docker Compose service -> internal port -> a path that answers without a login.
-# Any HTTP status at all (even 401 or 404) proves the container is up.
-SERVICES=(frontend backend em-backend dc-backend)
-declare -A PORT=([frontend]=5713 [backend]=2026 [em-backend]=2027 [dc-backend]=8765)
-declare -A PROBE=([frontend]="/" [backend]="/cok/api/profile" [em-backend]="/health" [dc-backend]="/dcs/api/docs/")
-declare -A LABEL=([frontend]="Frontend" [backend]="Main backend" [em-backend]="Event backend" [dc-backend]="DCS backend")
-STARTED_SERVICES=(backend em-backend dc-backend frontend certbot)
+source "$REPO_DIR/deploy/common.sh"
+source "$REPO_DIR/deploy/config.sh"
+source "$REPO_DIR/deploy/stack.sh"
+source "$REPO_DIR/deploy/nginx.sh"
+source "$REPO_DIR/deploy/seed_admin.sh"
 
 PULL=1
 BUILD=1
 DRY_RUN=0
 FIX_ENV=1
+ADMIN_EMAIL=""
 STAMP="$(date '+%Y%m%d-%H%M%S')"
-for arg in "$@"; do
-  case "$arg" in
-    --no-pull) PULL=0 ;;
-    --no-build) BUILD=0 ;;
-    --dry-run) DRY_RUN=1 ;;
-    --keep-env) FIX_ENV=0 ;;
-    -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
-    *) echo "Unknown option: $arg" >&2; exit 2 ;;
-  esac
-done
+STACKS=()
+FRESH_STACKS=()
 
-log()  { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
-ok()   { printf '   \033[1;32m[ OK ]\033[0m %s\n' "$*"; }
-warn() { printf '   \033[1;33m[WARN]\033[0m %s\n' "$*"; }
-die()  { printf '\n\033[1;31m[FAIL]\033[0m %s\n' "$*" >&2; exit 1; }
+usage() { sed -n '3,33p' "$0"; }
 
-need_cmd() { command -v "$1" >/dev/null 2>&1 || die "'$1' is not installed"; }
-
-compose() {
-  if docker compose version >/dev/null 2>&1; then docker compose "$@"; else docker-compose "$@"; fi
-}
-
-# The container of a compose service (running or not), or "".
-container_id() { compose ps -a -q "$1" 2>/dev/null | head -n 1; }
-
-# "running", "exited", "created", "restarting"... or "missing" when there is no container.
-container_state() {
-  local id
-  id="$(container_id "$1")"
-  [ -n "$id" ] || { echo "missing"; return 0; }
-  docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo "missing"
-}
-
-# How many times Docker has restarted the container (a crash loop counts up).
-container_restarts() {
-  local id
-  id="$(container_id "$1")"
-  [ -n "$id" ] || { echo 0; return 0; }
-  docker inspect -f '{{.RestartCount}}' "$id" 2>/dev/null || echo 0
-}
-
-# The first IPv4 address of a RUNNING container, or "" - never anything that
-# is not an address, so a stopped container cannot leak "invalid" into nginx.
-container_ip() {
-  local id
-  id="$(container_id "$1")"
-  [ -n "$id" ] || return 0
-  [ "$(container_state "$1")" = "running" ] || return 0
-  docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{"\n"}}{{end}}' "$id" 2>/dev/null | grep -E -m1 '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true
-}
-
-# A service that has no running container is started from scratch: its image
-# is built if missing, the container (re)created, mongo left alone.
-ensure_running() {
-  local service="$1" state
-  state="$(container_state "$service")"
-  [ "$state" = "running" ] && return 0
-  warn "${LABEL[$service]} container is '$state' - starting it from scratch"
-  [ "$state" = "missing" ] || show_logs "$service"
-  if [ "$BUILD" = 1 ]; then
-    compose up -d --build --no-deps --force-recreate "$service"
-  else
-    compose up -d --no-deps --force-recreate "$service"
-  fi
-}
-
-# HTTP status of a URL, "000" when nothing answered. curl prints 000 AND
-# exits non-zero on a refused connection, so both are read as one "000".
-http_status() {
-  local code
-  code="$(curl -k -s -o /dev/null -m 10 -w '%{http_code}' "$1" 2>/dev/null)" || true
-  case "$code" in ''|000*) echo "000" ;; *) echo "$code" ;; esac
-}
-
-# A public URL tried a few times over: right after a restart nginx answers
-# 502 until the container behind it is listening.
-public_status() {
-  local code
-  for _ in $(seq 1 6); do
-    code="$(http_status "$1")"
-    case "$code" in 000|502|503|504) sleep 5 ;; *) break ;; esac
-  done
-  echo "$code"
-}
-
-show_logs() {
-  echo "   ---- last lines of 'docker compose logs $1' ----"
-  compose logs --tail 40 --no-color "$1" 2>/dev/null | sed 's/^/   | /' || true
-  echo "   ------------------------------------------------"
-}
-
-restart_nginx() {
-  if systemctl restart nginx 2>/dev/null || nginx -s reload; then ok "nginx restarted"; else die "nginx could not be restarted"; fi
-}
-
-# The value of KEY in a .env file (last active line wins), quotes and spaces trimmed, "" when absent.
-env_value() {
-  local file="$1" key="$2" line
-  [ -f "$file" ] || return 0
-  line="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$file" | tail -n 1 | tr -d '\r')" || true
-  [ -n "$line" ] || return 0
-  line="${line#*=}"
-  line="$(printf '%s' "$line" | sed -E "s/^[[:space:]]*//; s/[[:space:]]*$//; s/^\"(.*)\"$/\\1/; s/^'(.*)'$/\\1/")"
-  printf '%s' "$line"
-}
-
-# ------------------------------------------------------------------ preflight
-[ "$DRY_RUN" = 1 ] || [ "$(id -u)" = 0 ] || die "run with sudo: it writes $NGINX_DEFAULT and restarts nginx"
-need_cmd docker
-need_cmd curl
-[ "$DRY_RUN" = 1 ] || need_cmd nginx
-cd "$REPO_DIR"
-[ -f docker-compose.yml ] || die "docker-compose.yml not found in $REPO_DIR"
-
-# ------------------------------------------------------------------ 1. code
-if [ "$PULL" = 1 ] && [ -d .git ]; then
-  log "Pulling the latest code"
-  if git pull --ff-only; then ok "code is up to date"; else warn "git pull failed - continuing with the code already on disk"; fi
-fi
-
-# ------------------------------------------------------------------ 1a. env files
-# The .env files are uploaded by hand and never come through git, so the
-# script puts the deployment values in them itself. Each backend names its
-# database line differently (conne_string / DATABASE_URL2), all point at the
-# compose "mongo" service, whose credentials are read from docker-compose.yml.
-MONGO_SERVICE_HOST="mongo:27017"
-ORIGINS="https://${HOST_FRONTEND},https://${HOST_FRONTEND_UAT}"
-CHANGED_ENV=()
-
-url_encode() {
-  local text="$1" out="" i c
-  for (( i = 0; i < ${#text}; i++ )); do
-    c="${text:i:1}"
-    case "$c" in
-      [A-Za-z0-9.~_-]) out+="$c" ;;
-      *) out+="$(printf '%%%02X' "'$c")" ;;
+parse_args() {
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --all) STACKS=(uat-ikaze ikaze) ;;
+      --ikaze) STACKS+=(ikaze) ;;
+      --uat-ikaze) STACKS+=(uat-ikaze) ;;
+      --all-fresh) STACKS=(uat-ikaze ikaze); FRESH_STACKS=(uat-ikaze ikaze) ;;
+      --ikaze-fresh) STACKS+=(ikaze); FRESH_STACKS+=(ikaze) ;;
+      --uat-ikaze-fresh) STACKS+=(uat-ikaze); FRESH_STACKS+=(uat-ikaze) ;;
+      --no-pull) PULL=0 ;;
+      --no-build) BUILD=0 ;;
+      --keep-env) FIX_ENV=0 ;;
+      --dry-run) DRY_RUN=1 ;;
+      --admin-email=*) ADMIN_EMAIL="${arg#*=}" ;;
+      -h|--help) usage; exit 0 ;;
+      *) echo "Unknown option: $arg" >&2; usage; exit 2 ;;
     esac
   done
-  printf '%s' "$out"
+  [ "${#STACKS[@]}" -gt 0 ] || STACKS=(uat-ikaze ikaze)
 }
 
-# "KEY: value" of the mongo service in docker-compose.yml, quotes removed.
-compose_value() {
-  grep -E "^[[:space:]]*$1:" docker-compose.yml | head -n 1 | sed -E "s/^[^:]*:[[:space:]]*//; s/[[:space:]]*$//; s/^\"(.*)\"$/\\1/; s/^'(.*)'$/\\1/"
-}
-
-# Sets KEY=value in a .env file: the first active line for the key becomes
-# the new value and is kept underneath as a comment, any other active line
-# for the same key is commented out too (a leftover localhost or Atlas line),
-# and a missing key is appended. Nothing is written when the value already
-# matches, so the run is repeatable.
-set_env_key() {
-  local file="$1" key="$2" value="$3"
-  [ "$(env_value "$file" "$key")" = "$value" ] && return 0
-  CHANGED_ENV+=("$file: $key")
-  [ "$DRY_RUN" = 1 ] && return 0
-  awk -v key="$key" -v value="$value" '
-    BEGIN { done = 0; pattern = "^[[:space:]]*" key "[[:space:]]*=" }
-    $0 ~ pattern && !done { print key "=" value; print "# previous: " $0; done = 1; next }
-    $0 ~ pattern { print "# previous: " $0; next }
-    { print }
-    END { if (!done) print key "=" value }
-  ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
-}
-
-fix_env_files() {
-  local user pass cred mongo_url main_secret file backup
-  user="$(compose_value MONGO_INITDB_ROOT_USERNAME)"
-  pass="$(compose_value MONGO_INITDB_ROOT_PASSWORD)"
-  if [ -z "$user" ] || [ -z "$pass" ]; then
-    warn "docker-compose.yml has no MONGO_INITDB_ROOT_USERNAME / MONGO_INITDB_ROOT_PASSWORD - database lines are left as they are"
-    return 0
-  fi
-  cred="$(url_encode "$user"):$(url_encode "$pass")"
-  mongo_url="mongodb://${cred}@${MONGO_SERVICE_HOST}"
-  main_secret="$(env_value backend/.env JWT_SECRET)"
-  [ -n "$main_secret" ] || warn "backend/.env has no JWT_SECRET - the other two are left as they are; add one and run again"
-  for file in backend/.env em_backend/.env dc_backend/.env; do
-    if [ ! -f "$file" ]; then
-      warn "$file is missing - upload it, then run again"
-      continue
-    fi
-    backup="$file.bak.$STAMP"
-    if [ "$DRY_RUN" = 0 ]; then
-      cp "$file" "$backup"
-      # Files edited on Windows carry CR line endings, which end up inside the values.
-      sed -i 's/\r$//' "$file"
-    fi
-    case "$file" in
-      backend/.env)
-        set_env_key "$file" conne_string "${mongo_url}/cok?authSource=admin"
-        set_env_key "$file" CLIENT_URL_SET "$ORIGINS"
-        ;;
-      em_backend/.env)
-        set_env_key "$file" DATABASE_URL2 "${mongo_url}/COK_EVENT_MNG?authSource=admin"
-        set_env_key "$file" DATABASE_NAME2 "COK_EVENT_MNG"
-        set_env_key "$file" COK_DB_NAME "cok"
-        set_env_key "$file" CORS_ORIGIN "$ORIGINS"
-        set_env_key "$file" FRONTEND_URL "https://${HOST_FRONTEND}"
-        [ -z "$main_secret" ] || set_env_key "$file" JWT_SECRET "$main_secret"
-        ;;
-      dc_backend/.env)
-        set_env_key "$file" conne_string "${mongo_url}/data_collection_system?authSource=admin"
-        set_env_key "$file" COK_DB_NAME "cok"
-        set_env_key "$file" CLIENT_URL_SET "$ORIGINS"
-        [ -z "$main_secret" ] || set_env_key "$file" JWT_SECRET "$main_secret"
-        ;;
-    esac
-    if [ "$DRY_RUN" = 0 ] && [ -f "$backup" ]; then
-      if cmp -s "$file" "$backup"; then rm -f "$backup"; else ok "$file updated - previous copy at $backup"; fi
-    fi
-  done
-  if [ "${#CHANGED_ENV[@]}" -eq 0 ]; then
-    ok "all three .env files already carry the deployment values"
-  else
-    printf '   %s\n' "${CHANGED_ENV[@]}" | sed 's/^   /   set: /'
-  fi
-}
-
-if [ "$FIX_ENV" = 1 ]; then
-  log "Putting the deployment values into the .env files (mongo service '${MONGO_SERVICE_HOST}', origins ${ORIGINS})"
-  fix_env_files
-fi
-
-# ------------------------------------------------------------------ 1b. sign-in settings
-# The event and data-collection backends never issue tokens: they verify the
-# main backend's token with the same JWT_SECRET and read the account from the
-# main system's "cok" database on THEIR OWN Mongo connection. Sign-in on them
-# fails silently when either differs, so the three .env files are compared.
-
-# host part of a Mongo connection string, credentials removed
-mongo_host_of() {
-  printf '%s' "$1" | sed -E 's#^[a-z+]+://##I; s#^[^@]*@##; s#[/?].*$##'
-}
-
-# The Mongo SERVER a connection string names, in a form two spellings of the
-# same server share: ports dropped, and an Atlas cluster reduced to its
-# cluster domain (mongodb+srv://x.abc12.mongodb.net and the member list
-# ac-...-00.abc12.mongodb.net:27017,... are the same cluster).
-mongo_cluster_of() {
-  mongo_host_of "$1" | tr ',' '\n' | sed -E 's/:[0-9]+$//' | awk -F. '{ if (NF >= 3) print $(NF-2) "." $(NF-1) "." $NF; else print $0 }' | sort -u | tr '\n' ' ' | sed -E 's/ $//'
-}
-
-# Whether two connection strings reach the same Mongo server.
-same_mongo_server() {
-  local a b word
-  a="$(mongo_cluster_of "$1")"
-  b="$(mongo_cluster_of "$2")"
-  for word in $a; do
-    case " $b " in *" $word "*) return 0 ;; esac
-  done
+is_fresh() {
+  local name
+  for name in "${FRESH_STACKS[@]:-}"; do [ "$name" = "$1" ] && return 0; done
   return 1
 }
 
-log "Checking shared sign-in settings across the three backends"
-MAIN_SECRET="$(env_value backend/.env JWT_SECRET)"
-EM_SECRET="$(env_value em_backend/.env JWT_SECRET)"
-DC_SECRET="$(env_value dc_backend/.env JWT_SECRET)"
-if [ -z "$MAIN_SECRET" ]; then
-  warn "backend/.env has no JWT_SECRET (the main backend then signs with its development default)"
-fi
-for pair in "em_backend:$EM_SECRET" "dc_backend:$DC_SECRET"; do
-  name="${pair%%:*}"
-  value="${pair#*:}"
-  if [ -z "$value" ]; then
-    warn "$name/.env has no JWT_SECRET - tokens from the main backend will be refused there (invalid signature)"
-  elif [ "$value" != "$MAIN_SECRET" ]; then
-    warn "$name/.env JWT_SECRET differs from backend/.env - every sign-in on $name fails with 'invalid signature'. Copy the value from backend/.env."
-  else
-    ok "$name/.env JWT_SECRET matches backend/.env"
+preflight() {
+  [ "$DRY_RUN" = 1 ] || [ "$(id -u)" = 0 ] || die "run with sudo: it writes $NGINX_DIR and restarts nginx"
+  need_cmd docker
+  need_cmd curl
+  need_cmd git
+  [ "$DRY_RUN" = 1 ] || need_cmd nginx
+  [ -f "$PROD_DIR/docker-compose.yml" ] || die "docker-compose.yml not found in $PROD_DIR"
+}
+
+run_stack() {
+  select_stack "$1"
+  log "===== $STACK  (branch $STACK_BRANCH, project $STACK_PROJECT, $STACK_DIR) ====="
+  prepare_checkout
+  ensure_stack_files
+  if [ "$FIX_ENV" = 1 ]; then
+    log "Own values into the $STACK .env files (mongo '${MONGO_SERVICE_HOST}' of project ${STACK_PROJECT}, origin https://${STACK_FRONT})"
+    fix_env_files
   fi
-done
+  if is_fresh "$STACK"; then fresh_mongo; fi
+  start_stack
+  read_addresses
+  wait_for_answers
+  check_sign_in
+  seed_admin_if_empty
+  write_stack_nginx
+  STACK_RESULT_NOT_ANSWERING["$STACK"]="${NOT_ANSWERING[*]:-}"
+}
 
-MAIN_DB="$(env_value backend/.env conne_string)"
-EM_DB="$(env_value em_backend/.env DATABASE_URL2)"
-DC_DB="$(env_value dc_backend/.env conne_string)"
-for name in em_backend dc_backend; do
-  if [ "$name" = em_backend ]; then key="DATABASE_URL2"; value="$EM_DB"; else key="conne_string"; value="$DC_DB"; fi
-  if [ -z "$value" ]; then
-    warn "$name/.env has no $key"
-  elif [ -n "$MAIN_DB" ] && ! same_mongo_server "$MAIN_DB" "$value"; then
-    warn "$name/.env $key points at Mongo '$(mongo_cluster_of "$value")' but the main backend uses '$(mongo_cluster_of "$MAIN_DB")' - the accounts (database 'cok') live on the main backend's server, so sign-in on $name finds no user. Use the same server."
-  else
-    ok "$name/.env $key reaches the same Mongo server as the main backend ($(mongo_cluster_of "$value"))"
-  fi
-done
-for name in em_backend dc_backend; do
-  cok_name="$(env_value $name/.env COK_DB_NAME)"
-  [ -z "$cok_name" ] || [ "$cok_name" = "cok" ] || warn "$name/.env COK_DB_NAME is '$cok_name' - the main backend's accounts are in 'cok'"
-done
-
-# ------------------------------------------------------------------ 2. docker
-log "Checking MongoDB (left untouched)"
-if [ -n "$(compose ps -q mongo 2>/dev/null)" ] && [ "$(compose ps --status running -q mongo 2>/dev/null | wc -l)" -gt 0 ]; then
-  ok "mongo container is running"
-else
-  warn "no running compose 'mongo' container found - the backends must reach the database named in their .env files"
-fi
-
-if [ "$DRY_RUN" = 0 ]; then
-  log "Starting services without mongo: ${STARTED_SERVICES[*]}"
-  if [ "$BUILD" = 1 ]; then
-    compose up -d --build --no-deps "${STARTED_SERVICES[@]}"
-  else
-    compose up -d --no-deps "${STARTED_SERVICES[@]}"
-  fi
-fi
-
-# ------------------------------------------------------------------ 3. addresses
-log "Reading container addresses"
-declare -A IP
-for service in "${SERVICES[@]}"; do
-  ip=""
-  # Two rounds: read the address; if the container is not running, start it
-  # from scratch and read again.
-  for round in 1 2; do
-    for _ in $(seq 1 15); do
-      ip="$(container_ip "$service")"
-      [ -n "$ip" ] && break
-      sleep 2
-    done
-    [ -n "$ip" ] && break
-    if [ "$round" = 1 ] && [ "$DRY_RUN" = 0 ]; then ensure_running "$service"; fi
+main() {
+  parse_args "$@"
+  preflight
+  declare -g -A STACK_RESULT_NOT_ANSWERING=()
+  local name failed=""
+  for name in "${STACKS[@]}"; do
+    run_stack "$name"
   done
-  if [ -z "$ip" ]; then
-    warn "${LABEL[$service]} has no running container (state: $(container_state "$service"))"
-    show_logs "$service"
-    compose ps -a "$service" 2>/dev/null | sed 's/^/   | /' || true
-    die "'$service' could not be started - fix the cause shown above, then run this script again"
-  fi
-  IP[$service]="$ip"
-  ok "${LABEL[$service]} -> $ip:${PORT[$service]}"
-done
-
-log "Waiting for the containers to answer (up to ${WAIT_SECONDS}s each)"
-NOT_ANSWERING=()
-for service in "${SERVICES[@]}"; do
-  status="000"
-  waited=0
-  restarts_before="$(container_restarts "$service")"
-  gave_up=""
-  printf '   %s ' "${LABEL[$service]}"
-  while :; do
-    status="$(http_status "http://${IP[$service]}:${PORT[$service]}${PROBE[$service]}")"
-    [ "$status" != "000" ] && break
-    [ "$waited" -ge "$WAIT_SECONDS" ] && break
-    # A container that crashes and is restarted by Docker will never answer:
-    # stop waiting and show why instead of dotting for four minutes.
-    if [ "$(container_state "$service")" != "running" ] || [ "$(container_restarts "$service")" != "$restarts_before" ]; then
-      gave_up="crashed"
-      break
-    fi
-    printf '.'
-    sleep 3
-    waited=$((waited + 3))
-    # Every 30 seconds, a glimpse of what the container is doing.
-    if [ $((waited % 30)) -eq 0 ]; then
-      printf '\n'
-      compose logs --tail 3 --no-color "$service" 2>/dev/null | sed 's/^/      log: /' || true
-      printf '   %s ' "${LABEL[$service]}"
-    fi
+  apply_nginx
+  for name in "${STACKS[@]}"; do
+    select_stack "$name"
+    refresh_addresses
+    verify_stack
+    [ -z "${STACK_RESULT_NOT_ANSWERING[$name]}" ] || failed="$failed $name:${STACK_RESULT_NOT_ANSWERING[$name]}"
   done
-  printf '\n'
-  if [ "$status" != "000" ]; then
-    ok "${LABEL[$service]} answers (HTTP $status after ${waited}s)"
-  else
-    if [ "$gave_up" = "crashed" ]; then
-      warn "${LABEL[$service]} keeps crashing and being restarted by Docker (state: $(container_state "$service"))"
-    else
-      warn "${LABEL[$service]} is not answering at ${IP[$service]}:${PORT[$service]} after ${WAIT_SECONDS}s"
-    fi
-    NOT_ANSWERING+=("$service")
-    show_logs "$service"
+  if [ -n "$failed" ]; then
+    log "Not answering:$failed"
+    echo "   Read the logs printed above and fix the cause, then run the script again for that stack."
+    exit 1
   fi
-done
-
-# What each backend found at startup about sign-in (see their [AUTH CHECK] logs).
-log "What the backends report about sign-in"
-for service in em-backend dc-backend; do
-  lines="$(compose logs --tail 200 --no-color "$service" 2>/dev/null | grep -F "[AUTH CHECK]" | tail -n 4 | sed -E 's/^[^|]*\|[[:space:]]*//')" || true
-  if [ -n "$lines" ]; then
-    printf '   %s:\n' "${LABEL[$service]}"
-    printf '%s\n' "$lines" | sed 's/^/      /'
-  else
-    warn "${LABEL[$service]} has not reported yet (it prints [AUTH CHECK] lines right after connecting)"
-  fi
-done
-
-# ------------------------------------------------------------------ 4. nginx file
-ssl_block() {
-  cat <<EOF
-    ssl_certificate ${SSL_CERT};
-    ssl_certificate_key ${SSL_KEY};
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
-    ssl_prefer_server_ciphers on;
-
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
-EOF
+  log "Done"
+  echo "   Container addresses change whenever a container is recreated: run this script again after any restart."
 }
 
-# A frontend host: the React app plus the APIs it proxies itself; WebSocket
-# upgrade for socket.io; long read timeout for data exports and feeds.
-frontend_server() {
-  cat <<EOF
-# Frontend application (container frontend, port ${PORT[frontend]})
-server {
-    listen 443 ssl http2;
-    server_name $1;
-
-$(ssl_block)
-
-    client_max_body_size 100m;
-
-    location / {
-        proxy_pass http://${IP[frontend]}:${PORT[frontend]};
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 600s;
-        proxy_read_timeout 600s;
-    }
-}
-
-EOF
-}
-
-# A backend host: the API served directly on its own domain.
-backend_server() {
-  local host="$1" service="$2" read_timeout="$3"
-  cat <<EOF
-# ${LABEL[$service]} (container ${service}, port ${PORT[$service]})
-server {
-    listen 443 ssl http2;
-    server_name ${host};
-
-$(ssl_block)
-
-    client_max_body_size 100m;
-
-    location / {
-        proxy_pass http://${IP[$service]}:${PORT[$service]};
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_connect_timeout 60s;
-        proxy_send_timeout ${read_timeout};
-        proxy_read_timeout ${read_timeout};
-    }
-}
-
-EOF
-}
-
-render_nginx() {
-  cat <<EOF
-# Generated by update-deploy.sh on $(date '+%Y-%m-%d %H:%M:%S') - do not edit by hand,
-# run the script again after the containers restart (their addresses change).
-
-server {
-    listen 80;
-    server_name ${HOST_FRONTEND} ${HOST_FRONTEND_UAT} ${HOST_BACKEND} ${HOST_EVENTS} ${HOST_DCS};
-
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
-
-    location / {
-        return 301 https://\$host\$request_uri;
-    }
-}
-
-EOF
-  frontend_server "$HOST_FRONTEND"
-  frontend_server "$HOST_FRONTEND_UAT"
-  backend_server "$HOST_BACKEND" backend 60s
-  backend_server "$HOST_EVENTS" em-backend 60s
-  backend_server "$HOST_DCS" dc-backend 600s
-}
-
-log "Generating the nginx configuration"
-NEW_FILE="$(mktemp)"
-render_nginx > "$NEW_FILE"
-
-if [ "$DRY_RUN" = 1 ]; then
-  cat "$NEW_FILE"
-  rm -f "$NEW_FILE"
-  exit 0
-fi
-
-if [ -f "$NGINX_DEFAULT" ] && cmp -s "$NEW_FILE" "$NGINX_DEFAULT"; then
-  ok "nginx configuration already matches"
-  rm -f "$NEW_FILE"
-  restart_nginx
-else
-  BACKUP="${NGINX_DEFAULT}.bak.$(date '+%Y%m%d-%H%M%S')"
-  [ -f "$NGINX_DEFAULT" ] && cp "$NGINX_DEFAULT" "$BACKUP" && ok "previous file kept at $BACKUP"
-  install -m 644 "$NEW_FILE" "$NGINX_DEFAULT"
-  rm -f "$NEW_FILE"
-  [ -e /etc/nginx/sites-enabled/default ] || ln -s "$NGINX_DEFAULT" /etc/nginx/sites-enabled/default
-  if nginx -t; then
-    restart_nginx
-  else
-    if [ -n "${BACKUP:-}" ] && [ -f "$BACKUP" ]; then cp "$BACKUP" "$NGINX_DEFAULT"; fi
-    die "the generated nginx file failed 'nginx -t' - the previous file was restored"
-  fi
-fi
-
-# ------------------------------------------------------------------ 6. verify
-log "Checking every public address"
-declare -A URL=([frontend]="https://${HOST_FRONTEND}" [backend]="https://${HOST_BACKEND}" [em-backend]="https://${HOST_EVENTS}" [dc-backend]="https://${HOST_DCS}")
-printf '   %-14s %-22s %-8s %-8s %s\n' "SERVICE" "CONTAINER" "DIRECT" "URL" "RESULT"
-for service in "${SERVICES[@]}"; do
-  direct="$(http_status "http://${IP[$service]}:${PORT[$service]}${PROBE[$service]}")"
-  public="$(public_status "${URL[$service]}${PROBE[$service]}")"
-  case "$public" in
-    000) result="URL not reachable at all (DNS record or certificate for this host) - use http://${IP[$service]}:${PORT[$service]} meanwhile" ;;
-    502|503|504)
-      if [ "$direct" != "000" ]; then
-        result="nginx cannot reach the container although it answers directly - run this script again"
-      else
-        result="container not answering - see its logs above, or: docker compose logs -f ${service}"
-      fi ;;
-    *) result="OK - ${URL[$service]}" ;;
-  esac
-  printf '   %-14s %-22s %-8s %-8s %s\n' "$service" "${IP[$service]}:${PORT[$service]}" "$direct" "$public" "$result"
-done
-uat="$(public_status "https://${HOST_FRONTEND_UAT}/")"
-printf '   %-14s %-22s %-8s %-8s %s\n' "frontend-uat" "${IP[frontend]}:${PORT[frontend]}" "-" "$uat" "https://${HOST_FRONTEND_UAT}"
-
-if [ "${#NOT_ANSWERING[@]}" -gt 0 ]; then
-  log "Not answering: ${NOT_ANSWERING[*]}"
-  echo "   Read their logs above and fix the cause (usually the database connection or a missing .env value)."
-  echo "   Then run this script again - a restarted container may get a new address."
-  echo "   Useful: docker compose ps | docker compose logs -f <service> | docker compose restart <service>"
-  exit 1
-fi
-
-log "Done"
-echo "   Container addresses change whenever a container is recreated: run this script again after any restart."
+main "$@"

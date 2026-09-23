@@ -389,43 +389,54 @@ Uploaded files are stored in Docker volumes named `backend_uploads` and `em_uplo
 
 ### Updating the Application
 
-One script does the whole update. Run it from the project folder on the server:
+Two environments run side by side on the server, each a separate Docker Compose project with its own network, containers, MongoDB, volumes, `.env` files and public hosts, so nothing of one can touch the other:
+
+| Stack | Branch | Checkout | Compose project | Public hosts |
+|---|---|---|---|---|
+| `ikaze` (production) | `ikaze` | the folder the script is in | `cok-systems` | `ikaze.kigalicity.gov.rw` |
+| `uat-ikaze` (acceptance) | `uat` | the sibling folder `<checkout>-uat` (cloned automatically) | `cok-systems-uat` | `uat-ikaze`, `uatps-ikaze`, `uate-ikaze`, `dcms.kigalicity.gov.rw` |
+
+Production has no direct backend hosts: users, shared links, public forms and the data feed all go through the frontend host, whose nginx proxies the three APIs to the production containers. The `main` branch is no longer deployed.
+
+One script does the whole update. Run it from the production checkout:
 
 ```bash
 cd /path/to/cok_systems
-sudo ./update-deploy.sh
+sudo ./update-deploy.sh                # both stacks, UAT first
+sudo ./update-deploy.sh --ikaze        # production only
+sudo ./update-deploy.sh --uat-ikaze    # UAT only
+sudo ./update-deploy.sh --ikaze-fresh  # production with empty databases (backed up first)
+sudo ./update-deploy.sh --uat-ikaze-fresh
+sudo ./update-deploy.sh --all-fresh
 ```
 
-It pulls the latest code, puts the deployment values into the three `.env` files (see below), rebuilds and restarts every service except `mongo` (which keeps running), reads the private address Docker gave each container, regenerates `/etc/nginx/sites-available/default` from those addresses, tests it with `nginx -t`, restarts nginx and finally checks every public URL. The previous nginx file is kept as `default.bak.<date>` and restored automatically if the new one fails the test.
+Other options: `--no-pull` keeps the code as it is, `--no-build` restarts without rebuilding images, `--keep-env` leaves the `.env` files untouched, `--dry-run` prints what would change and changes nothing, `--admin-email=<email>` answers the first-user question without a prompt. The script is `update-deploy.sh` with its parts in `deploy/`.
 
-Public hosts the generated file serves:
+For each stack it: puts the checkout on its branch and pulls (cloning it the first time); copies `docker-compose.yml` and the three `.env` files from production when missing and gives them the stack's own values (see below); with `-fresh`, backs production up to `backups/` and removes the stack's mongo container and data volume, keeping the upload volumes; starts mongo if needed and rebuilds and restarts the services; reads the container addresses, waits for every container (printing its logs when it crashes), checks the sign-in settings and shows the backends' `[AUTH CHECK]` report; for production only, when the accounts database is empty, asks for an email and copies that person from the UAT database (account, role and department, activated); writes the stack's nginx file. Then nginx is tested and restarted once and every public URL is verified.
 
-| Host | Goes to |
-|---|---|
-| `ikaze.kigalicity.gov.rw`, `uat-ikaze.kigalicity.gov.rw` | frontend container, port 5713 (which itself proxies `/cok/api`, `/cok/api/v1` and `/dcs/api`) |
-| `uatps-ikaze.kigalicity.gov.rw` | main backend, port 2026 |
-| `uate-ikaze.kigalicity.gov.rw` | event backend, port 2027 |
-| `dcms.kigalicity.gov.rw` | Data Collection System backend, port 8765 |
+**Nginx.** One generated file per stack in `/etc/nginx/sites-available` (`ikaze`, `uat-ikaze`), each `proxy_pass` pointing at that stack's container addresses, plus `default` holding only the port 80 redirect for every host. Previous files are kept as `.bak.<date>` and restored if the test fails. Container addresses change when a container is recreated, so run the script again after any manual restart.
 
-Options: `--no-pull` keeps the code as it is, `--no-build` restarts without rebuilding images, `--keep-env` leaves the `.env` files untouched, `--dry-run` prints what it would change and changes nothing. Container addresses change whenever a container is recreated, so run the script again after any manual `docker compose up` or restart.
-
-The final table shows, per service, whether the container answers directly and whether its public URL answers. When a URL fails but the container answers, the DNS record or the certificate for that host is the problem and the script prints the `http://<container-ip>:<port>` address to use meanwhile.
-
-The Data Collection System image is built from the repository root (not from `dc_backend/`) because it ships two files that live beside that folder: `location.min.json` and `geojson-maped/`. Both are tracked in git, so `git pull` brings them to the server. The build context is set by `docker-compose.override.yml`, which is tracked in git and merged automatically by `docker compose` (the server's own `docker-compose.yml` is git-ignored and needs no change). The root `.dockerignore` keeps everything else out of that build. Keep both files in the repository or the container fails at startup with "Cannot find module '../../../location.min.json'".
-
-**The `.env` files.** `backend/.env`, `em_backend/.env` and `dc_backend/.env` are git-ignored and uploaded by hand. On every run the script sets their deployment values, so a file copied from a development machine is corrected on the spot:
+**The `.env` files.** They are git-ignored and never come through git. On every run the script sets each stack's values, so a file copied from a development machine or from the other stack is corrected on the spot:
 
 | File | Keys set |
 |---|---|
-| `backend/.env` | `conne_string` to the compose mongo (`cok` database), `CLIENT_URL_SET` to the two frontend hosts |
-| `em_backend/.env` | `DATABASE_URL2` to the compose mongo (`COK_EVENT_MNG`), `DATABASE_NAME2`, `COK_DB_NAME=cok`, `CORS_ORIGIN` to the two frontend hosts, `FRONTEND_URL`, `JWT_SECRET` copied from `backend/.env` |
-| `dc_backend/.env` | `conne_string` to the compose mongo (`data_collection_system`), `COK_DB_NAME=cok`, `CLIENT_URL_SET` to the two frontend hosts, `JWT_SECRET` copied from `backend/.env` |
+| `backend/.env` | `conne_string` to the stack's mongo (`cok`), `CLIENT_URL_SET` to the stack's frontend host, `JWT_SECRET` |
+| `em_backend/.env` | `DATABASE_URL2` to the stack's mongo (`COK_EVENT_MNG`), `DATABASE_NAME2`, `COK_DB_NAME=cok`, `CORS_ORIGIN` and `FRONTEND_URL` to the stack's frontend host, `JWT_SECRET` |
+| `dc_backend/.env` | `conne_string` to the stack's mongo (`data_collection_system`), `COK_DB_NAME=cok`, `CLIENT_URL_SET` to the stack's frontend host, `JWT_SECRET` |
 
-The mongo user and password are read from `MONGO_INITDB_ROOT_USERNAME` / `MONGO_INITDB_ROOT_PASSWORD` in `docker-compose.yml` and URL-encoded. Any other active line for the same key (a `localhost` or Atlas string) is commented out and kept as `# previous:`; a copy of each changed file is kept as `.env.bak.<date>`. Windows line endings are removed. Running the script twice changes nothing the second time.
+The mongo user and password come from `MONGO_INITDB_ROOT_USERNAME` / `MONGO_INITDB_ROOT_PASSWORD` in the stack's `docker-compose.yml`, URL-encoded. Each stack has one `JWT_SECRET` shared by its three backends and different from the other stack's; a missing, default or shared secret is replaced by a new random one (everyone signed in on that stack signs in again). Replaced lines are kept as `# previous:`, changed files as `.env.bak.<date>`, Windows line endings are removed, and a second run changes nothing.
 
-**Sign-in on the event and data collection backends.** These two services never issue tokens. They verify the main backend's token with the same `JWT_SECRET` and then read the account from the main system's `cok` database on their own Mongo connection (`DATABASE_URL2` for `em_backend`, `conne_string` for `dc_backend`). Both settings must therefore agree with `backend/.env`: the same `JWT_SECRET` value, and a connection string that reaches the same Mongo server. A different secret refuses every token with "invalid signature"; a different server finds no account. The update script compares the three `.env` files and warns, and each backend prints `[AUTH CHECK]` lines at startup saying which database it reads accounts from and how many users it sees (zero means the wrong server). The refusal sent to the browser also carries the reason.
-For the Data Collection System backend to accept browser calls from every frontend host, its `dc_backend/.env` must list them all in `CLIENT_URL_SET`, separated by commas, for example `CLIENT_URL_SET=https://ikaze.kigalicity.gov.rw,https://uat-ikaze.kigalicity.gov.rw`.
+**Sign-in on the event and data collection backends.** These two never issue tokens. They verify the main backend's token with the same `JWT_SECRET` and read the account from the `cok` database on their own Mongo connection, which is why the values above must agree within a stack. Each backend prints `[AUTH CHECK]` lines at startup saying which database it reads accounts from and how many users it sees (zero means the wrong server or an empty database), and the refusal sent to the browser carries the reason.
 
+**Databases of the two stacks: `db.sh`.** Works straight on the mongo containers with `mongosh`, `mongodump` and `mongorestore`:
+
+```bash
+sudo ./db.sh --list-db --source all                 # or uat / ikaze: databases, collections, documents, size
+sudo ./db.sh --copy-db-data --from uat --to ikaze --db-name 'cok,COK_EVENT_MNG'
+```
+
+A copy streams each database from one container to the other under the same name. A database missing on the destination is created; on an existing one the documents are added and documents with the same `_id` are kept as they are on the destination. `--replace` drops each destination database first so it becomes an exact copy. Copying into production first dumps the destination database to `backups/` in the production checkout. `--dry-run` shows the plan without copying.
+**The Data Collection System image** is built from the repository root (not from `dc_backend/`) because it ships `location.min.json` and `geojson-maped/`, which sit beside that folder. `docker-compose.override.yml` (tracked) sets that build context and the root `.dockerignore` keeps everything else out. Keep both files in the repository or the container fails at startup with "Cannot find module '../../../location.min.json'".
 ### Monitoring
 
 Use these commands to check the health of the system:
