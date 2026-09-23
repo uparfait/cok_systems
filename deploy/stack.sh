@@ -122,32 +122,6 @@ mongo_run() {
   compose exec -T mongo mongosh --quiet -u "$(mongo_user)" -p "$(mongo_pass)" --authenticationDatabase admin "$1"
 }
 
-# A dump of everything in this stack's mongo, kept beside the checkout.
-backup_mongo() {
-  [ "$(container_state mongo)" = "running" ] || { warn "mongo is not running - nothing to back up"; return 0; }
-  mkdir -p "$STACK_DIR/backups"
-  local target="$STACK_DIR/backups/${STACK_PROJECT}_${STAMP}.archive.gz"
-  if compose exec -T mongo mongodump --quiet -u "$(mongo_user)" -p "$(mongo_pass)" --authenticationDatabase admin --archive | gzip > "$target"; then
-    ok "database backed up to $target"
-  else
-    rm -f "$target"
-    warn "backup failed - the database is NOT deleted"
-    return 1
-  fi
-}
-
-# FRESH: this stack's mongo container and its data volume are removed, so
-# the databases start empty. Upload volumes are kept. Production is backed
-# up first; a failed backup stops the deletion.
-fresh_mongo() {
-  log "Starting the $STACK databases from scratch"
-  [ "$DRY_RUN" = 1 ] && { warn "(dry run) would back up, then remove container 'mongo' and volume ${STACK_PROJECT}_mongo_data"; return 0; }
-  if [ "$STACK" = "ikaze" ]; then backup_mongo || die "production data was not deleted because the backup failed"; fi
-  compose rm -s -f -v mongo >/dev/null 2>&1 || true
-  docker volume rm "${STACK_PROJECT}_mongo_data" >/dev/null 2>&1 && ok "volume ${STACK_PROJECT}_mongo_data removed" || ok "no data volume to remove"
-  FRESH_DONE=1
-}
-
 start_stack() {
   log "Starting $STACK: mongo, then ${STACK_SERVICES[*]}"
   [ "$DRY_RUN" = 1 ] && return 0

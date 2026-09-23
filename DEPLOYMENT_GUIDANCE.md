@@ -405,14 +405,14 @@ cd /path/to/cok_systems
 sudo ./update-deploy.sh                # both stacks, UAT first
 sudo ./update-deploy.sh --ikaze        # production only
 sudo ./update-deploy.sh --uat-ikaze    # UAT only
-sudo ./update-deploy.sh --ikaze-fresh  # production with empty databases (backed up first)
-sudo ./update-deploy.sh --uat-ikaze-fresh
-sudo ./update-deploy.sh --all-fresh
+sudo ./update-deploy.sh --all --admin-email=someone@kigalicity.gov.rw   # first production deployment
 ```
 
-Other options: `--no-pull` keeps the code as it is, `--no-build` restarts without rebuilding images, `--keep-env` leaves the `.env` files untouched, `--dry-run` prints what would change and changes nothing, `--admin-email=<email>` answers the first-user question without a prompt. The script is `update-deploy.sh` with its parts in `deploy/`.
+The script never deletes a database. `--admin-email=<email>` marks the first production deployment: that person is looked up in the UAT accounts and copied into production (account, role, department, activated) without a question; an account that already exists in production is left as it is. Without the option, the copy is offered only when production has no account yet.
 
-For each stack it: puts the checkout on its branch and pulls (cloning it the first time); copies `docker-compose.yml` and the three `.env` files from production when missing and gives them the stack's own values (see below); with `-fresh`, backs production up to `backups/` and removes the stack's mongo container and data volume, keeping the upload volumes; starts mongo if needed and rebuilds and restarts the services; reads the container addresses, waits for every container (printing its logs when it crashes), checks the sign-in settings and shows the backends' `[AUTH CHECK]` report; for production only, when the accounts database is empty, asks for an email and copies that person from the UAT database (account, role and department, activated); writes the stack's nginx file. Then nginx is tested and restarted once and every public URL is verified.
+Other options: `--no-pull` keeps the code as it is, `--no-build` restarts without rebuilding images, `--keep-env` leaves the `.env` files untouched, `--dry-run` prints what would change and changes nothing. The script is `update-deploy.sh` with its parts in `deploy/`.
+
+For each stack it: puts the checkout on its branch and pulls (cloning it the first time); copies `docker-compose.yml` and the three `.env` files from production when missing and gives them the stack's own values (see below); starts mongo if needed and rebuilds and restarts the services; reads the container addresses, waits for every container (printing its logs when it crashes), checks the sign-in settings and shows the backends' `[AUTH CHECK]` report; for production only, copies the first user from UAT as described above; writes the stack's nginx file. Then nginx is tested and restarted once and every public URL is verified.
 
 **Nginx.** One generated file per stack in `/etc/nginx/sites-available` (`ikaze`, `uat-ikaze`), each `proxy_pass` pointing at that stack's container addresses, plus `default` holding only the port 80 redirect for every host. Previous files are kept as `.bak.<date>` and restored if the test fails. Container addresses change when a container is recreated, so run the script again after any manual restart.
 

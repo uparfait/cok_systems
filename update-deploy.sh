@@ -12,10 +12,15 @@
 #   sudo ./update-deploy.sh                  both stacks (UAT first), same as --all
 #   sudo ./update-deploy.sh --ikaze          production only
 #   sudo ./update-deploy.sh --uat-ikaze      UAT only
-#   sudo ./update-deploy.sh --ikaze-fresh    production, databases started from scratch
-#   sudo ./update-deploy.sh --uat-ikaze-fresh
-#   sudo ./update-deploy.sh --all-fresh      both, databases started from scratch
-#   options: --no-pull  --no-build  --keep-env  --dry-run  --admin-email=<email>
+#   options: --no-pull  --no-build  --keep-env  --dry-run
+#
+#   --admin-email=<email>  says production is being created for the FIRST
+#       time: that person is looked up in the UAT accounts and copied into
+#       production (account, role, department, activated) without asking,
+#       unless an account with that email already exists there.
+#       Without it, the copy is only offered when production has no account.
+#
+# Databases are never deleted by this script.
 #
 # For each stack, in order:
 #   1. the checkout is put on its branch and pulled (cloned the first time)
@@ -24,14 +29,13 @@
 #      on the stack's own mongo (credentials from its docker-compose.yml), its
 #      own frontend host as the allowed browser origin, one JWT_SECRET for its
 #      three backends that differs from the other stack's
-#   3. with -fresh: production is backed up, then the stack's mongo container
-#      and data volume are removed (upload volumes are kept)
-#   4. mongo is started if needed, the services are rebuilt and restarted
-#   5. container addresses are read, every container is waited for, the
+#   3. mongo is started if needed, the services are rebuilt and restarted
+#   4. container addresses are read, every container is waited for, the
 #      sign-in settings are checked and the backends' own report is shown
-#   6. production only: an empty accounts database gets its first user copied
-#      from UAT (the script asks for the email)
-#   7. the stack's nginx file is written from the container addresses
+#   5. production only: an accounts database that is still empty (a first
+#      deployment) gets its first user copied from UAT (the script asks for
+#      the email)
+#   6. the stack's nginx file is written from the container addresses
 # Then nginx is tested and restarted once, and every public URL is verified.
 # =============================================================================
 set -euo pipefail
@@ -50,9 +54,8 @@ FIX_ENV=1
 ADMIN_EMAIL=""
 STAMP="$(date '+%Y%m%d-%H%M%S')"
 STACKS=()
-FRESH_STACKS=()
 
-usage() { sed -n '3,33p' "$0"; }
+usage() { sed -n '3,36p' "$0"; }
 
 parse_args() {
   local arg
@@ -61,9 +64,6 @@ parse_args() {
       --all) STACKS=(uat-ikaze ikaze) ;;
       --ikaze) STACKS+=(ikaze) ;;
       --uat-ikaze) STACKS+=(uat-ikaze) ;;
-      --all-fresh) STACKS=(uat-ikaze ikaze); FRESH_STACKS=(uat-ikaze ikaze) ;;
-      --ikaze-fresh) STACKS+=(ikaze); FRESH_STACKS+=(ikaze) ;;
-      --uat-ikaze-fresh) STACKS+=(uat-ikaze); FRESH_STACKS+=(uat-ikaze) ;;
       --no-pull) PULL=0 ;;
       --no-build) BUILD=0 ;;
       --keep-env) FIX_ENV=0 ;;
@@ -74,12 +74,6 @@ parse_args() {
     esac
   done
   [ "${#STACKS[@]}" -gt 0 ] || STACKS=(uat-ikaze ikaze)
-}
-
-is_fresh() {
-  local name
-  for name in "${FRESH_STACKS[@]:-}"; do [ "$name" = "$1" ] && return 0; done
-  return 1
 }
 
 preflight() {
@@ -100,12 +94,11 @@ run_stack() {
     log "Own values into the $STACK .env files (mongo '${MONGO_SERVICE_HOST}' of project ${STACK_PROJECT}, origin https://${STACK_FRONT})"
     fix_env_files
   fi
-  if is_fresh "$STACK"; then fresh_mongo; fi
   start_stack
   read_addresses
   wait_for_answers
   check_sign_in
-  seed_admin_if_empty
+  seed_admin
   write_stack_nginx
   STACK_RESULT_NOT_ANSWERING["$STACK"]="${NOT_ANSWERING[*]:-}"
 }
