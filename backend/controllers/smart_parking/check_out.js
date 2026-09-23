@@ -212,6 +212,13 @@ module.exports = async function car_check_out(req, res, next) {
       });
 
       await violation.save();
+
+      // Keep the flag history complete even if the monitor never flagged this session
+      if (!parking_session.flagged_at) {
+        parking_session.flagged_at = exact_flagged_time;
+        parking_session.flag_reason = `Exceeded allowed ${allowed_duration_minutes} minutes by ${flagged_duration} minutes`;
+        await parking_session.save();
+      }
       console.log(
         `[SECURITY] Vehicle ${plate_number} automatically flagged at checkout for overstaying by ${flagged_duration} minutes.`,
       );

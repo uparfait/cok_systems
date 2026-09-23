@@ -92,6 +92,9 @@ const startParkingMonitor = () => {
                 // 4. Flag the vehicle and send the alert
                 if (isOverstaying) {
                     record.is_flagged = true;
+                    // History fields survive the next check-in clearing is_flagged
+                    if (!record.flagged_at) record.flagged_at = now;
+                    record.flag_reason = overstayReason || 'Exceeded allowed parking duration';
 
                     // Calculate human-readable duration to save in DB (e.g., "2.5 hours")
                     const hours = (durationMs / (1000 * 60 * 60)).toFixed(1);

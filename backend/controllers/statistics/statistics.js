@@ -183,10 +183,12 @@ const getEmergencyCarsStats = async (req, res) => {
  */
 const getFlaggedVehiclesStats = async (req, res) => {
     try {
-        // Currently flagged vehicles (check_in_time exists but no check_out_time)
+        // Currently flagged = flagged AND still parked; checked-out records keep the flag but are history
         const currentlyFlagged = await ParkingRecord.find({
-            is_flagged: true
+            is_flagged: true,
+            status: 'active'
         });
+        const flaggedRecordsTotal = await ParkingRecord.countDocuments({ is_flagged: true });
 
         // Historical flagged vehicles (have check_out_time)
         const historyFlagged = await FlaggedVehicle.find({});
@@ -229,6 +231,8 @@ const getFlaggedVehiclesStats = async (req, res) => {
             message: 'Flagged vehicles statistics retrieved successfully',
             data: {
                 total: currentlyFlagged.length + historyFlagged.length,
+                // Every parking record ever flagged, inside or checked out
+                flagged_records_total: flaggedRecordsTotal,
                 currently_flagged: {
                     count: currentlyFlagged.length,
                     min_minutes: minMinutesCurrent,

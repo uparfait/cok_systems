@@ -1,4 +1,4 @@
-﻿// SmartParkingDashboard - Smart Parking System Dashboard
+// SmartParkingDashboard - Smart Parking System Dashboard
 // Gate Officer Dashboard with City of Kigali (CoK) institutional design
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';

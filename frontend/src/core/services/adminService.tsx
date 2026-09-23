@@ -554,18 +554,21 @@ export const parkingService = {
       return { success: false, data: [] };
     }
   },
-  getFlaggedActiveVehicles: async (page: number = 1, limit: number = 50) => {
+  // status: 'active' = still parked (default), 'completed' = checked out, 'all' = both
+  getFlaggedActiveVehicles: async (page: number = 1, limit: number = 50, status: 'active' | 'completed' | 'all' = 'active') => {
     try {
-      const response = await get(`/smartparking/vehicle/flagged?limit=${limit}&page=${page}`);
+      const response = await get(`/smartparking/vehicle/flagged?limit=${limit}&page=${page}&status=${status}`);
       if (response.success && response.data) {
         const records = response.data;
         const now = new Date();
         const flaggedActive = records.map((r: any) => {
           const entryTime = new Date(r.check_in || r.entry_date || r.createdAt);
-          const hoursDiff = (now.getTime() - entryTime.getTime()) / (1000 * 60 * 60);
+          // Duration runs until check-out for completed records, until now for vehicles still inside
+          const endTime = r.check_out ? new Date(r.check_out) : now;
+          const hoursDiff = Math.max(0, (endTime.getTime() - entryTime.getTime()) / (1000 * 60 * 60));
           const hours = Math.floor(hoursDiff);
           const minutes = Math.floor((hoursDiff - hours) * 60);
-          return { plate_no: r.plate_number || r.plate_no || 'N/A', entry_time: r.check_in || r.entry_date || r.createdAt, duration: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`, driver_name: r.driver_name || 'Unknown', driver_type: r.driver_type || 'Unknown', is_flagged: true, status: r.status || 'active', _id: r._id };
+          return { plate_no: r.plate_number || r.plate_no || 'N/A', entry_time: r.check_in || r.entry_date || r.createdAt, exit_time: r.check_out || null, duration: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`, driver_name: r.driver_name || 'Unknown', driver_type: r.driver_type || 'Unknown', is_flagged: true, status: r.status || 'active', _id: r._id };
         });
         return { success: true, data: flaggedActive, total: response.total || 0 };
       }
@@ -584,6 +587,8 @@ export const parkingService = {
   verifyCar: (plateNumber: string) => post('/smartparking/vehicle/verify', { plate_number: plateNumber }),
   getFlagged: () => get('/smartparking/vehicle/flagged'),
   getFlaggedVehicles: () => get('/smartparking/vehicle/flagged'),
+  // Permanent history of every flag, kept even after the vehicle checks in again
+  getFlagHistory: (page: number = 1, limit: number = 20, query: string = '') => get(`/smartparking/vehicle/flag-history?page=${page}&limit=${limit}${query ? `&query=${encodeURIComponent(query)}` : ''}`),
   registerSingle: (data: any) => post('/smartparking/register-single', data),
   bulkUpload: (formData: FormData) => post('/smartparking/bulk-upload', formData),
   flagVehicle: (plateNumber: string, reason: string) => post('/smartparking/vehicle/flag', { plate_number: plateNumber, reason }),

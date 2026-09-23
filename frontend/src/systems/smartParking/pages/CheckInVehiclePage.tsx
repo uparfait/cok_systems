@@ -82,6 +82,32 @@ interface VehicleData {
   parking_details?: any;
 }
 
+// Latest flag record for a plate, from /vehicle/flag-history
+interface PastFlagInfo {
+  count: number;
+  flagged_at: string | null;
+  check_in: string | null;
+  check_out: string | null;
+  total_duration_minutes: number | null;
+  overstay_minutes: number | null;
+  flag_reason: string;
+}
+
+// Minutes to "5d 3h 38m" / "3h 59m" / "42m"
+const formatMinutes = (mins: number | null | undefined) => {
+  if (mins === null || mins === undefined) return '-';
+  const d = Math.floor(mins / 1440);
+  const h = Math.floor((mins % 1440) / 60);
+  const m = mins % 60;
+  if (d > 0) return `${d}d ${h}h ${m}m`;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
+const formatFlagDate = (value: string | null | undefined) =>
+  value ? new Date(value).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+const formatFlagTime = (value: string | null | undefined) =>
+  value ? new Date(value).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
+
 interface UnknownVehicleForm {
   plate_number: string;
   driver_name: string;
@@ -177,6 +203,8 @@ const CheckInVehiclePage: React.FC = () => {
   });
 
   const [verifiedData, setVerifiedData] = useState<VehicleData | null>(null);
+  const [pastFlag, setPastFlag] = useState<PastFlagInfo | null>(null);
+  const [pastFlagLoading, setPastFlagLoading] = useState(false);
   const [unknownForm, setUnknownForm] = useState<UnknownVehicleForm>({
     plate_number: '',
     driver_name: '',
@@ -209,6 +237,33 @@ const CheckInVehiclePage: React.FC = () => {
 
 
 
+  // Backend only says was_ever_flagged; the history endpoint gives the when and how long for the warning
+  const loadPastFlag = useCallback(async (plate: string) => {
+    setPastFlagLoading(true);
+    try {
+      const r = await smartParkingService.getFlagHistory(1, 1, plate);
+      const latest = r?.success && Array.isArray(r.data) ? r.data.find((e: any) => e.plate_number === plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()) || r.data[0] : null;
+      const info: PastFlagInfo = {
+        count: r?.total || (latest ? 1 : 0),
+        flagged_at: latest?.flagged_at || null,
+        check_in: latest?.check_in || null,
+        check_out: latest?.check_out || null,
+        total_duration_minutes: latest?.total_duration_minutes ?? null,
+        overstay_minutes: latest?.overstay_minutes ?? null,
+        flag_reason: latest?.flag_reason || 'Exceeded allowed parking duration',
+      };
+      setPastFlag(info);
+      showWarning(latest?.total_duration_minutes != null
+        ? `This vehicle was flagged before: parked ${formatMinutes(latest.total_duration_minutes)}, overstayed ${formatMinutes(latest.overstay_minutes)}.`
+        : 'This vehicle was flagged before for overstaying.');
+    } catch (error) {
+      setPastFlag({ count: 1, flagged_at: null, check_in: null, check_out: null, total_duration_minutes: null, overstay_minutes: null, flag_reason: 'Exceeded allowed parking duration' });
+      showWarning('This vehicle was flagged before for overstaying.');
+    } finally {
+      setPastFlagLoading(false);
+    }
+  }, [showWarning]);
+
   // Define handleVerify before using it in useParkingEvents
   const handleVerify = useCallback(async (plate?: string) => {
     const searchPlate = plate || plateNumber.trim();
@@ -220,10 +275,15 @@ const CheckInVehiclePage: React.FC = () => {
     setVerifying(true);
     // Reset verified data before new verification
     setVerifiedData(null);
+    setPastFlag(null);
 
     try {
       const response = await smartParkingService.verifyCar(searchPlate);
-      
+
+      if (response?.data?.was_ever_flagged) {
+        loadPastFlag(response.data.plate_number || searchPlate);
+      }
+
       if (response.success && response.data) {
         const data = response.data;
         setVerifiedData(data);
@@ -276,7 +336,7 @@ const CheckInVehiclePage: React.FC = () => {
     } finally {
       setVerifying(false);
     }
-  }, [plateNumber, showWarning, showError, showInfo, smartParkingService]);
+  }, [plateNumber, showWarning, showError, showInfo, smartParkingService, loadPastFlag]);
 
 
 
@@ -467,6 +527,7 @@ const CheckInVehiclePage: React.FC = () => {
     setShowAlreadyParkedModal(false);
     setShowFlaggedModal(false);
     setVerifiedData(null);
+    setPastFlag(null);
     setIsEditingDriver(false);
     setPlateNumber('');
   };
@@ -720,6 +781,75 @@ const CheckInVehiclePage: React.FC = () => {
               : 'This vehicle is not registered. Please register visitor details to grant one-time access.'}
         </p>
       </div>
+
+      {/* Past flag warning: backend flags the plate, history endpoint supplies the details */}
+      {(verifiedData?.was_ever_flagged || pastFlag) && (
+        <div className="mx-4 sm:mx-6 mt-4" style={{ border: `1px solid rgba(231,76,60,0.35)`, borderLeft: `4px solid ${DANGER}`, backgroundColor: WHITE }}>
+          {/* Title row */}
+          <div className="flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5" style={{ backgroundColor: 'rgba(231,76,60,0.08)' }}>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(231,76,60,0.14)' }}>
+                <FiFlag className="w-4 h-4" style={{ color: DANGER }} />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase" style={{ color: DANGER, fontFamily: fontHeading, letterSpacing: '1px' }}>Previously flagged</p>
+                <p className="text-xs" style={{ color: '#555555' }}>{pastFlag?.flag_reason || 'Exceeded allowed parking duration'}</p>
+              </div>
+            </div>
+            {pastFlag && pastFlag.count > 0 && (
+              <span className="shrink-0 px-2 py-1 text-xs font-bold whitespace-nowrap" style={{ backgroundColor: DANGER, color: WHITE, fontFamily: fontHeading }}>
+                {pastFlag.count}× flagged
+              </span>
+            )}
+          </div>
+
+          {pastFlagLoading ? (
+            <div className="flex items-center gap-2 px-3 sm:px-4 py-3 text-xs" style={{ color: '#555555' }}>
+              <SpiralLoader color={DANGER} padded={false} size={14} />
+              Loading flag details...
+            </div>
+          ) : pastFlag?.flagged_at || pastFlag?.total_duration_minutes != null ? (
+            <div className="px-3 sm:px-4 py-3">
+              {/* Stat tiles */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="p-2.5" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+                  <p className="text-[10px] uppercase font-semibold" style={{ color: GRAY_DISABLED, letterSpacing: '0.5px' }}>Time parked</p>
+                  <p className="text-base sm:text-lg font-bold leading-tight" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{formatMinutes(pastFlag.total_duration_minutes)}</p>
+                </div>
+                <div className="p-2.5" style={{ backgroundColor: 'rgba(231,76,60,0.08)' }}>
+                  <p className="text-[10px] uppercase font-semibold" style={{ color: DANGER, letterSpacing: '0.5px' }}>Overstayed by</p>
+                  <p className="text-base sm:text-lg font-bold leading-tight" style={{ color: DANGER, fontFamily: fontHeading }}>{formatMinutes(pastFlag.overstay_minutes)}</p>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <div className="grid grid-cols-3 gap-1 text-center relative">
+                <div className="absolute left-[16%] right-[16%] top-[5px] h-px" style={{ backgroundColor: BORDER }} />
+                {[
+                  { label: 'Entered', value: pastFlag.check_in, color: SUCCESS },
+                  { label: 'Flagged', value: pastFlag.flagged_at, color: DANGER },
+                  { label: 'Left', value: pastFlag.check_out, color: GRAY_DISABLED, fallback: 'Never checked out' },
+                ].map((step) => (
+                  <div key={step.label} className="relative">
+                    <span className="block w-2.5 h-2.5 rounded-full mx-auto mb-1.5 relative z-10" style={{ backgroundColor: step.color, boxShadow: `0 0 0 2px ${WHITE}` }} />
+                    <p className="text-[10px] uppercase font-semibold" style={{ color: step.color, letterSpacing: '0.5px' }}>{step.label}</p>
+                    {step.value ? (
+                      <>
+                        <p className="text-xs font-medium" style={{ color: NEUTRAL_DARK }}>{formatFlagDate(step.value)}</p>
+                        <p className="text-[11px]" style={{ color: '#555555' }}>{formatFlagTime(step.value)}</p>
+                      </>
+                    ) : (
+                      <p className="text-[11px] italic" style={{ color: '#555555' }}>{step.fallback || '-'}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="px-3 sm:px-4 py-3 text-xs" style={{ color: '#555555' }}>It overstayed its allowed parking time on a previous visit. Please verify the driver before allowing entry.</p>
+          )}
+        </div>
+      )}
 
       <div className="p-4 sm:p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
