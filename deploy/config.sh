@@ -14,7 +14,10 @@ REPO_BRANCH_UAT="uat"
 
 PROD_DIR="$REPO_DIR"
 PROD_BRANCH="$REPO_BRANCH_PROD"
-PROD_PROJECT="cok-systems"
+# The compose project that existed before the two stacks were split is
+# "cok-systems": its mongo volume holds the data collected so far, which
+# stays with UAT. Production is a new project and starts with an empty mongo.
+PROD_PROJECT="cok-systems-ikaze"
 PROD_FRONT="ikaze.kigalicity.gov.rw"
 PROD_BACKEND_HOST=""
 PROD_EVENTS_HOST=""
@@ -22,11 +25,16 @@ PROD_DCS_HOST=""
 
 UAT_DIR="$REPO_DIR"
 UAT_BRANCH="$REPO_BRANCH_UAT"
-UAT_PROJECT="cok-systems-uat"
+UAT_PROJECT="cok-systems"
 UAT_FRONT="uat-ikaze.kigalicity.gov.rw"
 UAT_BACKEND_HOST="uatps-ikaze.kigalicity.gov.rw"
 UAT_EVENTS_HOST="uate-ikaze.kigalicity.gov.rw"
 UAT_DCS_HOST="dcms.kigalicity.gov.rw"
+
+# Compose projects from earlier layouts that no stack uses any more: their
+# containers and network are stopped and removed on the next run; their
+# volumes are never touched.
+LEGACY_PROJECTS=(cok-systems-uat)
 
 # Where each stack's .env files live between runs: deploy/env/<stack>/<service>.env
 ENV_STORE="$REPO_DIR/deploy/env"

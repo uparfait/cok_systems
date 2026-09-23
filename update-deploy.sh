@@ -7,8 +7,8 @@
 # containers, mongo and volumes, its own set of .env files and its own public
 # hosts, so nothing of one can touch the other:
 #
-#   ikaze      production   branch "ikaze"   project cok-systems
-#   uat-ikaze  acceptance   branch "uat"     project cok-systems-uat
+#   uat-ikaze  acceptance   branch "uat"     project cok-systems        (the database collected so far)
+#   ikaze      production   branch "ikaze"   project cok-systems-ikaze  (starts with an empty database)
 #
 #   sudo ./update-deploy.sh                  both stacks (UAT first), same as --all
 #   sudo ./update-deploy.sh --ikaze          production only
@@ -100,6 +100,18 @@ restore_production() {
   place_env_files >/dev/null 2>&1 || true
 }
 
+# Containers of a project no stack uses any more are stopped and removed so
+# they do not keep running beside the real stacks. Volumes are kept.
+retire_legacy_projects() {
+  local project
+  for project in "${LEGACY_PROJECTS[@]}"; do
+    [ -n "$(docker ps -a -q --filter "label=com.docker.compose.project=$project" 2>/dev/null)" ] || continue
+    log "Retiring old compose project '$project' (containers and network only; volumes are kept)"
+    if [ "$DRY_RUN" = 1 ]; then ok "(dry run) would run: docker compose -p $project down"; continue; fi
+    (cd "$REPO_DIR" && docker compose -p "$project" down) 2>&1 | sed 's/^/   /' || warn "could not remove project $project - remove it by hand: docker compose -p $project down"
+  done
+}
+
 run_stack() {
   select_stack "$1"
   log "===== $STACK  (branch $STACK_BRANCH, project $STACK_PROJECT) ====="
@@ -125,6 +137,7 @@ main() {
   declare -g -A STACK_RESULT_NOT_ANSWERING=()
   STARTED_WORK=1
   trap restore_production EXIT
+  retire_legacy_projects
   local name failed=""
   for name in "${STACKS[@]}"; do
     run_stack "$name"
