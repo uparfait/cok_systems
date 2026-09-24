@@ -80,8 +80,11 @@ async function get_field_values(req, res) {
 
     const active_version = await forms_model.get_active_version(form_group_id);
     const field = active_version ? flatten_fields((active_version.schema && active_version.schema.fields) || []).find((entry) => entry.id === field_id) : null;
+    // A tracked form's values are read as they stood at the range's end,
+    // over the records that existed by then - exactly what the table shows.
+    const tracking = active_version && active_version.tracking && active_version.tracking.enabled === true ? active_version.tracking : null;
 
-    const collected = await values_model.list_field_values(form_group_id, field_id, bounds, parent);
+    const collected = await values_model.list_field_values(form_group_id, field_id, bounds, parent, tracking);
     const seen = new Set(collected.map((entry) => String(entry.value)));
     const empty_options = schema_option_values(field, parent ? parent.values : []).filter((value) => !seen.has(String(value))).map((value) => ({ value, count: 0 }));
 

@@ -39,13 +39,16 @@ export default function DcsColumnFilterMenu({ fieldId, selected, onChange, loadV
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  // Bumped by the reload button: a new key makes the effect fetch again.
+  const [reload_seq, setReloadSeq] = useState(0);
   const trigger_ref = useRef(null);
   const loaded_key_ref = useRef(null);
   const request_seq_ref = useRef(0);
   const parent_key_ref = useRef(null);
 
   const parent_key = parent && parent.field_id ? `${parent.field_id}=${JSON.stringify(parent.values || [])}` : "";
-  const load_key = `${rangeKey}|${parent_key}`;
+  const load_key = `${rangeKey}|${parent_key}|${reload_seq}`;
   const picked = new Set(selected || []);
 
   // The parent moved under this column: its own picks may point at values
@@ -68,7 +71,8 @@ export default function DcsColumnFilterMenu({ fieldId, selected, onChange, loadV
     const silent = !!values;
     const request_id = request_seq_ref.current + 1;
     request_seq_ref.current = request_id;
-    if (!silent) setLoading(true);
+    if (silent) setRefreshing(true);
+    else setLoading(true);
     loadValues(fieldId, parent && parent.field_id ? parent : null)
       .then((list) => {
         if (request_seq_ref.current !== request_id) return;
@@ -80,7 +84,9 @@ export default function DcsColumnFilterMenu({ fieldId, selected, onChange, loadV
         if (request_seq_ref.current === request_id && !silent) setValues([]);
       })
       .finally(() => {
-        if (request_seq_ref.current === request_id && !silent) setLoading(false);
+        if (request_seq_ref.current !== request_id) return;
+        if (silent) setRefreshing(false);
+        else setLoading(false);
       });
     return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,15 +126,36 @@ export default function DcsColumnFilterMenu({ fieldId, selected, onChange, loadV
       </button>
 
       <MenuPopover open={open} anchorRef={trigger_ref} onClose={() => setOpen(false)} minWidth={210} maxHeight={330} align="start" role="menu">
-        <button
-          type="button"
-          onClick={() => onChange([])}
-          className="dcs-dt-check cursor-pointer"
-          style={{ fontWeight: picked.size === 0 ? 700 : 500, color: picked.size === 0 ? "#056daa" : "#333333" }}
-        >
-          <Tick on={picked.size === 0} />
-          <span>{translate("DCS_TABLE_COLUMN_FILTER_ALL")}</span>
-        </button>
+        <div className="flex items-center gap-1 pr-1.5">
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            className="dcs-dt-check cursor-pointer flex-1"
+            style={{ fontWeight: picked.size === 0 ? 700 : 500, color: picked.size === 0 ? "#056daa" : "#333333" }}
+          >
+            <Tick on={picked.size === 0} />
+            <span>{translate("DCS_TABLE_COLUMN_FILTER_ALL")}</span>
+          </button>
+          {/* Reads the values again, keeping the list on screen meanwhile. */}
+          <button
+            type="button"
+            onClick={() => setReloadSeq((current) => current + 1)}
+            disabled={loading || refreshing}
+            title={translate("DCS_BTN_RELOAD")}
+            aria-label={translate("DCS_BTN_RELOAD")}
+            className="dcs-dt-rowbtn cursor-pointer flex-shrink-0"
+            style={{ color: "#056daa" }}
+          >
+            {refreshing ? (
+              <span className="dcs-inline-spinner" />
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 12a9 9 0 11-2.6-6.4" />
+                <polyline points="21 3 21 9 15 9" />
+              </svg>
+            )}
+          </button>
+        </div>
 
         {loading && (
           <div className="px-2.5 py-3">

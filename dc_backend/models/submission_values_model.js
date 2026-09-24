@@ -1,4 +1,5 @@
 const { get_db } = require("../db_connection/db.js");
+const { tracking_stages } = require("../util-dashboard/tracking_stage.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 const MAX_VALUES = 200;
@@ -22,9 +23,14 @@ function value_candidates(values) {
 
 /**
  * The answers a single field has actually collected, each with how many
- * records carry it - what a choice column's own filter dropdown lists.
- * Read from the data rather than from the schema on purpose: an option
- * renamed or dropped in a later version still has records behind it.
+ * records carry it - what a choice column's own filter dropdown lists,
+ * under the very date range the table shows.
+ *
+ * On a tracked form the range keeps every record that existed by its end
+ * and reads the field as it stood at that end (see
+ * util-dashboard/tracking_stage.js) - the same records, with the same
+ * values, the table itself lists for that range. Any other form counts
+ * what was submitted inside the range.
  *
  * parent (optional: { field_id, values }) narrows the count to the records
  * whose PARENT answer is one of the picked values, so a sector filter
@@ -33,20 +39,25 @@ function value_candidates(values) {
  * A multi-select answer is an array, so it is unwound first and each of
  * its picks counted on its own.
  */
-async function list_field_values(form_group_id, field_id, date_bounds, parent) {
-  const match = { form_group_id, [`data.${field_id}`]: { $exists: true, $nin: [null, ""] } };
+async function list_field_values(form_group_id, field_id, date_bounds, parent, tracking) {
+  const tracked = !!(tracking && tracking.enabled === true);
+  const base = { form_group_id };
   if (date_bounds && date_bounds.start && date_bounds.end) {
-    match.submitted_at = { $gte: date_bounds.start, $lte: date_bounds.end };
+    base.submitted_at = tracked ? { $lte: date_bounds.end } : { $gte: date_bounds.start, $lte: date_bounds.end };
   }
+  // Applied AFTER the as-of rewrite, so the values counted are the values shown.
+  const answered = { [`data.${field_id}`]: { $exists: true, $nin: [null, ""] } };
   if (parent && parent.field_id && Array.isArray(parent.values) && parent.values.length > 0) {
-    match[`data.${parent.field_id}`] = { $in: value_candidates(parent.values) };
+    answered[`data.${parent.field_id}`] = { $in: value_candidates(parent.values) };
   }
 
   const rows = await get_db()
     .collection(COLLECTION_NAME)
     .aggregate(
       [
-        { $match: match },
+        { $match: base },
+        ...tracking_stages({ tracking: tracked ? tracking : null }, date_bounds),
+        { $match: answered },
         { $project: { value: `$data.${field_id}` } },
         { $unwind: "$value" },
         { $match: { value: { $type: ["string", "double", "int", "long", "decimal", "bool"] } } },
