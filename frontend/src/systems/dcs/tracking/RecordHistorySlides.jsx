@@ -46,6 +46,16 @@ export function build_snapshots(record) {
   return snapshots;
 }
 
+/**
+ * Where a slide stands: the first slide is the original record, every
+ * later one is "change N of M" - so the count matches the changes counted
+ * on the table and the tab, which never count the original as a change.
+ */
+export function slide_position(index, total_slides, translate) {
+  if (index <= 0) return translate("DCS_HISTORY_SLIDE_ORIGINAL");
+  return translate("DCS_HISTORY_SLIDE_POSITION", { index, total: Math.max(0, total_slides - 1) });
+}
+
 /** The moment's own line: when it was written, by whom, as a fresh record or a change. */
 export function slide_caption(entry, translate) {
   const kind = translate(KIND_KEYS[entry.kind] || KIND_KEYS.updated);
@@ -115,7 +125,7 @@ export default function RecordHistorySlides({ record, fields, onLoadLatest, onSl
           {translate("DCS_BTN_BACK")}
         </DcsButtonOutline>
         <p className="text-xs font-bold uppercase text-center min-w-0 flex-1" style={{ color: MUTED, fontFamily: FONT, letterSpacing: 0.5 }}>
-          {translate("DCS_HISTORY_SLIDE_POSITION", { index: index + 1, total: snapshots.length })}
+          {slide_position(index, snapshots.length, translate)}
         </p>
         <DcsButtonOutline onClick={() => setIndex(Math.min(snapshots.length - 1, index + 1))} disabled={is_latest}>
           {translate("DCS_BTN_NEXT")}
@@ -143,7 +153,7 @@ export function RecordHistorySlidesOverlay({ record, fields, onClose, onLoadLate
               {shown ? format_when(shown.entry.at) : translate("DCS_HISTORY_SLIDES_TITLE")}
             </p>
             <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.85)", fontFamily: FONT }}>
-              {shown ? `${translate("DCS_HISTORY_SLIDES_TITLE")} - ${translate("DCS_HISTORY_SLIDE_POSITION", { index: shown.index + 1, total: shown.total })}` : translate("DCS_HISTORY_CHANGED_HINT")}
+              {shown ? `${translate("DCS_HISTORY_SLIDES_TITLE")} - ${slide_position(shown.index, shown.total, translate)}` : translate("DCS_HISTORY_CHANGED_HINT")}
             </p>
           </div>
           <DcsCloseIconButton onClick={onClose} />
