@@ -102,7 +102,7 @@ export default function DcsFormSidebar({ nav, onClose }) {
           <p className="text-[10px] font-bold uppercase" style={{ color: "#9E9E9E", letterSpacing: "0.6px", fontFamily: FONT }}>
             {translate("DCS_WS_SECTION_FORM")}
           </p>
-          <p className="text-sm font-bold break-words" style={{ color: "#333333", fontFamily: FONT }} title={nav.title}>
+          <p className="text-sm font-bold break-words uppercase" style={{ color: "#333333", fontFamily: FONT }} title={nav.title}>
             {nav.title || "..."}
           </p>
         </div>

@@ -17,10 +17,16 @@ import ProjectsIllustration from "../home/illustrations/ProjectsIllustration.jsx
 
 const OVERVIEW_KEY = "overview";
 
-function ProjectStatCard({ rawValue, labelKey, isActive, translate }) {
+/** The forms total, itself the way to the forms page. */
+function ProjectStatCard({ rawValue, labelKey, isActive, translate, onClick, hint }) {
   const { text } = useCountUp(String(rawValue), isActive);
   return (
-    <div className="dcs-home-glass-card flex flex-col items-center justify-center gap-1 p-5">
+    <button
+      type="button"
+      onClick={onClick}
+      title={hint}
+      className="dcs-home-glass-card dcs-stat-card-link flex flex-col items-center justify-center gap-1 p-5 w-full cursor-pointer"
+    >
       <span className="font-bold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif", fontSize: "1.8rem" }}>
         {text}
       </span>
@@ -30,7 +36,7 @@ function ProjectStatCard({ rawValue, labelKey, isActive, translate }) {
       >
         {translate(labelKey)}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -129,11 +135,11 @@ export default function ProjectDetailPage() {
                     {project.name}
                   </h1>
 
-                  <div className="dcs-home-glass-card--tint lg:hidden flex items-center justify-center p-5" style={{ minHeight: 180 }}>
+                  <button type="button" onClick={() => navigate(`${base_path}/forms`)} title={translate("DCS_PROJECT_STAT_FORMS_OPEN")} className="dcs-home-glass-card--tint dcs-stat-card-link lg:hidden flex items-center justify-center p-5 w-full cursor-pointer" style={{ minHeight: 180 }}>
                     <div style={{ width: "100%", maxWidth: 240 }}>
                       <ProjectsIllustration />
                     </div>
-                  </div>
+                  </button>
 
                   <p style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif", fontSize: "1rem", lineHeight: 1.7 }}>
                     {project.description || translate("DCS_PROJECT_NO_DESCRIPTION")}
@@ -143,11 +149,11 @@ export default function ProjectDetailPage() {
                   </span>
                 </div>
 
-                <div className="dcs-home-glass-card--tint hidden lg:flex items-center justify-center p-6" style={{ minHeight: 260 }}>
+                <button type="button" onClick={() => navigate(`${base_path}/forms`)} title={translate("DCS_PROJECT_STAT_FORMS_OPEN")} className="dcs-home-glass-card--tint dcs-stat-card-link hidden lg:flex items-center justify-center p-6 w-full cursor-pointer" style={{ minHeight: 260 }}>
                   <div style={{ width: "100%", maxWidth: 300 }}>
                     <ProjectsIllustration />
                   </div>
-                </div>
+                </button>
               </div>
 
               {/* The project's own responses total, and the list of its
@@ -166,7 +172,14 @@ export default function ProjectDetailPage() {
                     ))}
                   </div>
                 </div>
-                <ProjectStatCard rawValue={project.forms_count || 0} labelKey="DCS_PROJECT_STAT_FORMS" isActive={isVisible} translate={translate} />
+                <ProjectStatCard
+                  rawValue={project.forms_count || 0}
+                  labelKey="DCS_PROJECT_STAT_FORMS"
+                  isActive={isVisible}
+                  translate={translate}
+                  hint={translate("DCS_PROJECT_STAT_FORMS_OPEN")}
+                  onClick={() => navigate(`${base_path}/forms`)}
+                />
               </div>
             </div>
           )}

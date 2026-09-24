@@ -98,7 +98,8 @@ export function useTableColumnState(form_group_id, on_error, on_success) {
   const clear_selection = useCallback(() => setSelectedIds([]), []);
 
   const load_field_values = useCallback(
-    (field_id, period_options) => get_field_values(form_group_id, field_id, period_options).then((response) => (response.data && response.data.values) || []),
+    (field_id, period_options, parent) =>
+      get_field_values(form_group_id, field_id, Object.assign({}, period_options, { parent: parent || null })).then((response) => (response.data && response.data.values) || []),
     [form_group_id],
   );
 

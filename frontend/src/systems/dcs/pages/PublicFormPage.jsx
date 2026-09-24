@@ -32,7 +32,7 @@ import PublicApprovalNotices from "../components/PublicApprovalNotices.jsx";
 import PublicSuccessScreen from "../components/PublicSuccessScreen.jsx";
 import PublicFormCardHeader from "../components/PublicFormCardHeader.jsx";
 import { useRecordTracking } from "../tracking/useRecordTracking.jsx";
-import { is_tracking_enabled } from "../tracking/trackingConfig.js";
+import { is_tracking_enabled, with_key_on_top } from "../tracking/trackingConfig.js";
 import { RecordFloatingButton } from "../tracking/RecordFieldWrap.jsx";
 import RecordLookupOverlay from "../tracking/RecordLookupOverlay.jsx";
 
@@ -128,7 +128,7 @@ function PublicFormPageContent() {
         try {
           const response = await get_public_form(form_group_id);
           if (!is_mounted) return;
-          setForm(response.data);
+          setForm(with_key_on_top(response.data));
           await cache_form(form_group_id, response.data);
           setLoadState("ready");
           if (!is_tracking_enabled(response.data.tracking)) warm_offline_cache(form_group_id, response.data);
@@ -149,7 +149,7 @@ function PublicFormPageContent() {
           return;
         }
         if (cached_form && is_mounted) {
-          setForm(cached_form);
+          setForm(with_key_on_top(cached_form));
           setLoadState("ready");
           return;
         }

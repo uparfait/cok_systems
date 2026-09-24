@@ -17,6 +17,7 @@ import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import { is_tracking_enabled } from "../tracking/trackingConfig.js";
+import { RecordHistorySlidesOverlay } from "../tracking/RecordHistorySlides.jsx";
 
 const FONT = "'Montserrat', sans-serif";
 const PRIMARY = "#056daa";
@@ -68,6 +69,7 @@ function EditRecordPageContent() {
   // own history moments, shown read-only so a past state can be looked at
   // without being mistaken for what saving would write.
   const [as_of, setAsOf] = useState("");
+  const [edits_open, setEditsOpen] = useState(false);
 
   const { resolveFieldOptions } = useLazyFieldResolvers("public_form", form ? form.form_group_id : "", get_public_form_field_options);
 
@@ -90,6 +92,7 @@ function EditRecordPageContent() {
   }, [id]);
 
   const moments = useMemo(() => (record ? history_moments(record) : []), [record]);
+  const edit_count = record ? Math.max(0, (record.history || []).length - 1) : 0;
   const is_tracked = !!record && !!form && is_tracking_enabled(form.tracking);
   const is_past_view = as_of !== "";
 
@@ -132,9 +135,16 @@ function EditRecordPageContent() {
 
     setSaving(true);
     try {
-      await update_public_record_full(id, { data: validation_result.resolved_data, respondent: record.respondent || null });
-      showSuccess(translate("DCS_EDIT_RECORD_SAVED"));
-      leave();
+      const response = await update_public_record_full(id, { data: validation_result.resolved_data, respondent: record.respondent || null });
+      // The page stays open on the record as it now is - the new answers,
+      // the fresh history - rather than closing on the person mid-work.
+      const saved = response.data || {};
+      const next_record = Object.assign({}, record, saved, { respondent: record.respondent || null });
+      setRecord(next_record);
+      setValues(compute_derived_values(form.schema, next_record.data || {}));
+      setFieldErrors({});
+      setRevealAllErrors(false);
+      showSuccess(response.message || translate("DCS_EDIT_RECORD_SAVED"));
     } catch (error) {
       if (error && error.field_errors) {
         setFieldErrors(error.field_errors);
@@ -172,8 +182,25 @@ function EditRecordPageContent() {
             </p>
             <p className="text-xs" style={{ color: "#9E9E9E", fontFamily: FONT }}>
               {record.submitted_at ? new Date(record.submitted_at).toLocaleString() : ""}
+              {record.updated_at ? ` - ${translate("DCS_TRACKING_UPDATED_AT", { when: new Date(record.updated_at).toLocaleString() })}` : ""}
             </p>
           </div>
+
+          {/* Every edit made so far, each on the date it was made, opened
+              as slides of the form as it stood at that moment. */}
+          {edit_count > 0 && (
+            <div className="mb-4 p-3 flex flex-col min-[480px]:flex-row min-[480px]:items-center gap-2" style={{ backgroundColor: "#F4F8FB", border: "1px solid rgba(5,109,170,0.2)" }}>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold uppercase" style={{ color: PRIMARY, fontFamily: FONT, letterSpacing: "0.5px" }}>
+                  {translate("DCS_EDIT_RECORD_EDITS", { count: edit_count })}
+                </p>
+                <p className="text-[11px]" style={{ color: "#6B7280", fontFamily: FONT }}>
+                  {translate("DCS_HISTORY_CHANGED_HINT")}
+                </p>
+              </div>
+              <DcsButtonOutline onClick={() => setEditsOpen(true)}>{translate("DCS_EDIT_RECORD_VIEW_EDITS")}</DcsButtonOutline>
+            </div>
+          )}
 
           {/* A tracked record keeps every value it has ever held, so it can
               be opened at any of the moments it was written - read-only,
@@ -204,7 +231,7 @@ function EditRecordPageContent() {
           )}
 
           <div style={saving || is_past_view ? { pointerEvents: "none", opacity: is_past_view ? 0.75 : 0.6 } : undefined}>
-            <MediaUploadProvider formGroupId={form.form_group_id} version={form.version} isOnline>
+            <MediaUploadProvider formGroupId={form.form_group_id} version={form.version} isOnline keepFiles>
               <RendererEngine
                 key={as_of || "now"}
                 schema={form.schema}
@@ -242,6 +269,8 @@ function EditRecordPageContent() {
           )}
         </div>
       </div>
+
+      {edits_open && <RecordHistorySlidesOverlay record={record} fields={form.schema.fields} onClose={() => setEditsOpen(false)} />}
     </>
   );
 }

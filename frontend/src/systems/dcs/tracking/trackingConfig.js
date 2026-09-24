@@ -55,6 +55,38 @@ export function field_name(field, language) {
   return get_field_text(field.label, language) || get_field_text(field.label, "en") || field.id;
 }
 
+/**
+ * The public form of a tracked form always opens on its key field: it is
+ * lifted out of wherever the author placed it - a group or a section
+ * included - to the very top, so the first thing a person does is type
+ * the identifier and find or start the record.
+ */
+export function with_key_on_top(form) {
+  const tracking = form && form.tracking;
+  if (!form || !form.schema || !is_tracking_enabled(tracking)) return form;
+  const key_id = tracking.key_field_id;
+  let key_field = null;
+  const strip = (list) =>
+    (list || []).reduce((out, field) => {
+      if (field.id === key_id) {
+        key_field = field;
+        return out;
+      }
+      if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
+        out.push(Object.assign({}, field, { children: strip(field.children) }));
+        return out;
+      }
+      out.push(field);
+      return out;
+    }, []);
+  const rest = strip(form.schema.fields);
+  if (!key_field) return form;
+  // A key lifted out of a section carries a layout that means nothing at the top level.
+  const top = Object.assign({}, key_field);
+  delete top.section_layout;
+  return Object.assign({}, form, { schema: Object.assign({}, form.schema, { fields: [top].concat(rest) }) });
+}
+
 /** The set of field ids a respondent may NOT change on a loaded record. */
 export function locked_field_ids(tracking, fields) {
   if (!is_tracking_enabled(tracking)) return new Set();

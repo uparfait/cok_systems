@@ -17,8 +17,10 @@ import DcsFormNav from "../components/DcsFormNav.jsx";
 import { ExpandFab } from "../components/DcsWorkspaceShell.jsx";
 import DcsHideFieldsMenu from "../components/table/DcsHideFieldsMenu.jsx";
 import DcsColumnFilterMenu from "../components/table/DcsColumnFilterMenu.jsx";
-import RecordHistoryDialog from "../tracking/RecordHistoryDialog.jsx";
+import { RecordHistorySlidesOverlay } from "../tracking/RecordHistorySlides.jsx";
 import { is_tracking_enabled } from "../tracking/trackingConfig.js";
+import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
+import { parent_filter_of } from "../util-dashboard/boardFilters.js";
 import { build_diffed_columns, build_rows, FILTERABLE_TYPES } from "../components/table/allDataColumns.jsx";
 
 const ACTIONS_COLUMN_WIDTH_PX = 108;
@@ -76,8 +78,8 @@ export default function FormAllDataPage() {
   // The date range the column dropdowns must agree with, so a value the
   // visible range has none of is never offered as something to filter by.
   const range_key = `${table.period}|${table.from}|${table.to}`;
-  const load_field_values = (field_id) =>
-    columns_state.load_field_values(field_id, { period: table.period, from: table.from, to: table.to });
+  const load_field_values = (field_id, parent) =>
+    columns_state.load_field_values(field_id, { period: table.period, from: table.from, to: table.to }, parent);
 
   const built = useMemo(
     () => (versions && versions.length > 0 ? build_diffed_columns(versions, language) : null),
@@ -86,6 +88,18 @@ export default function FormAllDataPage() {
 
   const active_version = versions && versions.length > 0 ? versions.find((entry) => entry.is_active) || versions[0] : null;
   const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
+
+  // Which column's filter each cascade child follows (a sector under its
+  // district), read from the active version's own fields.
+  const parent_by_field = useMemo(() => {
+    const map = new Map();
+    if (!active_version) return map;
+    flatten_fields((active_version.schema && active_version.schema.fields) || []).forEach((field) => {
+      const parent_id = parent_filter_of(field);
+      if (parent_id) map.set(field.id, parent_id);
+    });
+    return map;
+  }, [active_version]);
 
   const page_ids = (table.submissions || []).map((submission) => submission._id);
   const selected_set = new Set(columns_state.selected_ids);
@@ -121,9 +135,9 @@ export default function FormAllDataPage() {
     );
   }
 
-  const tracking_columns = tracking
-    ? [{ key: "updated_at", labelKey: "DCS_TRACKING_TABLE_UPDATED_AT" }, { key: "history", labelKey: "DCS_TRACKING_TABLE_HISTORY", minWidthPx: 96 }]
-    : [];
+  // Any record may have been edited, so the change columns are always
+  // there; a row with nothing changed shows a dash instead of a button.
+  const tracking_columns = [{ key: "updated_at", labelKey: "DCS_TRACKING_TABLE_UPDATED_AT" }, { key: "history", labelKey: "DCS_TRACKING_TABLE_HISTORY", minWidthPx: 96 }];
 
   // Everything the table COULD show, before hiding is applied - what the
   // "Hide fields" list ticks against.
@@ -136,6 +150,8 @@ export default function FormAllDataPage() {
   // A choice column carries its own value filter under its header.
   const columns_with_filters = visible_columns.map((column) => {
     if (!FILTERABLE_TYPES.includes(built.field_type_by_id.get(column.key))) return column;
+    const parent_id = parent_by_field.get(column.key);
+    const parent_values = parent_id ? columns_state.column_filters[parent_id] || [] : [];
     return Object.assign({}, column, {
       headerNode: (
         <DcsColumnFilterMenu
@@ -144,6 +160,7 @@ export default function FormAllDataPage() {
           onChange={(values) => columns_state.set_column_filter(column.key, values)}
           loadValues={load_field_values}
           rangeKey={range_key}
+          parent={parent_id ? { field_id: parent_id, values: parent_values } : null}
         />
       ),
     });
@@ -183,7 +200,7 @@ export default function FormAllDataPage() {
     submissions: table.submissions,
     field_type_by_id: built.field_type_by_id,
     translate,
-    on_history_click: tracking ? setHistoryRecord : null,
+    on_history_click: setHistoryRecord,
     selected_set,
     on_select_change: columns_state.toggle_selected,
     on_view: setViewRecord,
@@ -328,8 +345,13 @@ export default function FormAllDataPage() {
         />
       )}
 
-      {history_record && tracking && (
-        <RecordHistoryDialog record={history_record} fields={active_version.schema.fields} tracking={tracking} onClose={() => setHistoryRecord(null)} />
+      {history_record && (
+        <RecordHistorySlidesOverlay
+          record={history_record}
+          fields={((versions.find((entry) => entry.version === history_record.version) || active_version).schema || {}).fields || []}
+          tracking={tracking}
+          onClose={() => setHistoryRecord(null)}
+        />
       )}
     </div>
   );

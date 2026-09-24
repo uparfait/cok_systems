@@ -7,7 +7,7 @@ import { NON_DATA_TYPES, column_label, render_answer_cell } from "../fields/data
 import { format_respondent } from "../offline/respondentStore.js";
 import { approval_status_label_key } from "./DcsApprovalStatusChip.jsx";
 import { ApprovalDetailsBody } from "./DcsApprovalDetailsDialog.jsx";
-import { RecordHistoryList, FieldTimeline, RecordFieldsList } from "../tracking/RecordHistory.jsx";
+import RecordHistorySlides from "../tracking/RecordHistorySlides.jsx";
 import { is_tracking_enabled } from "../tracking/trackingConfig.js";
 import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
@@ -23,16 +23,14 @@ const FONT = "'Montserrat', sans-serif";
  * One whole record, opened from a table row. The table can only show an
  * answer as much of a cell as three lines allow; this shows every answer
  * at full size in the form's own order, with sections and groups kept as
- * the headings they were authored as, so a long paragraph, a photo and a
- * map all get the room they need. Its tabs: the answers, the approval
- * trail (loaded when opened), and - on a tracked form - the change history
- * with each updatable field's value timeline.
+ * the headings they were authored as. Its tabs: the answers, the approval
+ * trail (loaded when opened), and - once the record has been changed - its
+ * history as slides of the form at each moment it was written.
  *
  * Full screen on a phone; an 80 by 80 percent card from 750px up, the
  * same frame as every other overlay of the module.
  */
 
-/** The record's own fields, keeping sections and groups as headings. */
 function walk(fields, language, translate, values, depth, out) {
   (fields || []).forEach((field) => {
     if (field.type === "section" || field.type === "group") {
@@ -90,6 +88,8 @@ function AnswersTab({ entries, translate, editableIds }) {
   );
 }
 
+const when = (value) => (value ? new Date(value).toLocaleString() : "-");
+
 export default function DcsRecordViewOverlay({ record, fields, tracking, onClose, onEdit }) {
   const { language, translate } = useDcsLanguage();
   const tracked = is_tracking_enabled(tracking);
@@ -105,7 +105,8 @@ export default function DcsRecordViewOverlay({ record, fields, tracking, onClose
     { key: "answers", label: `${translate("DCS_RECORD_VIEW_SECTION_ANSWERS")} (${answered})` },
     { key: "approval", label: translate("DCS_TABLE_APPROVAL") },
   ];
-  if (tracked) tabs.push({ key: "history", label: `${translate("DCS_TRACKING_TABLE_HISTORY")} (${change_count})` });
+  // The history only exists once something was changed after the record was made.
+  if (change_count > 0) tabs.push({ key: "history", label: `${translate("DCS_TRACKING_TABLE_HISTORY")} (${change_count})` });
 
   return createPortal(
     <div className="dcs-tracking-overlay dcs-no-print" role="dialog" aria-modal="true" aria-label={translate("DCS_RECORD_VIEW_TITLE")}>
@@ -116,21 +117,20 @@ export default function DcsRecordViewOverlay({ record, fields, tracking, onClose
             <p className="text-white font-semibold uppercase tracking-wide text-sm truncate" style={{ fontFamily: FONT }}>
               {translate("DCS_RECORD_VIEW_TITLE")}
             </p>
-            <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.85)", fontFamily: FONT }}>
-              {record.submitted_at ? new Date(record.submitted_at).toLocaleString() : ""}
-            </p>
+            <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.85)", fontFamily: FONT }}>{when(record.submitted_at)}</p>
           </div>
           <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
         </div>
 
         <div className="dcs-record-meta flex-shrink-0">
+          <MetaItem label={translate("DCS_TABLE_SUBMITTED_AT")}>{when(record.submitted_at)}</MetaItem>
+          <MetaItem label={translate("DCS_TRACKING_TABLE_UPDATED_AT")}>{when(record.updated_at)}</MetaItem>
+          <MetaItem label={translate("DCS_TABLE_SUBMITTED_BY")}>{format_respondent(record.respondent) || "-"}</MetaItem>
           <MetaItem label={translate("DCS_TABLE_APPROVAL")}>
             {approval_key ? translate(approval_key) : "-"}
             {record.approval_progress && record.approval_progress.total > 0 ? ` (${record.approval_progress.approved}/${record.approval_progress.total})` : ""}
           </MetaItem>
-          <MetaItem label={translate("DCS_TABLE_SUBMITTED_BY")}>{format_respondent(record.respondent) || "-"}</MetaItem>
           <MetaItem label={translate("DCS_TABLE_VERSION")}>{String(record.version || "-")}</MetaItem>
-          <MetaItem label={translate("DCS_TRACKING_TABLE_UPDATED_AT")}>{record.updated_at ? new Date(record.updated_at).toLocaleString() : "-"}</MetaItem>
         </div>
 
         <div className="dcs-record-tabs flex-shrink-0">
@@ -144,13 +144,7 @@ export default function DcsRecordViewOverlay({ record, fields, tracking, onClose
         <div className="flex-1 min-h-0 overflow-y-auto px-4 min-[560px]:px-6 py-4">
           {tab === "answers" && <AnswersTab entries={entries} translate={translate} editableIds={editable_ids} />}
           {tab === "approval" && <ApprovalDetailsBody submission_id={record._id} />}
-          {tab === "history" && tracked && (
-            <div className="space-y-4">
-              <RecordFieldsList record={record} fields={fields} editableIds={tracking.editable_field_ids} />
-              <RecordHistoryList record={record} fields={fields} />
-              <FieldTimeline record={record} fields={fields} editableIds={tracking.editable_field_ids} />
-            </div>
-          )}
+          {tab === "history" && change_count > 0 && <RecordHistorySlides record={record} fields={fields} />}
         </div>
 
         <div className="dcs-tracking-footer">

@@ -9,9 +9,27 @@ import DcsEmptyState from "../components/DcsEmptyState.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import { GallerySkeleton } from "../components/DcsSkeletons.jsx";
 
-const PAGE_SIZE = 10;
 const DEFAULT_PERIOD = "this_year";
 const FONT = "'Montserrat', sans-serif";
+const MAX_PAGE_SIZE = 60;
+const GRID_GAP_PX = 8;
+const CHROME_HEIGHT_PX = 180;
+
+/**
+ * How many tiles one page holds: enough to fill the room the grid has on
+ * THIS screen and one more row, no fixed ten. The column count follows
+ * the grid's own breakpoints, the tile is square, and the height left
+ * under the toolbar decides the rows - so a phone asks for a handful and
+ * a wide monitor for a full screen, and every "Load more" adds another
+ * screenful.
+ */
+function viewport_page_size() {
+  const width = Math.min(window.innerWidth, 1600) - 32;
+  const cols = width < 480 ? 2 : width < 720 ? 3 : width < 1000 ? 4 : width < 1320 ? 5 : 6;
+  const tile = width / cols + GRID_GAP_PX;
+  const rows = Math.ceil(Math.max(320, window.innerHeight - CHROME_HEIGHT_PX) / tile) + 1;
+  return Math.min(MAX_PAGE_SIZE, Math.max(cols * 2, cols * rows));
+}
 
 const VIDEO_PATTERN = /\.(mp4|webm|mov|m4v|mkv|ogv|avi)(\?|#|$)/i;
 
@@ -72,11 +90,12 @@ function MediaTile({ item, onOpen }) {
 }
 
 /**
- * Every picture and video a form has collected, newest first. Ten arrive
- * at a time and the next ten are asked for by the button at the foot of
- * the grid - an explicit step rather than a grid that keeps growing on
- * its own, so somebody browsing a form with thousands of photos decides
- * how far down they go and can always reach the bottom.
+ * Every picture and video a form has collected, newest first. A screenful
+ * arrives at a time (see viewport_page_size) and the next screenful is
+ * asked for by the button at the foot of the grid - an explicit step
+ * rather than a grid that keeps growing on its own, so somebody browsing
+ * a form with thousands of photos decides how far down they go and can
+ * always reach the bottom.
  *
  * Only images and videos are here on purpose: audio and documents have
  * nothing to show in a grid of thumbnails, and the data table already
@@ -100,6 +119,10 @@ export default function FormGalleryPage() {
 
   const loading_ref = useRef(false);
   const applied_ref = useRef({ period: DEFAULT_PERIOD, from: "", to: "" });
+  // The page size is read from the screen when a page is asked for, so
+  // the same size is asked for again on the next one; the skeletons are
+  // shaped to it too.
+  const page_size_ref = useRef(viewport_page_size());
 
   const fetch_page = useCallback(
     (next_page, params, replace) => {
@@ -108,7 +131,8 @@ export default function FormGalleryPage() {
       loading_ref.current = true;
       setLoading(true);
       applied_ref.current = params;
-      get_submission_media(form_group_id, next_page, PAGE_SIZE, params)
+      if (replace) page_size_ref.current = viewport_page_size();
+      get_submission_media(form_group_id, next_page, page_size_ref.current, params)
         .then((response) => {
           const batch = response.data || [];
           setItems((current) => (replace ? batch : current.concat(batch)));
@@ -171,7 +195,7 @@ export default function FormGalleryPage() {
       <div className="bg-white border-2 p-2 sm:p-3" style={{ borderColor: "#E0E0E0" }}>
         {/* Shaped like the grid that is coming, so the page does not jump
             the moment the first ten land. */}
-        {is_first_load && <GallerySkeleton count={PAGE_SIZE} />}
+        {is_first_load && <GallerySkeleton count={page_size_ref.current} />}
 
         {!is_first_load && items.length === 0 && <DcsEmptyState messageKey="DCS_GALLERY_EMPTY" />}
 
@@ -187,7 +211,7 @@ export default function FormGalleryPage() {
 
         {loading && items.length > 0 && (
           <div className="mt-2">
-            <GallerySkeleton count={PAGE_SIZE} />
+            <GallerySkeleton count={Math.min(12, page_size_ref.current)} />
           </div>
         )}
 

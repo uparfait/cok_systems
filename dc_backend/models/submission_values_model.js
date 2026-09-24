@@ -4,19 +4,42 @@ const COLLECTION_NAME = "dcs_submissions";
 const MAX_VALUES = 200;
 
 /**
+ * A stored answer may be a string or a number depending on the field, so
+ * an equality filter matches both spellings of the same value.
+ */
+function value_candidates(values) {
+  const out = [];
+  (values || []).forEach((value) => {
+    if (value === undefined || value === null || value === "") return;
+    out.push(value);
+    const as_string = String(value);
+    if (!out.includes(as_string)) out.push(as_string);
+    const as_number = Number(value);
+    if (Number.isFinite(as_number) && !out.includes(as_number)) out.push(as_number);
+  });
+  return out;
+}
+
+/**
  * The answers a single field has actually collected, each with how many
  * records carry it - what a choice column's own filter dropdown lists.
  * Read from the data rather than from the schema on purpose: an option
- * renamed or dropped in a later version still has records behind it, and
- * a column nobody ever answered has nothing to offer to filter by.
+ * renamed or dropped in a later version still has records behind it.
+ *
+ * parent (optional: { field_id, values }) narrows the count to the records
+ * whose PARENT answer is one of the picked values, so a sector filter
+ * under a picked district only counts that district's records.
  *
  * A multi-select answer is an array, so it is unwound first and each of
  * its picks counted on its own.
  */
-async function list_field_values(form_group_id, field_id, date_bounds) {
+async function list_field_values(form_group_id, field_id, date_bounds, parent) {
   const match = { form_group_id, [`data.${field_id}`]: { $exists: true, $nin: [null, ""] } };
   if (date_bounds && date_bounds.start && date_bounds.end) {
     match.submitted_at = { $gte: date_bounds.start, $lte: date_bounds.end };
+  }
+  if (parent && parent.field_id && Array.isArray(parent.values) && parent.values.length > 0) {
+    match[`data.${parent.field_id}`] = { $in: value_candidates(parent.values) };
   }
 
   const rows = await get_db()

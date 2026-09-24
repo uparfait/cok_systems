@@ -69,7 +69,7 @@ export default function DcsSidebarProjectForms({ project, searchQuery }) {
             title={title}
             style={{ color: is_active ? PRIMARY : "#555555", fontWeight: is_active ? 700 : 400 }}
           >
-            <span className="truncate">
+            <span className="truncate uppercase">
               <DcsHighlightedText text={title} query={searchQuery} />
             </span>
             <span className="dcs-project-leaf-count flex-shrink-0">{format_badge_count(form.total_submissions)}</span>

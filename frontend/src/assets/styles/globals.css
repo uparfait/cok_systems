@@ -4930,7 +4930,7 @@ background-color: #056daa;
 }
 @media (min-width: 750px) {
   .dcs-record-meta {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     padding: 12px 24px 0;
   }
 }
@@ -4981,4 +4981,69 @@ background-color: #056daa;
     grid-template-columns: 220px 1fr;
     align-items: start;
   }
+}
+
+/* A record's history as slides of the form (RecordHistorySlides.jsx):
+   Older and Newer either side of the moment's date, the fields changed
+   at that moment listed as chips and drawn with a blue bar in the form
+   below, which is read-only. On a phone the buttons sit under the date. */
+.dcs-history-slides {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dcs-history-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #E0E0E0;
+  background-color: #F7F9FB;
+}
+.dcs-history-nav > div {
+  grid-column: 1 / -1;
+  order: -1;
+}
+.dcs-history-nav .cok-btn-outlined {
+  min-height: 40px;
+  border-radius: 8px;
+}
+@media (min-width: 560px) {
+  .dcs-history-nav {
+    grid-template-columns: auto 1fr auto;
+  }
+  .dcs-history-nav > div {
+    grid-column: auto;
+    order: 0;
+  }
+}
+.dcs-history-changed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.dcs-history-chip {
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(5, 109, 170, 0.35);
+  background-color: rgba(5, 109, 170, 0.08);
+  color: #056daa;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+}
+.dcs-slide-form {
+  pointer-events: none;
+  padding: 4px 0;
+}
+.dcs-slide-form .dcs-no-print {
+  display: none;
+}
+.dcs-slide-changed {
+  position: relative;
+  padding-left: 10px;
+  border-left: 3px solid #056daa;
+  background-color: rgba(5, 109, 170, 0.06);
 }

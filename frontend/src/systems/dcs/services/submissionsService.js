@@ -216,6 +216,11 @@ export function get_field_values(form_group_id, field_id, options) {
       if (options.to) params.append("to", options.to);
     }
   }
+  // A cascade child only lists the values under the parent values picked above it.
+  if (options && options.parent && options.parent.field_id && Array.isArray(options.parent.values) && options.parent.values.length > 0) {
+    params.append("parent_field_id", options.parent.field_id);
+    params.append("parent_values", JSON.stringify(options.parent.values));
+  }
   return dcs_request(`/submissions/${form_group_id}/field-values/${field_id}?${params.toString()}`, "GET");
 }
 

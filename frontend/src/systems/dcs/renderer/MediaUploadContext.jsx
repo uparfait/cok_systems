@@ -11,8 +11,12 @@ const MediaUploadContext = createContext(null);
  * builder's own preview never wraps this, so useMediaUpload() falls back to
  * a context-less shape whose upload_file always rejects - safe because
  * builder mode never actually calls it (its inputs are disabled).
+ *
+ * keepFiles: a file removed or replaced while EDITING a stored record is
+ * left on disk, since the record's history still points at it - only a
+ * fresh response, which nothing else refers to, cleans up after itself.
  */
-export function MediaUploadProvider({ formGroupId, version, isOnline, children }) {
+export function MediaUploadProvider({ formGroupId, version, isOnline, keepFiles, children }) {
   const value = useMemo(
     () => ({
       form_group_id: formGroupId,
@@ -20,9 +24,9 @@ export function MediaUploadProvider({ formGroupId, version, isOnline, children }
       is_online: isOnline,
       upload_file: (field_id, file, onProgress) =>
         upload_file_with_progress(formGroupId, { version, field_id, file, onProgress }),
-      delete_file: (url) => delete_uploaded_file(formGroupId, url),
+      delete_file: (url) => (keepFiles ? Promise.resolve() : delete_uploaded_file(formGroupId, url)),
     }),
-    [formGroupId, version, isOnline],
+    [formGroupId, version, isOnline, keepFiles],
   );
 
   return <MediaUploadContext.Provider value={value}>{children}</MediaUploadContext.Provider>;

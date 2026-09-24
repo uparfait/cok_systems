@@ -151,7 +151,8 @@ export function build_rows({ submissions, field_type_by_id, translate, on_histor
 
     // Tracked forms only: when the record last changed, and its history.
     row.updated_at = submission.updated_at ? new Date(submission.updated_at).toLocaleString() : "-";
-    row.history = on_history_click ? <RecordHistoryButton onClick={() => on_history_click(submission)} count={Math.max(0, (submission.history || []).length - 1)} /> : "";
+    const change_count = Math.max(0, (submission.history || []).length - 1);
+    row.history = on_history_click && change_count > 0 ? <RecordHistoryButton onClick={() => on_history_click(submission)} count={change_count} /> : "-";
 
     field_type_by_id.forEach((field_type, field_id) => {
       row[field_id] = answer_cell(field_type, submission.data ? submission.data[field_id] : undefined);

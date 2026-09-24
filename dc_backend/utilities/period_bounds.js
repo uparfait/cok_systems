@@ -55,19 +55,23 @@ function resolve_period_bounds(period, from, to) {
     return { start, end };
   }
   if (period === "custom" && from) {
+    // A pick that carries a time ("2026-09-24T14:30") is used to the
+    // minute; a bare date still means the whole day.
+    const has_time = (text) => /T\d{2}:\d{2}/.test(String(text));
     const from_date = new Date(from);
     if (Number.isNaN(from_date.getTime())) return undefined;
-    let start = start_of_day(from_date);
+    let start = has_time(from) ? from_date : start_of_day(from_date);
     let end;
     if (to) {
       const to_date = new Date(to);
       if (Number.isNaN(to_date.getTime())) return undefined;
-      end = end_of_day(to_date);
+      end = has_time(to) ? to_date : end_of_day(to_date);
       // A reversed pick (from after to) still means the same window - swap
       // instead of returning an empty range that reads as "no data".
       if (end < start) {
-        start = start_of_day(to_date);
-        end = end_of_day(from_date);
+        const swapped_start = has_time(to) ? to_date : start_of_day(to_date);
+        end = has_time(from) ? from_date : end_of_day(from_date);
+        start = swapped_start;
       }
     } else {
       end = end_of_day(now);

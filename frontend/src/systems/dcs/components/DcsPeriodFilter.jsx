@@ -25,10 +25,14 @@ const PERIOD_OPTIONS = [
   { value: "custom", labelKey: "DCS_STATS_PERIOD_CUSTOM" },
 ];
 
+/** A picked moment as a short label: the day, and the time when one was picked. */
 function format_date(date_string) {
   if (!date_string) return "";
-  const date = new Date(date_string + "T00:00:00");
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const has_time = /T\d{2}:\d{2}/.test(date_string);
+  const date = new Date(has_time ? date_string : date_string + "T00:00:00");
+  if (Number.isNaN(date.getTime())) return "";
+  if (!has_time) return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return date.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChange, onApply, translate }) {
@@ -72,7 +76,7 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
               <div>
                 <label className="block text-xs mb-0.5" style={{ fontFamily: "'Montserrat', sans-serif", color: MUTED }}>From</label>
                 <input
-                  type="date"
+                  type="datetime-local"
                   value={local_from}
                   onChange={(event) => setLocalFrom(event.target.value)}
                   className="w-full border rounded-none px-2 py-1.5 text-sm cursor-pointer"
@@ -82,7 +86,7 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
               <div>
                 <label className="block text-xs mb-0.5" style={{ fontFamily: "'Montserrat', sans-serif", color: MUTED }}>To</label>
                 <input
-                  type="date"
+                  type="datetime-local"
                   value={local_to}
                   onChange={(event) => setLocalTo(event.target.value)}
                   className="w-full border rounded-none px-2 py-1.5 text-sm cursor-pointer"
