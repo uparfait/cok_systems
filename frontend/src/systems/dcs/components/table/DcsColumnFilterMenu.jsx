@@ -11,11 +11,15 @@ const FONT = "'Montserrat', sans-serif";
  * from the schema - an option renamed in a later version still has rows
  * behind it), each with how many rows carry it, and narrows the whole
  * table to the ones ticked. Nothing ticked means "show all", which is
- * where every column starts.
+ * where every column starts. The trigger reads back the values it is
+ * showing rather than a count of them, so a narrowed column says what
+ * it has been narrowed to without having to be opened.
  *
- * The values are fetched the first time the menu is opened and again
- * whenever the table's date range changes, since a value the visible
- * range has none of should not be on offer.
+ * The values are fetched the first time the menu is opened - the one time
+ * a spinner shows - and kept from then on. When the table's date range
+ * changes they are fetched again SILENTLY: the list already loaded stays
+ * on screen (and stays ticked) until the fresh one lands and replaces it,
+ * so opening the menu never flashes empty and never loses its state.
  */
 export default function DcsColumnFilterMenu({ fieldId, selected, onChange, loadValues, rangeKey }) {
   const { translate } = useDcsLanguage();
@@ -24,32 +28,34 @@ export default function DcsColumnFilterMenu({ fieldId, selected, onChange, loadV
   const [loading, setLoading] = useState(false);
   const trigger_ref = useRef(null);
   const loaded_range_ref = useRef(null);
+  const request_seq_ref = useRef(0);
 
   const picked = new Set(selected || []);
 
   useEffect(() => {
-    if (!open) return undefined;
-    if (loaded_range_ref.current === rangeKey && values) return undefined;
-    let is_mounted = true;
-    setLoading(true);
+    if (loaded_range_ref.current === rangeKey) return undefined;
+    // Never read yet and still shut: wait for the first open.
+    if (!open && !values) return undefined;
+    const silent = !!values;
+    const request_id = request_seq_ref.current + 1;
+    request_seq_ref.current = request_id;
+    if (!silent) setLoading(true);
     loadValues(fieldId)
       .then((list) => {
-        if (!is_mounted) return;
+        if (request_seq_ref.current !== request_id) return;
         setValues(list);
         loaded_range_ref.current = rangeKey;
       })
-      .catch(() => is_mounted && setValues([]))
-      .finally(() => is_mounted && setLoading(false));
-    return () => {
-      is_mounted = false;
-    };
+      .catch(() => {
+        // A silent refresh that fails keeps what is already shown.
+        if (request_seq_ref.current === request_id && !silent) setValues([]);
+      })
+      .finally(() => {
+        if (request_seq_ref.current === request_id && !silent) setLoading(false);
+      });
+    return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, rangeKey, fieldId]);
-
-  // A range change while the menu is shut still invalidates what was read.
-  useEffect(() => {
-    if (loaded_range_ref.current !== rangeKey) setValues(null);
-  }, [rangeKey]);
 
   const toggle = (value) => {
     const next = new Set(picked);
@@ -58,7 +64,11 @@ export default function DcsColumnFilterMenu({ fieldId, selected, onChange, loadV
     onChange(Array.from(next));
   };
 
-  const label = picked.size === 0 ? translate("DCS_TABLE_COLUMN_FILTER_ALL") : `${picked.size}`;
+  // What is actually being shown, in words - a bare count told nobody
+  // WHICH values a narrowed column was narrowed to, so a filtered table
+  // could be read as the whole table with a number beside it.
+  const chosen = (selected || []).map((value) => String(value));
+  const label = chosen.length === 0 ? translate("DCS_TABLE_COLUMN_FILTER_ALL") : chosen.join(", ");
 
   return (
     <>
@@ -71,10 +81,11 @@ export default function DcsColumnFilterMenu({ fieldId, selected, onChange, loadV
         }}
         aria-expanded={open}
         aria-haspopup="menu"
-        title={translate("DCS_TABLE_COLUMN_FILTER")}
         className={`dcs-dt-colfilter ${picked.size > 0 ? "is-on" : ""} cursor-pointer`}
+        title={label}
       >
-        <span className="truncate">{label}</span>
+        <span className="dcs-dt-colfilter-value">{label}</span>
+        {chosen.length > 1 && <span className="dcs-dt-colfilter-count">{chosen.length}</span>}
         <svg width="8" height="5" viewBox="0 0 10 6" aria-hidden="true" style={{ flexShrink: 0 }}>
           <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

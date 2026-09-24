@@ -1,6 +1,8 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import MenuPopover from "../../util-dashboard/MenuPopover.jsx";
+import DcsButtonPrimary from "../DcsButtonPrimary.jsx";
+import DcsButtonOutline from "../DcsButtonOutline.jsx";
 
 const PRIMARY = "#056daa";
 const FONT = "'Montserrat', sans-serif";
@@ -12,9 +14,14 @@ const FONT = "'Montserrat', sans-serif";
  * EVERYONE who opens this table until it is unticked again, which is why
  * the set is saved on the server rather than in this browser.
  *
+ * Because the change lands on every other reader, ticking a box does not
+ * save it: the ticks are gathered here and only written when Save is
+ * pressed, so a list can be worked through - and thought better of -
+ * without anybody else's table flickering column by column. Cancel puts
+ * back whatever was saved, and so does closing the panel any other way.
+ *
  * Someone who may only read the form still sees the list and what is
- * currently hidden, but cannot change it - hiding a column changes what
- * every other reader sees.
+ * currently hidden, but cannot change it.
  */
 function CheckRow({ label, hidden, disabled, onToggle }) {
   return (
@@ -31,28 +38,55 @@ function CheckRow({ label, hidden, disabled, onToggle }) {
   );
 }
 
+function same_set(left, right) {
+  if (left.length !== right.length) return false;
+  const other = new Set(right);
+  return left.every((key) => other.has(key));
+}
+
 export default function DcsHideFieldsMenu({ columns, hidden, canEdit, saving, onChange }) {
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
+  // What the ticks currently say, before anybody has pressed Save.
+  const [draft, setDraft] = useState(hidden || []);
   const trigger_ref = useRef(null);
 
-  const hidden_set = new Set(hidden || []);
   const hideable = (columns || []).filter((column) => column.key !== "actions");
+  const saved_set = new Set(hidden || []);
+  const draft_set = new Set(draft);
+  const is_dirty = !same_set(draft, hidden || []);
+
+  // The saved set is the starting point each time the panel opens, and it
+  // also wins whenever it changes underneath (another tab, a failed save
+  // that rolled back) while nothing is being edited here.
+  useEffect(() => {
+    if (!open) setDraft(hidden || []);
+  }, [open, hidden]);
 
   const toggle = (key) => {
     if (!canEdit) return;
-    const next = new Set(hidden_set);
+    const next = new Set(draft_set);
     if (next.has(key)) next.delete(key);
     else next.add(key);
-    onChange(Array.from(next));
+    setDraft(Array.from(next));
   };
 
   const set_all = (hide_them) => {
     if (!canEdit) return;
-    onChange(hide_them ? hideable.map((column) => column.key) : []);
+    setDraft(hide_them ? hideable.map((column) => column.key) : []);
   };
 
-  const hidden_count = hideable.filter((column) => hidden_set.has(column.key)).length;
+  const cancel = () => {
+    setDraft(hidden || []);
+    setOpen(false);
+  };
+
+  const save = () => {
+    onChange(draft);
+    setOpen(false);
+  };
+
+  const hidden_count = hideable.filter((column) => saved_set.has(column.key)).length;
 
   return (
     <>
@@ -73,7 +107,7 @@ export default function DcsHideFieldsMenu({ columns, hidden, canEdit, saving, on
         {hidden_count > 0 && <span style={{ color: PRIMARY, fontWeight: 700 }}>{hidden_count}</span>}
       </button>
 
-      <MenuPopover open={open} anchorRef={trigger_ref} onClose={() => setOpen(false)} minWidth={250} maxHeight={420} align="start" role="menu">
+      <MenuPopover open={open} anchorRef={trigger_ref} onClose={cancel} minWidth={260} maxHeight={460} align="start" role="menu">
         <div className="px-2.5 pt-2.5 pb-1.5">
           <p className="text-[11px] mb-2" style={{ color: "#6B7280", fontFamily: FONT }}>
             {canEdit ? translate("DCS_TABLE_HIDE_FIELDS_HINT") : translate("DCS_TABLE_HIDE_FIELDS_LOCKED")}
@@ -100,11 +134,31 @@ export default function DcsHideFieldsMenu({ columns, hidden, canEdit, saving, on
               <CheckRow
                 key={column.key}
                 label={column.label !== undefined && column.label !== "" ? column.label : translate(column.labelKey)}
-                hidden={hidden_set.has(column.key)}
+                hidden={draft_set.has(column.key)}
                 disabled={!canEdit || saving}
                 onToggle={() => toggle(column.key)}
               />
             ))}
+          </div>
+        )}
+
+        {/* Sticky, so a long list of columns never scrolls the only way
+            of committing the ticks out of sight. */}
+        {canEdit && hideable.length > 0 && (
+          <div
+            className="sticky bottom-0 flex items-center gap-2 px-2.5 py-2.5"
+            style={{ backgroundColor: "#FFFFFF", borderTop: "1px solid #E0E0E0" }}
+          >
+            <div className="flex-1">
+              <DcsButtonOutline onClick={cancel} disabled={saving}>
+                {translate("DCS_BTN_CANCEL")}
+              </DcsButtonOutline>
+            </div>
+            <div className="flex-1">
+              <DcsButtonPrimary onClick={save} disabled={saving || !is_dirty}>
+                {translate("DCS_BTN_SAVE")}
+              </DcsButtonPrimary>
+            </div>
           </div>
         )}
       </MenuPopover>

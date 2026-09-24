@@ -12,7 +12,6 @@ import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import { TableSkeleton } from "../components/DcsSkeletons.jsx";
-import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
 import DcsRecordViewOverlay from "../components/DcsRecordViewOverlay.jsx";
 import DcsFormNav from "../components/DcsFormNav.jsx";
 import { ExpandFab } from "../components/DcsWorkspaceShell.jsx";
@@ -48,23 +47,22 @@ export default function FormAllDataPage() {
   const { language, translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
-  const [search_params, setSearchParams] = useSearchParams();
+  const [search_params] = useSearchParams();
 
   // One record, opened on its own - the gallery following a picture back
   // to the row it came from. Clearing it puts the whole table back.
   const pinned_record_id = search_params.get("record") || "";
-  const clear_pinned_record = () => {
-    const next = new URLSearchParams(search_params);
-    next.delete("record");
-    setSearchParams(next, { replace: true });
-  };
+  const show_all_records = () => navigate(`/dcs-system/project/${project_id}/forms/${form_group_id}/data`, { replace: true });
 
-  const columns_state = useTableColumnState(form_group_id, (error) => showError(error.message || translate("DCS_ERROR_GENERIC")));
+  const columns_state = useTableColumnState(
+    form_group_id,
+    (error) => showError(error.message || translate("DCS_ERROR_GENERIC")),
+    (message) => showSuccess(message || translate("DCS_TABLE_HIDDEN_SAVED")),
+  );
   const table = useSubmissionsTable(form_group_id, undefined, columns_state.column_filters, pinned_record_id);
 
   const [is_confirming_delete, setIsConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [details_submission_id, setDetailsSubmissionId] = useState(null);
   const [view_record, setViewRecord] = useState(null);
   const [history_record, setHistoryRecord] = useState(null);
 
@@ -189,7 +187,9 @@ export default function FormAllDataPage() {
     selected_set,
     on_select_change: columns_state.toggle_selected,
     on_view: setViewRecord,
-    on_edit: (submission) => navigate(`/dcs-form/edit/${submission._id}`),
+    // Editing opens in its own tab: the table, its filters and its scroll
+    // position stay exactly where they were for when the edit is done.
+    on_edit: (submission) => window.open(`/dcs-form/edit/${submission._id}`, "_blank", "noopener"),
   });
 
   const legend_items = built.has_diff
@@ -226,17 +226,28 @@ export default function FormAllDataPage() {
           </button>
         )}
 
-        {pinned_record_id && (
-          <button type="button" onClick={clear_pinned_record} className="dcs-dt-tool is-active cursor-pointer" title={translate("DCS_TABLE_SHOWING_ONE_CLEAR")}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
-              <line x1="5" y1="5" x2="19" y2="19" />
-              <line x1="19" y1="5" x2="5" y2="19" />
-            </svg>
-            {translate("DCS_TABLE_SHOWING_ONE")}
-          </button>
-        )}
 
       </div>
+
+      {/* The table is down to one record because somebody followed a
+          picture back to it. Said plainly, with the way back to the
+          whole table beside it - a row count that dropped to one with
+          nothing explaining why reads as data having gone missing. */}
+      {pinned_record_id && (
+        <div className="dcs-ws-center dcs-dt-selbar flex-shrink-0 mb-2">
+          <span className="text-xs font-bold" style={{ color: "#056daa" }}>
+            {translate("DCS_TABLE_SHOWING_ONE")}
+          </span>
+          <span className="flex-1" />
+          <button type="button" onClick={show_all_records} className="dcs-dt-tool is-active cursor-pointer" style={{ height: 30 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="11 17 6 12 11 7" />
+              <line x1="6" y1="12" x2="19" y2="12" />
+            </svg>
+            {translate("DCS_TABLE_SHOW_ALL_DATA")}
+          </button>
+        </div>
+      )}
 
       {/* The selection bar only exists while something is actually ticked -
           it is where deleting lives now, in place of a delete icon on
@@ -278,7 +289,7 @@ export default function FormAllDataPage() {
           legendItems={legend_items}
           totalCount={table.total}
           pinnedColumnKey="actions"
-          onRowClick={(row) => setDetailsSubmissionId(row.dcs_row_key)}
+          onRowClick={(row) => setViewRecord((table.submissions || []).find((submission) => submission._id === row.dcs_row_key) || null)}
         />
       </div>
     </>
@@ -311,12 +322,11 @@ export default function FormAllDataPage() {
         <DcsRecordViewOverlay
           record={view_record}
           fields={view_record_fields}
+          tracking={tracking}
           onClose={() => setViewRecord(null)}
-          onEdit={() => navigate(`/dcs-form/edit/${view_record._id}`)}
+          onEdit={() => window.open(`/dcs-form/edit/${view_record._id}`, "_blank", "noopener")}
         />
       )}
-
-      {details_submission_id && <DcsApprovalDetailsDialog submission_id={details_submission_id} onClose={() => setDetailsSubmissionId(null)} />}
 
       {history_record && tracking && (
         <RecordHistoryDialog record={history_record} fields={active_version.schema.fields} tracking={tracking} onClose={() => setHistoryRecord(null)} />

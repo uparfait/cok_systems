@@ -109,6 +109,17 @@ function EditRecordPageContent() {
     });
   };
 
+  // The page opens in a tab of its own from the data table, so leaving it
+  // closes that tab; opened any other way (a typed address, a link) it
+  // goes back instead.
+  const leave = () => {
+    if (window.opener !== null || window.history.length <= 1) {
+      window.close();
+      return;
+    }
+    navigate(-1);
+  };
+
   const handle_save = async () => {
     const resolved = compute_derived_values(form.schema, values);
     const validation_result = validate_submission_client_side(form.schema, resolved, language, translate);
@@ -123,7 +134,7 @@ function EditRecordPageContent() {
     try {
       await update_public_record_full(id, { data: validation_result.resolved_data, respondent: record.respondent || null });
       showSuccess(translate("DCS_EDIT_RECORD_SAVED"));
-      navigate(-1);
+      leave();
     } catch (error) {
       if (error && error.field_errors) {
         setFieldErrors(error.field_errors);
@@ -208,19 +219,18 @@ function EditRecordPageContent() {
             </MediaUploadProvider>
           </div>
 
-          <div className="mt-5 flex flex-col min-[480px]:flex-row gap-2">
+          {/* The same action row as the public form: both buttons one
+              size, rounded, stacked on a phone and side by side from
+              tablet width up. */}
+          <div className="dcs-form-actions mt-5">
             {saving ? (
               <SpiralLoader />
             ) : (
               <>
-                <div className="flex-1">
-                  <DcsButtonOutline onClick={() => navigate(-1)}>{translate("DCS_BTN_CANCEL")}</DcsButtonOutline>
-                </div>
-                <div className="flex-1">
-                  <DcsButtonPrimary onClick={handle_save} disabled={is_past_view}>
-                    {translate("DCS_EDIT_RECORD_SAVE")}
-                  </DcsButtonPrimary>
-                </div>
+                <DcsButtonOutline onClick={leave}>{translate("DCS_BTN_CANCEL")}</DcsButtonOutline>
+                <DcsButtonPrimary onClick={handle_save} disabled={is_past_view}>
+                  {translate("DCS_EDIT_RECORD_SAVE")}
+                </DcsButtonPrimary>
               </>
             )}
           </div>

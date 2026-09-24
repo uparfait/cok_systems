@@ -53,8 +53,8 @@ export function RecordHistoryButton({ onClick, count }) {
       }}
       aria-label={translate("DCS_TRACKING_HISTORY_TITLE")}
       title={translate("DCS_TRACKING_HISTORY_TITLE")}
-      className="cursor-pointer flex items-center justify-center gap-1"
-      style={{ height: 28, padding: "0 6px", color: "#056daa", background: "none", border: "none", fontFamily: FONT, fontSize: 12, fontWeight: 700 }}
+      className="dcs-dt-rowbtn cursor-pointer gap-1"
+      style={{ width: "auto", minWidth: 26, height: 26, padding: "0 6px", borderRadius: 13, color: "#056daa", fontFamily: FONT, fontSize: 12, fontWeight: 700 }}
     >
       <HistoryIcon size={15} />
       {count > 0 ? count : ""}

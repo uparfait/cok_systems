@@ -2092,6 +2092,7 @@ const kn = {
   DCS_TABLE_HIDE_FIELDS_HINT: "Inkingi zashyizweho akamenyetso zihishwa kuri buri wese kugeza zikuweho.",
   DCS_TABLE_HIDE_FIELDS_EMPTY: "Iyi mbonerahamwe nta nkingi ifite zo guhisha.",
   DCS_TABLE_HIDE_FIELDS_LOCKED: "Ushobora guhindura inkingi zihishwe ni ugenzura iyi fishi gusa.",
+  DCS_TABLE_HIDDEN_SAVED: "Inkingi zihishwe zabitswe kuri bose.",
   DCS_TABLE_SHOW_ALL: "Erekana byose",
   DCS_TABLE_HIDE_ALL: "Hisha byose",
   DCS_TABLE_HIDDEN_COUNT: "{{count}} zihishwe",
@@ -2132,7 +2133,7 @@ const kn = {
   DCS_GALLERY_LOAD_MORE: "Shaka ibindi",
   DCS_GALLERY_OPEN_IN_TABLE: "Fungura mu mbonerahamwe",
   DCS_TABLE_SHOWING_ONE: "Inyandiko imwe",
-  DCS_TABLE_SHOWING_ONE_CLEAR: "Garura inyandiko zose",
+  DCS_TABLE_SHOW_ALL_DATA: "Erekana amakuru yose",
 };
 
 export default kn;

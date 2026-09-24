@@ -100,9 +100,106 @@ function ApproverRow({ approver }) {
 }
 
 /**
- * Row-click details panel of the data table: everything known about one
- * record's approval - overall state, who approved (with their message and
- * exact time), who is still pending, or the schedule waiting to fire.
+ * Everything known about one record's approval, loaded on its own: the
+ * overall state, who approved (with their message and exact time), who is
+ * still pending, or the schedule waiting to fire. Shown inside the record
+ * view's Approval tab, and by the standalone dialog below.
+ */
+export function ApprovalDetailsBody({ submission_id, onLoaded }) {
+  const { translate } = useDcsLanguage();
+  const [details, setDetails] = useState(null);
+  const [load_state, setLoadState] = useState("loading");
+
+  useEffect(() => {
+    let is_mounted = true;
+    setLoadState("loading");
+    get_submission_approval_details(submission_id)
+      .then((response) => {
+        if (!is_mounted) return;
+        setDetails(response.data);
+        setLoadState("ready");
+        if (onLoaded) onLoaded(response.data);
+      })
+      .catch(() => {
+        if (is_mounted) setLoadState("error");
+      });
+    return () => {
+      is_mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submission_id]);
+
+  if (load_state === "loading") return <SpiralLoader />;
+  if (load_state === "error") {
+    return (
+      <p className="text-sm" style={{ color: SOFT_RED }}>
+        {translate("DCS_ERROR_GENERIC")}
+      </p>
+    );
+  }
+
+  const pending_approvers = (details.approvers || []).filter((approver) => approver.status === "pending");
+  const acted_approvers = (details.approvers || []).filter((approver) => approver.status !== "pending");
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <p className="text-[11px] font-bold uppercase" style={{ color: GRAY, fontFamily: FONT, letterSpacing: 0.5 }}>
+          {translate("DCS_APPROVAL_DETAILS_TITLE")}
+        </p>
+        <DcsApprovalStatusChip status={details.status === "none" ? undefined : details.status} />
+      </div>
+
+      {details.source === "none" && (
+        <p className="text-sm" style={{ color: "#555555" }}>
+          {translate("DCS_APPROVAL_DETAILS_NONE")}
+        </p>
+      )}
+
+      {details.source === "scheduled" && (
+        <p className="text-sm mb-3" style={{ color: "#555555" }}>
+          {details.trigger && details.trigger.type === "count"
+            ? translate("DCS_SCHED_ACTIVE_COUNT", { count: details.trigger.count })
+            : translate("DCS_SCHED_ACTIVE_DATETIME", {
+                datetime: details.trigger && details.trigger.datetime ? new Date(details.trigger.datetime).toLocaleString() : "-",
+              })}
+        </p>
+      )}
+
+      {details.source === "batch" && details.sent_at && (
+        <p className="text-xs mb-3" style={{ color: GRAY }}>
+          {translate("DCS_APPROVAL_DETAILS_SENT_AT")}: {new Date(details.sent_at).toLocaleString()}
+          {details.submission_count ? ` - ${translate("DCS_SCHED_RECORDS", { count: details.submission_count })}` : ""}
+        </p>
+      )}
+
+      {acted_approvers.length > 0 && (
+        <div className="flex flex-col gap-2 mb-3">
+          {acted_approvers.map((approver, index) => (
+            <ApproverRow key={`${approver.email}-${index}`} approver={approver} />
+          ))}
+        </div>
+      )}
+
+      {pending_approvers.length > 0 && (
+        <div>
+          <p className="text-xs font-bold uppercase mb-2" style={{ color: "#F39C12", fontFamily: FONT, letterSpacing: "0.5px" }}>
+            {translate("DCS_APPROVAL_DETAILS_PENDING")}
+          </p>
+          <div className="flex flex-col gap-2">
+            {pending_approvers.map((approver, index) => (
+              <ApproverRow key={`${approver.email}-${index}`} approver={approver} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The approval details on their own, as a dialog - kept for the pages that
+ * still open it directly; the data tables open the record view instead.
  */
 export default function DcsApprovalDetailsDialog({ submission_id, onClose }) {
   const { translate } = useDcsLanguage();

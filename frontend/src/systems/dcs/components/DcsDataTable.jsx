@@ -1,19 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 const MAX_COLUMN_WIDTH_PX = 400;
-const MIN_COLUMN_WIDTH_PX = 96;
-const CELL_HORIZONTAL_PADDING_PX = 28;
-const HEADER_FONT = "700 12px 'Montserrat', sans-serif";
-const DATA_FONT = "400 14px 'Montserrat', sans-serif";
+const MIN_COLUMN_WIDTH_PX = 72;
+const CELL_HORIZONTAL_PADDING_PX = 20;
+const HEADER_FONT = "700 10.5px 'Montserrat', sans-serif";
+const DATA_FONT = "400 12px 'Montserrat', sans-serif";
 const SKELETON_ROW_COUNT = 8;
 const PAGE_WINDOW_SIZE = 10;
 
-const TINT_CELL_COLORS = {
-  green: "rgba(76,175,80,0.10)",
-  red: "rgba(231,76,60,0.10)",
-  blue: "rgba(5,109,170,0.10)",
-};
+const TINT_CLASSES = ["green", "red", "blue"];
 
 let measure_context = null;
 
@@ -168,9 +164,6 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
   const { translate } = useDcsLanguage();
   const has_rows = rows && rows.length > 0;
   const scroll_container_ref = useRef(null);
-  // A pinned column only casts its shadow once something is actually
-  // scrolled underneath it - unscrolled, it is just the first column.
-  const [is_scrolled_sideways, setIsScrolledSideways] = useState(false);
 
   useEffect(() => {
     if (scroll_container_ref.current) scroll_container_ref.current.scrollTop = 0;
@@ -178,127 +171,97 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
 
   const header_text_of = (column) => (column.label !== undefined ? column.label : translate(column.labelKey));
 
-  const column_widths = useMemo(() => {
+  /**
+   * Every column gets the width its own content needs (header or widest
+   * value, within MIN and MAX). When those widths add up to less than the
+   * room available, the table stretches to fill it and the extra is shared
+   * in proportion; when they add up to more, the table keeps every column
+   * at its width and scrolls sideways instead of squeezing columns into
+   * slivers. A column that declares its own pixel width (row controls, a
+   * map) always keeps exactly that.
+   */
+  const column_layout = useMemo(() => {
     const widths = {};
+    let total = 0;
     columns.forEach((column) => {
-      // A column whose cells render something other than plain text (e.g.
-      // a nested table) can't be measured by compute_column_width's
-      // text-only heuristic - the caller supplies the real width it needs
-      // directly instead, bypassing both the measurement and its normal
-      // MAX_COLUMN_WIDTH_PX cap.
-      if (column.minWidthPx) {
-        widths[column.key] = column.minWidthPx;
-        return;
-      }
-      widths[column.key] = compute_column_width(header_text_of(column), rows, column.key);
+      const width = column.minWidthPx ? column.minWidthPx : compute_column_width(header_text_of(column), rows, column.key);
+      widths[column.key] = { width: `${width}px` };
+      total += width;
     });
-    return widths;
+    return { widths, total };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columns, rows]);
 
-  // width:100% so the div always fills its <col>-fixed cell exactly, with
-  // minWidth pinned to that same computed column width so table-layout:fixed
-  // can never shrink it back down to a single word's width. word-break:
-  // keep-all so ordinary words only ever wrap at spaces (never mid-word),
-  // with overflow-wrap:break-word as the sole, last-resort fallback for a
-  // single token wider than the column itself. The actual clip/scroll
-  // boundary against content wider than the column (e.g. a nested table)
-  // lives on the enclosing <td> itself (see overflowX there), not here -
-  // keeping it off this div avoids a second, redundant scroll container.
-  const get_cell_content_style = (column_key) => ({
-    width: "100%",
-    minWidth: `${column_widths[column_key]}px`,
-    maxWidth: `${column_widths[column_key]}px`,
-    whiteSpace: "normal",
-    wordBreak: "break-word",
-    overflowWrap: "anywhere",
-  });
+  // The text of a cell, for the tooltip that carries what the clamp cut off.
+  const cell_title = (value) => (typeof value === "string" || typeof value === "number" ? String(value) : undefined);
 
-  const get_cell_background = (column_key, row_index) => {
+  // A column the version diff has marked carries its tint as a class, so
+  // it sits over the row striping and the hover rather than replacing
+  // the background outright the way an inline colour had to.
+  const tint_class = (column_key) => {
     const tint = columnTints && columnTints[column_key];
-    if (tint && TINT_CELL_COLORS[tint]) return TINT_CELL_COLORS[tint];
-    return row_index % 2 === 1 ? "#F7F9FB" : "#FFFFFF";
+    return tint && TINT_CLASSES.includes(tint) ? `dcs-tint-${tint}` : "";
   };
 
-  const pinned_class = (column_key, extra) =>
-    column_key === pinnedColumnKey ? `dcs-dt-pinned ${is_scrolled_sideways ? "is-lifted" : ""} ${extra || ""}` : "";
+  // Nothing scrolls under it any more, so a pinned column is simply the
+  // first one; the class is kept so callers need not change.
+  const pinned_class = (column_key, extra) => (column_key === pinnedColumnKey ? `dcs-dt-pinned ${extra || ""}` : "");
 
   const page_window = build_page_window(page, totalPages, PAGE_WINDOW_SIZE);
   const page_numbers = [];
   for (let number = page_window.start; number <= page_window.end; number += 1) page_numbers.push(number);
 
-  // width:100% lets table-layout:fixed scale every column up proportionally
-  // to actually fill the container when there are only a few of them - a
-  // bare content-sized table would otherwise sit flush at its natural
-  // width, leaving the rest of the container empty. minWidth is a floor,
-  // not a cap: once the real sum of column widths exceeds the container,
-  // 100% no longer reaches it, the floor takes over instead, and the table
-  // overflows into a horizontal scroll exactly as before - no column ever
-  // shrinks below what compute_column_width decided it needs.
-  const total_columns_width = columns.reduce((sum, column) => sum + (column_widths[column.key] || 0), 0);
-
   return (
     <div className="w-full h-full flex flex-col">
+      {/* Scrolls down, and sideways only once the columns' own widths no
+          longer fit (see column_layout). The type is set a step smaller
+          than the rest of the app so a wide form still reads at a glance,
+          and every cell is clamped to three lines - a row is never taller
+          than 80px, the rest of a long answer is on the cell's tooltip and
+          in the record view a click opens. */}
       <div
         ref={scroll_container_ref}
-        className="flex-1 min-h-0 bg-white border-2 overflow-auto"
+        className="dcs-dt-scroll flex-1 min-h-0 bg-white border-2 overflow-y-auto overflow-x-auto"
         style={{ borderColor: "#E0E0E0" }}
-        onScroll={(event) => {
-          const next = event.currentTarget.scrollLeft > 0;
-          setIsScrolledSideways((previous) => (previous === next ? previous : next));
-        }}
       >
-        <table className="text-sm" style={{ borderCollapse: "separate", borderSpacing: 0, tableLayout: "fixed", width: "100%", minWidth: `${total_columns_width}px` }}>
+        <table className="dcs-fancy-table" style={{ minWidth: column_layout.total }}>
           <colgroup>
             {columns.map((column) => (
-              <col key={column.key} style={{ width: `${column_widths[column.key]}px` }} />
+              <col key={column.key} style={column_layout.widths[column.key]} />
             ))}
           </colgroup>
           <thead>
             <tr>
-              {columns.map((column, column_index) => (
-                <th
-                  key={column.key}
-                  className={`text-left px-3 py-3 ${pinned_class(column.key, "dcs-dt-pinned-head")}`}
-                  style={{
-                    position: "sticky",
-                    top: 0,
-                    left: column.key === pinnedColumnKey ? 0 : undefined,
-                    zIndex: column.key === pinnedColumnKey ? 5 : 2,
-                    fontFamily: "'Montserrat', sans-serif",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                    color: "#FFFFFF",
-                    backgroundColor: "#056daa",
-                    borderBottom: "2px solid #045a8c",
-                    borderRight: column_index < columns.length - 1 ? "1px solid rgba(255,255,255,0.25)" : "none",
-                  }}
-                >
-                  <div style={get_cell_content_style(column.key)}>
-                    {header_text_of(column)}
-                    {column.headerNode}
-                  </div>
-                </th>
-              ))}
+              {columns.map((column) => {
+                const header_text = header_text_of(column);
+                return (
+                  <th
+                    key={column.key}
+                    className={pinned_class(column.key)}
+                    scope="col"
+                    title={typeof header_text === "string" ? header_text : undefined}
+                  >
+                    {/* The filter sits UNDER the column's name rather
+                        than beside it: side by side, a name and a list
+                        of picked values fought over the same few
+                        characters of width. The name itself is trimmed
+                        after two lines (.dcs-th-label) so one long one
+                        cannot stretch the whole header band down. */}
+                    <div className="flex flex-col items-start gap-1" style={{ width: "100%", minWidth: 0 }}>
+                      <span className="dcs-th-label">{header_text}</span>
+                      {column.headerNode}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
             {loading &&
               Array.from({ length: SKELETON_ROW_COUNT }).map((_, row_index) => (
                 <tr key={`skeleton-${row_index}`} aria-hidden="true">
-                  {columns.map((column, column_index) => (
-                    <td
-                      key={column.key}
-                      className={`px-3 py-2.5 ${pinned_class(column.key)}`}
-                      style={{
-                        left: column.key === pinnedColumnKey ? 0 : undefined,
-                        backgroundColor: "#FFFFFF",
-                        borderBottom: "1px solid #E0E0E0",
-                        borderRight: column_index < columns.length - 1 ? "1px solid #E0E0E0" : "none",
-                      }}
-                    >
+                  {columns.map((column) => (
+                    <td key={column.key} className={pinned_class(column.key)}>
                       <div className="animate-pulse h-3.5" style={{ width: "70%", backgroundColor: "rgba(5,109,170,0.1)" }} />
                     </td>
                   ))}
@@ -306,51 +269,24 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
               ))}
             {!loading &&
               has_rows &&
-              rows.map((row, row_index) => (
+              rows.map((row) => (
                 <tr
                   key={row.dcs_row_key}
                   // A click anywhere on the row opens its details, except on a
                   // control the row itself carries (file links, row buttons).
+                  className={onRowClick ? "is-clickable" : undefined}
                   onClick={onRowClick ? (event) => (event.target.closest("a,button") ? undefined : onRowClick(row)) : undefined}
-                  style={onRowClick ? { cursor: "pointer" } : undefined}
                 >
-                  {columns.map((column, column_index) => (
-                    <td
-                      key={column.key}
-                      className={`px-3 py-2.5 align-top ${pinned_class(column.key)}`}
-                      style={{
-                        color: "#333333",
-                        left: column.key === pinnedColumnKey ? 0 : undefined,
-                        backgroundColor: get_cell_background(column.key, row_index),
-                        borderBottom: "1px solid #E0E0E0",
-                        borderRight: column_index < columns.length - 1 ? "1px solid #E0E0E0" : "none",
-                        // Only a column explicitly declaring its own width
-                        // (minWidthPx - content compute_column_width's plain
-                        // text measurement can't size, e.g. a nested table)
-                        // gets a scroll boundary here; an ordinary text
-                        // column is already sized to fit its own content
-                        // exactly and would otherwise risk showing a
-                        // needless scrollbar from nothing more than
-                        // sub-pixel layout rounding. table-layout:fixed pins
-                        // this cell to its column's exact pixel width either
-                        // way, but a table cell never clips its own content
-                        // by default - without this, content wider than the
-                        // cell (its own padding included) visually bleeds
-                        // into the next column instead of staying inside
-                        // its own boundary.
-                        // No cell ever scrolls on its own: content wraps to
-                        // full height inside its column instead.
-                        overflowX: "hidden",
-                      }}
-                    >
-                      <div style={get_cell_content_style(column.key)}>{row[column.key]}</div>
+                  {columns.map((column) => (
+                    <td key={column.key} className={`${tint_class(column.key)} ${pinned_class(column.key)}`.trim() || undefined} title={cell_title(row[column.key])}>
+                      <div className="dcs-cell-clamp">{row[column.key]}</div>
                     </td>
                   ))}
                 </tr>
               ))}
             {!loading && !has_rows && (
               <tr>
-                <td colSpan={columns.length} className="px-3 py-10 text-center" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}>
+                <td colSpan={columns.length} className="text-center" style={{ padding: "2.5rem 0.5rem", color: "#9E9E9E" }}>
                   {translate("DCS_TABLE_NO_DATA")}
                 </td>
               </tr>

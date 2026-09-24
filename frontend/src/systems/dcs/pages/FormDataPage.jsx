@@ -20,7 +20,7 @@ import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import { approval_status_label_key } from "../components/DcsApprovalStatusChip.jsx";
 import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
-import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
+import DcsRecordViewOverlay from "../components/DcsRecordViewOverlay.jsx";
 import { format_respondent } from "../offline/respondentStore.js";
 import RecordHistoryDialog, { RecordHistoryButton } from "../tracking/RecordHistoryDialog.jsx";
 import { is_tracking_enabled } from "../tracking/trackingConfig.js";
@@ -76,7 +76,7 @@ export default function FormDataPage() {
   const { language, translate } = useDcsLanguage();
   const table = useSubmissionsTable(form_group_id, version);
   const [is_schedule_open, setIsScheduleOpen] = useState(false);
-  const [details_submission_id, setDetailsSubmissionId] = useState(null);
+  const [view_record, setViewRecord] = useState(null);
   const [history_record, setHistoryRecord] = useState(null);
 
   const { data: versions, loading: loading_versions } = useSilentPolling(
@@ -136,7 +136,7 @@ export default function FormDataPage() {
           loading={table.loading}
           scrollResetKey={table.page}
           totalCount={table.total}
-          onRowClick={(row) => setDetailsSubmissionId(row.dcs_row_key)}
+          onRowClick={(row) => setViewRecord((table.submissions || []).find((submission) => submission._id === row.dcs_row_key) || null)}
         />
       </div>
 
@@ -144,8 +144,8 @@ export default function FormDataPage() {
         <DcsApprovalScheduleDialog form_group_id={form_group_id} onClose={() => setIsScheduleOpen(false)} onChanged={table.refresh} />
       )}
 
-      {details_submission_id && (
-        <DcsApprovalDetailsDialog submission_id={details_submission_id} onClose={() => setDetailsSubmissionId(null)} />
+      {view_record && (
+        <DcsRecordViewOverlay record={view_record} fields={version_doc.schema.fields} tracking={tracking} onClose={() => setViewRecord(null)} />
       )}
 
       {history_record && tracking && (

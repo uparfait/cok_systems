@@ -273,6 +273,103 @@ function apply_value_filters(filter, filters) {
   return filter;
 }
 
+/**
+ * Free-text search has to reach EVERY answer a record holds, whatever
+ * shape it was stored in - a form's own fields vary record to record, so
+ * there is nothing to index by name and the text has to be assembled per
+ * document. Aggregation has no recursion, so this covers the shapes
+ * answers actually take: a plain value, a list of them (multi-select,
+ * ranking), and an object (an uploaded file's name and type, a
+ * geolocation's address) - including a list OF objects.
+ *
+ * Who filled the record in and which version it was collected on are
+ * folded in too, so searching a respondent's name or a version number
+ * finds the record the same way searching an answer does.
+ */
+const SEARCHABLE_NUMERIC_TYPES = ["double", "int", "long", "decimal", "bool"];
+
+/** One plain value as text; anything with no readable form becomes "". */
+function scalar_text(value_expression) {
+  return {
+    $switch: {
+      branches: [
+        { case: { $eq: [{ $type: value_expression }, "string"] }, then: value_expression },
+        { case: { $in: [{ $type: value_expression }, SEARCHABLE_NUMERIC_TYPES] }, then: { $toString: value_expression } },
+        { case: { $eq: [{ $type: value_expression }, "date"] }, then: { $dateToString: { date: value_expression, format: "%Y-%m-%d %H:%M" } } },
+      ],
+      default: "",
+    },
+  };
+}
+
+/** Every value an object holds, run together - a file's name and type, a place's address. */
+function object_text(object_expression) {
+  return {
+    $reduce: {
+      input: { $objectToArray: object_expression },
+      initialValue: "",
+      in: { $concat: ["$value", " ", scalar_text("$this.v")] },
+    },
+  };
+}
+
+/** One answer of any shape as searchable text. */
+function answer_text(value_expression) {
+  return {
+    $let: {
+      vars: { entry: value_expression },
+      in: {
+        $switch: {
+          branches: [
+            {
+              case: { $isArray: "$entry" },
+              then: {
+                $reduce: {
+                  input: "$entry",
+                  initialValue: "",
+                  in: {
+                    $concat: [
+                      "$value",
+                      " ",
+                      {
+                        $cond: [{ $eq: [{ $type: "$this" }, "object"] }, object_text("$this"), scalar_text("$this")],
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+            { case: { $eq: [{ $type: "$entry" }, "object"] }, then: object_text("$entry") },
+          ],
+          default: scalar_text("$entry"),
+        },
+      },
+    },
+  };
+}
+
+const SEARCH_TEXT_EXPRESSION = {
+  $concat: [
+    {
+      $reduce: {
+        input: { $objectToArray: { $ifNull: ["$data", {}] } },
+        initialValue: "",
+        in: { $concat: ["$value", " ", answer_text("$this.v")] },
+      },
+    },
+    " ",
+    { $ifNull: ["$respondent.name", ""] },
+    " ",
+    { $ifNull: ["$respondent.email", ""] },
+    " ",
+    { $ifNull: ["$respondent.phone", ""] },
+    " ",
+    scalar_text("$version"),
+    " ",
+    scalar_text("$submitted_at"),
+  ],
+};
+
 async function list_submissions(form_group_id, version, page, limit, date_bounds, options) {
   const filter = { form_group_id };
   // Opening ONE record in the table (what the gallery does when a
@@ -309,80 +406,7 @@ async function list_submissions(form_group_id, version, page, limit, date_bounds
     const search_regex = new RegExp(escape_regex(search_term), "i");
     const pipeline = [
       { $match: filter },
-      {
-        $addFields: {
-          __search_text: {
-            $reduce: {
-              input: { $objectToArray: { $ifNull: ["$data", {}] } },
-              initialValue: "",
-              in: {
-                $concat: [
-                  "$$value",
-                  " ",
-                  {
-                    $switch: {
-                      branches: [
-                        { case: { $eq: [{ $type: "$$this.v" }, "string"] }, then: "$$this.v" },
-                        {
-                          case: { $in: [{ $type: "$$this.v" }, ["double", "int", "long", "decimal", "bool"]] },
-                          then: { $toString: "$$this.v" },
-                        },
-                        {
-                          // A multi-select answer: an array of strings (or
-                          // occasionally numbers) - joined into one
-                          // searchable string, same as the scalar branches
-                          // above just applied per element.
-                          case: { $eq: [{ $type: "$$this.v" }, "array"] },
-                          then: {
-                            $reduce: {
-                              input: "$$this.v",
-                              initialValue: "",
-                              in: {
-                                $concat: [
-                                  "$$value",
-                                  " ",
-                                  {
-                                    $switch: {
-                                      branches: [
-                                        { case: { $eq: [{ $type: "$$this" }, "string"] }, then: "$$this" },
-                                        {
-                                          case: { $in: [{ $type: "$$this" }, ["double", "int", "long", "decimal", "bool"]] },
-                                          then: { $toString: "$$this" },
-                                        },
-                                      ],
-                                      default: "",
-                                    },
-                                  },
-                                ],
-                              },
-                            },
-                          },
-                        },
-                      ],
-                      default: "",
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        },
-      },
-      {
-        $addFields: {
-          __search_text: {
-            $concat: [
-              "$__search_text",
-              " ",
-              { $ifNull: ["$respondent.name", ""] },
-              " ",
-              { $ifNull: ["$respondent.email", ""] },
-              " ",
-              { $ifNull: ["$respondent.phone", ""] },
-            ],
-          },
-        },
-      },
+      { $addFields: { __search_text: SEARCH_TEXT_EXPRESSION } },
       { $match: { __search_text: search_regex } },
       { $sort: { submitted_at: sort_direction } },
       {

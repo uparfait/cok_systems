@@ -3618,6 +3618,7 @@ background-color: #056daa;
 .dcs-sidebar-close {
   width: 22px;
   height: 22px;
+  border-radius: 50%;
   background: none;
   border: none;
   color: #9E9E9E;
@@ -4130,6 +4131,7 @@ background-color: #056daa;
 .dcs-tracking-key-button {
   width: 42px;
   height: 42px;
+  border-radius: 50%;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -4605,21 +4607,22 @@ background-color: #056daa;
   background-color: #056daa;
   border-color: #056daa;
 }
-/* A column header's own filter trigger: quiet until that column is
-   actually filtering, then it carries the accent so a narrowed table can
-   never look like the whole table. */
+/* A column header's own filter: a full-width control sitting UNDER the
+   column's name, reading back the values it is showing. Quiet until the
+   column is actually filtering, then it carries the accent so a narrowed
+   table can never look like the whole table. */
 .dcs-dt-colfilter {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.25rem;
-  max-width: 100%;
-  margin-top: 0.3rem;
-  padding: 0.15rem 0.35rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.12rem 0.3rem;
   background-color: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.45);
   color: #FFFFFF;
   font-family: 'Montserrat', sans-serif;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
@@ -4633,27 +4636,54 @@ background-color: #056daa;
   color: #056daa;
   border-color: #FFFFFF;
 }
-/* The actions column stays put while the rest of the table scrolls
-   sideways under it, header cell included. */
-.dcs-dt-pinned {
+/* The picked values take whatever room is left and are trimmed rather
+   than wrapping the header onto a third line; the whole list is on the
+   control's own tooltip. */
+.dcs-dt-colfilter-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.dcs-dt-colfilter-count {
+  flex-shrink: 0;
+  padding: 0 0.25rem;
+  border-radius: 9999px;
+  background-color: rgba(5, 109, 170, 0.14);
+  font-size: 9px;
+  font-weight: 700;
+}
+.dcs-dt-colfilter:not(.is-on) .dcs-dt-colfilter-count {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+/* The actions column stays put at the left while the rest of the table
+   scrolls sideways under it. A sticky cell has to paint its own ground
+   or the columns sliding beneath would show through it, so it repeats
+   the row's stripe and hover colours, and a thin rule on its right edge
+   marks where the fixed part ends. */
+.dcs-fancy-table td.dcs-dt-pinned,
+.dcs-fancy-table th.dcs-dt-pinned {
   position: sticky;
   left: 0;
   z-index: 3;
+  background-color: #FFFFFF;
+  box-shadow: 1px 0 0 #ddd;
 }
-.dcs-dt-pinned-head {
-  z-index: 5;
+.dcs-fancy-table thead th.dcs-dt-pinned {
+  z-index: 4;
+  background-color: #056daa;
+  box-shadow: inset 0 -2px 0 #045a8c, 1px 0 0 #045a8c;
 }
-/* The shadow only appears once there is something scrolled underneath -
-   a pinned column with nothing behind it should not look raised. */
-.dcs-dt-pinned.is-lifted::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: -6px;
-  bottom: -1px;
-  width: 6px;
-  pointer-events: none;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0));
+.dcs-fancy-table tbody tr:nth-child(even) td.dcs-dt-pinned {
+  background-color: #f2f2f2;
+}
+.dcs-fancy-table tbody tr:hover td.dcs-dt-pinned {
+  background-color: #ddd;
+}
+.dcs-fancy-table tbody tr.is-selected td.dcs-dt-pinned {
+  background-color: #dbe9f3;
 }
 .dcs-dt-rowbtn {
   display: inline-flex;
@@ -4661,6 +4691,7 @@ background-color: #056daa;
   justify-content: center;
   width: 26px;
   height: 26px;
+  border-radius: 50%;
   background: none;
   border: none;
   transition: background-color 0.16s ease;
@@ -4734,6 +4765,7 @@ background-color: #056daa;
 .dcs-viewer-close {
   width: 30px;
   height: 30px;
+  border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.5);
   background: none;
   color: #FFFFFF;
@@ -4777,5 +4809,176 @@ background-color: #056daa;
     right: 10px;
     width: 36px;
     height: 36px;
+  }
+}
+
+/* ============================================================
+   THE DATA TABLE
+   Plain and readable: every cell boxed in a light rule, every other row
+   tinted, the row under the pointer picked out, and a solid header in
+   the system's own blue with white text left-aligned above it. The
+   columns divide the width between them, so it never scrolls sideways -
+   a long answer wraps and its row grows taller instead.
+   ============================================================ */
+.dcs-fancy-table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #333333;
+}
+.dcs-fancy-table td,
+.dcs-fancy-table th {
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+/* A row is never taller than 80px: the cell's content is clamped to
+   three lines and anything past them is cut, never scrolled - the whole
+   answer is on the cell's tooltip and in the record view a click opens.
+   A picture, a file link or a map inside a cell is held to the same cap. */
+.dcs-fancy-table td > .dcs-cell-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  max-height: 64px;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.dcs-fancy-table td > .dcs-cell-clamp > * {
+  max-height: 64px;
+  overflow: hidden;
+}
+.dcs-fancy-table td > .dcs-cell-clamp img,
+.dcs-fancy-table td > .dcs-cell-clamp video,
+.dcs-fancy-table td > .dcs-cell-clamp canvas {
+  max-height: 60px;
+}
+.dcs-fancy-table tbody tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+.dcs-fancy-table tbody tr:hover {
+  background-color: #ddd;
+}
+/* A column the version diff has marked keeps its tint over the striping,
+   and over the hover, since what it is saying outranks both. */
+.dcs-fancy-table td.dcs-tint-green {
+  background-color: rgba(76, 175, 80, 0.12);
+}
+.dcs-fancy-table td.dcs-tint-red {
+  background-color: rgba(231, 76, 60, 0.12);
+}
+.dcs-fancy-table td.dcs-tint-blue {
+  background-color: rgba(5, 109, 170, 0.12);
+}
+.dcs-fancy-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 7px 8px;
+  text-align: left;
+  vertical-align: middle;
+  background-color: #056daa;
+  color: #FFFFFF;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  /* border-collapse drops a sticky cell's own borders as it scrolls, so
+     the rule under the header is drawn as a shadow instead. */
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 -2px 0 #045a8c;
+}
+/* A column name is trimmed after two lines instead of wrapping as far
+   as it likes. Without this, a narrow column turned a name like
+   "Submitted at" into a column of single words, and the tallest one
+   in the row stretched the whole blue band down over the data. The
+   full name is on the cell's own tooltip. */
+.dcs-fancy-table thead th .dcs-th-label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.25;
+  max-width: 100%;
+}
+.dcs-fancy-table tbody tr.is-selected > td {
+  background-color: rgba(5, 109, 170, 0.14);
+}
+.dcs-fancy-table tbody tr.is-clickable {
+  cursor: pointer;
+}
+
+/* The record view opened from a table row (DcsRecordViewOverlay.jsx):
+   the facts about the record in a strip of small cards, tabs for the
+   answers, the approval trail and the history, and one answer per row
+   with its label above it on a phone and beside it from a tablet up. An
+   updatable field of a tracked form carries a blue bar. */
+.dcs-record-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 10px 16px 0;
+}
+@media (min-width: 750px) {
+  .dcs-record-meta {
+    grid-template-columns: repeat(4, 1fr);
+    padding: 12px 24px 0;
+  }
+}
+.dcs-record-tabs {
+  display: flex;
+  gap: 2px;
+  margin: 10px 16px 0;
+  border-bottom: 1px solid #E0E0E0;
+  overflow-x: auto;
+}
+@media (min-width: 750px) {
+  .dcs-record-tabs {
+    margin: 12px 24px 0;
+  }
+}
+.dcs-record-tab {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #9E9E9E;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease;
+}
+.dcs-record-tab:hover {
+  color: #056daa;
+}
+.dcs-record-tab.is-active {
+  color: #056daa;
+  border-bottom-color: #056daa;
+}
+.dcs-record-answer {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px 16px;
+  padding: 8px 0 8px 10px;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid #EEF2F5;
+}
+@media (min-width: 560px) {
+  .dcs-record-answer {
+    grid-template-columns: 220px 1fr;
+    align-items: start;
   }
 }

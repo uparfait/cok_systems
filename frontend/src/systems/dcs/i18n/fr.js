@@ -2092,6 +2092,7 @@ const fr = {
   DCS_TABLE_HIDE_FIELDS_HINT: "Les colonnes cochees sont masquees pour tout le monde jusqu'a ce qu'elles soient decochees.",
   DCS_TABLE_HIDE_FIELDS_EMPTY: "Ce tableau n'a aucune colonne a masquer.",
   DCS_TABLE_HIDE_FIELDS_LOCKED: "Seule une personne autorisee a modifier ce formulaire peut changer les colonnes masquees.",
+  DCS_TABLE_HIDDEN_SAVED: "Colonnes masquées enregistrées pour tout le monde.",
   DCS_TABLE_SHOW_ALL: "Tout afficher",
   DCS_TABLE_HIDE_ALL: "Tout masquer",
   DCS_TABLE_HIDDEN_COUNT: "{{count}} masquees",
@@ -2132,7 +2133,7 @@ const fr = {
   DCS_GALLERY_LOAD_MORE: "Charger plus",
   DCS_GALLERY_OPEN_IN_TABLE: "Ouvrir dans le tableau",
   DCS_TABLE_SHOWING_ONE: "Un enregistrement",
-  DCS_TABLE_SHOWING_ONE_CLEAR: "Afficher de nouveau tous les enregistrements",
+  DCS_TABLE_SHOW_ALL_DATA: "Afficher toutes les donnees",
 };
 
 export default fr;

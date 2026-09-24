@@ -2092,6 +2092,7 @@ const en = {
   DCS_TABLE_HIDE_FIELDS_HINT: "Ticked columns are hidden for everyone until unticked.",
   DCS_TABLE_HIDE_FIELDS_EMPTY: "This table has no columns to hide.",
   DCS_TABLE_HIDE_FIELDS_LOCKED: "Only someone who may edit this form can change hidden columns.",
+  DCS_TABLE_HIDDEN_SAVED: "Hidden columns saved for everyone.",
   DCS_TABLE_SHOW_ALL: "Show all",
   DCS_TABLE_HIDE_ALL: "Hide all",
   DCS_TABLE_HIDDEN_COUNT: "{{count}} hidden",
@@ -2132,7 +2133,7 @@ const en = {
   DCS_GALLERY_LOAD_MORE: "Load more",
   DCS_GALLERY_OPEN_IN_TABLE: "Open in table",
   DCS_TABLE_SHOWING_ONE: "One record",
-  DCS_TABLE_SHOWING_ONE_CLEAR: "Show every record again",
+  DCS_TABLE_SHOW_ALL_DATA: "Show all data",
 };
 
 export default en;

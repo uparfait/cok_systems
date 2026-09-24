@@ -14,7 +14,7 @@ import { get_field_values } from "../services/submissionsService.js";
  * table never waits on a round trip to redraw; a save that fails puts the
  * server's own answer back.
  */
-export function useTableColumnState(form_group_id, on_error) {
+export function useTableColumnState(form_group_id, on_error, on_success) {
   const [hidden_columns, setHiddenColumns] = useState([]);
   const [can_edit_columns, setCanEditColumns] = useState(false);
   const [saving_columns, setSavingColumns] = useState(false);
@@ -23,6 +23,8 @@ export function useTableColumnState(form_group_id, on_error) {
   const [is_expanded, setIsExpanded] = useState(false);
   const error_ref = useRef(on_error);
   error_ref.current = on_error;
+  const success_ref = useRef(on_success);
+  success_ref.current = on_success;
 
   useEffect(() => {
     let is_mounted = true;
@@ -48,6 +50,12 @@ export function useTableColumnState(form_group_id, on_error) {
       setHiddenColumns(next);
       setSavingColumns(true);
       save_table_settings(form_group_id, next)
+        .then((response) => {
+          // The server's own list is the truth once it answers; its message
+          // tells everyone the shared setting is saved for the whole form.
+          if (response && response.data && Array.isArray(response.data.hidden_columns)) setHiddenColumns(response.data.hidden_columns);
+          if (success_ref.current) success_ref.current(response && response.message);
+        })
         .catch((error) => {
           setHiddenColumns(previous);
           if (error_ref.current) error_ref.current(error);
