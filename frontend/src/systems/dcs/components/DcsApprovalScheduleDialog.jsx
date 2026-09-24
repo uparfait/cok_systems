@@ -12,7 +12,7 @@ import {
 import DcsApprovalStatusChip from "./DcsApprovalStatusChip.jsx";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
 import DcsButtonOutline from "./DcsButtonOutline.jsx";
-import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
+import { TwoColumnSkeleton } from "./DcsSkeletons.jsx";
 
 const BORDER = "#E0E0E0";
 const PRIMARY = "#056daa";
@@ -171,7 +171,14 @@ function ApproverChain({ approvers, formGroupId, onCopied, onFailed }) {
  * Lays out as two columns (approvers | timing) on wide screens and
  * stacks vertically on narrow ones.
  */
-export default function DcsApprovalScheduleDialog({ form_group_id, onClose, onChanged }) {
+/**
+ * When a form's collected records go out to its approvers: right now,
+ * after so many responses, or at a chosen date and time. Used as the
+ * dialog it has always been, and - with asPage - as the body of the
+ * Schedule approvals page reached from the form's workspace panel,
+ * where this is the page's own work rather than something laid over it.
+ */
+export default function DcsApprovalScheduleDialog({ form_group_id, onClose, onChanged, asPage }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
 
@@ -269,41 +276,22 @@ export default function DcsApprovalScheduleDialog({ form_group_id, onClose, onCh
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={acting ? undefined : onClose} />
-      <div className="relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 880, maxHeight: "90vh", borderColor: PRIMARY }}>
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 px-6 py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
-          <div>
-            <p className="text-base font-bold uppercase" style={{ color: PRIMARY, fontFamily: FONT, letterSpacing: "0.5px" }}>
-              {translate("DCS_SCHED_TITLE")}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: FADED, fontFamily: FONT }}>
-              {translate("DCS_SCHED_APPROVERS_HINT")}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={acting ? undefined : onClose}
-            aria-label={translate("DCS_BTN_CLOSE")}
-            className="cursor-pointer flex-shrink-0 flex items-center justify-center"
-            style={{ width: 32, height: 32, color: FADED }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
+  const head = (
+    <div>
+      <p className="text-base font-bold uppercase" style={{ color: PRIMARY, fontFamily: FONT, letterSpacing: "0.5px" }}>
+        {translate("DCS_SCHED_TITLE")}
+      </p>
+      <p className="text-xs mt-0.5" style={{ color: FADED, fontFamily: FONT }}>
+        {translate("DCS_SCHED_APPROVERS_HINT")}
+      </p>
+    </div>
+  );
 
-        {/* Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
-          {load_state === "loading" && (
-            <div className="py-10">
-              <SpiralLoader />
-            </div>
-          )}
+  const body = (
+        <div>
+          {/* Shaped like the two columns of settings that are coming,
+              so the page does not jump when they land. */}
+          {load_state === "loading" && <TwoColumnSkeleton />}
           {load_state === "error" && (
             <p className="text-sm" style={{ color: "#E74C3C", fontFamily: FONT }}>
               {translate("DCS_ERROR_GENERIC")}
@@ -436,17 +424,54 @@ export default function DcsApprovalScheduleDialog({ form_group_id, onClose, onCh
             </>
           )}
         </div>
+  );
 
-        {/* Footer */}
+  const submit_button =
+    load_state === "ready" ? (
+      <DcsButtonPrimary onClick={handle_action} disabled={acting || !has_approvers}>
+        {acting ? translate("DCS_SCHED_WORKING") : translate(mode === "now" ? "DCS_SCHED_SEND_NOW" : "DCS_SCHED_SAVE")}
+      </DcsButtonPrimary>
+    ) : null;
+
+  if (asPage) {
+    return (
+      <div className="bg-white border-2" style={{ borderColor: "#E0E0E0" }}>
+        <div className="px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>{head}</div>
+        <div className="px-4 sm:px-6 py-5">{body}</div>
+        {submit_button && (
+          <div className="flex justify-end px-4 sm:px-6 py-4" style={{ borderTop: `1px solid ${BORDER}` }}>
+            <div className="w-full min-[480px]:w-56">{submit_button}</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={acting ? undefined : onClose} />
+      <div className="relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 880, maxHeight: "90vh", borderColor: PRIMARY }}>
+        <div className="flex items-start justify-between gap-4 px-6 py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
+          {head}
+          <button
+            type="button"
+            onClick={acting ? undefined : onClose}
+            aria-label={translate("DCS_BTN_CLOSE")}
+            className="cursor-pointer flex-shrink-0 flex items-center justify-center"
+            style={{ width: 32, height: 32, color: FADED }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">{body}</div>
         <div className="flex justify-end gap-3 px-6 py-4 flex-shrink-0" style={{ borderTop: `1px solid ${BORDER}` }}>
           <DcsButtonOutline onClick={onClose} disabled={acting}>
             {translate("DCS_BTN_CLOSE")}
           </DcsButtonOutline>
-          {load_state === "ready" && (
-            <DcsButtonPrimary onClick={handle_action} disabled={acting || !has_approvers}>
-              {acting ? translate("DCS_SCHED_WORKING") : translate(mode === "now" ? "DCS_SCHED_SEND_NOW" : "DCS_SCHED_SAVE")}
-            </DcsButtonPrimary>
-          )}
+          {submit_button}
         </div>
       </div>
     </div>

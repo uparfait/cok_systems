@@ -256,11 +256,48 @@ async function find_by_client_submission_id(client_submission_id) {
  * plain value) is skipped, since there's no meaningful text to search in
  * {name, type, size, url}.
  */
+/**
+ * Column value filters as the data table sends them: { field_id: [value,
+ * ...] }. A value matches whether the answer is that value or an array
+ * holding it, which is what Mongo's $in already does on both shapes, so a
+ * single/multi select column filters the same way. An empty list for a
+ * field means that column is not filtering at all.
+ */
+function apply_value_filters(filter, filters) {
+  if (!filters || typeof filters !== "object") return filter;
+  Object.keys(filters).forEach((field_id) => {
+    const values = filters[field_id];
+    if (!Array.isArray(values) || values.length === 0) return;
+    filter[`data.${field_id}`] = { $in: values };
+  });
+  return filter;
+}
+
 async function list_submissions(form_group_id, version, page, limit, date_bounds, options) {
   const filter = { form_group_id };
+  // Opening ONE record in the table (what the gallery does when a
+  // picture is followed back to the row it came from): the id narrows
+  // the same query every other filter narrows, so the row still arrives
+  // with its approval state and its version beside it.
+  if (options && options.submission_id) {
+    const object_id = to_object_id(options.submission_id);
+    if (!object_id) return { items: [], total: 0 };
+    filter._id = object_id;
+  }
   if (version !== undefined && version !== null) filter.version = Number(version);
   if (date_bounds && date_bounds.start && date_bounds.end) {
     filter.submitted_at = { $gte: date_bounds.start, $lte: date_bounds.end };
+  }
+  apply_value_filters(filter, options && options.filters);
+  // A pinned record answers for itself: the date range, the version and
+  // the column filters around it would only ever hide the one row that
+  // was explicitly asked for.
+  if (filter._id) {
+    delete filter.submitted_at;
+    delete filter.version;
+    Object.keys(filter).forEach((key) => {
+      if (key.startsWith("data.")) delete filter[key];
+    });
   }
 
   const sort_direction = options && options.sort === "oldest" ? 1 : -1;
@@ -445,6 +482,59 @@ async function count_by_form_group_id(form_group_id) {
  * (or every one it has, when no range is given) - backs the submissions
  * time-series chart, which only ever needs the timestamp to bucket by.
  */
+/**
+ * The submissions-over-time chart, counted BY THE DATABASE: one row per
+ * time bucket with how many records fall in it, instead of pulling every
+ * timestamp in the range back to count them here. A form with a year of
+ * records behind it would otherwise ship tens of thousands of documents
+ * over the wire just to produce twelve numbers.
+ *
+ * granularity is one of hour/day/week/month/year. offset_minutes is the
+ * reader's own distance from UTC, so a day ends where they are rather
+ * than at UTC midnight; it is handed to $dateTrunc as a fixed offset,
+ * which is exact for a zone without daylight saving.
+ */
+const GRANULARITY_UNITS = { hour: "hour", day: "day", week: "week", month: "month", year: "year" };
+
+function utc_offset_string(offset_minutes) {
+  const total = Number.isFinite(offset_minutes) ? Math.trunc(offset_minutes) : 0;
+  const sign = total < 0 ? "-" : "+";
+  const absolute = Math.abs(total);
+  const hours = String(Math.floor(absolute / 60)).padStart(2, "0");
+  const minutes = String(absolute % 60).padStart(2, "0");
+  return `${sign}${hours}:${minutes}`;
+}
+
+async function count_submissions_over_time(form_group_id, start, end, granularity, offset_minutes, week_start_day) {
+  const match = { form_group_id };
+  if (start && end) match.submitted_at = { $gte: start, $lte: end };
+
+  const truncate = {
+    date: "$submitted_at",
+    unit: GRANULARITY_UNITS[granularity] || "day",
+    timezone: utc_offset_string(offset_minutes),
+  };
+  // A week bucket has to begin on the same weekday the chosen range
+  // begins on, so the first column is never a week that started before
+  // what was picked.
+  if (granularity === "week" && week_start_day) truncate.startOfWeek = week_start_day;
+
+  const rows = await get_db()
+    .collection(COLLECTION_NAME)
+    .aggregate(
+      [
+        { $match: match },
+        { $group: { _id: { $dateTrunc: truncate }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+      ],
+      { allowDiskUse: true },
+    )
+    .toArray();
+
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  return { buckets: rows.map((row) => ({ at: row._id, count: row.count })), total };
+}
+
 async function list_submitted_at_within(form_group_id, start, end) {
   const filter = { form_group_id };
   if (start && end) filter.submitted_at = { $gte: start, $lte: end };
@@ -492,6 +582,32 @@ async function delete_submission_by_id(submission_id) {
  * Number of submissions collected against one specific form version - used
  * to warn an author how much data a version delete would also remove.
  */
+/**
+ * Permanently removes a hand-picked set of submissions in one write - what
+ * the data table's "delete selected" does. The caller has already checked
+ * that every id belongs to a form the requesting user may manage.
+ */
+async function delete_submissions_by_ids(submission_ids) {
+  const object_ids = (submission_ids || []).map((id) => to_object_id(id)).filter(Boolean);
+  if (object_ids.length === 0) return 0;
+  const result = await get_db().collection(COLLECTION_NAME).deleteMany({ _id: { $in: object_ids } });
+  return result.deletedCount;
+}
+
+/**
+ * The submissions a hand-picked set of ids resolves to, carrying only what
+ * a permission check needs - so "delete selected" can verify every row in
+ * one query instead of one round trip per row.
+ */
+async function find_submissions_by_ids(submission_ids) {
+  const object_ids = (submission_ids || []).map((id) => to_object_id(id)).filter(Boolean);
+  if (object_ids.length === 0) return [];
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .find({ _id: { $in: object_ids } }, { projection: { form_group_id: 1, project_id: 1 } })
+    .toArray();
+}
+
 async function count_submissions_for_version(form_group_id, version) {
   return get_db().collection(COLLECTION_NAME).countDocuments({ form_group_id, version: Number(version) });
 }
@@ -592,8 +708,10 @@ module.exports = {
   find_by_client_submission_id,
   find_submission_by_id,
   list_submissions,
+  apply_value_filters,
   count_by_form_group_id,
   list_submitted_at_within,
+  count_submissions_over_time,
   count_in_range,
   stream_in_range,
   count_feed,
@@ -602,4 +720,6 @@ module.exports = {
   count_submissions_for_version,
   delete_by_form_group_and_version,
   delete_submission_by_id,
+  delete_submissions_by_ids,
+  find_submissions_by_ids,
 };

@@ -20,7 +20,8 @@ export const useContextNav = () => useContext(ContextNavContext).nav;
  * Publishes { items, base_path, active_key, select, ...meta } while the
  * calling page is mounted. The select callback is read through a ref, so a
  * page may hand a fresh closure on every render without re-publishing.
- * meta: { kind: "project" | "form", title, project_id, forms_count, forms }.
+ * meta: { kind: "project" | "form", title, project_id, form_group_id,
+ * forms_count, forms }.
  */
 export function useDcsContextNav(items, base_path, active_key, on_select, meta) {
   const { setNav } = useContext(ContextNavContext);
@@ -32,6 +33,7 @@ export function useDcsContextNav(items, base_path, active_key, on_select, meta) 
     safe_meta.kind || "",
     safe_meta.title || "",
     safe_meta.project_id || "",
+    safe_meta.form_group_id || "",
     safe_meta.forms_count === undefined ? "" : String(safe_meta.forms_count),
     (safe_meta.forms || []).map((form) => `${form.form_group_id}:${form.form_name}`).join("|"),
   ].join("#");

@@ -5,13 +5,14 @@ import { useSilentPolling } from "../hooks/useSilentPolling.js";
 import { useScrollReveal } from "../home/useScrollReveal.js";
 import { useCountUp } from "../home/useCountUp.js";
 import { useAgeBreakdown } from "../hooks/useAgeBreakdown.js";
+import { useFormSubmissionStats } from "../hooks/useFormSubmissionStats.js";
 import { get_form } from "../services/formsService.js";
 import { AGE_UNITS } from "../constants/ageUnits.js";
 import DcsProjectDetailSkeleton from "../components/DcsProjectDetailSkeleton.jsx";
 import DcsFormNav from "../components/DcsFormNav.jsx";
 import DcsAgeChip from "../components/DcsAgeChip.jsx";
 import DcsFormSubmissionsChart from "../components/DcsFormSubmissionsChart.jsx";
-import FormDashboardControls from "../util-dashboard/FormDashboardControls.jsx";
+import { ExpandToggle, useExpandable } from "../components/DcsWorkspaceShell.jsx";
 
 /**
  * Form overview: its name, a form age counter next to a deliberately
@@ -47,7 +48,12 @@ export default function FormDetailPage() {
   const is_loading_form = loading || !form || is_showing_wrong_form;
 
   const age = useAgeBreakdown(form ? form.created_at : new Date(0).toISOString(), isVisible && !!form && !is_showing_wrong_form);
-  const { text: total_data_text } = useCountUp(String(form ? form.total_submissions || 0 : 0), isVisible && !!form && !is_showing_wrong_form);
+  // The big number and the chart below it read the SAME selected period
+  // (this year by default), so the total always answers for the range the
+  // "Data over time" filter is showing.
+  const stats = useFormSubmissionStats(form_group_id);
+  const expand = useExpandable();
+  const { text: total_data_text } = useCountUp(String(stats.total), isVisible && !!form && !is_showing_wrong_form && !stats.loading);
 
   const base_path = `/dcs-system/project/${project_id}/forms/${form_group_id}`;
   const is_panel_open = location.pathname !== base_path;
@@ -61,7 +67,7 @@ export default function FormDetailPage() {
   };
 
   return (
-    <div ref={ref} className="relative w-full min-[760px]:w-[80vw] mx-auto pb-16">
+    <div ref={ref} className="relative w-full max-w-5xl mx-auto pb-16">
       {/* The nav stays put while the form is still loading - only a form
           that could not be read at all has no header to show. */}
       {!form_error && (
@@ -105,15 +111,18 @@ export default function FormDetailPage() {
                 </button>
               </div>
 
-              <DcsFormSubmissionsChart formGroupId={form_group_id} />
-
-              <FormDashboardControls projectId={project_id} form={form} />
+              <DcsFormSubmissionsChart stats={stats} />
             </div>
           )}
 
           {is_panel_open && (
-            <div className="dcs-project-slide-in-right">
-              <Outlet context={{ project_id, form_group_id, form, refreshForm: refresh }} />
+            <div className={expand.expanded ? "dcs-dt-expanded" : "dcs-project-slide-in-right"}>
+              <div className="flex justify-end mb-2">
+                <ExpandToggle expanded={expand.expanded} onToggle={expand.toggle} />
+              </div>
+              <div className={expand.expanded ? "flex-1 min-h-0 overflow-y-auto" : ""}>
+                <Outlet context={{ project_id, form_group_id, form, refreshForm: refresh }} />
+              </div>
             </div>
           )}
         </>

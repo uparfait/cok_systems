@@ -19,3 +19,26 @@ export function remember_forms(project_id, forms) {
   forms_by_project.set(String(project_id), forms);
   return forms;
 }
+
+/**
+ * A form's own name, by form_group_id, for the whole life of the page.
+ *
+ * Every page of a form publishes that form's name to the header and to
+ * the workspace panel beside the sidebar, but not every page has the
+ * name in hand the moment it mounts - a page that only needs the form's
+ * versions, or its media, has to fetch first. Without this, moving
+ * between those pages made the name blink away to "..." and come back,
+ * even though the form had not changed at all. The last name seen for a
+ * form is remembered here and shown while the new page catches up.
+ */
+const form_names = new Map();
+
+export function remember_form_name(form_group_id, form_name) {
+  if (!form_group_id || !form_name) return form_name;
+  form_names.set(String(form_group_id), form_name);
+  return form_name;
+}
+
+export function get_cached_form_name(form_group_id) {
+  return form_group_id ? form_names.get(String(form_group_id)) || "" : "";
+}

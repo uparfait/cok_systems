@@ -84,12 +84,17 @@ import FormVersionsPage from "./systems/dcs/pages/FormVersionsPage.jsx";
 import FormApprovalPage from "./systems/dcs/pages/FormApprovalPage.jsx";
 import FormDataPage from "./systems/dcs/pages/FormDataPage.jsx";
 import FormAllDataPage from "./systems/dcs/pages/FormAllDataPage.jsx";
+import FormGalleryPage from "./systems/dcs/pages/FormGalleryPage.jsx";
+import FormDownloadsPage from "./systems/dcs/pages/FormDownloadsPage.jsx";
+import FormSharePage from "./systems/dcs/pages/FormSharePage.jsx";
+import FormScheduleApprovalsPage from "./systems/dcs/pages/FormScheduleApprovalsPage.jsx";
 import TemplatesListPage from "./systems/dcs/pages/TemplatesListPage.jsx";
 import TestDataPage from "./systems/dcs/pages/TestDataPage.jsx";
 import FormOwnershipPage from "./systems/dcs/pages/FormOwnershipPage.jsx";
 import NewTemplatePage from "./systems/dcs/pages/NewTemplatePage.jsx";
 import TemplateSettingsPage from "./systems/dcs/pages/TemplateSettingsPage.jsx";
 import PublicFormPage from "./systems/dcs/pages/PublicFormPage.jsx";
+import EditRecordPage from "./systems/dcs/pages/EditRecordPage.jsx";
 import PublicDashboardPage from "./systems/dcs/pages/PublicDashboardPage.jsx";
 import PublicTranslationPage from "./systems/dcs/pages/PublicTranslationPage.jsx";
 import ApprovalPage from "./systems/dcs/pages/ApprovalPage.jsx";
@@ -695,6 +700,10 @@ const AuthenticatedRoutes: React.FC = () => {
               </Route>
               <Route path="project/:project_id/forms/:form_group_id/dashboard" element={<FormDashboardPage />} />
               <Route path="project/:project_id/forms/:form_group_id/data" element={<FormAllDataPage />} />
+              <Route path="project/:project_id/forms/:form_group_id/data/gallery" element={<FormGalleryPage />} />
+              <Route path="project/:project_id/forms/:form_group_id/data/downloads" element={<FormDownloadsPage />} />
+              <Route path="project/:project_id/forms/:form_group_id/data/share" element={<FormSharePage />} />
+              <Route path="project/:project_id/forms/:form_group_id/data/approvals" element={<FormScheduleApprovalsPage />} />
               <Route path="project/:project_id/forms/:form_group_id/:version/data" element={<FormDataPage />} />
             </Route>
 
@@ -747,6 +756,7 @@ const App: React.FC = () => {
 
 
           <Route path="/dcs-form/:id" element={<PublicFormPage />} />
+          <Route path="/dcs-form/edit/:id" element={<EditRecordPage />} />
           <Route path="/XdP/:token" element={<PublicDashboardPage />} />
           <Route path="/dcs-dashboard/:token" element={<PublicDashboardPage />} />
           <Route path="/dcs-translate/:token" element={<PublicTranslationPage />} />

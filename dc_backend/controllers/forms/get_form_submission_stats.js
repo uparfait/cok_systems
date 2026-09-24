@@ -3,6 +3,8 @@ const project_access = require("../../utilities/project_access.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
+const WEEK_START_DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
 /**
  * Same dynamic idea as the reference file's generateTimeSlots() "range"
  * branch (hour/day/month/year by how wide the span is), extended with a
@@ -111,14 +113,27 @@ async function get_form_submission_stats(req, res) {
     const granularity = resolve_granularity(period, bounds);
     const week_anchor = new Date(bounds.start);
     week_anchor.setHours(0, 0, 0, 0);
-    const submissions = await submissions_model.list_submitted_at_within(form_group_id, bounds.start, bounds.end);
 
+    // Counted in the database, one row per bucket - a year of records is
+    // a dozen numbers coming back, not a dozen numbers computed from
+    // every timestamp the year holds.
+    const { buckets, total } = await submissions_model.count_submissions_over_time(
+      form_group_id,
+      bounds.start,
+      bounds.end,
+      granularity,
+      -bounds.start.getTimezoneOffset(),
+      WEEK_START_DAYS[week_anchor.getDay()],
+    );
+
+    // Re-keyed against the same local-time bucket starts the axis below
+    // walks, so a bucket the database returned always finds its column.
     const counts_by_bucket_key = new Map();
-    submissions.forEach((submission) => {
-      const submitted_at = submission.submitted_at ? new Date(submission.submitted_at) : null;
-      if (!submitted_at || Number.isNaN(submitted_at.getTime())) return;
-      const bucket_key = truncate_to_bucket_start(submitted_at, granularity, week_anchor).getTime();
-      counts_by_bucket_key.set(bucket_key, (counts_by_bucket_key.get(bucket_key) || 0) + 1);
+    buckets.forEach((bucket) => {
+      const at = bucket.at instanceof Date ? bucket.at : new Date(bucket.at);
+      if (Number.isNaN(at.getTime())) return;
+      const bucket_key = truncate_to_bucket_start(at, granularity, week_anchor).getTime();
+      counts_by_bucket_key.set(bucket_key, (counts_by_bucket_key.get(bucket_key) || 0) + bucket.count);
     });
 
     const data = [];
@@ -133,7 +148,7 @@ async function get_form_submission_stats(req, res) {
     return res.status(200).json(
       success_response(req, "FORM_STATS_FETCHED", {
         data,
-        total: submissions.length,
+        total,
         period,
         granularity,
         bounds: { start: bounds.start.toISOString(), end: bounds.end.toISOString() },

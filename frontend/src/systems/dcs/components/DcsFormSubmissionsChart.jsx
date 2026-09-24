@@ -1,85 +1,29 @@
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from "recharts";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { get_form_submission_stats } from "../services/formsService.js";
 import DcsPeriodFilter from "./DcsPeriodFilter.jsx";
 import DcsLoadingState from "./DcsLoadingState.jsx";
 
 const PRIMARY = "#056daa";
 const MIN_POINT_WIDTH_PX = 56;
 const CHART_HEIGHT_PX = 280;
-const REFRESH_INTERVAL_MS = 10000;
 
 /**
- * Submissions-over-time line chart for one form: a period selector (today,
- * this month, this year, or a custom date range) drives a server-bucketed
- * time series - the backend itself picks hour/day/week/month/year
- * granularity based on how wide the selected range is, the same dynamic
- * idea as the service-delivery gender-stats chart this was modeled on.
+ * Submissions-over-time line chart for one form. The period selector it
+ * carries drives a server-bucketed time series - the backend picks
+ * hour/day/week/month/year granularity from how wide the range is - and
+ * the SAME selection drives the big total shown beside it on the form
+ * overview, which is why period and result are owned by
+ * useFormSubmissionStats and handed in rather than held here.
+ *
  * Wrapped in its own horizontally-scrolling track (not just
- * ResponsiveContainer) so a wide time series stays readable - each point
- * keeps a minimum width and the chart scrolls instead of squeezing labels
- * into illegibility. Refreshes itself silently every 10 seconds using
- * whichever params were last actually applied (tracked in a ref, not the
- * live from/to inputs) - typing into a custom range's date fields must
- * never get silently fetched before "Apply" is actually clicked.
+ * ResponsiveContainer) so a wide series stays readable: each point keeps
+ * a minimum width and the chart scrolls instead of squeezing labels into
+ * illegibility.
  */
-export default function DcsFormSubmissionsChart({ formGroupId }) {
+export default function DcsFormSubmissionsChart({ stats }) {
   const { translate } = useDcsLanguage();
-  const [period, setPeriod] = useState("this_month");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const applied_params_ref = useRef({ period: "this_month", from: "", to: "" });
-
-  const fetch_stats = (params, silent) => {
-    if (params.period === "custom" && !params.from) return;
-    applied_params_ref.current = params;
-    if (!silent) setLoading(true);
-    get_form_submission_stats(formGroupId, {
-      period: params.period,
-      from: params.period === "custom" ? params.from : undefined,
-      to: params.period === "custom" ? params.to : undefined,
-    })
-      .then((response) => setResult(response.data))
-      .catch(() => {
-        if (!silent) setResult(null);
-      })
-      .finally(() => {
-        if (!silent) setLoading(false);
-      });
-  };
-
-  // The popup passes the just-picked dates as arguments - the from/to state
-  // is not updated yet when this runs (React state updates are async), so
-  // reading state here would fetch with the PREVIOUS apply's range.
-  const handle_apply = (applied_from, applied_to) => {
-    const next_from = typeof applied_from === "string" ? applied_from : from;
-    const next_to = typeof applied_to === "string" ? applied_to : to;
-    if (period === "custom" && !next_from) return;
-    fetch_stats({ period, from: next_from, to: next_to }, false);
-  };
-
-  useEffect(() => {
-    if (period !== "custom") {
-      setFrom("");
-      setTo("");
-      fetch_stats({ period, from: "", to: "" }, false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, formGroupId]);
-
-  useEffect(() => {
-    const interval_id = window.setInterval(() => {
-      fetch_stats(applied_params_ref.current, true);
-    }, REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(interval_id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formGroupId]);
-
-  const data = (result && result.data) || [];
-  const total = result ? result.total : 0;
+  const data = stats.points;
 
   return (
     <div className="dcs-home-glass-card p-4 sm:p-5">
@@ -92,18 +36,18 @@ export default function DcsFormSubmissionsChart({ formGroupId }) {
 
       <div className="mb-4">
         <DcsPeriodFilter
-          period={period}
-          onPeriodChange={setPeriod}
-          from={from}
-          onFromChange={setFrom}
-          to={to}
-          onToChange={setTo}
-          onApply={handle_apply}
+          period={stats.period}
+          onPeriodChange={stats.setPeriod}
+          from={stats.from}
+          onFromChange={stats.setFrom}
+          to={stats.to}
+          onToChange={stats.setTo}
+          onApply={stats.handle_apply}
           allowWrap
         />
       </div>
 
-      {loading ? (
+      {stats.loading ? (
         <div className="flex items-center justify-center" style={{ height: CHART_HEIGHT_PX }}>
           <DcsLoadingState />
         </div>
@@ -142,7 +86,7 @@ export default function DcsFormSubmissionsChart({ formGroupId }) {
       )}
 
       <p className="mt-3 text-sm" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-        {translate("DCS_STATS_TOTAL_IN_RANGE", { count: total })}
+        {translate("DCS_STATS_TOTAL_IN_RANGE", { count: stats.total })}
       </p>
     </div>
   );

@@ -6,6 +6,8 @@ const get_public_form_field_options = require("../../controllers/forms/get_publi
 const submit_response = require("../../controllers/submissions/submit_response.js");
 const search_public_records = require("../../controllers/submissions/search_public_records.js");
 const update_public_record = require("../../controllers/submissions/update_public_record.js");
+const get_public_record = require("../../controllers/submissions/get_public_record.js");
+const update_record_full = require("../../controllers/submissions/update_record_full.js");
 const upload_file = require("../../controllers/public/upload_file.js");
 const delete_uploaded_file = require("../../controllers/public/delete_uploaded_file.js");
 const get_approval_by_token = require("../../controllers/approvals/get_approval_by_token.js");
@@ -135,6 +137,9 @@ Router.post("/forms/:form_group_id/submit", submit_response);
  *       422:
  *         description: An updatable field failed validation
  */
+// One record opened for editing at /dcs-form/edit/:id, and the full edit that follows.
+Router.get("/records/:submission_id", get_public_record);
+Router.put("/records/:submission_id", update_record_full);
 Router.get("/forms/:form_group_id/records", search_public_records);
 Router.put("/forms/:form_group_id/records/:submission_id", update_public_record);
 

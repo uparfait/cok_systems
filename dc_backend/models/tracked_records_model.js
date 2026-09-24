@@ -69,6 +69,18 @@ async function apply_record_update(submission_id, patch) {
   return result.matchedCount > 0;
 }
 
+/**
+ * Re-stamps a record's searchable key after a full edit changed the key
+ * field's own answer - kept apart from apply_record_update because a
+ * respondent update can never touch the key, only a staff edit can.
+ */
+async function apply_record_key(submission_id, record_key) {
+  const object_id = to_object_id(submission_id);
+  if (!object_id) return false;
+  const result = await get_db().collection(COLLECTION_NAME).updateOne({ _id: object_id }, { $set: { record_key } });
+  return result.matchedCount > 0;
+}
+
 /** The record as the public page may see it: no approval tokens, no internal flags. */
 function to_public_record(record) {
   const history = Array.isArray(record.history) ? record.history : [];
@@ -95,5 +107,6 @@ module.exports = {
   count_by_record_key,
   find_record,
   apply_record_update,
+  apply_record_key,
   to_public_record,
 };

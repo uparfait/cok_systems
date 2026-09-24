@@ -28,7 +28,14 @@ function UrlRow({ label, url, onCopy }) {
   );
 }
 
-export default function DcsDataFeedDialog({ formGroupId, versions, onClose }) {
+/**
+ * Sharing a form's data with an analysis tool: the read-only links it
+ * hands out, and the tokens behind them. Used as the dialog it has
+ * always been, and - with asPage - as the body of the Share page
+ * reached from the form's workspace panel, where this IS the work of
+ * the page and an overlay would only sit on top of something unrelated.
+ */
+export default function DcsDataFeedDialog({ formGroupId, versions, onClose, asPage }) {
   const { translate, language } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const [tokens, setTokens] = useState([]);
@@ -112,25 +119,19 @@ export default function DcsDataFeedDialog({ formGroupId, versions, onClose }) {
     return parts.length > 0 ? parts.join(", ") : translate("DCS_FEED_SCOPE_ALL");
   };
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={saving ? undefined : onClose} />
-      <div className="relative bg-white w-full max-w-3xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col cok-auth-card">
-        <div className="p-4 sm:p-5 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-base font-bold" style={{ color: TEXT, ...FONT }}>
-              {translate("DCS_FEED_TITLE")}
-            </h2>
-            <p className="text-xs mt-1" style={{ color: MUTED, ...FONT }}>
-              {translate("DCS_FEED_HINT")}
-            </p>
-          </div>
-          <DcsButtonOutline onClick={onClose} disabled={saving}>
-            {translate("DCS_BTN_CLOSE")}
-          </DcsButtonOutline>
-        </div>
+  const head = (
+    <div className="min-w-0">
+      <h2 className="text-base font-bold" style={{ color: TEXT, ...FONT }}>
+        {translate("DCS_FEED_TITLE")}
+      </h2>
+      <p className="text-xs mt-1" style={{ color: MUTED, ...FONT }}>
+        {translate("DCS_FEED_HINT")}
+      </p>
+    </div>
+  );
 
-        <div className="px-4 sm:px-5 pb-4 overflow-y-auto space-y-3 flex-1">
+  const body = (
+        <div className="space-y-3">
           <button type="button" className="text-xs font-bold uppercase cursor-pointer bg-transparent border-0 p-0" style={{ color: PRIMARY, ...FONT }} onClick={() => setShowSteps((current) => !current)}>
             {translate(show_steps ? "DCS_FEED_HIDE_STEPS" : "DCS_FEED_SHOW_STEPS")}
           </button>
@@ -191,9 +192,33 @@ export default function DcsDataFeedDialog({ formGroupId, versions, onClose }) {
             </DcsButtonPrimary>
           )}
         </div>
-      </div>
+  );
 
-      {revoking && <DcsConfirmDialog titleKey="DCS_FEED_REVOKE_TITLE" messageKey="DCS_FEED_REVOKE_MESSAGE" confirming={saving} onConfirm={revoke} onCancel={() => setRevoking(null)} />}
+  const confirm = revoking ? <DcsConfirmDialog titleKey="DCS_FEED_REVOKE_TITLE" messageKey="DCS_FEED_REVOKE_MESSAGE" confirming={saving} onConfirm={revoke} onCancel={() => setRevoking(null)} /> : null;
+
+  if (asPage) {
+    return (
+      <div className="bg-white border-2 p-4 sm:p-5 space-y-4" style={{ borderColor: "#E0E0E0" }}>
+        {head}
+        {body}
+        {confirm}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={saving ? undefined : onClose} />
+      <div className="relative bg-white w-full max-w-3xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col cok-auth-card">
+        <div className="p-4 sm:p-5 flex items-start justify-between gap-3">
+          {head}
+          <DcsButtonOutline onClick={onClose} disabled={saving}>
+            {translate("DCS_BTN_CLOSE")}
+          </DcsButtonOutline>
+        </div>
+        <div className="px-4 sm:px-5 pb-4 overflow-y-auto flex-1">{body}</div>
+      </div>
+      {confirm}
     </div>
   );
 }

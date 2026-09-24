@@ -99,11 +99,12 @@ function ProjectColumn({ project_id, onNavigate }) {
 }
 
 /**
- * The current project's or form's links, centered in the sub-header: up
- * to three that fit, then "More (n)". Hovering or tapping More opens a
- * wide, gray-bordered panel: on the left the open project or form with all
- * its pages two per row; on the right, a project's forms, or a form's
- * project and that project's pages.
+ * The current project's or form's links, centered in the sub-header.
+ * A PROJECT shows up to three that fit and folds the rest behind
+ * "More (n)", which opens a wide panel: the project and its pages on the
+ * left, its forms on the right. A FORM never folds - it publishes only
+ * three links (overview, data, settings) and its whole workspace already
+ * stands beside the sidebar, so a More panel would only repeat it.
  */
 export default function DcsContextNavLinks() {
   const nav = useContextNav();
@@ -119,12 +120,18 @@ export default function DcsContextNavLinks() {
   const [rect, setRect] = useState(null);
 
   const items = (nav && nav.items) || [];
+  // A form's three links always show in full; a project's can still fold.
+  const never_folds = !!nav && nav.kind === "form";
 
   useLayoutEffect(() => {
     const holder = holder_ref.current;
     const measure = measure_ref.current;
     if (!holder || !measure) return undefined;
     const compute = () => {
+      if (never_folds) {
+        setVisibleCount(items.length);
+        return;
+      }
       const width = holder.clientWidth;
       const widths = Array.from(measure.children).map((child) => child.offsetWidth);
       const needs_more = widths.length > MAX_VISIBLE || widths.reduce((sum, w) => sum + w + GAP_PX, 0) > width;
@@ -144,7 +151,7 @@ export default function DcsContextNavLinks() {
     const observer = new window.ResizeObserver(compute);
     observer.observe(holder);
     return () => observer.disconnect();
-  }, [items]);
+  }, [items, never_folds]);
 
   useEffect(() => setOpen(false), [location.pathname]);
 
@@ -190,7 +197,7 @@ export default function DcsContextNavLinks() {
   const is_project = nav.kind === "project";
 
   return (
-    <div ref={holder_ref} className="dcs-context-nav-holder relative flex-1 min-w-0 flex items-center justify-center gap-4">
+    <div ref={holder_ref} className={`dcs-context-nav-holder relative flex-1 min-w-0 flex items-center justify-center gap-4 ${never_folds ? "overflow-x-auto" : ""}`}>
       <div ref={measure_ref} aria-hidden="true" className="absolute flex gap-4 invisible pointer-events-none" style={{ left: 0, top: 0 }}>
         {items.map((item) => (
           <span key={item.key} className="text-xs font-bold uppercase tracking-wide whitespace-nowrap" style={{ fontFamily: FONT }}>

@@ -14,6 +14,7 @@ const delete_design_file = require("../../controllers/forms/delete_design_file.j
 const search_forms = require("../../controllers/forms/search_forms.js");
 const get_form_approvers = require("../../controllers/forms/get_form_approvers.js");
 const get_form_submission_stats = require("../../controllers/forms/get_form_submission_stats.js");
+const { get_table_settings, save_table_settings } = require("../../controllers/forms/table_settings.js");
 const { list_translation_links, create_translation_link, delete_translation_link } = require("../../controllers/forms/translation_links.js");
 const { list_translation_proposals, apply_translation_proposals, restore_translation_proposals, dismiss_translation_proposals } = require("../../controllers/forms/translation_proposals.js");
 const { upload_design_file: upload_design_file_middleware } = require("../../utilities/upload.js");
@@ -185,6 +186,9 @@ Router.get("/:form_group_id/field-options/:field_id", get_form_field_options);
  *         description: Form stats fetched successfully
  */
 Router.get("/:form_group_id/stats", get_form_submission_stats);
+// Which columns the form's data table hides, for everybody who opens it.
+Router.get("/:form_group_id/table-settings", get_table_settings);
+Router.put("/:form_group_id/table-settings", save_table_settings);
 
 /**
  * @swagger

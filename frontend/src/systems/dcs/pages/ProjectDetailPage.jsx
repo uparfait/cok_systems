@@ -13,20 +13,9 @@ import DcsProjectDetailSkeleton from "../components/DcsProjectDetailSkeleton.jsx
 import { find_active_nav_key } from "../components/DcsPageNav.jsx";
 import { DcsContextNavRegistrar } from "../layout/contextNav.jsx";
 import DcsAgeChip from "../components/DcsAgeChip.jsx";
-import DcsEmptyState from "../components/DcsEmptyState.jsx";
 import ProjectsIllustration from "../home/illustrations/ProjectsIllustration.jsx";
 
 const OVERVIEW_KEY = "overview";
-
-function DcsListSkeleton() {
-  return (
-    <ol className="space-y-3 pl-6" aria-hidden="true">
-      {[0, 1, 2, 3].map((index) => (
-        <li key={index} className="animate-pulse h-4" style={{ width: `${72 - index * 10}%`, backgroundColor: "rgba(5,109,170,0.08)" }} />
-      ))}
-    </ol>
-  );
-}
 
 function ProjectStatCard({ rawValue, labelKey, isActive, translate }) {
   const { text } = useCountUp(String(rawValue), isActive);
@@ -47,7 +36,7 @@ function ProjectStatCard({ rawValue, labelKey, isActive, translate }) {
 
 /**
  * Project overview: name, description, a live age counter (years down to
- * seconds, exact and always ticking) and three stat cards. Every routed
+ * seconds, exact and always ticking) and how many forms it holds. Every routed
  * area of a project - the overview itself, Settings, Forms, Access control
  * and the dashboard builder - is reached through the single navigation bar
  * pinned to the top of the page, which stays in place even while the
@@ -81,7 +70,7 @@ export default function ProjectDetailPage() {
 
   const age = useAgeBreakdown(project ? project.created_at : new Date(0).toISOString(), isVisible && !!project && !is_showing_wrong_project);
 
-  const { data: forms, loading: forms_loading } = useSilentPolling(
+  const { data: forms } = useSilentPolling(
     () => get_forms_by_project(project_id).then((res) => remember_forms(project_id, res.data || [])),
     10000,
     [project_id],
@@ -161,7 +150,12 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* The project's own responses total, and the list of its
+                  forms, both used to sit here - the forms are always one
+                  click away in the sidebar beside this page, and each
+                  form's own total belongs to that form's overview, where
+                  it answers for a chosen period rather than for all time. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="dcs-home-glass-card p-5 flex flex-col items-center gap-3">
                   <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}>
                     {translate("DCS_PROJECT_AGE_CARD_TITLE")}
@@ -173,37 +167,6 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
                 <ProjectStatCard rawValue={project.forms_count || 0} labelKey="DCS_PROJECT_STAT_FORMS" isActive={isVisible} translate={translate} />
-                <ProjectStatCard rawValue={project.total_submissions || 0} labelKey="DCS_PROJECT_STAT_SUBMISSIONS" isActive={isVisible} translate={translate} />
-              </div>
-
-              <div className="mt-8">
-                <h2 className="mb-3" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 16, color: "#333333" }}>
-                  {translate("DCS_PROJECT_NAV_FORMS")}
-                </h2>
-                {forms_loading && <DcsListSkeleton />}
-                {!forms_loading && (!forms || forms.length === 0) && <DcsEmptyState messageKey="DCS_FORMS_LIST_EMPTY" />}
-                {!forms_loading && forms && forms.length > 0 && (
-                  <ol className="space-y-2 pl-6 list-decimal">
-                    {forms.map((form) => {
-                      const form_path = `${base_path}/forms/${form.form_group_id}`;
-                      return (
-                        <li key={form.form_group_id}>
-                          <a
-                            href={form_path}
-                            onClick={(event) => {
-                              event.preventDefault();
-                              navigate(form_path);
-                            }}
-                            className="block cursor-pointer hover:underline"
-                            style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}
-                          >
-                            {form.form_name || form.form_group_id}
-                          </a>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                )}
               </div>
             </div>
           )}

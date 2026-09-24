@@ -1,223 +1,72 @@
-import React, { useState } from "react";
-import { useParams } from "react-router-dom";
+import React, { useMemo, useState } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { dcs_translate } from "../i18n/index.js";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { useSilentPolling } from "../hooks/useSilentPolling.js";
 import { useSubmissionsTable } from "../hooks/useSubmissionsTable.js";
+import { useTableColumnState } from "../hooks/useTableColumnState.js";
 import { get_form_versions } from "../services/formsService.js";
-import { delete_submission } from "../services/submissionsService.js";
-import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
-import { get_field_text } from "../fields/fieldText.js";
+import { delete_selected_submissions } from "../services/submissionsService.js";
 import DcsDataTable from "../components/DcsDataTable.jsx";
-import DcsDataTableFileCell from "../components/DcsDataTableFileCell.jsx";
-import DcsDataTableGeoCell, { GEO_CELL_TABLE_MIN_WIDTH_PX } from "../components/DcsDataTableGeoCell.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
-import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
-import DcsExportDialog from "../components/DcsExportDialog.jsx";
-import DcsDataFeedDialog from "../components/DcsDataFeedDialog.jsx";
-import { approval_status_label_key } from "../components/DcsApprovalStatusChip.jsx";
-import DcsApprovalScheduleDialog from "../components/DcsApprovalScheduleDialog.jsx";
+import { TableSkeleton } from "../components/DcsSkeletons.jsx";
 import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
+import DcsRecordViewOverlay from "../components/DcsRecordViewOverlay.jsx";
 import DcsFormNav from "../components/DcsFormNav.jsx";
-import { format_respondent } from "../offline/respondentStore.js";
-import RecordHistoryDialog, { RecordHistoryButton } from "../tracking/RecordHistoryDialog.jsx";
+import DcsHideFieldsMenu from "../components/table/DcsHideFieldsMenu.jsx";
+import DcsColumnFilterMenu from "../components/table/DcsColumnFilterMenu.jsx";
+import RecordHistoryDialog from "../tracking/RecordHistoryDialog.jsx";
 import { is_tracking_enabled } from "../tracking/trackingConfig.js";
+import { build_diffed_columns, build_rows, FILTERABLE_TYPES } from "../components/table/allDataColumns.jsx";
 
-const ACTIONS_COLUMN_WIDTH_PX = 56;
-
-/**
- * Icon-only delete trigger for one row - a text button would be the odd
- * one out among plain data cells, and every row already reads its own
- * record's meaning from the columns beside it, so the icon alone (with an
- * aria-label for anyone not just visually scanning it) is enough.
- */
-function DeleteSubmissionButton({ onClick, disabled }) {
-  const { translate } = useDcsLanguage();
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={translate("DCS_BTN_DELETE")}
-      title={translate("DCS_BTN_DELETE")}
-      className="cursor-pointer flex items-center justify-center"
-      style={{ width: 28, height: 28, opacity: disabled ? 0.4 : 1 }}
-    >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E74C3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="3 6 5 6 21 6" />
-        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-      </svg>
-    </button>
-  );
-}
-
-const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group", "image_block", "horizontal_line"];
-const MEDIA_ANSWER_TYPES = ["image", "video", "audio", "file_upload", "signature"];
-
-/**
- * Every version's own data fields, deduped by field id - the first version
- * encountered "owns" a field's definition (label/type), since only its
- * presence across versions matters here, not which copy of it is used.
- */
-function collect_data_fields(version_doc) {
-  return flatten_fields(version_doc.schema.fields).filter((field) => !NON_DATA_TYPES.includes(field.type));
-}
-
-/**
- * Builds the merged column list across every version of a form: the active
- * version's own fields (in its own order), marked green when a field never
- * existed in any other version, followed by fields that existed in some
- * other version but not the active one, marked red - both colors are a
- * visual diff against the active version, not a value judgement about
- * either version. Untouched fields (present in the active version and at
- * least one other) carry no tint at all. With only one version to begin
- * with there's nothing to diff against, so every column stays untinted.
- */
-function build_column_entry(field, language, extra) {
-  // GeoLocation carries no question label of its own (see NON_LABEL_TYPES)
-  // - falling back to a fixed header keeps this column from ever showing
-  // up blank.
-  const label = get_field_text(field.label, language) || (field.type === "geolocation" ? dcs_translate("DCS_GEO_TABLE_HEADER_LABEL", language) : "");
-  return Object.assign(
-    { key: field.id, label },
-    field.type === "geolocation" ? { minWidthPx: GEO_CELL_TABLE_MIN_WIDTH_PX } : {},
-    extra || {},
-  );
-}
-
-/**
- * A field with no label authored in any language has nothing meaningful to
- * head its own column with - rather than show a blank header, that column
- * is left out of the table entirely, in every language, not only the one
- * currently active.
- */
-function has_any_label(field) {
-  return field.type === "geolocation" || ["en", "kn", "fr"].some((language_code) => !!get_field_text(field.label, language_code));
-}
-
-function build_diffed_columns(versions, language) {
-  const active_version_doc = versions.find((entry) => entry.is_active) || versions[0];
-  if (!active_version_doc) return { columns: [], field_type_by_id: new Map(), has_diff: false };
-
-  const active_fields = collect_data_fields(active_version_doc);
-  const active_field_ids = new Set(active_fields.map((field) => field.id));
-
-  if (versions.length <= 1) {
-    return {
-      columns: [
-        ...active_fields.filter(has_any_label).map((field) => build_column_entry(field, language)),
-        { key: "version", labelKey: "DCS_TABLE_VERSION" },
-        { key: "submitted_by", labelKey: "DCS_TABLE_SUBMITTED_BY" },
-        { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" },
-      ],
-      field_type_by_id: new Map(active_fields.map((field) => [field.id, field.type])),
-      has_diff: false,
-    };
-  }
-
-  const other_versions = versions.filter((entry) => entry.version !== active_version_doc.version);
-  const field_ids_in_other_versions = new Set();
-  const removed_field_defs = [];
-  const seen_removed_ids = new Set();
-
-  other_versions.forEach((version_doc) => {
-    collect_data_fields(version_doc).forEach((field) => {
-      field_ids_in_other_versions.add(field.id);
-      if (!active_field_ids.has(field.id) && !seen_removed_ids.has(field.id)) {
-        seen_removed_ids.add(field.id);
-        removed_field_defs.push(field);
-      }
-    });
-  });
-
-  const field_type_by_id = new Map();
-  active_fields.forEach((field) => field_type_by_id.set(field.id, field.type));
-  removed_field_defs.forEach((field) => field_type_by_id.set(field.id, field.type));
-
-  const active_columns = active_fields
-    .filter(has_any_label)
-    .map((field) => build_column_entry(field, language, { tint: field_ids_in_other_versions.has(field.id) ? undefined : "green" }));
-  const removed_columns = removed_field_defs.filter(has_any_label).map((field) => build_column_entry(field, language, { tint: "red" }));
-
-  const has_diff = active_columns.some((column) => column.tint) || removed_columns.length > 0;
-
-  const columns = [
-    ...active_columns,
-    ...removed_columns,
-    { key: "version", labelKey: "DCS_TABLE_VERSION" },
-    { key: "submitted_by", labelKey: "DCS_TABLE_SUBMITTED_BY" },
-    { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" },
-  ];
-
-  return { columns, field_type_by_id, has_diff };
-}
-
-function build_rows(submissions, field_type_by_id, on_delete_click, deleting_id, translate, on_history_click) {
-  return (submissions || []).map((submission) => {
-    const row = { dcs_row_key: submission._id };
-    // Tracked forms only: when the record last changed, and its history.
-    row.updated_at = submission.updated_at ? new Date(submission.updated_at).toLocaleString() : "-";
-    row.history = on_history_click ? <RecordHistoryButton onClick={() => on_history_click(submission)} count={Math.max(0, (submission.history || []).length - 1)} /> : "";
-    field_type_by_id.forEach((field_type, field_id) => {
-      const raw_value = submission.data ? submission.data[field_id] : undefined;
-      if (MEDIA_ANSWER_TYPES.includes(field_type)) {
-        row[field_id] = raw_value ? <DcsDataTableFileCell value={raw_value} fieldType={field_type} /> : "";
-      } else if (field_type === "geolocation") {
-        row[field_id] = raw_value ? <DcsDataTableGeoCell value={raw_value} /> : "";
-      } else {
-        row[field_id] = Array.isArray(raw_value) ? raw_value.join(", ") : raw_value != null ? String(raw_value) : "";
-      }
-    });
-    row.version = submission.version;
-    row.submitted_by = format_respondent(submission.respondent) || "-";
-    row.submitted_at = submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "";
-    // Plain text (not a chip) so the table can measure the column's real width - it never bleeds into the next column.
-    // Status on the left, approver progress ("1-out-2") pushed to the far end of the cell.
-    // The column declares its own width (minWidthPx), so this non-text content never bleeds into the next column.
-    const approval_label_key = approval_status_label_key(submission.approval_status);
-    const progress = submission.approval_progress;
-    row.approval = approval_label_key ? (
-      <span className="flex items-center justify-between gap-3 w-full">
-        <span>{translate(approval_label_key)}</span>
-        {progress && progress.total > 0 && (
-          <span style={{ color: "#9E9E9E", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", fontFamily: "'Montserrat', sans-serif" }}>
-            {progress.approved}-out-{progress.total}
-          </span>
-        )}
-      </span>
-    ) : (
-      "-"
-    );
-    row.actions = (
-      <DeleteSubmissionButton onClick={() => on_delete_click(submission._id)} disabled={deleting_id === submission._id} />
-    );
-    return row;
-  });
-}
+const ACTIONS_COLUMN_WIDTH_PX = 108;
 
 /**
  * Every response ever collected against a form, across every version at
- * once (no version filter at all) - unlike the per-version data page,
- * columns here are the union of every version's fields, colored to show
- * how the active version differs from the ones before it (see
- * build_diffed_columns). Same fill-height/sticky-header/search/sort/
- * silent-refresh behavior as the per-version page.
+ * once (no version filter at all) - columns here are the union of every
+ * version's fields, coloured to show how the active version differs from
+ * the ones before it (see build_diffed_columns).
+ *
+ * The toolbar carries only what shapes what is on screen: the date range
+ * (this year to begin with), search and sort, the shared "Hide fields"
+ * set, and the control that lifts the table over the page. Downloading,
+ * sharing and scheduling approvals are pages of their own now, reached
+ * from the form's panel beside the projects sidebar, rather than dialogs
+ * laid over the very data they are about.
+ *
+ * Each row's own controls live in one pinned column on the left, which
+ * stays put while the rest of the table scrolls sideways: tick the row,
+ * look at it in full, or open it for editing on the public form. Deleting
+ * belongs to the ticked set, above the table, so one confirmation covers
+ * everything selected instead of one per row.
  */
 export default function FormAllDataPage() {
   const { project_id, form_group_id } = useParams();
   const { language, translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
-  const table = useSubmissionsTable(form_group_id, undefined);
-  const [confirming_delete_id, setConfirmingDeleteId] = useState(null);
-  const [deleting_id, setDeletingId] = useState(null);
-  const [is_export_open, setIsExportOpen] = useState(false);
-  const [is_feed_open, setIsFeedOpen] = useState(false);
-  const [is_schedule_open, setIsScheduleOpen] = useState(false);
+  const navigate = useNavigate();
+  const [search_params, setSearchParams] = useSearchParams();
+
+  // One record, opened on its own - the gallery following a picture back
+  // to the row it came from. Clearing it puts the whole table back.
+  const pinned_record_id = search_params.get("record") || "";
+  const clear_pinned_record = () => {
+    const next = new URLSearchParams(search_params);
+    next.delete("record");
+    setSearchParams(next, { replace: true });
+  };
+
+  const columns_state = useTableColumnState(form_group_id, (error) => showError(error.message || translate("DCS_ERROR_GENERIC")));
+  const table = useSubmissionsTable(form_group_id, undefined, columns_state.column_filters, pinned_record_id);
+
+  const [is_confirming_delete, setIsConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [details_submission_id, setDetailsSubmissionId] = useState(null);
+  const [view_record, setViewRecord] = useState(null);
   const [history_record, setHistoryRecord] = useState(null);
+
 
   const { data: versions, loading: loading_versions } = useSilentPolling(
     () => get_form_versions(form_group_id).then((res) => res.data || []),
@@ -225,100 +74,220 @@ export default function FormAllDataPage() {
     [form_group_id],
   );
 
-  // The header belongs to the form, not to its records, so it stays put
-  // while the versions this table is built from are still loading.
-  if (loading_versions || !versions || versions.length === 0) {
-    return (
-      <div className="h-full flex flex-col pb-4">
-        <DcsFormNav projectId={project_id} formGroupId={form_group_id} />
-        <DcsLoadingState />
-      </div>
-    );
-  }
+  // The date range the column dropdowns must agree with, so a value the
+  // visible range has none of is never offered as something to filter by.
+  const range_key = `${table.period}|${table.from}|${table.to}`;
+  const load_field_values = (field_id) =>
+    columns_state.load_field_values(field_id, { period: table.period, from: table.from, to: table.to });
 
-  const { columns: data_columns, field_type_by_id, has_diff } = build_diffed_columns(versions, language);
-  const active_version = versions.find((entry) => entry.is_active) || versions[0];
+  const built = useMemo(
+    () => (versions && versions.length > 0 ? build_diffed_columns(versions, language) : null),
+    [versions, language],
+  );
+
+  const active_version = versions && versions.length > 0 ? versions.find((entry) => entry.is_active) || versions[0] : null;
   const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
-  const tracking_columns = tracking
-    ? [{ key: "updated_at", labelKey: "DCS_TRACKING_TABLE_UPDATED_AT" }, { key: "history", labelKey: "DCS_TRACKING_TABLE_HISTORY", minWidthPx: 96 }]
-    : [];
-  const columns = [{ key: "approval", labelKey: "DCS_TABLE_APPROVAL", minWidthPx: 210 }]
-    .concat(data_columns)
-    .concat(tracking_columns)
-    .concat([{ key: "actions", label: "", minWidthPx: ACTIONS_COLUMN_WIDTH_PX }]);
-  const rows = build_rows(table.submissions, field_type_by_id, setConfirmingDeleteId, deleting_id, translate, tracking ? setHistoryRecord : null);
 
-  const handle_delete = async () => {
-    setDeletingId(confirming_delete_id);
+  const page_ids = (table.submissions || []).map((submission) => submission._id);
+  const selected_set = new Set(columns_state.selected_ids);
+  const selected_on_page = page_ids.filter((id) => selected_set.has(id));
+  const all_on_page_selected = page_ids.length > 0 && selected_on_page.length === page_ids.length;
+
+  const handle_delete_selected = async () => {
+    setDeleting(true);
     try {
-      await delete_submission(confirming_delete_id);
-      showSuccess(translate("DCS_TOAST_SUBMISSION_DELETED"));
-      setConfirmingDeleteId(null);
+      const response = await delete_selected_submissions(columns_state.selected_ids);
+      const count = (response.data && response.data.deleted_count) || columns_state.selected_ids.length;
+      showSuccess(translate("DCS_TOAST_SUBMISSIONS_DELETED", { count }));
+      columns_state.clear_selection();
+      setIsConfirmingDelete(false);
       table.refresh();
     } catch (error) {
       showError(error.message || translate("DCS_ERROR_GENERIC"));
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   };
 
-  const legend_items = has_diff
+  // Shaped like the table that is coming rather than a bare spinner, so
+  // the page keeps its size while the form's versions are being read.
+  if (loading_versions || !built) {
+    return (
+      <div className="h-full flex flex-col pb-4">
+        <DcsFormNav projectId={project_id} formGroupId={form_group_id} />
+        <div className="px-1 sm:px-2">
+          <TableSkeleton />
+        </div>
+      </div>
+    );
+  }
+
+  const tracking_columns = tracking
+    ? [{ key: "updated_at", labelKey: "DCS_TRACKING_TABLE_UPDATED_AT" }, { key: "history", labelKey: "DCS_TRACKING_TABLE_HISTORY", minWidthPx: 96 }]
+    : [];
+
+  // Everything the table COULD show, before hiding is applied - what the
+  // "Hide fields" list ticks against.
+  const hideable_columns = [{ key: "approval", labelKey: "DCS_TABLE_APPROVAL", minWidthPx: 210 }]
+    .concat(built.columns)
+    .concat(tracking_columns);
+
+  const visible_columns = hideable_columns.filter((column) => !columns_state.hidden_set.has(column.key));
+
+  // A choice column carries its own value filter under its header.
+  const columns_with_filters = visible_columns.map((column) => {
+    if (!FILTERABLE_TYPES.includes(built.field_type_by_id.get(column.key))) return column;
+    return Object.assign({}, column, {
+      headerNode: (
+        <DcsColumnFilterMenu
+          fieldId={column.key}
+          selected={columns_state.column_filters[column.key]}
+          onChange={(values) => columns_state.set_column_filter(column.key, values)}
+          loadValues={load_field_values}
+          rangeKey={range_key}
+        />
+      ),
+    });
+  });
+
+  const actions_column = {
+    key: "actions",
+    minWidthPx: ACTIONS_COLUMN_WIDTH_PX,
+    label: "",
+    headerNode: (
+      <span className="flex items-center gap-1.5">
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={all_on_page_selected}
+          aria-label={translate("DCS_TABLE_SELECT_ALL")}
+          title={translate("DCS_TABLE_SELECT_ALL")}
+          onClick={() => columns_state.toggle_page(page_ids, !all_on_page_selected)}
+          className="dcs-dt-rowbtn cursor-pointer"
+        >
+          <span className={`dcs-dt-check-box ${all_on_page_selected ? "is-on" : ""}`} style={{ marginTop: 0, borderColor: "#FFFFFF" }}>
+            {all_on_page_selected && (
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="4 12.5 9.5 18 20 6.5" />
+              </svg>
+            )}
+          </span>
+        </button>
+        <span style={{ fontSize: 11 }}>{translate("DCS_TABLE_ACTIONS")}</span>
+      </span>
+    ),
+  };
+
+  const columns = [actions_column].concat(columns_with_filters);
+
+  const rows = build_rows({
+    submissions: table.submissions,
+    field_type_by_id: built.field_type_by_id,
+    translate,
+    on_history_click: tracking ? setHistoryRecord : null,
+    selected_set,
+    on_select_change: columns_state.toggle_selected,
+    on_view: setViewRecord,
+    on_edit: (submission) => navigate(`/dcs-form/edit/${submission._id}`),
+  });
+
+  const legend_items = built.has_diff
     ? [
         { color: "#4CAF50", labelKey: "DCS_DATA_LEGEND_ADDED" },
         { color: "#E74C3C", labelKey: "DCS_DATA_LEGEND_REMOVED" },
       ]
     : null;
 
-  const named_version = versions.find((entry) => entry.is_active) || versions[0];
+  const view_record_fields = view_record
+    ? ((versions.find((entry) => entry.version === view_record.version) || active_version).schema || {}).fields || []
+    : [];
 
-  return (
-    <div className="h-full flex flex-col pb-4">
-      <DcsFormNav projectId={project_id} formGroupId={form_group_id} formName={named_version ? named_version.form_name : ""} />
-      <div className="flex-shrink-0 mb-3 px-3 sm:px-4 flex flex-row items-center gap-2 overflow-x-auto">
+  const table_block = (
+    <>
+      {/* Mobile first: the toolbar wraps onto as many rows as it needs
+          rather than scrolling sideways, so nothing in it can end up out
+          of reach on a phone. */}
+      <div className="flex-shrink-0 mb-3 px-1 sm:px-2 flex flex-wrap items-center gap-2">
+        <DcsHideFieldsMenu
+          columns={hideable_columns}
+          hidden={columns_state.hidden_columns}
+          canEdit={columns_state.can_edit_columns}
+          saving={columns_state.saving_columns}
+          onChange={columns_state.change_hidden_columns}
+        />
+
         <DcsPeriodFilter period={table.period} onPeriodChange={table.setPeriod} from={table.from} onFromChange={table.setFrom} to={table.to} onToChange={table.setTo} onApply={table.handle_apply} includeAll />
         <DcsTableSearchSort search={table.search} onSearchChange={table.setSearch} onSearchSubmit={table.handle_apply} sort={table.sort} onSortChange={table.setSort} />
+
+        {Object.keys(columns_state.column_filters).length > 0 && (
+          <button type="button" onClick={columns_state.clear_column_filters} className="dcs-dt-tool is-active cursor-pointer">
+            {translate("DCS_TABLE_COLUMN_FILTER_ALL")}
+          </button>
+        )}
+
+        {pinned_record_id && (
+          <button type="button" onClick={clear_pinned_record} className="dcs-dt-tool is-active cursor-pointer" title={translate("DCS_TABLE_SHOWING_ONE_CLEAR")}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+              <line x1="5" y1="5" x2="19" y2="19" />
+              <line x1="19" y1="5" x2="5" y2="19" />
+            </svg>
+            {translate("DCS_TABLE_SHOWING_ONE")}
+          </button>
+        )}
+
+        <span className="flex-1" />
+
         <button
           type="button"
-          onClick={() => setIsExportOpen(true)}
-          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-none hover:bg-green-700 transition-colors cursor-pointer"
-          style={{ fontFamily: "'Montserrat', sans-serif", height: 40 }}
+          onClick={() => columns_state.setIsExpanded(!columns_state.is_expanded)}
+          title={translate(columns_state.is_expanded ? "DCS_TABLE_FULLSCREEN_CLOSE" : "DCS_TABLE_FULLSCREEN_OPEN")}
+          aria-label={translate(columns_state.is_expanded ? "DCS_TABLE_FULLSCREEN_CLOSE" : "DCS_TABLE_FULLSCREEN_OPEN")}
+          className={`dcs-dt-tool ${columns_state.is_expanded ? "is-active" : ""} cursor-pointer flex-shrink-0`}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          {translate("DCS_BTN_EXPORT_EXCEL")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsFeedOpen(true)}
-          title={translate("DCS_FEED_TITLE")}
-          aria-label={translate("DCS_FEED_TITLE")}
-          className="flex-shrink-0 flex items-center justify-center text-white rounded-none transition-colors cursor-pointer"
-          style={{ width: 40, height: 40, backgroundColor: "#056daa" }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="18" cy="5" r="3" />
-            <circle cx="6" cy="12" r="3" />
-            <circle cx="18" cy="19" r="3" />
-            <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
-            <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsScheduleOpen(true)}
-          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white rounded-none transition-colors cursor-pointer"
-          style={{ fontFamily: "'Montserrat', sans-serif", height: 40, backgroundColor: "#056daa" }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 12l2 2 4-4" />
-            <circle cx="12" cy="12" r="10" />
-          </svg>
-          {translate("DCS_BTN_SCHEDULE_APPROVAL")}
+          {columns_state.is_expanded ? (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="4 14 10 14 10 20" />
+              <polyline points="20 10 14 10 14 4" />
+              <line x1="14" y1="10" x2="21" y2="3" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          ) : (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="15 3 21 3 21 9" />
+              <polyline points="9 21 3 21 3 15" />
+              <line x1="21" y1="3" x2="14" y2="10" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          )}
         </button>
       </div>
+
+      {/* The selection bar only exists while something is actually ticked -
+          it is where deleting lives now, in place of a delete icon on
+          every single row. */}
+      {columns_state.selected_ids.length > 0 && (
+        <div className="dcs-dt-selbar flex-shrink-0 mb-2 mx-1 sm:mx-2">
+          <span className="text-xs font-bold" style={{ color: "#056daa" }}>
+            {translate("DCS_TABLE_SELECTED_COUNT", { count: columns_state.selected_ids.length })}
+          </span>
+          <button type="button" onClick={columns_state.clear_selection} className="dcs-dt-tool cursor-pointer" style={{ height: 30 }}>
+            {translate("DCS_TABLE_CLEAR_SELECTION")}
+          </button>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={() => setIsConfirmingDelete(true)}
+            className="dcs-dt-tool cursor-pointer"
+            style={{ height: 30, borderColor: "#E74C3C", color: "#E74C3C" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E74C3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+            </svg>
+            {translate("DCS_TABLE_DELETE_SELECTED")}
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 min-h-0">
         <DcsDataTable
@@ -332,35 +301,40 @@ export default function FormAllDataPage() {
           columnTints={Object.fromEntries(columns.filter((column) => column.tint).map((column) => [column.key, column.tint]))}
           legendItems={legend_items}
           totalCount={table.total}
+          pinnedColumnKey="actions"
           onRowClick={(row) => setDetailsSubmissionId(row.dcs_row_key)}
         />
       </div>
+    </>
+  );
 
-      {confirming_delete_id && (
+  return (
+    <div className="h-full flex flex-col pb-4">
+      <DcsFormNav projectId={project_id} formGroupId={form_group_id} formName={active_version ? active_version.form_name : ""} />
+
+      {columns_state.is_expanded ? <div className="dcs-dt-expanded">{table_block}</div> : table_block}
+
+      {is_confirming_delete && (
         <DcsConfirmDialog
-          titleKey="DCS_SUBMISSION_DELETE_TITLE"
-          messageKey="DCS_SUBMISSION_DELETE_WARNING"
-          confirming={!!deleting_id}
-          onConfirm={handle_delete}
-          onCancel={() => setConfirmingDeleteId(null)}
+          titleKey="DCS_TABLE_DELETE_SELECTED_TITLE"
+          messageKey="DCS_TABLE_DELETE_SELECTED_WARNING"
+          confirming={deleting}
+          onConfirm={handle_delete_selected}
+          onCancel={() => setIsConfirmingDelete(false)}
         />
       )}
 
-      {is_feed_open && <DcsDataFeedDialog formGroupId={form_group_id} versions={versions} onClose={() => setIsFeedOpen(false)} />}
 
-      <DcsExportDialog
-        open={is_export_open}
-        onOpenChange={setIsExportOpen}
-        form_group_id={form_group_id}
-      />
-
-      {is_schedule_open && (
-        <DcsApprovalScheduleDialog form_group_id={form_group_id} onClose={() => setIsScheduleOpen(false)} onChanged={table.refresh} />
+      {view_record && (
+        <DcsRecordViewOverlay
+          record={view_record}
+          fields={view_record_fields}
+          onClose={() => setViewRecord(null)}
+          onEdit={() => navigate(`/dcs-form/edit/${view_record._id}`)}
+        />
       )}
 
-      {details_submission_id && (
-        <DcsApprovalDetailsDialog submission_id={details_submission_id} onClose={() => setDetailsSubmissionId(null)} />
-      )}
+      {details_submission_id && <DcsApprovalDetailsDialog submission_id={details_submission_id} onClose={() => setDetailsSubmissionId(null)} />}
 
       {history_record && tracking && (
         <RecordHistoryDialog record={history_record} fields={active_version.schema.fields} tracking={tracking} onClose={() => setHistoryRecord(null)} />

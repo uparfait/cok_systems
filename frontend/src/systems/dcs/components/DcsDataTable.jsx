@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 const MAX_COLUMN_WIDTH_PX = 400;
@@ -156,15 +156,27 @@ function PageNumberButton({ number, isActive, onClick }) {
  * data has landed (e.g. a page number), so a page/filter change is always
  * seen starting from row one instead of wherever the previous page's
  * scroll happened to be.
+ *
+ * pinnedColumnKey keeps one column (in practice the first, holding each
+ * row's own controls) in place while the rest of the table scrolls
+ * sideways underneath it. A column may also carry headerNode - anything
+ * the header should render instead of plain text, such as that column's
+ * own value filter - while label/labelKey still supplies the text the
+ * width measurement reads, since a React element has no measurable width.
  */
-export default function DcsDataTable({ columns, rows, page, totalPages, onPageChange, loading, columnTints, legendItems, scrollResetKey, totalCount, onRowClick }) {
+export default function DcsDataTable({ columns, rows, page, totalPages, onPageChange, loading, columnTints, legendItems, scrollResetKey, totalCount, onRowClick, pinnedColumnKey, footerSlot }) {
   const { translate } = useDcsLanguage();
   const has_rows = rows && rows.length > 0;
   const scroll_container_ref = useRef(null);
+  // A pinned column only casts its shadow once something is actually
+  // scrolled underneath it - unscrolled, it is just the first column.
+  const [is_scrolled_sideways, setIsScrolledSideways] = useState(false);
 
   useEffect(() => {
     if (scroll_container_ref.current) scroll_container_ref.current.scrollTop = 0;
   }, [scrollResetKey]);
+
+  const header_text_of = (column) => (column.label !== undefined ? column.label : translate(column.labelKey));
 
   const column_widths = useMemo(() => {
     const widths = {};
@@ -178,8 +190,7 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
         widths[column.key] = column.minWidthPx;
         return;
       }
-      const header_text = column.label !== undefined ? column.label : translate(column.labelKey);
-      widths[column.key] = compute_column_width(header_text, rows, column.key);
+      widths[column.key] = compute_column_width(header_text_of(column), rows, column.key);
     });
     return widths;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -209,6 +220,9 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
     return row_index % 2 === 1 ? "#F7F9FB" : "#FFFFFF";
   };
 
+  const pinned_class = (column_key, extra) =>
+    column_key === pinnedColumnKey ? `dcs-dt-pinned ${is_scrolled_sideways ? "is-lifted" : ""} ${extra || ""}` : "";
+
   const page_window = build_page_window(page, totalPages, PAGE_WINDOW_SIZE);
   const page_numbers = [];
   for (let number = page_window.start; number <= page_window.end; number += 1) page_numbers.push(number);
@@ -225,8 +239,16 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div ref={scroll_container_ref} className="flex-1 min-h-0 bg-white border-2 overflow-auto" style={{ borderColor: "#E0E0E0" }}>
-        <table className="text-sm" style={{ borderCollapse: "collapse", tableLayout: "fixed", width: "100%", minWidth: `${total_columns_width}px` }}>
+      <div
+        ref={scroll_container_ref}
+        className="flex-1 min-h-0 bg-white border-2 overflow-auto"
+        style={{ borderColor: "#E0E0E0" }}
+        onScroll={(event) => {
+          const next = event.currentTarget.scrollLeft > 0;
+          setIsScrolledSideways((previous) => (previous === next ? previous : next));
+        }}
+      >
+        <table className="text-sm" style={{ borderCollapse: "separate", borderSpacing: 0, tableLayout: "fixed", width: "100%", minWidth: `${total_columns_width}px` }}>
           <colgroup>
             {columns.map((column) => (
               <col key={column.key} style={{ width: `${column_widths[column.key]}px` }} />
@@ -237,11 +259,12 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
               {columns.map((column, column_index) => (
                 <th
                   key={column.key}
-                  className="text-left px-3 py-3"
+                  className={`text-left px-3 py-3 ${pinned_class(column.key, "dcs-dt-pinned-head")}`}
                   style={{
                     position: "sticky",
                     top: 0,
-                    zIndex: 2,
+                    left: column.key === pinnedColumnKey ? 0 : undefined,
+                    zIndex: column.key === pinnedColumnKey ? 5 : 2,
                     fontFamily: "'Montserrat', sans-serif",
                     fontSize: 12,
                     fontWeight: 700,
@@ -253,7 +276,10 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
                     borderRight: column_index < columns.length - 1 ? "1px solid rgba(255,255,255,0.25)" : "none",
                   }}
                 >
-                  <div style={get_cell_content_style(column.key)}>{column.label !== undefined ? column.label : translate(column.labelKey)}</div>
+                  <div style={get_cell_content_style(column.key)}>
+                    {header_text_of(column)}
+                    {column.headerNode}
+                  </div>
                 </th>
               ))}
             </tr>
@@ -265,8 +291,10 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
                   {columns.map((column, column_index) => (
                     <td
                       key={column.key}
-                      className="px-3 py-2.5"
+                      className={`px-3 py-2.5 ${pinned_class(column.key)}`}
                       style={{
+                        left: column.key === pinnedColumnKey ? 0 : undefined,
+                        backgroundColor: "#FFFFFF",
                         borderBottom: "1px solid #E0E0E0",
                         borderRight: column_index < columns.length - 1 ? "1px solid #E0E0E0" : "none",
                       }}
@@ -282,16 +310,17 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
                 <tr
                   key={row.dcs_row_key}
                   // A click anywhere on the row opens its details, except on a
-                  // control the row itself carries (file links, delete button).
+                  // control the row itself carries (file links, row buttons).
                   onClick={onRowClick ? (event) => (event.target.closest("a,button") ? undefined : onRowClick(row)) : undefined}
                   style={onRowClick ? { cursor: "pointer" } : undefined}
                 >
                   {columns.map((column, column_index) => (
                     <td
                       key={column.key}
-                      className="px-3 py-2.5 align-top"
+                      className={`px-3 py-2.5 align-top ${pinned_class(column.key)}`}
                       style={{
                         color: "#333333",
+                        left: column.key === pinnedColumnKey ? 0 : undefined,
                         backgroundColor: get_cell_background(column.key, row_index),
                         borderBottom: "1px solid #E0E0E0",
                         borderRight: column_index < columns.length - 1 ? "1px solid #E0E0E0" : "none",
@@ -331,13 +360,13 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
       </div>
 
       {/* Legend, pagination and the total count all share this single
-          compact band instead of each getting their own - a 3-column grid
-          keeps pagination centered and the total pinned right regardless
-          of whether a legend is even present (an empty first column, when
-          there's no diff to explain, doesn't shift the other two). Sized
-          in rem rather than a fixed px height so it scales down smoothly
-          on a small screen instead of clipping its own content. */}
-      <div className="grid grid-cols-3 items-center flex-shrink-0 overflow-x-auto" style={{ height: "3.5rem", minHeight: 52 }}>
+          compact band instead of each getting their own. On a phone they
+          stack and the whole band scrolls sideways rather than clipping;
+          from small tablets up it is a 3-column grid that keeps pagination
+          centered and the total pinned right regardless of whether a
+          legend is even present. Sized in rem rather than a fixed px
+          height so it scales down smoothly instead of clipping content. */}
+      <div className="flex-shrink-0 flex flex-col gap-1 sm:grid sm:grid-cols-3 sm:items-center py-2 sm:py-0 overflow-x-auto" style={{ minHeight: 52 }}>
         <div className="flex flex-wrap items-center gap-2">
           {legendItems &&
             legendItems.map((item) => (
@@ -361,7 +390,8 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
           <PageArrowButton direction="next" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} />
         </div>
 
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-3">
+          {footerSlot}
           <span className="text-sm font-semibold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
             {totalCount}
           </span>

@@ -2,6 +2,9 @@ const Router = require("express").Router();
 
 const get_submissions = require("../../controllers/submissions/get_submissions.js");
 const delete_submission = require("../../controllers/submissions/delete_submission.js");
+const delete_submissions = require("../../controllers/submissions/delete_submissions.js");
+const get_submission_media = require("../../controllers/submissions/get_submission_media.js");
+const get_field_values = require("../../controllers/submissions/get_field_values.js");
 const export_submissions = require("../../controllers/submissions/export_submissions.js");
 const start_export = require("../../controllers/submissions/start_export.js");
 const { get_export_job, download_export, cancel_export } = require("../../controllers/submissions/export_job.js");
@@ -64,6 +67,10 @@ Router.post("/export-jobs/:job_id/cancel", cancel_export);
  *       200:
  *         description: Submissions fetched successfully
  */
+// The Gallery: the pictures and videos a form collected, paged over the media itself.
+Router.get("/:form_group_id/media", get_submission_media);
+// A choice column's own filter dropdown: the values that column actually holds.
+Router.get("/:form_group_id/field-values/:field_id", get_field_values);
 Router.get("/:form_group_id", get_submissions);
 
 /**
@@ -79,5 +86,7 @@ Router.get("/:form_group_id", get_submissions);
  *         description: Submission deleted successfully
  */
 Router.delete("/record/:submission_id", delete_submission);
+// "Delete selected" on the data table: every ticked record in one call.
+Router.post("/delete-selected", delete_submissions);
 
 module.exports = Router;

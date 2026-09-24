@@ -4457,3 +4457,253 @@ background-color: #056daa;
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ============================================================
+   THE FORM WORKSPACE PANEL
+   A second panel that stands beside the projects sidebar for as long as
+   a form is open (DcsFormSidebar.jsx). It reads as a quieter sibling of
+   the projects panel - same tinted family, one shade lighter, so the two
+   never compete for the eye while both are on screen.
+   ============================================================ */
+.dcs-form-ws-drawer {
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+.dcs-form-ws-panel {
+  height: 100%;
+}
+/* Below the three-column breakpoint the panel has nowhere to sit, so it
+   floats over the content instead of pushing it. */
+.dcs-form-ws-drawer.is-floating {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 29;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+}
+.dcs-form-ws-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 28;
+  background-color: rgba(0, 0, 0, 0.35);
+}
+/* The tab that brings the floating panel back, pinned to the left edge of
+   the content it would otherwise cover. */
+.dcs-form-ws-tab {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 22;
+  width: 18px;
+  height: 56px;
+  border: none;
+  border-radius: 0 6px 6px 0;
+  background-color: #056daa;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+.dcs-form-ws {
+  background-color: #F4F8FB;
+  box-shadow: inset -1px 0 0 rgba(5, 109, 170, 0.12);
+}
+.dcs-form-ws-head {
+  border-bottom: 1px solid rgba(5, 109, 170, 0.14);
+}
+/* A link is a full-width row with a left rail that fills in when it is
+   the open one - the same language the app's own sidebar links use. */
+.dcs-form-ws-link {
+  position: relative;
+  background: none;
+  border: none;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+.dcs-form-ws-link::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background-color: transparent;
+  transition: background-color 0.16s ease;
+}
+.dcs-form-ws-link:hover {
+  background-color: rgba(5, 109, 170, 0.07);
+}
+.dcs-form-ws-link.is-active {
+  background-color: rgba(5, 109, 170, 0.12);
+}
+.dcs-form-ws-link.is-active::before {
+  background-color: #056daa;
+}
+
+/* ============================================================
+   THE DATA TABLE'S OWN CONTROLS
+   Its toolbar (hide fields, expand), its per-column value filters, the
+   pinned actions column and the bar that appears once rows are ticked.
+   ============================================================ */
+.dcs-dt-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 36px;
+  padding: 0 0.6rem;
+  background-color: #FFFFFF;
+  border: 1px solid #E0E0E0;
+  color: #333333;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+.dcs-dt-tool:hover {
+  border-color: #056daa;
+  color: #056daa;
+}
+.dcs-dt-tool.is-active {
+  border-color: #056daa;
+  background-color: rgba(5, 109, 170, 0.08);
+  color: #056daa;
+}
+.dcs-dt-tool:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* The tick list inside the "Hide fields" popover. */
+.dcs-dt-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12.5px;
+  color: #333333;
+  transition: background-color 0.16s ease;
+}
+.dcs-dt-check:hover {
+  background-color: rgba(5, 109, 170, 0.07);
+}
+.dcs-dt-check-box {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+  border: 1.5px solid #B9C4CE;
+  background-color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+.dcs-dt-check-box.is-on {
+  background-color: #056daa;
+  border-color: #056daa;
+}
+/* A column header's own filter trigger: quiet until that column is
+   actually filtering, then it carries the accent so a narrowed table can
+   never look like the whole table. */
+.dcs-dt-colfilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.15rem 0.35rem;
+  background-color: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #FFFFFF;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  transition: background-color 0.16s ease;
+}
+.dcs-dt-colfilter:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+.dcs-dt-colfilter.is-on {
+  background-color: #FFFFFF;
+  color: #056daa;
+  border-color: #FFFFFF;
+}
+/* The actions column stays put while the rest of the table scrolls
+   sideways under it, header cell included. */
+.dcs-dt-pinned {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+}
+.dcs-dt-pinned-head {
+  z-index: 5;
+}
+/* The shadow only appears once there is something scrolled underneath -
+   a pinned column with nothing behind it should not look raised. */
+.dcs-dt-pinned.is-lifted::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -6px;
+  bottom: -1px;
+  width: 6px;
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0));
+}
+.dcs-dt-rowbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: none;
+  transition: background-color 0.16s ease;
+}
+.dcs-dt-rowbtn:hover {
+  background-color: rgba(5, 109, 170, 0.1);
+}
+.dcs-dt-selbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 0.6rem;
+  background-color: rgba(5, 109, 170, 0.08);
+  border: 1px solid rgba(5, 109, 170, 0.3);
+  font-family: 'Montserrat', sans-serif;
+}
+/* The expanded table: the whole component lifted over the page, not the
+   browser's own full screen, so the app's chrome stays reachable. */
+.dcs-dt-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  background-color: #F7F9FB;
+}
+@media (min-width: 640px) {
+  .dcs-dt-expanded {
+    padding: 1rem;
+  }
+}
+
+/* A gallery tile lifts a little under the pointer so it reads as
+   something to open rather than a picture pinned to the page. */
+.dcs-gallery-tile {
+  background: none;
+  padding: 0;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+.dcs-gallery-tile:hover {
+  transform: translateY(-2px);
+  border-color: #056daa;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+}

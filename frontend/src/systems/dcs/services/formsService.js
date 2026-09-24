@@ -183,3 +183,17 @@ export function restore_translation_proposals(form_group_id, link_id, ids) {
 export function dismiss_translation_proposals(form_group_id, link_id, ids) {
   return dcs_request(`/forms/${form_group_id}/translation-links/${link_id}/proposals/dismiss`, "POST", { ids });
 }
+
+/**
+ * Which columns the form's data table hides, and whether this viewer may
+ * change that. Hiding is a property of the form's table, not of one
+ * browser: a column ticked off here is hidden for everybody who opens the
+ * table until it is ticked back on.
+ */
+export function get_table_settings(form_group_id) {
+  return dcs_request(`/forms/${form_group_id}/table-settings`, "GET");
+}
+
+export function save_table_settings(form_group_id, hidden_columns) {
+  return dcs_request(`/forms/${form_group_id}/table-settings`, "PUT", { hidden_columns });
+}

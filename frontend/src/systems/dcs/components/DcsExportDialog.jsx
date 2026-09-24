@@ -41,7 +41,14 @@ function save_blob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
+/**
+ * Exporting a form's responses to Excel. It is used two ways: as the
+ * dialog it has always been, and - with asPage - as the body of the
+ * Downloads page reached from the form's workspace panel, where the
+ * work belongs to the page itself and an overlay over something else
+ * would only be in the way.
+ */
+export default function DcsExportDialog({ open, onOpenChange, form_group_id, asPage }) {
   const { language, translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const [period, setPeriod] = useState("all");
@@ -72,11 +79,14 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
     job_id_ref.current = "";
   };
 
+  // As a page there is nothing to close: the same action drops a running
+  // export and puts the form back to how it started, which is what
+  // "Cancel" means there.
   const handle_close = () => {
     cancel_ref.current = true;
     if (job_id_ref.current) cancel_export_job(job_id_ref.current).catch(() => {});
     reset_state();
-    onOpenChange(false);
+    if (!asPage && onOpenChange) onOpenChange(false);
   };
 
   const handle_cancel = async () => {
@@ -153,14 +163,8 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
   const percent = stage === "complete" ? 100 : stage === "downloading" ? (download_percent === null ? 100 : download_percent) : job ? job.percent : 0;
   const can_export = !is_exporting && (period !== "custom" || from);
 
-  return (
-    <Dialog.Root open={open} onOpenChange={handle_close}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-none bg-white p-5 sm:p-6 shadow-xl">
-          <Dialog.Title className="text-lg font-semibold mb-4" style={FONT}>
-            {translate("DCS_EXPORT_DIALOG_TITLE")}
-          </Dialog.Title>
+  const body = (
+    <>
 
           {!is_complete && (
             <>
@@ -219,8 +223,28 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id }) {
                 </DcsButtonPrimary>
               </>
             )}
-            {(is_complete || stage === "cancelled") && <DcsButtonPrimary onClick={handle_close}>{translate("DCS_EXPORT_BTN_CLOSE")}</DcsButtonPrimary>}
+            {(is_complete || stage === "cancelled") && !asPage && <DcsButtonPrimary onClick={handle_close}>{translate("DCS_EXPORT_BTN_CLOSE")}</DcsButtonPrimary>}
           </div>
+    </>
+  );
+
+  if (asPage) {
+    return (
+      <div className="bg-white border-2 p-4 sm:p-5 max-w-xl" style={{ borderColor: "#E0E0E0" }}>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Dialog.Root open={open} onOpenChange={handle_close}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-none bg-white p-5 sm:p-6 shadow-xl">
+          <Dialog.Title className="text-lg font-semibold mb-4" style={FONT}>
+            {translate("DCS_EXPORT_DIALOG_TITLE")}
+          </Dialog.Title>
+          {body}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

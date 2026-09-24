@@ -198,7 +198,12 @@ function GenericPreview({ fileUrl, fileName }) {
   );
 }
 
-export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClose }) {
+/**
+ * One file, opened at full size. actions is an optional slot beside
+ * Download and Close - the gallery puts "Open in table" there, so a
+ * picture can be followed back to the record it was collected with.
+ */
+export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClose, actions }) {
   const { translate } = useDcsLanguage();
 
   const is_link = !fileType || fileType === "link";
@@ -231,7 +236,8 @@ export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClos
           >
             {fileName}
           </span>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+            {actions}
             {is_link ? (
               <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="cok-btn-outlined-reverse" style={{ padding: "0.4rem 0.8rem" }}>
                 {translate("DCS_BTN_OPEN_NEW_TAB")}

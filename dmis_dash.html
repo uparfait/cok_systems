@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>City of Kigali – Disaster Dashboards</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{background:#e9eef7;font-family:Arial,Helvetica,sans-serif}
+  .panel{background:#14318f;border:2px solid #0d2472}
+  .box{background:#173a9c;border:2px solid #fff}
+  .scroll-x{overflow:auto;max-height:320px}
+  table{border-collapse:collapse;white-space:nowrap}
+  th,td{padding:4px 10px;text-align:center;border:1px solid #2a4bb5;font-size:12px}
+  thead th{position:sticky;top:0;background:#0d2472;color:#fff;z-index:1}
+  tbody tr:last-child td{font-weight:700;background:#0d2472}
+  td:first-child,th:first-child{position:sticky;left:0;background:#0d2472;text-align:left;font-weight:700}
+</style>
+</head>
+<body class="min-h-screen text-white">
+<div class="sticky top-0 z-20 bg-white shadow px-4 py-3 flex items-center gap-3">
+  <label for="sel" class="text-slate-800 font-semibold text-sm">Dashboard</label>
+  <select id="sel" class="border border-slate-400 rounded px-3 py-2 text-slate-900 text-sm w-full max-w-xl"></select>
+</div>
+<main id="app" class="max-w-6xl mx-auto p-4"></main>
+
+<script>
+const C={fire:'#e8542a',rain:'#1f5fc4',rw:'#15b3e0',wind:'#8a3fb0',inkuba:'#7fb2ff',high:'#e0393e',mod:'#e8951e',low:'#1a9ad6',none:'#1fae6b'};
+const HAZ=[['Fire',C.fire],['Rain',C.rain],['Rain&Wind',C.rw],['Wind',C.wind]];
+
+/* ---------- helpers ---------- */
+const card=(n,v,cls='')=>`<div class="box flex-1 min-w-[110px] p-3 text-center ${cls}"><div class="font-bold text-lg">${n}</div>${v!==undefined?`<div class="text-sm opacity-90">${v}</div>`:''}</div>`;
+const total=v=>`<div class="box p-3 text-center min-w-[110px]"><div class="font-bold text-3xl">${v}</div><div class="text-xs">TOT</div></div>`;
+const title=t=>`<h2 class="bg-[#0d2472] text-center font-bold py-3 px-2 text-sm sm:text-lg tracking-wide border-b-2 border-white">${t}</h2>`;
+const legend=a=>`<div class="flex flex-wrap gap-4 justify-center text-xs mt-4">${a.map(([n,c])=>`<span class="flex items-center gap-1"><i class="inline-block w-2.5 h-2.5 rounded-full" style="background:${c}"></i>${n}</span>`).join('')}</div>`;
+const text=(h,paras)=>`<div class="box p-3 text-sm leading-relaxed">${h?`<div class="font-bold mb-2 uppercase">${h}</div>`:''}${paras.map(p=>`<p class="mb-2">${p}</p>`).join('')}</div>`;
+const hl=s=>`<span style="color:#39d7ff">${s}</span>`;
+
+function bars(rows,scale,label=90){ // rows:[name,[[val,color],...],totalLabel]
+  const max=Math.max(...rows.map(r=>r[1].reduce((a,b)=>a+b[0],0)));
+  return `<div class="space-y-2">${rows.map(([n,segs])=>{
+    const t=segs.reduce((a,b)=>a+b[0],0);
+    return `<div class="flex items-center gap-2 text-xs"><div class="text-right shrink-0" style="width:${label}px">${n}</div>
+    <div class="flex h-6 items-stretch" style="width:${t/max*100*scale}%">${segs.filter(s=>s[0]>0).map(([v,c])=>`<div class="flex items-center justify-center text-[10px] font-bold" style="flex:${v};background:${c};min-width:12px" title="${v}">${v}</div>`).join('')}</div><span>${t}</span></div>`}).join('')}</div>`;
+}
+function line(peaks,n=210){ // simple series with peaks [idx,val]
+  const p={};peaks.forEach(([i,v])=>p[i]=v);
+  const pts=[];let s=7;
+  for(let i=0;i<n;i++){s=(s*9301+49297)%233280;pts.push(p[i]??(1+Math.floor(s/233280*3)));}
+  const W=1000,H=160,mx=Math.max(...pts);
+  const d=pts.map((v,i)=>`${i?'L':'M'}${(i/(n-1)*W).toFixed(1)},${(H-8-v/mx*(H-30)).toFixed(1)}`).join(' ');
+  const lab=peaks.map(([i,v])=>`<text x="${i/(n-1)*W}" y="${H-8-v/mx*(H-30)-5}" fill="#fff" font-size="11" text-anchor="middle">${v}</text>`).join('');
+  const m=['January','February','March','April','May','June','July','August'];
+  return `<div class="box p-2 overflow-x-auto"><svg viewBox="0 0 ${W} ${H+20}" class="w-full min-w-[600px]"><path d="${d}" fill="none" stroke="#39d7ff" stroke-width="1.6"/>${lab}
+  ${m.map((x,i)=>`<text x="${(i+.5)/8*W}" y="${H+14}" fill="#dbe6ff" font-size="11" text-anchor="middle">${x}</text>`).join('')}</svg></div>`;
+}
+function table(head,rows){
+  const t=head.map((_,i)=>i?rows.reduce((a,r)=>a+r[i],0):'Total');
+  return `<div class="scroll-x box"><table class="w-full"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${[...rows,t].map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+const dist=(a,b,c,t)=>`<div class="flex flex-wrap gap-2">${card('Gasabo',a)}${card('Kicukiro',b)}${card('Nyarugenge',c)}${total(t)}</div>`;
+
+/* ---------- facility data (per district) ---------- */
+const FAC={'Agricul.':[4,1,2],'Com. building':[8,2,4],'Com. water pts':[1,1,0],'Craft Center':[1,0,1],'E Poles':[3,0,1],'Garage':[1,0,0],'Health':[3,1,0],'Hotel & Rest.':[2,1,1],'Markets':[1,1,0],'Prec. tree':[1,0,1],'Road sections':[7,3,3],'Schools':[6,2,2],'Transformer':[1,0,1],'Warehouse':[1,1,1],'Water channels':[2,1,1]};
+const facHead=['District',...Object.keys(FAC),'Total'];
+const facRows=['Gasabo','Kicukiro','Nyarugenge'].map((d,i)=>{const v=Object.values(FAC).map(x=>x[i]);return[d,...v,v.reduce((a,b)=>a+b,0)]});
+
+/* ---------- dashboards ---------- */
+const D=[
+{name:'1. Disaster impact on HH by district',html:()=>`<div class="panel">${title('DISASTER IMPACT ON HH BY DISTRICT')}
+ <div class="p-3 space-y-3">${dist(177,56,59,286)}
+ ${table(['District','Deaths','Injured','HH Name','Annex','Kitchen','Fences','Retaining wall','All houses'],[['Gasabo',5,21,171,5,5,19,73,124],['Nyarugenge',4,10,59,0,2,2,14,51],['Kicukiro',1,5,56,1,1,6,40,34]])}</div>
+ ${title('DISASTER IMPACTS ON FACILITY BY DISTRICT')}
+ <div class="p-3 space-y-3">${dist(42,14,18,74)}${table(facHead,facRows)}</div></div>`},
+
+{name:'2. Spatial distribution – disaster impact on housing',html:()=>`<div class="panel">${title('SPATIAL DISTRIBUTION OF DISASTER IMPACT ON HOUSING IN THE CITY OF KIGALI')}
+ <div class="p-3 space-y-3">${dist(171,56,59,286)}
+ <div class="box p-4">${bars([
+  ['Roof',[[13,C.fire],[1,C.rain],[82,C.rw],[3,C.wind]]],
+  ['Wall',[[40,C.rain],[6,C.rw]]],
+  ['Slightly',[[24,C.fire],[6,C.rw]]],
+  ['Flooded',[[21,C.rain],[1,C.rw]]],
+  ['Completely',[[2,C.fire],[7,C.rain],[3,C.rw]]],
+  ['HRZ',[[1,C.rain],[1,C.rw]]]],1)}${legend(HAZ)}</div>
+ ${line([[8,9],[19,22],[24,45],[60,19],[70,11],[105,7],[150,22],[160,18]])}</div></div>`},
+
+{name:'3. Spatial distribution – hazard & health impacts',html:()=>`<div class="panel">${title('SPATIAL DISTRIBUTION OF HAZARD IMPACTS AND HEALTH IMPACTS IN KIGALI')}
+ <div class="p-3 space-y-3"><div class="flex flex-wrap gap-2">${card('Gasabo')}${card('Kicukiro')}${card('Nyarugenge')}</div>
+ <div class="grid md:grid-cols-[1fr_260px] gap-3"><div class="box p-2 grid gap-2" style="grid-template-columns:1fr 1fr;min-height:420px">
+  <div class="p-2 row-span-2" style="background:${C.rain}"><b>Rain</b><div class="mt-2 text-sm italic">Missing 3</div></div>
+  <div class="p-2 row-span-2 relative" style="background:${C.rain}"><div class="mt-24 text-sm italic">Deaths 4</div></div>
+  <div class="p-2 col-start-2 row-start-3" style="background:${C.fire};min-height:170px"><b>Fire</b><div class="mt-24 text-sm italic">Deaths 5</div></div>
+  <div class="p-2 col-start-2 row-start-4 text-sm" style="background:${C.rw};color:#003"><b>Rain&amp;Wind</b><br>Deaths 1</div></div>
+ ${text('HEALTH IMPACTS VS HAZARDS',['Rain and wind events ('+hl('12 injuries')+') are the main drivers of injuries.','Rain events ('+hl('10 injuries, 2 missing')+') present both safety and search-and-rescue challenges.','Fire incidents ('+hl('5 deaths')+') pose the highest fatality risk and remain a critical life-safety concern.'])}</div></div></div>`},
+
+{name:'4. Spatial distribution – facility impacts',html:()=>`<div class="panel">${title('SPATIAL DISTRIBUTION OF DISASTER IMPACTS ON FACILITY IN THE CITY OF KIGALI')}
+ <div class="p-3 space-y-3">${dist(42,14,18,74)}
+ <div class="grid md:grid-cols-[1fr_280px] gap-3"><div class="box p-4">${bars([
+  ['Com. building',[[5,C.fire],[1,C.rain],[8,C.rw]]],['Road sections',[[6,C.rain],[7,C.rw]]],['Schools',[[10,C.rw]]],
+  ['Agricul.',[[1,C.fire],[7,C.rw]]],['E Poles',[[1,C.fire],[1,C.rain],[5,C.rw]]],['Hotel & Rest.',[[4,C.fire]]],
+  ['Water channels',[[3,C.rain],[1,C.rw]]],['Warehouse',[[2,C.fire],[1,C.rain]]],['Craft Center',[[1,C.fire],[1,C.rw]]],
+  ['Markets',[[1,C.fire],[1,C.rw]]],['Prec. tree',[[1,C.rw],[1,C.wind]]],['Transformer',[[2,C.fire]]],['Com. water pts',[[1,C.rain],[1,C.fire]]],['Garage',[[1,C.fire]]]],1)}${legend(HAZ)}</div>
+ ${text('Facilities vs. Hazards',['Rain & winds hit 29/35 facilities (83%) the two most destructive hazard by far.','Fire caused only 5 hits but targeted com. buildings, school and Agricul. FFs.','Wind accounts for just 1 facility — lowest hazard threat across all asset types.'])}</div></div></div>`},
+
+{name:'5. Spatial distribution – districts vs hazards',html:()=>`<div class="panel">${title('SPATIAL DISTRIBUTION OF HAZARD IMPACTS AND HEALTH IMPACTS')}
+ <div class="p-3 space-y-3">${dist(171,56,59,286)}
+ <div class="grid md:grid-cols-[1fr_300px] gap-3"><div class="space-y-3"><div class="box p-4">${bars([
+  ['Gasabo',[[39,C.fire],[2,C.rw],[61,C.rain],[69,C.rw]]],
+  ['Nyarugenge',[[3,C.fire],[15,C.rain],[40,C.rw],[1,C.wind]]],
+  ['Kicukiro',[[18,C.fire],[27,C.rain],[9,C.rw],[2,C.wind]]]],1)}${legend([['Fire',C.fire],['Inkuba',C.inkuba],['Rain',C.rain],['Rain&Wind',C.rw],['Wind',C.wind]])}</div>
+  ${line([[8,9],[20,19],[24,10],[60,11],[110,4],[150,24],[160,23]])}</div>
+ ${text('DISTRICTS vs HAZARDS',['Gasabo ('+hl('96 | 58%')+') is critically overburdened, with impacts driven by rain ('+hl('46')+'), rain & wind ('+hl('41')+'), and fire ('+hl('9')+').','Nyarugenge ('+hl('49 | 28%')+') faces significant urban risk, dominated by rain & wind ('+hl('33')+'), followed by rain ('+hl('10')+') and fire ('+hl('3')+').','Kicukiro ('+hl('23 | 14%')+') has lower impacts, mainly from rain ('+hl('10')+'), rain & wind ('+hl('9')+') and fire ('+hl('2')+').'])}</div></div></div>`},
+
+{name:'6. Hotspot identification and monitoring – summary',html:()=>`<div class="panel">${title('REPORT ON HOTSPOT IDENTIFICATION AND MONITORING')}
+ <div class="p-3 space-y-3"><div class="flex flex-wrap gap-2">${card('Gasabo',92)}${card('Kicukiro',130)}${card('Nyaru...',69)}${total(291)}</div>
+ <div class="grid md:grid-cols-[1fr_320px] gap-3"><div class="grid grid-cols-2 gap-3">
+  ${[[206,'High',C.high],[44,'Moderate',C.mod],[29,'Low',C.low],[12,'No risk',C.none]].map(([v,l,c])=>`<div class="p-6 text-center" style="background:${c}"><div class="text-5xl font-bold">${v}</div><div class="italic font-semibold">${l}</div></div>`).join('')}</div>
+ ${text('',['<b>OBSERVATIONS</b><br>High-risk hotspots ('+hl('65%')+') indicate severe and escalating vulnerability across City of Kigali, requiring urgent and coordinated action. Kicukiro District leads in hotspot identification and monitoring, reflecting strong operational efficiency to be replicated, while confirming uneven but widespread risk exposure.','<b>RECOMMENDATION</b><br>Prioritize immediate intervention in high-risk hotspots through drainage improvement, slope stabilization, relocation, and strict enforcement of land-use regulations.'])}</div></div></div>`},
+
+{name:'7. Hotspot identification and monitoring – assets',html:()=>{const H=C.high,L=C.low,M=C.mod,N=C.none;return `<div class="panel">${title('REPORT ON HOTSPOT IDENTIFICATION AND MONITORING')}
+ <div class="p-3 space-y-3"><div class="flex flex-wrap gap-2">${card('Gasabo',92)}${card('Kicukiro',130)}${card('Nyarug...',69)}${total(291)}</div>
+ <div class="grid md:grid-cols-[1fr_320px] gap-3"><div class="space-y-3"><div class="box p-4">${bars([
+  ['Ravines',[[62,H],[10,L],[11,M],[3,N]]],['Water channel',[[43,H],[14,L],[11,M],[3,N]]],['Poor house',[[25,H],[6,M]]],
+  ['Fragile slope',[[16,H],[3,L],[10,M],[1,N]]],['Risky bridge',[[15,H],[2,M],[1,L]]],['Wetland',[[15,H],[2,L]]],
+  ['Quarry',[[10,H],[2,M]]],['Road U/Cons',[[7,H],[2,M],[1,L]]],['Steep slope',[[8,H],[1,L]]],['E poles',[[3,H]]],
+  ['Unserviced Settlement',[[2,H]]],['Road tree',[[1,H]]]],1,110)}${legend([['High',H],['Low',L],['Moderate',M],['No risk',N]])}</div>
+  ${line([[8,22],[25,15],[60,8],[80,18],[150,20],[165,18],[110,7]])}</div>
+ ${text('Dominant High-Risk Assets',['Ravines lead with 39 High-risk sites out of 51 — the most critical asset in Kigali. Water channels (23 High/45) and poor houses (17 High/24) confirm flood and housing risk are top priorities. Out of 177 total assets, only 3 is rated No Risk.','<b>Moderate Risk: the Next Wave</b><br>Fragile slopes hold 10 Moderate sites nearly half their total, all trending toward High. Water channels add 9 Moderate sites; combined, 19 assets are the next High-risk wave if unmitigated. Steep slopes and risky...'])}</div></div></div>`}}
+];
+
+const sel=document.getElementById('sel'),app=document.getElementById('app');
+D.forEach((d,i)=>sel.add(new Option(d.name,i)));
+const show=i=>{app.innerHTML=D[i].html();history.replaceState(null,'','#'+i)};
+sel.onchange=()=>show(sel.value);
+const start=Math.min(Math.max(parseInt(location.hash.slice(1))||0,0),D.length-1);
+sel.value=start;show(start);
+</script>
+</body>
+</html>

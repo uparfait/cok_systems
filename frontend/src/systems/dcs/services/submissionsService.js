@@ -147,6 +147,13 @@ export function get_submissions(form_group_id, version, page, limit, options) {
   }
   if (options && options.search) params.append("search", options.search);
   if (options && options.sort) params.append("sort", options.sort);
+  // Per-column value filters: { field_id: [value, ...] }, JSON in the query string.
+  if (options && options.filters && Object.keys(options.filters).length > 0) {
+    params.append("filters", JSON.stringify(options.filters));
+  }
+  // One record, opened on its own - the gallery following a picture back
+  // to the row it came from. The backend drops every other filter for it.
+  if (options && options.record) params.append("record", options.record);
   return dcs_request(`/submissions/${form_group_id}?${params.toString()}`, "GET");
 }
 
@@ -163,4 +170,68 @@ export function submit_response(form_group_id, payload) {
  */
 export function delete_submission(submission_id) {
   return dcs_request(`/submissions/record/${submission_id}`, "DELETE");
+}
+
+/**
+ * Permanently deletes every record the data table currently has ticked.
+ * Irreversible - the backend re-checks edit rights on each form behind
+ * the selection before removing anything.
+ */
+export function delete_selected_submissions(submission_ids) {
+  return dcs_request("/submissions/delete-selected", "POST", { submission_ids });
+}
+
+/**
+ * One page of the Gallery: the pictures and videos a form collected,
+ * newest first. Paged over the media answers themselves, not over
+ * records, so a record carrying none never leaves a hole in the grid.
+ */
+export function get_submission_media(form_group_id, page, limit, options) {
+  const params = new URLSearchParams();
+  params.append("page", page || 1);
+  params.append("limit", limit || 10);
+  if (options && options.period) {
+    params.append("period", options.period);
+    if (options.period === "custom") {
+      if (options.from) params.append("from", options.from);
+      if (options.to) params.append("to", options.to);
+    }
+  }
+  if (options && options.filters && Object.keys(options.filters).length > 0) {
+    params.append("filters", JSON.stringify(options.filters));
+  }
+  return dcs_request(`/submissions/${form_group_id}/media?${params.toString()}`, "GET");
+}
+
+/**
+ * The values one choice column has actually collected, each with its
+ * record count - what that column's own filter dropdown lists.
+ */
+export function get_field_values(form_group_id, field_id, options) {
+  const params = new URLSearchParams();
+  if (options && options.period) {
+    params.append("period", options.period);
+    if (options.period === "custom") {
+      if (options.from) params.append("from", options.from);
+      if (options.to) params.append("to", options.to);
+    }
+  }
+  return dcs_request(`/submissions/${form_group_id}/field-values/${field_id}?${params.toString()}`, "GET");
+}
+
+/**
+ * Public, no-auth read of one collected record together with the exact
+ * form version it was collected against - what /dcs-form/edit/:id opens.
+ */
+export function get_public_record(submission_id) {
+  return dcs_request(`/public/records/${submission_id}`, "GET");
+}
+
+/**
+ * Public, no-auth full edit of one collected record: every field may
+ * change, the answers are re-validated against the record's own version,
+ * and the change is written into the record's history.
+ */
+export function update_public_record_full(submission_id, payload) {
+  return dcs_request(`/public/records/${submission_id}`, "PUT", payload);
 }
