@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_submission_media } from "../services/submissionsService.js";
 import DcsWorkspaceShell from "../components/DcsWorkspaceShell.jsx";
@@ -115,7 +115,19 @@ export default function FormGalleryPage() {
   const [period, setPeriod] = useState(DEFAULT_PERIOD);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [open_item, setOpenItem] = useState(null);
+  // The opened picture lives in the address (?image=) so a refresh, or a
+  // shared link, comes back on the very same picture at full size.
+  const [search_params, setSearchParams] = useSearchParams();
+  const image_url = search_params.get("image") || "";
+  const open_item = image_url
+    ? items.find((item) => item.url === image_url) || { url: image_url, name: image_url.split("/").pop().split("?")[0], type: "" }
+    : null;
+  const setOpenItem = (item) => {
+    const next = new URLSearchParams(search_params);
+    if (item && item.url) next.set("image", item.url);
+    else next.delete("image");
+    setSearchParams(next, { replace: !item });
+  };
 
   const loading_ref = useRef(false);
   const applied_ref = useRef({ period: DEFAULT_PERIOD, from: "", to: "" });
@@ -241,9 +253,11 @@ export default function FormGalleryPage() {
           fileType={open_item.type || ""}
           onClose={() => setOpenItem(null)}
           actions={
-            <span className="inline-block" style={{ minWidth: 180 }}>
-              <DcsButtonOutline onClick={() => open_in_table(open_item)}>{translate("DCS_GALLERY_OPEN_IN_TABLE")}</DcsButtonOutline>
-            </span>
+            open_item.submission_id ? (
+              <span className="inline-block" style={{ minWidth: 180 }}>
+                <DcsButtonOutline onClick={() => open_in_table(open_item)}>{translate("DCS_GALLERY_OPEN_IN_TABLE")}</DcsButtonOutline>
+              </span>
+            ) : null
           }
         />
       )}

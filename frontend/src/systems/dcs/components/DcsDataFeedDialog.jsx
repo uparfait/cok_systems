@@ -207,7 +207,7 @@ export default function DcsDataFeedDialog({ formGroupId, versions, onClose, asPa
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={saving ? undefined : onClose} />
       <div className="relative bg-white w-full max-w-3xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col cok-auth-card">
         <div className="p-4 sm:p-5 flex items-start justify-between gap-3">

@@ -112,6 +112,9 @@ export default function FormDataPage() {
       <div className="flex-shrink-0 mb-3 pl-14 pr-3 sm:pl-16 sm:pr-4 flex flex-row items-center gap-2 overflow-x-auto">
         <DcsPeriodFilter period={table.period} onPeriodChange={table.setPeriod} from={table.from} onFromChange={table.setFrom} to={table.to} onToChange={table.setTo} onApply={table.handle_apply} includeAll />
         <DcsTableSearchSort search={table.search} onSearchChange={table.setSearch} onSearchSubmit={table.handle_apply} sort={table.sort} onSortChange={table.setSort} />
+        {table.as_of && (
+          <span className="dcs-dt-asof">{translate("DCS_TABLE_AS_OF", { when: new Date(table.as_of).toLocaleString() })}</span>
+        )}
         <button
           type="button"
           onClick={() => setIsScheduleOpen(true)}

@@ -4,7 +4,7 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { format_when } from "./trackingConfig.js";
 import { RecordHistoryList, FieldTimeline, RecordDates, RecordFieldsList } from "./RecordHistory.jsx";
 import { HistoryIcon } from "./TrackingIcons.jsx";
-import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
+import DcsCloseIconButton from "../components/DcsCloseIconButton.jsx";
 
 const TEXT = "#333333";
 const FONT = "'Montserrat', sans-serif";
@@ -24,7 +24,7 @@ export default function RecordHistoryDialog({ record, fields, tracking, onClose 
           <span className="text-white font-semibold uppercase tracking-wide text-sm truncate" style={{ fontFamily: FONT }}>
             {translate("DCS_TRACKING_HISTORY_TITLE")}
           </span>
-          <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
+          <DcsCloseIconButton onClick={onClose} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-4 space-y-4">
           <div>

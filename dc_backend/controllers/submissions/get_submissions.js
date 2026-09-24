@@ -3,6 +3,8 @@ const approval_requests_model = require("../../models/approval_requests_model.js
 const approval_schedules_model = require("../../models/approval_schedules_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
+const forms_model = require("../../models/forms_model.js");
+const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -58,7 +60,20 @@ async function get_submissions(req, res) {
     const page_number = Math.max(1, parseInt(page, 10) || 1);
     const page_size = Math.min(100, Math.max(1, parseInt(limit, 10) || DEFAULT_PAGE_SIZE));
 
-    const result = await submissions_model.list_submissions(form_group_id, version, page_number, page_size, bounds, { search, sort, filters: parse_filters(filters), submission_id: record });
+    // A tracked form's updatable fields are shown as they stood at the end
+    // of the chosen period, so a status that flipped after that date still
+    // reads as it was then.
+    const active_version = await forms_model.get_active_version(form_group_id);
+    const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
+    const as_of = tracking && bounds && bounds.end && !record ? bounds.end : null;
+
+    const result = await submissions_model.list_submissions(form_group_id, version, page_number, page_size, bounds, {
+      search,
+      sort,
+      filters: parse_filters(filters),
+      submission_id: record,
+      tracking,
+    });
 
     // Each row's approval state for the table's Approval column: its own
     // submit-time flow when it has one, else the batch it was sent in, else
@@ -99,6 +114,7 @@ async function get_submissions(req, res) {
         total: result.total,
         page: page_number,
         limit: page_size,
+        as_of,
       }),
     );
   } catch (error) {

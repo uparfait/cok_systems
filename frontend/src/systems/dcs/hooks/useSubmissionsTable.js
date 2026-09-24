@@ -131,6 +131,9 @@ export function useSubmissionsTable(form_group_id, version, column_filters, pinn
 
   return {
     page,
+    // On a tracked form read inside a period: the moment the updatable
+    // fields' values are shown as of (the period's end), else null.
+    as_of: (result && result.as_of) || null,
     period,
     setPeriod,
     from,

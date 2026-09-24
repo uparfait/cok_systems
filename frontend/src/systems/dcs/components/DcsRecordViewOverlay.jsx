@@ -9,9 +9,8 @@ import { approval_status_label_key } from "./DcsApprovalStatusChip.jsx";
 import { ApprovalDetailsBody } from "./DcsApprovalDetailsDialog.jsx";
 import RecordHistorySlides from "../tracking/RecordHistorySlides.jsx";
 import { is_tracking_enabled } from "../tracking/trackingConfig.js";
-import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
-import DcsButtonOutlineReverse from "./DcsButtonOutlineReverse.jsx";
+import DcsCloseIconButton from "./DcsCloseIconButton.jsx";
 
 const PRIMARY = "#056daa";
 const MUTED = "#9E9E9E";
@@ -119,7 +118,7 @@ export default function DcsRecordViewOverlay({ record, fields, tracking, onClose
             </p>
             <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.85)", fontFamily: FONT }}>{when(record.submitted_at)}</p>
           </div>
-          <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
+          <DcsCloseIconButton onClick={onClose} />
         </div>
 
         <div className="dcs-record-meta flex-shrink-0">
@@ -147,11 +146,12 @@ export default function DcsRecordViewOverlay({ record, fields, tracking, onClose
           {tab === "history" && change_count > 0 && <RecordHistorySlides record={record} fields={fields} />}
         </div>
 
-        <div className="dcs-tracking-footer">
-          <span className="flex-1" />
-          <DcsButtonOutline onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutline>
-          {onEdit && <DcsButtonPrimary onClick={onEdit}>{translate("DCS_TABLE_EDIT_RECORD")}</DcsButtonPrimary>}
-        </div>
+        {onEdit && (
+          <div className="dcs-tracking-footer">
+            <span className="flex-1" />
+            <DcsButtonPrimary onClick={onEdit}>{translate("DCS_TABLE_EDIT_RECORD")}</DcsButtonPrimary>
+          </div>
+        )}
       </div>
     </div>,
     document.body,

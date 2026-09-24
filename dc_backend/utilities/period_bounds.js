@@ -58,6 +58,13 @@ function resolve_period_bounds(period, from, to) {
     // A pick that carries a time ("2026-09-24T14:30") is used to the
     // minute; a bare date still means the whole day.
     const has_time = (text) => /T\d{2}:\d{2}/.test(String(text));
+    // The pickers give minutes, so a "to" with a time means up to the END
+    // of that minute - a range from 10:00 to 10:00 covers the minute.
+    const end_of_minute = (date) => {
+      const result = new Date(date);
+      result.setSeconds(59, 999);
+      return result;
+    };
     const from_date = new Date(from);
     if (Number.isNaN(from_date.getTime())) return undefined;
     let start = has_time(from) ? from_date : start_of_day(from_date);
@@ -65,12 +72,16 @@ function resolve_period_bounds(period, from, to) {
     if (to) {
       const to_date = new Date(to);
       if (Number.isNaN(to_date.getTime())) return undefined;
-      end = has_time(to) ? to_date : end_of_day(to_date);
+      // The same moment picked twice means that whole day, not an empty window.
+      if (to_date.getTime() === from_date.getTime()) {
+        return { start: start_of_day(from_date), end: end_of_day(from_date) };
+      }
+      end = has_time(to) ? end_of_minute(to_date) : end_of_day(to_date);
       // A reversed pick (from after to) still means the same window - swap
       // instead of returning an empty range that reads as "no data".
       if (end < start) {
         const swapped_start = has_time(to) ? to_date : start_of_day(to_date);
-        end = has_time(from) ? from_date : end_of_day(from_date);
+        end = has_time(from) ? end_of_minute(from_date) : end_of_day(from_date);
         start = swapped_start;
       }
     } else {

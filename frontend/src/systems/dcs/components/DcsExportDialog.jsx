@@ -239,8 +239,8 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, asP
   return (
     <Dialog.Root open={open} onOpenChange={handle_close}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-none bg-white p-5 sm:p-6 shadow-xl">
+        <Dialog.Overlay className="fixed inset-0 z-[10000] bg-black/50" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-[10000] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-none bg-white p-5 sm:p-6 shadow-xl">
           <Dialog.Title className="text-lg font-semibold mb-4" style={FONT}>
             {translate("DCS_EXPORT_DIALOG_TITLE")}
           </Dialog.Title>

@@ -7,7 +7,7 @@ import DcsWizardSteps from "../components/DcsWizardSteps.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
-import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
+import DcsCloseIconButton from "../components/DcsCloseIconButton.jsx";
 import DcsFieldIcon from "../components/DcsFieldIcon.jsx";
 
 const PRIMARY = "#056daa";
@@ -91,7 +91,7 @@ export default function TrackingSetupOverlay({ fields, tracking, onSave, onClose
           <span className="text-white font-semibold uppercase tracking-wide text-sm truncate" style={{ fontFamily: FONT }}>
             {translate("DCS_TRACKING_TITLE")}
           </span>
-          <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
+          <DcsCloseIconButton onClick={onClose} />
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3">

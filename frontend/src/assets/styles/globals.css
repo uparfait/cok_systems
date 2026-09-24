@@ -4714,7 +4714,11 @@ background-color: #056daa;
 .dcs-dt-expanded {
   position: fixed;
   inset: 0;
-  z-index: 10040;
+  /* Above the app's chrome (sidebar 40, page nav 25) and BELOW every
+     dialog and menu (10000 and up), so the filters' popups, the record
+     view, the history slides and the file viewer all open over the
+     expanded table instead of vanishing behind it. */
+  z-index: 100;
   display: flex;
   flex-direction: column;
   padding: 0.5rem;
@@ -4779,13 +4783,13 @@ background-color: #056daa;
 /* The expand control belongs to the whole page, not to the row of
    filters above it, so it is pinned to the right edge of the window and
    stays there however far the page is scrolled. Above the expanded layer
-   (10040), since it is also the way back out of it. */
+   (100), since it is also the way back out of it, and below the dialogs. */
 .dcs-expand-fab {
   position: fixed;
   right: 14px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 10050;
+  z-index: 110;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -4992,31 +4996,32 @@ background-color: #056daa;
   flex-direction: column;
   gap: 12px;
 }
-.dcs-history-nav {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  align-items: center;
-  padding: 10px;
-  border: 1px solid #E0E0E0;
+.dcs-history-head {
+  padding: 8px 10px;
+  border-left: 3px solid #056daa;
   background-color: #F7F9FB;
 }
-.dcs-history-nav > div {
-  grid-column: 1 / -1;
-  order: -1;
+/* Back, the position and Next stay at the foot of the slides while the
+   form above them scrolls. */
+.dcs-history-nav {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  margin-top: 4px;
+  border: 1px solid #E0E0E0;
+  background-color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.06);
 }
 .dcs-history-nav .cok-btn-outlined {
   min-height: 40px;
+  min-width: 96px;
   border-radius: 8px;
-}
-@media (min-width: 560px) {
-  .dcs-history-nav {
-    grid-template-columns: auto 1fr auto;
-  }
-  .dcs-history-nav > div {
-    grid-column: auto;
-    order: 0;
-  }
 }
 .dcs-history-changed {
   display: flex;
@@ -5046,4 +5051,42 @@ background-color: #056daa;
   padding-left: 10px;
   border-left: 3px solid #056daa;
   background-color: rgba(5, 109, 170, 0.06);
+}
+
+/* The history slides take the whole screen at every width: the form is
+   read there exactly as it looks, so it gets all the room the page has. */
+.dcs-tracking-panel.is-full {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  border: none;
+}
+@media (min-width: 750px) {
+  .dcs-tracking-overlay:has(> .dcs-tracking-panel.is-full) {
+    padding: 0;
+    align-items: stretch;
+  }
+  .dcs-tracking-panel.is-full {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    border: none;
+  }
+}
+
+/* The note beside the table's filters when a tracked form is read inside
+   a period: its changeable fields show the values of that moment. */
+.dcs-dt-asof {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 0.6rem;
+  border: 1px dashed #056daa;
+  background-color: rgba(5, 109, 170, 0.06);
+  color: #056daa;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
 }

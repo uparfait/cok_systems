@@ -10,6 +10,8 @@ const SURFACE = "var(--board-surface, #FFFFFF)";
 const BORDER = "var(--board-border, #E0E0E0)";
 const TEXT = "var(--board-text, #333333)";
 const MUTED = "var(--board-muted, #6B7280)";
+const PRIMARY = "#056daa";
+const FONT = "'Montserrat', sans-serif";
 
 // Shared with DcsTableSearchSort's search input and sort toggle, so every
 // control across the whole filter bar lines up at exactly the same height.
@@ -25,75 +27,131 @@ const PERIOD_OPTIONS = [
   { value: "custom", labelKey: "DCS_STATS_PERIOD_CUSTOM" },
 ];
 
+const has_time = (text) => /T\d{2}:\d{2}/.test(String(text || ""));
+const day_part = (text) => String(text || "").slice(0, 10);
+
 /** A picked moment as a short label: the day, and the time when one was picked. */
 function format_date(date_string) {
   if (!date_string) return "";
-  const has_time = /T\d{2}:\d{2}/.test(date_string);
-  const date = new Date(has_time ? date_string : date_string + "T00:00:00");
+  const timed = has_time(date_string);
+  const date = new Date(timed ? date_string : date_string + "T00:00:00");
   if (Number.isNaN(date.getTime())) return "";
-  if (!has_time) return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  if (!timed) return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   return date.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+function Segment({ options, value, onChange }) {
+  return (
+    <div className="flex border" style={{ borderColor: BORDER }}>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className="flex-1 text-xs font-bold uppercase py-2 cursor-pointer"
+          style={{ fontFamily: FONT, letterSpacing: 0.4, backgroundColor: option.value === value ? PRIMARY : "transparent", color: option.value === value ? "#FFFFFF" : MUTED, border: "none" }}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PickerInput({ label, type, value, onChange }) {
+  return (
+    <div>
+      <label className="block text-xs mb-0.5" style={{ fontFamily: FONT, color: MUTED }}>{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full border rounded-none px-2 py-1.5 text-sm cursor-pointer"
+        style={{ fontFamily: FONT, height: 36, backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
+      />
+    </div>
+  );
+}
+
+/**
+ * The custom range: ONE DAY (a single date, the whole day) or BETWEEN two
+ * moments, with a switch to pick the time as well as the date. The
+ * picked values ride along with Apply directly, since the parent's own
+ * from/to state is not updated yet at that moment.
+ */
 function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChange, onApply, translate }) {
   const board = useBoardTheme();
+  const [mode, setMode] = useState(from && to && from === to ? "day" : "range");
+  const [with_time, setWithTime] = useState(has_time(from) || has_time(to));
   const [local_from, setLocalFrom] = useState(from || "");
   const [local_to, setLocalTo] = useState(to || "");
 
-  const handle_apply = () => {
-    onFromChange(local_from);
-    onToChange(local_to);
-    // The picked dates ride along directly: the parent's own from/to state
-    // updates are asynchronous, so reading them inside onApply would still
-    // see the values from BEFORE this apply (empty on the very first one -
-    // the custom range then silently did nothing).
-    onApply(local_from, local_to);
-    onOpenChange(false);
-  };
-
   const handle_open_change = (is_open) => {
     if (is_open) {
+      setMode(from && to && from === to ? "day" : "range");
+      setWithTime(has_time(from) || has_time(to));
       setLocalFrom(from || "");
       setLocalTo(to || "");
     }
     onOpenChange(is_open);
   };
 
+  // Turning the time off keeps the days that were picked; turning it on
+  // starts each moment at the beginning of its day.
+  const change_with_time = (on) => {
+    setWithTime(on);
+    setLocalFrom((current) => (current ? (on ? `${day_part(current)}T00:00` : day_part(current)) : current));
+    setLocalTo((current) => (current ? (on ? `${day_part(current)}T23:59` : day_part(current)) : current));
+  };
+
+  const handle_apply = () => {
+    const next_from = mode === "day" ? day_part(local_from) : local_from;
+    const next_to = mode === "day" ? day_part(local_from) : local_to;
+    onFromChange(next_from);
+    onToChange(next_to);
+    onApply(next_from, next_to);
+    onOpenChange(false);
+  };
+
+  const input_type = mode === "range" && with_time ? "datetime-local" : "date";
+  const from_value = input_type === "date" ? day_part(local_from) : local_from;
+  const to_value = input_type === "date" ? day_part(local_to) : local_to;
+
   return (
     <Dialog.Root open={open} onOpenChange={handle_open_change}>
       <Dialog.Portal container={portal_root()}>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40" />
+        {/* Above the expanded table (100) and the dialogs (10000), like every other menu of the module. */}
+        <Dialog.Overlay className="fixed inset-0 z-[10060] bg-black/40" />
         <Dialog.Content
-          className={`fixed top-1/2 left-1/2 z-50 w-full max-w-xs -translate-x-1/2 -translate-y-1/2 rounded-none p-5 shadow-xl ${board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`}
+          className={`fixed top-1/2 left-1/2 z-[10060] w-full max-w-xs -translate-x-1/2 -translate-y-1/2 rounded-none p-5 shadow-xl ${board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`}
           style={{ backgroundColor: SURFACE, color: TEXT, border: `1px solid ${BORDER}` }}
         >
-          <Dialog.Title className="text-sm font-semibold mb-3" style={{ fontFamily: "'Montserrat', sans-serif", color: TEXT }}>
+          <Dialog.Title className="text-sm font-semibold mb-3" style={{ fontFamily: FONT, color: TEXT }}>
             {translate("DCS_STATS_PERIOD_CUSTOM")}
           </Dialog.Title>
 
-          <div className="mb-3">
-            <div className="flex flex-col gap-2">
-              <div>
-                <label className="block text-xs mb-0.5" style={{ fontFamily: "'Montserrat', sans-serif", color: MUTED }}>From</label>
-                <input
-                  type="datetime-local"
-                  value={local_from}
-                  onChange={(event) => setLocalFrom(event.target.value)}
-                  className="w-full border rounded-none px-2 py-1.5 text-sm cursor-pointer"
-                  style={{ fontFamily: "'Montserrat', sans-serif", height: 36, backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
-                />
-              </div>
-              <div>
-                <label className="block text-xs mb-0.5" style={{ fontFamily: "'Montserrat', sans-serif", color: MUTED }}>To</label>
-                <input
-                  type="datetime-local"
-                  value={local_to}
-                  onChange={(event) => setLocalTo(event.target.value)}
-                  className="w-full border rounded-none px-2 py-1.5 text-sm cursor-pointer"
-                  style={{ fontFamily: "'Montserrat', sans-serif", height: 36, backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
-                />
-              </div>
-            </div>
+          <div className="flex flex-col gap-3 mb-3">
+            <Segment
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: "day", label: translate("DCS_PERIOD_MODE_DAY") },
+                { value: "range", label: translate("DCS_PERIOD_MODE_RANGE") },
+              ]}
+            />
+
+            {mode === "day" ? (
+              <PickerInput label={translate("DCS_PERIOD_DAY_LABEL")} type="date" value={day_part(local_from)} onChange={setLocalFrom} />
+            ) : (
+              <>
+                <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ fontFamily: FONT, color: TEXT }}>
+                  <input type="checkbox" checked={with_time} onChange={(event) => change_with_time(event.target.checked)} style={{ accentColor: PRIMARY }} />
+                  {translate("DCS_PERIOD_WITH_TIME")}
+                </label>
+                <PickerInput label={translate("DCS_PERIOD_FROM")} type={input_type} value={from_value} onChange={setLocalFrom} />
+                <PickerInput label={translate("DCS_PERIOD_TO")} type={input_type} value={to_value} onChange={setLocalTo} />
+              </>
+            )}
           </div>
 
           <div className="flex justify-end gap-2">
@@ -101,7 +159,7 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
               type="button"
               onClick={() => onOpenChange(false)}
               className="px-3 py-1.5 text-xs border rounded-none cursor-pointer"
-              style={{ fontFamily: "'Montserrat', sans-serif", backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
+              style={{ fontFamily: FONT, backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
             >
               {translate("DCS_BTN_CANCEL")}
             </button>
@@ -110,7 +168,7 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
               onClick={handle_apply}
               disabled={!local_from}
               className="px-3 py-1.5 text-xs text-white bg-[#056daa] rounded-none hover:bg-[#045a8c] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
+              style={{ fontFamily: FONT }}
             >
               {translate("DCS_BTN_APPLY")}
             </button>
@@ -145,11 +203,9 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
       return;
     }
     if (value !== period) {
-      // A real change - the consumer's own period effect fetches.
       onPeriodChange(value);
       return;
     }
-    // Same option re-clicked: re-apply the current filter right now.
     if (onApply) onApply();
   };
 
@@ -158,6 +214,8 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
 
   const get_selected_label = () => {
     if (period === "custom") {
+      // One day picked twice reads as that one day.
+      if (from && to && from === to) return format_date(from);
       if (from && to) return `${format_date(from)} - ${format_date(to)}`;
       if (from) return `From ${format_date(from)}`;
       return translate("DCS_STATS_PERIOD_CUSTOM");
@@ -179,17 +237,14 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
               ? `dcs-board-filter dcs-board-filter-period ${is_menu_open ? "is-open" : ""} ${locked ? "is-locked" : ""} ${period && period !== "this_year" && !locked ? "is-active" : ""}`
               : `cok-auth-input text-sm inline-flex items-center justify-between gap-2 ${locked ? "cursor-default" : "cursor-pointer"}`
           }
-          style={plain ? { minWidth: 150 } : { fontFamily: "'Montserrat', sans-serif", height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX, minWidth: 150, backgroundColor: "transparent", color: TEXT, borderColor: is_menu_open ? "#056daa" : BORDER, borderStyle: locked ? "dashed" : "solid" }}
+          style={plain ? { minWidth: 150 } : { fontFamily: FONT, height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX, minWidth: 150, backgroundColor: "transparent", color: TEXT, borderColor: is_menu_open ? PRIMARY : BORDER, borderStyle: locked ? "dashed" : "solid" }}
         >
           <span className={plain ? "dcs-board-filter-value" : "truncate"}>{period === "custom" && from ? get_selected_label() : selected_option ? option_label(selected_option) : ""}</span>
-          {!locked && <svg
-            width="10"
-            height="6"
-            viewBox="0 0 10 6"
-            style={{ flexShrink: 0, transform: is_menu_open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms ease" }}
-          >
-            <path d="M1 1l4 4 4-4" fill="none" stroke="#9E9E9E" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>}
+          {!locked && (
+            <svg width="10" height="6" viewBox="0 0 10 6" style={{ flexShrink: 0, transform: is_menu_open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms ease" }}>
+              <path d="M1 1l4 4 4-4" fill="none" stroke="#9E9E9E" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
         </button>
         <MenuPopover open={is_menu_open} anchorRef={menu_ref} onClose={() => setIsMenuOpen(false)} minWidth={170} align="start" role="listbox">
           {options.map((option) => (
@@ -200,14 +255,7 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
               aria-selected={option.value === period}
               onClick={() => handle_option_click(option.value)}
               className="dcs-db-menu-item block w-full text-left text-sm cursor-pointer"
-              style={{
-                padding: "0.5rem 0.75rem",
-                fontFamily: "'Montserrat', sans-serif",
-                color: option.value === period ? "#056daa" : TEXT,
-                fontWeight: option.value === period ? 700 : 400,
-                background: "none",
-                border: "none",
-              }}
+              style={{ padding: "0.5rem 0.75rem", fontFamily: FONT, color: option.value === period ? PRIMARY : TEXT, fontWeight: option.value === period ? 700 : 400, background: "none", border: "none" }}
             >
               {option_label(option)}
             </button>
@@ -215,17 +263,7 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
         </MenuPopover>
       </div>
 
-
-      <CustomDatePopup
-        open={is_custom_open}
-        onOpenChange={setIsCustomOpen}
-        from={from}
-        to={to}
-        onFromChange={onFromChange}
-        onToChange={onToChange}
-        onApply={onApply}
-        translate={translate}
-      />
+      <CustomDatePopup open={is_custom_open} onOpenChange={setIsCustomOpen} from={from} to={to} onFromChange={onFromChange} onToChange={onToChange} onApply={onApply} translate={translate} />
     </div>
   );
 }

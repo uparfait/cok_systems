@@ -1,5 +1,6 @@
 const { get_db } = require("../db_connection/db.js");
 const { to_object_id } = require("../utilities/object_id.js");
+const { tracking_stages } = require("../util-dashboard/tracking_stage.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 
@@ -382,32 +383,36 @@ async function list_submissions(form_group_id, version, page, limit, date_bounds
     filter._id = object_id;
   }
   if (version !== undefined && version !== null) filter.version = Number(version);
-  if (date_bounds && date_bounds.start && date_bounds.end) {
+  if (date_bounds && date_bounds.start && date_bounds.end && !filter._id) {
     filter.submitted_at = { $gte: date_bounds.start, $lte: date_bounds.end };
   }
-  apply_value_filters(filter, options && options.filters);
+  // A tracked form read inside a period shows each updatable field AS IT
+  // STOOD at the period's end (see util-dashboard/tracking_stage.js) - the
+  // same reading the dashboards give - so the column filters have to be
+  // applied after that rewrite, on the values actually shown.
+  const as_of_stages = filter._id ? [] : tracking_stages({ tracking: options && options.tracking }, date_bounds);
+  const value_filter = {};
+  apply_value_filters(value_filter, options && options.filters);
   // A pinned record answers for itself: the date range, the version and
   // the column filters around it would only ever hide the one row that
   // was explicitly asked for.
-  if (filter._id) {
-    delete filter.submitted_at;
-    delete filter.version;
-    Object.keys(filter).forEach((key) => {
-      if (key.startsWith("data.")) delete filter[key];
-    });
-  }
+  if (!filter._id && as_of_stages.length === 0) Object.assign(filter, value_filter);
+  const value_stages = !filter._id && as_of_stages.length > 0 && Object.keys(value_filter).length > 0 ? [{ $match: value_filter }] : [];
 
   const sort_direction = options && options.sort === "oldest" ? 1 : -1;
   const skip = (page - 1) * limit;
   const collection = get_db().collection(COLLECTION_NAME);
   const search_term = options && options.search ? options.search.toString().trim() : "";
 
-  if (search_term) {
-    const search_regex = new RegExp(escape_regex(search_term), "i");
+  if (search_term || as_of_stages.length > 0) {
+    const search_stages = search_term
+      ? [{ $addFields: { __search_text: SEARCH_TEXT_EXPRESSION } }, { $match: { __search_text: new RegExp(escape_regex(search_term), "i") } }]
+      : [];
     const pipeline = [
       { $match: filter },
-      { $addFields: { __search_text: SEARCH_TEXT_EXPRESSION } },
-      { $match: { __search_text: search_regex } },
+      ...as_of_stages,
+      ...value_stages,
+      ...search_stages,
       { $sort: { submitted_at: sort_direction } },
       {
         $facet: {
