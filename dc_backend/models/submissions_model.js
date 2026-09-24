@@ -383,13 +383,18 @@ async function list_submissions(form_group_id, version, page, limit, date_bounds
     filter._id = object_id;
   }
   if (version !== undefined && version !== null) filter.version = Number(version);
+  // A tracked form is a register: inside a period it lists every record
+  // that EXISTED by the period's end - one recorded before the period
+  // began is still there during it - and shows each updatable field as it
+  // stood at that end (see util-dashboard/tracking_stage.js), the same
+  // reading the dashboards give. Any other form lists what was submitted
+  // inside the period.
+  const tracked = !!(options && options.tracking && options.tracking.enabled === true);
   if (date_bounds && date_bounds.start && date_bounds.end && !filter._id) {
-    filter.submitted_at = { $gte: date_bounds.start, $lte: date_bounds.end };
+    filter.submitted_at = tracked ? { $lte: date_bounds.end } : { $gte: date_bounds.start, $lte: date_bounds.end };
   }
-  // A tracked form read inside a period shows each updatable field AS IT
-  // STOOD at the period's end (see util-dashboard/tracking_stage.js) - the
-  // same reading the dashboards give - so the column filters have to be
-  // applied after that rewrite, on the values actually shown.
+  // The column filters are applied after the as-of rewrite, on the values
+  // actually shown.
   const as_of_stages = filter._id ? [] : tracking_stages({ tracking: options && options.tracking }, date_bounds);
   const value_filter = {};
   apply_value_filters(value_filter, options && options.filters);

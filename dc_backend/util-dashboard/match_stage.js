@@ -63,17 +63,28 @@ function effective_bounds(widget, period_override) {
   return bounds || null;
 }
 
+/** A tracked form is a register: inside a period its records are the ones that existed by the period's end. */
+function reads_as_of_population(widget) {
+  return !!(widget && widget.tracking && widget.tracking.enabled === true && widget.as_of_population !== false);
+}
+
 /**
  * The base $match for one widget. Version is intentionally not filtered:
  * a dashboard reads the whole form group's history, whichever version each
  * record was collected with.
+ *
+ * On a tracked form the period keeps every record that existed by its end
+ * (recorded before it began or during it), since the register's fields
+ * are then read as they stood at that end (see tracking_stage.js); a
+ * widget read OVER TIME (as_of_population false) still counts arrivals
+ * inside the window, since that is what its time line draws.
  */
 function build_match_stage(widget, bounds) {
   const match = {
     form_group_id: widget.form_group_id,
   };
   if (bounds) {
-    match.submitted_at = { $gte: bounds.start, $lte: bounds.end };
+    match.submitted_at = reads_as_of_population(widget) ? { $lte: bounds.end } : { $gte: bounds.start, $lte: bounds.end };
   }
   const conditions = (widget.filters || []).map((filter) => filter_condition(filter));
   if (conditions.length === 1) Object.assign(match, conditions[0]);
@@ -96,6 +107,7 @@ module.exports = {
   build_match_stage,
   base_stages,
   tracking_stages,
+  reads_as_of_population,
   effective_bounds,
   numeric_expr,
   value_candidates,

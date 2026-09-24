@@ -1,5 +1,5 @@
 const { get_db } = require("../db_connection/db.js");
-const { build_match_stage, base_stages, numeric_expr } = require("./match_stage.js");
+const { build_match_stage, base_stages, numeric_expr, reads_as_of_population } = require("./match_stage.js");
 const { is_multi_value } = require("./field_catalog.js");
 const { NUMERIC_AGGREGATIONS } = require("./constants.js");
 
@@ -172,6 +172,14 @@ async function kpi_metric_result(widget, bounds, catalog) {
   const windows = kpi_windows(aggregation, bounds);
   // Only plain count carries the previous-period comparison.
   if (aggregation !== "count") windows.previous = null;
+  // A tracked form is a register: a period's number is every record that
+  // existed by its end (values as they stood then), and the comparison is
+  // the register as it stood when the period began.
+  if (bounds && reads_as_of_population(widget) && !["cumulative_sum", "moving_average"].includes(aggregation)) {
+    windows.current = { start: null, end: bounds.end };
+    windows.previous = windows.previous ? { start: null, end: windows.previous.end } : null;
+    windows.skipped = windows.current;
+  }
   const numeric = NUMERIC_AGGREGATIONS.includes(aggregation) && !is_count_based(aggregation, field_id, catalog);
 
   const facets = { current: value_stages(aggregation, field_id, windows.current, catalog) };

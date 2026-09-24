@@ -243,12 +243,6 @@ export default function FormAllDataPage() {
           </button>
         )}
 
-        {/* A tracked form read inside a period: its changeable fields show
-            the values they held at that period's end, not today's. */}
-        {table.as_of && (
-          <span className="dcs-dt-asof">{translate("DCS_TABLE_AS_OF", { when: new Date(table.as_of).toLocaleString() })}</span>
-        )}
-
 
       </div>
 

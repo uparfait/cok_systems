@@ -397,8 +397,11 @@ async function widget_data_of(raw_widget, form_version, period_override) {
   // in years, and a custom range in whatever suits its own length.
   const over_time = raw_widget.over_time && raw_widget.over_time.enabled === true ? raw_widget.over_time : null;
   if (over_time && OVER_TIME_TYPES.includes(raw_widget.chart_type)) {
+    // A time line counts what arrived in each slice of the window, so it
+    // keeps the window even on a tracked form (see match_stage.js).
     const timed = Object.assign({}, raw_widget, {
       group_by: { field_id: over_time.field_id || SUBMITTED_AT_FIELD, granularity: over_time.granularity || "auto" },
+      as_of_population: false,
     });
     return compute_time(timed, bounds, catalog);
   }
@@ -450,7 +453,7 @@ async function widget_data_of(raw_widget, form_version, period_override) {
     return { kind, nodes: nest_tree(raw, !!parent_id) };
   }
   if (kind === CHART_KINDS.TIME) {
-    return compute_time(widget, bounds, catalog);
+    return compute_time(Object.assign({}, widget, { as_of_population: false }), bounds, catalog);
   }
   if (widget.split_by && widget.split_by.field_id) {
     const raw = await pipelines.split_rows(widget, bounds, catalog);
