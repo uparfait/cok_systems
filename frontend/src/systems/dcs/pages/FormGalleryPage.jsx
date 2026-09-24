@@ -6,7 +6,7 @@ import DcsWorkspaceShell from "../components/DcsWorkspaceShell.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsFileViewerModal from "../components/DcsFileViewerModal.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
-import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
+import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import { GallerySkeleton } from "../components/DcsSkeletons.jsx";
 
 const PAGE_SIZE = 10;
@@ -216,7 +216,11 @@ export default function FormGalleryPage() {
           fileName={open_item.name || open_item.field_label || ""}
           fileType={open_item.type || ""}
           onClose={() => setOpenItem(null)}
-          actions={<DcsButtonOutlineReverse onClick={() => open_in_table(open_item)}>{translate("DCS_GALLERY_OPEN_IN_TABLE")}</DcsButtonOutlineReverse>}
+          actions={
+            <span className="inline-block" style={{ minWidth: 180 }}>
+              <DcsButtonOutline onClick={() => open_in_table(open_item)}>{translate("DCS_GALLERY_OPEN_IN_TABLE")}</DcsButtonOutline>
+            </span>
+          }
         />
       )}
     </DcsWorkspaceShell>

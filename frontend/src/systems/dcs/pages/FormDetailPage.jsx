@@ -12,7 +12,7 @@ import DcsProjectDetailSkeleton from "../components/DcsProjectDetailSkeleton.jsx
 import DcsFormNav from "../components/DcsFormNav.jsx";
 import DcsAgeChip from "../components/DcsAgeChip.jsx";
 import DcsFormSubmissionsChart from "../components/DcsFormSubmissionsChart.jsx";
-import { ExpandToggle, useExpandable } from "../components/DcsWorkspaceShell.jsx";
+import { ExpandFab, useExpandable } from "../components/DcsWorkspaceShell.jsx";
 
 /**
  * Form overview: its name, a form age counter next to a deliberately
@@ -117,12 +117,10 @@ export default function FormDetailPage() {
 
           {is_panel_open && (
             <div className={expand.expanded ? "dcs-dt-expanded" : "dcs-project-slide-in-right"}>
-              <div className="flex justify-end mb-2">
-                <ExpandToggle expanded={expand.expanded} onToggle={expand.toggle} />
-              </div>
-              <div className={expand.expanded ? "flex-1 min-h-0 overflow-y-auto" : ""}>
+              <div className={expand.expanded ? "dcs-ws-center flex-1 min-h-0 overflow-y-auto" : ""}>
                 <Outlet context={{ project_id, form_group_id, form, refreshForm: refresh }} />
               </div>
+              <ExpandFab expanded={expand.expanded} onToggle={expand.toggle} />
             </div>
           )}
         </>

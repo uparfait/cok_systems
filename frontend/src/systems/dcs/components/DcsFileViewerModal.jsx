@@ -3,7 +3,6 @@ import mammoth from "mammoth";
 import * as XLSX from "xlsx";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_file_kind } from "./fileKind.js";
-import DcsButtonOutlineReverse from "./DcsButtonOutlineReverse.jsx";
 import DcsVideoPlayer from "./DcsVideoPlayer.jsx";
 import DcsAudioPlayer from "./DcsAudioPlayer.jsx";
 
@@ -199,9 +198,12 @@ function GenericPreview({ fileUrl, fileName }) {
 }
 
 /**
- * One file, opened at full size. actions is an optional slot beside
- * Download and Close - the gallery puts "Open in table" there, so a
- * picture can be followed back to the record it was collected with.
+ * One file, opened at full size. The bar above it holds the file's name
+ * and an icon to leave; everything that acts on the file - downloading
+ * it, opening it elsewhere, and whatever the caller adds through the
+ * actions slot (the gallery puts "Open in table" there, so a picture can
+ * be followed back to the record it was collected with) - sits together
+ * in the bar underneath, within reach of a thumb.
  */
 export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClose, actions }) {
   const { translate } = useDcsLanguage();
@@ -228,6 +230,11 @@ export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClos
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
       <div className="absolute inset-0" style={{ backgroundColor: "rgba(0,0,0,0.5)" }} onClick={onClose} />
       <div className="relative bg-white w-full max-w-4xl max-h-[90vh] flex flex-col">
+        {/* The bar over the file carries its name and nothing else but
+            the way out, as an icon - what the file IS should not have to
+            share the line with what can be done to it. Everything that
+            acts on the file sits in the bar underneath instead, which is
+            also where a thumb reaches on a phone. */}
         <div className="cok-bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0 gap-3">
           <span
             className="text-sm font-semibold truncate text-white"
@@ -236,19 +243,18 @@ export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClos
           >
             {fileName}
           </span>
-          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
-            {actions}
-            {is_link ? (
-              <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="cok-btn-outlined-reverse" style={{ padding: "0.4rem 0.8rem" }}>
-                {translate("DCS_BTN_OPEN_NEW_TAB")}
-              </a>
-            ) : (
-              <a href={fileUrl} download={fileName} className="cok-btn-outlined-reverse" style={{ padding: "0.4rem 0.8rem" }}>
-                {translate("DCS_BTN_DOWNLOAD")}
-              </a>
-            )}
-            <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={translate("DCS_BTN_CLOSE")}
+            title={translate("DCS_BTN_CLOSE")}
+            className="dcs-viewer-close cursor-pointer flex items-center justify-center flex-shrink-0"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+              <line x1="5" y1="5" x2="19" y2="19" />
+              <line x1="19" y1="5" x2="5" y2="19" />
+            </svg>
+          </button>
         </div>
         <div className="flex-1 overflow-auto p-4" style={{ backgroundColor: "#F7F9FB" }}>
           {kind === "image" && (
@@ -270,6 +276,26 @@ export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClos
             <iframe title={fileName} src={fileUrl} sandbox="" style={{ width: "100%", height: "75vh", border: "none", backgroundColor: "#FFFFFF" }} />
           )}
           {kind === "generic" && <GenericPreview fileUrl={fileUrl} fileName={fileName} />}
+        </div>
+
+        {/* Everything that acts on the file, together under it: what the
+            caller adds (the gallery's way back to the record), then
+            downloading or opening it. Centred, and wrapping onto a second
+            row on a narrow screen rather than being squeezed. */}
+        <div
+          className="flex flex-wrap items-center justify-center gap-2 px-4 py-3 flex-shrink-0"
+          style={{ backgroundColor: "#FFFFFF", borderTop: "1px solid #E0E0E0" }}
+        >
+          {actions}
+          {is_link ? (
+            <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="cok-btn-outlined" style={{ padding: "0.5rem 1rem" }}>
+              {translate("DCS_BTN_OPEN_NEW_TAB")}
+            </a>
+          ) : (
+            <a href={fileUrl} download={fileName} className="cok-btn-outlined" style={{ padding: "0.5rem 1rem" }}>
+              {translate("DCS_BTN_DOWNLOAD")}
+            </a>
+          )}
         </div>
       </div>
       <style>{DOC_PREVIEW_STYLE}</style>

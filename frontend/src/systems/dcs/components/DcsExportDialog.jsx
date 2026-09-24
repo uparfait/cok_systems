@@ -230,7 +230,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, asP
 
   if (asPage) {
     return (
-      <div className="bg-white border-2 p-4 sm:p-5 max-w-xl" style={{ borderColor: "#E0E0E0" }}>
+      <div className="bg-white border-2 p-4 sm:p-5" style={{ borderColor: "#E0E0E0" }}>
         {body}
       </div>
     );

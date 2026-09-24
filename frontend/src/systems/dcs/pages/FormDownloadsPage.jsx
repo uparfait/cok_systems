@@ -14,7 +14,7 @@ export default function FormDownloadsPage() {
 
   return (
     <DcsWorkspaceShell projectId={project_id} formGroupId={form_group_id} titleKey="DCS_WS_DOWNLOADS">
-      <div className="px-1 sm:px-2">
+      <div className="px-1 sm:px-2 max-w-xl mx-auto">
         <DcsExportDialog asPage form_group_id={form_group_id} />
       </div>
     </DcsWorkspaceShell>

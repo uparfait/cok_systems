@@ -4707,3 +4707,75 @@ background-color: #056daa;
   border-color: #056daa;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
 }
+
+/* Every workspace page lays its content out down one centred column
+   rather than against the left edge: at ordinary widths it simply fills
+   the space, and on a wide screen - or expanded over the whole page -
+   it stays centred instead of stranding the content on one side with
+   empty room beside it. */
+.dcs-ws-center {
+  width: 100%;
+  max-width: 1600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+/* The expanded page centres what is in it for the same reason, and keeps
+   the scroll on the column rather than on the fixed layer itself. */
+.dcs-dt-expanded {
+  align-items: center;
+}
+.dcs-dt-expanded > *:not(.dcs-expand-fab) {
+  width: 100%;
+}
+
+/* The way out of the file viewer: an icon on the coloured bar carrying
+   the file's name, since everything that acts on the file now lives in
+   the bar underneath. */
+.dcs-viewer-close {
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: none;
+  color: #FFFFFF;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+.dcs-viewer-close:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+  border-color: #FFFFFF;
+}
+
+/* The expand control belongs to the whole page, not to the row of
+   filters above it, so it is pinned to the right edge of the window and
+   stays there however far the page is scrolled. Above the expanded layer
+   (10040), since it is also the way back out of it. */
+.dcs-expand-fab {
+  position: fixed;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10050;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid #E0E0E0;
+  background-color: #FFFFFF;
+  color: #056daa;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.dcs-expand-fab:hover {
+  border-color: #056daa;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+.dcs-expand-fab.is-active {
+  background-color: #056daa;
+  border-color: #056daa;
+  color: #FFFFFF;
+}
+@media (max-width: 480px) {
+  .dcs-expand-fab {
+    right: 10px;
+    width: 36px;
+    height: 36px;
+  }
+}

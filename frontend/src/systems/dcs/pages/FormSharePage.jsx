@@ -25,7 +25,7 @@ export default function FormSharePage() {
 
   return (
     <DcsWorkspaceShell projectId={project_id} formGroupId={form_group_id} titleKey="DCS_WS_SHARE">
-      <div className="px-1 sm:px-2 max-w-3xl">
+      <div className="px-1 sm:px-2 max-w-3xl mx-auto">
         {loading || !versions ? <CardListSkeleton count={2} /> : <DcsDataFeedDialog asPage formGroupId={form_group_id} versions={versions} />}
       </div>
     </DcsWorkspaceShell>

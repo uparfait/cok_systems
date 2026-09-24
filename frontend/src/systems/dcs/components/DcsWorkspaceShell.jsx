@@ -6,40 +6,45 @@ import DcsFormNav from "./DcsFormNav.jsx";
 const FONT = "'Montserrat', sans-serif";
 
 /**
- * The frame every page reached from the form's workspace panel sits in:
- * the form's own sub-header links, a title row, and one control that
- * lifts the whole page over everything else.
+ * The control that lifts a page over everything else. It is pinned to the
+ * right edge of the window rather than sitting in the page's own header:
+ * it belongs to the whole page, not to the row of filters above the
+ * content, and a page that is scrolled a long way down is exactly where
+ * somebody wants more room - so it must still be there, not left behind
+ * at the top.
  *
- * Expanding is not the browser's own full screen - it is this page,
- * fixed over the app, so the app's chrome stays a keystroke away and the
- * page keeps its own scrolling. Escape closes it again, and it closes by
- * itself when the page is left, so a route change can never strand
- * somebody in an expanded view of a page they are no longer on.
+ * Expanding is not the browser's own full screen - it is the page, fixed
+ * over the app, so the app's chrome stays a keystroke away and the page
+ * keeps its own scrolling.
  */
-export function ExpandToggle({ expanded, onToggle }) {
+export function ExpandFab({ expanded, onToggle }) {
   const { translate } = useDcsLanguage();
+  const label = translate(expanded ? "DCS_TABLE_FULLSCREEN_CLOSE" : "DCS_TABLE_FULLSCREEN_OPEN");
+
   return (
     <button
       type="button"
       onClick={onToggle}
-      title={translate(expanded ? "DCS_TABLE_FULLSCREEN_CLOSE" : "DCS_TABLE_FULLSCREEN_OPEN")}
-      aria-label={translate(expanded ? "DCS_TABLE_FULLSCREEN_CLOSE" : "DCS_TABLE_FULLSCREEN_OPEN")}
+      title={label}
+      aria-label={label}
       aria-pressed={expanded}
-      className={`dcs-dt-tool ${expanded ? "is-active" : ""} cursor-pointer flex-shrink-0`}
+      className={`dcs-expand-fab ${expanded ? "is-active" : ""} cursor-pointer flex items-center justify-center`}
     >
+      {/* Frame corners: pushed outward to take the room, drawn back
+          inward to give it up. */}
       {expanded ? (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="4 14 10 14 10 20" />
-          <polyline points="20 10 14 10 14 4" />
-          <line x1="14" y1="10" x2="21" y2="3" />
-          <line x1="3" y1="21" x2="10" y2="14" />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M9 4v5H4" />
+          <path d="M15 4v5h5" />
+          <path d="M9 20v-5H4" />
+          <path d="M15 20v-5h5" />
         </svg>
       ) : (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="15 3 21 3 21 9" />
-          <polyline points="9 21 3 21 3 15" />
-          <line x1="21" y1="3" x2="14" y2="10" />
-          <line x1="3" y1="21" x2="10" y2="14" />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 9V4h5" />
+          <path d="M20 9V4h-5" />
+          <path d="M4 15v5h5" />
+          <path d="M20 15v5h-5" />
         </svg>
       )}
     </button>
@@ -69,31 +74,42 @@ export function useExpandable() {
   return { expanded, setExpanded, toggle: () => setExpanded((previous) => !previous) };
 }
 
+/**
+ * The frame every page reached from the form's workspace panel sits in:
+ * the form's own sub-header links, a heading row, and the content.
+ *
+ * The heading and its filters sit at the left, where a heading is read
+ * from; the content below them is what gets centred, so a wide screen
+ * puts the thing being looked at in the middle rather than leaving it
+ * stranded against one edge.
+ */
 export default function DcsWorkspaceShell({ projectId, formGroupId, formName, titleKey, title, toolbar, children }) {
   const { translate } = useDcsLanguage();
   const { expanded, toggle } = useExpandable();
 
-  const body = (
-    <>
-      {/* Mobile first: the title takes the row on its own and the
-          controls wrap under it rather than being squeezed beside it. */}
-      <div className="flex-shrink-0 mb-3 px-1 sm:px-2 flex flex-wrap items-center gap-2">
+  // Expanding only adds a class to the container that is already there.
+  // Moving the page's content into a DIFFERENT wrapper would be a new
+  // position in the tree to React, which unmounts everything below it and
+  // mounts it again - every fetch redone, every scroll position and open
+  // menu lost. The page must survive being expanded untouched.
+  return (
+    <div className={`h-full flex flex-col pb-4 ${expanded ? "dcs-dt-expanded" : ""}`}>
+      <DcsFormNav projectId={projectId} formGroupId={formGroupId} formName={formName} />
+
+      {/* Mobile first: the heading takes the row on its own and the
+          filters wrap under it rather than being squeezed beside it. */}
+      <div className="dcs-ws-center flex-shrink-0 mb-3 px-1 sm:px-2 flex flex-wrap items-center gap-2">
         <p className="text-sm font-bold uppercase min-w-0 truncate" style={{ color: "#333333", fontFamily: FONT, letterSpacing: "0.4px" }}>
           {title !== undefined ? title : translate(titleKey)}
         </p>
-        <span className="flex-1" />
         {toolbar}
-        <ExpandToggle expanded={expanded} onToggle={toggle} />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
-    </>
-  );
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="dcs-ws-center">{children}</div>
+      </div>
 
-  return (
-    <div className="h-full flex flex-col pb-4">
-      <DcsFormNav projectId={projectId} formGroupId={formGroupId} formName={formName} />
-      {expanded ? <div className="dcs-dt-expanded">{body}</div> : body}
+      <ExpandFab expanded={expanded} onToggle={toggle} />
     </div>
   );
 }

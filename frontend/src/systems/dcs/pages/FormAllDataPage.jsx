@@ -15,6 +15,7 @@ import { TableSkeleton } from "../components/DcsSkeletons.jsx";
 import DcsApprovalDetailsDialog from "../components/DcsApprovalDetailsDialog.jsx";
 import DcsRecordViewOverlay from "../components/DcsRecordViewOverlay.jsx";
 import DcsFormNav from "../components/DcsFormNav.jsx";
+import { ExpandFab } from "../components/DcsWorkspaceShell.jsx";
 import DcsHideFieldsMenu from "../components/table/DcsHideFieldsMenu.jsx";
 import DcsColumnFilterMenu from "../components/table/DcsColumnFilterMenu.jsx";
 import RecordHistoryDialog from "../tracking/RecordHistoryDialog.jsx";
@@ -207,7 +208,7 @@ export default function FormAllDataPage() {
       {/* Mobile first: the toolbar wraps onto as many rows as it needs
           rather than scrolling sideways, so nothing in it can end up out
           of reach on a phone. */}
-      <div className="flex-shrink-0 mb-3 px-1 sm:px-2 flex flex-wrap items-center gap-2">
+      <div className="dcs-ws-center flex-shrink-0 mb-3 px-1 sm:px-2 flex flex-wrap items-center gap-2">
         <DcsHideFieldsMenu
           columns={hideable_columns}
           hidden={columns_state.hidden_columns}
@@ -235,38 +236,13 @@ export default function FormAllDataPage() {
           </button>
         )}
 
-        <span className="flex-1" />
-
-        <button
-          type="button"
-          onClick={() => columns_state.setIsExpanded(!columns_state.is_expanded)}
-          title={translate(columns_state.is_expanded ? "DCS_TABLE_FULLSCREEN_CLOSE" : "DCS_TABLE_FULLSCREEN_OPEN")}
-          aria-label={translate(columns_state.is_expanded ? "DCS_TABLE_FULLSCREEN_CLOSE" : "DCS_TABLE_FULLSCREEN_OPEN")}
-          className={`dcs-dt-tool ${columns_state.is_expanded ? "is-active" : ""} cursor-pointer flex-shrink-0`}
-        >
-          {columns_state.is_expanded ? (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="4 14 10 14 10 20" />
-              <polyline points="20 10 14 10 14 4" />
-              <line x1="14" y1="10" x2="21" y2="3" />
-              <line x1="3" y1="21" x2="10" y2="14" />
-            </svg>
-          ) : (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="15 3 21 3 21 9" />
-              <polyline points="9 21 3 21 3 15" />
-              <line x1="21" y1="3" x2="14" y2="10" />
-              <line x1="3" y1="21" x2="10" y2="14" />
-            </svg>
-          )}
-        </button>
       </div>
 
       {/* The selection bar only exists while something is actually ticked -
           it is where deleting lives now, in place of a delete icon on
           every single row. */}
       {columns_state.selected_ids.length > 0 && (
-        <div className="dcs-dt-selbar flex-shrink-0 mb-2 mx-1 sm:mx-2">
+        <div className="dcs-ws-center dcs-dt-selbar flex-shrink-0 mb-2">
           <span className="text-xs font-bold" style={{ color: "#056daa" }}>
             {translate("DCS_TABLE_SELECTED_COUNT", { count: columns_state.selected_ids.length })}
           </span>
@@ -289,7 +265,7 @@ export default function FormAllDataPage() {
         </div>
       )}
 
-      <div className="flex-1 min-h-0">
+      <div className="dcs-ws-center flex-1 min-h-0 flex flex-col">
         <DcsDataTable
           columns={columns}
           rows={rows}
@@ -309,10 +285,16 @@ export default function FormAllDataPage() {
   );
 
   return (
-    <div className="h-full flex flex-col pb-4">
+    // Expanding only adds a class here. Putting the table into a
+    // DIFFERENT wrapper would be a new position in the tree to React,
+    // which unmounts it and mounts it again - the page refetched, the
+    // selection and the scroll position gone.
+    <div className={`h-full flex flex-col pb-4 ${columns_state.is_expanded ? "dcs-dt-expanded" : ""}`}>
       <DcsFormNav projectId={project_id} formGroupId={form_group_id} formName={active_version ? active_version.form_name : ""} />
 
-      {columns_state.is_expanded ? <div className="dcs-dt-expanded">{table_block}</div> : table_block}
+      {table_block}
+
+      <ExpandFab expanded={columns_state.is_expanded} onToggle={() => columns_state.setIsExpanded(!columns_state.is_expanded)} />
 
       {is_confirming_delete && (
         <DcsConfirmDialog
