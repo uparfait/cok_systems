@@ -8,6 +8,8 @@ const ExcelJS = require('exceljs');
 const LOGO_PATH = path.join(__dirname, '..', 'assets', 'LOGO_COK_report.png');
 const LOGO_RATIO = 221 / 1116; // original logo image is 1116x221 px
 
+const { toSignatureDataUrl: signatureDataUrl } = require('../utilities/signatureImage');
+
 function formatDateTime(dateStr) {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
@@ -28,9 +30,10 @@ class ExportAttendanceController {
         return res.status(400).json({ success: false, message: 'eventSpecialId is required' });
       }
 
-      const attendees = await Attendance.find({ eventSpecialId })
+      const attendees = (await Attendance.find({ eventSpecialId })
         .sort({ attendanceTime: 1 })
-        .lean();
+        .lean())
+        .map((a) => ({ ...a, attendeeSignature: signatureDataUrl(a) }));
 
       if (!attendees || attendees.length === 0) {
         return res.status(404).json({ success: false, message: 'No attendance records found' });
@@ -98,7 +101,9 @@ class ExportAttendanceController {
             a.attendeeInstitution || '',
             a.attendeeDepartment || '',
             a.attendeePosition || '',
-            a.attendeeSignature ? 'Yes' : 'No',
+            a.certificateSignature && a.certificateSignature.subjectCommonName
+              ? `Digitally signed by ${a.certificateSignature.subjectCommonName}`
+              : (a.attendeeSignature ? 'Yes' : 'No'),
             formatDateTime(a.createdAt),
           ];
           values.forEach((v, j) => { row.getCell(j + 1).value = v; });

@@ -55,8 +55,34 @@ const attendanceSchema = new mongoose.Schema({
   },
   signatureMethod: {
     type: String,
-    enum: ['draw', 'certificate'],
+    enum: ['draw', 'certificate', 'digital-certificate'],
     default: null,
+  },
+  signatureImage: {
+    type: Buffer, // rendered signature appearance stored as a blob - optional
+    required: false,
+  },
+  signatureImageType: {
+    type: String,
+    default: 'image/png',
+  },
+  certificateSignature: {
+    // Populated only for signatureMethod 'digital-certificate'
+    signatureValue: { type: String },
+    certificate: { type: String }, // base64 DER of the signer's X.509 certificate
+    signedPayload: { type: Buffer }, // the exact bytes that were signed, never rebuilt
+    subjectCommonName: { type: String },
+    subjectOrganization: { type: String },
+    subjectEmail: { type: String },
+    issuerCommonName: { type: String },
+    serialNumber: { type: String },
+    thumbprint: { type: String },
+    validFrom: { type: Date },
+    validTo: { type: Date },
+    signedAt: { type: Date },
+    verifiedAt: { type: Date },
+    chainVerified: { type: Boolean, default: false },
+    nameMatchedTypedName: { type: Boolean, default: false },
   },
   eventName: {
     type: String,

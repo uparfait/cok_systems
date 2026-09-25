@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { FiUploadCloud, FiFileText, FiX } from 'react-icons/fi';
+import { FiUploadCloud, FiFileText, FiX, FiCheckCircle, FiLock } from 'react-icons/fi';
 import { useToast } from '@/core/contexts/ToastContext';
 import SpiralLoader from '../../components/SpiralLoader';
+import { canonicalPayloadBytes } from '../../utils/canonicalAttendancePayload';
+import { openCertificate, signCanonicalBytes, renderAppearanceImage } from '../../utils/certificateSigning';
 
 const BASE_URL = '/cok/api/v1';
 
@@ -211,6 +213,9 @@ export default function AttendanceForm() {
   const [signatureMethod, setSignatureMethod] = useState('draw');
   const [certificateFile, setCertificateFile] = useState(null);
   const [certError, setCertError] = useState('');
+  const [certificatePassword, setCertificatePassword] = useState('');
+  const [signing, setSigning] = useState(false);
+  const [certificateSignature, setCertificateSignature] = useState(null);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState('');
@@ -218,7 +223,7 @@ export default function AttendanceForm() {
   const [padKey, setPadKey] = useState(0);
   const certInputRef = useRef(null);
 
-  const validate = () => {
+  const validate = ({ skipSignature = false } = {}) => {
     const newErrors = {};
 
     if (!formData.attendeeFullName.trim())
@@ -249,11 +254,11 @@ export default function AttendanceForm() {
     if (!formData.attendeePosition.trim())
       newErrors.attendeePosition = 'Position is required';
 
-    // A signature is required: either drawn or an uploaded digital signature
-    if (signatureMethod === 'draw' && !signature)
+    // A signature is required: either drawn, or produced by the attendee's own certificate
+    if (!skipSignature && signatureMethod === 'draw' && !signature)
       newErrors.signature = 'Please draw your signature';
-    if (signatureMethod === 'certificate' && !certificateFile)
-      newErrors.signature = 'Please upload your digital signature';
+    if (!skipSignature && signatureMethod === 'certificate' && !certificateSignature)
+      newErrors.signature = 'Sign with your digital certificate before submitting';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -272,6 +277,71 @@ export default function AttendanceForm() {
     }
   };
 
+  // These resolved values are what the server stores, so they are what gets signed
+  const buildSignedFields = (signedAt) => ({
+    eventSpecialId: eventSpecialId || '',
+    attendeeFullName: formData.attendeeFullName.trim(),
+    attendeeEmail: formData.attendeeEmail.trim().toLowerCase(),
+    attendeePhoneNumber: formData.attendeePhoneNumber.trim(),
+    attendeeInstitution: isInternal ? 'City of Kigali' : formData.attendeeInstitution.trim(),
+    attendeeDepartment: isInternal ? formData.attendeeDepartment.trim() : '',
+    attendeePosition: formData.attendeePosition.trim(),
+    signedAt,
+  });
+
+  // Editing a signed field or redrawing invalidates the signature, so it has to be redone
+  useEffect(() => {
+    setCertificateSignature(null);
+  }, [formData, signature, eventSpecialId, isInternal]);
+
+  const handleSignWithCertificate = async () => {
+    if (!certificateFile) {
+      setCertError('Choose your certificate file first.');
+      return;
+    }
+    if (!certificatePassword) {
+      setCertError('Enter the password for your certificate.');
+      return;
+    }
+    if (!validate({ skipSignature: true })) {
+      setCertError('Fill in your details above before signing.');
+      return;
+    }
+
+    setSigning(true);
+    setCertError('');
+    try {
+      const unlocked = await openCertificate(certificateFile, certificatePassword);
+      const signedAt = new Date().toISOString();
+      const fields = buildSignedFields(signedAt);
+      const signatureValue = await signCanonicalBytes(unlocked.pkcs8Bytes, canonicalPayloadBytes(fields));
+      const appearanceImage = await renderAppearanceImage({
+        signerName: unlocked.subjectCommonName,
+        issuerName: unlocked.issuerCommonName,
+        serialNumber: unlocked.serialNumber,
+        signedAt,
+        handwritingDataUrl: signature || null,
+      });
+
+      setCertificateSignature({
+        signatureValue,
+        certificate: unlocked.certificateBase64,
+        signedAt,
+        appearanceImage,
+        signerName: unlocked.subjectCommonName,
+        issuerName: unlocked.issuerCommonName,
+      });
+      setErrors((p) => ({ ...p, signature: null }));
+      // The password is not needed again and should not linger in memory
+      setCertificatePassword('');
+      showSuccess(`Signed as ${unlocked.subjectCommonName}`);
+    } catch (error) {
+      setCertError(error?.message || 'Could not sign with this certificate.');
+    } finally {
+      setSigning(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
@@ -281,24 +351,23 @@ export default function AttendanceForm() {
     setServerError('');
 
     try {
-      if (signatureMethod === 'certificate' && certificateFile) {
-        const payload = new FormData();
-        payload.append('attendeeFullName', formData.attendeeFullName.trim());
-        payload.append('attendeeEmail', formData.attendeeEmail.trim() || '');
-        payload.append('attendeePhoneNumber', formData.attendeePhoneNumber.trim());
-        payload.append('attendeeInstitution', isInternal ? 'City of Kigali' : formData.attendeeInstitution.trim());
-        payload.append('attendeeDepartment', isInternal ? formData.attendeeDepartment.trim() : '');
-        payload.append('attendeePosition', formData.attendeePosition.trim());
-        payload.append('eventSpecialId', eventSpecialId);
-        payload.append('eventName', eventName);
-        payload.append('eventRoom', eventRoom);
-        payload.append('roomLocation', roomLocation);
-        payload.append('signatureMethod', 'certificate');
-        if (signature) payload.append('attendeeSignature', signature);
-        payload.append('digitalCertificate', certificateFile);
+      if (signatureMethod === 'certificate' && certificateSignature) {
+        // The signed field values go up exactly as they were signed, or verification fails
+        const signedFields = buildSignedFields(certificateSignature.signedAt);
 
-        await axios.post(`${BASE_URL}/attendance`, payload, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+        await axios.post(`${BASE_URL}/attendance`, {
+          ...signedFields,
+          attendeeEmail: signedFields.attendeeEmail || undefined,
+          eventName,
+          eventRoom,
+          roomLocation,
+          signatureMethod: 'digital-certificate',
+          certificateSignature: {
+            signatureValue: certificateSignature.signatureValue,
+            certificate: certificateSignature.certificate,
+            signedAt: certificateSignature.signedAt,
+            appearanceImage: certificateSignature.appearanceImage,
+          },
         });
       } else {
         await axios.post(`${BASE_URL}/attendance`, {
@@ -582,10 +651,10 @@ export default function AttendanceForm() {
                   name="signatureMethod"
                   value="certificate"
                   checked={signatureMethod === 'certificate'}
-                  onChange={() => { setSignatureMethod('certificate'); setSignature(''); setErrors((p) => ({ ...p, signature: null })); }}
+                  onChange={() => { setSignatureMethod('certificate'); setErrors((p) => ({ ...p, signature: null })); }}
                   style={{ accentColor: PRIMARY }}
                 />
-                <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Upload Digital Signature</span>
+                <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Sign with Digital Certificate</span>
               </label>
             </div>
           </div>
@@ -604,25 +673,37 @@ export default function AttendanceForm() {
 
           {signatureMethod === 'certificate' && (
             <div>
+              {/* A certificate holds no handwriting, so the ink is drawn here like a PDF signature appearance */}
               <label style={labelStyle}>
-                Digital Signature <span style={{ color: DANGER }}>*</span>
-                <span className="normal-case font-normal ml-1" style={{ color: GRAY_DISABLED }}>(image or PDF, max 5 MB)</span>
+                Your handwritten signature
+                <span className="normal-case font-normal ml-1" style={{ color: GRAY_DISABLED }}>(optional, shown on the sheet)</span>
+              </label>
+              <SignaturePad
+                key={`cert-${padKey}`}
+                onChange={(v) => setSignature(v)}
+              />
+
+              <label style={{ ...labelStyle, marginTop: '18px' }}>
+                Digital Certificate <span style={{ color: DANGER }}>*</span>
+                <span className="normal-case font-normal ml-1" style={{ color: GRAY_DISABLED }}>(.p12 or .pfx)</span>
               </label>
               <input
                 ref={certInputRef}
                 type="file"
                 id="digitalCertificate"
                 name="digitalCertificate"
-                accept="image/jpeg,image/png,.pdf"
+                accept=".p12,.pfx"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;
-                  const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-                  if (file && !allowedTypes.includes(file.type)) {
+                  // Phone file pickers report unreliable MIME types, so check the extension
+                  const hasCertExtension = file && /\.(p12|pfx)$/i.test(file.name);
+                  if (file && !hasCertExtension) {
                     setCertificateFile(null);
-                    setCertError('Invalid file type. Only JPEG, PNG, and PDF are supported.');
+                    setCertError('Choose a certificate file ending in .p12 or .pfx');
                   } else {
                     setCertificateFile(file);
+                    setCertificateSignature(null);
                     setCertError('');
                     if (file) setErrors((p) => ({ ...p, signature: null }));
                   }
@@ -640,10 +721,10 @@ export default function AttendanceForm() {
                 >
                   <FiUploadCloud className="w-7 h-7" style={{ color: PRIMARY }} />
                   <p className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                    Click to upload your signature
+                    Choose your certificate file
                   </p>
                   <p className="text-xs" style={{ color: GRAY_DISABLED }}>
-                    JPEG, PNG or PDF, max 5 MB
+                    .p12 or .pfx, never leaves this device
                   </p>
                 </div>
               ) : (
@@ -665,11 +746,71 @@ export default function AttendanceForm() {
                   <button
                     type="button"
                     title="Remove file"
-                    onClick={() => { setCertificateFile(null); setCertError(''); }}
+                    onClick={() => { setCertificateFile(null); setCertificatePassword(''); setCertificateSignature(null); setCertError(''); }}
                     className="p-1.5 shrink-0 cursor-pointer transition-colors hover:bg-[#FDECEA]"
                     style={{ color: DANGER }}
                   >
                     <FiX className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Password unlocks the key in this browser only; it is never sent anywhere */}
+              {certificateFile && !certificateSignature && (
+                <div className="mt-3">
+                  <label style={labelStyle}>Certificate password</label>
+                  <div className="flex items-center gap-2">
+                    <FiLock className="w-4 h-4 shrink-0" style={{ color: GRAY_DISABLED }} />
+                    <input
+                      type="password"
+                      value={certificatePassword}
+                      autoComplete="off"
+                      placeholder="Password for this certificate"
+                      onChange={(e) => { setCertificatePassword(e.target.value); setCertError(''); }}
+                      className={inputClassName}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSignWithCertificate}
+                    disabled={signing}
+                    className="cok-btn-primary mt-2.5 disabled:cursor-not-allowed"
+                    style={signing ? { opacity: 0.6 } : undefined}
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      {signing && <SpiralLoader color="#FFFFFF" padded={false} size={16} />}
+                      {signing ? 'Signing...' : 'Sign with certificate'}
+                    </span>
+                  </button>
+                  <p className="text-xs mt-1.5" style={{ color: GRAY_DISABLED }}>
+                    Your certificate and password stay on this device. Only the signature is sent.
+                  </p>
+                </div>
+              )}
+
+              {/* The signature block that gets stored with the attendance record */}
+              {certificateSignature && (
+                <div className="mt-3 p-3" style={{ border: `1px solid ${SUCCESS}`, backgroundColor: '#F1F8F2' }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <FiCheckCircle className="w-4 h-4 shrink-0" style={{ color: SUCCESS }} />
+                    <p className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                      Signed as {certificateSignature.signerName}
+                    </p>
+                  </div>
+                  <img
+                    src={certificateSignature.appearanceImage}
+                    alt={`Digital signature of ${certificateSignature.signerName}`}
+                    className="w-full bg-white"
+                    style={{ border: `1px solid ${BORDER}` }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setCertificateSignature(null); setCertificatePassword(''); }}
+                    className="text-xs mt-2 underline cursor-pointer"
+                    style={{ color: PRIMARY, fontFamily: fontHeading }}
+                  >
+                    Sign again
                   </button>
                 </div>
               )}

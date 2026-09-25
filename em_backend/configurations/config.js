@@ -40,6 +40,12 @@ module.exports = {
   jwt: {
     secret: process.env.JWT_SECRET || 'cok-jwt-secret-2026',
   },
+  // Attendee certificate signing. Leave the issuer blank to accept any issuer,
+  // or set it to the exact CN on the GovCA issuing certificate to reject the rest.
+  signing: {
+    trustedIssuerCommonName: process.env.SIGNING_TRUSTED_ISSUER_CN || '',
+    requireNameMatch: (process.env.SIGNING_REQUIRE_NAME_MATCH || 'true') !== 'false',
+  },
   email: {
     host: process.env.EMAIL_HOST || 'mail.kigalicity.gov.rw',
     port: parseInt(process.env.EMAIL_PORT, 10) || 25,
