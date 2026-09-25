@@ -1,5 +1,32 @@
 const Attendance = require('../models/Attendance');
 const { event_special_id_match } = require('../utilities/eventSpecialId');
+const { toSignatureDataUrl } = require('../utilities/signatureImage');
+
+// The signature blob is sent back as a data URL so existing views render it unchanged.
+// The signed bytes and the raw certificate stay on the server; nothing needs them in the browser.
+function presentAttendance(record) {
+  const { signatureImage, signatureImageType, certificateSignature, ...rest } = record;
+
+  const dataUrl = toSignatureDataUrl(record);
+  if (dataUrl) rest.attendeeSignature = dataUrl;
+
+  if (certificateSignature && certificateSignature.subjectCommonName) {
+    rest.certificateSignature = {
+      subjectCommonName: certificateSignature.subjectCommonName,
+      subjectOrganization: certificateSignature.subjectOrganization,
+      subjectEmail: certificateSignature.subjectEmail,
+      issuerCommonName: certificateSignature.issuerCommonName,
+      serialNumber: certificateSignature.serialNumber,
+      thumbprint: certificateSignature.thumbprint,
+      signedAt: certificateSignature.signedAt,
+      verifiedAt: certificateSignature.verifiedAt,
+      chainVerified: certificateSignature.chainVerified,
+      nameMatchedTypedName: certificateSignature.nameMatchedTypedName,
+    };
+  }
+
+  return rest;
+}
 
 class GetAttendanceController {
   static async handle(req, res) {
@@ -82,7 +109,7 @@ class GetAttendanceController {
         totalRecords,
         totalPages: 1,
         currentPage: 1,
-        data
+        data: data.map(presentAttendance)
       });
     } catch (error) {
       return res.status(500).json({

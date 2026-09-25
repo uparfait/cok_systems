@@ -1,6 +1,20 @@
 const Attendance = require('../models/Attendance');
 const LiveEvent = require('../models/LiveEvent');
 const config = require('../configurations/config');
+const { verifyAttendanceSignature, namesMatch } = require('../utilities/certificateSignature');
+
+const MAX_APPEARANCE_IMAGE_BYTES = 400000;
+
+// Turns the browser's "data:image/png;base64,..." appearance into the stored blob
+function decodeAppearanceImage(dataUrl) {
+  if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/png;base64,')) {
+    return { error: 'The signature image must be a PNG data URL' };
+  }
+  const buffer = Buffer.from(dataUrl.split(',')[1] || '', 'base64');
+  if (buffer.length === 0) return { error: 'The signature image is empty' };
+  if (buffer.length > MAX_APPEARANCE_IMAGE_BYTES) return { error: 'The signature image is too large' };
+  return { buffer };
+}
 
 class SubmitAttendanceController {
   static async handle(req, res) {
@@ -15,10 +29,13 @@ class SubmitAttendanceController {
         eventSpecialId,
         attendeeSignature,
         signatureMethod,
+        certificateSignature,
         eventName,
         eventRoom,
         roomLocation,
       } = req.body;
+
+      const isCertificateSigned = signatureMethod === 'digital-certificate';
 
       if (!attendeeFullName || !attendeePhoneNumber || !attendeeInstitution || !attendeePosition || !eventSpecialId) {
         return res.status(400).json({
@@ -99,6 +116,74 @@ class SubmitAttendanceController {
         ? `${config.api.basePath}/uploads/${req.file.filename}`
         : undefined;
 
+      // These are the exact values that were signed and that get stored
+      const signedFields = {
+        eventSpecialId,
+        attendeeFullName: attendeeFullName.trim(),
+        attendeeEmail: attendeeEmail ? attendeeEmail.toLowerCase().trim() : '',
+        attendeePhoneNumber: attendeePhoneNumber.trim(),
+        attendeeInstitution: attendeeInstitution.trim(),
+        attendeePosition: attendeePosition.trim(),
+        attendeeDepartment: String(attendeeDepartment || '').trim(),
+        signedAt: certificateSignature ? certificateSignature.signedAt : undefined,
+      };
+
+      let certificateRecord;
+      let appearanceBlob;
+
+      if (isCertificateSigned) {
+        if (!certificateSignature || typeof certificateSignature !== 'object') {
+          return res.status(400).json({
+            success: false,
+            message: 'Certificate signature details are required'
+          });
+        }
+
+        const appearance = decodeAppearanceImage(certificateSignature.appearanceImage);
+        if (appearance.error) {
+          return res.status(400).json({ success: false, message: appearance.error });
+        }
+        appearanceBlob = appearance.buffer;
+
+        const verification = verifyAttendanceSignature({
+          fields: signedFields,
+          signatureBase64: certificateSignature.signatureValue,
+          certificateBase64: certificateSignature.certificate,
+          trustedIssuerCommonName: config.signing.trustedIssuerCommonName,
+        });
+
+        if (!verification.valid) {
+          return res.status(422).json({ success: false, message: verification.error });
+        }
+
+        // This is what stops one person signing in another person's name
+        const nameMatched = namesMatch(signedFields.attendeeFullName, verification.identity.subjectCommonName);
+        if (config.signing.requireNameMatch && !nameMatched) {
+          return res.status(422).json({
+            success: false,
+            message: `This certificate belongs to ${verification.identity.subjectCommonName}. Enter that name to sign with it.`
+          });
+        }
+
+        certificateRecord = {
+          signatureValue: certificateSignature.signatureValue,
+          certificate: certificateSignature.certificate,
+          signedPayload: Buffer.from(verification.canonicalPayload, 'utf8'),
+          subjectCommonName: verification.identity.subjectCommonName,
+          subjectOrganization: verification.identity.subjectOrganization,
+          subjectEmail: verification.identity.subjectEmail,
+          issuerCommonName: verification.identity.issuerCommonName,
+          serialNumber: verification.identity.serialNumber,
+          thumbprint: verification.identity.thumbprint,
+          validFrom: verification.identity.validFrom,
+          validTo: verification.identity.validTo,
+          signedAt: new Date(signedFields.signedAt),
+          verifiedAt: verification.verifiedAt,
+          chainVerified: verification.chainVerified,
+          nameMatchedTypedName: nameMatched,
+        };
+      }
+
       const attendance = new Attendance({
         attendeeFullName: attendeeFullName.trim(),
         attendeeEmail: attendeeEmail ? attendeeEmail.toLowerCase().trim() : undefined,
@@ -113,6 +198,9 @@ class SubmitAttendanceController {
         attendeeSignature: attendeeSignature || undefined,
         digitalCertificate: hasDigitalCertificate,
         signatureMethod: signatureMethod || undefined,
+        signatureImage: appearanceBlob,
+        signatureImageType: appearanceBlob ? 'image/png' : undefined,
+        certificateSignature: certificateRecord,
         attendanceTime: new Date(),
       });
 
@@ -126,8 +214,10 @@ class SubmitAttendanceController {
           attendeeEmail: attendance.attendeeEmail,
           attendanceTime: attendance.attendanceTime,
           signatureMethod: attendance.signatureMethod,
-          hasSignature: !!attendance.attendeeSignature,
+          hasSignature: !!attendance.attendeeSignature || !!attendance.signatureImage,
           hasDigitalCertificate: !!attendance.digitalCertificate,
+          signedBy: certificateRecord ? certificateRecord.subjectCommonName : undefined,
+          certificateIssuer: certificateRecord ? certificateRecord.issuerCommonName : undefined,
         }
       });
     } catch (error) {
