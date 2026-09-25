@@ -24,15 +24,45 @@ const { spawn } = require('child_process');
  * restart with it.
  */
 
-// The repository root: backend/utilities -> backend -> repo.
-const REPO_DIR = path.resolve(__dirname, '..', '..');
+/**
+ * Where the checkout is, which is not the same place in both ways this
+ * service runs:
+ *
+ *   in Docker    the image is built from ./backend alone, so /app has no
+ *                repository above it. The checkout is bind-mounted at
+ *                /repo instead (see the backend service in
+ *                docker-compose.yml) - without that mount the script is
+ *                simply not in the container.
+ *   from source  the checkout really is two folders up, as the layout
+ *                backend/utilities -> backend -> repo says.
+ *
+ * Whichever one actually holds update-deploy.sh wins, so this is worked
+ * out rather than configured. The source layout is the fallback so the
+ * "not found" message names a path a developer will recognise.
+ */
+const SOURCE_LAYOUT_REPO = path.resolve(__dirname, '..', '..');
+const CANDIDATE_REPOS = ['/repo', SOURCE_LAYOUT_REPO];
 
-// update-deploy.sh lives at the root of the checkout, beside
-// docker-compose.yml, and reads that folder as its own REPO_DIR. There is
-// nowhere else it can be, so there is nothing here to configure.
+/** The first candidate that actually holds the script; the source layout otherwise. */
+function find_repo_dir(candidates = CANDIDATE_REPOS, fallback = SOURCE_LAYOUT_REPO) {
+    const found = candidates.find((dir) => {
+        try {
+            return fs.existsSync(path.join(dir, 'update-deploy.sh'));
+        } catch (error) {
+            return false;
+        }
+    });
+    return found || fallback;
+}
+
+const REPO_DIR = find_repo_dir();
+
+// update-deploy.sh sits at the root of the checkout, beside
+// docker-compose.yml, and reads that folder as its own REPO_DIR.
 const SCRIPT_PATH = path.join(REPO_DIR, 'update-deploy.sh');
-// Where the runs are kept. Point this at a folder the host also sees, so a
-// deploy that restarts this container does not take its own log with it.
+// Inside the container this resolves to /repo/deploy/runs, which IS the
+// host's deploy/runs through the bind mount - so a deployment that
+// restarts this container does not take its own console output with it.
 const LOG_DIR = process.env.DEPLOY_LOG_DIR || path.join(REPO_DIR, 'deploy', 'runs');
 // The script writes nginx and restarts it, so it needs root. -n makes sudo
 // fail immediately with a readable message instead of waiting forever on a
@@ -387,6 +417,8 @@ module.exports = {
     FAILED,
     SCRIPT_PATH,
     LOG_DIR,
+    CANDIDATE_REPOS,
+    find_repo_dir,
     REQUIRED_URL_FRAGMENT,
     check_request_url,
     check_password,

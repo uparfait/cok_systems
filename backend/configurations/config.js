@@ -1,8 +1,12 @@
 const DB_CONFIG = {
     // Email Configuration (from environment variables)
+    // The City's outgoing mail server: 197.243.27.181 on port 587 with
+    // STARTTLS and SMTP authentication. Port 587 is the submission port, so
+    // the connection opens in the clear and is upgraded to TLS before the
+    // credentials are sent (see utilities/email.js).
     email: {
-        host: process.env.EMAIL_HOST || 'mail.kigalicity.gov.rw',
-        port: parseInt(process.env.EMAIL_PORT, 10) || 25,
+        host: process.env.EMAIL_HOST || '197.243.27.181',
+        port: parseInt(process.env.EMAIL_PORT, 10) || 587,
         user: process.env.EMAIL_USER || '',
         pass: process.env.EMAIL_PASS || '',
         from: `"IKAZE" ${process.env.EMAIL_FROM || ''}`

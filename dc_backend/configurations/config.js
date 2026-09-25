@@ -12,8 +12,10 @@ const DC_CONFIG = {
     : ["https://cok-fr.vercel.app", "http://localhost:5173", "http://localhost:3000"],
   upload_dir: "uploads",
   email: {
-    host: process.env.EMAIL_HOST || "mail.kigalicity.gov.rw",
-    port: Number(process.env.EMAIL_PORT) || 25,
+    // The City's outgoing mail server: 197.243.27.181 on port 587 with
+    // STARTTLS and SMTP authentication (see utilities/approval_email.js).
+    host: process.env.EMAIL_HOST || "197.243.27.181",
+    port: Number(process.env.EMAIL_PORT) || 587,
     user: process.env.EMAIL_USER || "",
     pass: process.env.EMAIL_PASS || "",
     from: process.env.EMAIL_FROM || "IKAZE <coksystems@kigalicity.gov.rw>",

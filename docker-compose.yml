@@ -23,6 +23,20 @@ services:
       - ./backend/.env
     volumes:
       - backend_uploads:/app/uploads
+      # The Deployment Management page runs update-deploy.sh, which lives in
+      # this folder. The image only ever holds ./backend, so without this
+      # bind mount the script simply is not in the container and the page
+      # has nothing to run.
+      #
+      # The WHOLE checkout, not just the one file: the script sources
+      # deploy/common.sh and four more beside it, reads docker-compose.yml,
+      # writes deploy/env/ and runs git in this folder.
+      #
+      # Read-write, and that matters twice over - the script writes the
+      # per-stack .env files, and the run logs land in deploy/runs/ ON THE
+      # HOST, so a deployment that restarts this very container does not
+      # take its own console output with it.
+      - ./:/repo
     depends_on:
       mongo:
         condition: service_healthy

@@ -14,12 +14,20 @@ const { buildInviteICS } = require('./eventCalendar');
 const transporter = nodemailer.createTransport({
   host: config.email.host,
   port: config.email.port,
+  // Port 587 is the submission port: the connection starts in the clear and
+  // STARTTLS upgrades it, which is why secure is false. secure true would
+  // be port 465, where TLS is there from the first byte.
   secure: false,
+  // Encryption is REQUIRED, not merely attempted: without this nodemailer
+  // would fall back to sending the credentials in the clear.
+  requireTLS: true,
   auth: {
     user: config.email.user,
     pass: config.email.pass,
   },
   tls: {
+    // Reached by IP, and a certificate cannot name an IP, so the name check
+    // can never pass. The connection is still encrypted.
     rejectUnauthorized: false,
   },
 });

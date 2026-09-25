@@ -40,11 +40,16 @@ module.exports = {
   jwt: {
     secret: process.env.JWT_SECRET || 'cok-jwt-secret-2026',
   },
+  // The City's outgoing mail server: 197.243.27.181 on port 587 with
+  // STARTTLS and SMTP authentication (see utilities/email.js).
   email: {
-    host: process.env.EMAIL_HOST || 'mail.kigalicity.gov.rw',
-    port: parseInt(process.env.EMAIL_PORT, 10) || 25,
-    user: process.env.EMAIL_USER || 'coksystems@kigalicity.gov.rw',
-    pass: process.env.EMAIL_PASS || 'CTown@2025!&',
+    host: process.env.EMAIL_HOST || '197.243.27.181',
+    port: parseInt(process.env.EMAIL_PORT, 10) || 587,
+    // No fallback for either: the account password does not belong in a
+    // tracked file, and a blank here fails loudly at startup instead of
+    // quietly signing in with something stale.
+    user: process.env.EMAIL_USER || '',
+    pass: process.env.EMAIL_PASS || '',
     from: process.env.EMAIL_FROM || '"IKAZE" <coksystems@kigalicity.gov.rw>',
   },
   log: {

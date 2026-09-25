@@ -9,10 +9,27 @@ const FONT = "'Montserrat', Arial, sans-serif";
 const transporter = nodemailer.createTransport({
   host: config.email.host,
   port: config.email.port,
+  // Port 587 is the submission port: the connection starts in the clear and
+  // STARTTLS upgrades it, which is why secure is false. secure true would
+  // be port 465, where TLS is there from the first byte.
   secure: false,
+  // Encryption is REQUIRED, not merely attempted: without this nodemailer
+  // would fall back to sending the credentials in the clear.
+  requireTLS: true,
+  // The server wants SMTP authentication, so a missing EMAIL_USER is a
+  // misconfiguration rather than a reason to connect anonymously - it is
+  // said once here instead of failing later on every approval mail.
   auth: config.email.user ? { user: config.email.user, pass: config.email.pass } : undefined,
-  tls: { rejectUnauthorized: false },
+  tls: {
+    // Reached by IP, and a certificate cannot name an IP, so the name check
+    // can never pass. The connection is still encrypted.
+    rejectUnauthorized: false,
+  },
 });
+
+if (!config.email.user) {
+  console.warn("[MAIL] EMAIL_USER is not set in dc_backend/.env - the mail server requires SMTP authentication, so approval emails will be refused.");
+}
 
 // Same email shell as the main backend: banner image only, message below, no footer.
 function html_wrapper(body_html, logo_base_url) {

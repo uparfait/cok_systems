@@ -78,6 +78,7 @@ async function run_all_tests() {
         await test_a_run_id_cannot_leave_the_log_folder();
         await test_only_the_deployment_site_may_deploy();
         await test_the_password_is_checked_here();
+        await test_the_checkout_is_found_in_both_layouts();
     } finally {
         fs.rmSync(work, { recursive: true, force: true });
     }
@@ -210,6 +211,47 @@ async function test_the_password_is_checked_here() {
     ['', '  ', 'wrong', '123cok124', '123COK123', null, undefined, 12345].forEach((given) => {
         assert.ok(runner.check_password(given), `${JSON.stringify(given)} must be refused`);
     });
+}
+
+/**
+ * The checkout is in a different place depending on how this service runs.
+ * In Docker the image is built from ./backend alone, so /app has nothing
+ * above it and the checkout is bind-mounted at /repo; from source it really
+ * is two folders up. Picking the wrong one is what made the page find no
+ * script at all inside a container.
+ */
+async function test_the_checkout_is_found_in_both_layouts() {
+    const runner = load_runner(path.join(work, 'repo-runs'));
+
+    // A stand-in for each layout: only one of them holds the script.
+    const mounted = path.join(work, 'as-container');
+    const from_source = path.join(work, 'as-source');
+    const empty = path.join(work, 'nothing-here');
+    [mounted, from_source, empty].forEach((dir) => fs.mkdirSync(dir, { recursive: true }));
+    fs.writeFileSync(path.join(mounted, 'update-deploy.sh'), '#!/usr/bin/env bash\n');
+    fs.writeFileSync(path.join(from_source, 'update-deploy.sh'), '#!/usr/bin/env bash\n');
+
+    assert.strictEqual(
+        runner.find_repo_dir([mounted, from_source], from_source),
+        mounted,
+        'the bind mount wins when it holds the script - that is the container',
+    );
+    assert.strictEqual(
+        runner.find_repo_dir([empty, from_source], from_source),
+        from_source,
+        'with no mount, the checkout two folders up is used - that is running from source',
+    );
+    assert.strictEqual(
+        runner.find_repo_dir([empty, path.join(work, 'also-nothing')], from_source),
+        from_source,
+        'finding it nowhere falls back to the source layout, so the error names a familiar path',
+    );
+
+    // And the real constant must still name the mount the compose file makes.
+    assert.ok(
+        runner.CANDIDATE_REPOS.includes('/repo'),
+        'the bind mount path must match docker-compose.yml, which mounts ./ at /repo',
+    );
 }
 
 run_all_tests().then(
