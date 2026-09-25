@@ -27,7 +27,10 @@ const { spawn } = require('child_process');
 // The repository root: backend/utilities -> backend -> repo.
 const REPO_DIR = path.resolve(__dirname, '..', '..');
 
-const SCRIPT_PATH = process.env.DEPLOY_SCRIPT_PATH || path.join(REPO_DIR, 'update-deploy.sh');
+// update-deploy.sh lives at the root of the checkout, beside
+// docker-compose.yml, and reads that folder as its own REPO_DIR. There is
+// nowhere else it can be, so there is nothing here to configure.
+const SCRIPT_PATH = path.join(REPO_DIR, 'update-deploy.sh');
 // Where the runs are kept. Point this at a folder the host also sees, so a
 // deploy that restarts this container does not take its own log with it.
 const LOG_DIR = process.env.DEPLOY_LOG_DIR || path.join(REPO_DIR, 'deploy', 'runs');
@@ -204,10 +207,15 @@ function latest_run() {
  * Why a run cannot start right now, as a sentence for the page, or null
  * when it can. Checked BEFORE anything is spawned so the console shows a
  * reason instead of an empty log.
+ *
+ * script_path is the real script everywhere but the tests, which hand in a
+ * stand-in - update-deploy.sh rebuilds the servers and cannot be run from
+ * a test. It is a parameter rather than a setting because on a real server
+ * there is only ever one answer.
  */
-function blocking_reason() {
-    if (!fs.existsSync(SCRIPT_PATH)) {
-        return `The deployment script was not found at ${SCRIPT_PATH}. Set DEPLOY_SCRIPT_PATH to where update-deploy.sh lives on this server.`;
+function blocking_reason(script_path = SCRIPT_PATH) {
+    if (!fs.existsSync(script_path)) {
+        return `The deployment script was not found at ${script_path}. This service must run from the checkout that holds update-deploy.sh.`;
     }
     try {
         ensure_log_dir();
@@ -223,7 +231,7 @@ function blocking_reason() {
  * the caller for an ordinary refusal, since every refusal is something the
  * page has to show.
  */
-function start_run(target_key, started_by) {
+function start_run(target_key, started_by, script_path = SCRIPT_PATH) {
     const target = TARGETS[target_key];
     if (!target) return { error: 'Unknown deployment target.' };
 
@@ -232,7 +240,7 @@ function start_run(target_key, started_by) {
         return { error: `A deployment is already running (${TARGETS[running.target] ? TARGETS[running.target].label : running.target}). Wait for it to finish.`, run_id: running.run_id };
     }
 
-    const reason = blocking_reason();
+    const reason = blocking_reason(script_path);
     if (reason) return { error: reason };
 
     const run_id = new_run_id(target_key);
@@ -249,14 +257,14 @@ function start_run(target_key, started_by) {
     // parsed as shell syntax.
     const REDIRECT = 'exec bash "$1" "$2" >> "$3" 2>&1';
     const posix = (value) => value.split('\\').join('/');
-    const inner_args = ['-c', REDIRECT, 'cok-deploy', posix(SCRIPT_PATH), target.flag, posix(file)];
+    const inner_args = ['-c', REDIRECT, 'cok-deploy', posix(script_path), target.flag, posix(file)];
 
     const command = USE_SUDO ? 'sudo' : 'bash';
     const args = USE_SUDO ? ['-n', 'bash'].concat(inner_args) : inner_args;
 
     const header = [
         `=== ${target.label} ===`,
-        `$ ${USE_SUDO ? 'sudo -n ' : ''}bash ${posix(SCRIPT_PATH)} ${target.flag}`,
+        `$ ${USE_SUDO ? 'sudo -n ' : ''}bash ${posix(script_path)} ${target.flag}`,
         `started by ${started_by || 'unknown'} at ${new Date().toISOString()}`,
         '',
         '',
