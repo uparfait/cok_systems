@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Attendance = require('../models/Attendance');
 const LiveEvent = require('../models/LiveEvent');
+const { event_special_id_match } = require('../utilities/eventSpecialId');
 const PDFDocument = require('pdfkit');
 const ExcelJS = require('exceljs');
 
@@ -28,7 +29,10 @@ class ExportAttendanceController {
         return res.status(400).json({ success: false, message: 'eventSpecialId is required' });
       }
 
-      const attendees = await Attendance.find({ eventSpecialId })
+      // Both spellings of the event's id: attendance is written while the
+      // event is live and keeps the short id, but once it has ended the
+      // page exports with the `<id>__<timestamp>` of the past event.
+      const attendees = await Attendance.find({ eventSpecialId: event_special_id_match(eventSpecialId) })
         .sort({ attendanceTime: 1 })
         .lean();
 
@@ -36,8 +40,11 @@ class ExportAttendanceController {
         return res.status(404).json({ success: false, message: 'No attendance records found' });
       }
 
-      // Resolve a human-readable event name: query param first, then the live event record
-      const liveEvent = await LiveEvent.findOne({ eventSpecialId }).lean().catch(() => null);
+      // Resolve a human-readable event name: query param first, then the
+      // event record - looked up under the live id, since an ended event no
+      // longer has a live record at all and would leave the sheet headed
+      // by a raw id.
+      const liveEvent = await LiveEvent.findOne({ eventSpecialId: event_special_id_match(eventSpecialId) }).lean().catch(() => null);
       let eventName = (req.query.eventName || '').trim();
       if (!eventName || eventName === 'undefined' || eventName === 'null') {
         eventName = liveEvent?.eventName || attendees[0]?.eventName || eventSpecialId;

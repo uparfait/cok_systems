@@ -1,4 +1,5 @@
 const Attendance = require('../models/Attendance');
+const { event_special_id_match } = require('../utilities/eventSpecialId');
 
 class GetAttendanceController {
   static async handle(req, res) {
@@ -19,7 +20,11 @@ class GetAttendanceController {
 
       // Apply filters
       if (eventSpecialId) {
-        queryObject.eventSpecialId = eventSpecialId;
+        // Matched under both spellings of the event's id. Attendance is
+        // submitted to a LIVE event, so it carries the short id; once the
+        // event ends the page asks with the `<id>__<timestamp>` the past
+        // event was stored under, and an exact match would find none of it.
+        queryObject.eventSpecialId = event_special_id_match(eventSpecialId);
       }
 
       if (eventName) {

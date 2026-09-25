@@ -99,11 +99,36 @@ periodically. Restore instructions are at the bottom of the script.
 
 ---
 
+## 9. Enable the deployment agent (once)
+
+Lets **Admin > Deployment Management** in the app start a deployment. The
+backend cannot run `update-deploy.sh` itself - that script needs the host's
+nginx, docker, git and real bash, and it restarts the backend container -
+so the page writes the request into `deploy/runs/` and this agent, on the
+host, does the work.
+
+```bash
+sudo cp deploy/cok-deploy-agent.service /etc/systemd/system/
+sudo nano /etc/systemd/system/cok-deploy-agent.service   # set WorkingDirectory + ExecStart to this folder
+sudo systemctl daemon-reload
+sudo systemctl enable --now cok-deploy-agent
+systemctl status cok-deploy-agent
+```
+
+The `backend` service in `docker-compose.yml` must keep its `./:/repo`
+bind mount - that is how the container reaches `deploy/runs/`. Without the
+agent the page still loads and says, in as many words, that it is not
+running.
+
+---
+
 ## Day-2 operations
 
 | Task | Command |
 |---|---|
 | Deploy a code update | `git pull && docker compose up -d --build` |
+| Deploy from the app | **Admin > Deployment Management** (needs step 9) |
+| Watch the deployment agent | `journalctl -u cok-deploy-agent -f` |
 | View logs | `docker compose logs -f backend` (or `em-backend`, `frontend`) |
 | Restart one service | `docker compose restart backend` |
 | Stop everything | `docker compose down` (data survives — it lives in volumes) |

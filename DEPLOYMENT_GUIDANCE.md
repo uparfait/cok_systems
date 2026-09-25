@@ -442,6 +442,30 @@ sudo ./db.sh --copy-collection --from uat --to uat --db-name cok --collection us
 
 A copy streams the data from one container to the other. Whole databases keep their names; collections may land in another database (`--to-db-name`) or, for a single collection, under another name (`--to-collection`), in which case source and destination stack may be the same. Whatever is missing on the destination, database or collection, is created. On an existing one the documents are added and documents with the same `_id` are kept as they are on the destination; `--replace` drops the destination database or collection first so it becomes an exact copy. Copying into production first dumps what is about to change to `backups/`. `--dry-run` shows the plan without copying. The listings leave out MongoDB's own `admin`, `config` and `local` databases.
 **The Data Collection System image** is built from the repository root (not from `dc_backend/`) because it ships `location.min.json` and `geojson-maped/`, which sit beside that folder. `docker-compose.override.yml` (tracked) sets that build context and the root `.dockerignore` keeps everything else out. Keep both files in the repository or the container fails at startup with "Cannot find module '../../../location.min.json'".
+### Updating from the browser: the Deployment Management page
+
+The same two deployments can be started from the app, at **Admin > Deployment Management** (`/<role-slug>/deployment-management`). Two buttons, `Deploy UAT (uat-ikaze)` and `Deploy Production (ikaze)`, run `update-deploy.sh --uat-ikaze` and `--ikaze`; the script's own console output appears below them as it is written. A deployment cannot be called back, so once one is running every button on the page is off until it finishes or fails, and there is no cancel.
+
+Three things guard it, all checked on the server and none of them in the browser: the caller's role must carry the Deployment Management link (no other admin permission stands in for it), the page asks for a password, and the request must have arrived on a host containing `ikaze.kigalicity` - so the same page opened on `localhost` cannot deploy. The browser only ever sends a target NAME; the table that turns a name into a script argument lives on the server, so there is nothing to inject into.
+
+**The agent is what actually runs it, and it has to be enabled.** The backend cannot run `update-deploy.sh` itself: the script needs the host's own nginx (`/etc/nginx/sites-available` and `systemctl`), the host's docker and git, and real bash - none of which are in the backend's Alpine container - and it recreates the `backend` container, which would kill the very process running it partway through. So the page only writes the request down, and `deploy/deploy-agent.sh`, running on the host, does the work. Enable it once per server:
+
+```bash
+cd /path/to/cok_systems
+sudo cp deploy/cok-deploy-agent.service /etc/systemd/system/
+sudo nano /etc/systemd/system/cok-deploy-agent.service   # set WorkingDirectory and ExecStart to this folder
+sudo systemctl daemon-reload
+sudo systemctl enable --now cok-deploy-agent
+systemctl status cok-deploy-agent
+journalctl -u cok-deploy-agent -f                        # watch it work
+```
+
+The two sides meet in `deploy/runs/`, which the backend container sees through the `./:/repo` bind mount on the `backend` service in `docker-compose.yml`. **That mount is required** - without it the script is not in the container at all, and the run logs would disappear with the container the deployment restarts. Per run the folder holds `<run_id>.request` (what the page asked for), `<run_id>.log` (the console output the page reads back by byte offset, which is what lets it carry on across the restart the deployment causes), and `<run_id>.json` (`queued` to `running` to `succeeded`/`failed`). The agent touches `agent.heartbeat` on every pass, so the page can tell when nothing is listening. The folder is git-ignored, and must stay so: the script checks out branches, and a tracked file being written during the deployment would block the checkout.
+
+Where the backend runs on the host instead of in a container, and everything the script needs is present, the page runs it directly and no agent is needed. It works this out for itself; there is nothing to configure either way.
+
+If the page says the agent is not running, `systemctl status cok-deploy-agent` on the server is the first thing to check. If it says a command is missing, install it on whichever machine runs the deployment. Note that the first deployment after adding all of this still has to be done from the shell, since the containers then running predate it.
+
 ### Monitoring
 
 Use these commands to check the health of the system:
