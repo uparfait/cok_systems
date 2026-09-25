@@ -23,6 +23,7 @@ export { default as MayorEventsPage } from './pages/MayorEventsPage';
 export { default as MayorActionsPage } from './pages/MayorActionsPage';
 export { default as MayorFeedbackPage } from './pages/MayorFeedbackPage';
 export { default as StorageManagement } from './pages/StorageManagement';
+export { default as DeploymentManagement } from './pages/DeploymentManagement';
 
 // Components
 export * from './components';

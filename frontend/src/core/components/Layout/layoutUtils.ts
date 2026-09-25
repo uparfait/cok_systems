@@ -369,6 +369,8 @@ const hasAdminAccess = hasPermission(user, 'admin') || hasPermission(user, 'depa
       adminChildren.push({ id: 'system-audit', label: 'System Audit', path: `/${slug}/system-audit`, icon: 'FiActivity' });
     if (hasPermission(user, 'admin') || isAdmin)
       adminChildren.push({ id: 'storage-management', label: 'Storage Management', path: `/${slug}/storage-management`, icon: 'FiHardDrive' });
+    if (hasPermission(user, 'admin') || isAdmin)
+      adminChildren.push({ id: 'deployment-management', label: 'Deployment Management', path: `/${slug}/deployment-management`, icon: 'FiUploadCloud' });
     if (adminChildren.length > 0) {
       navigation.push({ id: 'admin', label: 'Admin', path: `/${slug}/dashboard`, icon: 'FiSettings', children: adminChildren });
     }

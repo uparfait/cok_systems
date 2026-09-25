@@ -129,6 +129,7 @@ const SECTION_REQUIREMENTS: Record<string, string[]> = {
   'roles-management': ['child:admin:roles-management', ADMIN_FALLBACK],
   'system-audit': ['child:admin:system-audit', ADMIN_FALLBACK],
   'storage-management': ['child:admin:storage-management', ADMIN_FALLBACK],
+  'deployment-management': ['child:admin:deployment-management', ADMIN_FALLBACK],
   analytics: ['link:admin', 'link:service-delivery', ADMIN_FALLBACK],
   feedback: ['link:admin', 'link:service-delivery', ADMIN_FALLBACK],
   'smart-parking': ['link:smart-parking', 'slug:gate-officer', ADMIN_FALLBACK],

@@ -74,6 +74,9 @@ Router.use('/performance', authenticate, authorize(GROUPS.ANALYTICS), performanc
 Router.use('/requests', authenticate, authorizeByMethod({ read: GROUPS.REQUESTS_READ, write: GROUPS.REQUESTS_WRITE }), requests)
 Router.use('/v1/event-actions', authenticate, authorize(GROUPS.EVENTS), event_management)
 Router.use('/data-management', authenticate, authorize(GROUPS.ADMIN_STORAGE), data_management)
+// Rebuilds and restarts the running servers, so it is guarded by its own
+// link alone (utilities/access_policy.js) rather than by admin in general.
+Router.use('/deployment', authenticate, authorize(GROUPS.ADMIN_DEPLOYMENT), require('./deployment/routes.js'))
 Router.use('/webpush', require('./webpush/routes.js'))
 // Server-to-server calls (each route verifies its own service JWT)
 Router.use('/internal', require('./internal/routes.js'))

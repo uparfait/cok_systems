@@ -43,6 +43,7 @@ import {
   MayorActionsPage,
   MayorFeedbackPage,
   StorageManagement,
+  DeploymentManagement,
 } from "./systems/admin";
 import MayorDashboardPage from "./systems/admin/pages/mayor/MayorDashboardPage";
 
@@ -406,6 +407,16 @@ const AuthenticatedRoutes: React.FC = () => {
                 <ProtectedRoute>
                   <MainLayout>
                     <StorageManagement />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/deployment-management"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <DeploymentManagement />
                   </MainLayout>
                 </ProtectedRoute>
               }

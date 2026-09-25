@@ -96,7 +96,8 @@
         { "id": "roles-management", "label": "Roles Management", "path": "/{roleSlug}/roles-management", "icon": "FiShield" },
         { "id": "user-management", "label": "User Management", "path": "/{roleSlug}/user-management", "icon": "FiUser" },
         { "id": "system-audit", "label": "System Audit", "path": "/{roleSlug}/system-audit", "icon": "FiActivity" },
-        { "id": "storage-management", "label": "Storage Management", "path": "/{roleSlug}/storage-management", "icon": "FiHardDrive" }
+        { "id": "storage-management", "label": "Storage Management", "path": "/{roleSlug}/storage-management", "icon": "FiHardDrive" },
+        { "id": "deployment-management", "label": "Deployment Management", "path": "/{roleSlug}/deployment-management", "icon": "FiUploadCloud" }
       ]
     },
     {
@@ -221,7 +222,8 @@
             { "id": "roles-management", "label": "Roles Management", "path": "/{roleSlug}/roles-management", "icon": "FiShield", "permission": "roles_management" },
             { "id": "user-management", "label": "User Management", "path": "/{roleSlug}/user-management", "icon": "FiUser", "permission": "user_management" },
             { "id": "system-audit", "label": "System Audit", "path": "/{roleSlug}/system-audit", "icon": "FiActivity", "permission": "admin" },
-            { "id": "storage-management", "label": "Storage Management", "path": "/{roleSlug}/storage-management", "icon": "FiHardDrive", "permission": "admin" }
+            { "id": "storage-management", "label": "Storage Management", "path": "/{roleSlug}/storage-management", "icon": "FiHardDrive", "permission": "admin" },
+            { "id": "deployment-management", "label": "Deployment Management", "path": "/{roleSlug}/deployment-management", "icon": "FiUploadCloud", "permission": "admin" }
           ]
         },
         {

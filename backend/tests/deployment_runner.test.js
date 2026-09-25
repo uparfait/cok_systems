@@ -1,0 +1,215 @@
+const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+/**
+ * The deployment runner, against stand-in scripts rather than the real
+ * update-deploy.sh - which rebuilds the servers and cannot be run from a
+ * test.
+ *
+ * Two things are worth a test here, both of them the reason this code is
+ * shaped the way it is. The output has to arrive IN PIECES while the script
+ * is still running, since that is what the page's console reads; and a
+ * refusal - an unknown target, a missing script, a second run, a run id
+ * that tries to leave the log folder - has to come back as a sentence
+ * rather than as a thrown error or an empty console.
+ */
+
+const RUNNER = path.join(__dirname, '..', 'utilities', 'deployment_runner.js');
+
+const HAPPY = ['#!/usr/bin/env bash', 'echo "flag=$1"', 'for i in 1 2 3; do echo "step $i"; sleep 0.3; done', 'echo "Done"', 'exit 0'].join('\n');
+const FAILING = ['#!/usr/bin/env bash', 'echo "starting"', 'echo "something broke" >&2', 'exit 3'].join('\n');
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+let work = '';
+
+/** A runner pointed at one script and its own log folder. */
+function load_runner(script_path, log_dir) {
+    delete require.cache[require.resolve(RUNNER)];
+    process.env.DEPLOY_SCRIPT_PATH = script_path;
+    process.env.DEPLOY_LOG_DIR = log_dir;
+    // The stand-in scripts need no root, and a test must never ask for it.
+    process.env.DEPLOY_SUDO = '0';
+    return require(RUNNER);
+}
+
+function write_script(name, body) {
+    const file = path.join(work, name);
+    fs.writeFileSync(file, body);
+    return file;
+}
+
+/** Reads a run to completion the way the page does: by byte offset. */
+async function read_to_end(runner, run_id) {
+    let offset = 0;
+    let text = '';
+    let reads = 0;
+    let status = 'running';
+    while (status === 'running' && reads < 80) {
+        const page = runner.read_log(run_id, offset);
+        // A refused read carries only an error; a successful one always
+        // names its run (and may carry the script's own error text).
+        assert.ok(page.run_id, `read_log refused: ${page.error}`);
+        text += page.chunk;
+        offset = page.offset;
+        status = page.status;
+        reads += 1;
+        await sleep(120);
+    }
+    // One more read: the closing lines are appended after the status flips.
+    const tail = runner.read_log(run_id, offset);
+    return { text: text + tail.chunk, reads, page: tail };
+}
+
+async function run_all_tests() {
+    work = fs.mkdtempSync(path.join(os.tmpdir(), 'deploy-runner-test-'));
+    try {
+        await test_a_run_streams_its_output_in_pieces();
+        await test_only_one_run_at_a_time();
+        await test_a_failing_script_is_reported();
+        await test_a_missing_script_is_refused_before_running();
+        await test_an_unknown_target_is_refused();
+        await test_a_run_id_cannot_leave_the_log_folder();
+        await test_only_the_deployment_site_may_deploy();
+        await test_the_password_is_checked_here();
+    } finally {
+        fs.rmSync(work, { recursive: true, force: true });
+    }
+}
+
+/**
+ * The console's whole premise: output is readable while the script is still
+ * going, and re-reading from the last byte adds nothing twice.
+ */
+async function test_a_run_streams_its_output_in_pieces() {
+    const runner = load_runner(write_script('happy.sh', HAPPY), path.join(work, 'happy-runs'));
+    const started = runner.start_run('uat', 'tester@kigalicity.gov.rw');
+    assert.ok(started.run_id, `the run did not start: ${started.error}`);
+
+    const { text, reads, page } = await read_to_end(runner, started.run_id);
+
+    assert.strictEqual(page.status, 'succeeded', 'a script exiting 0 succeeded');
+    assert.strictEqual(page.exit_code, 0, 'its exit code is kept');
+    assert.ok(reads > 1, `output must arrive over several reads, not all at the end (reads: ${reads})`);
+    assert.ok(text.includes('flag=--uat-ikaze'), 'the UAT target runs the script with --uat-ikaze');
+    ['step 1', 'step 2', 'step 3'].forEach((step) => {
+        assert.ok(text.includes(step), `${step} reached the log`);
+    });
+    assert.ok(text.includes('tester@kigalicity.gov.rw'), 'the header records who started it');
+    assert.ok(text.includes('Deployment finished successfully.'), 'the run says how it ended');
+
+    const again = runner.read_log(started.run_id, page.offset);
+    assert.strictEqual(again.chunk, '', 'reading from the end again returns nothing, so nothing is shown twice');
+    assert.strictEqual(runner.current_run(), null, 'a finished run is not left claiming to be running');
+}
+
+/** Production runs the other flag, and two deploys must never overlap. */
+async function test_only_one_run_at_a_time() {
+    const runner = load_runner(write_script('happy2.sh', HAPPY), path.join(work, 'single-runs'));
+    const first = runner.start_run('ikaze', 'tester@x');
+    assert.ok(first.run_id, 'the first run starts');
+
+    const second = runner.start_run('uat', 'tester@x');
+    assert.ok(/already running/i.test(second.error || ''), `a second run must be refused, got: ${second.error}`);
+    assert.strictEqual(second.run_id, first.run_id, 'the refusal hands back the run that IS going, so the page can follow it');
+
+    const { text } = await read_to_end(runner, first.run_id);
+    assert.ok(text.includes('flag=--ikaze'), 'the production target runs the script with --ikaze');
+}
+
+/** A failure has to be visible, with its reason and its output. */
+async function test_a_failing_script_is_reported() {
+    const runner = load_runner(write_script('failing.sh', FAILING), path.join(work, 'fail-runs'));
+    const started = runner.start_run('ikaze', 'tester@x');
+    assert.ok(started.run_id, 'the failing run still starts');
+
+    const { text, page } = await read_to_end(runner, started.run_id);
+    assert.strictEqual(page.status, 'failed', 'a non-zero exit is a failure');
+    assert.strictEqual(page.exit_code, 3, 'the real exit code is reported');
+    assert.ok(/exit code 3/.test(page.error || ''), `the page is given a reason, got: ${page.error}`);
+    assert.ok(text.includes('starting'), 'its stdout is in the log');
+    assert.ok(text.includes('something broke'), 'and so is its stderr - a script fails on stderr, so losing it would hide why');
+}
+
+/** A misconfigured server says so instead of opening an empty console. */
+async function test_a_missing_script_is_refused_before_running() {
+    const runner = load_runner(path.join(work, 'not-here.sh'), path.join(work, 'missing-runs'));
+    assert.ok(/was not found/.test(runner.blocking_reason() || ''), 'the page is told before anything is clicked');
+    const started = runner.start_run('uat', 'tester@x');
+    assert.ok(/was not found/.test(started.error || ''), 'and starting is refused with the same sentence');
+    assert.strictEqual(started.run_id, undefined, 'no run is recorded for something that never ran');
+}
+
+/** Nothing the browser sends may become a command. */
+async function test_an_unknown_target_is_refused() {
+    const runner = load_runner(write_script('happy3.sh', HAPPY), path.join(work, 'unknown-runs'));
+    ['', 'nope', '--ikaze', 'uat; rm -rf /', '../../etc/passwd'].forEach((target) => {
+        const result = runner.start_run(target, 'tester@x');
+        assert.ok(result.error, `target ${JSON.stringify(target)} must be refused`);
+        assert.strictEqual(result.run_id, undefined, `target ${JSON.stringify(target)} must not start anything`);
+    });
+    assert.deepStrictEqual(Object.keys(runner.TARGETS).sort(), ['ikaze', 'uat'], 'exactly two deployments are on offer');
+}
+
+/** A run id names a file, so it must not be able to name another one. */
+async function test_a_run_id_cannot_leave_the_log_folder() {
+    const runner = load_runner(write_script('happy4.sh', HAPPY), path.join(work, 'traverse-runs'));
+    ['../../../etc/passwd', '..\\..\\secret', 'current'].forEach((run_id) => {
+        const result = runner.read_log(run_id, 0);
+        assert.ok(result.error, `run id ${JSON.stringify(run_id)} must find nothing`);
+    });
+}
+
+/**
+ * Only the real site may deploy, and that is decided from the address the
+ * request was ADDRESSED to. Origin and Referer are typed by the caller, so
+ * a forged one must never be enough on its own - which is the whole reason
+ * this check lives on the server rather than in the page.
+ */
+async function test_only_the_deployment_site_may_deploy() {
+    const runner = load_runner(write_script('happy5.sh', HAPPY), path.join(work, 'url-runs'));
+
+    const allowed = [
+        ['production host', { host: 'ikaze.kigalicity.gov.rw' }],
+        ['UAT host', { host: 'uat-ikaze.kigalicity.gov.rw' }],
+        ['host plus its own origin', { host: 'ikaze.kigalicity.gov.rw', origin: 'https://ikaze.kigalicity.gov.rw' }],
+        ['forwarded by a second proxy', { host: 'backend:2026', 'x-forwarded-host': 'ikaze.kigalicity.gov.rw' }],
+    ];
+    allowed.forEach(([label, headers]) => {
+        assert.strictEqual(runner.check_request_url(headers), null, `${label} must be allowed`);
+    });
+
+    const refused = [
+        ['localhost', { host: 'localhost:5173' }],
+        ['another domain', { host: 'evil.example' }],
+        ['a forged Referer', { host: 'evil.example', referer: 'https://ikaze.kigalicity.gov.rw/x' }],
+        ['a forged Origin', { host: 'evil.example', origin: 'https://ikaze.kigalicity.gov.rw' }],
+        ['our host called from another site', { host: 'ikaze.kigalicity.gov.rw', origin: 'https://evil.example' }],
+        ['no address at all', {}],
+    ];
+    refused.forEach(([label, headers]) => {
+        assert.ok(runner.check_request_url(headers), `${label} must be refused`);
+    });
+}
+
+/** The password is the server's to judge, and a wrong one starts nothing. */
+async function test_the_password_is_checked_here() {
+    const runner = load_runner(write_script('happy6.sh', HAPPY), path.join(work, 'password-runs'));
+    assert.strictEqual(runner.check_password('123cok123'), null, 'the deployment password is accepted');
+    ['', '  ', 'wrong', '123cok124', '123COK123', null, undefined, 12345].forEach((given) => {
+        assert.ok(runner.check_password(given), `${JSON.stringify(given)} must be refused`);
+    });
+}
+
+run_all_tests().then(
+    () => {
+        process.stdout.write('ALL_TESTS_PASSED\n');
+        process.exit(0);
+    },
+    (error) => {
+        process.stdout.write(`${error && error.stack ? error.stack : error}\n`);
+        process.exit(1);
+    },
+);

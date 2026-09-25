@@ -51,3 +51,7 @@ tsconfig.tsbuildinfo
 # Per-stack .env sets and database dumps written by update-deploy.sh / db.sh
 deploy/env/
 backups/
+# Console output of deployments started from the Deployment Management page.
+# Must stay untracked: update-deploy.sh checks out branches, and a tracked
+# log being written during the deploy would block the checkout.
+deploy/runs/

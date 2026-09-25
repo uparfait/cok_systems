@@ -99,6 +99,10 @@ const ADMIN_ROLES_READ = ['child:admin:roles-management', 'child:admin:user-mana
 const ADMIN_ROLES_WRITE = ['child:admin:roles-management', 'slug:system-admin'];
 const ADMIN_AUDIT = ['child:admin:system-audit', 'slug:system-admin'];
 const ADMIN_STORAGE = ['child:admin:storage-management', 'slug:system-admin'];
+// Deploying is the narrowest admin action there is: it rebuilds and
+// restarts the running servers, so only the link itself grants it - no
+// other admin child stands in for it.
+const ADMIN_DEPLOYMENT = ['child:admin:deployment-management', 'slug:system-admin'];
 
 const SERVICE_DELIVERY = [
     'link:visitors', 'link:assigned-visitors', 'link:history', 'link:queue', 'link:requests',
@@ -153,6 +157,7 @@ module.exports = {
         ADMIN_ROLES_WRITE,
         ADMIN_AUDIT,
         ADMIN_STORAGE,
+        ADMIN_DEPLOYMENT,
         SERVICE_DELIVERY,
         SMART_PARKING,
         EVENTS,

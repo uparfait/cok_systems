@@ -4,6 +4,7 @@ export { default as EmployeesPage } from './EmployeesPage';
 export { default as UserManagementPage } from './UserManagementPage';
 export { default as RolesManagementPage } from './RolesManagementPage';
 export { default as StorageManagement } from './StorageManagement';
+export { default as DeploymentManagement } from './DeploymentManagement';
 export { default as AdminSmartParkingDashboard } from './AdminSmartParkingDashboard';
 export { default as AdminServiceDeliveryDashboard } from './AdminServiceDeliveryDashboard';
 export { default as AdminCheckInCheckOut } from './AdminCheckInCheckOut';
