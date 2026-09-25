@@ -223,7 +223,7 @@ const DeploymentManagement: React.FC = () => {
           </Banner>
         )}
 
-        <div style={{ backgroundColor: WHITE, borderRadius: 12, boxShadow: CARD_SHADOW, padding: 20, marginBottom: 18 }}>
+        <div style={{ backgroundColor: WHITE, borderRadius: 0, boxShadow: CARD_SHADOW, padding: 20, marginBottom: 18 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
             {loading_targets && targets.length === 0 ? (
               <span style={{ fontFamily: fontHeading, fontSize: 13, color: '#6B7280' }}>Loading...</span>
@@ -314,7 +314,7 @@ const DeploymentManagement: React.FC = () => {
                 textTransform: 'uppercase',
                 color: look.color,
                 border: `1px solid ${look.color}`,
-                borderRadius: 999,
+                borderRadius: 0,
                 padding: '5px 12px',
               }}
             >
@@ -380,7 +380,7 @@ const Banner: React.FC<BannerProps> = ({ tone, icon, title, children }) => {
         alignItems: 'flex-start',
         backgroundColor: WHITE,
         borderLeft: `4px solid ${color}`,
-        borderRadius: 8,
+        borderRadius: 0,
         boxShadow: CARD_SHADOW,
         padding: '12px 16px',
         marginBottom: 14,

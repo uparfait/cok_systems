@@ -54,7 +54,7 @@ const DeployConsole: React.FC<DeployConsoleProps> = ({ text, placeholder, runnin
         fontSize: 12.5,
         lineHeight: 1.55,
         padding: '16px 18px',
-        borderRadius: 10,
+        borderRadius: 0,
         border: '1px solid #1C2733',
         height: 'clamp(320px, 52vh, 620px)',
         overflowY: 'auto',
