@@ -49,12 +49,15 @@ function save_blob(blob, filename) {
  * would only be in the way.
  */
 export default function DcsExportDialog({ open, onOpenChange, form_group_id, asPage }) {
-  const { language, translate } = useDcsLanguage();
+  const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const [period, setPeriod] = useState("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [title, setTitle] = useState("");
+  // The exported file's language, not the app's: English unless the
+  // exporter picks otherwise.
+  const [export_language, setExportLanguage] = useState("en");
   const [job, setJob] = useState(null);
   const [stage, setStage] = useState("");
   const [download_percent, setDownloadPercent] = useState(null);
@@ -69,6 +72,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, asP
     setFrom("");
     setTo("");
     setTitle("");
+    setExportLanguage("en");
     setJob(null);
     setStage("");
     setDownloadPercent(null);
@@ -112,7 +116,7 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, asP
     cancel_ref.current = false;
     setStage("counting");
     try {
-      const started = await start_export_job(form_group_id, { period, from: period === "custom" ? from : "", to: period === "custom" ? to : "", title, language });
+      const started = await start_export_job(form_group_id, { period, from: period === "custom" ? from : "", to: period === "custom" ? to : "", title, language: export_language });
       let current = started.data;
       job_id_ref.current = current.job_id;
       setJob(current);
@@ -187,6 +191,18 @@ export default function DcsExportDialog({ open, onOpenChange, form_group_id, asP
               <div className="mb-4">
                 <label className="cok-auth-label">{translate("DCS_EXPORT_TITLE_LABEL")}</label>
                 <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} placeholder={translate("DCS_EXPORT_TITLE_PLACEHOLDER")} disabled={is_exporting} className="cok-auth-input w-full" style={{ paddingLeft: 14, ...FONT }} />
+              </div>
+              {/* The file's own language, picked here rather than inherited
+                  from whatever the app is being read in: a spreadsheet
+                  usually leaves the building, so it starts at English and
+                  the exporter changes it deliberately. */}
+              <div className="mb-4">
+                <label className="cok-auth-label">{translate("DCS_LANGUAGE_LABEL")}</label>
+                <select value={export_language} onChange={(event) => setExportLanguage(event.target.value)} disabled={is_exporting} className="cok-auth-input w-full cursor-pointer" style={{ paddingLeft: 14, ...FONT }}>
+                  <option value="en">{translate("DCS_LANGUAGE_EN")}</option>
+                  <option value="kn">{translate("DCS_LANGUAGE_KN")}</option>
+                  <option value="fr">{translate("DCS_LANGUAGE_FR")}</option>
+                </select>
               </div>
             </>
           )}

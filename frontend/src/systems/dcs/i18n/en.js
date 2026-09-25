@@ -2064,6 +2064,7 @@ const en = {
   DCS_TRACKING_UPDATED_TITLE: "Record updated",
   DCS_TRACKING_UPDATED_DESCRIPTION: "The changes were saved with their date and time. The record stays loaded in the form.",
   DCS_TRACKING_CONTINUE: "Back to the form",
+  DCS_TRACKING_TABLE_STAGE_AT: "Stage at",
   DCS_TRACKING_TABLE_UPDATED_AT: "Updated at",
   DCS_TRACKING_TABLE_HISTORY: "History",
   DCS_TRACKING_FORM_NEEDS_CONNECTION: "This form keeps its records on the server and cannot be opened offline. Connect to the internet and open it again.",

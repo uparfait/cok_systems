@@ -207,6 +207,7 @@ module.exports = {
   EXPORT_JOB_NOT_FOUND: "Iyi dosiye ntikiboneka - ongera utangire",
   EXPORT_NOT_READY: "Dosiye ntiriteguye",
   EXPORT_CANCEL_REQUESTED: "Kohereza hanze bizahagarara",
+  TABLE_RECORD_ID: "Indangamuntu y'inyandiko",
   TABLE_VERSION: "Verisiyo",
   TABLE_SUBMITTED_AT: "Yoherejwe ku",
   TABLE_SUBMITTED_BY: "Yoherejwe na",

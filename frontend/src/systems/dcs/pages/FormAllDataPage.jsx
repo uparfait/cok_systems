@@ -139,7 +139,13 @@ export default function FormAllDataPage() {
 
   // Any record may have been edited, so the change columns are always
   // there; a row with nothing changed shows a dash instead of a button.
-  const tracking_columns = [{ key: "updated_at", labelKey: "DCS_TRACKING_TABLE_UPDATED_AT" }, { key: "history", labelKey: "DCS_TRACKING_TABLE_HISTORY", minWidthPx: 96 }];
+  const tracking_columns = [
+    // Only meaningful once the rows are stages, so it is offered only then
+    // - an untracked form would just repeat its Submitted at column.
+    ...(tracking ? [{ key: "stage_at", labelKey: "DCS_TRACKING_TABLE_STAGE_AT" }] : []),
+    { key: "updated_at", labelKey: "DCS_TRACKING_TABLE_UPDATED_AT" },
+    { key: "history", labelKey: "DCS_TRACKING_TABLE_HISTORY", minWidthPx: 96 },
+  ];
 
   // Everything the table COULD show, before hiding is applied - what the
   // "Hide fields" list ticks against.
@@ -245,13 +251,6 @@ export default function FormAllDataPage() {
           </button>
         )}
 
-        {/* A tracked form read inside a range: the rows are the records
-            created or changed in it, and their changeable fields show the
-            values they held at its end rather than today's. */}
-        {table.as_of && (
-          <span className="dcs-dt-asof">{translate("DCS_TABLE_AS_OF", { when: new Date(table.as_of).toLocaleString() })}</span>
-        )}
-
 
       </div>
 
@@ -315,7 +314,7 @@ export default function FormAllDataPage() {
           legendItems={legend_items}
           totalCount={table.total}
           pinnedColumnKey="actions"
-          onRowClick={(row) => setViewRecord((table.submissions || []).find((submission) => submission._id === row.dcs_row_key) || null)}
+          onRowClick={(row) => setViewRecord((table.submissions || []).find((submission) => submission._id === row.dcs_record_id) || null)}
         />
       </div>
     </>

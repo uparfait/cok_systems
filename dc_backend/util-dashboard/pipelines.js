@@ -2,6 +2,7 @@ const { get_db } = require("../db_connection/db.js");
 const { build_match_stage, base_stages, numeric_expr } = require("./match_stage.js");
 const { is_multi_value } = require("./field_catalog.js");
 const { LIMITS, SUBMITTED_AT_FIELD, UPDATED_AT_FIELD } = require("./constants.js");
+const { time_expr } = require("../utilities/tracking_window.js");
 
 const SUBMISSIONS_COLLECTION = "dcs_submissions";
 
@@ -108,11 +109,16 @@ async function split_rows(widget, bounds, catalog) {
 }
 
 /**
- * The submitted date expression of a time widget: submitted_at itself, or a
+ * The date expression a time widget buckets on: the row's own moment, or a
  * date field of the record converted safely.
+ *
+ * On a tracked form the row IS a stage, so "submitted_at" means the moment
+ * that stage opened - which is what puts the arrival of a car in the 12:00
+ * column and its departure in the 13:00 one, instead of both in the column
+ * it first arrived in.
  */
-function time_source_expr(field_id) {
-  if (!field_id || field_id === SUBMITTED_AT_FIELD) return "$submitted_at";
+function time_source_expr(field_id, tracking) {
+  if (!field_id || field_id === SUBMITTED_AT_FIELD) return time_expr(tracking);
   // A record that has never been changed has no updated_at of its own, so
   // the moment it arrived is when it last stood as it is.
   if (field_id === UPDATED_AT_FIELD) return { $ifNull: ["$updated_at", "$submitted_at"] };
@@ -127,7 +133,7 @@ function time_source_expr(field_id) {
  * "YYYY-MM"/"YYYY" string.
  */
 async function time_rows(widget, bounds, granularity, catalog, split_field) {
-  const source = time_source_expr(widget.group_by.field_id);
+  const source = time_source_expr(widget.group_by.field_id, widget.tracking);
   const bucket_ms = { hour: 3600000, day: 86400000, week: 604800000 }[granularity];
   const bucket_expr = bucket_ms
     ? { $floor: { $divide: [{ $subtract: [source, bounds.start] }, bucket_ms] } }
@@ -153,8 +159,8 @@ async function time_rows(widget, bounds, granularity, catalog, split_field) {
  */
 async function time_extent(widget) {
   const pipeline = [
-    build_match_stage(widget, null),
-    { $group: { _id: null, min: { $min: "$submitted_at" }, max: { $max: "$submitted_at" } } },
+    ...base_stages(widget, null),
+    { $group: { _id: null, min: { $min: time_expr(widget.tracking) }, max: { $max: time_expr(widget.tracking) } } },
   ];
   const rows = await run_pipeline(pipeline);
   if (rows.length === 0 || !rows[0].min || !rows[0].max) return null;

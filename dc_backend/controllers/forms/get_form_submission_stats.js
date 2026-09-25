@@ -1,6 +1,8 @@
 const submissions_model = require("../../models/submissions_model.js");
+const forms_model = require("../../models/forms_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
+const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 const WEEK_START_DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -114,6 +116,11 @@ async function get_form_submission_stats(req, res) {
     const week_anchor = new Date(bounds.start);
     week_anchor.setHours(0, 0, 0, 0);
 
+    // Counted over the same stages the table lists, so the chart's total
+    // and the table's total are the same number for the same range.
+    const active_version = await forms_model.get_active_version(form_group_id);
+    const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
+
     // Counted in the database, one row per bucket - a year of records is
     // a dozen numbers coming back, not a dozen numbers computed from
     // every timestamp the year holds.
@@ -124,6 +131,7 @@ async function get_form_submission_stats(req, res) {
       granularity,
       -bounds.start.getTimezoneOffset(),
       WEEK_START_DAYS[week_anchor.getDay()],
+      tracking,
     );
 
     // Re-keyed against the same local-time bucket starts the axis below

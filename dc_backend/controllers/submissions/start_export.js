@@ -9,6 +9,7 @@ const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { format_respondent } = require("../../utilities/respondent.js");
 const { build_diffed_columns, format_cell, sanitize_filename } = require("../../utilities/export_columns.js");
+const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { translate } = require("../../i18n/index.js");
 
@@ -28,13 +29,14 @@ const STYLE_NOTE = 4;
  * objects), cells formatted from precomputed column keys. The client
  * follows the job's progress and downloads the file when it is ready.
  */
-async function run_export(job, form_group_id, bounds, columns, field_type_by_id, title, lang, origin) {
+async function run_export(job, form_group_id, bounds, columns, field_type_by_id, title, lang, origin, tracking) {
   const keys = columns.map((column) => column.key);
   const types = columns.map((column) => field_type_by_id.get(column.key) || null);
   const version_at = keys.indexOf("version");
   const by_at = keys.indexOf("submitted_by");
   const at_at = keys.indexOf("submitted_at");
-  const data_at = keys.map((key, index) => (index === version_at || index === by_at || index === at_at ? -1 : index));
+  const id_at = keys.indexOf("record_id");
+  const data_at = keys.map((key, index) => (index === version_at || index === by_at || index === at_at || index === id_at ? -1 : index));
   const writer = new XlsxStreamWriter(job.file_path, { widths: keys.map(() => 22), sheet_name: "Data" });
   let cursor = null;
 
@@ -48,13 +50,14 @@ async function run_export(job, form_group_id, bounds, columns, field_type_by_id,
     export_jobs.update_progress(job.id, { stage: "writing" });
     let processed = 0;
     let cancelled = false;
-    cursor = submissions_model.stream_in_range(form_group_id, bounds, BATCH_SIZE);
+    cursor = submissions_model.stream_in_range(form_group_id, bounds, tracking, BATCH_SIZE);
     for await (const submission of cursor) {
       const data = submission.data || {};
       const values = new Array(keys.length);
       for (let index = 0; index < keys.length; index += 1) {
         if (data_at[index] !== -1) values[index] = format_cell(data[keys[index]], types[index], origin);
       }
+      if (id_at >= 0) values[id_at] = submission._id ? submission._id.toString() : "";
       if (version_at >= 0) values[version_at] = submission.version || "";
       if (by_at >= 0) values[by_at] = format_respondent(submission.respondent);
       if (at_at >= 0) values[at_at] = submission.submitted_at ? new Date(submission.submitted_at).toISOString() : "";
@@ -100,7 +103,11 @@ async function start_export(req, res) {
   try {
     const { form_group_id } = req.params;
     const { period = "all", from, to, title, language } = req.body || {};
-    const lang = language || req.language || "kn";
+    // The exporter picks the language in the dialog. Nothing picked means
+    // English, not whatever the browser happens to be reading the app in -
+    // a data file usually leaves the building, and English is the one
+    // everybody downstream can read.
+    const lang = language || "en";
 
     if (!form_group_id) return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
     const access = await project_access.can_view_form_group(req.user, form_group_id);
@@ -112,14 +119,20 @@ async function start_export(req, res) {
     const versions = await forms_model.get_versions_by_group(form_group_id);
     if (!versions || versions.length === 0) return res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
 
-    const total = await submissions_model.count_in_range(form_group_id, bounds);
+    // The range is read over the records' stages, exactly as the table
+    // reads it, so the file holds the same cars the table listed - one
+    // line each, carrying the value each held at the range's end.
+    const active_version = versions.find((entry) => entry.is_active) || versions[0];
+    const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
+
+    const total = await submissions_model.count_in_range(form_group_id, bounds, tracking);
     const { columns, field_type_by_id } = build_diffed_columns(versions, lang, translate);
     const filename = sanitize_filename(title || "export") + ".xlsx";
     const job = export_jobs.create_job(total, { filename });
     job.file_path = path.join(os.tmpdir(), `dcs_export_${job.id}.xlsx`);
     const origin = resolve_client_origin(req);
 
-    setImmediate(() => run_export(job, form_group_id, bounds, columns, field_type_by_id, title, lang, origin));
+    setImmediate(() => run_export(job, form_group_id, bounds, columns, field_type_by_id, title, lang, origin, tracking));
     return res.status(202).json(success_response(req, "EXPORT_STARTED", export_jobs.job_view(job)));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));

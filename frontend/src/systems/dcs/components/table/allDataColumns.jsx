@@ -138,7 +138,14 @@ function approval_cell(submission, translate) {
 
 export function build_rows({ submissions, field_type_by_id, translate, on_history_click, selected_set, on_select_change, on_view, on_edit }) {
   return (submissions || []).map((submission) => {
-    const row = { dcs_row_key: submission._id };
+    // A tracked form arrives one row per STAGE, so the same record can be
+    // two rows (a car recorded "in" at 12:00 and "out" at 13:00). The row
+    // key has to carry the stage as well or React sees two rows claiming
+    // the same identity; dcs_record_id is what row clicks resolve against.
+    const row = {
+      dcs_row_key: submission.stage_at ? `${submission._id}|${submission.stage_at}` : submission._id,
+      dcs_record_id: submission._id,
+    };
 
     row.actions = (
       <DcsRowActionsCell
@@ -149,6 +156,10 @@ export function build_rows({ submissions, field_type_by_id, translate, on_histor
       />
     );
 
+    // The moment THIS row is about. On a tracked form each row is a stage,
+    // so without it the arrival row and the departure row of the same car
+    // would read identically and neither could be told from the other.
+    row.stage_at = submission.stage_at ? new Date(submission.stage_at).toLocaleString() : "-";
     // Tracked forms only: when the record last changed, and its history.
     row.updated_at = submission.updated_at ? new Date(submission.updated_at).toLocaleString() : "-";
     const change_count = Math.max(0, (submission.history || []).length - 1);

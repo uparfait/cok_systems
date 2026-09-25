@@ -4,6 +4,7 @@ const forms_model = require("../../models/forms_model.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { format_respondent } = require("../../utilities/respondent.js");
 const { build_diffed_columns, format_cell } = require("../../utilities/export_columns.js");
+const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { translate } = require("../../i18n/index.js");
 
@@ -106,6 +107,10 @@ function column_keys(columns, mode) {
 function row_values(submission, columns, field_type_by_id, origin) {
   const data = submission.data || {};
   return columns.map((column) => {
+    // The reader's upsert key. A tracked record that was corrected is sent
+    // again by the next ?since pull, and this is what lets the reader
+    // replace the line it already holds instead of appending a second one.
+    if (column.key === "record_id") return submission._id ? submission._id.toString() : "";
     if (column.key === "version") return submission.version || "";
     if (column.key === "submitted_by") return format_respondent(submission.respondent);
     if (column.key === "submitted_at") return submission.submitted_at ? new Date(submission.submitted_at).toISOString() : "";
@@ -122,11 +127,18 @@ function csv_escape(value) {
 }
 
 function prepare(context, req) {
-  const lang = (req.query && req.query.language) || req.language || "en";
+  // ?language= is the reader's own choice. Nothing asked means English,
+  // never the X-Language header - a BI tool does not send one, and a feed
+  // whose column names silently arrive in the app's UI language would
+  // rename every column of somebody's dataset.
+  const lang = (req.query && req.query.language) || "en";
+  // record_id leads the columns (see utilities/export_columns.js), so the
+  // feed no longer prepends a key column of its own.
   const { columns, field_type_by_id } = build_diffed_columns(context.versions, lang, translate);
-  const all_columns = [{ key: "_id", label: "id", type: "id" }].concat(columns);
-  const keys = column_keys(all_columns, req.query && req.query.keys === "id" ? "id" : "label");
-  return { columns: all_columns, keys, field_type_by_id, origin: resolve_client_origin(req), filter: feed_filter(context.token, req.query || {}) };
+  const keys = column_keys(columns, req.query && req.query.keys === "id" ? "id" : "label");
+  const active_version = context.versions.find((entry) => entry.is_active) || context.versions[0];
+  const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
+  return { columns, keys, field_type_by_id, tracking, origin: resolve_client_origin(req), filter: feed_filter(context.token, req.query || {}) };
 }
 
 async function get_data_feed(req, res) {
@@ -134,7 +146,7 @@ async function get_data_feed(req, res) {
     const context = await resolve_token(req, res);
     if (!context) return undefined;
     tokens_model.count_use(context.token._id);
-    const { columns, keys, field_type_by_id, origin, filter } = prepare(context, req);
+    const { columns, keys, field_type_by_id, tracking, origin, filter } = prepare(context, req);
     const form_group_id = context.token.form_group_id;
     const format = String((req.query && req.query.format) || "json").toLowerCase();
 
@@ -143,12 +155,11 @@ async function get_data_feed(req, res) {
       res.setHeader("Content-Disposition", `attachment; filename="${form_group_id}.csv"`);
       // A byte-order mark up front so Excel opens the CSV as UTF-8.
       res.write(String.fromCharCode(65279) + keys.map(csv_escape).join(",") + "\r\n");
-      const cursor = submissions_model.stream_feed(form_group_id, filter, 0, 0, BATCH_SIZE);
+      const cursor = submissions_model.stream_feed(form_group_id, filter, 0, 0, BATCH_SIZE, tracking);
       let written = 0;
       for await (const submission of cursor) {
         if (res.destroyed || res.writableEnded) break;
-        const values = row_values(submission, columns.slice(1), field_type_by_id, origin);
-        const line = [submission._id.toString()].concat(values).map(csv_escape).join(",") + "\r\n";
+        const line = row_values(submission, columns, field_type_by_id, origin).map(csv_escape).join(",") + "\r\n";
         if (!res.write(line)) await drained(res);
         written += 1;
         if (written % 500 === 0) await new Promise((resolve) => setImmediate(resolve));
@@ -160,11 +171,11 @@ async function get_data_feed(req, res) {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(req.query.limit, 10) || DEFAULT_LIMIT));
     const [count, items] = await Promise.all([
-      submissions_model.count_feed(form_group_id, filter),
-      submissions_model.stream_feed(form_group_id, filter, (page - 1) * limit, limit, BATCH_SIZE).toArray(),
+      submissions_model.count_feed(form_group_id, filter, tracking),
+      submissions_model.stream_feed(form_group_id, filter, (page - 1) * limit, limit, BATCH_SIZE, tracking).toArray(),
     ]);
     const results = items.map((submission) => {
-      const values = [submission._id.toString()].concat(row_values(submission, columns.slice(1), field_type_by_id, origin));
+      const values = row_values(submission, columns, field_type_by_id, origin);
       const row = {};
       keys.forEach((key, index) => {
         row[key] = values[index];

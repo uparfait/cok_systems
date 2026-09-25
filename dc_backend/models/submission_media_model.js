@@ -1,5 +1,6 @@
 const { get_db } = require("../db_connection/db.js");
 const { apply_value_filters } = require("./submissions_model.js");
+const { STAGE_AT, time_field, stage_prefilter, stage_rows_stages } = require("../utilities/tracking_window.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 
@@ -28,17 +29,23 @@ function media_entries_expression(field_ids) {
   return field_ids.map((field_id) => ({ field_id, value: `$data.${field_id}` }));
 }
 
-function build_pipeline(form_group_id, field_ids, date_bounds, filters) {
-  const match = { form_group_id };
-  if (date_bounds && date_bounds.start && date_bounds.end) {
-    match.submitted_at = { $gte: date_bounds.start, $lte: date_bounds.end };
-  }
-  apply_value_filters(match, filters);
+function build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking) {
+  const match = Object.assign({ form_group_id }, stage_prefilter(date_bounds, tracking));
+  const value_filter = {};
+  apply_value_filters(value_filter, filters);
+  const has_value_filter = Object.keys(value_filter).length > 0;
 
   return [
     { $match: match },
-    { $sort: { submitted_at: -1, _id: -1 } },
-    { $project: { submitted_at: 1, version: 1, respondent: 1, entries: media_entries_expression(field_ids) } },
+    // The same stages the table lists, so a picture belongs to the moment
+    // it was the record's answer. An image field that a later stage
+    // replaced shows the old picture on the old stage and the new one on
+    // the new stage, instead of today's picture standing in for both.
+    ...stage_rows_stages(tracking, date_bounds),
+    // After the rewrite, so a filter matches the values of that stage.
+    ...(has_value_filter ? [{ $match: value_filter }] : []),
+    { $sort: { [time_field(tracking)]: -1, _id: -1 } },
+    { $project: { submitted_at: 1, [STAGE_AT]: 1, version: 1, respondent: 1, entries: media_entries_expression(field_ids) } },
     { $unwind: "$entries" },
     // A field may hold one answer or a list of them; both continue as a list.
     {
@@ -101,9 +108,9 @@ function build_pipeline(form_group_id, field_ids, date_bounds, filters) {
  * One page of the gallery. field_ids are the form's own media fields,
  * resolved from its schemas by the caller.
  */
-async function list_media_answers(form_group_id, field_ids, skip, limit, date_bounds, filters) {
+async function list_media_answers(form_group_id, field_ids, skip, limit, date_bounds, filters, tracking) {
   if (!field_ids || field_ids.length === 0) return { items: [], total: 0 };
-  const pipeline = build_pipeline(form_group_id, field_ids, date_bounds, filters);
+  const pipeline = build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking);
   const facet = pipeline[pipeline.length - 1].$facet;
   facet.items = [{ $skip: skip }, { $limit: limit }].concat(facet.items.slice(1));
 

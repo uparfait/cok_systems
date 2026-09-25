@@ -2064,6 +2064,7 @@ const kn = {
   DCS_TRACKING_UPDATED_TITLE: "Inyandiko yavuguruwe",
   DCS_TRACKING_UPDATED_DESCRIPTION: "Impinduka zabitswe hamwe n'itariki n'isaha. Inyandiko iracyari mu ifishi.",
   DCS_TRACKING_CONTINUE: "Subira ku ifishi",
+  DCS_TRACKING_TABLE_STAGE_AT: "Igihe cyahindukiye",
   DCS_TRACKING_TABLE_UPDATED_AT: "Yavuguruwe",
   DCS_TRACKING_TABLE_HISTORY: "Amateka",
   DCS_TRACKING_FORM_NEEDS_CONNECTION: "Iyi fishi ibika inyandiko zayo kuri seriveri kandi ntishobora gufungurwa udafite interineti. Jya kuri interineti hanyuma uyifungure nanone.",

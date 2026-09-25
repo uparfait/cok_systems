@@ -8,6 +8,7 @@ const { translate } = require("../../i18n/index.js");
 const { format_respondent } = require("../../utilities/respondent.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { build_diffed_columns, format_cell, sanitize_filename } = require("../../utilities/export_columns.js");
+const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 
 const EXPORT_PAGE_SIZE = 500;
 
@@ -24,7 +25,9 @@ async function export_submissions(req, res) {
   try {
     const { form_group_id } = req.params;
     const { period = "all", from, to, title, language } = req.query || {};
-    const lang = language || req.language || "kn";
+    // Nothing picked means English: a data file usually leaves the
+    // building, and English is the one everybody downstream can read.
+    const lang = language || "en";
 
     if (!form_group_id) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
@@ -48,18 +51,15 @@ async function export_submissions(req, res) {
     const { columns: data_columns, field_type_by_id } = build_diffed_columns(versions, lang, translate);
     const origin = resolve_client_origin(req);
 
-    const all_items = [];
-    let page = 1;
-    let total = 0;
+    // The same reading the background export uses: the records that have a
+    // stage inside the range, ONE line each, every tracked field carrying
+    // the value it held at the range's end. Deliberately not the table's
+    // stage-by-stage rows - the same plate on several lines of a
+    // spreadsheet reads as duplicated data to whoever opens it.
+    const active_version = versions.find((entry) => entry.is_active) || versions[0];
+    const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
 
-    while (true) {
-      const result = await submissions_model.list_submissions(form_group_id, undefined, page, EXPORT_PAGE_SIZE, bounds, { sort: "oldest" });
-      if (page === 1) total = result.total;
-      if (!result.items || result.items.length === 0) break;
-      all_items.push(...result.items);
-      if (all_items.length >= total || result.items.length < EXPORT_PAGE_SIZE) break;
-      page += 1;
-    }
+    const all_items = await submissions_model.stream_in_range(form_group_id, bounds, tracking, EXPORT_PAGE_SIZE).toArray();
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Data");
@@ -91,6 +91,7 @@ async function export_submissions(req, res) {
         field_type_by_id.forEach((field_type, field_id) => {
           row_data[field_id] = format_cell(submission.data ? submission.data[field_id] : undefined, field_type, origin);
         });
+        row_data["record_id"] = submission._id ? submission._id.toString() : "";
         row_data["version"] = submission.version || "";
         row_data["submitted_by"] = format_respondent(submission.respondent);
         row_data["submitted_at"] = submission.submitted_at ? new Date(submission.submitted_at).toISOString() : "";

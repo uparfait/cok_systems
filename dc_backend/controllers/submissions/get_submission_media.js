@@ -3,6 +3,7 @@ const media_model = require("../../models/submission_media_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { flatten_fields } = require("../../jsonlogic/dependency_graph.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
+const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -70,6 +71,10 @@ async function get_submission_media(req, res) {
 
     const versions = await forms_model.get_versions_by_group(form_group_id);
     const media_fields = collect_media_fields(versions, req.language);
+    // The gallery reads the range the way the table does, so the pictures
+    // on screen belong to the very stages the table is listing.
+    const active_version = versions.find((entry) => entry.is_active) || versions[0];
+    const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
 
     const page_number = Math.max(1, parseInt(page, 10) || 1);
     const page_size = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(limit, 10) || DEFAULT_PAGE_SIZE));
@@ -81,6 +86,7 @@ async function get_submission_media(req, res) {
       page_size,
       bounds,
       parse_filters(filters),
+      tracking,
     );
 
     const label_by_field = new Map(media_fields.map((field) => [field.field_id, field.label]));

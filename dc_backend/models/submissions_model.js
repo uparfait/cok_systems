@@ -1,7 +1,7 @@
 const { get_db } = require("../db_connection/db.js");
 const { to_object_id } = require("../utilities/object_id.js");
 const { tracking_stages } = require("../util-dashboard/tracking_stage.js");
-const { date_window_filter } = require("../utilities/tracking_window.js");
+const { STAGE_AT, time_expr, stage_prefilter, stage_rows_stages, date_window_filter } = require("../utilities/tracking_window.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 
@@ -384,38 +384,47 @@ async function list_submissions(form_group_id, version, page, limit, date_bounds
     filter._id = object_id;
   }
   if (version !== undefined && version !== null) filter.version = Number(version);
-  // Which records the range keeps: what arrived inside it on an ordinary
-  // form, and on a tracked one every record whose values opened inside it
-  // (created in the range, or changed in the range) - see
-  // utilities/tracking_window.js. Each updatable field is then shown as it
-  // stood at the range's end (see util-dashboard/tracking_stage.js).
-  if (!filter._id) Object.assign(filter, date_window_filter(date_bounds, options && options.tracking));
-  // The column filters are applied after the as-of rewrite, on the values
-  // actually shown.
-  const as_of_stages = filter._id ? [] : tracking_stages({ tracking: options && options.tracking }, date_bounds);
+
+  // A pinned record answers for itself: the range, the version and the
+  // column filters around it would only ever hide the one row that was
+  // explicitly asked for, and it is shown whole rather than stage by stage.
+  const tracking = options && options.tracking;
+  const pinned = !!filter._id;
+  // One row per STAGE of a tracked form - a car recorded "in" at 12:00 and
+  // labelled "out" at 13:00 is two rows, each carrying the value it held at
+  // that moment (see utilities/tracking_window.js). Empty for a form with
+  // no stages, whose opening match already describes the range in full.
+  const stage_stages = pinned ? [] : stage_rows_stages(tracking, date_bounds);
+  if (!pinned) Object.assign(filter, stage_prefilter(date_bounds, tracking));
+
+  // Applied AFTER the stage rewrite, so a column filter matches the value
+  // the row actually shows ("status is out" keeps the 13:00 stage, not the
+  // 12:00 one of the same car).
   const value_filter = {};
   apply_value_filters(value_filter, options && options.filters);
-  // A pinned record answers for itself: the date range, the version and
-  // the column filters around it would only ever hide the one row that
-  // was explicitly asked for.
-  if (!filter._id && as_of_stages.length === 0) Object.assign(filter, value_filter);
-  const value_stages = !filter._id && as_of_stages.length > 0 && Object.keys(value_filter).length > 0 ? [{ $match: value_filter }] : [];
+  const has_value_filter = !pinned && Object.keys(value_filter).length > 0;
+  if (has_value_filter && stage_stages.length === 0) Object.assign(filter, value_filter);
 
   const sort_direction = options && options.sort === "oldest" ? 1 : -1;
+  // Newest first means the newest STAGE first on a register: the car that
+  // just drove out belongs at the top, not where it first arrived.
+  const sort_field = stage_stages.length > 0 ? STAGE_AT : "submitted_at";
   const skip = (page - 1) * limit;
   const collection = get_db().collection(COLLECTION_NAME);
   const search_term = options && options.search ? options.search.toString().trim() : "";
 
-  if (search_term || as_of_stages.length > 0) {
+  if (search_term || stage_stages.length > 0) {
     const search_stages = search_term
       ? [{ $addFields: { __search_text: SEARCH_TEXT_EXPRESSION } }, { $match: { __search_text: new RegExp(escape_regex(search_term), "i") } }]
       : [];
     const pipeline = [
       { $match: filter },
-      ...as_of_stages,
-      ...value_stages,
+      ...stage_stages,
+      ...(has_value_filter && stage_stages.length > 0 ? [{ $match: value_filter }] : []),
       ...search_stages,
-      { $sort: { submitted_at: sort_direction } },
+      // _id breaks the tie so paging is stable when several stages share a
+      // moment (three cars leaving at 13:00).
+      { $sort: { [sort_field]: sort_direction, _id: sort_direction } },
       {
         $facet: {
           items: [{ $skip: skip }, { $limit: limit }, { $project: { __search_text: 0 } }],
@@ -442,44 +451,61 @@ async function list_submissions(form_group_id, version, page, limit, date_bounds
   return { items, total };
 }
 
-function range_filter(form_group_id, bounds) {
-  const filter = { form_group_id };
-  if (bounds && bounds.start && bounds.end) filter.submitted_at = { $gte: bounds.start, $lte: bounds.end };
-  return filter;
+/**
+ * The export's own reading of a range: the records that have a stage
+ * inside it, ONE line each. Deliberately not stage by stage - a
+ * spreadsheet of the same plate on several rows reads as duplicated data
+ * to whoever opens it, so the export answers "which cars, and what did
+ * each say" rather than "what happened".
+ */
+function range_filter(form_group_id, bounds, tracking) {
+  return Object.assign({ form_group_id }, date_window_filter(bounds, tracking));
 }
 
 /** How many submissions an export over this range will write. */
-async function count_in_range(form_group_id, bounds) {
-  return get_db().collection(COLLECTION_NAME).countDocuments(range_filter(form_group_id, bounds));
+async function count_in_range(form_group_id, bounds, tracking) {
+  return get_db().collection(COLLECTION_NAME).countDocuments(range_filter(form_group_id, bounds, tracking));
 }
 
 /**
  * Every submission of the range as ONE cursor, oldest first, only the
  * fields an export writes - streamed in batches instead of page after page
  * of skip/limit queries.
+ *
+ * An aggregation rather than a find() because each tracked field has to
+ * carry the value it held at the END of the range, not the one it happens
+ * to hold today: an export of "the 12:00 hour" must say the car was in,
+ * even though it has since left. With no range at all ("all") nothing is
+ * rewritten and the current value is the value.
  */
-function stream_in_range(form_group_id, bounds, batch_size) {
+function stream_in_range(form_group_id, bounds, tracking, batch_size) {
   return get_db()
     .collection(COLLECTION_NAME)
-    .find(range_filter(form_group_id, bounds), { projection: { data: 1, version: 1, submitted_at: 1, respondent: 1 } })
-    .sort({ submitted_at: 1 })
-    .batchSize(batch_size || 1000);
+    .aggregate(
+      [
+        { $match: range_filter(form_group_id, bounds, tracking) },
+        ...tracking_stages({ tracking }, bounds),
+        { $sort: { submitted_at: 1, _id: 1 } },
+        { $project: { data: 1, version: 1, submitted_at: 1, updated_at: 1, respondent: 1 } },
+      ],
+      { allowDiskUse: true, batchSize: batch_size || 1000 },
+    );
 }
 
-/** The data feed's filter: a form, an optional version and an optional submitted_at window. */
-function feed_query(form_group_id, filter) {
-  const query = { form_group_id };
+/**
+ * The data feed's filter: a form, an optional version and an optional
+ * window. On a tracked form the window is read over the record's stages,
+ * so ?since means "created or changed since" and a reader finally sees a
+ * correction instead of keeping the first value it was given.
+ */
+function feed_query(form_group_id, filter, tracking) {
+  const query = Object.assign({ form_group_id }, date_window_filter(filter, tracking));
   if (filter && Number.isFinite(filter.version)) query.version = filter.version;
-  if (filter && (filter.start || filter.end)) {
-    query.submitted_at = {};
-    if (filter.start) query.submitted_at.$gte = filter.start;
-    if (filter.end) query.submitted_at.$lte = filter.end;
-  }
   return query;
 }
 
-async function count_feed(form_group_id, filter) {
-  return get_db().collection(COLLECTION_NAME).countDocuments(feed_query(form_group_id, filter));
+async function count_feed(form_group_id, filter, tracking) {
+  return get_db().collection(COLLECTION_NAME).countDocuments(feed_query(form_group_id, filter, tracking));
 }
 
 /**
@@ -488,16 +514,21 @@ async function count_feed(form_group_id, filter) {
  * safety net for a window the index cannot fully serve, so a large form
  * never fails with the in-memory sort limit.
  */
-function stream_feed(form_group_id, filter, skip, limit, batch_size) {
-  let cursor = get_db()
+function stream_feed(form_group_id, filter, skip, limit, batch_size, tracking) {
+  // An aggregation for the same reason the export uses one: each tracked
+  // field has to carry the value it held at the end of the asked-for
+  // window, never a mix of the window's records and today's answers.
+  const pipeline = [
+    { $match: feed_query(form_group_id, filter, tracking) },
+    ...tracking_stages({ tracking }, filter),
+    { $sort: { submitted_at: 1, _id: 1 } },
+  ];
+  if (skip) pipeline.push({ $skip: skip });
+  if (limit) pipeline.push({ $limit: limit });
+  pipeline.push({ $project: { data: 1, version: 1, submitted_at: 1, updated_at: 1, respondent: 1 } });
+  return get_db()
     .collection(COLLECTION_NAME)
-    .find(feed_query(form_group_id, filter), { projection: { data: 1, version: 1, submitted_at: 1, respondent: 1 } })
-    .sort({ submitted_at: 1 })
-    .allowDiskUse(true)
-    .batchSize(batch_size || 1000);
-  if (skip) cursor = cursor.skip(skip);
-  if (limit) cursor = cursor.limit(limit);
-  return cursor;
+    .aggregate(pipeline, { allowDiskUse: true, batchSize: batch_size || 1000 });
 }
 
 /**
@@ -536,12 +567,16 @@ function utc_offset_string(offset_minutes) {
   return `${sign}${hours}:${minutes}`;
 }
 
-async function count_submissions_over_time(form_group_id, start, end, granularity, offset_minutes, week_start_day) {
-  const match = { form_group_id };
-  if (start && end) match.submitted_at = { $gte: start, $lte: end };
+async function count_submissions_over_time(form_group_id, start, end, granularity, offset_minutes, week_start_day, tracking) {
+  const bounds = start && end ? { start, end } : null;
+  const match = Object.assign({ form_group_id }, stage_prefilter(bounds, tracking));
 
+  // Bucketed on the STAGE, which is what makes this chart read a register
+  // correctly: a car recorded at 12:00 and driven out at 13:00 puts one
+  // count in the 12:00 column and one in the 13:00 column, so the line
+  // shows both movements rather than only the arrival.
   const truncate = {
-    date: "$submitted_at",
+    date: time_expr(tracking),
     unit: GRANULARITY_UNITS[granularity] || "day",
     timezone: utc_offset_string(offset_minutes),
   };
@@ -555,6 +590,7 @@ async function count_submissions_over_time(form_group_id, start, end, granularit
     .aggregate(
       [
         { $match: match },
+        ...stage_rows_stages(tracking, bounds),
         { $group: { _id: { $dateTrunc: truncate }, count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ],

@@ -60,12 +60,11 @@ async function get_submissions(req, res) {
     const page_number = Math.max(1, parseInt(page, 10) || 1);
     const page_size = Math.min(100, Math.max(1, parseInt(limit, 10) || DEFAULT_PAGE_SIZE));
 
-    // A tracked form's updatable fields are shown as they stood at the end
-    // of the chosen period, so a status that flipped after that date still
-    // reads as it was then.
+    // A tracked form is read stage by stage inside the range (see
+    // utilities/tracking_window.js): one row per moment a value opened,
+    // each carrying stage_at and the values that stage held.
     const active_version = await forms_model.get_active_version(form_group_id);
     const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
-    const as_of = tracking && bounds && bounds.end && !record ? bounds.end : null;
 
     const result = await submissions_model.list_submissions(form_group_id, version, page_number, page_size, bounds, {
       search,
@@ -114,7 +113,6 @@ async function get_submissions(req, res) {
         total: result.total,
         page: page_number,
         limit: page_size,
-        as_of,
       }),
     );
   } catch (error) {

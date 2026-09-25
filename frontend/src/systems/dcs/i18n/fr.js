@@ -2064,6 +2064,7 @@ const fr = {
   DCS_TRACKING_UPDATED_TITLE: "Enregistrement mis à jour",
   DCS_TRACKING_UPDATED_DESCRIPTION: "Les changements ont été enregistrés avec leur date et heure. L'enregistrement reste chargé dans le formulaire.",
   DCS_TRACKING_CONTINUE: "Retour au formulaire",
+  DCS_TRACKING_TABLE_STAGE_AT: "Étape le",
   DCS_TRACKING_TABLE_UPDATED_AT: "Mis à jour le",
   DCS_TRACKING_TABLE_HISTORY: "Historique",
   DCS_TRACKING_FORM_NEEDS_CONNECTION: "Ce formulaire garde ses enregistrements sur le serveur et ne peut pas être ouvert hors ligne. Connectez-vous à internet et ouvrez-le à nouveau.",

@@ -70,6 +70,12 @@ function build_diffed_columns(versions, language, translate) {
   removed_field_defs.forEach((field) => field_type_by_id.set(field.id, field.type));
 
   const columns = [
+    // First, and deliberately: the export and the feed send one line per
+    // RECORD, and on a tracked form a record that was corrected is sent
+    // again on the next ?since pull. Without a stable key a reader would
+    // append that correction as a second car instead of replacing the
+    // line it already has.
+    { key: "record_id", label: translate("TABLE_RECORD_ID", language), type: "id" },
     ...active_fields.filter(has_any_label).map((field) => build_column_entry(field, language, translate)),
     ...removed_field_defs.filter(has_any_label).map((field) => build_column_entry(field, language, translate)),
     { key: "version", label: translate("TABLE_VERSION", language) },

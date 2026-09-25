@@ -207,6 +207,7 @@ module.exports = {
   EXPORT_JOB_NOT_FOUND: "Cet export n'est plus disponible - relancez-le",
   EXPORT_NOT_READY: "Le fichier d'export n'est pas encore prêt",
   EXPORT_CANCEL_REQUESTED: "L'export va s'arrêter",
+  TABLE_RECORD_ID: "Identifiant d'enregistrement",
   TABLE_VERSION: "Version",
   TABLE_SUBMITTED_AT: "Soumis le",
   TABLE_SUBMITTED_BY: "Soumis par",

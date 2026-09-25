@@ -1,5 +1,6 @@
 const { resolve_period_bounds } = require("../utilities/period_bounds.js");
 const { tracking_stages } = require("./tracking_stage.js");
+const { STAGE_AT, time_field, time_expr, is_staged, stage_prefilter, stage_rows_stages } = require("../utilities/tracking_window.js");
 
 /**
  * Builds the base $match of every widget pipeline: the form's submissions
@@ -63,51 +64,58 @@ function effective_bounds(widget, period_override) {
   return bounds || null;
 }
 
-/** A tracked form is a register: inside a period its records are the ones that existed by the period's end. */
-function reads_as_of_population(widget) {
-  return !!(widget && widget.tracking && widget.tracking.enabled === true && widget.as_of_population !== false);
-}
-
 /**
  * The base $match for one widget. Version is intentionally not filtered:
  * a dashboard reads the whole form group's history, whichever version each
  * record was collected with.
  *
- * On a tracked form the period keeps every record that existed by its end
- * (recorded before it began or during it), since the register's fields
- * are then read as they stood at that end (see tracking_stage.js); a
- * widget read OVER TIME (as_of_population false) still counts arrivals
- * inside the window, since that is what its time line draws.
+ * Only what an index can serve goes in here. The widget's own field
+ * filters do NOT: on a tracked form they have to be judged against the
+ * value of the stage being counted, which does not exist yet at this
+ * point in the pipeline (see filter_stages).
  */
 function build_match_stage(widget, bounds) {
-  const match = {
-    form_group_id: widget.form_group_id,
-  };
-  if (bounds) {
-    match.submitted_at = reads_as_of_population(widget) ? { $lte: bounds.end } : { $gte: bounds.start, $lte: bounds.end };
-  }
-  const conditions = (widget.filters || []).map((filter) => filter_condition(filter));
-  if (conditions.length === 1) Object.assign(match, conditions[0]);
-  if (conditions.length > 1) match.$and = conditions;
-  return { $match: match };
+  return { $match: Object.assign({ form_group_id: widget.form_group_id }, stage_prefilter(bounds, widget && widget.tracking)) };
 }
 
 /**
- * The opening of every widget pipeline: the base $match, then - on a
- * tracked form read inside a period - the rewrite of each updatable field
- * to the value it held at that period's end (see tracking_stage.js).
- * match_bounds is what the $match window uses; value_bounds (defaulting
- * to it) is the window whose end decides the values.
+ * The widget's own field filters, as a $match that runs AFTER the stages
+ * are built. A filter like "status is out" then keeps the stage where the
+ * car left and drops the stage where it arrived, instead of judging both
+ * by whatever the record happens to say today.
+ */
+function filter_stages(widget) {
+  const conditions = ((widget && widget.filters) || []).map((filter) => filter_condition(filter));
+  if (conditions.length === 0) return [];
+  return [{ $match: conditions.length === 1 ? conditions[0] : { $and: conditions } }];
+}
+
+/**
+ * The opening of every widget pipeline: the indexed $match, the expansion
+ * of each record into one row per STAGE with that stage's own values (see
+ * utilities/tracking_window.js), then the widget's filters over those
+ * values. A car recorded "in" at 12:00 and labelled "out" at 13:00 reaches
+ * every widget as two rows, which is what lets one KPI card count the
+ * arrivals and another count the departures over the very same hours.
+ *
+ * match_bounds is the window; value_bounds (defaulting to it) exists for
+ * the KPI cards, which expand every stage here and then window each facet
+ * separately.
  */
 function base_stages(widget, match_bounds, value_bounds) {
-  return [build_match_stage(widget, match_bounds)].concat(tracking_stages(widget, value_bounds === undefined ? match_bounds : value_bounds));
+  const bounds = value_bounds === undefined ? match_bounds : value_bounds;
+  return [
+    build_match_stage(widget, match_bounds),
+    ...stage_rows_stages(widget && widget.tracking, bounds),
+    ...filter_stages(widget),
+  ];
 }
 
 module.exports = {
   build_match_stage,
+  filter_stages,
   base_stages,
   tracking_stages,
-  reads_as_of_population,
   effective_bounds,
   numeric_expr,
   value_candidates,

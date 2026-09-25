@@ -28,8 +28,14 @@ import { is_tracking_enabled } from "../tracking/trackingConfig.js";
 
 function build_rows(submissions, data_fields, translate, on_history_click) {
   return (submissions || []).map((submission) => {
-    const row = { dcs_row_key: submission._id };
+    // One row per STAGE on a tracked form, so the key carries the stage
+    // too - the same record can legitimately be here twice.
+    const row = {
+      dcs_row_key: submission.stage_at ? `${submission._id}|${submission.stage_at}` : submission._id,
+      dcs_record_id: submission._id,
+    };
     // Tracked forms only: when the record last changed, and its history.
+    row.stage_at = submission.stage_at ? new Date(submission.stage_at).toLocaleString() : "-";
     row.updated_at = submission.updated_at ? new Date(submission.updated_at).toLocaleString() : "-";
     const change_count = Math.max(0, (submission.history || []).length - 1);
     row.history = on_history_click && change_count > 0 ? <RecordHistoryButton onClick={() => on_history_click(submission)} count={change_count} /> : "-";
@@ -104,6 +110,8 @@ export default function FormDataPage() {
     .concat([{ key: "submitted_by", labelKey: "DCS_TABLE_SUBMITTED_BY" }, { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" }]));
 
   const tracking = is_tracking_enabled(version_doc.tracking) ? version_doc.tracking : null;
+  // The moment each row is about, offered only once the rows are stages.
+  if (tracking) columns.push({ key: "stage_at", labelKey: "DCS_TRACKING_TABLE_STAGE_AT" });
   columns.push({ key: "updated_at", labelKey: "DCS_TRACKING_TABLE_UPDATED_AT" }, { key: "history", labelKey: "DCS_TRACKING_TABLE_HISTORY", minWidthPx: 96 });
   const rows = build_rows(table.submissions, data_fields, translate, setHistoryRecord);
 
@@ -112,9 +120,6 @@ export default function FormDataPage() {
       <div className="flex-shrink-0 mb-3 pl-14 pr-3 sm:pl-16 sm:pr-4 flex flex-row items-center gap-2 overflow-x-auto">
         <DcsPeriodFilter period={table.period} onPeriodChange={table.setPeriod} from={table.from} onFromChange={table.setFrom} to={table.to} onToChange={table.setTo} onApply={table.handle_apply} includeAll />
         <DcsTableSearchSort search={table.search} onSearchChange={table.setSearch} onSearchSubmit={table.handle_apply} sort={table.sort} onSortChange={table.setSort} />
-        {table.as_of && (
-          <span className="dcs-dt-asof">{translate("DCS_TABLE_AS_OF", { when: new Date(table.as_of).toLocaleString() })}</span>
-        )}
         <button
           type="button"
           onClick={() => setIsScheduleOpen(true)}
@@ -139,7 +144,7 @@ export default function FormDataPage() {
           loading={table.loading}
           scrollResetKey={table.page}
           totalCount={table.total}
-          onRowClick={(row) => setViewRecord((table.submissions || []).find((submission) => submission._id === row.dcs_row_key) || null)}
+          onRowClick={(row) => setViewRecord((table.submissions || []).find((submission) => submission._id === row.dcs_record_id) || null)}
         />
       </div>
 

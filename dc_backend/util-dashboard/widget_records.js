@@ -101,8 +101,14 @@ async function pick_conditions(widget, pick, bounds, catalog) {
   } else if (picked.kind === "time" && typeof picked.label === "string") {
     const range = await time_bucket_range(widget, bounds, picked.label);
     if (range) {
-      const source = group && group !== SUBMITTED_AT_FIELD ? group : SUBMITTED_AT_FIELD;
-      const expr = pipelines.time_source_expr(source);
+      // An OVER TIME widget is bucketed by its own over_time field, which
+      // is not what group_by holds - reading group_by here resolved the
+      // clicked bucket against the wrong field entirely, so the rows behind
+      // a point could come from outside both the bucket and the range.
+      const over_time = widget.over_time && widget.over_time.enabled === true ? widget.over_time : null;
+      const timed_field = over_time ? over_time.field_id || SUBMITTED_AT_FIELD : group;
+      const source = timed_field && timed_field !== SUBMITTED_AT_FIELD ? timed_field : SUBMITTED_AT_FIELD;
+      const expr = pipelines.time_source_expr(source, widget.tracking);
       conditions.push({ $expr: { $and: [{ $gte: [expr, range.start] }, { $lte: [expr, range.end] }] } });
       criteria.push({ field_id: source, field_label: source === SUBMITTED_AT_FIELD ? "" : label_of(source), value: picked.label, is_time: true });
     }

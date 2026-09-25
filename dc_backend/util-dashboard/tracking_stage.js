@@ -61,4 +61,4 @@ function tracking_stages(widget, bounds) {
   return [{ $addFields: set }];
 }
 
-module.exports = { tracking_stages };
+module.exports = { tracking_stages, value_at };
