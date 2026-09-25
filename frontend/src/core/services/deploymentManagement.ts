@@ -8,7 +8,7 @@ export interface DeploymentTarget {
 export interface DeploymentRunSummary {
   run_id: string;
   target: string;
-  status: 'running' | 'succeeded' | 'failed';
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
   started_at: string | null;
   finished_at: string | null;
   exit_code: number | null;
@@ -18,7 +18,7 @@ export interface DeploymentLogPage {
   run_id: string;
   chunk: string;
   offset: number;
-  status: 'running' | 'succeeded' | 'failed';
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
   exit_code: number | null;
   error: string | null;
   target: string;
