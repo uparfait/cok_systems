@@ -17,7 +17,7 @@ const fontHeading = "'Montserrat', sans-serif";
 // an empty chunk.
 const POLL_MS = 800;
 
-type RunStatus = 'running' | 'succeeded' | 'failed';
+type RunStatus = 'queued' | 'running' | 'succeeded' | 'failed';
 
 /**
  * update-deploy.sh writes plain text, and both TERM and NO_COLOR are set
@@ -28,6 +28,7 @@ const ANSI = /\u001B\[[0-9;?]*[ -/]*[@-~]/g;
 const strip_ansi = (text: string) => text.replace(ANSI, '');
 
 const status_look = (status: RunStatus | null) => {
+  if (status === 'queued') return { color: PRIMARY, label: 'Queued', Icon: FiLoader };
   if (status === 'running') return { color: PRIMARY, label: 'Running', Icon: FiLoader };
   if (status === 'succeeded') return { color: SUCCESS, label: 'Finished', Icon: FiCheckCircle };
   if (status === 'failed') return { color: DANGER, label: 'Failed', Icon: FiXCircle };
@@ -185,7 +186,9 @@ const DeploymentManagement: React.FC = () => {
     }
   };
 
-  const is_running = status === 'running';
+  // Queued counts as running for everything the page does: the agent has
+  // it, the buttons stay off, and the console keeps reading.
+  const is_running = status === 'running' || status === 'queued';
   const look = status_look(status);
   const StatusIcon = look.Icon;
   const busy = Boolean(starting) || is_running;
