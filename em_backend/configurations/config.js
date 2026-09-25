@@ -40,17 +40,14 @@ module.exports = {
   jwt: {
     secret: process.env.JWT_SECRET || 'cok-jwt-secret-2026',
   },
-<<<<<<< HEAD
   // The City's outgoing mail server: 197.243.27.181 on port 587 with
   // STARTTLS and SMTP authentication (see utilities/email.js).
-=======
   // Attendee certificate signing. Leave the issuer blank to accept any issuer,
   // or set it to the exact CN on the GovCA issuing certificate to reject the rest.
   signing: {
     trustedIssuerCommonName: process.env.SIGNING_TRUSTED_ISSUER_CN || '',
     requireNameMatch: (process.env.SIGNING_REQUIRE_NAME_MATCH || 'true') !== 'false',
   },
->>>>>>> amos_backend
   email: {
     host: process.env.EMAIL_HOST || '197.243.27.181',
     port: parseInt(process.env.EMAIL_PORT, 10) || 587,
