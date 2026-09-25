@@ -280,7 +280,7 @@ async function test_the_real_script_needs_its_tools() {
     const real = runner.blocking_reason();
     if (real !== null) {
         assert.ok(
-            /not installed|not running as root|was not found|not writable/.test(real),
+            /not installed|not running as root|was not found|not writable|agent is not running/.test(real),
             `the refusal must explain itself, got: ${real}`,
         );
         assert.ok(!/ENOENT/.test(real), 'a raw spawn error is not an explanation');
