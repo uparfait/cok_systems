@@ -4,7 +4,7 @@
   "link_catalog": [
     {
       "id": "calender",
-      "label": "Calender",
+      "label": "Calendar",
       "path": "/calendar",
       "icon": "FiCalendar",
       "default_enabled": true,
@@ -208,7 +208,7 @@
       "role_slug": "system-admin",
       "default_route": "/system-admin/dashboard",
       "links": [
-        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "calender", "label": "Calendar", "path": "/calendar", "icon": "FiCalendar" },
         {
           "id": "admin",
           "label": "Admin",
@@ -255,7 +255,7 @@
       "role_slug": "receptionist",
       "default_route": "/receptionist/dashboard",
       "links": [
-        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "calender", "label": "Calendar", "path": "/calendar", "icon": "FiCalendar" },
         { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiHome" },
         { "id": "visitors", "label": "Visitors", "path": "/{roleSlug}/visitors", "icon": "FiUsers" },
         { "id": "assigned-visitors", "label": "Assigned Visitors", "path": "/{roleSlug}/assigned", "icon": "FiUserCheck" },
@@ -275,7 +275,7 @@
       "role_slug": "employee",
       "default_route": "/employee/dashboard",
       "links": [
-        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "calender", "label": "Calendar", "path": "/calendar", "icon": "FiCalendar" },
         { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiGrid" },
         { "id": "visitors", "label": "Visitors", "path": "/{roleSlug}/all-visitors", "icon": "FiUsers" },
         {
@@ -295,7 +295,7 @@
       "role_slug": "department-manager",
       "default_route": "/department-manager/dashboard",
       "links": [
-        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "calender", "label": "Calendar", "path": "/calendar", "icon": "FiCalendar" },
         { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiGrid" },
         { "id": "requests", "label": "Requests", "path": "/{roleSlug}/requests", "icon": "FiFile" },
         { "id": "my-employees", "label": "My Employees", "path": "/{roleSlug}/hod/employees", "icon": "FiUsers" },
@@ -317,7 +317,7 @@
       "role_slug": "gate-officer",
       "default_route": "/gate-officer/dashboard",
       "links": [
-        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "calender", "label": "Calendar", "path": "/calendar", "icon": "FiCalendar" },
         { "id": "dashboard", "label": "Overview", "path": "/{roleSlug}/dashboard", "icon": "FiHome" },
         {
           "id": "check-in", "label": "Check-in", "path": "/{roleSlug}/checkin-vehicle", "icon": "FiLogIn",
@@ -340,7 +340,7 @@
       "role_slug": "event-manager",
       "default_route": "/event-manager",
       "links": [
-        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "calender", "label": "Calendar", "path": "/calendar", "icon": "FiCalendar" },
         { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}", "icon": "FiBarChart2" },
         {
           "id": "task-manager", "label": "Task Manager", "path": "/{roleSlug}/tasks", "icon": "FiClipboard",
@@ -383,7 +383,7 @@
       "role_slug": "mayor",
       "default_route": "/mayor/dashboard",
       "links": [
-        { "id": "calender", "label": "Calender", "path": "/calendar", "icon": "FiCalendar" },
+        { "id": "calender", "label": "Calendar", "path": "/calendar", "icon": "FiCalendar" },
         { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiHome" },
         { "id": "feedback-analysis", "label": "Feedback Analysis", "path": "/{roleSlug}/feedback-analysis", "icon": "FiMessageSquare" },
         {

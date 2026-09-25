@@ -107,6 +107,57 @@ class EventAccessController {
     }
   }
 
+  /**
+   * A signed-in organizer or co-organizer opening their own event.
+   *
+   * There is no point emailing a code to somebody the server has already
+   * authenticated and can see is entitled to the event: the session says
+   * who they are, so the access token is handed straight back and the
+   * page opens.
+   *
+   * The refusal is deliberately flat - the same { success: false } for a
+   * caller with no session, an event that does not exist, and an email
+   * that is simply not on the event. Nobody learns from this endpoint who
+   * organizes what, and the page falls back to asking for an email
+   * exactly as it does for a member of the public.
+   */
+  static async autoToken(req, res) {
+    const decline = () => res.status(200).json({ success: false });
+    try {
+      const { eventSpecialId } = req.body || {};
+      // req.user is set by rbac.validateBearerIfPresent when a valid
+      // session was sent; no session means there is nothing to check.
+      const email = req.user && req.user.email ? req.user.email.toLowerCase().trim() : '';
+      if (!eventSpecialId || !email) return decline();
+
+      const collections = [LiveEvent, UpcomingEvent, RecurringEvent, PastEvent];
+      let event = null;
+      for (const Model of collections) {
+        event = await Model.findOne({ eventSpecialId }).lean();
+        if (event) break;
+      }
+      if (!event) return decline();
+
+      const organizerEmail = event.eventOrganizer?.email?.toLowerCase().trim();
+      const isCoOrganizer = (event.coOrganizers || []).some(
+        (c) => (c.email || '').toLowerCase().trim() === email
+      );
+      if (organizerEmail !== email && !isCoOrganizer) return decline();
+
+      const accessToken = crypto.randomBytes(24).toString('hex');
+      accessTokens.set(accessToken, {
+        eventSpecialId,
+        email,
+        expires: Date.now() + 24 * 60 * 60 * 1000,
+      });
+
+      return res.status(200).json({ success: true, data: { accessToken, eventSpecialId } });
+    } catch (error) {
+      // Even a fault says nothing: the page just asks for an email.
+      return decline();
+    }
+  }
+
   static validateToken(req, res, next) {
     try {
       const token = req.headers['x-event-access-token'];

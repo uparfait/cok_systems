@@ -26,7 +26,8 @@ export default function BookingOptions() {
         <meta name="description" content="Manage your room booking." />
       </Helmet>
 
-      <main className="w-full min-h-screen flex flex-col items-center px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#FFFFFF', paddingBottom: '80px' }}>
+      {/* flex-1 fills the room the layout leaves - see LiveEvents.jsx. */}
+      <main className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#FFFFFF', paddingBottom: '80px' }}>
         <div className="w-full max-w-[1200px] mx-auto">
           
           {/* Header */}

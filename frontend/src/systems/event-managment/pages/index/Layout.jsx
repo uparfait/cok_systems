@@ -47,14 +47,24 @@ useEffect(() => {
 
 
   return (
-    <div className="w-full text-center min-h-screen h-max flex flex-col box-border items-center">
+    // No h-max here. height: max-content made this box fit its content, so
+    // the flex-1 below had nothing to stretch into and the page grew past
+    // the window whenever the padding and the footer added up - a
+    // scrollbar on a screen with nothing on it. min-h-screen alone gives
+    // the column a floor of one viewport and lets flex-1 take whatever is
+    // left, so an empty page is exactly one screen tall.
+    <div className="w-full text-center min-h-screen flex flex-col box-border items-center">
       {/* Navigation */}
 
       <IndexHeader />
 
       {/* Pages */}
 
-<div className="w-full bg-transparent relative flex flex-col pt-[100px] h-max items-center pb-[50px]">
+{/* flex-1, not h-max: this takes whatever room is left between the
+          header and the footer, so a page with little or nothing to show
+          fills the window exactly instead of adding its own height on top
+          of it and putting a scrollbar on an empty screen. */}
+<div className="w-full bg-transparent relative flex flex-col pt-[100px] flex-1 items-center pb-[50px]">
           <Outlet context={{LiveEventsData, setLiveEventsData, UpcomingEventsData, setUpcomingEventsData, activeEvent, setActiveEvent}} />
        </div>
 

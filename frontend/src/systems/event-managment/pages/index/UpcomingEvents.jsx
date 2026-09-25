@@ -84,7 +84,8 @@ export default function UpcomingEvents() {
         />
       </Helmet>
 
-      <main className="w-full min-h-[calc(100vh-80px)] flex flex-col items-center bg-white px-4">
+      {/* flex-1 fills the room the layout leaves - see LiveEvents.jsx. */}
+      <main className="w-full flex-1 flex flex-col items-center bg-white px-4">
         <div className="w-full flex flex-col items-center gap-3">
 
           {

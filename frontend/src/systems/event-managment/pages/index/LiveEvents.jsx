@@ -81,7 +81,10 @@ export default function LiveEvents() {
         />
       </Helmet>
 
-      <main className="w-full min-h-[calc(100vh-80px)] flex flex-col items-center bg-white">
+      {/* flex-1 fills the room the layout leaves; min-h-* here forced its
+          own viewport height ON TOP of the layout's and put a scrollbar on
+          a page with nothing in it. */}
+      <main className="w-full flex-1 flex flex-col items-center bg-white">
         <div className="w-full flex flex-col items-center gap-3">
 
           {

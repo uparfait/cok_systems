@@ -29,7 +29,7 @@ UAT_PROJECT="cok-systems"
 UAT_FRONT="uat-ikaze.kigalicity.gov.rw"
 UAT_BACKEND_HOST="uatps-ikaze.kigalicity.gov.rw"
 UAT_EVENTS_HOST="uate-ikaze.kigalicity.gov.rw"
-UAT_DCS_HOST="dcms.kigalicity.gov.rw"
+UAT_DCS_HOST=""
 
 # Compose projects from earlier layouts that no stack uses any more: their
 # containers and network are stopped and removed on the next run; their

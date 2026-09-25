@@ -45,11 +45,26 @@ export default function EventDetailsQrModal({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
+          {/* A QR code has to stay SQUARE. It was drawn at 100vw by 100vh
+              with object-fit: fill, which stretched it to whatever shape
+              the screen happened to be - on a wide monitor that distorts
+              the modules badly enough that readers struggle with it.
+              One side length, used for both dimensions, so it can only
+              ever be square; the room taken off the height is for the
+              buttons underneath, which would otherwise be pushed out of
+              view on a landscape screen. */}
           <img
             src={qrCodeUrl}
             alt="QRCode full image"
-            className="rounded-none shrink-0 block"
-            style={{ width: "100vw", height: "100vh", objectFit: "fill", maxWidth: "none", margin: 0, padding: 0 }}
+            className="rounded-none shrink-0 block self-center"
+            style={{
+              width: "min(100vw, calc(100vh - 9rem))",
+              height: "min(100vw, calc(100vh - 9rem))",
+              objectFit: "contain",
+              maxWidth: "none",
+              margin: 0,
+              padding: 0,
+            }}
           />
 
           <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-4 pb-8 pt-4 px-4 rounded-none relative">
@@ -77,7 +92,7 @@ export default function EventDetailsQrModal({
                   }
                 }}
               >
-                COPY LINK URL
+                COPY ATTENDANCE LINK
               </button>
 
               <AnimatePresence>

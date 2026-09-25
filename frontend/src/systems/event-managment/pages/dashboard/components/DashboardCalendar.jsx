@@ -149,7 +149,7 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
         <div className="grid grid-cols-7">
           {days.map((day, idx) => {
             if (!day) {
-              return <div key={`empty-${idx}`} className="min-h-[80px] sm:min-h-[100px] md:min-h-[120px] border-r border-b border-gray-100 bg-gray-50/50" />;
+              return <div key={`empty-${idx}`} className="min-h-[104px] sm:min-h-[116px] md:min-h-[136px] border-r border-b border-gray-100 bg-gray-50/50" />;
             }
 
             const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -163,7 +163,7 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
               <div
                 key={day}
                 id={`${isToday ? 'ToDayAnimatedCalenderBg' : ''}`}
-                className={`min-h-[80px]  sm:min-h-[100px] md:min-h-[120px] border-r border-b border-gray-100 p-1 sm:p-1.5 md:p-2 last:border-r-0 ${isToday ? 'bg-blue-50/40' : ''}`}
+                className={`min-h-[104px] sm:min-h-[116px] md:min-h-[136px] border-r border-b border-gray-100 p-1 sm:p-1.5 md:p-2 last:border-r-0 ${isToday ? 'bg-blue-50/40' : ''}`}
               >
                 <div className={`text-xs mb-1 ${isToday ? ' font-bold text-blue-600 ' : 'font-semibold text-gray-700'}`}>
                   {day}
@@ -181,16 +181,16 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
                       >
                         {!compact && (
                           <div className="flex items-center gap-1">
-                            <span className="font-medium">{ev.eventName}</span>
+                            <span className="font-medium min-w-0">{ev.eventName}</span>
                           </div>
                         )}
-                        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] opacity-80 mt-0.5">
+                        <div className="flex items-start gap-1 text-[9px] sm:text-[10px] opacity-80 mt-0.5">
                           <FiClock className="w-2 h-2 sm:w-2.5 sm:h-2.5 shrink-0" />
-                          <span>{timeRange}</span>
+                          <span className="min-w-0">{timeRange}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] opacity-80">
+                        <div className="flex items-start gap-1 text-[9px] sm:text-[10px] opacity-80">
                           <FiMapPin className="w-2 h-2 sm:w-2.5 sm:h-2.5 shrink-0" />
-                          <span>{ev.eventRoom}</span>
+                          <span className="min-w-0 capitalize">{ev.eventRoom}</span>
                         </div>
                       </button>
                     );

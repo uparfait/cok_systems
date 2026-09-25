@@ -189,7 +189,7 @@ const RolesManagementPage: React.FC = () => {
         if (s.children[c.id]) opts.push({ label: `${link.label} - ${c.label}`, path: c.path });
       });
     });
-    if (!opts.some((o) => o.path === '/calendar')) opts.unshift({ label: 'Calender', path: '/calendar' });
+    if (!opts.some((o) => o.path === '/calendar')) opts.unshift({ label: 'Calendar', path: '/calendar' });
     return opts;
   }, [catalog, selection]);
 

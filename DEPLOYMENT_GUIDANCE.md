@@ -393,7 +393,7 @@ Two environments run side by side on the server, both built from the one `cok_sy
 
 | Stack | Branch | Compose project | Public hosts |
 |---|---|---|---|
-| `uat-ikaze` (acceptance) | `uat` | `cok-systems` (the project that existed before the split, so its mongo volume with the data collected so far stays with UAT) | `uat-ikaze`, `uatps-ikaze`, `uate-ikaze`, `dcms.kigalicity.gov.rw` |
+| `uat-ikaze` (acceptance) | `uat` | `cok-systems` (the project that existed before the split, so its mongo volume with the data collected so far stays with UAT) | `uat-ikaze`, `uatps-ikaze`, `uate-ikaze` |
 | `ikaze` (production) | `ikaze` | `cok-systems-ikaze` (new, starts with an empty database) | `ikaze.kigalicity.gov.rw` |
 
 The script switches the folder to a stack's branch, builds and starts that stack's project, then moves on to the next; images carry the code they were built from, so the running containers are not affected by later branch switches. At the end the folder is left on the `ikaze` branch with production's `.env` files in place.

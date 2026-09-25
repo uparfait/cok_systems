@@ -4,7 +4,7 @@ import axios from 'axios';
 import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { FiSearch, FiDownload, FiUsers, FiArrowLeft } from 'react-icons/fi';
+import { FiSearch, FiDownload, FiUsers } from 'react-icons/fi';
 import SpiralLoader from '../../components/SpiralLoader';
 
 const BASE_URL = '/cok/api/v1';
@@ -332,8 +332,11 @@ export default function AttendeesList({ overlayEventId = null, embedded = false 
   }
 
   return (
-    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: '10px', backgroundColor: '#F7F9FB' }}>
-      <div className="w-full max-w-5xl px-3 sm:px-6 md:px-8 py-6">
+    <div className="w-full min-h-screen flex justify-center" style={{ backgroundColor: '#F7F9FB' }}>
+      {/* No padding above: this sits inside a panel that already starts at
+          the top of the page, and its own 10px plus py-6 was the band of
+          empty space showing over the list. The bottom padding stays. */}
+      <div className="w-full max-w-5xl px-3 sm:px-6 md:px-8 pt-5 pb-6">
         <div className="flex items-start justify-between gap-3 mb-5 flex-wrap">
           <div className="min-w-0">
             <h1 className="text-base sm:text-lg font-bold leading-tight truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
@@ -534,17 +537,6 @@ export default function AttendeesList({ overlayEventId = null, embedded = false 
         )}
       </div>
 
-      {!embedded && (
-        <button
-          type="button"
-          title="Go back"
-          onClick={() => window.history.pushState(null, '', `/calendar/${eventSpecialId}`)}
-          className="cok-btn-outlined-reverse fixed z-50 flex items-center justify-center cursor-pointer"
-          style={{ width: '30px', height: '30px', padding: 0, right: '16px', bottom: '16px' }}
-        >
-          <FiArrowLeft className="w-4 h-4" />
-        </button>
-      )}
     </div>
   );
 }

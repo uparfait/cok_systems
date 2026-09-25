@@ -322,10 +322,16 @@ export default function CalendarPage() {
             </div>
           </div>
 
+          {/* Below sm the seven columns cannot all fit at a usable
+              width, so the month scrolls sideways instead of squeezing
+              every cell down to a sliver and breaking words inside it.
+              From sm up min-w-0 lets it fit the container as before. */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-x-auto">
+          <div className="min-w-[700px] sm:min-w-0 flex flex-col flex-1">
           {/* Weekday header */}
           <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
             {WEEKDAYS.map((day) => (
-              <div key={day} className="py-1.5 sm:py-2 text-center font-semibold text-gray-600 border-r border-gray-100 last:border-r-0" style={{ fontSize: "clamp(8px, 1.4vw, 12px)" }}>
+              <div key={day} className="py-1.5 sm:py-2 text-center font-semibold text-gray-600 border-r border-gray-100 last:border-r-0" style={{ fontSize: "clamp(11px, 1.4vw, 12px)" }}>
                 {day}
               </div>
             ))}
@@ -339,7 +345,7 @@ export default function CalendarPage() {
             <div className="grid grid-cols-7 flex-1 auto-rows-fr">
               {days.map((day, idx) => {
                 if (!day) {
-                  return <div key={`empty-${idx}`} className="border-r border-b border-gray-100 bg-gray-50/50" style={{ minHeight: "clamp(56px, 13vw, 120px)" }} />;
+                  return <div key={`empty-${idx}`} className="border-r border-b border-gray-100 bg-gray-50/50" style={{ minHeight: "clamp(96px, 13vw, 140px)" }} />;
                 }
 
                 const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -354,9 +360,9 @@ export default function CalendarPage() {
                     key={day}
                     id={`${isToday ? "ToDayAnimatedCalenderBg" : ""}`}
                     className={`border-r border-b border-gray-100 p-0.5 sm:p-1.5 md:p-2 last:border-r-0 ${isToday ? "bg-blue-50/40" : ""}`}
-                    style={{ minHeight: "clamp(56px, 13vw, 120px)" }}
+                    style={{ minHeight: "clamp(96px, 13vw, 140px)" }}
                   >
-                    <div className={`mb-0.5 sm:mb-1 ${isToday ? "font-bold text-blue-600" : "font-semibold text-gray-700"}`} style={{ fontSize: "clamp(8px, 1.5vw, 12px)" }}>
+                    <div className={`mb-0.5 sm:mb-1 ${isToday ? "font-bold text-blue-600" : "font-semibold text-gray-700"}`} style={{ fontSize: "clamp(11px, 1.5vw, 12px)" }}>
                       {day}
                     </div>
                     <div className="space-y-0.5 sm:space-y-1">
@@ -369,43 +375,43 @@ export default function CalendarPage() {
                             key={(ev._id || ev.eventSpecialId) + (ev.occurrenceDate || "") + i}
                             onClick={() => clickable && openEvent(ev)}
                             className={`w-full text-left leading-tight px-0.5 sm:px-1.5 py-0.5 sm:py-1 border ${getEventColor(ev)} ${clickable ? "cursor-pointer hover:opacity-80" : "cursor-default"} ${isHighlighted ? "ring-2 ring-amber-400" : ""}`}
-                            style={{ fontSize: "clamp(7px, 1.4vw, 11px)" }}
+                            style={{ fontSize: "clamp(10px, 1.4vw, 11px)" }}
                             title={clickable ? `${ev.eventName}\n${timeRange}\n${ev.eventRoom}` : `${timeRange}\n${ev.eventRoom}`}
                           >
                             {/* Event name only when the user is invited or the organiser -
                                 everyone else sees just the schedule and the room */}
                             {clickable && (
                               <div className="flex items-start gap-1">
-                                <span className="font-medium break-words min-w-0">{ev.eventName}</span>
+                                <span className="font-medium min-w-0">{ev.eventName}</span>
                               </div>
                             )}
-                            <div className="flex items-start gap-1 opacity-80 mt-0.5" style={{ fontSize: "clamp(6px, 1.2vw, 10px)" }}>
+                            <div className="flex items-start gap-1 opacity-80 mt-0.5" style={{ fontSize: "clamp(9px, 1.2vw, 10px)" }}>
                               <FiClock className="shrink-0" style={{ width: "1em", height: "1em", marginTop: "0.15em" }} />
-                              <span className="break-words min-w-0">{timeRange}</span>
+                              <span className="min-w-0">{timeRange}</span>
                             </div>
-                            <div className="flex items-start gap-1 opacity-80" style={{ fontSize: "clamp(6px, 1.2vw, 10px)" }}>
+                            <div className="flex items-start gap-1 opacity-80" style={{ fontSize: "clamp(9px, 1.2vw, 10px)" }}>
                               <FiMapPin className="shrink-0" style={{ width: "1em", height: "1em", marginTop: "0.15em" }} />
-                              <span className="break-words min-w-0 capitalize">{ev.eventRoom}</span>
+                              <span className="min-w-0 capitalize">{ev.eventRoom}</span>
                             </div>
                             {(ev.isInvited || ev.isMinutesTaker || isOrganizerLike(ev)) && (
                               <div className="flex flex-wrap gap-0.5 mt-0.5">
                                 {ev.isInvited && (
-                                  <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: SUCCESS, fontFamily: fontHeading, fontSize: "clamp(5.5px, 1vw, 8px)" }}>
+                                  <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: SUCCESS, fontFamily: fontHeading, fontSize: "clamp(8px, 1vw, 9px)" }}>
                                     You are invited
                                   </span>
                                 )}
                                 {isOrganizer(ev) && (
-                                  <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading, fontSize: "clamp(5.5px, 1vw, 8px)" }}>
+                                  <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading, fontSize: "clamp(8px, 1vw, 9px)" }}>
                                     Organiser
                                   </span>
                                 )}
                                 {!isOrganizer(ev) && isCoOrganizer(ev) && (
-                                  <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: "#7C3AED", fontFamily: fontHeading, fontSize: "clamp(5.5px, 1vw, 8px)" }}>
+                                  <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: "#7C3AED", fontFamily: fontHeading, fontSize: "clamp(8px, 1vw, 9px)" }}>
                                     Co-organiser
                                   </span>
                                 )}
                                 {ev.isMinutesTaker && (
-                                  <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: "#F39C12", fontFamily: fontHeading, fontSize: "clamp(5.5px, 1vw, 8px)" }}>
+                                  <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: "#F39C12", fontFamily: fontHeading, fontSize: "clamp(8px, 1vw, 9px)" }}>
                                     Minutes taker
                                   </span>
                                 )}
@@ -418,7 +424,7 @@ export default function CalendarPage() {
                         <button
                           onClick={() => setExpandedDay(day)}
                           className="text-gray-500 hover:text-gray-700 px-0.5 sm:px-1.5 font-medium cursor-pointer"
-                          style={{ fontSize: "clamp(7px, 1.3vw, 11px)" }}
+                          style={{ fontSize: "clamp(10px, 1.3vw, 11px)" }}
                         >
                           +{remaining} more
                         </button>
@@ -427,7 +433,7 @@ export default function CalendarPage() {
                         <button
                           onClick={() => setExpandedDay(null)}
                           className="text-gray-500 hover:text-gray-700 px-0.5 sm:px-1.5 font-medium cursor-pointer"
-                          style={{ fontSize: "clamp(7px, 1.3vw, 11px)" }}
+                          style={{ fontSize: "clamp(10px, 1.3vw, 11px)" }}
                         >
                           Show less
                         </button>
@@ -438,6 +444,8 @@ export default function CalendarPage() {
               })}
             </div>
           )}
+          </div>
+          </div>
         </div>
       </div>
     </div>

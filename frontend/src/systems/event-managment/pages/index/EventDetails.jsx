@@ -15,6 +15,7 @@ import DesignateMinutes from "./DesignateMinutes";
 import EventActionsPage from "./EventActionsPage";
 import ShowEditor from "./components/ShowEditor";
 import { Helmet } from "react-helmet-async";
+import { FiInfo, FiUsers, FiFileText, FiUserCheck, FiCheckSquare } from "react-icons/fi";
 
 const generateColorFromName = (name) => {
   let hash = 0;
@@ -43,25 +44,82 @@ const TABS = [
   { key: "event-actions", label: "Actions(Follow-ups)" },
 ];
 
-function TabLink({ tabKey, active, children, onTabChange }) {
+// One icon per tab for the rail. The full label still travels with it, as
+// the tooltip and for screen readers, so an icon-only rail is never a
+// guessing game.
+const TAB_ICONS = {
+  info: FiInfo,
+  "view-attendance": FiUsers,
+  "record-minutes": FiFileText,
+  "designate-minutes": FiUserCheck,
+  "event-actions": FiCheckSquare,
+};
+
+/**
+ * One entry of the second sidebar: the icon, the label on hover, and for
+ * attendance the count as a small badge, since that number is worth
+ * seeing without opening the tab.
+ */
+function SideTab({ tabKey, label, badge, active, onTabChange }) {
+  const Icon = TAB_ICONS[tabKey] || FiInfo;
   return (
     <button
       type="button"
       onClick={() => onTabChange(tabKey)}
-      className={`relative px-4 py-3 text-sm font-medium whitespace-nowrap cursor-pointer transition-colors duration-300 ${
-        active ? "text-[#056daa]" : "text-gray-500 hover:text-gray-700"
-      }`}
-      style={{ fontFamily: "'Montserrat', sans-serif", display: 'block', width: '100%', background: 'none', border: 'none' }}
+      // The label is on the tooltip as well, for the narrow screens where
+      // the rail shows icons alone.
+      title={label}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className="group relative w-full flex items-center gap-3 px-0 md:px-4 justify-center md:justify-start py-3.5 cursor-pointer transition-colors"
+      style={{
+        color: active ? PRIMARY : "#6B7280",
+        backgroundColor: active ? "rgba(5,109,170,0.10)" : "transparent",
+      }}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.backgroundColor = "rgba(5,109,170,0.06)";
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.backgroundColor = "transparent";
+      }}
     >
-      {active && (
-        <motion.span
-          layoutId="event-tab-active"
-          className="absolute inset-0"
-          style={{ backgroundColor: "rgba(5,109,170,0.1)", borderBottom: `2px solid ${PRIMARY}` }}
-          transition={{ type: "spring", stiffness: 400, damping: 34 }}
-        />
+      {active && <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ backgroundColor: PRIMARY }} />}
+      <span className="relative flex items-center justify-center shrink-0">
+        <Icon className="w-5 h-5" />
+        {/* On the narrow rail the count rides the icon, since there is no
+            room for it anywhere else. */}
+        {badge > 0 && (
+          <span
+            className="md:hidden absolute -top-1.5 -right-2 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
+            style={{ backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif" }}
+          >
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
+      </span>
+
+      <span
+        className="hidden md:inline text-sm font-medium truncate"
+        style={{ fontFamily: "'Montserrat', sans-serif" }}
+      >
+        {label}
+      </span>
+      {badge > 0 && (
+        <span
+          className="hidden md:flex ml-auto w-6 h-6 rounded-full items-center justify-center text-[11px] font-bold text-white shrink-0"
+          style={{ backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif" }}
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
       )}
-      <span className="relative z-10">{children}</span>
+
+      {/* Only needed while the labels are hidden. */}
+      <span
+        className="md:hidden pointer-events-none absolute left-full ml-2 whitespace-nowrap bg-zinc-900 text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-[60]"
+        style={{ fontFamily: "'Montserrat', sans-serif" }}
+      >
+        {label}
+      </span>
     </button>
   );
 }
@@ -357,7 +415,6 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
     );
   }
 
-  const brandColor = generateColorFromName(activeEvent?.eventName || "Event");
 
   return (
     <>
@@ -368,45 +425,67 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
           content="Happening now"
         />
       </Helmet>
-    <div className="w-full min-h-screen flex flex-col items-center rounded-none">
-      {/* Sticky Tab Header: full-bleed toolbar above the content so nothing scrolls past its edges */}
-      <nav
-        className={`sticky z-50 bg-white border-b border-gray-200 self-stretch ${
-          bypassAccess
-            ? "top-0 -mt-3 sm:-mt-4 lg:-mt-6 -mx-3 sm:-mx-4 lg:-mx-6"
-            : "top-[80px]"
-        }`}
-      >
-        <div className="max-w-5xl mx-auto flex overflow-x-auto">
+    {/* On /calendar this page fills <main> edge to edge: the negative
+        margin cancels main's own p-3/p-4/p-6 on every side, so the tab bar
+        below starts exactly where the app header ends with no strip of
+        page background between them. Cancelling the padding once here is
+        what makes that hold both at rest AND while scrolled - trying to
+        do it on the sticky bar alone left a gap in one state or the other.
+        The content further down puts the side padding back for itself. */}
+    <div
+      className={`w-full min-h-screen rounded-none flex flex-row items-stretch ${
+        bypassAccess ? "-m-3 sm:-m-4 lg:-m-6" : ""
+      }`}
+    >
+      {/* The same sidebar on both pages. Inside the signed-in shell it
+          pins to the top of the scrolling area; on the public page the
+          site header is fixed and 80px tall, so it pins just below it. */}
+        <aside
+          // Always there, with no way to collapse it: it is this page's
+          // only navigation. Icons alone where there is no room for more,
+          // icons with their labels from md up.
+          //
+          // Its height is the scrolling area's, not the whole window's -
+          // h-screen made it taller than the space it sits in, so it slid
+          // up out of view before sticking. At this height it is pinned to
+          // the top from the first pixel and never moves; if it ever holds
+          // more entries than fit, it scrolls inside itself rather than
+          // taking the page with it.
+          className={`sticky self-start overflow-y-auto w-16 md:w-60 shrink-0 bg-white border-r border-gray-200 flex flex-col items-stretch select-none z-50 ${
+            bypassAccess ? "top-0 h-[calc(100dvh-80px)]" : "top-20 h-[calc(100dvh-80px)]"
+          }`}
+          aria-label="Event sections"
+        >
           {visibleTabs.map((tab) => (
-            <TabLink
+            <SideTab
               key={tab.key}
               tabKey={tab.key}
+              label={tab.label}
+              badge={tab.key === "view-attendance" ? attendeeCount : 0}
               active={activeTab === tab.key}
               onTabChange={handleTabChange}
-            >
-              {tab.key === "view-attendance" ? `${tab.label} (${attendeeCount})` : tab.label}
-            </TabLink>
+            />
           ))}
-        </div>
-      </nav>
+        </aside>
 
+      {/* Beside the rail, not under it. The page cancelled main's padding
+          so the rail reaches the window edge; the content puts back only
+          the sides and the bottom - no padding on top, so the content
+          starts level with the rail and with the app header above it
+          rather than floating below a band of empty page. */}
+      <div className="flex-1 min-w-0 flex flex-col items-center px-3 sm:px-4 lg:px-6 pb-3 sm:pb-4 lg:pb-6">
       <motion.div
         className="relative w-full max-w-5xl h-max rounded-none"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div
-          className="absolute inset-0 z-0 pointer-events-none opacity-10 rounded-none"
-          style={{ background: `radial-gradient(circle at 70% 30%, ${brandColor} 0%, rgba(255,255,255,0) 70%)` }}
-        />
 
         {/* Tab Content */}
         <div className="relative z-10">
           {activeTab === "info" && (
             <>
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start p-6 md:p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start px-6 pb-6 md:px-8 md:pb-8">
                 <EventDetailsLeftColumn
                   activeEvent={activeEvent}
                   eventSpecialId={eventSpecialId}
@@ -458,7 +537,7 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
           )}
 
           {activeTab === "view-attendance" && (
-            <div className="p-6 md:p-8">
+            <div className="px-6 pb-6 md:px-8 md:pb-8">
               <AttendeesList />
             </div>
           )}
@@ -469,18 +548,19 @@ export default function EventDetails({ overlayEventId = null, onCloseOverlay = n
           )}
 
           {!isPublic && activeTab === "designate-minutes" && (
-            <div className="p-6 md:p-8">
+            <div className="px-6 pb-6 md:px-8 md:pb-8">
               <DesignateMinutes onClose={() => handleTabChange("info")} />
             </div>
           )}
 
           {!isPublic && activeTab === "event-actions" && (
-            <div className="p-6 md:p-8">
+            <div className="px-6 pb-6 md:px-8 md:pb-8">
               <EventActionsPage />
             </div>
           )}
         </div>
       </motion.div>
+      </div>
 
       <EventAccessOverlay
         event={activeEvent || { eventSpecialId }}

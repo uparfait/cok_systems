@@ -477,9 +477,13 @@ class EventService {
       queryObject.eventFormat = { $ne: "Virtual" };
     }
 
-    // Public listings only show External events and meetings
+    // Public listings show External events, and Joint ones as well - a
+    // Joint meeting belongs on the public board so its room reads as
+    // taken, but it arrives carrying only its room and time (see
+    // utilities/publicEvent.js, which strips it for anyone not signed in).
+    // Internal events stay out entirely.
     if (externalOnly === "true" || externalOnly === true) {
-      queryObject.eventType = "External";
+      queryObject.eventType = { $in: ["External", "Joint"] };
     }
 
     if (search && searchField) {
