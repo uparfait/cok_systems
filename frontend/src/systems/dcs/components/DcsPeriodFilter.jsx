@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { portal_root } from "../util-dashboard/portalRoot.js";
@@ -79,21 +79,30 @@ function PickerInput({ label, type, value, onChange }) {
  * picked values ride along with Apply directly, since the parent's own
  * from/to state is not updated yet at that moment.
  */
-function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChange, onApply, translate }) {
+function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange, onToChange, onApply, translate }) {
   const board = useBoardTheme();
   const [mode, setMode] = useState(from && to && from === to ? "day" : "range");
   const [with_time, setWithTime] = useState(has_time(from) || has_time(to));
   const [local_from, setLocalFrom] = useState(from || "");
   const [local_to, setLocalTo] = useState(to || "");
 
+  // Seeded from the applied range every time the popup opens. This popup is
+  // opened from the period menu, and Radix never reports an open it did not
+  // cause itself, so doing this in onOpenChange left the pickers showing
+  // whatever they happened to hold when the control first mounted.
+  useEffect(() => {
+    if (!open) return;
+    setMode(from && to && from === to ? "day" : "range");
+    setWithTime(has_time(from) || has_time(to));
+    setLocalFrom(from || "");
+    setLocalTo(to || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Escape, the backdrop and the Cancel button all mean the same thing: no
+  // range was picked. Apply closes itself, so it never comes through here.
   const handle_open_change = (is_open) => {
-    if (is_open) {
-      setMode(from && to && from === to ? "day" : "range");
-      setWithTime(has_time(from) || has_time(to));
-      setLocalFrom(from || "");
-      setLocalTo(to || "");
-    }
-    onOpenChange(is_open);
+    if (!is_open) onCancel();
   };
 
   // Turning the time off keeps the days that were picked; turning it on
@@ -157,7 +166,7 @@ function CustomDatePopup({ open, onOpenChange, from, to, onFromChange, onToChang
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => onOpenChange(false)}
+              onClick={onCancel}
               className="px-3 py-1.5 text-xs border rounded-none cursor-pointer"
               style={{ fontFamily: FONT, backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
             >
@@ -189,6 +198,9 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
   const [is_custom_open, setIsCustomOpen] = useState(false);
   const [is_menu_open, setIsMenuOpen] = useState(false);
   const menu_ref = useRef(null);
+  // What was showing before "custom" was picked, so abandoning the date
+  // popup can put the control back to it.
+  const period_before_custom_ref = useRef(period);
   const options = includeAll ? PERIOD_OPTIONS : PERIOD_OPTIONS.filter((option) => option.value !== "all");
 
   // A native <select> fires nothing when the already-selected option is
@@ -198,6 +210,7 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
   const handle_option_click = (value) => {
     setIsMenuOpen(false);
     if (value === "custom") {
+      if (period !== "custom") period_before_custom_ref.current = period;
       onPeriodChange("custom");
       setIsCustomOpen(true);
       return;
@@ -207,6 +220,18 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
       return;
     }
     if (onApply) onApply();
+  };
+
+  // Leaving the date popup without picking a range means no range was ever
+  // applied: no request was sent for it either, so the control has to stop
+  // reading "Custom" over rows that are still under the previous window.
+  const handle_custom_cancel = () => {
+    setIsCustomOpen(false);
+    if (period !== "custom" || from) return;
+    // Nothing to go back to when the control was already sitting on an
+    // unapplied "custom" (it mounted that way), so it takes the default.
+    const previous = period_before_custom_ref.current;
+    onPeriodChange(previous && previous !== "custom" ? previous : includeAll ? "all" : "this_year");
   };
 
   const option_label = (option) => (option.value === "custom" ? translate("DCS_STATS_PERIOD_CUSTOM") : translate(option.labelKey));
@@ -263,7 +288,7 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
         </MenuPopover>
       </div>
 
-      <CustomDatePopup open={is_custom_open} onOpenChange={setIsCustomOpen} from={from} to={to} onFromChange={onFromChange} onToChange={onToChange} onApply={onApply} translate={translate} />
+      <CustomDatePopup open={is_custom_open} onOpenChange={setIsCustomOpen} onCancel={handle_custom_cancel} from={from} to={to} onFromChange={onFromChange} onToChange={onToChange} onApply={onApply} translate={translate} />
     </div>
   );
 }

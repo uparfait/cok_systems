@@ -39,15 +39,36 @@ export function useSubmissionsTable(form_group_id, version, column_filters, pinn
   const [sort, setSort] = useState("newest");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
-  const applied_params_ref = useRef({ page: 1, period: DEFAULT_PERIOD, from: "", to: "", search: "", sort: "newest", filters: null });
+  // The range the rows on screen were actually fetched under. The pickers
+  // above hold what is being typed, which is not the same thing until
+  // Apply - and a column's own value dropdown has to describe the range
+  // the table is showing, not one nobody has asked for yet.
+  const [applied_range, setAppliedRange] = useState({ period: DEFAULT_PERIOD, from: "", to: "" });
+  const applied_params_ref = useRef({ page: 1, period: DEFAULT_PERIOD, from: "", to: "", search: "", sort: "newest", filters: null, record: undefined });
   const is_first_filters_render_ref = useRef(true);
   const is_first_search_render_ref = useRef(true);
+
+  // The pinned record travels inside params, never read from the closure:
+  // the silent refresh below runs on an interval whose effect deliberately
+  // does not depend on it, so a closure read there would keep sending the
+  // record that was pinned when the page mounted - and the backend drops
+  // the whole date window for a pinned record, which quietly collapsed the
+  // table back to one row (or re-expanded it) ten seconds after every
+  // pin/unpin.
+  const build_params = (params) => Object.assign({ record: pinned_record_id || undefined }, params);
 
   const fetch_submissions = (params, silent) => {
     if (params.period === "custom" && !params.from) return;
     applied_params_ref.current = params;
+    // Same object back when nothing moved, so the ten-second silent
+    // refresh does not re-render the dropdowns for no reason.
+    setAppliedRange((current) =>
+      current.period === params.period && current.from === (params.from || "") && current.to === (params.to || "")
+        ? current
+        : { period: params.period, from: params.from || "", to: params.to || "" },
+    );
     if (!silent) setLoading(true);
-    get_submissions(form_group_id, version, params.page, PAGE_SIZE, Object.assign({}, params, { record: pinned_record_id || undefined }))
+    get_submissions(form_group_id, version, params.page, PAGE_SIZE, params)
       .then((response) => setResult(response))
       .catch(() => {
         if (!silent) setResult(null);
@@ -71,7 +92,7 @@ export function useSubmissionsTable(form_group_id, version, column_filters, pinn
     const next_from = typeof applied_from === "string" ? applied_from : from;
     const next_to = typeof applied_to === "string" ? applied_to : to;
     setPage(1);
-    fetch_submissions({ page: 1, period, from: next_from, to: next_to, search, sort, filters: column_filters }, false);
+    fetch_submissions(build_params({ page: 1, period, from: next_from, to: next_to, search, sort, filters: column_filters }), false);
   };
 
   // Re-fetches the current page with whatever params were last applied -
@@ -81,11 +102,18 @@ export function useSubmissionsTable(form_group_id, version, column_filters, pinn
     fetch_submissions(applied_params_ref.current, false);
   };
 
-  // Period/sort/version changes fetch immediately (custom range still needs
-  // its own explicit Apply, same as the chart).
+  // Period/sort/version changes fetch immediately. A custom range still
+  // needs its own explicit Apply before it is ever fetched (same as the
+  // chart) - but once one HAS been applied, a sort or pin change here has
+  // to re-fetch under it, instead of being swallowed by the guard and
+  // leaving the table sorted the way it was.
   useEffect(() => {
     setPage(1);
-    if (period !== "custom") fetch_submissions({ page: 1, period, from: "", to: "", search, sort, filters: column_filters }, false);
+    if (period !== "custom") {
+      fetch_submissions(build_params({ page: 1, period, from: "", to: "", search, sort, filters: column_filters }), false);
+    } else if (from) {
+      fetch_submissions(build_params({ page: 1, period, from, to, search, sort, filters: column_filters }), false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, sort, version, form_group_id, pinned_record_id]);
 
@@ -99,7 +127,7 @@ export function useSubmissionsTable(form_group_id, version, column_filters, pinn
     }
     const timeout_id = window.setTimeout(() => {
       setPage(1);
-      fetch_submissions({ page: 1, period, from, to, search, sort, filters: column_filters }, false);
+      fetch_submissions(build_params({ page: 1, period, from, to, search, sort, filters: column_filters }), false);
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout_id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -114,7 +142,7 @@ export function useSubmissionsTable(form_group_id, version, column_filters, pinn
       return;
     }
     setPage(1);
-    fetch_submissions({ page: 1, period, from, to, search, sort, filters: column_filters }, false);
+    fetch_submissions(build_params({ page: 1, period, from, to, search, sort, filters: column_filters }), false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(column_filters || {})]);
 
@@ -140,6 +168,11 @@ export function useSubmissionsTable(form_group_id, version, column_filters, pinn
     setFrom,
     to,
     setTo,
+    // The range the rows on screen belong to, for anything that has to
+    // agree with the table rather than with the pickers.
+    applied_period: applied_range.period,
+    applied_from: applied_range.from,
+    applied_to: applied_range.to,
     search,
     setSearch,
     sort,

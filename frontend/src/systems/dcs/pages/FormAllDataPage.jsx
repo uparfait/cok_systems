@@ -77,9 +77,11 @@ export default function FormAllDataPage() {
 
   // The date range the column dropdowns must agree with, so a value the
   // visible range has none of is never offered as something to filter by.
-  const range_key = `${table.period}|${table.from}|${table.to}`;
+  // The APPLIED range, not what the pickers currently hold: a custom range
+  // still being typed is not the range these rows came from.
+  const range_key = `${table.applied_period}|${table.applied_from}|${table.applied_to}`;
   const load_field_values = (field_id, parent) =>
-    columns_state.load_field_values(field_id, { period: table.period, from: table.from, to: table.to }, parent);
+    columns_state.load_field_values(field_id, { period: table.applied_period, from: table.applied_from, to: table.applied_to }, parent);
 
   const built = useMemo(
     () => (versions && versions.length > 0 ? build_diffed_columns(versions, language) : null),
@@ -241,6 +243,13 @@ export default function FormAllDataPage() {
           <button type="button" onClick={columns_state.clear_column_filters} className="dcs-dt-tool is-active cursor-pointer">
             {translate("DCS_TABLE_COLUMN_FILTER_ALL")}
           </button>
+        )}
+
+        {/* A tracked form read inside a range: the rows are the records
+            created or changed in it, and their changeable fields show the
+            values they held at its end rather than today's. */}
+        {table.as_of && (
+          <span className="dcs-dt-asof">{translate("DCS_TABLE_AS_OF", { when: new Date(table.as_of).toLocaleString() })}</span>
         )}
 
 

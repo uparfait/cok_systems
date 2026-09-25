@@ -3,6 +3,7 @@ const forms_model = require("../../models/forms_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { flatten_fields } = require("../../jsonlogic/dependency_graph.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
+const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /** The picked parent values, sent as a JSON list; anything else means no parent narrowing. */
@@ -81,8 +82,10 @@ async function get_field_values(req, res) {
     const active_version = await forms_model.get_active_version(form_group_id);
     const field = active_version ? flatten_fields((active_version.schema && active_version.schema.fields) || []).find((entry) => entry.id === field_id) : null;
     // A tracked form's values are read as they stood at the range's end,
-    // over the records that existed by then - exactly what the table shows.
-    const tracking = active_version && active_version.tracking && active_version.tracking.enabled === true ? active_version.tracking : null;
+    // over the records the range keeps - exactly what the table shows. The
+    // same gate the table uses (is_tracking_enabled, which also wants a key
+    // field), so the two can never read one range two ways.
+    const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
 
     const collected = await values_model.list_field_values(form_group_id, field_id, bounds, parent, tracking);
     const seen = new Set(collected.map((entry) => String(entry.value)));

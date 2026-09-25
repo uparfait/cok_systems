@@ -1,6 +1,7 @@
 const { get_db } = require("../db_connection/db.js");
 const { to_object_id } = require("../utilities/object_id.js");
 const { tracking_stages } = require("../util-dashboard/tracking_stage.js");
+const { date_window_filter } = require("../utilities/tracking_window.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 
@@ -383,16 +384,12 @@ async function list_submissions(form_group_id, version, page, limit, date_bounds
     filter._id = object_id;
   }
   if (version !== undefined && version !== null) filter.version = Number(version);
-  // A tracked form is a register: inside a period it lists every record
-  // that EXISTED by the period's end - one recorded before the period
-  // began is still there during it - and shows each updatable field as it
-  // stood at that end (see util-dashboard/tracking_stage.js), the same
-  // reading the dashboards give. Any other form lists what was submitted
-  // inside the period.
-  const tracked = !!(options && options.tracking && options.tracking.enabled === true);
-  if (date_bounds && date_bounds.start && date_bounds.end && !filter._id) {
-    filter.submitted_at = tracked ? { $lte: date_bounds.end } : { $gte: date_bounds.start, $lte: date_bounds.end };
-  }
+  // Which records the range keeps: what arrived inside it on an ordinary
+  // form, and on a tracked one every record whose values opened inside it
+  // (created in the range, or changed in the range) - see
+  // utilities/tracking_window.js. Each updatable field is then shown as it
+  // stood at the range's end (see util-dashboard/tracking_stage.js).
+  if (!filter._id) Object.assign(filter, date_window_filter(date_bounds, options && options.tracking));
   // The column filters are applied after the as-of rewrite, on the values
   // actually shown.
   const as_of_stages = filter._id ? [] : tracking_stages({ tracking: options && options.tracking }, date_bounds);
