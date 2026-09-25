@@ -64,10 +64,53 @@ const SCRIPT_PATH = path.join(REPO_DIR, 'update-deploy.sh');
 // host's deploy/runs through the bind mount - so a deployment that
 // restarts this container does not take its own console output with it.
 const LOG_DIR = process.env.DEPLOY_LOG_DIR || path.join(REPO_DIR, 'deploy', 'runs');
-// The script writes nginx and restarts it, so it needs root. -n makes sudo
-// fail immediately with a readable message instead of waiting forever on a
-// password nobody can type.
-const USE_SUDO = process.env.DEPLOY_SUDO !== '0';
+/** Looks a command up on PATH, the way a shell would. */
+function find_executable(name) {
+    const dirs = String(process.env.PATH || '').split(path.delimiter).filter(Boolean);
+    // On Windows a bare name is not enough; PATHEXT says what may be appended.
+    const suffixes = process.platform === 'win32' ? String(process.env.PATHEXT || '.EXE;.CMD;.BAT').split(';') : [''];
+    return dirs.some((dir) =>
+        suffixes.some((suffix) => {
+            try {
+                return fs.existsSync(path.join(dir, name + suffix.toLowerCase())) || fs.existsSync(path.join(dir, name + suffix));
+            } catch (error) {
+                return false;
+            }
+        }),
+    );
+}
+
+/** True when this process is already root and has nothing to elevate. */
+function is_root() {
+    return typeof process.getuid === 'function' && process.getuid() === 0;
+}
+
+/**
+ * Whether to put sudo in front of the script, worked out rather than
+ * assumed - assuming it is what produced a bare "spawn sudo ENOENT".
+ *
+ * The script writes nginx and restarts containers, so it needs root. But
+ * in a container this process ALREADY IS root, and images like
+ * node:22-alpine ship no sudo at all - so reaching for sudo there fails
+ * for a command that was never needed. On Windows there is no sudo and no
+ * uid either.
+ *
+ * DEPLOY_SUDO=0 forces it off, which the tests use so they never ask for
+ * root on the machine running them.
+ */
+function resolve_privilege() {
+    if (process.env.DEPLOY_SUDO === '0') return { use_sudo: false, problem: null };
+    // Windows 11 ships a sudo.exe, but it is not this sudo: it takes no -n
+    // and there is no root to become. The deploy target is Linux anyway.
+    if (process.platform === 'win32') return { use_sudo: false, problem: null };
+    if (is_root()) return { use_sudo: false, problem: null };
+    if (find_executable('sudo')) return { use_sudo: true, problem: null };
+    return {
+        use_sudo: false,
+        problem:
+            'This service is not running as root and sudo is not installed here, so the deployment script cannot write the nginx files or restart the containers. Run the backend as root (a container already is), or install sudo on this host.',
+    };
+}
 
 /**
  * Every deployment the page may ask for, and the exact argument each one
@@ -245,13 +288,32 @@ function latest_run() {
  */
 function blocking_reason(script_path = SCRIPT_PATH) {
     if (!fs.existsSync(script_path)) {
-        return `The deployment script was not found at ${script_path}. This service must run from the checkout that holds update-deploy.sh.`;
+        return `The deployment script was not found at ${script_path}. Mount the checkout into this container (docker-compose.yml mounts ./ at /repo), or run this service from the checkout itself.`;
     }
     try {
         ensure_log_dir();
         fs.accessSync(LOG_DIR, fs.constants.W_OK);
     } catch (error) {
         return `The deployment log folder ${LOG_DIR} is not writable by this service (${error.message}).`;
+    }
+
+    const { problem } = resolve_privilege();
+    if (problem) return problem;
+
+    // bash carries every run, whatever is being run.
+    if (!find_executable('bash')) {
+        return 'Deployment needs bash, which is not installed where this service runs.';
+    }
+
+    // The rest are what update-deploy.sh ITSELF checks for (need_cmd in its
+    // preflight), so they are only required when that is what is about to
+    // run - a stand-in script in a test rebuilds nothing. Naming them all
+    // at once beats starting a run that dies on the first one missing.
+    if (path.resolve(script_path) === path.resolve(SCRIPT_PATH)) {
+        const missing = ['docker', 'git', 'curl', 'nginx'].filter((name) => !find_executable(name));
+        if (missing.length > 0) {
+            return `Deployment needs ${missing.join(', ')}, which ${missing.length === 1 ? 'is' : 'are'} not installed where this service runs. update-deploy.sh rebuilds containers and rewrites nginx, so it has to run somewhere those exist - see the note on the backend service in docker-compose.yml.`;
+        }
     }
     return null;
 }
@@ -289,12 +351,15 @@ function start_run(target_key, started_by, script_path = SCRIPT_PATH) {
     const posix = (value) => value.split('\\').join('/');
     const inner_args = ['-c', REDIRECT, 'cok-deploy', posix(script_path), target.flag, posix(file)];
 
-    const command = USE_SUDO ? 'sudo' : 'bash';
-    const args = USE_SUDO ? ['-n', 'bash'].concat(inner_args) : inner_args;
+    // -n so sudo fails at once with a readable message rather than waiting
+    // forever on a password nobody is there to type.
+    const { use_sudo } = resolve_privilege();
+    const command = use_sudo ? 'sudo' : 'bash';
+    const args = use_sudo ? ['-n', 'bash'].concat(inner_args) : inner_args;
 
     const header = [
         `=== ${target.label} ===`,
-        `$ ${USE_SUDO ? 'sudo -n ' : ''}bash ${posix(script_path)} ${target.flag}`,
+        `$ ${use_sudo ? 'sudo -n ' : ''}bash ${posix(script_path)} ${target.flag}`,
         `started by ${started_by || 'unknown'} at ${new Date().toISOString()}`,
         '',
         '',

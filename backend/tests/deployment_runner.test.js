@@ -79,6 +79,7 @@ async function run_all_tests() {
         await test_only_the_deployment_site_may_deploy();
         await test_the_password_is_checked_here();
         await test_the_checkout_is_found_in_both_layouts();
+        await test_the_real_script_needs_its_tools();
     } finally {
         fs.rmSync(work, { recursive: true, force: true });
     }
@@ -252,6 +253,38 @@ async function test_the_checkout_is_found_in_both_layouts() {
         runner.CANDIDATE_REPOS.includes('/repo'),
         'the bind mount path must match docker-compose.yml, which mounts ./ at /repo',
     );
+}
+
+/**
+ * update-deploy.sh needs docker, git, curl and nginx, and root to use them.
+ * Missing any of those has to be SAID - the first version of this reached
+ * for sudo unconditionally and the page got a bare "spawn sudo ENOENT",
+ * which explains nothing to whoever clicked the button.
+ *
+ * A stand-in script needs none of that, so the tool check applies only
+ * when the real script is what is about to run.
+ */
+async function test_the_real_script_needs_its_tools() {
+    const runner = load_runner(path.join(work, 'tools-runs'));
+
+    // A stand-in is never held to update-deploy.sh's own requirements.
+    const stand_in = write_script('tools-happy.sh', HAPPY);
+    assert.strictEqual(
+        runner.blocking_reason(stand_in),
+        null,
+        'a stand-in script must not be blocked for lacking docker or nginx',
+    );
+
+    // The real one is, and the reason has to name what is missing rather
+    // than failing later with a spawn error.
+    const real = runner.blocking_reason();
+    if (real !== null) {
+        assert.ok(
+            /not installed|not running as root|was not found|not writable/.test(real),
+            `the refusal must explain itself, got: ${real}`,
+        );
+        assert.ok(!/ENOENT/.test(real), 'a raw spawn error is not an explanation');
+    }
 }
 
 run_all_tests().then(
