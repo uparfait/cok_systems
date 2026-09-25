@@ -6,7 +6,7 @@ const SIGNATURE_ALGORITHM = 'RSA-SHA256';
 const MIN_RSA_MODULUS_BITS = 2048;
 const MAX_SIGNATURE_BYTES = 1024;
 const MAX_CERTIFICATE_BYTES = 8192;
-const MAX_CLOCK_SKEW_MS = 10 * 60 * 1000;
+const MAX_CLOCK_SKEW_MS = 10 * 60 * 1000; 
 
 function decodeBase64(value, limitBytes, label) {
   if (typeof value !== 'string' || value.length === 0) {
