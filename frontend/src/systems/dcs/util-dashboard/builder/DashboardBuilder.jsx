@@ -15,6 +15,10 @@ import { TABS, MAX_WIDGETS, builder_fields, finalize_widgets, widget_to_spec, ta
 import { default_box } from "../boxLayout.js";
 import FiltersTab from "./FiltersTab.jsx";
 import MapComposer from "./MapComposer.jsx";
+import TextComposer from "./TextComposer.jsx";
+import TableComposer from "./TableComposer.jsx";
+import { text_widget_to_spec } from "./textCompose.js";
+import { table_widget_to_spec } from "./tableCompose.js";
 import { same_filter_defs } from "../boardFilters.js";
 import { PRIMARY, BORDER, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builderUi.jsx";
 import { portal_root } from "../portalRoot.js";
@@ -44,7 +48,9 @@ export default function DashboardBuilder({ form, existingWidgets, existingFilter
   // open in its composer.
   const reopened = useMemo(() => {
     if (!reconfigure) return null;
-    return { key: "reconfigure", tab: tab_of_widget(reconfigure), spec: widget_to_spec(reconfigure), widgets: [reconfigure], summary: reconfigure.title || "" };
+    // Each kind of widget is read back by the composer that builds it.
+    const spec = reconfigure.chart_type === "text" ? text_widget_to_spec(reconfigure) : reconfigure.chart_type === "table" ? table_widget_to_spec(reconfigure) : widget_to_spec(reconfigure);
+    return { key: "reconfigure", tab: tab_of_widget(reconfigure), spec, widgets: [reconfigure], summary: reconfigure.title || reconfigure.chart_type };
   }, [reconfigure]);
   const [tab, setTab] = useState(reopened ? reopened.tab : initialTab || "kpi");
   const [drafts, setDrafts] = useState(reopened ? [reopened] : []);
@@ -111,8 +117,23 @@ export default function DashboardBuilder({ form, existingWidgets, existingFilter
       const fresh = intoCanvas ? built.map((widget) => Object.assign({}, widget, { parent_id: intoCanvas, box: default_box() })) : built;
       // Reconfiguring changes ONE widget in place: it keeps its id and its
       // position, and every other widget on the board is left alone.
+      // ...and where it sits stays too: the composer does not own the
+      // canvas a widget is in or the box it takes there.
       const replaced = reconfigure
-        ? existing.map((widget) => (widget.id === reconfigure.id && fresh[0] ? Object.assign({}, fresh[0], { id: reconfigure.id, position: widget.position }) : widget))
+        ? existing.map((widget) =>
+            widget.id === reconfigure.id && fresh[0]
+              ? Object.assign({}, fresh[0], {
+                  id: reconfigure.id,
+                  position: widget.position,
+                  parent_id: widget.parent_id || null,
+                  box: widget.parent_id ? widget.box || fresh[0].box || null : null,
+                  // Read over time, and the fixed conditions it carried,
+                  // unless the composer fanned out conditions of its own.
+                  over_time: widget.over_time || null,
+                  filters: Array.isArray(fresh[0].filters) && fresh[0].filters.length > 0 ? fresh[0].filters : widget.filters || [],
+                })
+              : widget,
+          )
         : null;
       // Filters alone can be saved too: the widgets then stay as they are.
       const merged = replaced || (draft_widgets === 0 ? existing : finalize_widgets(mode === "append" ? existing.concat(fresh) : fresh));
@@ -178,16 +199,22 @@ export default function DashboardBuilder({ form, existingWidgets, existingFilter
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
           <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 py-4">
             {tab === "kpi" && (
-              <KpiComposer key={`kpi_${composer_key}`} form={form} fields={fields} onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
+              <KpiComposer key={`kpi_${composer_key}`} form={form} fields={fields} filterDefs={filter_defs} onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
             )}
             {tab === "charts" && (
-              <ChartComposer key={`charts_${composer_key}`} form={form} fields={fields} kind="charts" onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
+              <ChartComposer key={`charts_${composer_key}`} form={form} fields={fields} filterDefs={filter_defs} kind="charts" onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
             )}
             {tab === "diagrams" && (
-              <ChartComposer key={`diagrams_${composer_key}`} form={form} fields={fields} kind="diagrams" onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
+              <ChartComposer key={`diagrams_${composer_key}`} form={form} fields={fields} filterDefs={filter_defs} kind="diagrams" onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
             )}
             {tab === "map" && (
-              <MapComposer key={`map_${composer_key}`} form={form} fields={fields} onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
+              <MapComposer key={`map_${composer_key}`} form={form} fields={fields} filterDefs={filter_defs} onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
+            )}
+            {tab === "table" && (
+              <TableComposer key={`table_${composer_key}`} form={form} fields={fields} filterDefs={filter_defs} onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
+            )}
+            {tab === "text" && (
+              <TextComposer key={`text_${composer_key}`} form={form} fields={fields} onAdd={handle_add} disabled={saving} initialSpec={editing ? editing.spec : null} editing={!!editing} onCancelEdit={() => setEditing(null)} />
             )}
             {tab === "filters" && <FiltersTab fields={fields} widgets={(mode === "append" ? existing : []).concat(drafts.flatMap((draft) => draft.widgets))} selected={filter_defs} onChange={setFilterDefs} disabled={saving} />}
           </div>

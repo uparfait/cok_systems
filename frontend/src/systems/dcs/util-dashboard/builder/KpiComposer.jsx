@@ -7,6 +7,8 @@ import { Step, ChipGrid, Switch, Problem, Preview, FieldSelect, TitleFields, TEX
 import InEachValues from "./InEachValues.jsx";
 import ColorSettingsButton from "./ColorSettingsButton.jsx";
 import OccurrenceOptions from "./OccurrenceOptions.jsx";
+import WidgetBehaviorStep from "./WidgetBehaviorStep.jsx";
+import { with_behavior, period_problem } from "./widgetBehavior.js";
 import {
   BUILDER_FORMULAS,
   ALL_SUBMISSIONS_ID,
@@ -55,7 +57,7 @@ export const EMPTY_KPI_SPEC = {
  * measure across the "in each" field (split by the choice measure when
  * there is one). With initialSpec it reopens an existing draft for editing.
  */
-export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec, editing, onCancelEdit }) {
+export default function KpiComposer({ form, fields, filterDefs, onAdd, disabled, initialSpec, editing, onCancelEdit }) {
   const { translate } = useDcsLanguage();
   const { showSuccess } = useToast();
   const [spec, setSpec] = useState(initialSpec || EMPTY_KPI_SPEC);
@@ -112,7 +114,9 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
   const card_count = shape.in_each && !shape.combined ? values.list.length : 1;
   const busy = disabled || (!shape.combined && values.loading);
 
-  const problem = !spec.formula_id
+  const problem = period_problem(spec.period, translate)
+    ? period_problem(spec.period, translate)
+    : !spec.formula_id
     ? translate("DCS_DB_KPI_PICK_FORMULA")
     : !shape.measure
       ? translate("DCS_DB_KPI_PICK_FIELD")
@@ -136,7 +140,7 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
 
   const handle_add = () => {
     if (!ready || problem) return;
-    const drafts = build_kpi_drafts(form, { ...spec, fields: shape_fields }, values.list, translate);
+    const drafts = with_behavior(build_kpi_drafts(form, { ...spec, fields: shape_fields }, values.list, translate), spec);
     const cards = drafts.filter((widget) => widget.chart_type === "kpi").length;
     onAdd({
       tab: "kpi",
@@ -226,6 +230,8 @@ export default function KpiComposer({ form, fields, onAdd, disabled, initialSpec
           disabled={disabled}
         />
       </Step>
+
+      <WidgetBehaviorStep number={7} spec={spec} onPatch={patch} fields={fields} filterDefs={filterDefs} disabled={disabled} />
 
       <div>
         <Preview>{preview}</Preview>

@@ -161,10 +161,12 @@ export const value_axis_width = (values, font) => Math.max(28, Math.min(140, num
  * "middle" for an X axis (centered under the tick) and "end" for a Y axis
  * (right-aligned against the axis).
  */
-export function WrappedTick({ x, y, payload, fill, maxPx, anchor, fontSize }) {
+export function WrappedTick({ x, y, payload, fill, maxPx, anchor, fontSize, rename }) {
   const size = fontSize || 11;
   const step = size + 2;
-  const lines = wrap_label(payload && payload.value, maxPx, size);
+  // The value is written under the name the widget gave it, if any.
+  const shown = payload && payload.value !== undefined && rename ? rename(payload.value) : payload && payload.value;
+  const lines = wrap_label(shown, maxPx, size);
   const vertical = anchor === "end";
   const first_dy = vertical ? -((lines.length - 1) * step) / 2 + 4 : size + 2;
   return (
@@ -179,4 +181,4 @@ export function WrappedTick({ x, y, payload, fill, maxPx, anchor, fontSize }) {
 }
 
 /** Tick renderer factory bound to a palette, a pixel width and a font size. */
-export const wrapped_tick = (palette, max_px, anchor, font_size) => (props) => <WrappedTick {...props} fill={palette.text} maxPx={max_px} anchor={anchor} fontSize={font_size} />;
+export const wrapped_tick = (palette, max_px, anchor, font_size, rename) => (props) => <WrappedTick {...props} fill={palette.text} maxPx={max_px} anchor={anchor} fontSize={font_size} rename={rename} />;

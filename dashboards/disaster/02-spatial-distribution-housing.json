@@ -1,0 +1,533 @@
+{
+  "name": "Spatial distribution - disaster impact on housing",
+  "filters": [
+    {
+      "field_id": "cascading_select_8dz9o8"
+    },
+    {
+      "field_id": "cascading_select_v0mxca"
+    },
+    {
+      "field_id": "single_select_7c5216"
+    }
+  ],
+  "widgets": [
+    {
+      "id": "d2_panel",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "",
+      "description": null,
+      "icon": null,
+      "chart_type": "canvas",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#14318f",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#0d2472"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 0,
+      "parent_id": null,
+      "box": null,
+      "pinned_fields": [],
+      "canvas": {
+        "flow": "row",
+        "gap": 10,
+        "size_mode": "fixed",
+        "width": null,
+        "height": null,
+        "min_width": null,
+        "max_width": null,
+        "min_height": null,
+        "max_height": null
+      }
+    },
+    {
+      "id": "d2_title",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "",
+      "description": null,
+      "icon": null,
+      "chart_type": "text",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#0d2472",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 0
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 1,
+      "parent_id": "d2_panel",
+      "box": {
+        "flow": "column"
+      },
+      "pinned_fields": [],
+      "text": {
+        "heading": "SPATIAL DISTRIBUTION OF DISASTER IMPACT ON HOUSING IN THE CITY OF KIGALI",
+        "body": "",
+        "align": "center",
+        "size": "lg"
+      }
+    },
+    {
+      "id": "d2_1",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Gasabo",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Gasabo"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        },
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 2,
+      "parent_id": "d2_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d2_2",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Kicukiro",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Kicukiro"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        },
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 3,
+      "parent_id": "d2_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d2_3",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Nyarugenge",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Nyarugenge"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        },
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 4,
+      "parent_id": "d2_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d2_tot",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "TOT",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        },
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 5,
+      "parent_id": "d2_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d2_damage",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "How houses were damaged, by hazard",
+      "description": null,
+      "icon": null,
+      "chart_type": "stacked_bar",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "single_select_8c0eb4"
+      },
+      "split_by": {
+        "field_id": "single_select_7c5216"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2,
+        "value_colors": {
+          "fire": "#e8542a",
+          "heavy_rain": "#1f5fc4",
+          "rain_wind": "#15b3e0",
+          "wind": "#8a3fb0",
+          "lightning": "#7fb2ff"
+        },
+        "value_labels": {
+          "fire": "Fire",
+          "heavy_rain": "Rain",
+          "rain_wind": "Rain&Wind",
+          "wind": "Wind",
+          "lightning": "Inkuba",
+          "roof_blown_off_d": "Roof",
+          "walls_damaged": "Wall",
+          "lightly_damaged": "Slightly",
+          "flooded_water_entered": "Flooded",
+          "completely_destroyed": "Completely",
+          "high_risk_zone": "HRZ",
+          "no_problem": "No problem"
+        },
+        "legend_position": "bottom"
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        },
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 20,
+      "size": "large",
+      "position": 6,
+      "parent_id": "d2_panel",
+      "box": {
+        "flow": "column"
+      },
+      "pinned_fields": []
+    },
+    {
+      "id": "d2_trend",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Damaged houses per month of incidence",
+      "description": null,
+      "icon": null,
+      "chart_type": "line",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "date_time_07fa41",
+        "granularity": "month"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#39d7ff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        },
+        {
+          "field_id": "single_select_998282",
+          "operator": "eq",
+          "value": "yes"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 7,
+      "parent_id": "d2_panel",
+      "box": {
+        "flow": "column"
+      },
+      "pinned_fields": []
+    }
+  ]
+}

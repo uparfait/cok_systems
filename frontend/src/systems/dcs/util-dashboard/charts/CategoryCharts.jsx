@@ -47,7 +47,11 @@ import { SplitLegend, LegendFrame } from "./SeriesLegend.jsx";
 const animation = () => ({ isAnimationActive: false });
 
 const clicked_row = (entry) => (entry && entry.payload ? entry.payload : entry);
-const labels_of = (rows) => rows.map((row) => row.label);
+// The labels as they are SHOWN - renamed by the widget's appearance where
+// it did - which is what the axis room is measured for; the rows keep
+// their stored values, so a click still opens the right records.
+const shown_name = (palette) => (label) => (palette && palette.name_for ? palette.name_for(label) : label);
+const labels_of = (rows, palette) => rows.map((row) => shown_name(palette)(row.label));
 const values_of = (rows) => rows.map((row) => row.value || 0);
 const value_cells = (rows, palette) => rows.map((row, index) => <Cell key={`${row.label}-${index}`} fill={palette.color_for(row.label, index)} />);
 // Room above a column for the value written on top of it, and beside a bar
@@ -108,7 +112,7 @@ function ValueLabels({ density, palette, dataKey, position, formatter, size }) {
 }
 
 function HorizontalBars({ rows, onItemClick, palette, animate, density, fitMode }) {
-  const labels = labels_of(rows);
+  const labels = labels_of(rows, palette);
   const cap = category_axis_cap(labels, density);
   const width = y_axis_width(labels, cap, density.font);
   const room = y_label_room(width);
@@ -120,8 +124,8 @@ function HorizontalBars({ rows, onItemClick, palette, animate, density, fitMode 
       <BarChart data={rows} layout="vertical" margin={margin}>
         <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} horizontal={false} />
         <XAxis type="number" tick={tick_style(palette, density)} allowDecimals={false} stroke={palette.grid} height={density.font * 2} />
-        <YAxis type="category" dataKey="label" width={width} interval={0} stroke={palette.grid} tick={wrapped_tick(palette, room, "end", density.font)} />
-        <Tooltip contentStyle={palette.tooltip} itemStyle={palette.tooltip_text} labelStyle={palette.tooltip_text} />
+        <YAxis type="category" dataKey="label" width={width} interval={0} stroke={palette.grid} tick={wrapped_tick(palette, room, "end", density.font, shown_name(palette))} />
+        <Tooltip contentStyle={palette.tooltip} itemStyle={palette.tooltip_text} labelStyle={palette.tooltip_text} labelFormatter={shown_name(palette)} />
         <Bar dataKey="value" {...animation(animate)} maxBarSize={density.bar} cursor={onItemClick ? "pointer" : undefined} onClick={onItemClick ? (entry) => onItemClick(clicked_row(entry)) : undefined}>
           {value_cells(rows, palette)}
           <ValueLabels density={density} palette={palette} dataKey="value" position="right" />
@@ -134,14 +138,14 @@ function HorizontalBars({ rows, onItemClick, palette, animate, density, fitMode 
 
 /** Columns and the lollipop / dot variations - one mark per category. */
 function VerticalMarks({ rows, onItemClick, palette, animate, density, shape, fitMode }) {
-  const labels = labels_of(rows);
+  const labels = labels_of(rows, palette);
   const values = values_of(rows);
   const y_width = value_axis_width(values, density.font);
   const margin = { top: top_room(density), right: 14, left: 0, bottom: 5 };
   // The room one column must have if its number is to be written over it.
   const number_px = density.show_values ? number_room(values, density.value_font, palette.number_text) + 10 : 0;
   const frame = category_frame(labels, rows.length, density, y_width + margin.right + 8, fitMode, number_px);
-  const axis = category_axis(labels, frame.room, density.font, palette, y_width);
+  const axis = category_axis(labels, frame.room, density.font, palette, y_width, shown_name(palette));
   const height = density.height + axis.height - 30;
   // A number is not as wide as a name, so the two are handled separately.
   // The figures shrink to the column first; only when even the smallest
@@ -160,7 +164,7 @@ function VerticalMarks({ rows, onItemClick, palette, animate, density, shape, fi
       <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
       <XAxis dataKey="label" interval={axis.interval} height={axis.height} stroke={palette.grid} tick={axis.tick} />
       <YAxis tick={tick_style(palette, density)} allowDecimals={false} stroke={palette.grid} width={y_width} />
-      <Tooltip contentStyle={palette.tooltip} itemStyle={palette.tooltip_text} labelStyle={palette.tooltip_text} />
+      <Tooltip contentStyle={palette.tooltip} itemStyle={palette.tooltip_text} labelStyle={palette.tooltip_text} labelFormatter={shown_name(palette)} />
     </>
   );
   if (shape === "column") {
@@ -225,7 +229,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
   series.forEach((key) => {
     totals[key] = rows.reduce((sum, row) => sum + (row[key] || 0), 0);
   });
-  const row_labels = labels_of(rows);
+  const row_labels = labels_of(rows, palette);
   // The biggest number any axis or label will have to print.
   const peak = mode === "stacked_100" ? [100] : rows.map((row) => (stacked ? row_total(row) : Math.max(0, ...series.map((key) => row[key] || 0))));
   const base_segment_font = Math.max(8, density.value_font - 1);
@@ -239,7 +243,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
   // needs is the number's width times the number of columns in it.
   const number_px = density.show_values ? (number_room(peak, base_segment_font, palette.number_text) + 8) * (stacked ? 1 : Math.max(1, series.length)) : 0;
   const frame = horizontal ? { room: 0, width: 0 } : category_frame(row_labels, rows.length, density, y_width + margin.right + 8, fitMode, number_px);
-  const axis = horizontal ? null : category_axis(row_labels, frame.room, density.font, palette, y_width);
+  const axis = horizontal ? null : category_axis(row_labels, frame.room, density.font, palette, y_width, shown_name(palette));
   // A grouped column is a fraction of its category's room and a stacked
   // segment a fraction of its height, so the figures are written as small
   // as they need to be to fit the slot one series actually gets. Only when
@@ -265,7 +269,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
         {horizontal ? (
           <>
             <XAxis type="number" tick={tick_style(palette, density)} allowDecimals={mode === "stacked_100"} unit={mode === "stacked_100" ? "%" : undefined} stroke={palette.grid} height={density.font * 2} />
-            <YAxis type="category" dataKey="label" width={y_width} interval={0} stroke={palette.grid} tick={wrapped_tick(palette, y_room, "end", density.font)} />
+            <YAxis type="category" dataKey="label" width={y_width} interval={0} stroke={palette.grid} tick={wrapped_tick(palette, y_room, "end", density.font, shown_name(palette))} />
           </>
         ) : (
           <>
@@ -273,7 +277,7 @@ function SeriesColumns({ rows, series, seriesMeta, mode, horizontal, palette, la
             <YAxis tick={tick_style(palette, density)} allowDecimals={mode === "stacked_100"} unit={mode === "stacked_100" ? "%" : undefined} stroke={palette.grid} width={y_width} />
           </>
         )}
-        <Tooltip contentStyle={palette.tooltip} itemStyle={palette.tooltip_text} labelStyle={palette.tooltip_text} formatter={(value, name) => [value, display.items.find((item) => item.key === name)?.label || name]} />
+        <Tooltip contentStyle={palette.tooltip} itemStyle={palette.tooltip_text} labelStyle={palette.tooltip_text} labelFormatter={shown_name(palette)} formatter={(value, name) => [value, display.items.find((item) => item.key === name)?.label || name]} />
         {display.items.map((item, index) => (
           <Bar
             key={item.key}

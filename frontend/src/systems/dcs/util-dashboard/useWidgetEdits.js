@@ -34,7 +34,12 @@ export function useWidgetEdits({ form, widgets, data, translate, showSuccess, sh
     setSavingWidgetId(widget_id);
     try {
       const { final_widgets, message } = await save(next_widgets);
-      if (changes.chart_type && previous && fold_family(changes.chart_type) !== fold_family(previous.chart_type)) {
+      // A new folding family, a new window, other board filters to follow
+      // or a table set up differently all change the numbers: that one
+      // card is fetched again. Everything else is a change of looks.
+      const redraws = changes.chart_type && previous && fold_family(changes.chart_type) !== fold_family(previous.chart_type);
+      const rereads = ["period", "pinned_fields", "table", "filters"].some((key) => changes[key] !== undefined);
+      if (redraws || rereads) {
         const updated = final_widgets.find((widget) => widget.id === widget_id);
         if (updated) data.retry_widget(updated);
       }

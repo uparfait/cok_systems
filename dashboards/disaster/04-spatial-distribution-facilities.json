@@ -1,0 +1,599 @@
+{
+  "name": "Spatial distribution - facility impacts",
+  "filters": [
+    {
+      "field_id": "cascading_select_8dz9o8"
+    },
+    {
+      "field_id": "cascading_select_v0mxca"
+    },
+    {
+      "field_id": "single_select_7c5216"
+    }
+  ],
+  "widgets": [
+    {
+      "id": "d4_panel",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "",
+      "description": null,
+      "icon": null,
+      "chart_type": "canvas",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#14318f",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#0d2472"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 0,
+      "parent_id": null,
+      "box": null,
+      "pinned_fields": [],
+      "canvas": {
+        "flow": "row",
+        "gap": 10,
+        "size_mode": "fixed",
+        "width": null,
+        "height": null,
+        "min_width": null,
+        "max_width": null,
+        "min_height": null,
+        "max_height": null
+      }
+    },
+    {
+      "id": "d4_title",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "",
+      "description": null,
+      "icon": null,
+      "chart_type": "text",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#0d2472",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 0
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 1,
+      "parent_id": "d4_panel",
+      "box": {
+        "flow": "column"
+      },
+      "pinned_fields": [],
+      "text": {
+        "heading": "SPATIAL DISTRIBUTION OF DISASTER IMPACTS ON FACILITY IN THE CITY OF KIGALI",
+        "body": "",
+        "align": "center",
+        "size": "lg"
+      }
+    },
+    {
+      "id": "d4_1",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Gasabo",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Gasabo"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "infrastructure"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 2,
+      "parent_id": "d4_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d4_2",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Kicukiro",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Kicukiro"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "infrastructure"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 3,
+      "parent_id": "d4_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d4_3",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Nyarugenge",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Nyarugenge"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "infrastructure"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 4,
+      "parent_id": "d4_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d4_tot",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "TOT",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "infrastructure"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 5,
+      "parent_id": "d4_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d4_facilities",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Facilities affected, by type and hazard",
+      "description": null,
+      "icon": null,
+      "chart_type": "stacked_bar",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_3ec652"
+      },
+      "split_by": {
+        "field_id": "single_select_7c5216"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2,
+        "value_colors": {
+          "fire": "#e8542a",
+          "heavy_rain": "#1f5fc4",
+          "rain_wind": "#15b3e0",
+          "wind": "#8a3fb0",
+          "lightning": "#7fb2ff"
+        },
+        "value_labels": {
+          "fire": "Fire",
+          "heavy_rain": "Rain",
+          "rain_wind": "Rain&Wind",
+          "wind": "Wind",
+          "lightning": "Inkuba",
+          "irrigation_scheme": "Irrigation Scheme",
+          "marshland_agri": "Marshland (reclaimed for agriculture)",
+          "agro_processing_facility": "Agro-processing Facility",
+          "grain_storage_warehouse": "Grain Storage Facility / Warehouse",
+          "livestock_market": "Livestock Market",
+          "abattoir": "Abattoir / Slaughterhouse",
+          "veterinary_centre": "Veterinary Centre",
+          "fish_farming_pond": "Fish Farming Pond / Aquaculture Facility",
+          "terraces": "Terraces (Radical, Progressive)",
+          "seed_multiplication_centre": "Seed Multiplication Centre",
+          "milk_collection_centre": "Milk Collection Centre",
+          "referral_hospital": "Referral Hospital",
+          "district_hospital": "District Hospital",
+          "health_centre": "Health Centre",
+          "health_post": "Health Post",
+          "dispensary_polyclinic": "Dispensary / Polyclinic",
+          "ambulance_station": "Ambulance Station / Emergency Medical Services Post",
+          "chw_post": "Community Health Worker Post",
+          "ecd_centre": "Early Childhood Development (ECD) Centre",
+          "pre_primary_school": "Pre-Primary School",
+          "primary_school": "Primary School",
+          "secondary_school": "Secondary School",
+          "tvet_school": "TVET School",
+          "higher_learning_institution": "Higher Learning Institution / University",
+          "school_feeding_kitchen": "School Feeding Kitchen / Store",
+          "national_road": "National Road",
+          "district_road": "District Road",
+          "feeder_road": "Feeder Road",
+          "bridge_fac": "Bridge",
+          "bus_terminal": "Bus Terminal / Bus Park",
+          "airport_fac": "Airport (International Airport)",
+          "nmt_lane": "Non-Motorized Transport (NMT) Lane / Pedestrian Pathway",
+          "parking_facility": "Parking Facility",
+          "water_treatment_plant": "Water Treatment Plant",
+          "water_supply_scheme": "Water Supply Scheme",
+          "borehole": "Borehole",
+          "water_reservoir": "Water Reservoir",
+          "public_water_tap": "Public Water Tap / Water Kiosk",
+          "wastewater_treatment_plant": "Wastewater Treatment Plant",
+          "sewerage_system": "Sewerage System",
+          "public_sanitation_facility": "Public Sanitation Facility (Public Toilet)",
+          "fecal_sludge_treatment_plant": "Fecal Sludge Treatment Plant",
+          "hydropower_plant": "Hydropower Plant",
+          "solar_power_plant": "Solar Power Plant / Mini-grid",
+          "substation": "Substation",
+          "transmission_line": "Transmission Line",
+          "distribution_line": "Distribution Line",
+          "methane_gas_extraction": "Methane Gas Extraction Facility",
+          "wetland_env": "Wetland",
+          "forest_reserve": "Forest Reserve",
+          "protected_area": "Protected Area / National Park",
+          "stormwater_drainage": "Stormwater Drainage Channel",
+          "green_space_park": "Green Space / Urban Park",
+          "riverbank_buffer_zone_fac": "Riverbank Buffer Zone",
+          "data_centre": "Data Centre",
+          "ict_park": "ICT Park",
+          "telecom_tower": "Telecom Tower / Mast",
+          "fibre_optic_backbone": "Fibre Optic Backbone",
+          "post_office": "Post Office",
+          "affordable_housing_project": "Affordable Housing Project / Estate",
+          "model_village": "Model Village (Imidugudu)",
+          "resettlement_site": "Resettlement Site",
+          "real_estate_development": "Real Estate Development",
+          "public_market": "Public Market",
+          "special_economic_zone": "Special Economic Zone",
+          "industrial_park": "Industrial Park",
+          "shopping_mall": "Shopping Mall / Commercial Centre",
+          "warehouse_logistics_centre": "Warehouse / Logistics Centre",
+          "one_stop_border_post": "One Stop Border Post",
+          "district_office": "District Office / Headquarters",
+          "sector_office": "Sector Office",
+          "cell_office": "Cell Office",
+          "umudugudu_office": "Umudugudu (Village) Office",
+          "one_stop_centre": "One Stop Centre",
+          "correctional_facility": "Correctional Facility / Prison",
+          "police_station": "Police Station",
+          "fire_rescue_station": "Fire and Rescue Station",
+          "stadium": "Stadium",
+          "cultural_heritage_site": "Cultural Heritage Site",
+          "museum": "Museum",
+          "genocide_memorial_site": "Genocide Memorial Site",
+          "community_sports_ground": "Community Sports Ground / Playground",
+          "cultural_centre_csp": "Cultural Centre"
+        },
+        "legend_position": "bottom"
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "infrastructure"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 20,
+      "size": "large",
+      "position": 6,
+      "parent_id": "d4_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 60,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 260,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": []
+    },
+    {
+      "id": "d4_note",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "",
+      "description": null,
+      "icon": null,
+      "chart_type": "text",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "infrastructure"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 7,
+      "parent_id": "d4_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 38,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 240,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [],
+      "text": {
+        "heading": "Facilities vs. Hazards",
+        "body": "Rain combined with wind hit =={{count(single_select_7c5216 = rain_wind)}} of {{count}} facilities ({{share(single_select_7c5216 = rain_wind)}})== and heavy rain another =={{count(single_select_7c5216 = heavy_rain)}} ({{share(single_select_7c5216 = heavy_rain)}})== - the two most destructive hazards by far.\n\nFire caused =={{count(single_select_7c5216 = fire)}} hits== ({{share(single_select_7c5216 = fire)}}), mostly on community buildings, schools and agricultural facilities.\n\nWind alone accounts for =={{count(single_select_7c5216 = wind)}} facilities== - the lowest hazard threat across all asset types.",
+        "align": "left",
+        "size": "md",
+        "accent": "#39d7ff"
+      }
+    }
+  ]
+}

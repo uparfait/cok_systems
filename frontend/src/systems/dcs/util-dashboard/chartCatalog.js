@@ -12,6 +12,10 @@ export const CHART_CATALOG = [
   // A canvas reads nothing: it is a place other widgets sit in, laid out
   // by their own boxes rather than by the board's grid.
   { type: "canvas", kind: "canvas", labelKey: "DCS_DB_CHART_CANVAS" },
+  // Words on the board, and a table of records or of totals: neither is a
+  // chart, both are widgets.
+  { type: "text", kind: "text", labelKey: "DCS_DB_CHART_TEXT" },
+  { type: "table", kind: "table", labelKey: "DCS_DB_CHART_TABLE" },
   { type: "bar", kind: "category", labelKey: "DCS_DB_CHART_BAR" },
   { type: "column", kind: "category", labelKey: "DCS_DB_CHART_COLUMN" },
   { type: "grouped_column", kind: "category", labelKey: "DCS_DB_CHART_GROUPED" },
@@ -53,7 +57,7 @@ const SPLIT_CATEGORY_TYPES = ["grouped_column", "grouped_bar", "stacked_column",
 export function convertible_types(widget, can_map) {
   // A canvas holds widgets rather than drawing data, so it is not a look
   // anything can be turned into, or out of.
-  if (!widget || widget.chart_type === "kpi" || widget.chart_type === "canvas") return [];
+  if (!widget || ["kpi", "canvas", "text", "table"].includes(widget.chart_type)) return [];
   if (["scatter", "bubble"].includes(widget.chart_type)) {
     return widget.size_field_id ? ["scatter", "bubble"] : ["scatter"];
   }
@@ -113,6 +117,12 @@ export function widgets_data_signature(widget_list) {
       widget.same_fields,
       widget.occurrence_rule,
       widget.occurrence_scope,
+      // A table's settings and the board filters a widget ignores both
+      // change what comes back for it.
+      widget.table,
+      widget.pinned_fields,
+      // The figures a text block asks for live in its body.
+      widget.text,
     ]),
   );
 }

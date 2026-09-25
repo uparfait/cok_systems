@@ -64,7 +64,7 @@ export function new_canvas_widget(form, title, parent_id) {
   };
 }
 
-export function useBoardCanvas({ form, editable, isDark, arranging, studio, onAdd, onSettings, onReconfigure, onAddWidget, onRemove }) {
+export function useBoardCanvas({ form, editable, isDark, arranging, studio, onAdd, onSettings, onReconfigure, onAddWidget, onAddText, onRemove }) {
   const [menu, setMenu] = useState(null);
   const close = useCallback(() => setMenu(null), []);
 
@@ -106,6 +106,9 @@ export function useBoardCanvas({ form, editable, isDark, arranging, studio, onAd
         studio ? { key: "studio", labelKey: "DCS_DB_STUDIO_ENTER", strong: true, onPick: () => studio.toggle() } : null,
         editable ? { key: "canvas", labelKey: is_canvas ? "DCS_DB_CANVAS_ADD_INSIDE" : "DCS_DB_CANVAS_ADD_EMPTY", onPick: () => add_canvas(is_canvas ? target.id : null) } : null,
         editable && is_canvas && onAddWidget ? { key: "add", labelKey: "DCS_DB_CANVAS_ADD", onPick: () => onAddWidget(target) } : null,
+        // Words where the pointer is: a title band or a note, into the
+        // section that was clicked or onto the board itself.
+        editable && onAddText && (!target || is_canvas) ? { key: "text", labelKey: "DCS_DB_CANVAS_ADD_TEXT", onPick: () => onAddText(is_canvas ? target : null) } : null,
         editable && target && onSettings ? { key: "settings", labelKey: "DCS_DB_COLOR_SETTINGS", onPick: () => onSettings(target) } : null,
         editable && target && !is_canvas && onReconfigure ? { key: "reconfigure", labelKey: "DCS_DB_RECONFIGURE", onPick: () => onReconfigure(target) } : null,
         // Last, because it is the one that cannot be taken back. A section

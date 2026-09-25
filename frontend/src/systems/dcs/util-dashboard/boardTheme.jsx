@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 const STORAGE_KEY = "dcs_dashboard_theme";
-const BoardThemeContext = createContext({ theme: "light", is_dark: false, toggle: () => {} });
+const BoardThemeContext = createContext({ theme: "light", is_dark: false, is_fixed: false, toggle: () => {} });
 
 const read_stored = () => {
   try {
@@ -17,10 +17,17 @@ const read_stored = () => {
  * never written into any widget's saved appearance. In dark mode every
  * widget paints itself with its dark color set; in light mode each widget
  * keeps whatever mode its own appearance asks for.
+ *
+ * `fixed` ("light" or "dark") pins the page to one mode - a shared board
+ * whose link says its viewers see it dark, always - and takes the toggle
+ * away; the viewer's own stored choice is left alone.
  */
-export function BoardThemeProvider({ children }) {
-  const [theme, setTheme] = useState(read_stored);
+export function BoardThemeProvider({ children, fixed }) {
+  const pinned = fixed === "dark" || fixed === "light" ? fixed : null;
+  const [stored, setTheme] = useState(read_stored);
+  const theme = pinned || stored;
   const toggle = useCallback(() => {
+    if (pinned) return;
     setTheme((current) => {
       const next = current === "dark" ? "light" : "dark";
       try {
@@ -30,8 +37,8 @@ export function BoardThemeProvider({ children }) {
       }
       return next;
     });
-  }, []);
-  const value = useMemo(() => ({ theme, is_dark: theme === "dark", toggle }), [theme, toggle]);
+  }, [pinned]);
+  const value = useMemo(() => ({ theme, is_dark: theme === "dark", is_fixed: !!pinned, toggle }), [theme, pinned, toggle]);
   return <BoardThemeContext.Provider value={value}>{children}</BoardThemeContext.Provider>;
 }
 

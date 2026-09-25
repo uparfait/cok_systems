@@ -61,9 +61,10 @@ export function axis_plan(labels, per_px, font) {
 }
 
 /** One label lying over at 45 degrees, ending its tail with "..." if it must. */
-export function AngledTick({ x, y, payload, fill, maxPx, fontSize }) {
+export function AngledTick({ x, y, payload, fill, maxPx, fontSize, rename }) {
   const size = fontSize || 11;
-  const text = fit_text(payload && payload.value, maxPx, size);
+  const shown = payload && payload.value !== undefined && rename ? rename(payload.value) : payload && payload.value;
+  const text = fit_text(shown, maxPx, size);
   if (!text) return null;
   // The tick point itself is the label's right end, so it hangs back under
   // its own column instead of drifting off the one beside it.
@@ -75,7 +76,7 @@ export function AngledTick({ x, y, payload, fill, maxPx, fontSize }) {
   );
 }
 
-const angled_tick = (palette, max_px, font) => (props) => <AngledTick {...props} fill={palette.text} maxPx={max_px} fontSize={font} />;
+const angled_tick = (palette, max_px, font, rename) => (props) => <AngledTick {...props} fill={palette.text} maxPx={max_px} fontSize={font} rename={rename} />;
 
 /**
  * Everything an X axis needs to draw itself for these labels in this much
@@ -88,13 +89,13 @@ const angled_tick = (palette, max_px, font) => (props) => <AngledTick {...props}
  * than that. Without it a long first name would simply disappear into the
  * margin, which is the one thing an axis may never do.
  */
-export function category_axis(labels, per_px, font, palette, left_px) {
+export function category_axis(labels, per_px, font, palette, left_px, rename) {
   const plan = axis_plan(labels, per_px, font);
   const size = font || 11;
   const reach = Math.max(MIN_ANGLED, ((left_px || 0) + Math.max(0, per_px) / 2) / SIN);
   const room = plan.angle ? Math.min(plan.room, Math.floor(reach)) : plan.room;
   const height = plan.angle ? Math.ceil(room * SIN) + size + 10 : x_axis_height(labels, room, size);
-  const tick = plan.angle ? angled_tick(palette, room, size) : wrapped_tick(palette, room, "middle", size);
+  const tick = plan.angle ? angled_tick(palette, room, size, rename) : wrapped_tick(palette, room, "middle", size, rename);
   return { ...plan, room, height, tick };
 }
 

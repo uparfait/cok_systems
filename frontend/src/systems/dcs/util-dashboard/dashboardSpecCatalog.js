@@ -4,6 +4,7 @@ import { map_levels_of } from "./builder/mapFields.js";
 import { ICON_LIBRARIES } from "./icons/iconLibraries.js";
 import { FILTER_FIELD_TYPES, MAX_BOARD_FILTERS } from "./boardFilters.js";
 import { has_preset_config } from "../fields/presetFields.js";
+import { CHART_TEXT, widget_shape } from "./dashboardSpecShape.js";
 
 /**
  * The dashboard creation guide handed to an external AI (Ctrl+6 on the
@@ -47,37 +48,6 @@ const FORMULA_TEXT = {
     "How many times each value of metric.field_id occurs - one row per value. Label each value with display_fields (their answers joined with display_separator, ' - ' by default, e.g. a name and a phone instead of a bare id), narrow or split the counting with same_fields (only records with status 'live'; or only records sharing the same gender), hold every value's count to occurrence_rule, and choose with occurrence_scope whether only the values meeting the rule are shown. A KPI card shows how many DIFFERENT values met the rule and lists them underneath; a chart draws one mark per value. Needs no group_by, takes no split_by or legend_by; allowed looks: kpi, bar, column, lollipop, dot_plot, pie, donut, waffle, treemap, line, area.",
 };
 
-const CHART_TEXT = {
-  bar: "Horizontal bars, one per value of group_by.",
-  column: "Vertical columns, one per value of group_by.",
-  grouped_column: "Columns per group_by value, one column per split_by value side by side.",
-  lollipop: "A thin stem with a dot per group_by value.",
-  dot_plot: "One dot per group_by value.",
-  line: "A line over time (group_by is submitted_at or a date field); split_by draws one line per value.",
-  area: "A filled area over time.",
-  stacked_column: "Columns per group_by value stacked by split_by value.",
-  stacked_100: "Stacked columns normalized to 100 percent.",
-  grouped_bar: "Horizontal grouped bars.",
-  stacked_bar: "Horizontal stacked bars.",
-  stacked_bar_100: "Horizontal stacked bars normalized to 100 percent.",
-  pie: "Slices per group_by value, at most 6 (the rest folded into Other).",
-  donut: "A pie with a hole, at most 6 slices.",
-  waffle: "A 10x10 grid of squares showing shares, at most 6 values.",
-  treemap: "Nested rectangles sized by value, one per group_by value.",
-  map: "A real map (MapLibre), drawn one of two ways. map.mode \"world\" fills administrative boundaries: one shape per group_by value, each in a color of its own, with its name written inside it and its number on its marker, and every parent above them outlined behind - it needs map.level and a group_by field whose answers are place names (the form's district, sector, cell or village field), and only places inside the City of Kigali have boundaries. map.mode \"heat\" spreads the records themselves, each at the position it was collected: it needs map.point_field_id, a field of type geolocation, and NOTHING else about places - no level, no group_by, no markers. A form without a geolocation field cannot hold a heat map.",
-  scatter: "Points from two numeric fields (x_field_id, y_field_id).",
-  bubble: "A scatter whose point size comes from a third numeric field (size_field_id).",
-  heatmap: "A grid of group_by values by split_by values, colored by the measure.",
-  kpi: "A single big number card, optionally with a legend (legend_by) listing the counts per value of a choice field.",
-  canvas:
-    "A SECTION OF THE LAYOUT - free space that other widgets sit inside. It is design, not data: it reads no field, takes no formula, no group_by, no period, no over_time, and it draws no chart, no legend and no total. Nothing is fetched for it and nothing can be clicked into it. " +
-    "Its title and description are OPTIONAL, unlike every other widget: BOTH may be left out. A canvas that simply holds three widgets side by side needs no heading, so leave the title as an empty string and the description null unless a heading genuinely helps the page read - an unnamed canvas draws no title bar at all, just the widgets in it. " +
-    "MAPS. A world map's markers are badges - a pill in the value's color with the icon and the number written on it in a contrasting ink - planted however small the map is drawn, and a click on one zooms to that place; only the place NAME waits for the place to have room on screen. A heat map is MapLibre's own heatmap: heat from far out, and as the viewer zooms in the heat fades while circles take over, each record a circle sized and colored by its weight along the same scale. Its scale runs between map.low_color and map.high_color (six-digit hex; the cool end and the hot end, defaulting to blue and red), and map.show_points (default true) is whether those circles appear. " +
-    "SIZE IS NEVER A REASON TO LEAVE SOMETHING OUT. A widget drawn in a box smaller than its content needs is scaled down as a whole to fit the box - never cut off - and a KPI's number shrinks to the width of its card down to 8px and is never broken across lines. So place and size widgets for the PAGE, not for their text: a wide number, a long legend or a tall chart all fit whatever box they are given. " +
-    "Think of it as a SECTION of the page: a section holds widgets, a widget holds data. Nothing about data belongs on a canvas - no unit, no compact, no legend_position, no value_colors, no icon, no size. Give it only its own colors (background, border, border_width, and text if it carries a heading) and its canvas layout. An unnamed canvas draws no heading and no padding at all, so its widgets start flush at the top - which is what a section usually wants. " +
-    "Widgets join it by naming its id in their parent_id and lay themselves out inside it with their own box. Use one to group related widgets, or to put a few side by side at sizes the board's own grid cannot give them; do not wrap a single widget in one, and do not use one where the ordinary grid would do.",
-};
-
 function role_of(field) {
   if (is_derived_field(field)) return "derived (computed by the form from other answers and stored with them: group, split, legend or filter by it when it holds a label such as a status; sum, average or compare it when it holds a number)";
   if (field.type === "number") return "numeric";
@@ -117,73 +87,26 @@ export function describe_form_fields(schema) {
     });
 }
 
-function widget_shape() {
-  return {
-    id: "Optional unique string; generated when missing.",
-    title: "Required, 1-120 characters. What the card shows, in plain words. The one exception is a canvas, whose title may be an empty string because it is a section of the layout rather than a question.",
-    description: "Optional, up to 300 characters, shown under the title.",
-    chart_type: `One of: ${Object.keys(CHART_TEXT).join(", ")} (see chart_types).`,
-    metric: "{ aggregation, field_id } - the measure. aggregation is one of the formulas; field_id is a numeric field for numeric formulas, any field (or null for whole submissions) for count, any field for count_distinct. Point charts (scatter, bubble) ignore metric.",
-    group_by: "{ field_id } for category and tree charts (a choice field); { field_id, granularity } for time charts where field_id is 'submitted_at' or a date field and granularity is one of the time_granularities. null for KPI and point charts. Optional everywhere else too: with no group_by the chart draws one mark per split_by value, and with neither it draws the single total of what it selects.",
-    map: "Maps only. A world map: { mode: \"world\", level, marker, show_markers, show_labels }. level is one of province, district, sector, cell, village and must match the group_by field (a district map groups by the form's district field). marker is an icon id like \"lucide:MapPin\" (any icon of the icon libraries - an icon a library no longer carries is looked up by the same name in the others, so a marker never comes out blank), show_markers plants it on every place with that place's number, and show_labels writes the place names. With a split_by every place plants that same icon once per value, in the value's own color, and the legend names the values. A heat map instead: { mode: \"heat\", point_field_id, weight_field_id, radius, intensity, show_points, low_color, high_color }. point_field_id is the form's geolocation field and is required; weight_field_id is a number field each answer is weighed by (left out, every answer weighs one); radius 6-80 and intensity 0.2-4 say how far one answer's heat reaches and how hard it burns (28 and 1.3 read well); show_points draws each answer as a dot once the viewer zooms in; low_color and high_color are the two ends of the scale, as #rrggbb. Split a heat map with split_by and each value spreads its own heat in its own color from appearance.value_colors, and the legend names them - no scale colors are used then.",
-    split_by: "{ field_id } of a second choice field (different from group_by) - required by grouped/stacked/heatmap types, optional on line, forbidden elsewhere.",
-    pattern_by: "{ field_id } of a third choice field drawn as a texture inside each split color - grouped/stacked bar and column charts only. Usually null.",
-    legend_by: "{ field_id } of a choice field - KPI cards only: lists the count per value under the number. Not with median, cumulative_sum, moving_average or occurrences.",
-    display_fields: "occurrences only: array of up to 5 field ids whose answers label each counted value, joined with display_separator (e.g. [<name field>, <phone field>]). Empty: the counted value itself is the label.",
-    same_fields: "occurrences only: array of up to 5 { field_id, value } conditions on OTHER fields. With a value (e.g. { field_id: <status field>, value: 'live' }) only records holding that value are counted. With value null ('the same status, whatever it is') two records count together only when they share that field's value, and the shared value is appended to each label. Combine freely: [{ field_id: <status>, value: 'live' }, { field_id: <gender>, value: null }] counts repeated ids among live records, separately per gender.",
-    display_separator: "occurrences only: the text placed between the display_fields answers of one label, up to 10 characters - ' - ' by default; ', ' or ' / ' are common choices.",
-    occurrence_rule: "occurrences only: { operator, value } or null. operator is one of gt (more than), gte (at least), eq (exactly), lte (at most), lt (fewer than); value is the number of occurrences compared against. null applies no threshold.",
-    occurrence_scope: "occurrences only: 'matching' shows only the values whose count meets occurrence_rule; 'all' shows every value and marks the ones that meet it. Ignored without a rule.",
-    x_field_id: "Numeric field on the x axis - scatter and bubble only, otherwise null.",
-    y_field_id: "Numeric field on the y axis - scatter and bubble only, otherwise null.",
-    size_field_id: "Numeric field sizing the bubbles - bubble only, otherwise null.",
-    filters: "Array (max 10) of { field_id, operator, value } restricting the submissions counted: operator is one of the filter_operators; value is a stored answer value (a string or number). Use [{ field_id: <choice field>, operator: 'eq', value: <one answer> }] to make one card per answer value. The operators empty and not_empty take no value (write value null): [{ field_id: <a photo field>, operator: 'empty' }] counts the records that never attached one, which is how a completeness or data-quality card is built.",
-    period: "{ preset, from, to } - the widget's own time window; preset is one of the period_presets. Use { preset: 'all', from: null, to: null } unless a fixed window is wanted; the dashboard's period filter overrides it while viewing.",
-    sort: "value_desc | value_asc | label_asc (category charts).",
-    limit: `Max categories shown, 1-50 (default 12; pie/donut/waffle are capped at 6; treemap commonly 50).`,
-    size: "small | medium | large - GRID BOARDS ONLY (a studio board ignores it and reads box.spot). The share of a board row this widget claims, so neighbours that still fit sit beside it: small is a third of a row (three small charts side by side), medium a half (two side by side), large a whole row to itself. A small and a medium therefore share one row. KPI cards ignore it - they have their own dense row of their own.",
-    position: "0-based order on the board; assigned from the array order when missing. Ignored on a STUDIO board, where box.spot places every widget instead.",
-    parent_id:
-      "Optional: the id of a CANVAS widget on this same dashboard, when this widget should be drawn inside that canvas instead of on the board. null (or left out) for everything else. Only a canvas can hold widgets; the canvas must be in the same list; a widget cannot name itself; canvases may be nested at most 3 deep and never in a circle.",
-    box:
-      "Only meaningful with parent_id: how this widget lays itself out inside its canvas. { flow, width, height, min_width, max_width, min_height, max_height }. " +
-      "flow is \"row\" (carry on along the row), \"row_break\" (start a new row) or \"column\" (take a line of its own). " +
-      "Every length is { value, unit } with unit \"px\" or \"%\" - a percent is of the canvas, a pixel count is absolute, and percentages are capped at 100. " +
-      "On a FREE canvas the lengths are ignored and box.spot places the widget instead: { x, y, w, h, z } in whole pixels from the section top left, w at least 80 and h at least 60, z deciding what sits above what. Leave spot out and it is dealt into a staircase from the corner. " +
-      "LEAVE OUT what you do not care about: a widget with no width takes whatever is left of its row, which is usually what is wanted. A sensible pair of widgets side by side is two boxes of { flow: \"row\", width: { value: 50, unit: \"%\" } }; give the first one min_width so they stack rather than crush on a phone.",
-    canvas:
-      "Canvases only: { flow, gap, size_mode, width, height, min_width, max_width, min_height, max_height }. flow is how it arranges what is in it: \"row\" (along the row, wrapping), \"column\" (stacked), or \"free\" (NOT ARRANGED AT ALL - every widget sits exactly where it was dragged, at the x, y, w and h in its box.spot, and the others pass straight across it). gap is the pixels between them in row and column (0-64, 12 reads well) and means nothing on a free one. PREFER row or column: they look after themselves as a screen narrows, and free does not - reach for free only when the arrangement is the point. " +
-      "A canvas is NOT sized by the board's small / medium / large - it is a band of the page, so ignore the size key on it. It is sized ONE OF TWO WAYS, never both at once, and size_mode says which: \"fixed\" reads width and height, \"range\" reads min_width / max_width / min_height / max_height and ignores the fixed pair. Leaving size_mode out means \"fixed\". " +
-      "Every length is { value, unit } or null. unit is \"px\", \"%\", or - for width and height only - \"rest\", which means TAKE WHATEVER ROOM IS LEFT on the row and give it back when the widgets beside it grow; a \"rest\" length carries no number, so write { value: 0, unit: \"rest\" }. A percent on a canvas at the top of the board is a percent OF THE SCREEN (100% height is a screenful); inside another canvas it is a percent of that canvas. Width null gives it the full board, height null lets it grow to what it holds, and both are usually right. " +
-      "There is no place key: a section is not put \"left\" or \"centred\" from a list. It takes a line of its own in the board order, at the size it was given, and what is INSIDE it is placed by dragging.",
-    over_time:
-      "Optional, and the way to ask a question about CHANGE rather than about totals: { enabled: true, field_id, granularity, axis }. null (or left out) on every widget that is read all at once. " +
-      "It is not a chart type - it is a way of reading one. The widget keeps its formula, its filters and its split_by, and the time line takes over the axis its categories had, so \"average age by district\" turned over time becomes \"average age per month\", and with a split_by, one line or one stack per value of that field. Whatever the widget grouped by is set aside while it is on. " +
-      "field_id is the clock: \"submitted_at\" (when the record arrived), \"updated_at\" (when it was last changed) or the id of a date / date_time field of the form - never a choice field. " +
-      "granularity is \"auto\" (recommended) or one of hour, day, week, month, year. On auto the server picks it from the period actually being shown - a day reads in hours, up to a month in days, up to six months in weeks, up to two years in months, longer in years - so a custom range gets whatever suits its own length and the widget stays right when the reader changes the period. " +
-      "axis is \"x\" for the time line along the bottom (the default) or \"y\" for it down the side; asking for y draws the widget as its horizontal twin, because which axis time runs along IS the difference between a column chart and a bar chart. " +
-      "Only these chart types can carry it: line, area, bar, column, lollipop, dot_plot, grouped_column, stacked_column, stacked_100, grouped_bar, stacked_bar, stacked_bar_100. A pie, donut, waffle, treemap, heatmap, map, scatter, bubble or kpi divides one whole between its values or spends both axes already, and is refused. " +
-      "Prefer over_time on a widget the reader will want a trend for, and do NOT also set group_by to a date field on the same widget - that is the same request made twice.",
-    icon: "KPI cards only, optional: '<library>:<IconName>' from icon_libraries, e.g. 'lucide:Users' or 'tabler:IconChartBar'. An icon its library does not carry is looked up by the same name in the others, so a near-miss still draws something rather than nothing - but name it correctly. null otherwise.",
-    appearance:
-      "Optional look: { theme: 'light'|'dark', legend_position: 'bottom'|'top'|'right'|'left', light: { background, text, number, border }, dark: { background, text, number, border }, value_colors: { '<answer value>': '#rrggbb' }, value_labels: { '<answer value>': 'Shown as' } } - null for the default look. " +
-      "unit is what the numbers are measured in: { text, at } with at \"start\" or \"end\". Spacing is handled for you - a unit at the start is joined to the digits (\"$100k\") and one at the end is given exactly one space (\"100k Rwf\") whatever spacing you write around it - so just give the word or symbol. It reaches every number the widget prints, not only the big one on a KPI card. " +
-      "compact shortens long numbers: 1,200 reads as 1.2k, 4,000,000 as 4m, then bn, tn, qd, qt, sx, sp, og, nn, dc. It is ON unless you set compact: false, and you should leave it on - a board is read at a glance. Turn it off only where exact figures are the point, such as a reference table of amounts. " +
-      "Colors are a six-digit hex, or EIGHT digits when the background should be see-through ('#1e2a3580' is half-transparent, '#00000000' invisible) so the board shows through the card - only background takes an alpha, text, number, border and value_colors stay solid. " +
-      "border is the card's own outline color, and border_width how heavy it is in pixels - 2 is the default and 0 means NO OUTLINE AT ALL, which is what a widget inside a section usually wants so the section reads as one surface. " +
-      "legend_position is obeyed on every widget at every card size, so 'right' really does put the legend beside the chart, the map or the ring on a small card too - do not set it to a side unless the widget's legend is short enough to read in a narrow column. " +
-      "value_colors applies to every widget that draws one mark per value, treemap tiles included. " +
-      "value_labels only changes what a value is CALLED in this widget's legend, labels and tooltips; the stored answer is untouched, so filters and shared links still use the real value.",
-  };
-}
-
 function chart_types_doc() {
   const doc = {};
   CHART_CATALOG.forEach((entry) => {
     const rules = type_rules(entry.type);
     doc[entry.type] = {
       kind: entry.kind,
-      needs: entry.kind === "kpi" ? "metric only (plus optional legend_by, icon)" : entry.kind === "point" ? "x_field_id and y_field_id (numeric)" + (entry.type === "bubble" ? ", size_field_id (numeric)" : "") : entry.kind === "time" ? "metric and group_by { field_id: 'submitted_at' or a date field, granularity }" : "metric; group_by (a choice field) is optional",
+      needs:
+        entry.kind === "kpi"
+          ? "metric only (plus optional legend_by, icon)"
+          : entry.kind === "point"
+            ? "x_field_id and y_field_id (numeric)" + (entry.type === "bubble" ? ", size_field_id (numeric)" : "")
+            : entry.kind === "time"
+              ? "metric and group_by { field_id: 'submitted_at' or a date field, granularity }"
+              : entry.kind === "text"
+                ? "text { heading, body } - no metric, no fields, no period"
+                : entry.kind === "table"
+                  ? "table.mode 'records' with table.fields and table.page_size, or table.mode 'summary' with group_by and either split_by or table.columns"
+                  : entry.kind === "canvas"
+                    ? "nothing - a layout section"
+                    : "metric; group_by (a choice field) is optional",
       split_by: rules.split === "required" ? "required (a second choice field)" : rules.split === "optional" ? "optional" : "not allowed",
       max_slices: rules.slices || undefined,
       description: CHART_TEXT[entry.type] || "",
@@ -250,6 +173,7 @@ export function build_dashboard_creation_guide(form) {
       "To show a measure for each value of a field, prefer ONE widget that carries the values inside it - a KPI card with legend_by, or a chart with that field as group_by or split_by - over one filtered widget per value (see one_widget_or_many).",
       "A board answers two different questions: how much there is now, and how it is changing. Cover both - leave most widgets as they are, and turn a few of the ones a reader will want a trend for over time (see over_time), rather than adding a second widget that repeats the first with a date on its axis.",
       "Set each chart's size to the share of a row it deserves: small (a third), medium (a half) or large (a whole row). Neighbours that still fit share the row, so a row of three small charts or one large chart alone both work.",
+      "A REPORT-STYLE board (a printed situation report rebuilt on screen) uses four more things. TEXT blocks (chart_type 'text') for its title bands, observations and recommendations. TABLES (chart_type 'table') for its figures: a summary table with one row per district and a column per measure or per value of a second field, with totals, or a records table of the submissions themselves. period.locked: true on a widget that must keep its own dates whatever the board's date filter says. pinned_fields on a widget that must keep its breakdown when the board is filtered - a row of one card per district stays a row of one card per district. Group each page of such a report in a canvas (a dark section), and put its widgets inside with parent_id and box.",
       "Category charts need a choice field in group_by; numeric formulas (sum, avg, min, max, stddev, median, cumulative_sum, moving_average) need a numeric field in metric.field_id; count may leave field_id null to count submissions.",
       "Titles are plain language for the readers of the board (e.g. 'Submissions per district'); keep them under 120 characters and unique.",
       `A dashboard holds at most ${MAX_WIDGETS} widgets in total, including the ones already on the board when adding.`,
@@ -430,6 +354,16 @@ export function normalize_pasted_widgets(form, pasted) {
       .slice(0, 5);
     same_fields.forEach((entry) => check(entry.field_id));
     const rule = source.occurrence_rule && typeof source.occurrence_rule === "object" && source.occurrence_rule.operator ? { operator: source.occurrence_rule.operator, value: Number(source.occurrence_rule.value) } : null;
+    // Every field a table or a pin names must be one of the form's too.
+    (Array.isArray(source.pinned_fields) ? source.pinned_fields : []).forEach(check);
+    const table = source.table && typeof source.table === "object" ? source.table : {};
+    (Array.isArray(table.fields) ? table.fields : []).forEach(check);
+    if (table.sort && typeof table.sort === "object" && table.sort.field_id && table.sort.field_id !== SUBMITTED_AT_FIELD) check(table.sort.field_id);
+    (Array.isArray(table.columns) ? table.columns : []).forEach((column) => {
+      if (!column || typeof column !== "object") return;
+      check(column.field_id);
+      (Array.isArray(column.filters) ? column.filters : []).forEach((filter) => filter && check(filter.field_id));
+    });
     return {
       id,
       form_group_id: form.form_group_id,
@@ -456,6 +390,12 @@ export function normalize_pasted_widgets(form, pasted) {
       parent_id: typeof source.parent_id === "string" && source.parent_id ? source.parent_id : null,
       box: source.box && typeof source.box === "object" ? source.box : null,
       canvas: source.chart_type === "canvas" ? Object.assign({ flow: "row", gap: 12, place: "flow", width: null, height: null, min_width: null, max_width: null, min_height: null, max_height: null }, source.canvas || {}) : null,
+      // Words on the board, and a table's settings - kept whole; the
+      // server reduces both to what it understands and refuses the rest.
+      text: source.chart_type === "text" && source.text && typeof source.text === "object" ? source.text : null,
+      table: source.chart_type === "table" && source.table && typeof source.table === "object" ? source.table : null,
+      // The board filters this widget does not follow.
+      pinned_fields: Array.isArray(source.pinned_fields) ? source.pinned_fields.filter((id) => typeof id === "string" && id) : [],
       x_field_id: source.x_field_id || null,
       y_field_id: source.y_field_id || null,
       size_field_id: source.size_field_id || null,

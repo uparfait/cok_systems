@@ -82,7 +82,7 @@ function OverTimeSection({ widget, fields, translate, onOverTime, sectionTitle, 
   );
 }
 
-export default function CardMenu({ widget, palette, canMap, canHeat, fields, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onMapMode, onOverTime, onReconfigure }) {
+export default function CardMenu({ widget, palette, canMap, canHeat, fields, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onMapMode, onOverTime, onReconfigure, onBehavior }) {
   // A canvas draws no data, so there is nothing in it to reconfigure and
   // no other look to turn it into: its menu is about size and colors.
   const is_canvas = widget.chart_type === "canvas";
@@ -198,6 +198,11 @@ export default function CardMenu({ widget, palette, canMap, canHeat, fields, onC
           {onReconfigure && !is_canvas && (
             <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onReconfigure)}>
               {translate("DCS_DB_RECONFIGURE")}
+            </button>
+          )}
+          {onBehavior && !is_canvas && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onBehavior)}>
+              {translate("DCS_DB_BEHAVIOR")}
             </button>
           )}
           {onAppearance && (

@@ -88,10 +88,38 @@ export function useDashboards(form_group_id) {
     return remaining;
   };
 
+  /** Every ticked dashboard renamed to its own name in capitals; returns how many changed. */
+  const uppercase_many = async (ids) => {
+    const changed = [];
+    for (const id of ids) {
+      const entry = dashboards.find((item) => item.id === id);
+      if (!entry) continue;
+      const name = String(entry.name || "").toUpperCase();
+      if (!name || name === entry.name) continue;
+      const response = await rename_dashboard(form_group_id, id, name);
+      const renamed = response.data && response.data.dashboard;
+      if (renamed) changed.push(renamed);
+    }
+    setDashboards((current) => current.map((entry) => {
+      const renamed = changed.find((item) => item.id === entry.id);
+      return renamed ? { ...entry, name: renamed.name } : entry;
+    }));
+    return changed.length;
+  };
+
+  /** Every ticked dashboard deleted; the first one left takes over when the open one went. */
+  const remove_many = async (ids) => {
+    for (const id of ids) await delete_dashboard(form_group_id, id);
+    const remaining = dashboards.filter((entry) => !ids.includes(entry.id));
+    setDashboards(remaining);
+    if (ids.includes(active_id)) select(remaining[0] ? remaining[0].id : "");
+    return remaining;
+  };
+
   const set_count = useCallback((dashboard_id, count) => {
     setDashboards((current) => current.map((entry) => (entry.id === dashboard_id ? { ...entry, widgets_count: count } : entry)));
   }, []);
 
   const active = dashboards.find((entry) => entry.id === active_id) || null;
-  return { dashboards, active, active_id, can_edit, list_loading, list_error, select, create, rename, remove, set_count };
+  return { dashboards, active, active_id, can_edit, list_loading, list_error, select, create, rename, remove, uppercase_many, remove_many, set_count };
 }

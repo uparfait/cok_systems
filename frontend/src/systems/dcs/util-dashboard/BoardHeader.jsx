@@ -68,7 +68,8 @@ export default function BoardHeader({
   // The viewer's own light / dark mode is always offered; the viewing modes
   // follow full screen, and the editing actions the viewer's rights.
   const actions = [
-    { key: "theme", label: translate(board.is_dark ? "DCS_DB_THEME_LIGHT" : "DCS_DB_THEME_DARK"), icon: board.is_dark ? SUN_SVG : MOON_SVG, onClick: board.toggle, active: board.is_dark },
+    // A page pinned to one mode by its share link offers no switch.
+    !board.is_fixed && { key: "theme", label: translate(board.is_dark ? "DCS_DB_THEME_LIGHT" : "DCS_DB_THEME_DARK"), icon: board.is_dark ? SUN_SVG : MOON_SVG, onClick: board.toggle, active: board.is_dark },
     is_fullscreen && !busy && { key: "fit", label: translate("DCS_DB_FIT_MODE"), icon: FIT_SVG, onClick: () => setFsMode("fit"), active: fs_mode === "fit" },
     is_fullscreen && !busy && { key: "scroll", label: translate("DCS_DB_SCROLL_MODE"), icon: SCROLL_SVG, onClick: () => setFsMode("scroll"), active: fs_mode === "scroll" },
     widgets_count > 0 && !busy && onScreenshot && { key: "screenshot", label: translate("DCS_DB_SCREENSHOT"), icon: CAMERA_SVG, onClick: onScreenshot },

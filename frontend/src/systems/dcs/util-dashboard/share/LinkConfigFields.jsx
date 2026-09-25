@@ -11,9 +11,10 @@ const TEXT_DARK = "#333333";
 const TEXT_MUTED = "#9E9E9E";
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 
-export const DEFAULT_LINK_CONFIG = { filter_mode: "free", locked_filters: [], locked_period: null, show_title: false, allow_records: false, record_fields: [] };
+export const DEFAULT_LINK_CONFIG = { filter_mode: "free", locked_filters: [], locked_period: null, show_title: false, allow_records: false, record_fields: [], theme: "free" };
+const THEMES = ["free", "light", "dark"];
 
-const is_default = (config) => !config || (config.filter_mode !== "locked" && !config.show_title && !config.allow_records);
+const is_default = (config) => !config || (config.filter_mode !== "locked" && !config.show_title && !config.allow_records && !["light", "dark"].includes(config.theme));
 
 function Radio({ checked, label, onPick }) {
   return (
@@ -125,6 +126,15 @@ export default function LinkConfigFields({ config, onChange, filters, fields, fe
             </span>
           </label>
           {current.allow_records === true && <RecordFieldsPicker options={recordFields || []} value={current.record_fields || []} onChange={(record_fields) => onChange({ ...current, record_fields })} />}
+          <div>
+            <p className="cok-auth-label">{translate("DCS_DB_SHARE_THEME")}</p>
+            <p className="text-xs mb-1" style={{ color: TEXT_MUTED }}>{translate("DCS_DB_SHARE_THEME_HINT")}</p>
+            <div className="flex flex-col gap-2 mt-1">
+              {THEMES.map((theme) => (
+                <Radio key={theme} checked={(THEMES.includes(current.theme) ? current.theme : "free") === theme} label={translate(`DCS_DB_SHARE_THEME_${theme.toUpperCase()}`)} onPick={() => onChange({ ...current, theme })} />
+              ))}
+            </div>
+          </div>
           <label className="flex items-start gap-2 text-sm cursor-pointer" style={FONT}>
             <input type="checkbox" className="mt-0.5" checked={current.show_title === true} style={{ accentColor: PRIMARY }} onChange={(event) => onChange({ ...current, show_title: event.target.checked })} />
             <span>

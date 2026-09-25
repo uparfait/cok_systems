@@ -3,6 +3,7 @@ import AppearanceDialog from "./builder/AppearanceDialog.jsx";
 import { appearance_values_field } from "./builder/composeWidgets.js";
 import IconPickerPanel from "./icons/IconPickerPanel.jsx";
 import SkippedDetailsModal from "./SkippedDetailsModal.jsx";
+import WidgetBehaviorDialog from "./WidgetBehaviorDialog.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 
 /**
@@ -18,7 +19,7 @@ const icon_of = (widget) => (is_map(widget) ? { ...widget, icon: (widget.map && 
 // Picking one for a map also plants it; removing it takes the markers off.
 const icon_change = (widget, name) => (is_map(widget) ? { map: Object.assign({}, widget.map, { marker: name, show_markers: !!name }) } : { icon: name });
 
-export default function BoardWidgetDialogs({ form, fields, widgets, savingWidgetId, appearanceWidget, iconWidget, skippedWidget, period, appliedFilters, onUpdate, onCloseAppearance, onCloseIcon, onCloseSkipped, confirmDelete, confirmRemove }) {
+export default function BoardWidgetDialogs({ form, fields, widgets, savingWidgetId, appearanceWidget, behaviorWidget, filterDefs, iconWidget, skippedWidget, period, appliedFilters, onUpdate, onCloseAppearance, onCloseBehavior, onCloseIcon, onCloseSkipped, confirmDelete, confirmRemove }) {
   const current_widget = () => (iconWidget ? widgets.find((widget) => widget.id === iconWidget.id) || iconWidget : null);
 
   return (
@@ -50,6 +51,17 @@ export default function BoardWidgetDialogs({ form, fields, widgets, savingWidget
             // closes itself once that has been read.
             return onUpdate(appearanceWidget.id, changes);
           }}
+        />
+      )}
+      {behaviorWidget && (
+        // The window this widget reads (locked or not) and the board
+        // filters it ignores; the save is answered in the dialog itself.
+        <WidgetBehaviorDialog
+          widget={widgets.find((widget) => widget.id === behaviorWidget.id) || behaviorWidget}
+          fields={fields}
+          filterDefs={filterDefs}
+          onClose={onCloseBehavior}
+          onApply={(changes) => onUpdate(behaviorWidget.id, changes)}
         />
       )}
       {iconWidget && (

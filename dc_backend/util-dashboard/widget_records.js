@@ -162,12 +162,12 @@ async function records_query(body, form_group_id, form_version, project_id, forc
   const widget = sanitize_widget(body.widget);
   if (!widget) return { invalid: ["widget missing"] };
   widget.form_group_id = form_group_id;
-  const check = validate_dashboard([widget], new Map([[form_group_id, form_version]]), project_id);
+  const check = validate_dashboard([widget], new Map([[form_group_id, form_version]]), project_id, { nesting: false });
   if (!check.valid) return { invalid: check.errors };
 
   const catalog = build_field_catalog(form_version.schema);
   const applied = merge_applied(sanitize_applied_filters(body.filters), forced_filters || []);
-  const shaped = ungrouped_widget(apply_board_filters(widget, applied, catalog).widget);
+  const shaped = ungrouped_widget(apply_board_filters(widget, applied, catalog, (forced_filters || []).map((entry) => entry.field_id)).widget);
   shaped.tracking = form_version.tracking || null;
   const period_override = sanitize_period_override(body.period);
   const bounds = effective_bounds(shaped, period_override);

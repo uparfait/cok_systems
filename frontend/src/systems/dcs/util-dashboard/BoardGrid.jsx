@@ -59,6 +59,9 @@ export default function BoardGrid({
   // The form's own fields, for the clock an "over time" widget follows.
   fields,
   onReconfigure,
+  // "Date & filters" of one widget, and another page of a table widget.
+  onBehavior,
+  onTablePage,
   // Canvases: dropping a widget into one, and the right-click menu.
   onAddToCanvas,
   onWidgetMenu,
@@ -78,9 +81,11 @@ export default function BoardGrid({
   const emptied_by_filters = (widget) => {
     const entry = dataByWidget[widget.id];
     if (!entry || entry.error || entry.locked || !Array.isArray(entry.board_context) || entry.board_context.length === 0) return false;
+    // A table says for itself when nothing matched, in its own empty row.
+    if (entry.kind === "table") return false;
     if (entry.kind === "kpi") return !(Number(entry.value) > 0) && !(Array.isArray(entry.legend) && entry.legend.length > 0);
     const has = (list) => Array.isArray(list) && list.length > 0;
-    return !has(entry.rows) && !has(entry.points) && !has(entry.nodes);
+    return !has(entry.rows) && !has(entry.points) && !has(entry.nodes) && !has(entry.items);
   };
   // A widget that names a canvas as its parent is drawn INSIDE that
   // canvas, not on the board, so the board itself only lays out the ones
@@ -179,6 +184,8 @@ export default function BoardGrid({
       fields={fields}
       onOverTime={editable ? (next) => onUpdateWidget(widget.id, { over_time: next }) : undefined}
       onReconfigure={editable && onReconfigure ? () => onReconfigure(widget) : undefined}
+      onBehavior={editable && onBehavior ? () => onBehavior(widget) : undefined}
+      onTablePage={onTablePage}
       slot={canvas_slot(widget)}
       onContextMenu={onWidgetMenu ? (event) => onWidgetMenu(event, widget) : undefined}
       onChangeSize={editable && widget.chart_type !== "kpi" ? (next_size) => onUpdateWidget(widget.id, { size: next_size }) : undefined}

@@ -88,6 +88,8 @@ export default function DashboardCodeOverlay({ form, widgets, filters, onSaved, 
     return definition ? translate(definition.labelKey) : chart_type;
   };
   const measure_text = (widget) => {
+    // A section and a text block measure nothing.
+    if (["canvas", "text"].includes(widget.chart_type)) return "-";
     const formula = formula_of((widget.metric || {}).aggregation);
     const name = formula ? translate(formula.labelKey) : (widget.metric || {}).aggregation || "count";
     const field = (widget.metric || {}).field_id;

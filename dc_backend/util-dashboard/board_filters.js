@@ -84,6 +84,44 @@ function merge_applied(applied, forced) {
   return Array.from(by_field.values());
 }
 
+/**
+ * Every field below this one in a cascade: the sector under the district,
+ * the cells under those sectors, and so on down.
+ */
+function descendant_field_ids(field_id, catalog) {
+  const out = new Set();
+  let frontier = [field_id];
+  while (frontier.length > 0) {
+    const next = [];
+    for (const field of catalog.fields_by_id.values()) {
+      const parent = field ? parent_field_id_of(field, catalog.fields_by_id) : null;
+      if (parent && frontier.includes(parent) && !out.has(field.id)) {
+        out.add(field.id);
+        next.push(field.id);
+      }
+    }
+    frontier = next;
+  }
+  return out;
+}
+
+/**
+ * The board filters this widget refuses to follow: the fields it is PINNED
+ * on, and every field below them in a cascade - a sector value implies a
+ * district, so a widget that keeps its district breakdown cannot follow a
+ * sector pick either. A pin on a field the form does not have is ignored.
+ */
+function ignored_filter_ids(widget, catalog) {
+  const pinned = Array.isArray(widget && widget.pinned_fields) ? widget.pinned_fields : [];
+  const out = new Set();
+  pinned.forEach((field_id) => {
+    if (!catalog.fields_by_id.has(field_id)) return;
+    out.add(field_id);
+    descendant_field_ids(field_id, catalog).forEach((child_id) => out.add(child_id));
+  });
+  return out;
+}
+
 /** The first field whose cascade parent is this field (district -> sector). */
 function child_field_of(field_id, catalog) {
   for (const field of catalog.fields_by_id.values()) {
@@ -97,8 +135,14 @@ function child_field_of(field_id, catalog) {
  * context of every reshaping. Filters on fields the form does not have are
  * ignored. The widget's own filters stay and the board's are added to them.
  */
-function apply_board_filters(widget, applied, catalog) {
-  const active = applied.filter((entry) => catalog.fields_by_id.has(entry.field_id));
+function apply_board_filters(widget, applied, catalog, forced_ids) {
+  // A pinned widget keeps its own breakdown: the board's picks on the
+  // pinned fields (and the fields under them) never reach it. A share
+  // link's LOCKED values are not picks, they are what the link lets its
+  // viewers see at all - a pin never lifts them.
+  const ignored = ignored_filter_ids(widget, catalog);
+  (forced_ids || []).forEach((field_id) => ignored.delete(field_id));
+  const active = applied.filter((entry) => catalog.fields_by_id.has(entry.field_id) && !ignored.has(entry.field_id));
   if (active.length === 0) return { widget, context: [] };
   const value_of = new Map(active.map((entry) => [entry.field_id, entry.value]));
   const adjusted = Object.assign({}, widget);
@@ -151,5 +195,7 @@ module.exports = {
   sanitize_applied_filters,
   merge_applied,
   child_field_of,
+  descendant_field_ids,
+  ignored_filter_ids,
   apply_board_filters,
 };

@@ -58,6 +58,8 @@ function link_config(link, dashboard_id) {
     show_title: config.show_title === true,
     allow_records: config.allow_records === true,
     record_fields: Array.isArray(config.record_fields) ? config.record_fields : [],
+    // The colour mode viewers see: theirs to choose, or fixed light or dark.
+    theme: ["light", "dark"].includes(config.theme) ? config.theme : "free",
   };
 }
 
@@ -158,7 +160,11 @@ async function get_public_dashboard_data(req, res) {
     if (!context) return undefined;
     // Under a locked link the viewer's own filter values (and fixed period) are ignored: only the link's count.
     const body = viewer_body(req, context.link);
-    const results = await compute_dashboard_results(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link, req));
+    // What the link lets viewers see of the records themselves binds a
+    // records TABLE too, not only the records overlay.
+    const config = link_config(context.link, requested_dashboard_id(req));
+    const records_policy = { allowed: config.allow_records, fields: config.record_fields };
+    const results = await compute_dashboard_results(body, context.form_version.form_group_id, context.form_version, context.project._id, forced_filters(context.link, req), records_policy);
     return res.status(200).json(success_response(req, "DASHBOARD_DATA_FETCHED", { results }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));

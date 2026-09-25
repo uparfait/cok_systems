@@ -1,5 +1,7 @@
 const pipelines = require("./pipelines.js");
 const { kpi_metric_result } = require("./kpi_metrics.js");
+const { table_data } = require("./table_data.js");
+const { text_data } = require("./text_data.js");
 const { effective_bounds } = require("./match_stage.js");
 const { build_field_catalog, field_label_text, parent_field_id_of, is_categorical } = require("./field_catalog.js");
 const { CHART_TYPES, CHART_KINDS, LIMITS, OVER_TIME_TYPES, SUBMITTED_AT_FIELD } = require("./constants.js");
@@ -370,15 +372,22 @@ async function heat_data(widget, bounds) {
  * The complete data of one widget. The caller has already verified access
  * and resolved the form's active version (for its field catalog).
  */
-async function widget_data_of(raw_widget, form_version, period_override) {
+async function widget_data_of(raw_widget, form_version, period_override, records_policy) {
   const catalog = build_field_catalog(form_version.schema);
   // A tracked form's pipelines read each updatable field as it stood at
   // the period's end (see tracking_stage.js); the config rides the widget.
   raw_widget.tracking = form_version.tracking || null;
   const bounds = effective_bounds(raw_widget, period_override);
   let kind = (CHART_TYPES[raw_widget.chart_type] || {}).kind;
-  // A canvas is a place, not a question: there is nothing to compute.
+  // A canvas is a place, not a question: there is nothing to compute. A
+  // text block is words, and needs nothing either.
   if (kind === CHART_KINDS.CANVAS) return { kind: CHART_KINDS.CANVAS };
+  // A text block computes the live figures written into it - none, most
+  // of the time, and then it costs no query at all (see text_data.js).
+  if (kind === CHART_KINDS.TEXT) return text_data(raw_widget, bounds, catalog);
+  // A table is the records themselves, a page at a time, or one row per
+  // value with a column per measure - see table_data.js.
+  if (kind === CHART_KINDS.TABLE) return table_data(raw_widget, bounds, catalog, records_policy);
   // A heat map is not a category chart at all: it is the records
   // themselves, each at the place it was collected, so it never goes near
   // grouping, folding or a limit.
@@ -467,10 +476,15 @@ async function widget_data_of(raw_widget, form_version, period_override) {
 /**
  * The complete data of one widget, plus the totals line under its legend.
  */
-async function compute_widget_data(widget, form_version, period_override) {
-  const data = await widget_data_of(widget, form_version, period_override);
+/**
+ * records_policy (public share links only): what the viewer may see of the
+ * records themselves - see table_data.table_records.
+ */
+async function compute_widget_data(widget, form_version, period_override, records_policy) {
+  const data = await widget_data_of(widget, form_version, period_override, records_policy);
   // A KPI card is one number with its own legend: no count line under it.
-  if (data.kind === CHART_KINDS.KPI) return data;
+  // A text block has no data at all.
+  if (data.kind === CHART_KINDS.KPI || data.kind === CHART_KINDS.TEXT) return data;
   const catalog = build_field_catalog(form_version.schema);
   data.totals = await dimension_totals(widget, effective_bounds(widget, period_override), catalog);
   return data;

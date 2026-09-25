@@ -14,6 +14,12 @@ const CHART_KINDS = {
   HEAT: "heat",
   // A canvas holds no data of its own: it is a place other widgets sit in.
   CANVAS: "canvas",
+  // A text block is words on the board - a title band, an observation, a
+  // recommendation. It reads nothing either.
+  TEXT: "text",
+  // A table: the records themselves, a page at a time, or one row per value
+  // of a field with a column per measure - and totals.
+  TABLE: "table",
 };
 
 // chart_type -> the data kind its pipeline produces, whether a split
@@ -29,6 +35,9 @@ const CHART_TYPES = {
    * given in pixels or in percent of the canvas.
    */
   canvas: { kind: CHART_KINDS.CANVAS, split: "none" },
+  text: { kind: CHART_KINDS.TEXT, split: "none" },
+  // A summary table may take a split field: its values become the columns.
+  table: { kind: CHART_KINDS.TABLE, split: "optional" },
   bar: { kind: CHART_KINDS.CATEGORY, split: "none" },
   column: { kind: CHART_KINDS.CATEGORY, split: "none" },
   lollipop: { kind: CHART_KINDS.CATEGORY, split: "none" },
@@ -122,6 +131,33 @@ const MAX_CANVAS_DEPTH = 3;
 
 const MAP_LEVELS = ["province", "district", "sector", "cell", "village"];
 
+/**
+ * A TABLE is one of two things. RECORDS: the submissions themselves, the
+ * chosen fields as columns, a page at a time - never fewer than ten rows a
+ * page and never more than a hundred. SUMMARY: one row per value of the
+ * group field, and a column per value of the split field OR per measure
+ * the author defined (each a formula on a field, under its own filters),
+ * with a total row and a total column when asked for.
+ */
+const TABLE_MODES = ["records", "summary"];
+const TABLE_LIMITS = { MIN_PAGE_SIZE: 10, MAX_PAGE_SIZE: 100, DEFAULT_PAGE_SIZE: 10, MAX_FIELDS: 30, MAX_COLUMNS: 30, MAX_SUMMARY_ROWS: 50, MAX_COLUMN_LABEL: 120 };
+const SORT_DIRECTIONS = ["asc", "desc"];
+
+/**
+ * A TEXT block: a heading and a body, aligned and sized, with one accent
+ * colour for the words the author wants to stand out (==like this==).
+ */
+const TEXT_ALIGNS = ["left", "center", "right"];
+const TEXT_SIZES = ["sm", "md", "lg"];
+const TEXT_LIMITS = { MAX_HEADING: 200, MAX_BODY: 4000 };
+
+/**
+ * How many board filter fields one widget may refuse to follow. A widget
+ * pinned on the district field keeps its district breakdown while the rest
+ * of the board drills into the picked district.
+ */
+const MAX_PINNED_FIELDS = 10;
+
 const WIDGET_SIZES = ["small", "medium", "large", "full"];
 
 const TIME_GRANULARITIES = ["auto", "hour", "day", "week", "month", "year"];
@@ -198,6 +234,13 @@ module.exports = {
   SORT_OPTIONS,
   WIDGET_SIZES,
   MAP_LEVELS,
+  TABLE_MODES,
+  TABLE_LIMITS,
+  SORT_DIRECTIONS,
+  TEXT_ALIGNS,
+  TEXT_SIZES,
+  TEXT_LIMITS,
+  MAX_PINNED_FIELDS,
   TIME_GRANULARITIES,
   SUBMITTED_AT_FIELD,
   UPDATED_AT_FIELD,

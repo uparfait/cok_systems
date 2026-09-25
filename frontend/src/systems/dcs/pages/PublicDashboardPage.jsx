@@ -31,7 +31,7 @@ const FONT = { fontFamily: "'Montserrat', sans-serif" };
  * when the link says so. An unknown or expired link shows the server's
  * reason instead of the board.
  */
-function PublicBoard() {
+function PublicBoard({ onFixedTheme }) {
   const { token } = useParams();
   // Which of the link's dashboards is open: ?d=<id>, the link's own when absent.
   const [search_params, setSearchParams] = useSearchParams();
@@ -75,6 +75,10 @@ function PublicBoard() {
   });
   const config = (info && info.link && info.link.config) || { filter_mode: "free", locked_filters: [], show_title: false };
   const locked = config.filter_mode === "locked";
+  // The link may pin the page to one colour mode; the provider above holds it.
+  useEffect(() => {
+    if (onFixedTheme) onFixedTheme(config.theme === "dark" || config.theme === "light" ? config.theme : "");
+  }, [config.theme, onFixedTheme]);
   // Only the filters the link fixed are locked; the rest stay the viewer's ("All" by default).
   // A shared link can fix some filters itself: the map is scoped by those
   // too, exactly as the filter bar shows them.
@@ -193,6 +197,8 @@ function PublicBoard() {
             onRetryWidget={data.retry_widget}
             onShowSkipped={(target) => setSkippedWidget(target)}
             selection={null}
+            fields={info.filter_fields || []}
+            onTablePage={(widget, page, page_size) => data.page_widget(widget, page, page_size)}
             onOpenRecords={config.allow_records ? (widget, pick) => setRecords({ widget, pick }) : undefined}
           />
         </div>
@@ -227,12 +233,14 @@ function PublicBoard() {
  * viewer once chose elsewhere. Nothing may ever be wider than the screen.
  */
 export default function PublicDashboardPage() {
+  // The colour mode the open link pins its viewers to, once the link is read.
+  const [fixed_theme, setFixedTheme] = useState("");
   return (
     <DcsErrorBoundary>
       <DcsLanguageProvider fixedLanguage="en">
-        <BoardThemeProvider>
-          <div className="min-h-screen flex flex-col overflow-x-hidden" style={{ backgroundColor: "#F4F7F9", maxWidth: "100vw" }}>
-            <PublicBoard />
+        <BoardThemeProvider fixed={fixed_theme || undefined}>
+          <div className="min-h-screen flex flex-col overflow-x-hidden" style={{ backgroundColor: fixed_theme === "dark" ? "#0F171F" : "#F4F7F9", maxWidth: "100vw" }}>
+            <PublicBoard onFixedTheme={setFixedTheme} />
           </div>
         </BoardThemeProvider>
       </DcsLanguageProvider>

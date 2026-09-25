@@ -5,6 +5,7 @@
  */
 
 const { MAP_LEVELS, TIME_SOURCE_FIELDS, OVER_TIME_AXES, BOX_FLOWS, CANVAS_FLOWS, BOARD_MODES, BOARD_WIDTH, BOX_UNITS, BOX_SIZE_MODES, CANVAS_UNITS } = require("./constants.js");
+const { sanitize_period, sanitize_pinned_fields, sanitize_text, sanitize_table } = require("./sanitize_extras.js");
 
 function clean_string(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -238,14 +239,9 @@ function sanitize_widget(widget) {
   if (group_by && widget.group_by && typeof widget.group_by.granularity === "string") {
     group_by.granularity = widget.group_by.granularity;
   }
-  const period =
-    widget.period && typeof widget.period === "object"
-      ? {
-          preset: clean_string(widget.period.preset),
-          from: clean_string(widget.period.from) || null,
-          to: clean_string(widget.period.to) || null,
-        }
-      : null;
+  // The widget's own window - and whether it is LOCKED to it, in which
+  // case the board's date filter passes this widget by.
+  const period = sanitize_period(widget.period);
   return {
     id: clean_string(widget.id),
     title: clean_string(widget.title),
@@ -297,6 +293,12 @@ function sanitize_widget(widget) {
     box: sanitize_box(widget),
     // Canvases only: how the widgets inside them are arranged.
     canvas: sanitize_canvas(widget),
+    // Text blocks only: the words, and how they are set.
+    text: sanitize_text(widget),
+    // Tables only: the records shown or the summary computed.
+    table: sanitize_table(widget),
+    // The board filter fields this widget does not follow.
+    pinned_fields: sanitize_pinned_fields(widget.pinned_fields),
     x_field_id: clean_string(widget.x_field_id) || null,
     y_field_id: clean_string(widget.y_field_id) || null,
     size_field_id: clean_string(widget.size_field_id) || null,
@@ -309,7 +311,7 @@ function sanitize_widget(widget) {
             value: ["string", "number", "boolean"].includes(typeof filter.value) ? filter.value : "",
           }))
       : [],
-    period: period && period.preset ? period : null,
+    period,
     sort: widget.sort === undefined ? undefined : clean_string(widget.sort),
     limit: widget.limit === undefined ? undefined : Number(widget.limit),
     size: widget.size === undefined ? undefined : clean_string(widget.size),

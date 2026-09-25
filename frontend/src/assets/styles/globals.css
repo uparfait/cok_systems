@@ -5090,3 +5090,192 @@ background-color: #056daa;
   font-size: 11px;
   font-weight: 600;
 }
+
+/* ---------------------------------------------------------------------
+   Dashboard: text blocks, table widgets and the "Fixed" / "Ignores
+   filter" chips a card wears under its title. Colours come from the
+   widget's own palette (inline), so only shape and spacing live here.
+   --------------------------------------------------------------------- */
+.dcs-text-widget {
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1.55;
+  word-break: break-word;
+}
+.dcs-text-heading {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.25;
+}
+.dcs-text-paragraph {
+  margin: 0 0 0.5rem;
+}
+.dcs-text-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.dcs-widget-chip {
+  display: inline-block;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  line-height: 1.5;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dcs-widget-table-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  font-family: 'Montserrat', sans-serif;
+}
+.dcs-widget-table-scroll {
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.dcs-widget-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  white-space: nowrap;
+}
+.dcs-widget-table th,
+.dcs-widget-table td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--table-border, #E0E0E0);
+  border-right: 1px solid var(--table-border, #E0E0E0);
+  text-align: left;
+  vertical-align: middle;
+}
+.dcs-widget-table th:last-child,
+.dcs-widget-table td:last-child {
+  border-right: none;
+}
+.dcs-widget-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: var(--table-surface, #FFFFFF);
+  background-image: linear-gradient(var(--table-head, rgba(51, 51, 51, 0.14)), var(--table-head, rgba(51, 51, 51, 0.14)));
+  font-weight: 700;
+  font-size: 0.92em;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.dcs-widget-table .is-first {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--table-surface, #FFFFFF);
+  font-weight: 600;
+}
+.dcs-widget-table thead th.is-first {
+  z-index: 3;
+  background-color: var(--table-surface, #FFFFFF);
+  background-image: linear-gradient(var(--table-head, rgba(51, 51, 51, 0.14)), var(--table-head, rgba(51, 51, 51, 0.14)));
+}
+.dcs-widget-table .is-number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.dcs-widget-table .is-total {
+  font-weight: 700;
+}
+.dcs-widget-table .is-total-row td {
+  font-weight: 700;
+  background-color: var(--table-surface, #FFFFFF);
+  background-image: linear-gradient(var(--table-head, rgba(51, 51, 51, 0.14)), var(--table-head, rgba(51, 51, 51, 0.14)));
+  border-top: 2px solid var(--table-border, #E0E0E0);
+}
+.dcs-widget-table .is-total-row td.is-first {
+  background-color: var(--table-surface, #FFFFFF);
+  background-image: linear-gradient(var(--table-head, rgba(51, 51, 51, 0.14)), var(--table-head, rgba(51, 51, 51, 0.14)));
+}
+
+/* The dashboard switcher's select-several mode. */
+.dcs-board-switcher-bulk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 12px 6px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  color: var(--board-muted, #9E9E9E);
+  border-bottom: 1px solid var(--board-border, #E0E0E0);
+}
+.dcs-board-switcher-tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 2px solid var(--board-border, #E0E0E0);
+  color: #FFFFFF;
+  background: transparent;
+}
+.dcs-board-switcher-tick.is-on {
+  border-color: #056daa;
+  background: #056daa;
+}
+.dcs-board-switcher-item.is-ticked {
+  background-color: rgba(5, 109, 170, 0.06);
+}
+.dcs-board-switcher-foot-bulk {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dcs-board-switcher-delete {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #E74C3C;
+  border: 1px solid #E74C3C;
+  background: transparent;
+  cursor: pointer;
+}
+.dcs-board-switcher-delete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.dcs-widget-table td.is-empty {
+  text-align: center;
+  padding: 1.5rem 0.5rem;
+  font-weight: 400;
+}
+.dcs-widget-table-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 6px 2px 0;
+  font-size: 11px;
+}
+.dcs-widget-table-pager {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.dcs-widget-table-control {
+  padding: 2px 8px;
+  line-height: 1.4;
+  border-radius: 0;
+}

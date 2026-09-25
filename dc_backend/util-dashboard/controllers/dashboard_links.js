@@ -55,6 +55,8 @@ function link_config(link) {
     show_title: config.show_title === true,
     allow_records: config.allow_records === true,
     record_fields: Array.isArray(config.record_fields) ? config.record_fields : [],
+    // The colour mode viewers see: theirs to choose, or fixed light or dark.
+    theme: ["light", "dark"].includes(config.theme) ? config.theme : "free",
   };
 }
 
@@ -84,6 +86,7 @@ function read_config(body) {
     show_title: raw.show_title === true,
     allow_records: raw.allow_records === true,
     record_fields: raw.allow_records === true ? read_record_fields(raw.record_fields) : [],
+    theme: ["light", "dark"].includes(raw.theme) ? raw.theme : "free",
   };
 }
 

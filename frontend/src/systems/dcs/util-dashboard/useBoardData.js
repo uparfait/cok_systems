@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { widgets_data_signature } from "./chartCatalog.js";
 import { applied_filter_list } from "./boardFilters.js";
+import { has_text_variables } from "./textVariables.js";
 
 const REFRESH_INTERVAL_MS = 30000;
 // A request that drags past three minutes is cut off and its card marked
@@ -27,7 +28,8 @@ const WIDGET_TIMEOUT_MS = 180000;
  * A canvas holds widgets; it reads nothing. It is left out of every data
  * request, never waits, and never shows a loading or an empty state.
  */
-export const reads_data = (widget) => !!widget && widget.chart_type !== "canvas";
+// A text block is fetched only when it carries live figures to compute.
+export const reads_data = (widget) => !!widget && widget.chart_type !== "canvas" && (widget.chart_type !== "text" || has_text_variables(widget));
 
 export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref, fetch_batch, initialFilterValues }) {
   const [data_by_widget, setDataByWidget] = useState({});
@@ -50,6 +52,10 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
   const data_ref = useRef({});
   data_ref.current = data_by_widget;
   const data_signature_ref = useRef("");
+  // The page (and rows a page) each TABLE widget is being read at, kept
+  // apart from the widget so a viewer's paging is never saved - and so a
+  // silent refresh reads the page the viewer is on rather than the first.
+  const table_pages_ref = useRef({});
 
   // A different board under the same hook (a shared link switching
   // dashboards): its filters and data start clean instead of carrying the
@@ -68,12 +74,31 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     applied_period_ref.current = { preset: "this_year", from: null, to: null };
     setDataByWidget({});
     data_signature_ref.current = "";
+    table_pages_ref.current = {};
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope_key]);
 
+  // A table widget is asked for at the page its viewer is on.
+  // Only while the table is still set up as it was when the page was
+  // turned: an author's change to the table takes it back to page one.
+  const paged = (widget) => {
+    const asked = table_pages_ref.current[widget.id];
+    if (!asked || widget.chart_type !== "table" || asked.of !== JSON.stringify(widget.table || {})) return widget;
+    return Object.assign({}, widget, { table: Object.assign({}, widget.table || {}, { page: asked.page, page_size: asked.page_size || widget.table.page_size }) });
+  };
+  // A new selection (a filter, a period) starts every table at page one
+  // again; the rows a page holds is the viewer's and is kept.
+  const restart_pages = () => {
+    const next = {};
+    Object.entries(table_pages_ref.current).forEach(([id, asked]) => {
+      next[id] = Object.assign({}, asked, { page: 1 });
+    });
+    table_pages_ref.current = next;
+  };
+
   const fetch_one = (widget, applied_period, run_id, silent) =>
     Promise.race([
-      fetch_batch([widget], applied_period, applied_filters_ref.current),
+      fetch_batch([paged(widget)], applied_period, applied_filters_ref.current),
       new Promise((resolve, reject) => setTimeout(() => reject(new Error("TIMEOUT")), WIDGET_TIMEOUT_MS)),
     ])
       .then((response) => {
@@ -116,6 +141,7 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     // whether its results were still wanted or not, and the board is busy
     // for exactly as long as one of them is out.
     if (!silent) {
+      restart_pages();
       waiting_ref.current += 1;
       setDataLoading(true);
     }
@@ -209,6 +235,18 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     fetch_data(widgets_ref.current, applied_period_ref.current, false);
   };
 
+  /**
+   * Another page of a TABLE widget - or another number of rows a page.
+   * Only that one card is fetched again; the widget itself is untouched
+   * and nothing is saved.
+   */
+  const page_widget = (widget, page, page_size) => {
+    const asked = { page: Math.max(1, Number(page) || 1), of: JSON.stringify(widget.table || {}) };
+    if (Number(page_size) > 0) asked.page_size = Number(page_size);
+    table_pages_ref.current = Object.assign({}, table_pages_ref.current, { [widget.id]: asked });
+    fetch_one(widget, applied_period_ref.current, run_seq_ref.current, false);
+  };
+
   /** Marks the given widget list as already fetched (an edit that changed no data). */
   const settle = (final_widgets) => {
     data_signature_ref.current = widgets_data_signature(final_widgets);
@@ -238,6 +276,7 @@ export function useBoardData({ scope_key, widgets, loading, blocked, frozen_ref,
     prune_filters,
     fetch_data,
     retry_widget,
+    page_widget,
     handle_period_apply,
     settle,
     keep_only,

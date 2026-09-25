@@ -1,0 +1,550 @@
+{
+  "name": "Spatial distribution - hazard and health impacts",
+  "filters": [
+    {
+      "field_id": "cascading_select_8dz9o8"
+    },
+    {
+      "field_id": "cascading_select_v0mxca"
+    },
+    {
+      "field_id": "single_select_7c5216"
+    }
+  ],
+  "widgets": [
+    {
+      "id": "d3_panel",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "",
+      "description": null,
+      "icon": null,
+      "chart_type": "canvas",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#14318f",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#0d2472"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 0,
+      "parent_id": null,
+      "box": null,
+      "pinned_fields": [],
+      "canvas": {
+        "flow": "row",
+        "gap": 10,
+        "size_mode": "fixed",
+        "width": null,
+        "height": null,
+        "min_width": null,
+        "max_width": null,
+        "min_height": null,
+        "max_height": null
+      }
+    },
+    {
+      "id": "d3_title",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "",
+      "description": null,
+      "icon": null,
+      "chart_type": "text",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#0d2472",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 0
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 1,
+      "parent_id": "d3_panel",
+      "box": {
+        "flow": "column"
+      },
+      "pinned_fields": [],
+      "text": {
+        "heading": "SPATIAL DISTRIBUTION OF HAZARD IMPACTS AND HEALTH IMPACTS IN KIGALI",
+        "body": "",
+        "align": "center",
+        "size": "lg"
+      }
+    },
+    {
+      "id": "d3_1",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Gasabo",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Gasabo"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 2,
+      "parent_id": "d3_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d3_2",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Kicukiro",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Kicukiro"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 3,
+      "parent_id": "d3_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d3_3",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Nyarugenge",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Nyarugenge"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 4,
+      "parent_id": "d3_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d3_mosaic",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Deaths by hazard",
+      "description": null,
+      "icon": null,
+      "chart_type": "treemap",
+      "metric": {
+        "aggregation": "sum",
+        "field_id": "number_ca002e"
+      },
+      "group_by": {
+        "field_id": "single_select_7c5216"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2,
+        "value_colors": {
+          "fire": "#e8542a",
+          "heavy_rain": "#1f5fc4",
+          "rain_wind": "#15b3e0",
+          "wind": "#8a3fb0",
+          "lightning": "#7fb2ff"
+        },
+        "value_labels": {
+          "fire": "Fire",
+          "heavy_rain": "Rain",
+          "rain_wind": "Rain&Wind",
+          "wind": "Wind",
+          "lightning": "Inkuba"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 5,
+      "parent_id": "d3_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 60,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 260,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": []
+    },
+    {
+      "id": "d3_note",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "",
+      "description": null,
+      "icon": null,
+      "chart_type": "text",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 6,
+      "parent_id": "d3_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 38,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 240,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [],
+      "text": {
+        "heading": "HEALTH IMPACTS VS HAZARDS",
+        "body": "Rain and wind events (=={{sum(number_271ca1 | single_select_7c5216 = rain_wind)}} injuries==) are the main drivers of injuries.\n\nRain events (=={{sum(number_271ca1 | single_select_7c5216 = heavy_rain)}} injuries, {{sum(number_07a4a8 | single_select_7c5216 = heavy_rain)}} missing==) present both safety and search-and-rescue challenges.\n\nFire incidents (=={{sum(number_ca002e | single_select_7c5216 = fire)}} deaths==) pose the highest fatality risk and remain a critical life-safety concern.",
+        "align": "left",
+        "size": "md",
+        "accent": "#39d7ff"
+      }
+    },
+    {
+      "id": "d3_table",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Casualties per hazard",
+      "description": null,
+      "icon": null,
+      "chart_type": "table",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "single_select_7c5216"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2,
+        "compact": false,
+        "value_labels": {
+          "fire": "Fire",
+          "heavy_rain": "Rain",
+          "rain_wind": "Rain&Wind",
+          "wind": "Wind",
+          "lightning": "Inkuba"
+        }
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "household_loss"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "label_asc",
+      "limit": 50,
+      "size": "large",
+      "position": 7,
+      "parent_id": "d3_panel",
+      "box": {
+        "flow": "column"
+      },
+      "pinned_fields": [],
+      "table": {
+        "mode": "summary",
+        "columns": [
+          {
+            "key": "deaths",
+            "label": "Deaths",
+            "aggregation": "sum",
+            "field_id": "number_ca002e",
+            "filters": []
+          },
+          {
+            "key": "injured",
+            "label": "Injured",
+            "aggregation": "sum",
+            "field_id": "number_271ca1",
+            "filters": []
+          },
+          {
+            "key": "trauma",
+            "label": "Trauma",
+            "aggregation": "sum",
+            "field_id": "number_9a0824",
+            "filters": []
+          },
+          {
+            "key": "missing",
+            "label": "Missing",
+            "aggregation": "sum",
+            "field_id": "number_07a4a8",
+            "filters": []
+          }
+        ],
+        "totals": {
+          "row": true,
+          "column": false
+        }
+      }
+    }
+  ]
+}

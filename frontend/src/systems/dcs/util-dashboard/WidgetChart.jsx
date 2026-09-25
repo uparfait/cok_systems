@@ -8,6 +8,7 @@ import { HeatmapChart, WaffleChart } from "./charts/GridCharts.jsx";
 import TreemapChart from "./charts/TreemapChart.jsx";
 import MapChart from "./charts/MapChart.jsx";
 import KpiCard from "./charts/KpiCard.jsx";
+import TableWidget from "./charts/TableWidget.jsx";
 import DimensionTotals from "./charts/DimensionTotals.jsx";
 import { build_palette } from "./appearance.js";
 import { useBoardTheme } from "./boardTheme.jsx";
@@ -45,7 +46,7 @@ const WHOLE_OF_TOTAL = ["pie", "donut", "waffle"];
  * Under every legend sits the count line: how many different values each
  * choice field the widget reads holds under the same filters.
  */
-export default function WidgetChart({ widget, data, fitMode, animate, cardWidth, fillHeight, onPick, canHeat, canWorld, onMapMode }) {
+export default function WidgetChart({ widget, data, fitMode, animate, cardWidth, fillHeight, onPick, canHeat, canWorld, onMapMode, onTablePage }) {
   const { translate } = useDcsLanguage();
   const [show_other, setShowOther] = useState(false);
   const [show_all, setShowAll] = useState(false);
@@ -62,7 +63,9 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
   const has_rows = Array.isArray(data.rows) && data.rows.length > 0;
   const has_points = Array.isArray(data.points) && data.points.length > 0;
   const has_nodes = Array.isArray(data.nodes) && data.nodes.length > 0;
-  const is_empty = data.kind === "kpi" ? false : !(has_rows || has_points || has_nodes);
+  // A table says for itself when it is empty: a records table has items,
+  // not rows, and an empty summary is still a table with a header.
+  const is_empty = data.kind === "kpi" || data.kind === "table" ? false : !(has_rows || has_points || has_nodes);
   if (is_empty) {
     return (
       <div className="flex items-center justify-center text-xs" style={{ height: Math.min(180, density.height), color: palette.muted }}>
@@ -107,6 +110,14 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
   // A legend entry: its label, and on an occurrence card the counted value it stands for.
   const legend_pick = onPick ? (entry) => onPick(entry && typeof entry === "object" ? { kind: "legend", label: entry.label, record_key: entry.record_key, shared: entry.shared } : { kind: "legend", label: entry }) : undefined;
 
+  if (data.kind === "table") {
+    return (
+      <div>
+        <TableWidget widget={widget} data={data} palette={palette} density={density} onPage={onTablePage} onPick={onPick} />
+        <DimensionTotals totals={data.totals} palette={palette} />
+      </div>
+    );
+  }
   if (data.kind === "kpi") {
     const legend = data.legend || [];
     return (

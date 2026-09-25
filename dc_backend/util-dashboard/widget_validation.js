@@ -19,6 +19,7 @@ const {
   LIMITS,
 } = require("./constants.js");
 const { build_field_catalog, is_categorical, is_numeric, is_time_source } = require("./field_catalog.js");
+const { validate_text, validate_table, validate_pinned_fields } = require("./validate_extras.js");
 
 // A KPI card's icon is stored as "<library>:<icon name>" ("lucide:Cat",
 // "tabler:IconChartBar"); a bare name predates the library prefix (Tabler).
@@ -121,6 +122,16 @@ function validate_shape_for_kind(widget, definition, catalog, errors, describe) 
     if (widget.over_time && widget.over_time.enabled === true) {
       errors.push(`${describe}: a canvas cannot be read over time`);
     }
+    return;
+  }
+  // A text block is words, a table is its own thing: both are checked in
+  // validate_extras and take none of the chart rules below.
+  if (kind === CHART_KINDS.TEXT) {
+    validate_text(widget, catalog, errors, describe);
+    return;
+  }
+  if (kind === CHART_KINDS.TABLE) {
+    validate_table(widget, catalog, errors, describe, (filters, label) => validate_filters({ filters }, catalog, errors, label));
     return;
   }
   // A map is drawn one of two ways, and each asks for its own things. A
@@ -292,9 +303,11 @@ function validate_widget(widget, index, form_versions_by_group, project_id, erro
     errors.push(`${describe}: missing id`);
   }
   // A canvas is a section of the layout, so its heading is optional: one
-  // that simply holds three widgets side by side has nothing to say.
+  // that simply holds three widgets side by side has nothing to say. A
+  // text block carries its own heading, so a title above it is optional too.
   const titled = typeof widget.title === "string" && widget.title.trim();
-  if (widget.chart_type === "canvas" ? typeof widget.title !== "string" || widget.title.length > LIMITS.MAX_TITLE_LENGTH : !titled || widget.title.length > LIMITS.MAX_TITLE_LENGTH) {
+  const title_optional = widget.chart_type === "canvas" || widget.chart_type === "text";
+  if (title_optional ? typeof widget.title !== "string" || widget.title.length > LIMITS.MAX_TITLE_LENGTH : !titled || widget.title.length > LIMITS.MAX_TITLE_LENGTH) {
     errors.push(`${describe}: title is required (max ${LIMITS.MAX_TITLE_LENGTH} characters)`);
   }
   if (widget.description !== null && widget.description !== undefined) {
@@ -334,6 +347,7 @@ function validate_widget(widget, index, form_versions_by_group, project_id, erro
   validate_shape_for_kind(widget, definition, catalog, errors, describe);
   validate_filters(widget, catalog, errors, describe);
   validate_period(widget, errors, describe);
+  validate_pinned_fields(widget, catalog, errors, describe);
 }
 
 /**
@@ -389,7 +403,14 @@ function validate_nesting(widgets, errors) {
   });
 }
 
-function validate_dashboard(widgets, form_versions_by_group, project_id) {
+/**
+ * options.nesting: false skips the canvas nesting check. A DATA request is
+ * about one widget at a time - the card asks for its own numbers - and
+ * where that widget sits is the board's business, settled when the board
+ * was saved; judged alone, every widget inside a canvas would be refused
+ * for a parent that is simply not in the request.
+ */
+function validate_dashboard(widgets, form_versions_by_group, project_id, options) {
   const errors = [];
   if (!Array.isArray(widgets)) {
     return { valid: false, errors: ["widgets must be a list"] };
@@ -405,7 +426,7 @@ function validate_dashboard(widgets, form_versions_by_group, project_id) {
     }
     validate_widget(widget, index, form_versions_by_group, project_id, errors);
   });
-  validate_nesting(widgets, errors);
+  if (!options || options.nesting !== false) validate_nesting(widgets, errors);
   return { valid: errors.length === 0, errors };
 }
 

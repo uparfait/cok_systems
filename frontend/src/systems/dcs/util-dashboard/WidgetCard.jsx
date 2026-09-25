@@ -8,6 +8,8 @@ import { build_palette, with_alpha } from "./appearance.js";
 import CardMenu from "./WidgetCardMenu.jsx";
 import { useBoardTheme } from "./boardTheme.jsx";
 import { chart_density } from "./charts/density.js";
+import TextWidget from "./charts/TextWidget.jsx";
+import { period_of, period_label } from "./builder/widgetBehavior.js";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -145,7 +147,7 @@ function EditableText({ value, placeholder, editable, saving, onCommit, textStyl
  * (count/sum); averages and extremes show no total.
  */
 function widget_total(widget, data) {
-  if (!data || data.locked || data.error || data.kind === "kpi") return null;
+  if (!data || data.locked || data.error || ["kpi", "table", "text"].includes(data.kind)) return null;
   const aggregation = (widget.metric && widget.metric.aggregation) || "count";
   if (aggregation !== "count" && aggregation !== "sum") return null;
   if (Array.isArray(data.points)) return data.points.length;
@@ -179,13 +181,22 @@ function KpiIconSlot({ icon, color }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, slot, onContextMenu }) {
+export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, onBehavior, onTablePage, slot, onContextMenu }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
   // A canvas is a section of the layout: no data, so no total, no records
   // behind it, and no heading unless one was actually written.
   const is_canvas = widget.chart_type === "canvas";
+  // A text block is words: it fetches nothing and, like a canvas, needs no
+  // title bar unless it was given a title.
+  const is_text = widget.chart_type === "text";
+  const wordless = is_canvas || is_text;
+  // A window the card is locked to is said on the card; which board
+  // filters it ignores is the author's business (the Date & filters
+  // dialog) and is not written on it.
+  const own_period = period_of(widget);
+  const fixed = own_period.locked && !wordless;
   // The card paints itself from the widget's own appearance (light or dark
   // mode with its background, text and number colors) - unless the viewer
   // switched the whole board to dark mode, which paints every card dark.
@@ -219,8 +230,8 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // height then tells nothing about what it needs.
   const has_chart = !!data && !data.error && !data.locked && !loading;
   const base_chart_height = chart_density(chart_size.width).height;
-  const base_need = is_canvas ? 0 : !has_chart ? state_height : is_kpi ? 0 : base_chart_height + 56;
-  const filled = has_chart && !is_kpi && !is_canvas && fill_height > base_chart_height;
+  const base_need = wordless ? 0 : !has_chart ? state_height : is_kpi ? 0 : base_chart_height + 56;
+  const filled = has_chart && !is_kpi && !wordless && fill_height > base_chart_height;
   useEffect(() => {
     if (data && !data.error && !data.locked) drawn_ref.current = true;
   }, [data]);
@@ -232,7 +243,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // card's own handler, reached next as the event bubbles, stays quiet.
   const is_map = widget.chart_type === "map";
   const consumed_ref = useRef(false);
-  const can_drill = !is_canvas && !!onOpenRecords && !!data && !data.error && !data.locked;
+  const can_drill = !wordless && !!onOpenRecords && !!data && !data.error && !data.locked;
   const pick_records = can_drill
     ? (pick) => {
         consumed_ref.current = true;
@@ -263,7 +274,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           one shows no title bar at all - an empty strip above a group of
           widgets is just a gap. While the board is editable the bar stays,
           because that is where a name is added and where its menu lives. */}
-      {(!is_canvas || !!widget.title || !!widget.description) && (
+      {(!wordless || !!widget.title || !!widget.description) && (
       <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
         {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} />}
         <div className="min-w-0 flex-1 relative">
@@ -274,8 +285,8 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
               stray click. */}
           <EditableText
             value={widget.title}
-            placeholder={is_canvas ? "" : type_label}
-            hideWhenEmpty={is_canvas}
+            placeholder={wordless ? "" : type_label}
+            hideWhenEmpty={wordless}
             editable={false}
             maxLength={120}
             textStyle={{ color: palette.text, fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: is_kpi ? 12 : 14 }}
@@ -288,10 +299,17 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             maxLength={300}
             textStyle={{ color: palette.muted, fontSize: is_kpi ? 11 : 12 }}
           />
+          {fixed && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              <span className="dcs-widget-chip" style={{ color: palette.number, borderColor: palette.border }} title={translate("DCS_DB_PERIOD_LOCKED_HINT")}>
+                {translate("DCS_DB_CHIP_FIXED", { period: period_label(own_period, translate) })}
+              </span>
+            </div>
+          )}
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
         {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon || onMapMode) && (
-          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onMapMode={is_map ? onMapMode : undefined} canHeat={canHeat} fields={fields} onOverTime={onOverTime} onReconfigure={onReconfigure} />
+          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onMapMode={is_map ? onMapMode : undefined} canHeat={canHeat} fields={fields} onOverTime={onOverTime} onReconfigure={onReconfigure} onBehavior={wordless ? undefined : onBehavior} />
         )}
       </div>
       )}
@@ -304,6 +322,11 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           // A canvas has no data to wait for or fail at: what it holds is
           // handed in and drawn straight away.
           slot
+        ) : is_text ? (
+          // Words need no data either: the block is drawn from the widget.
+          <div className="px-1 pt-1">
+            <TextWidget widget={widget} palette={palette} data={data && !data.error ? data : null} />
+          </div>
         ) : loading ? (
           <div className="flex items-center justify-center" style={{ height: state_height }}>
             <SpiralLoader />
@@ -334,7 +357,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             )}
           </div>
         ) : (
-          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_size.width} fillHeight={fill_height} onPick={pick_records} canHeat={canHeat} canWorld={canMap} onMapMode={onMapMode} />
+          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_size.width} fillHeight={fill_height} onPick={pick_records} canHeat={canHeat} canWorld={canMap} onMapMode={onMapMode} onTablePage={onTablePage ? (page, page_size) => onTablePage(widget, page, page_size) : undefined} />
         )}
       </div>
 

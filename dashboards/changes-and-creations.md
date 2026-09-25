@@ -164,3 +164,89 @@ Each board was cut to ONE SCREEN readable in about thirty seconds: 127 widgets i
 - two to four charts that show where things stand (100% stacked bars, donuts, one trend over time), never a table, a league list or a per-sector breakdown.
 
 The role descriptions in section 5 still name the questions each board answers; the per-sector breakdowns, occurrence lists and secondary charts they mention were removed from the files. The earlier 320-widget versions are gone; regenerate them from the git history if a deep-dive board is ever wanted again.
+
+## 11. Report-style boards: engine additions and the disaster folder (2026-09-25)
+
+The seven boards of `../dmis_dash.html` (the City of Kigali disaster dashboards) were rebuilt for the DMIS form in `disaster/` (one JSON per board, `README.md` beside them). Four things those boards need did not exist in the engine and were added on both sides. Nothing existing changes behaviour; the backend needs one restart.
+
+### 11.1 A widget's own fixed date - `period.locked`
+
+A widget's `period` may carry `locked: true`. The board's date filter then passes it by: it always reads its own window (`match_stage.effective_bounds`, `is_period_locked`), and the card wears a "Fixed: <window>" chip. Set from the card menu -> "Date & filters", from the same step in every composer, or in pasted JSON. `sanitize_extras.sanitize_period` keeps the flag only when it is a real `true`.
+
+### 11.2 Pinned fields - `pinned_fields`
+
+A widget may list board filter fields it refuses to follow (at most 10, each a field that can filter the board). A board filter on a pinned field - and on any field below it in a cascade, since a sector already names a district - is not applied to that widget: no drill-down, no narrowing, no board context (`board_filters.ignored_filter_ids`, `descendant_field_ids`). Every other board filter still applies. This is what keeps a row of one card per district whole while the rest of the board drills into the picked district. The card wears an "Ignores filter: <fields>" chip. Same dialog and composer step as the date.
+
+### 11.3 Text blocks - `chart_type: "text"`
+
+Words on the board: `text: { heading, body, align, size, accent }`. The body's blank lines are paragraphs, `**bold**` is bold and `==highlight==` takes the accent colour (the widget's number colour unless `accent` names one). A text block reads no data (`compute_widget_data` returns `{ kind: "text" }`, the frontend never fetches it), its title is optional like a canvas's, and it is painted from its own appearance - so a title band is a text block with a dark background, size `lg`, centred, heading only. Builder tab "Text" (`builder/TextComposer.jsx`, `textCompose.js`), right-click -> "Add a text block here", card `charts/TextWidget.jsx`. Limits: heading 200, body 4000 characters.
+
+### 11.4 Tables - `chart_type: "table"`
+
+`table.mode` is `records` or `summary` (`util-dashboard/table_data.js`).
+
+- RECORDS: the submissions themselves under the widget's filters, the board's filters and the period; `table.fields` (1-30) are the columns, `table.page_size` is held between 10 and 100 (default 10), `table.sort` is `{ field_id | "submitted_at", direction }`, `show_submitted_at` puts the date first. Paging asks the board for that one card again with `table.page` on the request (`useBoardData.page_widget`); the viewer may also change the rows per page on the card, and nothing about paging is ever saved. On a tracked form a row is a stage and is sorted by the moment it opened.
+- SUMMARY: one row per value of `group_by`. Columns come from `split_by` (every value a column, each cell the widget's `metric`) OR from `table.columns` - measures `{ key, label, aggregation, field_id, filters }`, each its own formula (count, count_distinct, sum, avg, min, max, stddev - never median, running or moving figures, never occurrences) on its own field under its own filters, so "Annex" is a count filtered on one value of a multi-select while "Deaths" beside it is a sum. Never both. `table.totals: { row, column }`: a Total row (default on) and a Total column (default off). Totals add up from the cells on show when every column counts or sums; for averages and extremes the total row is computed again over the rows on show and there is no total column. `widget.limit` (1-50) caps the rows, `widget.sort` orders them by row total or by name. A click on a row (or a cell of a split table) opens its records like a bar of a chart. The data key is `table_totals`, apart from the dimension totals every widget carries under its legend.
+
+Builder tab "Table" (`builder/TableComposer.jsx`, `TableColumnsEditor.jsx`, `TableFieldsPicker.jsx`, `tableCompose.js`), card `charts/TableWidget.jsx` (sticky header and first column, totals row, Previous / Next and rows-per-page on the card). Validation in `util-dashboard/validate_extras.js`; sanitizing in `sanitize_extras.js`; vocabulary in `constants.js` (`TABLE_MODES`, `TABLE_LIMITS`, `TEXT_LIMITS`, `MAX_PINNED_FIELDS`).
+
+### 11.5 Also fixed on the way
+
+- A widget INSIDE A CANVAS was refused with "the canvas it sits in is not on this dashboard" whenever its data was fetched, because every data request validates one widget at a time and the nesting check could not find its parent. Nesting is now checked at save time only (`validate_dashboard(..., { nesting: false })` in `compute_results.js` and `widget_records.js`). Every card inside a section computes again.
+- The Ctrl+6 creation guide documents `text`, `table`, `pinned_fields` and `period.locked`, and the paste normalizer keeps them and checks every field id they name. The guide's chart and key texts moved to `dashboardSpecShape.js`.
+- Chips, the "Date & filters" dialog (`WidgetBehaviorDialog.jsx`) and the composer step (`builder/WidgetBehaviorStep.jsx`, `PeriodSettings.jsx`, `PinnedFieldsSettings.jsx`, `widgetBehavior.js`). i18n: 100 keys added to en / fr / kn (2216 each).
+
+### 11.5b Fixed after the adversarial review (same day)
+
+Four reviewers and six skeptics went over the whole change set. What they confirmed, and what was done:
+
+- The public share-link data endpoint computed a RECORDS table like any widget, so a link with `allow_records: false` (or a field whitelist) would have shipped the rows anyway. `compute_dashboard_results` now takes a records policy from the link (`get_public_dashboard_data`): a forbidden table comes back locked and empty (the card says so), a whitelisted one cut down to the allowed fields. Signed-in viewers see everything, as before.
+- A PIN could lift a share link's LOCKED filter (the link forces District = Gasabo; a widget pinned on district would have shown every district). Forced filter ids are now passed to `apply_board_filters` and are never ignored.
+- A viewer's table PAGE was kept across filter and period changes, which could land on a page past the end (an empty table). The board starts every table at page one on a new selection (rows per page is kept), the page is only applied while the table is set up as it was when the page was turned, and the server clamps a page past the end to the last one.
+- A summary table's `$facet` had no bound on the number of group values; the rows on show are now resolved first (the most frequent values, capped by `widget.limit`) and every facet reads those only. Split columns beyond the cap fold into an Other column when the formula adds up, and the table says when they could not be folded.
+- `occurrences` as the cell formula of a split table passed validation; refused now, like the KPI-only formulas.
+- A split table whose split fell away (a board drill landed the group field on it) came back empty; it now degrades to one column of its own formula.
+- A click on a MEASURE cell of a summary table opened the whole row's records (a measure has filters a click cannot carry); only rows - and the cells of a split table - open records now.
+- Reconfiguring a widget rebuilt it WITHOUT its canvas, its box, its over-time reading or its fixed filters, so a note edited inside a panel fell out onto the board (this predates today for filters, but the new Text and Table tabs route editing through it). The builder now keeps those from the original; a reopened KPI also lands on its formula (`widget_to_spec` names `formula_id`), and a reopened table keeps its filters.
+- The composers let a CUSTOM window with no start date through (the server then refused the whole save); every composer's Add button now stops on it, and a table column filter under `gt` / `gte` / `lt` / `lte` must be a number.
+- The new i18n strings used `{var}` where the translator substitutes `{{var}}`; fixed in all three languages.
+- A stacked bar's CATEGORY AXIS ignored `appearance.value_labels` (legends and KPI legends honoured it), so board 2 would have read `roof_blown_off_d` instead of Roof. Category axes and tooltips now write the renamed label; the rows keep their stored values, so clicks still open the right records.
+- Boards: facility and hotspot types now read as the form's own option labels; board 6 draws its four risk tiles in a two-by-two grid beside the note, as the HTML does; board 3 has no total card, as the HTML has none.
+- An empty records table is no longer hidden by the board filters (it shows its own empty row); a pin on a field the public page cannot name draws no chip.
+
+### 11.6 Verification
+
+- `dc_backend/tests/dashboard_features.test.js` (mongodb-memory-server): locked period, pinned fields end to end through `compute_dashboard_results`, records table paging and clamping, summary tables with measure and split columns and their totals, a widget inside a canvas computing alone, text blocks, and the validator's refusals - `ALL_TESTS_PASSED`, with the six earlier suites still green (`disaster/logs/backend_tests.log`).
+- `disaster/validate_boards.js`: 7 boards, 68 widgets, 0 errors (`disaster/logs/validate_boards.log`).
+- `disaster/compute_boards.js`: every widget of every board computed against 240 seeded DMIS-shaped submissions under three scenarios (`disaster/logs/compute_boards.log`).
+- Frontend `npx tsc --noEmit` and `npx vite build` (`disaster/logs/frontend_build.log`).
+
+Known limits: the observation texts of the boards are the HTML's own words and do not recompute (a text block is static by design); the district cards say the district's name and its count, where the HTML put the number under the name; `composeWidgets.js` is now 575 lines (it was already over the 500-line standard before this work - splitting it is a separate clean-up). Nothing is committed to git.
+
+### 11.7 Follow-ups asked for after the first review (same day)
+
+- **Table headers on dark cards**: the header row and the total row of a table widget were painted with the theme's light grey, so on a dark card they read white on white. They are now a light tint of the widget's own text colour laid over its own surface (`--table-head`), readable on any card colour.
+- **No "Ignores filter" chip**: which board filters a widget ignores is the author's setting (Date & filters) and is no longer written on the card. The "Fixed: <window>" chip stays.
+- **A share link may fix the colour mode** ("Colour mode for viewers" in a link's advanced configuration: viewers choose / always light / always dark - `config.theme`). The public page is pinned to it (`BoardThemeProvider fixed`), the light/dark switch disappears from its Actions menu, and the links list shows a "Dark only" / "Light only" chip. Stored per dashboard configuration like the other options; the open dashboard's setting applies.
+- **Several dashboards at once**: "Select" in the dashboard switcher turns every row into a tick box; the foot then offers "Make names uppercase" (each ticked dashboard renamed to its own name in capitals) and "Delete selected" (after one confirmation; the first dashboard left takes over when the open one went, and an empty form asks for a new name). `useDashboards.uppercase_many` / `remove_many` call the existing rename and delete endpoints one by one.
+
+### 11.8 Live figures in text blocks (same day)
+
+A note that says "Fire incidents (5 deaths)..." with a typed 5 is stale the day after. A text block's body may now carry FIGURES the server computes every time the block is read, under the block's own filters, the board's filters and the period - like every other widget:
+
+- `{{count}}` records in scope; `{{count(field)}}` records that answered a field; `{{count(field = value)}}` records holding a value;
+- `{{sum(field)}}`, `{{avg(field)}}`, `{{min(field)}}`, `{{max(field)}}`, `{{count_distinct(field)}}`;
+- `{{share(field = value)}}` the percent of the records in scope holding that value (shown with a % sign);
+- any of them narrowed with a condition after a vertical bar: `{{sum(number_271ca1 | single_select_7c5216 = rain_wind)}}` is the injuries from rain-and-wind events.
+
+Backend: `util-dashboard/text_data.js` parses the body (`parse_text_variables`, at most 20 different figures, deduplicated) and computes every figure in ONE `$facet` round trip over `base_stages`; a block without figures costs no query. `validate_extras.validate_text` refuses an unknown formula, a malformed token, a share without a value, and a field the form does not have - on save and on paste. The data is `{ kind: "text", values: { "<token>": number } }`.
+
+Frontend: `util-dashboard/textVariables.js` (the grammar's frontend half: `has_text_variables`, `variable_token`, `substitute_variables`), `TextWidget` substitutes the figures (each reads "..." until they land), `useBoardData.reads_data` fetches only text blocks that carry figures, and the data signature includes the body. The Text tab has a "Live figures" helper (`builder/TextVariableInsert.jsx`: formula, field, optional value, optional condition -> Insert at the cursor, the token shown before it is inserted) and a "Preview with real data" button that computes the block once through the data endpoint. The Ctrl+6 guide documents the grammar.
+
+Boards: every observation note of the disaster boards now computes its numbers (`build_boards.js`), carries its module as its own filter (household loss, infrastructure, hotspot) and, where it names districts or risk levels, is pinned on those fields. The board NAMES lost their numbers ("Hotspot identification and monitoring - assets", not "7. Hotspot ...") while the file names keep theirs (`01-` to `07-`) so the folder stays in the HTML's order; the checks read every `.json` in the folder and the computation log prints each note's figures.
+
+### 11.9 Confirmations above menus (same day)
+
+The generic confirm dialog (`components/DcsConfirmDialog.jsx`) was drawn at z-index 10000 inside whatever asked for it, while the dashboard switcher and every other popover menu sit at 10060 - so "Delete the selected dashboards?" opened BEHIND the list it was asked from. The dialog is now portalled to the document body at 10070, above every menu, for every confirmation in the system.
+
+- Deleting the ticked dashboards did nothing: the popover closes on any mousedown outside itself, the confirmation (drawn outside it) counted as outside, and the ticked ids were cleared before the delete ran. The list now stays open while a confirmation is up or work is running, the ids are taken the moment Delete is pressed, and a spinner shows while names are changed or dashboards deleted. "Done" leaves the select mode without closing the list.

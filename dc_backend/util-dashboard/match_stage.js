@@ -53,12 +53,19 @@ function filter_condition(filter) {
 
 /**
  * The effective [start, end] window of a widget: the dashboard-level
- * override wins over the widget's own period; "all" (or nothing) means no
- * bound. Returns null for unbounded, undefined never escapes (an invalid
- * custom range falls back to unbounded).
+ * override wins over the widget's own period - unless the widget LOCKED
+ * its own (period.locked), in which case it always reads the window it
+ * was given and the board's date filter passes it by. "all" (or nothing)
+ * means no bound. Returns null for unbounded, undefined never escapes (an
+ * invalid custom range falls back to unbounded).
  */
+function is_period_locked(widget) {
+  return !!(widget && widget.period && widget.period.locked === true);
+}
+
 function effective_bounds(widget, period_override) {
-  const period = period_override || widget.period || null;
+  const own = (widget && widget.period) || null;
+  const period = is_period_locked(widget) ? own : period_override || own;
   if (!period || !period.preset || period.preset === "all") return null;
   const bounds = resolve_period_bounds(period.preset, period.from, period.to);
   return bounds || null;
@@ -117,6 +124,7 @@ module.exports = {
   base_stages,
   tracking_stages,
   effective_bounds,
+  is_period_locked,
   numeric_expr,
   value_candidates,
 };

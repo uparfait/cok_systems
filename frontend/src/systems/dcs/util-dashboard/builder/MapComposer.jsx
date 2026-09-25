@@ -10,6 +10,8 @@ import { MARKER_SET } from "../charts/mapMarkers.js";
 import { HEAT_LOW, HEAT_HIGH, SPREADS } from "../charts/heatScale.js";
 import { Step, ChipGrid, Switch, Problem, Preview, FieldSelect, TitleFields, TEXT_MUTED, PRIMARY, BORDER } from "./builderUi.jsx";
 import ColorSettingsButton from "./ColorSettingsButton.jsx";
+import WidgetBehaviorStep from "./WidgetBehaviorStep.jsx";
+import { with_behavior, period_problem } from "./widgetBehavior.js";
 import { CHART_FORMULAS, formula_of, field_options, build_map_draft, ALL_SUBMISSIONS_ID } from "./composeWidgets.js";
 import { map_levels_of, geo_fields, number_fields } from "./mapFields.js";
 
@@ -55,7 +57,7 @@ const SIZES = ["small", "medium", "large"];
  * or as much as a number field says (a household size, an amount), and a
  * choice field spreads a layer of heat per value, each in its own color.
  */
-export default function MapComposer({ form, fields, onAdd, disabled, initialSpec, editing, onCancelEdit }) {
+export default function MapComposer({ form, fields, filterDefs, onAdd, disabled, initialSpec, editing, onCancelEdit }) {
   const { translate } = useDcsLanguage();
   const { showSuccess } = useToast();
   const [spec, setSpec] = useState(initialSpec || EMPTY_MAP_SPEC);
@@ -129,7 +131,7 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
         ? translate("DCS_DB_NEED_MEASURE_FIELD")
         : !spec.title.trim()
           ? translate("DCS_DB_NEED_TITLE")
-          : "";
+          : period_problem(spec.period, translate);
 
   const add = () => {
     if (problem) return;
@@ -161,7 +163,7 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
       summary: widget.title,
       detail: is_heat ? translate("DCS_DB_MAP_KIND_HEAT") : `${translate("DCS_DB_CHART_MAP")} - ${level_name(spec.level)}`,
       with_chart: "",
-      widgets: [widget],
+      widgets: with_behavior([widget], spec),
       spec: { ...spec, place_id, point_id },
     });
     showSuccess(editing ? translate("DCS_DB_DRAFT_UPDATED") : translate("DCS_DB_MAP_ADDED"));
@@ -359,6 +361,8 @@ export default function MapComposer({ form, fields, onAdd, disabled, initialSpec
           disabled={disabled}
         />
       </Step>
+
+      <WidgetBehaviorStep number={6} spec={spec} onPatch={patch} fields={fields} filterDefs={filterDefs} disabled={disabled} />
 
       <div>
         <Problem>{problem}</Problem>

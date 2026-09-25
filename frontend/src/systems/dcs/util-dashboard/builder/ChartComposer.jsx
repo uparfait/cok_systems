@@ -8,6 +8,8 @@ import { Step, ChipGrid, Problem, Preview, FieldSelect, TitleFields, TEXT_MUTED 
 import InEachValues from "./InEachValues.jsx";
 import ColorSettingsButton from "./ColorSettingsButton.jsx";
 import OccurrenceOptions from "./OccurrenceOptions.jsx";
+import WidgetBehaviorStep from "./WidgetBehaviorStep.jsx";
+import { with_behavior, period_problem } from "./widgetBehavior.js";
 import {
   CHART_FORMULAS,
   CHART_TAB_TYPES,
@@ -66,7 +68,7 @@ const SIZES = ["small", "medium", "large"];
  * (one chart per value), and the words. With initialSpec it reopens an
  * existing draft for editing.
  */
-export default function ChartComposer({ form, fields, kind, onAdd, disabled, initialSpec, editing, onCancelEdit }) {
+export default function ChartComposer({ form, fields, filterDefs, kind, onAdd, disabled, initialSpec, editing, onCancelEdit }) {
   const { translate } = useDcsLanguage();
   const { showSuccess } = useToast();
   const [spec, setSpec] = useState(initialSpec || EMPTY_CHART_SPEC);
@@ -110,6 +112,7 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
 
   const problems = spec.chart_type ? chart_spec_problems(spec, fields, translate) : [translate("DCS_DB_NEED_TYPE")];
   if (in_each && !combined && !values.loading && values.list.length === 0) problems.push(translate("DCS_DB_IN_EACH_NONE"));
+  if (period_problem(spec.period, translate)) problems.push(period_problem(spec.period, translate));
   const ready = problems.length === 0 && (combined || !values.loading);
   const count = in_each && !combined ? values.list.length : 1;
   const is_diagram = kind === "diagrams";
@@ -117,7 +120,7 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
 
   const handle_add = () => {
     if (!ready) return;
-    const widgets = build_chart_drafts(form, spec, values.list);
+    const widgets = with_behavior(build_chart_drafts(form, spec, values.list), spec);
     const detail =
       rules.kind === "point"
         ? `${name_of(spec.y_id)} / ${name_of(spec.x_id)}`
@@ -292,6 +295,8 @@ export default function ChartComposer({ form, fields, kind, onAdd, disabled, ini
           />
         </Step>
       )}
+
+      {spec.chart_type && <WidgetBehaviorStep number={next_step + 4} spec={spec} onPatch={patch} fields={fields} filterDefs={filterDefs} disabled={disabled} />}
 
       <div>
         <Preview>{preview}</Preview>

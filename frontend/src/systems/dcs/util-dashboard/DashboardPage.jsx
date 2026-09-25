@@ -82,6 +82,8 @@ function DashboardBoard({ form }) {
   // The widgets whose icon / colors are being edited in their dialogs.
   const [icon_widget, setIconWidget] = useState(null);
   const [appearance_widget, setAppearanceWidget] = useState(null);
+  // The widget whose "Date & filters" are being edited.
+  const [behavior_widget, setBehaviorWidget] = useState(null);
   const form_fields = useMemo(() => builder_fields(form.schema), [form.schema]);
   // Which fields name a place, so any widget grouped by one can become a map.
   const map_levels = useMemo(() => new Map(location_fields(form_fields).map((entry) => [entry.id, entry.level])), [form_fields]);
@@ -236,6 +238,12 @@ function DashboardBoard({ form }) {
       setBuilderTab("charts");
     },
     onAddWidget: open_builder_in,
+    // A text block straight from the right-click menu, into the canvas
+    // that was clicked or onto the board.
+    onAddText: (canvas) => {
+      setIntoCanvas(canvas ? canvas.id : null);
+      setBuilderTab("text");
+    },
     onRemove: request_remove,
   });
 
@@ -273,6 +281,31 @@ function DashboardBoard({ form }) {
   const close_review = () => {
     setReviewWidgets(null);
     setReviewFocus(null);
+  };
+
+  // Several at once, from the switcher: names in capitals, or deletion.
+  const uppercase_many = async (ids) => {
+    try {
+      const count = await library.uppercase_many(ids);
+      showSuccess(translate("DCS_DB_BULK_UPPERCASED", { count }));
+    } catch (error) {
+      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
+      throw error;
+    }
+  };
+  const remove_many = async (ids) => {
+    try {
+      const remaining = await library.remove_many(ids);
+      if (ids.includes(active_id)) {
+        data.clear();
+        setWidgets([]);
+      }
+      showSuccess(translate("DCS_DB_BULK_DELETED", { count: ids.length }));
+      if (remaining.length === 0) setNaming(true);
+    } catch (error) {
+      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
+      throw error;
+    }
   };
 
   // Deleting removes THIS dashboard (and its share links); the next one in
@@ -324,7 +357,7 @@ function DashboardBoard({ form }) {
     >
       <BoardHeader
         form={form}
-        title={<DashboardSwitcher dashboards={library.dashboards} activeId={active_id} canEdit={can_edit && !generating} onSelect={library.select} onRename={rename_active} onCreate={() => setNaming(true)} />}
+        title={<DashboardSwitcher dashboards={library.dashboards} activeId={active_id} canEdit={can_edit && !generating} onSelect={library.select} onRename={rename_active} onCreate={() => setNaming(true)} onUppercase={uppercase_many} onDeleteMany={remove_many} />}
         widgets_count={widgets.length}
         can_edit={can_edit && has_board}
         generating={generating}
@@ -398,6 +431,8 @@ function DashboardBoard({ form }) {
               setBuilderTab("charts");
             }}
             onAddToCanvas={open_builder_in}
+            onBehavior={(target) => setBehaviorWidget(target)}
+            onTablePage={(target, page, page_size) => data.page_widget(target, page, page_size)}
             onWidgetMenu={canvas_menu.open_widget_menu}
             onOpenRecords={(widget, pick) => setRecords({ widget, pick })}
             mapLevels={map_levels}
@@ -458,12 +493,15 @@ function DashboardBoard({ form }) {
         widgets={widgets}
         savingWidgetId={saving_widget_id}
         appearanceWidget={appearance_widget}
+        behaviorWidget={behavior_widget}
+        filterDefs={filters}
         iconWidget={icon_widget}
         skippedWidget={skipped_widget}
         period={data.applied_period_ref.current}
         appliedFilters={data.applied_filters_ref.current}
         onUpdate={handle_update_widget}
         onCloseAppearance={() => setAppearanceWidget(null)}
+        onCloseBehavior={() => setBehaviorWidget(null)}
         onCloseIcon={() => setIconWidget(null)}
         onCloseSkipped={() => setSkippedWidget(null)}
         confirmDelete={{ open: confirming === "delete", busy: deleting, onConfirm: handle_delete, onCancel: () => setConfirming(null) }}

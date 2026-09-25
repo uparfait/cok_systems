@@ -33,25 +33,29 @@ function applied_filters(body, forced_filters) {
  * (generated test data included). A broken widget comes back as a
  * per-widget error so one bad chart never takes the whole board down.
  */
-async function compute_dashboard_results(body, form_group_id, form_version, project_id, forced_filters) {
+async function compute_dashboard_results(body, form_group_id, form_version, project_id, forced_filters, records_policy) {
   const widgets = sanitize_widgets(body.widgets)
     .slice(0, LIMITS.MAX_WIDGETS)
     .map((widget) => Object.assign(widget, { form_group_id }));
   const period_override = sanitize_period_override(body.period);
   const filters = applied_filters(body, forced_filters);
+  const forced_ids = (forced_filters || []).map((entry) => entry.field_id);
   const form_versions = new Map([[form_group_id, form_version]]);
   const catalog = build_field_catalog(form_version.schema);
 
   const results = [];
   for (const widget of widgets) {
-    const check = validate_dashboard([widget], form_versions, project_id);
+    // One widget at a time, so its place in a canvas is not judged here.
+    const check = validate_dashboard([widget], form_versions, project_id, { nesting: false });
     if (!check.valid) {
       results.push({ widget_id: widget.id, error: "INVALID", messages: check.errors });
       continue;
     }
     try {
-      const shaped = apply_board_filters(widget, filters, catalog);
-      const data = await compute_widget_data(shaped.widget, form_version, period_override);
+      const shaped = apply_board_filters(widget, filters, catalog, forced_ids);
+      // A public link says what its viewers may see of the records
+      // themselves; a records table follows that like the records overlay.
+      const data = await compute_widget_data(shaped.widget, form_version, period_override, records_policy);
       results.push(Object.assign({ widget_id: widget.id, board_context: shaped.context }, data));
     } catch (widget_error) {
       results.push({ widget_id: widget.id, error: "FAILED", messages: [widget_error.message] });
@@ -71,12 +75,12 @@ async function compute_skipped_page(body, form_group_id, form_version, project_i
   if (!widget) return { invalid: ["widget missing"] };
   widget.form_group_id = form_group_id;
   const form_versions = new Map([[form_group_id, form_version]]);
-  const check = validate_dashboard([widget], form_versions, project_id);
+  const check = validate_dashboard([widget], form_versions, project_id, { nesting: false });
   if (!check.valid) return { invalid: check.errors };
 
   const period_override = sanitize_period_override(body.period);
   const catalog = build_field_catalog(form_version.schema);
-  const shaped = apply_board_filters(widget, applied_filters(body, forced_filters), catalog).widget;
+  const shaped = apply_board_filters(widget, applied_filters(body, forced_filters), catalog, (forced_filters || []).map((entry) => entry.field_id)).widget;
   shaped.tracking = form_version.tracking || null;
   const bounds = effective_bounds(shaped, period_override);
   const offset = bounded_int(body.offset, 0, 0, Number.MAX_SAFE_INTEGER);

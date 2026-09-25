@@ -1,0 +1,616 @@
+{
+  "name": "Hotspot identification and monitoring - assets",
+  "filters": [
+    {
+      "field_id": "cascading_select_8dz9o8"
+    },
+    {
+      "field_id": "cascading_select_v0mxca"
+    },
+    {
+      "field_id": "single_select_7c5216"
+    },
+    {
+      "field_id": "single_select_f42575"
+    }
+  ],
+  "widgets": [
+    {
+      "id": "d7_panel",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "",
+      "description": null,
+      "icon": null,
+      "chart_type": "canvas",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#14318f",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#0d2472"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 0,
+      "parent_id": null,
+      "box": null,
+      "pinned_fields": [],
+      "canvas": {
+        "flow": "row",
+        "gap": 10,
+        "size_mode": "fixed",
+        "width": null,
+        "height": null,
+        "min_width": null,
+        "max_width": null,
+        "min_height": null,
+        "max_height": null
+      }
+    },
+    {
+      "id": "d7_title",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "",
+      "description": null,
+      "icon": null,
+      "chart_type": "text",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#0d2472",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 0
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 1,
+      "parent_id": "d7_panel",
+      "box": {
+        "flow": "column"
+      },
+      "pinned_fields": [],
+      "text": {
+        "heading": "REPORT ON HOTSPOT IDENTIFICATION AND MONITORING",
+        "body": "",
+        "align": "center",
+        "size": "lg"
+      }
+    },
+    {
+      "id": "d7_1",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Gasabo",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Gasabo"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 2,
+      "parent_id": "d7_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d7_2",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Kicukiro",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Kicukiro"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 3,
+      "parent_id": "d7_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d7_3",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Nyarugenge",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "cascading_select_8dz9o8",
+          "operator": "eq",
+          "value": "Nyarugenge"
+        },
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 4,
+      "parent_id": "d7_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d7_tot",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "TOT",
+      "description": null,
+      "icon": null,
+      "chart_type": "kpi",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "small",
+      "position": 5,
+      "parent_id": "d7_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 24,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 130,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "cascading_select_8dz9o8"
+      ]
+    },
+    {
+      "id": "d7_assets",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Hotspots by type of asset and risk status",
+      "description": null,
+      "icon": null,
+      "chart_type": "stacked_bar",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "cascading_select_b49b76"
+      },
+      "split_by": {
+        "field_id": "single_select_f42575"
+      },
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2,
+        "value_colors": {
+          "high": "#e0393e",
+          "moderate": "#e8951e",
+          "low": "#1a9ad6",
+          "no_risk": "#1fae6b"
+        },
+        "value_labels": {
+          "high": "High",
+          "moderate": "Moderate",
+          "low": "Low",
+          "no_risk": "No risk",
+          "riverine_flood": "Riverine / fluvial flood (Flood)",
+          "flash_flood": "Flash flood (Flood)",
+          "urban_pluvial_flood": "Urban / pluvial flood (Flood)",
+          "blocked_waterways": "Blocked waterways (Flood)",
+          "windstorm": "Windstorm (Storm)",
+          "hailstorm": "Hailstorm (Storm)",
+          "lightning_strike_hz": "Lightning strike (Storm)",
+          "roadside_trees_poor_health": "Roadside trees in poor health (Storm)",
+          "meteorological_drought": "Meteorological drought (Drought)",
+          "agricultural_drought": "Agricultural drought / water stress (Drought)",
+          "heatwave": "Heatwave (Extreme Temperature)",
+          "ravines": "Ravines (Landslide)",
+          "steep_fragile_slope": "Steep / fragile slope (Landslide)",
+          "mudflow_mudslide": "Mudflow / mudslide (Landslide)",
+          "erosion_prone_riverbank": "Erosion-prone riverbank (Landslide)",
+          "quarry": "Quarry (Land Degradation)",
+          "soil_erosion": "Soil erosion (Land Degradation)",
+          "deforestation": "Deforestation (Land Degradation)",
+          "wetland_encroachment": "Wetland (Ecosystem Encroachment)",
+          "riverbank_buffer_violation": "Riverbank buffer-zone violation (Ecosystem Encroachment)",
+          "waterborne_disease_zone": "Waterborne disease outbreak zone (Human Epidemic)",
+          "vector_borne_disease_hotspot": "Vector-borne disease hotspot (stagnant-water breeding sites)",
+          "airborne_disease_zone": "Airborne / respiratory disease outbreak zone (Human Epidemic)",
+          "livestock_epidemic_zone": "Livestock epidemic zone (Animal & Crop Epidemic)",
+          "crop_pest_disease_zone": "Crop pest / disease outbreak zone (Animal & Crop Epidemic)",
+          "chemical_spill_site": "Chemical spill site (Industrial Chemical Hazard)",
+          "toxic_gas_release_site": "Toxic gas release site (Industrial Chemical Hazard)",
+          "fuel_storage_depot": "Fuel storage / depot site (Fire-related Chemical Hazard)",
+          "informal_fuel_gas_vending": "Informal fuel or gas cylinder vending point (Fire-related Chemical Hazard)",
+          "old_poorly_built_housing": "Old, poorly-built housing area (Structural Failure)",
+          "retaining_walls_at_risk": "Retaining walls at risk (Structural Failure)",
+          "fragile_bridge_hz": "Fragile bridge (Structural Failure)",
+          "dilapidated_public_building": "Dilapidated public building (Structural Failure)",
+          "roads_under_construction_hz": "Roads under construction (Infrastructure Failure)",
+          "old_electrical_poles_hz": "Old electrical poles (Infrastructure Failure)",
+          "water_supply_infra_failure": "Water supply infrastructure failure site (Infrastructure Failure)",
+          "at_risk_telecom_tower": "At-risk telecom tower / mast (Infrastructure Failure)",
+          "road_accident_blackspot": "Road traffic accident blackspot (Transport Accident)",
+          "congested_bus_terminal_hz": "Congested bus terminal / parking area (Transport Accident)",
+          "public_market_fire_risk": "Public market fire risk site (Fire urban/industrial)",
+          "informal_settlement_fire_risk": "Informal settlement fire risk zone (Fire urban/industrial)",
+          "fuel_station_fire_risk": "Fuel station fire risk (Fire urban/industrial)",
+          "new_settlement_no_infra": "New settlement with no infrastructure (Population Displacement)",
+          "informal_unplanned_settlement": "Informal / unplanned settlement (Population Displacement)"
+        },
+        "legend_position": "bottom"
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 20,
+      "size": "large",
+      "position": 6,
+      "parent_id": "d7_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 60,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 260,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": []
+    },
+    {
+      "id": "d7_note",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "",
+      "description": null,
+      "icon": null,
+      "chart_type": "text",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": null,
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#ffffff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 7,
+      "parent_id": "d7_panel",
+      "box": {
+        "flow": "row",
+        "width": {
+          "value": 38,
+          "unit": "%"
+        },
+        "min_width": {
+          "value": 240,
+          "unit": "px"
+        }
+      },
+      "pinned_fields": [
+        "single_select_f42575"
+      ],
+      "text": {
+        "heading": "Dominant High-Risk Assets",
+        "body": "Ravines lead with =={{count(single_select_f42575 = high | cascading_select_b49b76 = ravines)}} High-risk sites out of {{count(cascading_select_b49b76 = ravines)}}== - the most critical asset in Kigali. Retaining walls at risk (=={{count(single_select_f42575 = high | cascading_select_b49b76 = retaining_walls_at_risk)}} High-risk sites out of {{count(cascading_select_b49b76 = retaining_walls_at_risk)}}==) and old, poorly-built housing (=={{count(single_select_f42575 = high | cascading_select_b49b76 = old_poorly_built_housing)}} High-risk sites out of {{count(cascading_select_b49b76 = old_poorly_built_housing)}}==) confirm landslide and housing risk are top priorities. Out of {{count}} hotspots, only {{count(single_select_f42575 = no_risk)}} are rated No Risk.\n\n**Moderate Risk: the Next Wave**\nSteep or fragile slopes hold =={{count(single_select_f42575 = moderate | cascading_select_b49b76 = steep_fragile_slope)}} Moderate sites== of {{count(cascading_select_b49b76 = steep_fragile_slope)}}, all trending toward High. In all, =={{count(single_select_f42575 = moderate)}} hotspots== are the next High-risk wave if unmitigated.",
+        "align": "left",
+        "size": "md",
+        "accent": "#39d7ff"
+      }
+    },
+    {
+      "id": "d7_trend",
+      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
+      "title": "Hotspots logged per month of incidence",
+      "description": null,
+      "icon": null,
+      "chart_type": "line",
+      "metric": {
+        "aggregation": "count",
+        "field_id": null
+      },
+      "group_by": {
+        "field_id": "date_time_07fa41",
+        "granularity": "month"
+      },
+      "split_by": null,
+      "pattern_by": null,
+      "legend_by": null,
+      "appearance": {
+        "theme": "light",
+        "light": {
+          "background": "#173a9c",
+          "text": "#ffffff",
+          "number": "#39d7ff",
+          "border": "#ffffff"
+        },
+        "border_width": 2
+      },
+      "x_field_id": null,
+      "y_field_id": null,
+      "size_field_id": null,
+      "filters": [
+        {
+          "field_id": "single_select_4d066b",
+          "operator": "eq",
+          "value": "hotspot"
+        }
+      ],
+      "period": {
+        "preset": "all",
+        "from": null,
+        "to": null
+      },
+      "sort": "value_desc",
+      "limit": 12,
+      "size": "large",
+      "position": 8,
+      "parent_id": "d7_panel",
+      "box": {
+        "flow": "column"
+      },
+      "pinned_fields": []
+    }
+  ]
+}

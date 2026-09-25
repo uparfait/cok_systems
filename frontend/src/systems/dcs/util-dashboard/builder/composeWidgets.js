@@ -2,6 +2,7 @@ import { chart_definition, flatten_schema_fields, field_label_text, is_derived_f
 import { TIME_SOURCE_IDS } from "../overTime.js";
 import { KPI_FORMULAS } from "../kpiCatalog.js";
 import { has_preset_config } from "../../fields/presetFields.js";
+import { behavior_spec } from "./widgetBehavior.js";
 
 /**
  * Pure helpers of the dashboard builder: the fields a form offers, the
@@ -19,6 +20,8 @@ export const TABS = [
   { id: "diagrams", labelKey: "DCS_DB_TAB_DIAGRAMS" },
   { id: "filters", labelKey: "DCS_DB_TAB_FILTERS" },
   { id: "map", labelKey: "DCS_DB_TAB_MAP" },
+  { id: "table", labelKey: "DCS_DB_TAB_TABLE" },
+  { id: "text", labelKey: "DCS_DB_TAB_TEXT" },
 ];
 
 const CHOICE_TYPES = ["single_select", "multi_select", "cascading_select", "select_group", "likert_scale"];
@@ -97,6 +100,9 @@ const TYPE_RULES = {
   treemap: { kind: "tree", split: "none" },
   // The map colours boundaries instead of bars, from the same category data.
   map: { kind: "category", split: "optional" },
+  // Words, and a table of records or of totals - neither is a chart.
+  text: { kind: "text", split: "none" },
+  table: { kind: "table", split: "optional" },
 };
 export const type_rules = (chart_type) => TYPE_RULES[chart_type] || { kind: "category", split: "none" };
 
@@ -506,6 +512,8 @@ export function tab_of_widget(widget) {
   if (!widget) return "charts";
   if (widget.chart_type === "kpi") return "kpi";
   if (widget.chart_type === "map") return "map";
+  if (widget.chart_type === "text") return "text";
+  if (widget.chart_type === "table") return "table";
   return DIAGRAM_TAB_TYPES.includes(widget.chart_type) ? "diagrams" : "charts";
 }
 
@@ -526,10 +534,14 @@ export function widget_to_spec(widget) {
   const rules = type_rules(widget.chart_type);
   const timed = rules.kind === "time" && (group.granularity || TIME_SOURCE_IDS.includes(group.field_id));
   const rule = widget.occurrence_rule || {};
+  const is_kpi = widget.chart_type === "kpi";
   return {
     chart_type: widget.chart_type || "",
     aggregation: metric.aggregation || "count",
-    field_id: metric.field_id || "",
+    // The KPI composer names the formula differently, and a count of
+    // whole submissions is its "all submissions" choice.
+    formula_id: metric.aggregation || "count",
+    field_id: metric.field_id || (is_kpi && (metric.aggregation || "count") === "count" ? ALL_SUBMISSIONS_ID : ""),
     group_id: timed ? "" : group.field_id || "",
     split_id: (widget.split_by && widget.split_by.field_id) || "",
     legend_id: (widget.legend_by && widget.legend_by.field_id) || "",
@@ -556,6 +568,8 @@ export function widget_to_spec(widget) {
     appearance: widget.appearance || null,
     icon: widget.icon || null,
     map: widget.map || null,
+    // Its window (locked or not) and the board filters it ignores.
+    ...behavior_spec(widget),
   };
 }
 

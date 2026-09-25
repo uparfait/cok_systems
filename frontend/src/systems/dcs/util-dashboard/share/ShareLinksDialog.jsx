@@ -205,6 +205,11 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
                             {translate("DCS_DB_SHARE_CHIP_COMBINED", { count: link.extra_dashboards.length })}
                           </span>
                         )}
+                        {link.config && ["light", "dark"].includes(link.config.theme) && (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5" style={{ color: PRIMARY, border: `1px solid ${PRIMARY}`, letterSpacing: "0.4px", ...FONT }}>
+                            {translate(link.config.theme === "dark" ? "DCS_DB_SHARE_CHIP_DARK" : "DCS_DB_SHARE_CHIP_LIGHT")}
+                          </span>
+                        )}
                         {link.config && link.config.show_title && (
                           <span className="text-[10px] font-bold uppercase px-2 py-0.5" style={{ color: PRIMARY, border: `1px solid ${PRIMARY}`, letterSpacing: "0.4px", ...FONT }}>
                             {translate("DCS_DB_SHARE_CHIP_TITLE")}
