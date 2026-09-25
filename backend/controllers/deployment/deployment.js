@@ -29,6 +29,11 @@ async function get_deployment_targets(req, res) {
                 targets,
                 script_path: runner.SCRIPT_PATH,
                 requires_password: true,
+                // 'direct' when this service can run the script itself,
+                // 'agent' when it hands the work to the host (see
+                // utilities/deployment_runner.js).
+                execution_mode: runner.execution_mode(),
+                agent_listening: runner.agent_is_listening(),
                 // Shown on the page before anything is clicked, so a
                 // misconfigured server or the wrong address says so
                 // instead of failing on click.

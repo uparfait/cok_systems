@@ -121,9 +121,17 @@ const TARGETS = {
     ikaze: { flag: '--ikaze', label: 'Production (ikaze)' },
 };
 
+const QUEUED = 'queued';
 const RUNNING = 'running';
 const SUCCEEDED = 'succeeded';
 const FAILED = 'failed';
+
+// How stale the agent's heartbeat may be before it counts as not running.
+// It touches the file every few seconds (DEPLOY_AGENT_POLL_SECONDS).
+const HEARTBEAT_STALE_MS = 30000;
+
+/** What update-deploy.sh itself needs on the machine that runs it. */
+const REQUIRED_TOOLS = ['bash', 'docker', 'git', 'curl', 'nginx'];
 
 /**
  * Deploying is only allowed from the real site. The public hosts of both
@@ -198,7 +206,39 @@ function ensure_log_dir() {
 
 const log_path = (run_id) => path.join(LOG_DIR, `${run_id}.log`);
 const state_path = (run_id) => path.join(LOG_DIR, `${run_id}.json`);
+const request_path = (run_id) => path.join(LOG_DIR, `${run_id}.request`);
 const current_path = () => path.join(LOG_DIR, 'current.json');
+const heartbeat_path = () => path.join(LOG_DIR, 'agent.heartbeat');
+
+/**
+ * How a deployment actually gets run here.
+ *
+ *   'direct'  everything update-deploy.sh needs is on this machine and this
+ *             process may use it, so it is spawned straight away. That is
+ *             the case when the backend runs on the host itself.
+ *   'agent'   something is missing - almost always because this is the
+ *             alpine container, which has no bash, docker, git or nginx,
+ *             and which the deployment would restart out from under
+ *             itself. The request is written into deploy/runs instead and
+ *             deploy/deploy-agent.sh, running on the host, does the work.
+ *
+ * Worked out rather than configured, so the same image behaves correctly
+ * whether it is started in Docker or run from the checkout.
+ */
+function execution_mode() {
+    const { problem } = resolve_privilege();
+    if (problem) return 'agent';
+    return REQUIRED_TOOLS.every((name) => find_executable(name)) ? 'direct' : 'agent';
+}
+
+/** Whether the host agent has checked in recently enough to be trusted. */
+function agent_is_listening() {
+    try {
+        return Date.now() - fs.statSync(heartbeat_path()).mtimeMs < HEARTBEAT_STALE_MS;
+    } catch (error) {
+        return false;
+    }
+}
 
 function read_json(file_path) {
     try {
@@ -233,9 +273,10 @@ function read_state(run_id) {
     } catch (error) {
         size = 0;
     }
-    if (state.status === RUNNING && !is_alive(state.pid)) {
-        // The script itself finishes by appending its own exit line; if it
-        // is not there, the run really did die with whatever killed it.
+    // A run the host agent owns has no pid this process could ever ask
+    // about - and must not be judged dead for it. The agent writes the
+    // finished state itself.
+    if (state.ran_by !== 'host-agent' && state.status === RUNNING && !is_alive(state.pid)) {
         const finished = read_json(state_path(run_id));
         if (finished && finished.status === RUNNING) {
             return Object.assign({}, finished, { log_size: size, status: RUNNING, pid_gone: true });
@@ -261,7 +302,9 @@ function current_run() {
     if (!pointer || !pointer.run_id) return null;
     const state = read_state(pointer.run_id);
     if (!state) return null;
-    return state.status === RUNNING ? state : null;
+    // Queued counts: the agent has not started it yet, but it is going to,
+    // so a second deployment must still be refused.
+    return state.status === RUNNING || state.status === QUEUED ? state : null;
 }
 
 /** The most recent run of any status, for the page to open on. */
@@ -297,23 +340,26 @@ function blocking_reason(script_path = SCRIPT_PATH) {
         return `The deployment log folder ${LOG_DIR} is not writable by this service (${error.message}).`;
     }
 
-    const { problem } = resolve_privilege();
-    if (problem) return problem;
-
-    // bash carries every run, whatever is being run.
-    if (!find_executable('bash')) {
-        return 'Deployment needs bash, which is not installed where this service runs.';
+    // A stand-in script (the tests) is run here and needs only bash; the
+    // real one is handed to whichever side can actually carry it.
+    const is_real_script = path.resolve(script_path) === path.resolve(SCRIPT_PATH);
+    if (!is_real_script) {
+        return find_executable('bash') ? null : 'Deployment needs bash, which is not installed where this service runs.';
     }
 
-    // The rest are what update-deploy.sh ITSELF checks for (need_cmd in its
-    // preflight), so they are only required when that is what is about to
-    // run - a stand-in script in a test rebuilds nothing. Naming them all
-    // at once beats starting a run that dies on the first one missing.
-    if (path.resolve(script_path) === path.resolve(SCRIPT_PATH)) {
-        const missing = ['docker', 'git', 'curl', 'nginx'].filter((name) => !find_executable(name));
-        if (missing.length > 0) {
-            return `Deployment needs ${missing.join(', ')}, which ${missing.length === 1 ? 'is' : 'are'} not installed where this service runs. update-deploy.sh rebuilds containers and rewrites nginx, so it has to run somewhere those exist - see the note on the backend service in docker-compose.yml.`;
-        }
+    // Handing the work to the host agent: the only thing that can stop us
+    // is the agent not being there to pick it up.
+    if (execution_mode() === 'agent') {
+        if (agent_is_listening()) return null;
+        return 'The deployment agent is not running on the server. This backend cannot deploy by itself - update-deploy.sh needs the host\'s nginx, docker and git, and it restarts this very container. Start the agent on the host: sudo systemctl enable --now cok-deploy-agent (see deploy/cok-deploy-agent.service).';
+    }
+
+    // Running it here, so everything it needs must be here.
+    const { problem } = resolve_privilege();
+    if (problem) return problem;
+    const missing = REQUIRED_TOOLS.filter((name) => !find_executable(name));
+    if (missing.length > 0) {
+        return `Deployment needs ${missing.join(', ')}, which ${missing.length === 1 ? 'is' : 'are'} not installed where this service runs.`;
     }
     return null;
 }
@@ -323,6 +369,46 @@ function blocking_reason(script_path = SCRIPT_PATH) {
  * the caller for an ordinary refusal, since every refusal is something the
  * page has to show.
  */
+/**
+ * Writes the run down for deploy/deploy-agent.sh to pick up, and leaves it
+ * queued. The request file is written LAST, so the agent can never find a
+ * request whose log and state are not there yet.
+ */
+function queue_for_agent(target_key, target, started_by) {
+    const run_id = new_run_id(target_key);
+    const state = {
+        run_id,
+        target: target_key,
+        target_label: target.label,
+        started_by: started_by || null,
+        started_at: new Date().toISOString(),
+        finished_at: null,
+        status: QUEUED,
+        exit_code: null,
+        error: null,
+        pid: null,
+        ran_by: 'host-agent',
+    };
+    try {
+        fs.writeFileSync(
+            log_path(run_id),
+            [
+                `=== ${target.label} ===`,
+                `requested by ${started_by || 'unknown'} at ${new Date().toISOString()}`,
+                'Waiting for the deployment agent on the server to pick this up...',
+                '',
+                '',
+            ].join('\n'),
+        );
+        write_json(state_path(run_id), state);
+        write_json(current_path(), { run_id });
+        fs.writeFileSync(request_path(run_id), `${target_key}\n`);
+    } catch (error) {
+        return { error: `Could not hand the deployment to the agent: ${error.message}` };
+    }
+    return { run_id, state };
+}
+
 function start_run(target_key, started_by, script_path = SCRIPT_PATH) {
     const target = TARGETS[target_key];
     if (!target) return { error: 'Unknown deployment target.' };
@@ -334,6 +420,14 @@ function start_run(target_key, started_by, script_path = SCRIPT_PATH) {
 
     const reason = blocking_reason(script_path);
     if (reason) return { error: reason };
+
+    // Nothing to spawn here: the host agent does the work. The page reads
+    // the same log either way, so it cannot tell the difference beyond the
+    // brief "queued" it shows first.
+    const is_real_script = path.resolve(script_path) === path.resolve(SCRIPT_PATH);
+    if (is_real_script && execution_mode() === 'agent') {
+        return queue_for_agent(target_key, target, started_by);
+    }
 
     const run_id = new_run_id(target_key);
     const file = log_path(run_id);
@@ -436,15 +530,35 @@ function start_run(target_key, started_by, script_path = SCRIPT_PATH) {
  * deployment causes: it asks again from the last byte it saw.
  */
 function read_log(run_id, offset) {
-    const state = read_state(run_id);
-    if (!state) return { error: 'That deployment run is not on this server.' };
-
     const file = log_path(run_id);
     let size = 0;
+    let log_exists = true;
     try {
         size = fs.statSync(file).size;
     } catch (error) {
-        return { error: 'The log of that deployment run is missing.' };
+        log_exists = false;
+    }
+
+    // The state file can be gone while the log is still there - a run
+    // started before deploy/runs was a bind mount left its state inside a
+    // container that has since been replaced. The output is still worth
+    // showing, so this reports what it has instead of answering 404 and
+    // leaving the page with a blank console and nothing to read.
+    const state = read_state(run_id) || {
+        run_id,
+        target: run_id.replace(/^.*-/, ''),
+        status: FAILED,
+        exit_code: null,
+        error: 'The record of this run is gone from the server, so how it ended is not known. Its output is shown below if any was kept.',
+        started_at: null,
+        finished_at: null,
+        started_by: null,
+    };
+
+    if (!log_exists) {
+        return {
+            error: `That deployment run is not on this server. Its log would be ${file}; nothing is there. A run from before deploy/runs was shared with the host does not survive the container being replaced.`,
+        };
     }
 
     const from = Number.isFinite(offset) && offset >= 0 ? Math.min(offset, size) : 0;
@@ -477,9 +591,12 @@ function read_log(run_id, offset) {
 
 module.exports = {
     TARGETS,
+    QUEUED,
     RUNNING,
     SUCCEEDED,
     FAILED,
+    execution_mode,
+    agent_is_listening,
     SCRIPT_PATH,
     LOG_DIR,
     CANDIDATE_REPOS,

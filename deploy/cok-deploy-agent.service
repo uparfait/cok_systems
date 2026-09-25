@@ -1,0 +1,35 @@
+# Runs the deployments the Deployment Management page asks for.
+#
+# The page writes a request into deploy/runs; this agent, on the HOST, does
+# the work - update-deploy.sh needs the host's nginx, docker and git, and it
+# restarts the backend container, so it cannot run inside that container.
+#
+# Install (adjust the path if the checkout lives elsewhere):
+#
+#   sudo cp deploy/cok-deploy-agent.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now cok-deploy-agent
+#   systemctl status cok-deploy-agent
+#   journalctl -u cok-deploy-agent -f
+#
+[Unit]
+Description=IKAZE deployment agent (runs update-deploy.sh for the admin page)
+After=docker.service network-online.target
+Wants=docker.service
+
+[Service]
+Type=simple
+# Root on purpose: update-deploy.sh writes /etc/nginx/sites-available and
+# restarts nginx through systemctl.
+User=root
+WorkingDirectory=/root/cok_systems
+ExecStart=/usr/bin/env bash /root/cok_systems/deploy/deploy-agent.sh
+Restart=always
+RestartSec=5
+# A deployment can take a while; it must never be cut short.
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
