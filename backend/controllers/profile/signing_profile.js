@@ -102,7 +102,7 @@ const updateSignatureImage = async (req, res) => {
                     updated_at: now
                 }
             },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
         )
         return res.status(StatusCodes.OK).json({
             status: true,
@@ -185,7 +185,7 @@ const enrolSigningCertificate = async (req, res) => {
                     updated_at: now
                 }
             },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
         ).lean()
         return res.status(StatusCodes.OK).json({
             status: true,
