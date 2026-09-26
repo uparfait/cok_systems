@@ -6,7 +6,16 @@ const SIGNATURE_ALGORITHM = 'RSA-SHA256';
 const MIN_RSA_MODULUS_BITS = 2048;
 const MAX_SIGNATURE_BYTES = 1024;
 const MAX_CERTIFICATE_BYTES = 8192;
-const MAX_CLOCK_SKEW_MS = 10 * 60 * 1000; 
+const MAX_CLOCK_SKEW_MS = 10 * 60 * 1000;
+
+// Extended key usages, by OID and by the names Node may report
+const EKU_SERVER_AUTH = ['1.3.6.1.5.5.7.3.1', 'serverAuth', 'TLS Web Server Authentication'];
+const EKU_CODE_SIGNING = ['1.3.6.1.5.5.7.3.3', 'codeSigning', 'Code Signing'];
+const EKU_PERSON_SIGNING = [
+  '1.3.6.1.5.5.7.3.4', 'emailProtection', 'E-mail Protection',
+  '1.3.6.1.5.5.7.3.2', 'clientAuth', 'TLS Web Client Authentication',
+  '1.3.6.1.4.1.311.10.3.12', '1.2.840.113583.1.1.5',
+];
 
 function decodeBase64(value, limitBytes, label) {
   if (typeof value !== 'string' || value.length === 0) {
@@ -91,6 +100,16 @@ function verifyAttendanceSignature({ fields, signatureBase64, certificateBase64,
   }
   if ((keyDetails.modulusLength || 0) < MIN_RSA_MODULUS_BITS) {
     return { valid: false, error: 'The certificate key is too weak' };
+  }
+  if (certificate.ca === true) {
+    return { valid: false, error: 'A certificate authority certificate cannot be used to sign' };
+  }
+
+  // Node reports extended key usage here; a server or code-signing cert is not a person's signing cert
+  const usages = Array.isArray(certificate.keyUsage) ? certificate.keyUsage : [];
+  const has = (list) => usages.some((usage) => list.includes(usage));
+  if (usages.length > 0 && (has(EKU_SERVER_AUTH) || has(EKU_CODE_SIGNING)) && !has(EKU_PERSON_SIGNING)) {
+    return { valid: false, error: 'This certificate was issued for a server or for software, not for a person' };
   }
 
   // The signed timestamp is the client's clock, so only trust it as a freshness bound

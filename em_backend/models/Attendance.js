@@ -25,6 +25,10 @@ const attendanceSchema = new mongoose.Schema({
     required: [true, 'Your phone number is required'],
     trim: true
   },
+  attendeePhoneNormalized: {
+    type: String, // canonicalPhone() form, for de-duplication only - the signed payload keeps the typed phone
+    required: false
+  },
   attendeeInstitution: {
     type: String,
     required: [true, 'Your Institution is required'],
@@ -66,6 +70,18 @@ const attendanceSchema = new mongoose.Schema({
     type: String,
     default: 'image/png',
   },
+  signatureSource: {
+    // Where the rendered signature came from; 'profile-image' is the staff member's enrolled image
+    type: String,
+    enum: ['drawn', 'client-appearance', 'profile-image', 'none'],
+  },
+  systemUser: {
+    // Set only when the attendee resolved to a CoK Systems account (never matched by name)
+    userId: { type: mongoose.Schema.Types.ObjectId },
+    email: { type: String },
+    fullName: { type: String },
+    matchedBy: { type: String, enum: ['bearer', 'email', 'phone'] },
+  },
   certificateSignature: {
     // Populated only for signatureMethod 'digital-certificate'
     signatureValue: { type: String },
@@ -83,6 +99,9 @@ const attendanceSchema = new mongoose.Schema({
     verifiedAt: { type: Date },
     chainVerified: { type: Boolean, default: false },
     nameMatchedTypedName: { type: Boolean, default: false },
+    thumbprintPinned: { type: Boolean, default: false }, // certificate is the one enrolled on the matched account
+    nameMatchedAccountName: { type: Boolean, default: false },
+    emailMatchedAccount: { type: Boolean, default: false },
   },
   eventName: {
     type: String,
@@ -102,6 +121,12 @@ const attendanceSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 attendanceSchema.index({ attendanceTime: 1 });
+// One signature per account per event; partial so anonymous rows never collide on a missing userId
+attendanceSchema.index(
+  { eventSpecialId: 1, 'systemUser.userId': 1 },
+  { unique: true, partialFilterExpression: { 'systemUser.userId': { $exists: true } } }
+);
+attendanceSchema.index({ eventSpecialId: 1, attendeePhoneNormalized: 1 });
 
 const Attendance = mongoose.model('Attendance', attendanceSchema);
 

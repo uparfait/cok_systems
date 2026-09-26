@@ -40,6 +40,23 @@ export interface MayorCalendarEvent {
   occurrenceDate?: string;
 }
 
+// Summary of the X.509 signature the attendance API returns; the pinned/matched flags are optional
+interface CertificateSignatureSummary {
+  subjectCommonName?: string;
+  subjectOrganization?: string;
+  subjectEmail?: string;
+  issuerCommonName?: string;
+  serialNumber?: string;
+  thumbprint?: string;
+  signedAt?: string;
+  verifiedAt?: string;
+  chainVerified?: boolean;
+  nameMatchedTypedName?: boolean;
+  thumbprintPinned?: boolean;
+  nameMatchedAccountName?: boolean;
+  emailMatchedAccount?: boolean;
+}
+
 interface AttendanceRecord {
   _id: string;
   attendeeFullName?: string;
@@ -48,6 +65,8 @@ interface AttendanceRecord {
   attendeePosition?: string;
   attendeeSignature?: string;
   digitalCertificate?: string;
+  certificateSignature?: CertificateSignatureSummary;
+  signatureSource?: 'drawn' | 'client-appearance' | 'profile-image' | 'none';
   createdAt?: string;
 }
 
@@ -57,6 +76,25 @@ function signatureImageSrc(a: AttendanceRecord): string | null {
   if (a.attendeeSignature) return a.attendeeSignature;
   if (a.digitalCertificate && /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(a.digitalCertificate)) return a.digitalCertificate;
   return null;
+}
+
+// Caption naming the certificate holder, tagged by whether it matched the enrolled certificate
+function CertificateCaption({ cert }: { cert?: CertificateSignatureSummary }) {
+  if (!cert?.subjectCommonName) return null;
+  const verified = cert.thumbprintPinned === true;
+  return (
+    <div className="flex items-center gap-1.5 mt-1">
+      <span className="text-[10px] leading-tight" style={{ fontFamily: fontHeading, color: '#888888' }}>
+        Digitally signed by {cert.subjectCommonName}
+      </span>
+      <span
+        className="text-[9px] font-semibold uppercase px-1 py-px shrink-0"
+        style={{ fontFamily: fontHeading, backgroundColor: verified ? '#E8F5E9' : '#FFF3E0', color: verified ? '#2E7D32' : '#E65100' }}
+      >
+        {verified ? 'Verified' : 'Unverified'}
+      </span>
+    </div>
+  );
 }
 
 const STATUS_BADGES: Record<string, { label: string; color: string }> = {
@@ -388,9 +426,10 @@ export default function MayorEventDetailsOverlay({
                               <a href={a.digitalCertificate} target="_blank" rel="noopener noreferrer" className="text-xs underline" style={{ color: COK.primary }}>
                                 View file
                               </a>
-                            ) : (
+                            ) : a.certificateSignature?.subjectCommonName ? null : (
                               <span style={{ color: '#CCCCCC' }}>-</span>
                             )}
+                            <CertificateCaption cert={a.certificateSignature} />
                           </td>
                           <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: '#888888' }}>{formatSubmittedAt(a.createdAt)}</td>
                         </tr>

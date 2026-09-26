@@ -47,6 +47,10 @@ module.exports = {
   signing: {
     trustedIssuerCommonName: process.env.SIGNING_TRUSTED_ISSUER_CN || '',
     requireNameMatch: (process.env.SIGNING_REQUIRE_NAME_MATCH || 'true') !== 'false',
+    // A matched system user must sign with the certificate pinned on their account
+    requireCertificateForStaff: (process.env.SIGNING_REQUIRE_CERTIFICATE_FOR_STAFF || 'true') !== 'false',
+    // Rollout escape hatch: let staff with no enrolled certificate fall back to drawing
+    allowDrawForStaffWithoutCertificate: (process.env.SIGNING_ALLOW_DRAW_FOR_UNENROLLED_STAFF || 'false') === 'true',
   },
   email: {
     host: process.env.EMAIL_HOST || '197.243.27.181',

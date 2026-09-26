@@ -4,10 +4,13 @@ const { toSignatureDataUrl } = require('../utilities/signatureImage');
 
 // The signature blob is sent back as a data URL so existing views render it unchanged.
 // The signed bytes and the raw certificate stay on the server; nothing needs them in the browser.
-function presentAttendance(record) {
-  const { signatureImage, signatureImageType, certificateSignature, ...rest } = record;
+function presentAttendance(record, req) {
+  const { signatureImage, signatureImageType, certificateSignature, systemUser, attendeePhoneNormalized, ...rest } = record;
 
-  const dataUrl = toSignatureDataUrl(record);
+  // A staff member's enrolled signature image is only shown to signed-in callers; the caption still renders
+  const hideImage = record.signatureSource === 'profile-image' && !(req && req.user);
+  const dataUrl = hideImage ? '' : toSignatureDataUrl(record);
+  if (hideImage) delete rest.attendeeSignature;
   if (dataUrl) rest.attendeeSignature = dataUrl;
 
   if (certificateSignature && certificateSignature.subjectCommonName) {
@@ -22,6 +25,9 @@ function presentAttendance(record) {
       verifiedAt: certificateSignature.verifiedAt,
       chainVerified: certificateSignature.chainVerified,
       nameMatchedTypedName: certificateSignature.nameMatchedTypedName,
+      thumbprintPinned: !!certificateSignature.thumbprintPinned,
+      nameMatchedAccountName: !!certificateSignature.nameMatchedAccountName,
+      emailMatchedAccount: !!certificateSignature.emailMatchedAccount,
     };
   }
 
@@ -109,7 +115,7 @@ class GetAttendanceController {
         totalRecords,
         totalPages: 1,
         currentPage: 1,
-        data: data.map(presentAttendance)
+        data: data.map((record) => presentAttendance(record, req))
       });
     } catch (error) {
       return res.status(500).json({

@@ -170,6 +170,8 @@ class ExportAttendanceController {
           { header: 'Submitted At', width: 65 },
         ];
         const ROW_HEIGHT = 30; // tall enough to fit signature images
+        const CERT_ROW_HEIGHT = 42; // extra room for the 'Digitally signed by' caption under the image
+        const CAPTION_HEIGHT = 14; // two 6pt caption lines
 
         const tableWidth = columns.reduce((sum, c) => sum + c.width, 0);
 
@@ -190,6 +192,8 @@ class ExportAttendanceController {
 
         for (let i = 0; i < attendees.length; i++) {
           const a = attendees[i];
+          const certName = a.certificateSignature && a.certificateSignature.subjectCommonName;
+          const rowHeight = certName ? CERT_ROW_HEIGHT : ROW_HEIGHT;
           const rowData = [
             String(i + 1),
             a.attendeeFullName || '',
@@ -203,7 +207,7 @@ class ExportAttendanceController {
           ];
 
           // Check if we need a new page
-          if (currentY + ROW_HEIGHT > 770) {
+          if (currentY + rowHeight > 770) {
             doc.addPage();
             currentY = 40;
             drawHeader();
@@ -211,7 +215,7 @@ class ExportAttendanceController {
 
           // Row background
           if (i % 2 === 1) {
-            doc.rect(startX, currentY, tableWidth, ROW_HEIGHT).fill('#f3f4f6');
+            doc.rect(startX, currentY, tableWidth, rowHeight).fill('#f3f4f6');
           }
 
           // Row data
@@ -219,18 +223,29 @@ class ExportAttendanceController {
           let xOffset = startX;
           for (let j = 0; j < columns.length; j++) {
             if (rowData[j] === null) {
+              const cellWidth = columns[j].width - 6;
+              let imageDrawn = false;
               // Signature cell: embed the drawn signature image, preserving aspect ratio
               if (a.attendeeSignature && a.attendeeSignature.startsWith('data:image')) {
                 try {
                   const base64 = a.attendeeSignature.split(',')[1];
                   const imgBuffer = Buffer.from(base64, 'base64');
+                  // Certificate rows keep the image in the upper part so the caption fits underneath
                   doc.image(imgBuffer, xOffset + 3, currentY + 3, {
-                    fit: [columns[j].width - 6, ROW_HEIGHT - 6],
+                    fit: [cellWidth, rowHeight - 6 - (certName ? CAPTION_HEIGHT : 0)],
                   });
-                } catch (e) {
-                  doc.text('-', xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });
-                }
-              } else {
+                  imageDrawn = true;
+                } catch (e) { /* unreadable image, fall through to the text below */ }
+              }
+              if (certName) {
+                // Caption sits under the image, or fills the cell when there is no image
+                const captionY = imageDrawn ? currentY + rowHeight - CAPTION_HEIGHT - 2 : currentY + 4;
+                doc.fontSize(6).fillColor('#555555')
+                  .text(`Digitally signed by ${certName}`, xOffset + 3, captionY, {
+                    width: cellWidth, height: imageDrawn ? CAPTION_HEIGHT : rowHeight - 8, align: 'left', ellipsis: true,
+                  });
+                doc.fontSize(7).fillColor('#000000');
+              } else if (!imageDrawn) {
                 doc.text('-', xOffset + 2, currentY + 4, { width: columns[j].width - 4, align: 'left' });
               }
             } else {
@@ -240,9 +255,9 @@ class ExportAttendanceController {
           }
 
           // Row border
-          doc.rect(startX, currentY, tableWidth, ROW_HEIGHT).lineWidth(0.3).strokeColor('#e5e7eb').stroke();
+          doc.rect(startX, currentY, tableWidth, rowHeight).lineWidth(0.3).strokeColor('#e5e7eb').stroke();
 
-          currentY += ROW_HEIGHT;
+          currentY += rowHeight;
         }
 
         // Footer

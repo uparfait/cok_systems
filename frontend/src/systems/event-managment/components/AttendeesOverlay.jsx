@@ -34,6 +34,25 @@ function signatureImageSrc(a) {
   return null;
 }
 
+// Caption naming the certificate holder, tagged by whether it matched the enrolled certificate
+function CertificateCaption({ cert }) {
+  if (!cert?.subjectCommonName) return null;
+  const verified = cert.thumbprintPinned === true;
+  return (
+    <div className="flex items-center gap-1.5 mt-1">
+      <span className="text-[10px] leading-tight" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+        Digitally signed by {cert.subjectCommonName}
+      </span>
+      <span
+        className="text-[9px] font-semibold uppercase px-1 py-px shrink-0"
+        style={{ backgroundColor: verified ? "#E8F5E9" : "#FFF3E0", color: verified ? "#2E7D32" : "#E65100", fontFamily: fontHeading }}
+      >
+        {verified ? "Verified" : "Unverified"}
+      </span>
+    </div>
+  );
+}
+
 export default function AttendeesOverlay({ eventSpecialId, eventName, onClose }) {
   const [attendees, setAttendees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -224,9 +243,10 @@ export default function AttendeesOverlay({ eventSpecialId, eventName, onClose })
                           <a href={a.digitalCertificate} target="_blank" rel="noopener noreferrer" className="text-xs underline text-sky-700">
                             View file
                           </a>
-                        ) : (
+                        ) : a.certificateSignature?.subjectCommonName ? null : (
                           <span className="text-gray-300">-</span>
                         )}
+                        <CertificateCaption cert={a.certificateSignature} />
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatTime(a.createdAt)}</td>
                     </tr>
