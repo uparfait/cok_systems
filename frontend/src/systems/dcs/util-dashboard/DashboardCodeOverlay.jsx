@@ -109,8 +109,16 @@ export default function DashboardCodeOverlay({ form, widgets, filters, onSaved, 
     showSuccess(translate("DCS_DB_TOAST_RULES_COPIED"));
   };
 
+  // Copied JSON travels to other forms and to external assistants: it never
+  // names the form, which the page the JSON is pasted on supplies.
+  const shared_widget = (widget) => {
+    const copy = { ...widget };
+    delete copy.form_group_id;
+    return copy;
+  };
+
   const copy_widgets = () => {
-    const chosen = widgets.filter((widget) => selected.has(widget.id));
+    const chosen = widgets.filter((widget) => selected.has(widget.id)).map(shared_widget);
     window.navigator.clipboard.writeText(JSON.stringify({ filters: filters || [], widgets: chosen }, null, 2));
     showSuccess(translate("DCS_DB_TOAST_JSON_COPIED"));
   };

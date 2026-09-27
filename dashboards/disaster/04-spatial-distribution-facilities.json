@@ -14,7 +14,6 @@
   "widgets": [
     {
       "id": "d4_title",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
       "description": null,
       "icon": null,
@@ -51,7 +50,6 @@
     },
     {
       "id": "d4_1",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Gasabo - facilities",
       "description": null,
       "icon": null,
@@ -95,7 +93,6 @@
     },
     {
       "id": "d4_2",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Kicukiro - facilities",
       "description": null,
       "icon": null,
@@ -139,7 +136,6 @@
     },
     {
       "id": "d4_3",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Nyarugenge - facilities",
       "description": null,
       "icon": null,
@@ -183,7 +179,6 @@
     },
     {
       "id": "d4_tot",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "TOT - facilities",
       "description": null,
       "icon": null,
@@ -222,7 +217,6 @@
     },
     {
       "id": "d4_facilities",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Facilities affected, by type and hazard",
       "description": null,
       "icon": null,
@@ -363,7 +357,6 @@
     },
     {
       "id": "d4_note",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
       "description": null,
       "icon": null,

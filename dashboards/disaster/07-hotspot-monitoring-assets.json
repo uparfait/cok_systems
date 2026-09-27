@@ -17,7 +17,6 @@
   "widgets": [
     {
       "id": "d7_title",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
       "description": null,
       "icon": null,
@@ -54,7 +53,6 @@
     },
     {
       "id": "d7_1",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Gasabo - hotspots",
       "description": null,
       "icon": null,
@@ -98,7 +96,6 @@
     },
     {
       "id": "d7_2",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Kicukiro - hotspots",
       "description": null,
       "icon": null,
@@ -142,7 +139,6 @@
     },
     {
       "id": "d7_3",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Nyarugenge - hotspots",
       "description": null,
       "icon": null,
@@ -186,7 +182,6 @@
     },
     {
       "id": "d7_tot",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "TOT - hotspots",
       "description": null,
       "icon": null,
@@ -225,7 +220,6 @@
     },
     {
       "id": "d7_assets",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Hotspots by type of asset and risk status",
       "description": null,
       "icon": null,
@@ -325,7 +319,6 @@
     },
     {
       "id": "d7_note",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
       "description": null,
       "icon": null,
@@ -371,7 +364,6 @@
     },
     {
       "id": "d7_trend",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Hotspots logged per month of incidence",
       "description": null,
       "icon": null,

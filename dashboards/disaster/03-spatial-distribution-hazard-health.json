@@ -14,7 +14,6 @@
   "widgets": [
     {
       "id": "d3_title",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
       "description": null,
       "icon": null,
@@ -51,7 +50,6 @@
     },
     {
       "id": "d3_1",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Gasabo - households",
       "description": null,
       "icon": null,
@@ -95,7 +93,6 @@
     },
     {
       "id": "d3_2",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Kicukiro - households",
       "description": null,
       "icon": null,
@@ -139,7 +136,6 @@
     },
     {
       "id": "d3_3",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Nyarugenge - households",
       "description": null,
       "icon": null,
@@ -183,7 +179,6 @@
     },
     {
       "id": "d3_mosaic",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Deaths by hazard",
       "description": null,
       "icon": null,
@@ -238,7 +233,6 @@
     },
     {
       "id": "d3_note",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
       "description": null,
       "icon": null,
@@ -282,7 +276,6 @@
     },
     {
       "id": "d3_table",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Casualties per hazard",
       "description": null,
       "icon": null,

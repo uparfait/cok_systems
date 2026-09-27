@@ -14,7 +14,6 @@
   "widgets": [
     {
       "id": "d1_hh_title",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
       "description": null,
       "icon": null,
@@ -51,7 +50,6 @@
     },
     {
       "id": "d1_hh_1",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Gasabo - households",
       "description": null,
       "icon": null,
@@ -95,7 +93,6 @@
     },
     {
       "id": "d1_hh_2",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Kicukiro - households",
       "description": null,
       "icon": null,
@@ -139,7 +136,6 @@
     },
     {
       "id": "d1_hh_3",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Nyarugenge - households",
       "description": null,
       "icon": null,
@@ -183,7 +179,6 @@
     },
     {
       "id": "d1_hh_tot",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "TOT - households",
       "description": null,
       "icon": null,
@@ -222,7 +217,6 @@
     },
     {
       "id": "d1_hh_table",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Households affected, casualties and damaged structures per district",
       "description": null,
       "icon": null,
@@ -367,7 +361,6 @@
     },
     {
       "id": "d1_fac_title",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
       "description": null,
       "icon": null,
@@ -404,7 +397,6 @@
     },
     {
       "id": "d1_fac_1",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Gasabo - facilities",
       "description": null,
       "icon": null,
@@ -448,7 +440,6 @@
     },
     {
       "id": "d1_fac_2",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Kicukiro - facilities",
       "description": null,
       "icon": null,
@@ -492,7 +483,6 @@
     },
     {
       "id": "d1_fac_3",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Nyarugenge - facilities",
       "description": null,
       "icon": null,
@@ -536,7 +526,6 @@
     },
     {
       "id": "d1_fac_tot",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "TOT - facilities",
       "description": null,
       "icon": null,
@@ -575,7 +564,6 @@
     },
     {
       "id": "d1_fac_table",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Facilities affected per district and type of facility",
       "description": null,
       "icon": null,

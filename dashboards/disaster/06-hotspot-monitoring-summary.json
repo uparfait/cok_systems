@@ -17,7 +17,6 @@
   "widgets": [
     {
       "id": "d6_title",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
       "description": null,
       "icon": null,
@@ -54,7 +53,6 @@
     },
     {
       "id": "d6_1",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Gasabo - hotspots",
       "description": null,
       "icon": null,
@@ -98,7 +96,6 @@
     },
     {
       "id": "d6_2",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Kicukiro - hotspots",
       "description": null,
       "icon": null,
@@ -142,7 +139,6 @@
     },
     {
       "id": "d6_3",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Nyarugenge - hotspots",
       "description": null,
       "icon": null,
@@ -186,7 +182,6 @@
     },
     {
       "id": "d6_tot",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "TOT - hotspots",
       "description": null,
       "icon": null,
@@ -225,7 +220,6 @@
     },
     {
       "id": "d6_high",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "High",
       "description": null,
       "icon": null,
@@ -274,7 +268,6 @@
     },
     {
       "id": "d6_moderate",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Moderate",
       "description": null,
       "icon": null,
@@ -323,7 +316,6 @@
     },
     {
       "id": "d6_low",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "Low",
       "description": null,
       "icon": null,
@@ -372,7 +364,6 @@
     },
     {
       "id": "d6_none",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "No risk",
       "description": null,
       "icon": null,
@@ -421,7 +412,6 @@
     },
     {
       "id": "d6_note",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
       "description": null,
       "icon": null,

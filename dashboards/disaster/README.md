@@ -1,6 +1,6 @@
 # Disaster boards for the DMIS form
 
-The seven boards of `dmis_dash.html` (City of Kigali - Disaster Dashboards), rebuilt as DCS dashboards for the DMIS assessment form (form group `ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd`, project `6aa1be687372ebbcef6e11f2`). Each JSON file is one board, in the exact shape the dashboard's Ctrl+6 overlay accepts: `{ "name", "filters": [...], "widgets": [...] }`.
+The seven boards of `dmis_dash.html` (City of Kigali - Disaster Dashboards), rebuilt as DCS dashboards for the DMIS assessment form (form group `ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd`, project `6aa1be687372ebbcef6e11f2`). Each JSON file is one board, in the exact shape the dashboard's Ctrl+6 overlay accepts: `{ "name", "filters": [...], "widgets": [...] }`. No widget names its form: the board belongs to the form whose dashboard page it is pasted on, and the server writes that form onto every widget it saves, so the files carry field ids only and an external assistant never has to know a form id.
 
 Unlike the HTML, which shows fixed sample numbers, these boards compute every figure live from the form's submissions, follow the board's date filter and its District / Sector / Hazard filters, and open the records behind any card, bar or table row on a click (a cell too, in a table whose columns are the values of a field).
 
@@ -65,11 +65,11 @@ Added on 2026-09-25 to the dashboard engine (see `../changes-and-creations.md`, 
 - **Text blocks** (`chart_type: "text"`): title bands, observations, recommendations. Builder tab "Text", or right-click -> "Add a text block here".
 - **Tables** (`chart_type: "table"`): a records table (chosen fields, 10-100 rows a page, Previous / Next) or a summary table (rows per value, columns per measure or per value of a second field, totals). Builder tab "Table".
 - **A widget's own fixed date** (`period.locked: true`): the card keeps its window whatever the board's date filter says, and wears a "Fixed: ..." chip. Card menu -> "Date & filters".
-- **Pinned fields** (`pinned_fields`): the board filters a widget refuses to follow, so a row of district cards stays a row of district cards. Same dialog; the card wears an "Ignores filter: ..." chip.
+- **Pinned fields** (`pinned_fields`): the board filters a widget refuses to follow, so a row of district cards stays a row of district cards. Same dialog; the card shows no chip for it - a card fixed on one value names the value in its title instead.
 
 ## Sharing a board
 
-Share links (dashboard page -> Share links) carry an advanced configuration per dashboard: free or fixed filters, a fixed period, whether viewers may open records (and which fields), the link's own title, and the **colour mode viewers see** - their own choice, always light, or always dark. The disaster boards were drawn for their own blue panels and read the same in either mode; pick "Always dark" when the page around them should be dark too and the light/dark switch should not be offered.
+Share links (dashboard page -> Share links) carry an advanced configuration per dashboard: free or fixed filters, a fixed period, whether viewers may open records (and which fields), the link's own title, and the **colour mode viewers see** - their own choice, always light, or always dark. The disaster boards use the system's white cards and read well in either mode; pick "Always dark" when the page around them should be dark and the light/dark switch should not be offered.
 
 ## Reading a board
 

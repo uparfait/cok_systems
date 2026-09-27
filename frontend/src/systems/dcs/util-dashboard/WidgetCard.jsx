@@ -198,9 +198,6 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // filters it ignores is the author's business (the Date & filters
   // dialog) and is not written on it.
   const own_period = period_of(widget);
-  // The title as shown: a card stacked on one value always names it, in
-  // brackets when the author's own title does not.
-  const title_shown = wordless ? widget.title : shown_title(widget, palette.name_for);
   // Phones and tablets cannot hover: the two-part bar is simply there.
   const touch_like = useTouchLikeViewport();
   const fixed = own_period.locked && !wordless;
@@ -208,6 +205,9 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // mode with its background, text and number colors) - unless the viewer
   // switched the whole board to dark mode, which paints every card dark.
   const palette = build_palette(widget.appearance, board.theme);
+  // The title as shown: a card stacked on one value always names it, in
+  // brackets when the author's own title does not.
+  const title_shown = wordless ? widget.title : shown_title(widget, palette.name_for);
   const type_label = definition ? translate(definition.labelKey) : widget.chart_type;
   const total = widget_total(widget, data);
   // A failed or timed-out widget is marked in red - it likely causes errors

@@ -16,7 +16,6 @@
 const fs = require("fs");
 const path = require("path");
 
-const FORM = "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd";
 
 // The DMIS form's fields (see README.md for the full mapping).
 const F = {
@@ -75,12 +74,16 @@ const purpose = (value) => eq(F.PURPOSE, value);
 /** A widget's look beyond the default white card: only what the widget needs. */
 const look = (extra) => (extra && Object.keys(extra).length > 0 ? Object.assign({ theme: "light" }, extra) : null);
 
-/** Every key a widget document carries, so the validator sees a complete widget. */
+/**
+ * Every key a widget document carries, so the validator sees a complete
+ * widget. A widget never names its form: the board is pasted on the form's
+ * own dashboard page and the server writes that form onto every widget it
+ * saves, so an external assistant needs only the field ids.
+ */
 function widget(id, chart_type, extra) {
   return Object.assign(
     {
       id,
-      form_group_id: FORM,
       title: "",
       description: null,
       icon: null,
