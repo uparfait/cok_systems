@@ -74,6 +74,6 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] Boards validate and compute again; README and change log describe the flat layout
 
 ## 11. Drill and stacked-value titles
-- [ ] A card stacked on one value of an ignored filter always names it: left alone when the title says it, added in brackets when the author's title does not ("Deaths (Gasabo)")
-- [ ] Hover bar on cascade cards: left the table, right the level below (stacked overlays down to the last level; fixed value narrows to its children); always shown and full-screen on phones and tablets
-- [ ] Public page receives the cascade chains; frontend build green
+- [x] A card stacked on one value of an ignored filter always names it: left alone when the title says it, added in brackets when the author's title does not ("Deaths (Gasabo)")
+- [x] Hover bar on cascade cards: left the table, right the level below (stacked overlays down to the last level; fixed value narrows to its children); always shown and full-screen on phones and tablets
+- [x] Public page receives the cascade chains; frontend build green
