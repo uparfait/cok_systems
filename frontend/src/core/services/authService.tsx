@@ -1,7 +1,7 @@
  // Auth Service - Complete authentication API integration
  // Handles login, logout, password reset, OTP verification, and token management
  
- import { post, put, setAuthData, clearAuthData, getStoredUser, getAccessToken, isAuthenticated, get } from './apiClient';
+ import { post, put, del, setAuthData, clearAuthData, getStoredUser, getAccessToken, isAuthenticated, get } from './apiClient';
  import { saveNavigation } from './navigationService';
  
  // ==================== USER PROFILE APIs ====================
@@ -27,7 +27,25 @@
 
  export const updateNotificationSettings = (enabled: boolean) =>
    put('/profile/notification-settings', { notifications_enabled: enabled });
- 
+
+ // ==================== SIGNING PROFILE APIs ====================
+ // Signature image and enrolled certificate used when this account signs attendance sheets
+
+ export const getSigningProfile = () => get('/profile/signing-profile');
+
+ export const uploadSignatureImage = (imageDataUrl: string) => put('/profile/signature-image', { image: imageDataUrl });
+
+ export const deleteSignatureImage = () => del('/profile/signature-image');
+
+ // The browser signs the enrolment payload with the certificate's key; the .p12 itself is never sent
+ export const enrolSigningCertificate = (data: {
+   certificate: string;
+   signatureValue: string;
+   signedAt: string;
+ }) => post('/profile/signing-certificate', data);
+
+ export const removeSigningCertificate = () => del('/profile/signing-certificate');
+
  // ==================== LOGIN APIs ====================
  
  export const login = (email: string, password: string) => post('/auth/login', { email, password });

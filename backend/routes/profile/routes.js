@@ -65,4 +65,15 @@ const { getNotificationSettings, updateNotificationSettings } = require('../../c
 Router.get('/notification-settings', getNotificationSettings);
 Router.put('/notification-settings', updateNotificationSettings);
 
+// Signature image and pinned signing certificate a staff member signs event attendance with.
+const express = require('express');
+const signingProfile = require('../../controllers/profile/signing_profile');
+// 400 KB body room for base64 PNGs; main.js's app-wide express.json() (100 KB default) still runs first and must be raised too
+Router.use(express.json({ limit: '400kb' }));
+Router.get('/signing-profile', signingProfile.getSigningProfile);
+Router.put('/signature-image', signingProfile.updateSignatureImage);
+Router.delete('/signature-image', signingProfile.removeSignatureImage);
+Router.post('/signing-certificate', signingProfile.enrolSigningCertificate);
+Router.delete('/signing-certificate', signingProfile.removeSigningCertificate);
+
 module.exports = Router;

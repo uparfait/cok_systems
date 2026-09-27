@@ -115,7 +115,8 @@ app.use(
  * express.urlencoded: Parses URL-encoded bodies
  * cookieParser: Parses Cookie header and populates req.cookies
  */
-app.use(express.json());
+// 400kb so a base64 signature PNG can reach the profile router; the default 100kb rejected it here first
+app.use(express.json({ limit: '400kb' }));
 // add static file serving middleware for the uploads/tasks/attachments directory
 app.use(
   "/cok/api/uploads/tasks/attachments",

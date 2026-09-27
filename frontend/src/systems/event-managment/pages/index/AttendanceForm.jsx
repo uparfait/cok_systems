@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import { FiUploadCloud, FiFileText, FiX, FiCheckCircle, FiLock } from 'react-icons/fi';
 import { useToast } from '@/core/contexts/ToastContext';
+import { isStoredTokenExpired } from '@/core/services/accessControl';
 import SpiralLoader from '../../components/SpiralLoader';
 import { canonicalPayloadBytes } from '../../utils/canonicalAttendancePayload';
 import { openCertificate, signCanonicalBytes, renderAppearanceImage } from '../../utils/certificateSigning';
@@ -20,6 +21,29 @@ const fontHeading = "'Montserrat', sans-serif";
 
 const inputClassName = 'w-full cok-auth-input pr-3 py-2 text-sm';
 const inputStyle = { paddingLeft: '12px' };
+// Staff identity fields come from the account, so they read as filled in but not editable
+const lockedInputStyle = { ...inputStyle, backgroundColor: '#F7F9FB', color: '#555555', cursor: 'not-allowed' };
+
+// The EM interceptor skips /event/ pages on purpose, so a live token is read by hand here
+const readSessionToken = () => {
+  try {
+    const token = localStorage.getItem('accessToken');
+    return token && !isStoredTokenExpired() ? token : null;
+  } catch {
+    return null;
+  }
+};
+
+const normalizeName = (value) => String(value || '').toLowerCase().replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim();
+
+// Same person even when the certificate orders the names differently
+const namesMatch = (a, b) => {
+  const left = normalizeName(a);
+  const right = normalizeName(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  return left.split(' ').sort().join(' ') === right.split(' ').sort().join(' ');
+};
 
 const labelStyle = {
   fontFamily: fontHeading,
@@ -221,7 +245,36 @@ export default function AttendanceForm() {
   const [serverError, setServerError] = useState('');
   const [success, setSuccess] = useState(false);
   const [padKey, setPadKey] = useState(0);
+  const [staffMode, setStaffMode] = useState(false);
+  const [staffProfile, setStaffProfile] = useState(null);
   const certInputRef = useRef(null);
+
+  // A signed-in CoK Systems user signs as their account; anyone else gets the anonymous flow untouched
+  useEffect(() => {
+    const token = readSessionToken();
+    if (!token) return undefined;
+    let cancelled = false;
+    axios.get(`${BASE_URL}/attendance/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        const profile = res.data?.success ? res.data.data : null;
+        if (cancelled || !profile) return;
+        setStaffProfile(profile);
+        setStaffMode(true);
+        setSignatureMethod('certificate');
+        setFormData((prev) => ({
+          ...prev,
+          attendeeFullName: profile.fullName || '',
+          attendeeEmail: profile.email || '',
+          attendeePhoneNumber: String(profile.telephone || '').replace(/[^\d+\s]/g, ''),
+        }));
+      })
+      .catch(() => { /* stay anonymous */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // The phone stays editable when the account has none, or the staff member could never submit
+  const lockedPhone = staffMode && !!staffProfile?.telephone;
+  const signBlocked = staffMode && !staffProfile?.hasSigningCertificate;
 
   const validate = ({ skipSignature = false } = {}) => {
     const newErrors = {};
@@ -312,10 +365,16 @@ export default function AttendanceForm() {
     setCertError('');
     try {
       const unlocked = await openCertificate(certificateFile, certificatePassword);
+      // Staff may only sign with a certificate issued in their own account name
+      if (staffMode && !namesMatch(unlocked.subjectCommonName, staffProfile?.fullName)) {
+        setCertError(`This certificate belongs to ${unlocked.subjectCommonName}, not to your account.`);
+        return;
+      }
       const signedAt = new Date().toISOString();
       const fields = buildSignedFields(signedAt);
       const signatureValue = await signCanonicalBytes(unlocked.pkcs8Bytes, canonicalPayloadBytes(fields));
-      const appearanceImage = await renderAppearanceImage({
+      // The server renders the staff appearance from the enrolled profile, so no client image is drawn
+      const appearanceImage = staffMode ? null : await renderAppearanceImage({
         signerName: unlocked.subjectCommonName,
         issuerName: unlocked.issuerCommonName,
         serialNumber: unlocked.serialNumber,
@@ -350,46 +409,68 @@ export default function AttendanceForm() {
     setLoading(true);
     setServerError('');
 
-    try {
-      if (signatureMethod === 'certificate' && certificateSignature) {
-        // The signed field values go up exactly as they were signed, or verification fails
-        const signedFields = buildSignedFields(certificateSignature.signedAt);
+    const isCertificateBranch = signatureMethod === 'certificate' && certificateSignature;
+    let body;
+    if (isCertificateBranch) {
+      // The signed field values go up exactly as they were signed, or verification fails
+      const signedFields = buildSignedFields(certificateSignature.signedAt);
+      body = {
+        ...signedFields,
+        attendeeEmail: signedFields.attendeeEmail || undefined,
+        eventName,
+        eventRoom,
+        roomLocation,
+        signatureMethod: 'digital-certificate',
+        certificateSignature: {
+          signatureValue: certificateSignature.signatureValue,
+          certificate: certificateSignature.certificate,
+          signedAt: certificateSignature.signedAt,
+          appearanceImage: staffMode ? undefined : certificateSignature.appearanceImage,
+        },
+      };
+    } else {
+      body = {
+        attendeeFullName: formData.attendeeFullName.trim(),
+        attendeeEmail: formData.attendeeEmail.trim() || undefined,
+        attendeePhoneNumber: formData.attendeePhoneNumber.trim(),
+        attendeeInstitution: isInternal ? 'City of Kigali' : formData.attendeeInstitution.trim(),
+        attendeeDepartment: isInternal ? formData.attendeeDepartment.trim() : undefined,
+        attendeePosition: formData.attendeePosition.trim(),
+        eventSpecialId,
+        eventName,
+        eventRoom,
+        roomLocation,
+        attendeeSignature: signature || undefined,
+        signatureMethod,
+      };
+    }
 
-        await axios.post(`${BASE_URL}/attendance`, {
-          ...signedFields,
-          attendeeEmail: signedFields.attendeeEmail || undefined,
-          eventName,
-          eventRoom,
-          roomLocation,
-          signatureMethod: 'digital-certificate',
-          certificateSignature: {
-            signatureValue: certificateSignature.signatureValue,
-            certificate: certificateSignature.certificate,
-            signedAt: certificateSignature.signedAt,
-            appearanceImage: certificateSignature.appearanceImage,
-          },
-        });
-      } else {
-        await axios.post(`${BASE_URL}/attendance`, {
-          attendeeFullName: formData.attendeeFullName.trim(),
-          attendeeEmail: formData.attendeeEmail.trim() || undefined,
-          attendeePhoneNumber: formData.attendeePhoneNumber.trim(),
-          attendeeInstitution: isInternal ? 'City of Kigali' : formData.attendeeInstitution.trim(),
-          attendeeDepartment: isInternal ? formData.attendeeDepartment.trim() : undefined,
-          attendeePosition: formData.attendeePosition.trim(),
-          eventSpecialId,
-          eventName,
-          eventRoom,
-          roomLocation,
-          attendeeSignature: signature || undefined,
-          signatureMethod,
-        });
+    const token = readSessionToken();
+    const post = (withToken) => axios.post(`${BASE_URL}/attendance`, body, withToken ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
+
+    try {
+      try {
+        await post(!!token);
+      } catch (err) {
+        // A session the server no longer accepts must not stop the attendee signing anonymously
+        if (token && err.response?.status === 401) await post(false);
+        else throw err;
       }
 
       setSuccess(true);
       showSuccess('Attendance recorded');
     } catch (err) {
+      const status = err.response?.status;
+      const code = err.response?.data?.code;
       const message = err.response?.data?.message || 'Failed to submit attendance. Please try again.';
+      // The name belongs to a staff account, so the drawn ink is dropped and the certificate path opens
+      if (code === 'STAFF_CERTIFICATE_REQUIRED') {
+        setSignatureMethod('certificate');
+        setSignature('');
+        setPadKey((k) => k + 1);
+      }
+      // A rejected signature must not linger as a 'Signed as' block
+      if (status === 422 && isCertificateBranch) setCertificateSignature(null);
       setServerError(message);
       showError(message);
     } finally {
@@ -496,6 +577,22 @@ export default function AttendanceForm() {
             Fields marked with <span style={{ color: DANGER }}>*</span> are required
           </p>
 
+          {staffMode && (
+            <div
+              className="flex items-start gap-2.5 p-3 text-sm"
+              style={signBlocked
+                ? { backgroundColor: '#FEF5E7', border: '1px solid #F5CBA7', color: '#7E5109', fontFamily: fontHeading }
+                : { backgroundColor: '#E3F2FD', border: '1px solid #9CC7E4', color: NEUTRAL_DARK, fontFamily: fontHeading }}
+            >
+              <FiLock className="w-4 h-4 shrink-0 mt-0.5" style={{ color: signBlocked ? '#F39C12' : PRIMARY }} />
+              <span>
+                {signBlocked
+                  ? 'Your account has no signing certificate yet. Open Profile, then Signature in CoK Systems to enrol it.'
+                  : `You are signing as ${staffProfile?.fullName}. Verify your digital certificate to sign.`}
+              </span>
+            </div>
+          )}
+
           {/* Full Name */}
           <div>
             <label htmlFor="attendeeFullName" style={labelStyle}>
@@ -509,8 +606,10 @@ export default function AttendanceForm() {
               onChange={handleChange}
               placeholder="Enter your full name"
               autoComplete="name"
+              readOnly={staffMode}
+              tabIndex={staffMode ? -1 : undefined}
               className={inputClassName}
-              style={inputStyle}
+              style={staffMode ? lockedInputStyle : inputStyle}
             />
             {errors.attendeeFullName && (
               <p className="text-xs mt-1" style={{ color: DANGER }}>{errors.attendeeFullName}</p>
@@ -530,8 +629,10 @@ export default function AttendanceForm() {
               onChange={handleChange}
               placeholder="e.g. +250 7XX XXX XXX"
               autoComplete="tel"
+              readOnly={lockedPhone}
+              tabIndex={lockedPhone ? -1 : undefined}
               className={inputClassName}
-              style={inputStyle}
+              style={lockedPhone ? lockedInputStyle : inputStyle}
             />
             <p className="text-xs mt-1" style={{ color: GRAY_DISABLED }}>
               Numbers only, e.g. +250 7XX XXX XXX
@@ -620,46 +721,50 @@ export default function AttendanceForm() {
               onChange={handleChange}
               placeholder="your.email@example.com"
               autoComplete="email"
+              readOnly={staffMode}
+              tabIndex={staffMode ? -1 : undefined}
               className={inputClassName}
-              style={inputStyle}
+              style={staffMode ? lockedInputStyle : inputStyle}
             />
             {errors.attendeeEmail && (
               <p className="text-xs mt-1" style={{ color: DANGER }}>{errors.attendeeEmail}</p>
             )}
           </div>
 
-          {/* Signature Method: required, sign or upload a digital signature */}
-          <div>
-            <label style={labelStyle}>
-              Signature Method <span style={{ color: DANGER }}>*</span>
-            </label>
-            <div className="flex flex-col gap-2.5">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="signatureMethod"
-                  value="draw"
-                  checked={signatureMethod === 'draw'}
-                  onChange={() => { setSignatureMethod('draw'); setCertificateFile(null); setCertError(''); setErrors((p) => ({ ...p, signature: null })); }}
-                  style={{ accentColor: PRIMARY }}
-                />
-                <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Draw Signature</span>
+          {/* Signature Method: required, sign or upload a digital signature; staff always use their certificate */}
+          {!staffMode && (
+            <div>
+              <label style={labelStyle}>
+                Signature Method <span style={{ color: DANGER }}>*</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="signatureMethod"
-                  value="certificate"
-                  checked={signatureMethod === 'certificate'}
-                  onChange={() => { setSignatureMethod('certificate'); setErrors((p) => ({ ...p, signature: null })); }}
-                  style={{ accentColor: PRIMARY }}
-                />
-                <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Sign with Digital Certificate</span>
-              </label>
+              <div className="flex flex-col gap-2.5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="signatureMethod"
+                    value="draw"
+                    checked={signatureMethod === 'draw'}
+                    onChange={() => { setSignatureMethod('draw'); setCertificateFile(null); setCertificateSignature(null); setCertificatePassword(''); setCertError(''); setErrors((p) => ({ ...p, signature: null })); }}
+                    style={{ accentColor: PRIMARY }}
+                  />
+                  <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Draw Signature</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="signatureMethod"
+                    value="certificate"
+                    checked={signatureMethod === 'certificate'}
+                    onChange={() => { setSignatureMethod('certificate'); setErrors((p) => ({ ...p, signature: null })); }}
+                    style={{ accentColor: PRIMARY }}
+                  />
+                  <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Sign with Digital Certificate</span>
+                </label>
+              </div>
             </div>
-          </div>
+          )}
 
-          {signatureMethod === 'draw' && (
+          {!staffMode && signatureMethod === 'draw' && (
             <div>
               <label style={labelStyle}>
                 Draw your signature <span style={{ color: DANGER }}>*</span>
@@ -673,17 +778,21 @@ export default function AttendanceForm() {
 
           {signatureMethod === 'certificate' && (
             <div>
-              {/* A certificate holds no handwriting, so the ink is drawn here like a PDF signature appearance */}
-              <label style={labelStyle}>
-                Your handwritten signature
-                <span className="normal-case font-normal ml-1" style={{ color: GRAY_DISABLED }}>(optional, shown on the sheet)</span>
-              </label>
-              <SignaturePad
-                key={`cert-${padKey}`}
-                onChange={(v) => setSignature(v)}
-              />
+              {/* A certificate holds no handwriting, so the ink is drawn here like a PDF signature appearance; staff sheets use the profile image instead */}
+              {!staffMode && (
+                <>
+                  <label style={labelStyle}>
+                    Your handwritten signature
+                    <span className="normal-case font-normal ml-1" style={{ color: GRAY_DISABLED }}>(optional, shown on the sheet)</span>
+                  </label>
+                  <SignaturePad
+                    key={`cert-${padKey}`}
+                    onChange={(v) => setSignature(v)}
+                  />
+                </>
+              )}
 
-              <label style={{ ...labelStyle, marginTop: '18px' }}>
+              <label style={staffMode ? labelStyle : { ...labelStyle, marginTop: '18px' }}>
                 Digital Certificate <span style={{ color: DANGER }}>*</span>
                 <span className="normal-case font-normal ml-1" style={{ color: GRAY_DISABLED }}>(.p12 or .pfx)</span>
               </label>
@@ -774,9 +883,9 @@ export default function AttendanceForm() {
                   <button
                     type="button"
                     onClick={handleSignWithCertificate}
-                    disabled={signing}
+                    disabled={signing || signBlocked}
                     className="cok-btn-primary mt-2.5 disabled:cursor-not-allowed"
-                    style={signing ? { opacity: 0.6 } : undefined}
+                    style={signing || signBlocked ? { opacity: 0.6 } : undefined}
                   >
                     <span className="inline-flex items-center justify-center gap-2">
                       {signing && <SpiralLoader color="#FFFFFF" padded={false} size={16} />}
@@ -798,12 +907,18 @@ export default function AttendanceForm() {
                       Signed as {certificateSignature.signerName}
                     </p>
                   </div>
-                  <img
-                    src={certificateSignature.appearanceImage}
-                    alt={`Digital signature of ${certificateSignature.signerName}`}
-                    className="w-full bg-white"
-                    style={{ border: `1px solid ${BORDER}` }}
-                  />
+                  {certificateSignature.appearanceImage ? (
+                    <img
+                      src={certificateSignature.appearanceImage}
+                      alt={`Digital signature of ${certificateSignature.signerName}`}
+                      className="w-full bg-white"
+                      style={{ border: `1px solid ${BORDER}` }}
+                    />
+                  ) : (
+                    <p className="text-xs" style={{ color: GRAY_DISABLED }}>
+                      Issued by {certificateSignature.issuerName || 'an unknown issuer'}. The signature shown on the sheet comes from your enrolled profile.
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={() => { setCertificateSignature(null); setCertificatePassword(''); }}

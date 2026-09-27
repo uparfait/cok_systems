@@ -68,6 +68,29 @@ function hasSignature(a) {
   return !!(a?.attendeeSignature || a?.digitalCertificate);
 }
 
+// Caption naming the certificate holder, tagged by whether it matched the enrolled certificate
+function CertificateCaption({ cert }) {
+  if (!cert?.subjectCommonName) return null;
+  const verified = cert.thumbprintPinned === true;
+  return (
+    <div className="flex items-center gap-1.5 mt-1">
+      <span className="text-[10px] leading-tight" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+        Digitally signed by {cert.subjectCommonName}
+      </span>
+      <span
+        className="text-[9px] font-semibold uppercase px-1 py-px shrink-0"
+        style={{
+          backgroundColor: verified ? '#E8F5E9' : '#FFF3E0',
+          color: verified ? '#2E7D32' : '#E65100',
+          fontFamily: fontHeading,
+        }}
+      >
+        {verified ? 'Verified' : 'Unverified'}
+      </span>
+    </div>
+  );
+}
+
 // Fetch an uploaded signature file as a data URL so exports can embed it
 async function toDataUrl(url) {
   try {
@@ -478,9 +501,10 @@ export default function AttendeesList({ overlayEventId = null, embedded = false 
                           >
                             View file
                           </a>
-                        ) : (
+                        ) : a.certificateSignature?.subjectCommonName ? null : (
                           <span style={{ color: '#CCCCCC' }}>-</span>
                         )}
+                        <CertificateCaption cert={a.certificateSignature} />
                       </td>
                       <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: GRAY_DISABLED }}>{formatTime(a.createdAt)}</td>
                     </tr>

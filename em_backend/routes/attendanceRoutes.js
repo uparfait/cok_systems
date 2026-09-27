@@ -1,6 +1,7 @@
 const Router = require('express').Router();
 const SubmitAttendanceController = require('../controllers/SubmitAttendanceController');
 const GetAttendanceController = require('../controllers/GetAttendanceController');
+const AttendanceMeController = require('../controllers/AttendanceMeController');
 const upload = require('../utilities/upload');
 
 /**
@@ -29,6 +30,8 @@ Router.post('/', upload.single('digitalCertificate'), (req, res, next) => {
   }
   return SubmitAttendanceController.handle(req, res, next);
 });
+// Signed-in attendee's own account and signing status; must precede the list route
+Router.get('/me', AttendanceMeController.handle);
 Router.get('/', GetAttendanceController.handle);
 
 module.exports = Router;

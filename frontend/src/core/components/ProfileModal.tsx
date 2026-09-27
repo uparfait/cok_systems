@@ -3,16 +3,22 @@
 // Only allows password changes - no profile editing
 // All messages and errors shown via toast (error uses error.message)
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   FiUser, FiMail, FiPhone, FiCalendar, FiShield,   FiLock, FiEye, FiEyeOff,
-  FiX, FiBriefcase, FiBell
+  FiX, FiBriefcase, FiBell, FiEdit3, FiAward, FiUploadCloud, FiFileText, FiAlertTriangle
 } from "react-icons/fi";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { useAuth } from "../../core/contexts/AuthContext";
 import { useToast } from "../../core/contexts/ToastContext";
-import { getUserProfile, changePassword, getNotificationSettings, updateNotificationSettings } from "../../core/services/authService";
+import {
+  getUserProfile, changePassword, getNotificationSettings, updateNotificationSettings,
+  getSigningProfile, uploadSignatureImage, deleteSignatureImage, enrolSigningCertificate, removeSigningCertificate
+} from "../../core/services/authService";
 import { getSubscriptionStatus, subscribeToPush, unsubscribeFromPush } from "../../core/services/webPushService";
+import { openCertificate, signCanonicalBytes } from "../../systems/event-managment/utils/certificateSigning";
+import { ENROLMENT_PURPOSE, enrolmentPayloadBytes } from "../../core/utils/canonicalEnrolmentPayload";
+import SignaturePad from "./SignaturePad.jsx";
 
 const PRIMARY = "#056daa";
 const NEUTRAL_LIGHT = "#F7F9FB";
@@ -22,6 +28,25 @@ const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+// Backend cap for the stored signature PNG
+const MAX_SIGNATURE_IMAGE_BYTES = 200000;
+
+// Decoded size of a base64 data URL, used to apply the PNG cap to drawn signatures too
+const dataUrlByteSize = (dataUrl: string) => {
+  const base64 = dataUrl.split(',')[1] || '';
+  const padding = (base64.match(/=+$/) || [''])[0].length;
+  return Math.floor((base64.length * 3) / 4) - padding;
+};
+
+// Mirrors backend namesMatch: case, punctuation and word order are ignored
+const looselySameName = (a?: string, b?: string) => {
+  const clean = (value?: string) => String(value || '').normalize('NFC').toLowerCase().replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim();
+  const first = clean(a);
+  const second = clean(b);
+  if (!first || !second) return false;
+  if (first === second) return true;
+  return first.split(' ').sort().join(' ') === second.split(' ').sort().join(' ');
+};
 
 interface UserProfile {
   _id: string;
@@ -51,6 +76,23 @@ interface PasswordFormData {
   confirmPassword: string;
 }
 
+interface SigningCertificateInfo {
+  thumbprint?: string;
+  subject_common_name?: string;
+  subject_email?: string;
+  issuer_common_name?: string;
+  serial_number?: string;
+  valid_from?: string;
+  valid_to?: string;
+  enrolled_at?: string;
+}
+
+interface SigningProfile {
+  has_signature_image: boolean;
+  signature_image: string | null;
+  signing_certificate: SigningCertificateInfo | null;
+}
+
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -58,9 +100,9 @@ interface ProfileModalProps {
 
 const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showWarning } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'notifications'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'notifications' | 'signature'>('profile');
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordData, setPasswordData] = useState<PasswordFormData>({
@@ -81,6 +123,22 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [notificationChecking, setNotificationChecking] = useState(false);
   const [accountNotifEnabled, setAccountNotifEnabled] = useState(true);
   const [accountNotifLoading, setAccountNotifLoading] = useState(false);
+  const [signingProfile, setSigningProfile] = useState<SigningProfile | null>(null);
+  const [signingLoading, setSigningLoading] = useState(false);
+  const [imageReplaceMode, setImageReplaceMode] = useState(false);
+  const [drawingSignature, setDrawingSignature] = useState(false);
+  const [drawnSignature, setDrawnSignature] = useState('');
+  const [padKey, setPadKey] = useState(0);
+  const [savingSignature, setSavingSignature] = useState(false);
+  const [removingSignature, setRemovingSignature] = useState(false);
+  const [certReplaceMode, setCertReplaceMode] = useState(false);
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [certificatePassword, setCertificatePassword] = useState('');
+  const [certNameWarning, setCertNameWarning] = useState('');
+  const [enrolling, setEnrolling] = useState(false);
+  const [removingCertificate, setRemovingCertificate] = useState(false);
+  const signatureInputRef = useRef<HTMLInputElement>(null);
+  const certificateInputRef = useRef<HTMLInputElement>(null);
 
   // Role display name mapping
   const roleNames: { [key: string]: string } = {
@@ -233,6 +291,205 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  // silent refreshes keep the cards on screen instead of flashing the spinner
+  const loadSigningProfile = useCallback(async (silent = false) => {
+    if (!silent) setSigningLoading(true);
+    try {
+      const response = await getSigningProfile();
+      if ((response.success || response.status) && response.data) {
+        setSigningProfile(response.data);
+      } else {
+        showError(response?.message || response?.error || 'Failed to load signing profile');
+      }
+    } catch (error: any) {
+      showError(error?.message || error?.error || 'Failed to load signing profile');
+    } finally {
+      if (!silent) setSigningLoading(false);
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'signature') loadSigningProfile();
+  }, [isOpen, activeTab, loadSigningProfile]);
+
+  const resetSignatureEditors = () => {
+    setImageReplaceMode(false);
+    setDrawingSignature(false);
+    setDrawnSignature('');
+    setPadKey((k) => k + 1);
+    setCertReplaceMode(false);
+    setCertificateFile(null);
+    setCertificatePassword('');
+    setCertNameWarning('');
+  };
+
+  // The password must not linger in state once the modal is closed
+  useEffect(() => {
+    if (!isOpen) resetSignatureEditors();
+  }, [isOpen]);
+
+  const saveSignatureImage = async (dataUrl: string) => {
+    if (!dataUrl) {
+      showError('Draw or choose a signature first');
+      return;
+    }
+    if (dataUrlByteSize(dataUrl) > MAX_SIGNATURE_IMAGE_BYTES) {
+      showError('The signature image must be 200 KB or smaller');
+      return;
+    }
+    setSavingSignature(true);
+    try {
+      const response = await uploadSignatureImage(dataUrl);
+      if (response && (response.success || response.status)) {
+        showSuccess(response.message || 'Signature image saved');
+        setSigningProfile((prev) => ({
+          has_signature_image: true,
+          signature_image: dataUrl,
+          signing_certificate: prev?.signing_certificate || null,
+        }));
+        setImageReplaceMode(false);
+        setDrawingSignature(false);
+        setDrawnSignature('');
+        setPadKey((k) => k + 1);
+        loadSigningProfile(true);
+      } else {
+        showError(response?.message || response?.error || 'Failed to save signature image');
+      }
+    } catch (error: any) {
+      showError(error?.message || error?.error || 'Failed to save signature image');
+    } finally {
+      setSavingSignature(false);
+    }
+  };
+
+  const handleSignatureFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.type !== 'image/png') {
+      showError('The signature image must be a PNG file');
+      return;
+    }
+    if (file.size > MAX_SIGNATURE_IMAGE_BYTES) {
+      showError('The signature image must be 200 KB or smaller');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => saveSignatureImage(String(reader.result || ''));
+    reader.onerror = () => showError('Could not read the selected image');
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveSignatureImage = async () => {
+    setRemovingSignature(true);
+    try {
+      const response = await deleteSignatureImage();
+      if (response && (response.success || response.status)) {
+        showSuccess(response.message || 'Signature image removed');
+        setSigningProfile((prev) => ({
+          has_signature_image: false,
+          signature_image: null,
+          signing_certificate: prev?.signing_certificate || null,
+        }));
+        setImageReplaceMode(false);
+      } else {
+        showError(response?.message || response?.error || 'Failed to remove signature image');
+      }
+    } catch (error: any) {
+      showError(error?.message || error?.error || 'Failed to remove signature image');
+    } finally {
+      setRemovingSignature(false);
+    }
+  };
+
+  const handleCertificateFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    e.target.value = '';
+    if (!file) return;
+    // File pickers report unreliable MIME types for PKCS#12, so check the extension
+    if (!/\.(p12|pfx)$/i.test(file.name)) {
+      setCertificateFile(null);
+      showError('Choose a certificate file ending in .p12 or .pfx');
+      return;
+    }
+    setCertificateFile(file);
+    setCertNameWarning('');
+  };
+
+  const handleEnrolCertificate = async () => {
+    if (!certificateFile) {
+      showError('Choose your certificate file first');
+      return;
+    }
+    if (!certificatePassword) {
+      showError('Enter the password for your certificate');
+      return;
+    }
+    const accountEmail = String(user?.email || profileData?.email || '').trim().toLowerCase();
+    if (!user?.userId || !accountEmail) {
+      showError('Your account details are missing. Sign in again and retry.');
+      return;
+    }
+    setEnrolling(true);
+    try {
+      const unlocked = await openCertificate(certificateFile, certificatePassword);
+      if (!looselySameName(unlocked.subjectCommonName, displayName)) {
+        const warning = `The certificate is issued to "${unlocked.subjectCommonName || 'an unnamed subject'}" but your account name is "${displayName}"`;
+        setCertNameWarning(warning);
+        showWarning(warning);
+      } else {
+        setCertNameWarning('');
+      }
+      const signedAt = new Date().toISOString();
+      const payload = enrolmentPayloadBytes({ purpose: ENROLMENT_PURPOSE, userId: user.userId, email: accountEmail, signedAt });
+      const signatureValue = await signCanonicalBytes(unlocked.pkcs8Bytes, payload);
+      const response = await enrolSigningCertificate({ certificate: unlocked.certificateBase64, signatureValue, signedAt });
+      if (response && (response.success || response.status)) {
+        setCertificatePassword('');
+        setCertificateFile(null);
+        setCertReplaceMode(false);
+        showSuccess(response.message || 'Signing certificate enrolled');
+        if (response.data?.signing_certificate) {
+          setSigningProfile((prev) => ({
+            has_signature_image: !!prev?.has_signature_image,
+            signature_image: prev?.signature_image || null,
+            signing_certificate: response.data.signing_certificate,
+          }));
+        }
+        loadSigningProfile(true);
+      } else {
+        showError(response?.message || response?.error || 'Failed to enrol certificate');
+      }
+    } catch (error: any) {
+      showError(error?.message || error?.error || 'Could not enrol this certificate');
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  const handleRemoveCertificate = async () => {
+    setRemovingCertificate(true);
+    try {
+      const response = await removeSigningCertificate();
+      if (response && (response.success || response.status)) {
+        showSuccess(response.message || 'Signing certificate removed');
+        setSigningProfile((prev) => ({
+          has_signature_image: !!prev?.has_signature_image,
+          signature_image: prev?.signature_image || null,
+          signing_certificate: null,
+        }));
+        setCertReplaceMode(false);
+        setCertNameWarning('');
+      } else {
+        showError(response?.message || response?.error || 'Failed to remove certificate');
+      }
+    } catch (error: any) {
+      showError(error?.message || error?.error || 'Failed to remove certificate');
+    } finally {
+      setRemovingCertificate(false);
+    }
+  };
+
   const validatePassword = (password: string): string[] => {
     const errors: string[] = [];
     if (password.length < 8) errors.push('At least 8 characters');
@@ -357,6 +614,18 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
              >
                <FiBell className="w-5 h-5" />
                Notifications
+             </button>
+             <button
+               onClick={() => { setActiveTab('signature'); setShowPasswordForm(false); }}
+               className={`flex cursor-pointer items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
+                 activeTab === 'signature'
+                   ? 'text-[#056daa] border-b-2 border-[#056daa] bg-blue-50'
+                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+               }`}
+               style={{ fontFamily: fontHeading }}
+             >
+               <FiEdit3 className="w-5 h-5" />
+               Signature
              </button>
           </nav>
         </div>
@@ -743,6 +1012,300 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                          </div>
                        </div>
                      </div>
+                   </div>
+                 )}
+
+                 {/* Signature Tab */}
+                 {activeTab === 'signature' && (
+                   <div className="space-y-4">
+                     <h3 className="text-lg font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Signature Settings</h3>
+
+                     {signingLoading ? (
+                       <div className="flex items-center justify-center py-12">
+                         <div className="w-8 h-8 border-2 border-[#056daa] border-t-transparent rounded-full animate-spin" />
+                       </div>
+                     ) : (
+                       <>
+                         {/* Card 1: handwriting image placed on attendance sheets */}
+                         <div className="border" style={{ borderColor: BORDER, backgroundColor: 'rgba(5,109,170,0.02)', borderRadius: 0 }}>
+                           <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center gap-3">
+                             <div className="flex items-center gap-3">
+                               <div className="p-2" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
+                                 <FiEdit3 className="w-5 h-5" style={{ color: PRIMARY }} />
+                               </div>
+                               <div>
+                                 <p className="font-medium" style={{ color: NEUTRAL_DARK }}>Signature image</p>
+                                 <p className="text-xs" style={{ color: GRAY_DISABLED }}>This image appears on the attendance sheets you sign.</p>
+                               </div>
+                             </div>
+                             <span className="text-xs font-semibold uppercase whitespace-nowrap" style={{ color: PRIMARY, fontFamily: fontHeading, letterSpacing: '1px' }}>
+                               {signingProfile?.has_signature_image ? 'Saved' : 'Not set'}
+                             </span>
+                           </div>
+                           <div className="p-4 sm:p-6 border-t" style={{ borderColor: BORDER }}>
+                             <input
+                               ref={signatureInputRef}
+                               type="file"
+                               accept="image/png"
+                               className="hidden"
+                               onChange={handleSignatureFileChange}
+                             />
+                             {signingProfile?.has_signature_image && signingProfile.signature_image && !imageReplaceMode ? (
+                               <div className="space-y-3">
+                                 <div className="bg-white flex items-center justify-center p-3" style={{ border: `1px solid ${BORDER}` }}>
+                                   <img src={signingProfile.signature_image} alt="Your signature" className="max-h-24 max-w-full object-contain" />
+                                 </div>
+                                 <div className="flex gap-3">
+                                   <button
+                                     type="button"
+                                     onClick={() => setImageReplaceMode(true)}
+                                     className="flex-1 h-12 cok-btn-outlined"
+                                     style={btnTypography}
+                                   >
+                                     Replace
+                                   </button>
+                                   <button
+                                     type="button"
+                                     onClick={handleRemoveSignatureImage}
+                                     disabled={removingSignature}
+                                     className="flex-1 h-12 cok-btn-outlined-danger disabled:opacity-60 disabled:cursor-not-allowed"
+                                     style={btnTypography}
+                                   >
+                                     {removingSignature ? 'Removing...' : 'Remove'}
+                                   </button>
+                                 </div>
+                               </div>
+                             ) : drawingSignature ? (
+                               <div className="space-y-3">
+                                 <SignaturePad key={`profile-pad-${padKey}`} onChange={(value: string) => setDrawnSignature(value)} />
+                                 <div className="flex gap-3">
+                                   <button
+                                     type="button"
+                                     onClick={() => { setDrawingSignature(false); setDrawnSignature(''); setPadKey((k) => k + 1); }}
+                                     className="flex-1 h-12 cok-btn-outlined"
+                                     style={btnTypography}
+                                   >
+                                     Cancel
+                                   </button>
+                                   <button
+                                     type="button"
+                                     onClick={() => saveSignatureImage(drawnSignature)}
+                                     disabled={savingSignature || !drawnSignature}
+                                     className="flex-1 h-12 cok-btn-primary flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                     style={btnTypography}
+                                   >
+                                     {savingSignature ? (
+                                       <>
+                                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                         <span>Saving...</span>
+                                       </>
+                                     ) : (
+                                       <span>Save signature</span>
+                                     )}
+                                   </button>
+                                 </div>
+                               </div>
+                             ) : (
+                               <div className="space-y-3">
+                                 <div
+                                   onClick={() => !savingSignature && signatureInputRef.current?.click()}
+                                   className="cursor-pointer flex flex-col items-center justify-center gap-1.5 py-6 px-4 text-center transition-colors hover:bg-[#E3F2FD]"
+                                   style={{ border: '2px dashed #9CC7E4', backgroundColor: NEUTRAL_LIGHT }}
+                                 >
+                                   {savingSignature ? (
+                                     <div className="w-6 h-6 border-2 border-[#056daa] border-t-transparent rounded-full animate-spin" />
+                                   ) : (
+                                     <FiUploadCloud className="w-7 h-7" style={{ color: PRIMARY }} />
+                                   )}
+                                   <p className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                                     {savingSignature ? 'Saving...' : 'Upload a PNG of your signature'}
+                                   </p>
+                                   <p className="text-xs" style={{ color: GRAY_DISABLED }}>PNG only, up to 200 KB, ideally on a transparent or white background</p>
+                                 </div>
+                                 <div className="flex gap-3">
+                                   {imageReplaceMode && (
+                                     <button
+                                       type="button"
+                                       onClick={() => setImageReplaceMode(false)}
+                                       className="flex-1 h-12 cok-btn-outlined"
+                                       style={btnTypography}
+                                     >
+                                       Cancel
+                                     </button>
+                                   )}
+                                   <button
+                                     type="button"
+                                     onClick={() => setDrawingSignature(true)}
+                                     disabled={savingSignature}
+                                     className="flex-1 h-12 cok-btn-outlined flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                     style={btnTypography}
+                                   >
+                                     <FiEdit3 className="w-4 h-4" />
+                                     <span>Draw instead</span>
+                                   </button>
+                                 </div>
+                               </div>
+                             )}
+                           </div>
+                         </div>
+
+                         {/* Card 2: certificate pinned to this account for staff attendance signing */}
+                         <div className="border" style={{ borderColor: BORDER, backgroundColor: 'rgba(5,109,170,0.02)', borderRadius: 0 }}>
+                           <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center gap-3">
+                             <div className="flex items-center gap-3">
+                               <div className="p-2" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
+                                 <FiAward className="w-5 h-5" style={{ color: PRIMARY }} />
+                               </div>
+                               <div>
+                                 <p className="font-medium" style={{ color: NEUTRAL_DARK }}>Signing certificate</p>
+                                 <p className="text-xs" style={{ color: GRAY_DISABLED }}>Staff attendance is signed with this certificate and no other.</p>
+                               </div>
+                             </div>
+                             <span className="text-xs font-semibold uppercase whitespace-nowrap" style={{ color: PRIMARY, fontFamily: fontHeading, letterSpacing: '1px' }}>
+                               {signingProfile?.signing_certificate ? 'Enrolled' : 'Not enrolled'}
+                             </span>
+                           </div>
+                           <div className="p-4 sm:p-6 border-t space-y-3" style={{ borderColor: BORDER }}>
+                             <input
+                               ref={certificateInputRef}
+                               type="file"
+                               accept=".p12,.pfx"
+                               className="hidden"
+                               onChange={handleCertificateFileChange}
+                             />
+                             {certNameWarning && (
+                               <div className="flex items-start gap-2 px-3 py-2 text-xs" style={{ backgroundColor: '#FFF8E1', border: '1px solid #F5D77A', color: '#7A5A00' }}>
+                                 <FiAlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                                 <span>{certNameWarning}</span>
+                               </div>
+                             )}
+                             {signingProfile?.signing_certificate && !certReplaceMode ? (
+                               <>
+                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                   <div className="p-3" style={{ backgroundColor: 'rgba(5,109,170,0.04)', borderRadius: 0 }}>
+                                     <span className="block text-xs font-semibold uppercase mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, letterSpacing: '0.5px' }}>Name</span>
+                                     <p className="text-sm font-medium break-words" style={{ color: NEUTRAL_DARK }}>{signingProfile.signing_certificate.subject_common_name || 'N/A'}</p>
+                                   </div>
+                                   <div className="p-3" style={{ backgroundColor: 'rgba(5,109,170,0.04)', borderRadius: 0 }}>
+                                     <span className="block text-xs font-semibold uppercase mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, letterSpacing: '0.5px' }}>Serial number</span>
+                                     <p className="text-sm font-medium break-all" style={{ color: NEUTRAL_DARK }}>{signingProfile.signing_certificate.serial_number || 'N/A'}</p>
+                                   </div>
+                                   <div className="p-3" style={{ backgroundColor: 'rgba(5,109,170,0.04)', borderRadius: 0 }}>
+                                     <span className="block text-xs font-semibold uppercase mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, letterSpacing: '0.5px' }}>Valid until</span>
+                                     <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>{formatDate(signingProfile.signing_certificate.valid_to)}</p>
+                                   </div>
+                                 </div>
+                                 <div className="flex gap-3">
+                                   <button
+                                     type="button"
+                                     onClick={() => { setCertReplaceMode(true); setCertNameWarning(''); }}
+                                     className="flex-1 h-12 cok-btn-outlined"
+                                     style={btnTypography}
+                                   >
+                                     Replace
+                                   </button>
+                                   <button
+                                     type="button"
+                                     onClick={handleRemoveCertificate}
+                                     disabled={removingCertificate}
+                                     className="flex-1 h-12 cok-btn-outlined-danger disabled:opacity-60 disabled:cursor-not-allowed"
+                                     style={btnTypography}
+                                   >
+                                     {removingCertificate ? 'Removing...' : 'Remove'}
+                                   </button>
+                                 </div>
+                               </>
+                             ) : (
+                               <>
+                                 {!certificateFile ? (
+                                   <div
+                                     onClick={() => certificateInputRef.current?.click()}
+                                     className="cursor-pointer flex flex-col items-center justify-center gap-1.5 py-6 px-4 text-center transition-colors hover:bg-[#E3F2FD]"
+                                     style={{ border: '2px dashed #9CC7E4', backgroundColor: NEUTRAL_LIGHT }}
+                                   >
+                                     <FiUploadCloud className="w-7 h-7" style={{ color: PRIMARY }} />
+                                     <p className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Choose your certificate file</p>
+                                     <p className="text-xs" style={{ color: GRAY_DISABLED }}>.p12 or .pfx, never leaves this device</p>
+                                   </div>
+                                 ) : (
+                                   <div className="flex items-center gap-3 px-3 py-2.5" style={{ border: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
+                                     <div className="p-2 shrink-0 bg-white" style={{ border: `1px solid ${BORDER}` }}>
+                                       <FiFileText className="w-4 h-4" style={{ color: PRIMARY }} />
+                                     </div>
+                                     <div className="min-w-0 flex-1">
+                                       <p className="text-sm font-semibold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{certificateFile.name}</p>
+                                       <p className="text-xs" style={{ color: GRAY_DISABLED }}>{(certificateFile.size / 1024).toFixed(1)} KB</p>
+                                     </div>
+                                     <button
+                                       type="button"
+                                       title="Remove file"
+                                       disabled={enrolling}
+                                       onClick={() => { setCertificateFile(null); setCertificatePassword(''); setCertNameWarning(''); }}
+                                       className="p-1.5 shrink-0 cursor-pointer transition-colors hover:bg-[#FDECEA]"
+                                       style={{ color: '#E74C3C' }}
+                                     >
+                                       <FiX className="w-4 h-4" />
+                                     </button>
+                                   </div>
+                                 )}
+                                 <div>
+                                   <label className="block text-xs font-semibold uppercase mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, letterSpacing: '0.5px' }}>
+                                     Certificate password
+                                   </label>
+                                   <div className="relative">
+                                     <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                     <input
+                                       type="password"
+                                       value={certificatePassword}
+                                       autoComplete="off"
+                                       disabled={enrolling}
+                                       onChange={(e) => setCertificatePassword(e.target.value)}
+                                       className="w-full h-12 pl-10 pr-4 cok-auth-input text-base"
+                                       placeholder="Password for this certificate"
+                                     />
+                                   </div>
+                                 </div>
+                                 <div className="flex gap-3">
+                                   {certReplaceMode && (
+                                     <button
+                                       type="button"
+                                       onClick={() => { setCertReplaceMode(false); setCertificateFile(null); setCertificatePassword(''); }}
+                                       disabled={enrolling}
+                                       className="flex-1 h-12 cok-btn-outlined disabled:opacity-60 disabled:cursor-not-allowed"
+                                       style={btnTypography}
+                                     >
+                                       Cancel
+                                     </button>
+                                   )}
+                                   <button
+                                     type="button"
+                                     onClick={handleEnrolCertificate}
+                                     disabled={enrolling || !certificateFile || !certificatePassword}
+                                     className="flex-1 h-12 cok-btn-primary flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                     style={btnTypography}
+                                   >
+                                     {enrolling ? (
+                                       <>
+                                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                         <span>Enrolling...</span>
+                                       </>
+                                     ) : (
+                                       <>
+                                         <FiAward className="w-5 h-5" />
+                                         <span>Enrol certificate</span>
+                                       </>
+                                     )}
+                                   </button>
+                                 </div>
+                                 <p className="text-xs" style={{ color: GRAY_DISABLED }}>
+                                   Your certificate file and password never leave this browser. Only the signed proof of ownership is sent.
+                                 </p>
+                               </>
+                             )}
+                           </div>
+                         </div>
+                       </>
+                     )}
                    </div>
                  )}
                </>
