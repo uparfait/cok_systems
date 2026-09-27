@@ -85,4 +85,4 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] `form_group_id` removed from every widget of the seven board files (generator, regenerated JSON); the form comes from the page the JSON is pasted on and the server stamps it
 - [x] Creation guide: no form id under `form`, none in the examples, a rule that says a widget never names its form and that such keys are dropped
 - [x] Copying widgets out of the Ctrl+6 overlay strips the form id
-- [ ] Boards validate and compute without it; frontend build green
+- [x] Boards validate and compute without it; frontend build green
