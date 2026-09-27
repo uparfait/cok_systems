@@ -29,13 +29,14 @@ Repeat for each of the seven files, one dashboard each - the dashboard switcher 
 
 ## What each board is made of
 
-Every board is one dark **panel** (a canvas coloured `#14318f` with a `#0d2472` border) holding, in the HTML's order:
+Every board is PLAIN WIDGETS on the ordinary grid - no canvases, no sections, the usual white cards - in the HTML's order:
 
-- a **title band**: a text block with the heading only, size large, centred, on `#0d2472`;
-- the **district row**: one KPI card per district (Gasabo, Kicukiro, Nyarugenge) and a TOT card, on `#173a9c` with a white border, each 24% of the row. Every one is **pinned on the District field**, so filtering the board to one district drills the charts down to its sectors while these cards keep showing all three;
-- the board's figures: a **summary table** where the HTML draws a table (one row per district or per hazard, a column per measure or per facility type - the facility types beyond the thirty most frequent fold into an Other column - a Total row and, for the facility table, a Total column, exact figures with shortening turned off; option codes read as the form's own labels), **stacked bars** where it draws bars (coloured with the HTML's hazard or risk colours, value labels renamed to the HTML's words), a **line per month of the incidence date** where it draws its trend line, and a **text block** where it prints observations. The figures inside those notes are LIVE: written as `{{sum(number_271ca1 | single_select_7c5216 = rain_wind)}}` (injuries from rain-and-wind events), `{{count(single_select_f42575 = high)}}`, `{{share(single_select_f42575 = high)}}` and so on, they are computed under the board's filters and date every time the board is read, and `==highlight==` paints them in the HTML's `#39d7ff`. Each note carries its module as its own filter (household loss, infrastructure or hotspot) so its figures count within that module.
+- a **title band**: a text block with the heading only, size large, centred, a whole row;
+- the **district row**: one KPI card per district (Gasabo, Kicukiro, Nyarugenge) and a TOT card, each named for what it counts ("Gasabo - households"). The board's own KPI row gathers every card first, so on board 1 the household cards and the facility cards sit together at the top. Every one is **pinned on the District field**, so filtering the board to one district drills the charts down to its sectors while these cards keep showing all three;
+- the board's figures: a **summary table** where the HTML draws a table (one row per district or per hazard, a column per measure or per facility type - the facility types beyond the thirty most frequent fold into an Other column - a Total row and, for the facility table, a Total column, exact figures with shortening turned off; option codes read as the form's own labels), **stacked bars** where it draws bars (the HTML's hazard or risk colours as series colours, value labels renamed to the HTML's words), a **line per month of the incidence date** where it draws its trend line, and a **text block** where it prints observations. The figures inside those notes are LIVE: written as `{{sum(number_271ca1 | single_select_7c5216 = rain_wind)}}` (injuries from rain-and-wind events), `{{count(single_select_f42575 = high)}}`, `{{share(single_select_f42575 = high)}}` and so on, they are computed under the board's filters and date every time the board is read, and `==highlight==` paints them in the system blue. Each note carries its module as its own filter (household loss, infrastructure or hotspot) so its figures count within that module;
+- on board 6, the HTML's four risk tiles are four KPI cards whose number takes the risk colour (red, amber, blue, green).
 
-The board filters are District, Sector and Key driver (hazard) on every board, plus Risk status on the two hotspot boards. Boards open on "This year" like every dashboard; pick "All" in the period filter to read everything the form holds.
+The HTML's dark blue panels and boxes are deliberately not reproduced: the boards use the system's own white cards and colours, so they read like every other DCS dashboard. The board filters are District, Sector and Key driver (hazard) on every board, plus Risk status on the two hotspot boards. Boards open on "This year" like every dashboard; pick "All" in the period filter to read everything the form holds.
 
 ## Field mapping
 
@@ -69,6 +70,11 @@ Added on 2026-09-25 to the dashboard engine (see `../changes-and-creations.md`, 
 ## Sharing a board
 
 Share links (dashboard page -> Share links) carry an advanced configuration per dashboard: free or fixed filters, a fixed period, whether viewers may open records (and which fields), the link's own title, and the **colour mode viewers see** - their own choice, always light, or always dark. The disaster boards were drawn for their own blue panels and read the same in either mode; pick "Always dark" when the page around them should be dark too and the light/dark switch should not be offered.
+
+## Reading a board
+
+- Hover a card (on a phone or tablet the bar is always there): "Click to view the table" opens the records behind it; "Click to view Sectors" opens the same card one level down the cascade (district -> sector -> cell -> village), as an overlay that offers the same two choices, level after level. A district card fixed on Gasabo opens Gasabo's sectors only.
+- A card that ignores the district filter and is fixed on one district always names it: rename "Gasabo - households" to "Deaths" and the card reads "Deaths (Gasabo)".
 
 ## Editing a board
 

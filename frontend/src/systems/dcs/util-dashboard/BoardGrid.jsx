@@ -7,6 +7,7 @@ import BoardFreeSurface from "./BoardFreeSurface.jsx";
 import { is_studio } from "./boxLayout.js";
 import ExpandableSlot from "./ExpandableSlot.jsx";
 import { build_palette } from "./appearance.js";
+import { drill_target, field_label } from "./cascade.js";
 import { useBoardTheme } from "./boardTheme.jsx";
 
 // Flexible auto-grow grid: a chart's own size (changed from its menu) is
@@ -62,6 +63,8 @@ export default function BoardGrid({
   // "Date & filters" of one widget, and another page of a table widget.
   onBehavior,
   onTablePage,
+  // Going a level down a cascade.
+  onDrill,
   // Canvases: dropping a widget into one, and the right-click menu.
   onAddToCanvas,
   onWidgetMenu,
@@ -186,6 +189,11 @@ export default function BoardGrid({
       onReconfigure={editable && onReconfigure ? () => onReconfigure(widget) : undefined}
       onBehavior={editable && onBehavior ? () => onBehavior(widget) : undefined}
       onTablePage={onTablePage}
+      onDrill={onDrill && drill_target(widget, fields || []) ? () => onDrill(widget) : undefined}
+      drillChild={(() => {
+        const target = drill_target(widget, fields || []);
+        return target ? field_label(target.child) : null;
+      })()}
       slot={canvas_slot(widget)}
       onContextMenu={onWidgetMenu ? (event) => onWidgetMenu(event, widget) : undefined}
       onChangeSize={editable && widget.chart_type !== "kpi" ? (next_size) => onUpdateWidget(widget.id, { size: next_size }) : undefined}

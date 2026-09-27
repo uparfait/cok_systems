@@ -11,6 +11,7 @@ import { Helmet } from "react-helmet-async";
 import { MapScopeProvider, filter_names } from "../util-dashboard/mapScope.jsx";
 import BoardHeader from "../util-dashboard/BoardHeader.jsx";
 import BoardGrid from "../util-dashboard/BoardGrid.jsx";
+import { useDrillStack } from "../util-dashboard/DrillOverlay.jsx";
 import SkippedDetailsModal from "../util-dashboard/SkippedDetailsModal.jsx";
 import ScreenshotStudio from "../util-dashboard/screenshot/ScreenshotStudio.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
@@ -75,6 +76,13 @@ function PublicBoard({ onFixedTheme }) {
   });
   const config = (info && info.link && info.link.config) || { filter_mode: "free", locked_filters: [], show_title: false };
   const locked = config.filter_mode === "locked";
+  // The fields the page can name: the board's filters and the form's whole
+  // cascade chains, so a card can be read a level down.
+  const public_fields = useMemo(() => {
+    const seen = new Set();
+    return ((info && info.filter_fields) || []).concat((info && info.cascade_fields) || []).filter((field) => field && !seen.has(field.id) && seen.add(field.id));
+  }, [info]);
+  const drill = useDrillStack({ fields: public_fields, fetchBatch: (batch) => get_public_dashboard_data(token, batch, data.applied_period_ref.current, data.applied_filters_ref.current, open_id), onOpenRecords: config.allow_records ? (widget, pick) => setRecords({ widget, pick }) : undefined });
   // The link may pin the page to one colour mode; the provider above holds it.
   useEffect(() => {
     if (onFixedTheme) onFixedTheme(config.theme === "dark" || config.theme === "light" ? config.theme : "");
@@ -197,12 +205,14 @@ function PublicBoard({ onFixedTheme }) {
             onRetryWidget={data.retry_widget}
             onShowSkipped={(target) => setSkippedWidget(target)}
             selection={null}
-            fields={info.filter_fields || []}
+            fields={public_fields}
             onTablePage={(widget, page, page_size) => data.page_widget(widget, page, page_size)}
+            onDrill={drill.open}
             onOpenRecords={config.allow_records ? (widget, pick) => setRecords({ widget, pick }) : undefined}
           />
         </div>
       )}
+      {drill.element}
       {records && (
         <RecordsOverlay
           title={records.widget.title}

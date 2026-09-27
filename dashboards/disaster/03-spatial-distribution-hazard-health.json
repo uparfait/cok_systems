@@ -13,59 +13,6 @@
   ],
   "widgets": [
     {
-      "id": "d3_panel",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "",
-      "description": null,
-      "icon": null,
-      "chart_type": "canvas",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#14318f",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#0d2472"
-        },
-        "border_width": 2
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "large",
-      "position": 0,
-      "parent_id": null,
-      "box": null,
-      "pinned_fields": [],
-      "canvas": {
-        "flow": "row",
-        "gap": 10,
-        "size_mode": "fixed",
-        "width": null,
-        "height": null,
-        "min_width": null,
-        "max_width": null,
-        "min_height": null,
-        "max_height": null
-      }
-    },
-    {
       "id": "d3_title",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
@@ -80,16 +27,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#0d2472",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 0
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -102,11 +40,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "large",
-      "position": 1,
-      "parent_id": "d3_panel",
-      "box": {
-        "flow": "column"
-      },
+      "position": 0,
       "pinned_fields": [],
       "text": {
         "heading": "SPATIAL DISTRIBUTION OF HAZARD IMPACTS AND HEALTH IMPACTS IN KIGALI",
@@ -118,7 +52,7 @@
     {
       "id": "d3_1",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Gasabo",
+      "title": "Gasabo - households",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -130,16 +64,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -163,19 +88,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 2,
-      "parent_id": "d3_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 1,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -183,7 +96,7 @@
     {
       "id": "d3_2",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Kicukiro",
+      "title": "Kicukiro - households",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -195,16 +108,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -228,19 +132,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 3,
-      "parent_id": "d3_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 2,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -248,7 +140,7 @@
     {
       "id": "d3_3",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Nyarugenge",
+      "title": "Nyarugenge - households",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -260,16 +152,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -293,19 +176,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 4,
-      "parent_id": "d3_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 3,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -329,13 +200,6 @@
       "legend_by": null,
       "appearance": {
         "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2,
         "value_colors": {
           "fire": "#e8542a",
           "heavy_rain": "#1f5fc4",
@@ -368,20 +232,8 @@
       },
       "sort": "value_desc",
       "limit": 12,
-      "size": "large",
-      "position": 5,
-      "parent_id": "d3_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 60,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 260,
-          "unit": "px"
-        }
-      },
+      "size": "medium",
+      "position": 4,
       "pinned_fields": []
     },
     {
@@ -399,16 +251,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -426,27 +269,15 @@
       },
       "sort": "value_desc",
       "limit": 12,
-      "size": "large",
-      "position": 6,
-      "parent_id": "d3_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 38,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 240,
-          "unit": "px"
-        }
-      },
+      "size": "medium",
+      "position": 5,
       "pinned_fields": [],
       "text": {
         "heading": "HEALTH IMPACTS VS HAZARDS",
         "body": "Rain and wind events (=={{sum(number_271ca1 | single_select_7c5216 = rain_wind)}} injuries==) are the main drivers of injuries.\n\nRain events (=={{sum(number_271ca1 | single_select_7c5216 = heavy_rain)}} injuries, {{sum(number_07a4a8 | single_select_7c5216 = heavy_rain)}} missing==) present both safety and search-and-rescue challenges.\n\nFire incidents (=={{sum(number_ca002e | single_select_7c5216 = fire)}} deaths==) pose the highest fatality risk and remain a critical life-safety concern.",
         "align": "left",
         "size": "md",
-        "accent": "#39d7ff"
+        "accent": "#056daa"
       }
     },
     {
@@ -468,13 +299,6 @@
       "legend_by": null,
       "appearance": {
         "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2,
         "compact": false,
         "value_labels": {
           "fire": "Fire",
@@ -502,11 +326,7 @@
       "sort": "label_asc",
       "limit": 50,
       "size": "large",
-      "position": 7,
-      "parent_id": "d3_panel",
-      "box": {
-        "flow": "column"
-      },
+      "position": 6,
       "pinned_fields": [],
       "table": {
         "mode": "summary",

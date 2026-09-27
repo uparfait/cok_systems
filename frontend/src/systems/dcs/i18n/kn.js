@@ -2291,6 +2291,9 @@ const kn = {
   DCS_DB_TEXT_VAR_NEED_WHERE_VALUE: "Ikintu gikeneye agaciro.",
   DCS_DB_TEXT_PREVIEW_LIVE: "Reba n'amakuru nyayo",
   DCS_DB_TEXT_PREVIEW_LOADING: "Birimo kubarwa...",
+  DCS_DB_DRILL_TABLE: "Kanda urebe imbonerahamwe",
+  DCS_DB_DRILL_CHILD: "Kanda urebe {{field}}",
+  DCS_DB_DRILL_BACK: "Subira inyuma",
 };
 
 export default kn;

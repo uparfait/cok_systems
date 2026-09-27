@@ -16,59 +16,6 @@
   ],
   "widgets": [
     {
-      "id": "d6_panel",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "",
-      "description": null,
-      "icon": null,
-      "chart_type": "canvas",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#14318f",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#0d2472"
-        },
-        "border_width": 2
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "large",
-      "position": 0,
-      "parent_id": null,
-      "box": null,
-      "pinned_fields": [],
-      "canvas": {
-        "flow": "row",
-        "gap": 10,
-        "size_mode": "fixed",
-        "width": null,
-        "height": null,
-        "min_width": null,
-        "max_width": null,
-        "min_height": null,
-        "max_height": null
-      }
-    },
-    {
       "id": "d6_title",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
@@ -83,16 +30,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#0d2472",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 0
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -105,11 +43,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "large",
-      "position": 1,
-      "parent_id": "d6_panel",
-      "box": {
-        "flow": "column"
-      },
+      "position": 0,
       "pinned_fields": [],
       "text": {
         "heading": "REPORT ON HOTSPOT IDENTIFICATION AND MONITORING",
@@ -121,7 +55,7 @@
     {
       "id": "d6_1",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Gasabo",
+      "title": "Gasabo - hotspots",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -133,16 +67,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -166,19 +91,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 2,
-      "parent_id": "d6_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 1,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -186,7 +99,7 @@
     {
       "id": "d6_2",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Kicukiro",
+      "title": "Kicukiro - hotspots",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -198,16 +111,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -231,19 +135,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 3,
-      "parent_id": "d6_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 2,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -251,7 +143,7 @@
     {
       "id": "d6_3",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Nyarugenge",
+      "title": "Nyarugenge - hotspots",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -263,16 +155,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -296,19 +179,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 4,
-      "parent_id": "d6_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 3,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -316,7 +187,7 @@
     {
       "id": "d6_tot",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "TOT",
+      "title": "TOT - hotspots",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -328,16 +199,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -356,85 +218,10 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 5,
-      "parent_id": "d6_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 4,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
-    },
-    {
-      "id": "d6_tiles",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "",
-      "description": null,
-      "icon": null,
-      "chart_type": "canvas",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#14318f",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#14318f"
-        },
-        "border_width": 0
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "large",
-      "position": 6,
-      "parent_id": "d6_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 60,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 260,
-          "unit": "px"
-        }
-      },
-      "pinned_fields": [],
-      "canvas": {
-        "flow": "row",
-        "gap": 10,
-        "size_mode": "fixed",
-        "width": null,
-        "height": null,
-        "min_width": null,
-        "max_width": null,
-        "min_height": null,
-        "max_height": null
-      }
     },
     {
       "id": "d6_high",
@@ -454,12 +241,8 @@
       "appearance": {
         "theme": "light",
         "light": {
-          "background": "#e0393e",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#e0393e"
-        },
-        "border_width": 0
+          "number": "#e0393e"
+        }
       },
       "x_field_id": null,
       "y_field_id": null,
@@ -484,19 +267,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 7,
-      "parent_id": "d6_tiles",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 48,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 5,
       "pinned_fields": [
         "single_select_f42575"
       ]
@@ -519,12 +290,8 @@
       "appearance": {
         "theme": "light",
         "light": {
-          "background": "#e8951e",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#e8951e"
-        },
-        "border_width": 0
+          "number": "#e8951e"
+        }
       },
       "x_field_id": null,
       "y_field_id": null,
@@ -549,19 +316,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 8,
-      "parent_id": "d6_tiles",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 48,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 6,
       "pinned_fields": [
         "single_select_f42575"
       ]
@@ -584,12 +339,8 @@
       "appearance": {
         "theme": "light",
         "light": {
-          "background": "#1a9ad6",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#1a9ad6"
-        },
-        "border_width": 0
+          "number": "#1a9ad6"
+        }
       },
       "x_field_id": null,
       "y_field_id": null,
@@ -614,19 +365,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 9,
-      "parent_id": "d6_tiles",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 48,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 7,
       "pinned_fields": [
         "single_select_f42575"
       ]
@@ -649,12 +388,8 @@
       "appearance": {
         "theme": "light",
         "light": {
-          "background": "#1fae6b",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#1fae6b"
-        },
-        "border_width": 0
+          "number": "#1fae6b"
+        }
       },
       "x_field_id": null,
       "y_field_id": null,
@@ -679,19 +414,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 10,
-      "parent_id": "d6_tiles",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 48,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 8,
       "pinned_fields": [
         "single_select_f42575"
       ]
@@ -711,16 +434,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -739,19 +453,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "large",
-      "position": 11,
-      "parent_id": "d6_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 38,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 240,
-          "unit": "px"
-        }
-      },
+      "position": 9,
       "pinned_fields": [
         "cascading_select_8dz9o8",
         "single_select_f42575"
@@ -761,7 +463,7 @@
         "body": "**OBSERVATIONS**\nHigh-risk hotspots (=={{share(single_select_f42575 = high)}}==, {{count(single_select_f42575 = high)}} of {{count}}) indicate severe and escalating vulnerability across the City of Kigali, requiring urgent and coordinated action. Kicukiro District has logged =={{count(cascading_select_8dz9o8 = Kicukiro)}} hotspots==, Gasabo {{count(cascading_select_8dz9o8 = Gasabo)}} and Nyarugenge {{count(cascading_select_8dz9o8 = Nyarugenge)}} - the district leading in identification and monitoring reflects an operational efficiency to be replicated, while confirming uneven but widespread risk exposure.\n\n**RECOMMENDATION**\nPrioritize immediate intervention in the =={{count(single_select_f42575 = high)}} high-risk hotspots== through drainage improvement, slope stabilization, relocation, and strict enforcement of land-use regulations.",
         "align": "left",
         "size": "md",
-        "accent": "#39d7ff"
+        "accent": "#056daa"
       }
     }
   ]

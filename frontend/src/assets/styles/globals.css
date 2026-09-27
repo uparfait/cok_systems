@@ -5279,3 +5279,94 @@ background-color: #056daa;
   line-height: 1.4;
   border-radius: 0;
 }
+
+/* Two ways down from a card: its records (left) and the cascade level
+   below it (right). Hidden until the card is hovered; simply there on a
+   screen that cannot hover. */
+.dcs-widget-drill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  border-top: 1px solid;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+  z-index: 3;
+}
+.dcs-widget-hover:hover .dcs-widget-drill,
+.dcs-widget-drill.is-static,
+.dcs-widget-drill:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+.dcs-widget-drill.is-static {
+  position: static;
+  margin-top: auto;
+}
+.dcs-widget-drill-part {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 7px 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dcs-widget-drill-part + .dcs-widget-drill-part {
+  border-left: 1px solid rgba(127, 127, 127, 0.35);
+}
+.dcs-widget-drill-part:hover {
+  background-color: rgba(5, 109, 170, 0.08);
+}
+
+/* The levels drilled into, one panel each, stacked. */
+.dcs-drill-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+}
+.dcs-drill-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+.dcs-drill-panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  margin: 16px;
+  background-color: var(--board-bg, #F4F7F9);
+  border: 2px solid #056daa;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  opacity: 0.6;
+}
+.dcs-drill-panel.is-top {
+  pointer-events: auto;
+  opacity: 1;
+}
+.dcs-drill-panel.is-full {
+  margin: 0;
+  border-width: 0;
+}
+.dcs-drill-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  overflow: auto;
+}
+.dcs-drill-body > .dcs-widget-card {
+  flex: 1 1 auto;
+  min-height: 0;
+}

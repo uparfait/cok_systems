@@ -25,6 +25,8 @@ import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
 import { MapScopeProvider, filter_names } from "./mapScope.jsx";
 import { location_fields, geo_fields } from "./builder/mapFields.js";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
+import { useDrillStack } from "./DrillOverlay.jsx";
+import { useDashboardBulk } from "./useDashboardBulk.js";
 
 // CSS zoom keeps text crisp when fitting the board; transform is the fallback.
 const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "2");
@@ -130,6 +132,8 @@ function DashboardBoard({ form }) {
     fetch_batch: (batch, period, applied) => get_dashboard_data(form.form_group_id, batch, period, applied),
   });
   data_ref.current = data;
+  // Going down a cascade from a card: the level below, as an overlay.
+  const drill = useDrillStack({ fields: form_fields, fetchBatch: (batch) => get_dashboard_data(form.form_group_id, batch, data.applied_period_ref.current, data.applied_filters_ref.current), onOpenRecords: (widget, pick) => setRecords({ widget, pick }) });
 
   // Browser-native full screen with two viewing modes ("fit" zooms the whole
   // board onto one screen, "scroll" keeps natural size), the self-fitting
@@ -284,29 +288,7 @@ function DashboardBoard({ form }) {
   };
 
   // Several at once, from the switcher: names in capitals, or deletion.
-  const uppercase_many = async (ids) => {
-    try {
-      const count = await library.uppercase_many(ids);
-      showSuccess(translate("DCS_DB_BULK_UPPERCASED", { count }));
-    } catch (error) {
-      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
-      throw error;
-    }
-  };
-  const remove_many = async (ids) => {
-    try {
-      const remaining = await library.remove_many(ids);
-      if (ids.includes(active_id)) {
-        data.clear();
-        setWidgets([]);
-      }
-      showSuccess(translate("DCS_DB_BULK_DELETED", { count: ids.length }));
-      if (remaining.length === 0) setNaming(true);
-    } catch (error) {
-      showError(request_error_text(error, translate("DCS_ERROR_GENERIC")));
-      throw error;
-    }
-  };
+  const bulk = useDashboardBulk({ library, data, active_id, setWidgets, setNaming, translate, showSuccess, showError });
 
   // Deleting removes THIS dashboard (and its share links); the next one in
   // the list takes over, or the editor is asked to name a new first one.
@@ -357,7 +339,7 @@ function DashboardBoard({ form }) {
     >
       <BoardHeader
         form={form}
-        title={<DashboardSwitcher dashboards={library.dashboards} activeId={active_id} canEdit={can_edit && !generating} onSelect={library.select} onRename={rename_active} onCreate={() => setNaming(true)} onUppercase={uppercase_many} onDeleteMany={remove_many} />}
+        title={<DashboardSwitcher dashboards={library.dashboards} activeId={active_id} canEdit={can_edit && !generating} onSelect={library.select} onRename={rename_active} onCreate={() => setNaming(true)} onUppercase={bulk.uppercase_many} onDeleteMany={bulk.remove_many} />}
         widgets_count={widgets.length}
         can_edit={can_edit && has_board}
         generating={generating}
@@ -433,6 +415,7 @@ function DashboardBoard({ form }) {
             onAddToCanvas={open_builder_in}
             onBehavior={(target) => setBehaviorWidget(target)}
             onTablePage={(target, page, page_size) => data.page_widget(target, page, page_size)}
+            onDrill={drill.open}
             onWidgetMenu={canvas_menu.open_widget_menu}
             onOpenRecords={(widget, pick) => setRecords({ widget, pick })}
             mapLevels={map_levels}
@@ -473,6 +456,7 @@ function DashboardBoard({ form }) {
         onAutoGenerate={() => handle_generate("overwrite")}
       />
       {canvas_menu.menu_element}
+      {drill.element}
       <BoardViewOverlays
         shareOpen={share_open}
         share={{ form: scoped_form, filters, fields: form_fields, fetchFilterValues: fetch_filter_values, dashboards: library.dashboards, fetchDashboardFilters: (dashboard_id) => get_dashboard({ form_group_id: form.form_group_id, dashboard_id }).then((response) => (response.data && response.data.filters) || []) }}

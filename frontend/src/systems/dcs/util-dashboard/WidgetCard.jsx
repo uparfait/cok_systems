@@ -10,6 +10,8 @@ import { useBoardTheme } from "./boardTheme.jsx";
 import { chart_density } from "./charts/density.js";
 import TextWidget from "./charts/TextWidget.jsx";
 import { period_of, period_label } from "./builder/widgetBehavior.js";
+import { shown_title } from "./cascade.js";
+import { useTouchLikeViewport } from "./useNarrowViewport.js";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -181,7 +183,7 @@ function KpiIconSlot({ icon, color }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, onBehavior, onTablePage, slot, onContextMenu }) {
+export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, onBehavior, onTablePage, onDrill, drillChild, slot, onContextMenu }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -196,6 +198,11 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // filters it ignores is the author's business (the Date & filters
   // dialog) and is not written on it.
   const own_period = period_of(widget);
+  // The title as shown: a card stacked on one value always names it, in
+  // brackets when the author's own title does not.
+  const title_shown = wordless ? widget.title : shown_title(widget, palette.name_for);
+  // Phones and tablets cannot hover: the two-part bar is simply there.
+  const touch_like = useTouchLikeViewport();
   const fixed = own_period.locked && !wordless;
   // The card paints itself from the widget's own appearance (light or dark
   // mode with its background, text and number colors) - unless the viewer
@@ -284,7 +291,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
               every heading on a board a control and renamed a chart on a
               stray click. */}
           <EditableText
-            value={widget.title}
+            value={title_shown}
             placeholder={wordless ? "" : type_label}
             hideWhenEmpty={wordless}
             editable={false}
@@ -361,6 +368,24 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
         )}
       </div>
 
+      {/* Two ways down from a card: the records behind it on the left, and
+          - when its field has a level below it in a cascade - that level on
+          the right, as an overlay of the same card regrouped. Waits for a
+          hover where there is one to wait for; is simply there where not. */}
+      {!wordless && (can_drill || (onDrill && drillChild)) && (
+        <div className={`dcs-widget-drill dcs-no-drill ${touch_like ? "is-static" : ""}`} style={{ backgroundColor: palette.background_solid, borderColor: palette.border }} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
+          {can_drill && (
+            <button type="button" className="dcs-widget-drill-part" style={{ color: palette.number }} onClick={() => onOpenRecords(null)}>
+              {translate("DCS_DB_DRILL_TABLE")}
+            </button>
+          )}
+          {onDrill && drillChild && (
+            <button type="button" className="dcs-widget-drill-part is-next" style={{ color: palette.number }} onClick={() => onDrill()}>
+              {translate("DCS_DB_DRILL_CHILD", { field: drillChild })}
+            </button>
+          )}
+        </div>
+      )}
       {skipped_count > 0 && (
         <button
           type="button"

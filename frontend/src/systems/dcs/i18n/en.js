@@ -2291,6 +2291,9 @@ const en = {
   DCS_DB_TEXT_VAR_NEED_WHERE_VALUE: "The condition needs a value.",
   DCS_DB_TEXT_PREVIEW_LIVE: "Preview with real data",
   DCS_DB_TEXT_PREVIEW_LOADING: "Computing...",
+  DCS_DB_DRILL_TABLE: "Click to view the table",
+  DCS_DB_DRILL_CHILD: "Click to view {{field}}",
+  DCS_DB_DRILL_BACK: "Back",
 };
 
 export default en;

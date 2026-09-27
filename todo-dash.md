@@ -68,3 +68,12 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 ## 9. Confirmations
 - [x] The confirm dialog opens above the dashboard switcher (and every popover) instead of behind it
 - [x] Deleting ticked dashboards works (the list no longer closes and forgets the ticks when the confirmation is clicked) and shows a spinner while it runs
+
+## 10. Flattened boards
+- [x] No canvases, no boxes, no blue panels in the seven boards: plain widgets on the grid with the default white card; hazard and risk colours only on series and tile numbers
+- [x] Boards validate and compute again; README and change log describe the flat layout
+
+## 11. Drill and stacked-value titles
+- [ ] A card stacked on one value of an ignored filter always names it: left alone when the title says it, added in brackets when the author's title does not ("Deaths (Gasabo)")
+- [ ] Hover bar on cascade cards: left the table, right the level below (stacked overlays down to the last level; fixed value narrows to its children); always shown and full-screen on phones and tablets
+- [ ] Public page receives the cascade chains; frontend build green

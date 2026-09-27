@@ -87,6 +87,22 @@ function filter_fields(dashboard, form_version) {
     .map((field) => ({ id: field.id, type: field.type, label: field_label_text(field), parent_field_id: parent_field_id_of(field, catalog.fields_by_id) }));
 }
 
+/**
+ * Every field of the form that stands in a cascade (a district under a
+ * province, a sector under a district...), so the public page can read a
+ * card a level down even when that level is not a board filter.
+ */
+function cascade_fields(form_version) {
+  const catalog = build_field_catalog(form_version.schema);
+  const out = [];
+  catalog.fields_by_id.forEach((field) => {
+    const parent = parent_field_id_of(field, catalog.fields_by_id);
+    const is_parent = Array.from(catalog.fields_by_id.values()).some((other) => other !== field && parent_field_id_of(other, catalog.fields_by_id) === field.id);
+    if (parent || is_parent) out.push({ id: field.id, type: field.type, label: field_label_text(field), parent_field_id: parent });
+  });
+  return out;
+}
+
 /** Locked values the viewer can never change; nothing forced when filtering is free. */
 function forced_filters(link, req) {
   const config = link_config(link, requested_dashboard_id(req));
@@ -146,6 +162,7 @@ async function get_public_dashboard(req, res) {
         layout: (dashboard && dashboard.layout) || null,
         filters: (dashboard && dashboard.filters) || [],
         filter_fields: filter_fields(dashboard, context.form_version),
+        cascade_fields: cascade_fields(context.form_version),
         updated_at: dashboard ? dashboard.updated_at : null,
       }),
     );

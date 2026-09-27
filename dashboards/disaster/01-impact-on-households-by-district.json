@@ -13,59 +13,6 @@
   ],
   "widgets": [
     {
-      "id": "d1_hh_panel",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "",
-      "description": null,
-      "icon": null,
-      "chart_type": "canvas",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#14318f",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#0d2472"
-        },
-        "border_width": 2
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "large",
-      "position": 0,
-      "parent_id": null,
-      "box": null,
-      "pinned_fields": [],
-      "canvas": {
-        "flow": "row",
-        "gap": 10,
-        "size_mode": "fixed",
-        "width": null,
-        "height": null,
-        "min_width": null,
-        "max_width": null,
-        "min_height": null,
-        "max_height": null
-      }
-    },
-    {
       "id": "d1_hh_title",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
@@ -80,16 +27,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#0d2472",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 0
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -102,11 +40,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "large",
-      "position": 1,
-      "parent_id": "d1_hh_panel",
-      "box": {
-        "flow": "column"
-      },
+      "position": 0,
       "pinned_fields": [],
       "text": {
         "heading": "DISASTER IMPACT ON HH BY DISTRICT",
@@ -118,7 +52,7 @@
     {
       "id": "d1_hh_1",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Gasabo",
+      "title": "Gasabo - households",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -130,16 +64,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -163,19 +88,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 2,
-      "parent_id": "d1_hh_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 1,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -183,7 +96,7 @@
     {
       "id": "d1_hh_2",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Kicukiro",
+      "title": "Kicukiro - households",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -195,16 +108,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -228,19 +132,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 3,
-      "parent_id": "d1_hh_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 2,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -248,7 +140,7 @@
     {
       "id": "d1_hh_3",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Nyarugenge",
+      "title": "Nyarugenge - households",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -260,16 +152,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -293,19 +176,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 4,
-      "parent_id": "d1_hh_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 3,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -313,7 +184,7 @@
     {
       "id": "d1_hh_tot",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "TOT",
+      "title": "TOT - households",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -325,16 +196,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -353,19 +215,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 5,
-      "parent_id": "d1_hh_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 4,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -389,13 +239,6 @@
       "legend_by": null,
       "appearance": {
         "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2,
         "compact": false
       },
       "x_field_id": null,
@@ -416,11 +259,7 @@
       "sort": "label_asc",
       "limit": 50,
       "size": "large",
-      "position": 6,
-      "parent_id": "d1_hh_panel",
-      "box": {
-        "flow": "column"
-      },
+      "position": 5,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ],
@@ -527,59 +366,6 @@
       }
     },
     {
-      "id": "d1_fac_panel",
-      "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "",
-      "description": null,
-      "icon": null,
-      "chart_type": "canvas",
-      "metric": {
-        "aggregation": "count",
-        "field_id": null
-      },
-      "group_by": null,
-      "split_by": null,
-      "pattern_by": null,
-      "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#14318f",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#0d2472"
-        },
-        "border_width": 2
-      },
-      "x_field_id": null,
-      "y_field_id": null,
-      "size_field_id": null,
-      "filters": [],
-      "period": {
-        "preset": "all",
-        "from": null,
-        "to": null
-      },
-      "sort": "value_desc",
-      "limit": 12,
-      "size": "large",
-      "position": 7,
-      "parent_id": null,
-      "box": null,
-      "pinned_fields": [],
-      "canvas": {
-        "flow": "row",
-        "gap": 10,
-        "size_mode": "fixed",
-        "width": null,
-        "height": null,
-        "min_width": null,
-        "max_width": null,
-        "min_height": null,
-        "max_height": null
-      }
-    },
-    {
       "id": "d1_fac_title",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
       "title": "",
@@ -594,16 +380,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#0d2472",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 0
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -616,11 +393,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "large",
-      "position": 8,
-      "parent_id": "d1_fac_panel",
-      "box": {
-        "flow": "column"
-      },
+      "position": 6,
       "pinned_fields": [],
       "text": {
         "heading": "DISASTER IMPACTS ON FACILITY BY DISTRICT",
@@ -632,7 +405,7 @@
     {
       "id": "d1_fac_1",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Gasabo",
+      "title": "Gasabo - facilities",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -644,16 +417,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -677,19 +441,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 9,
-      "parent_id": "d1_fac_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 7,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -697,7 +449,7 @@
     {
       "id": "d1_fac_2",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Kicukiro",
+      "title": "Kicukiro - facilities",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -709,16 +461,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -742,19 +485,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 10,
-      "parent_id": "d1_fac_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 8,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -762,7 +493,7 @@
     {
       "id": "d1_fac_3",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "Nyarugenge",
+      "title": "Nyarugenge - facilities",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -774,16 +505,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -807,19 +529,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 11,
-      "parent_id": "d1_fac_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 9,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -827,7 +537,7 @@
     {
       "id": "d1_fac_tot",
       "form_group_id": "ef2401f3-f5ab-4e0e-a02a-ec28e2e76ebd",
-      "title": "TOT",
+      "title": "TOT - facilities",
       "description": null,
       "icon": null,
       "chart_type": "kpi",
@@ -839,16 +549,7 @@
       "split_by": null,
       "pattern_by": null,
       "legend_by": null,
-      "appearance": {
-        "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2
-      },
+      "appearance": null,
       "x_field_id": null,
       "y_field_id": null,
       "size_field_id": null,
@@ -867,19 +568,7 @@
       "sort": "value_desc",
       "limit": 12,
       "size": "small",
-      "position": 12,
-      "parent_id": "d1_fac_panel",
-      "box": {
-        "flow": "row",
-        "width": {
-          "value": 24,
-          "unit": "%"
-        },
-        "min_width": {
-          "value": 130,
-          "unit": "px"
-        }
-      },
+      "position": 10,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ]
@@ -905,13 +594,6 @@
       "legend_by": null,
       "appearance": {
         "theme": "light",
-        "light": {
-          "background": "#173a9c",
-          "text": "#ffffff",
-          "number": "#ffffff",
-          "border": "#ffffff"
-        },
-        "border_width": 2,
         "compact": false,
         "value_labels": {
           "irrigation_scheme": "Irrigation Scheme",
@@ -1017,11 +699,7 @@
       "sort": "label_asc",
       "limit": 50,
       "size": "large",
-      "position": 13,
-      "parent_id": "d1_fac_panel",
-      "box": {
-        "flow": "column"
-      },
+      "position": 11,
       "pinned_fields": [
         "cascading_select_8dz9o8"
       ],
