@@ -79,10 +79,10 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] Public page receives the cascade chains; frontend build green
 
 ## 12. Runtime fix
-- [ ] Card render crash ("cannot access before initialization") fixed: the title reads the palette after it is declared; build green
+- [x] Card render crash ("cannot access before initialization") fixed: the title reads the palette after it is declared; build green
 
 ## 13. Widgets without a form id
-- [ ] `form_group_id` removed from every widget of the seven board files (generator, regenerated JSON); the form comes from the page the JSON is pasted on and the server stamps it
-- [ ] Creation guide: no form id under `form`, none in the examples, a rule that says a widget never names its form and that such keys are dropped
-- [ ] Copying widgets out of the Ctrl+6 overlay strips the form id
+- [x] `form_group_id` removed from every widget of the seven board files (generator, regenerated JSON); the form comes from the page the JSON is pasted on and the server stamps it
+- [x] Creation guide: no form id under `form`, none in the examples, a rule that says a widget never names its form and that such keys are dropped
+- [x] Copying widgets out of the Ctrl+6 overlay strips the form id
 - [ ] Boards validate and compute without it; frontend build green
