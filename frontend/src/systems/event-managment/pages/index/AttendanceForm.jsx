@@ -791,7 +791,7 @@ export default function AttendanceForm() {
               {hasSavedSignature && (
                 <div className="flex items-center gap-2 p-3 mb-3 text-sm" style={{ border: `1px solid ${SUCCESS}`, backgroundColor: '#F1F8F2', color: NEUTRAL_DARK, fontFamily: fontHeading }}>
                   <FiCheckCircle className="w-4 h-4 shrink-0" style={{ color: SUCCESS }} />
-                  <span>Your saved signature from your CoK Systems profile will be shown with this digital signature.</span>
+                  <span>You have saved signature!</span>
                 </div>
               )}
 
