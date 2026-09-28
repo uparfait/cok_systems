@@ -2,6 +2,7 @@ const Router = require('express').Router();
 const SubmitAttendanceController = require('../controllers/SubmitAttendanceController');
 const GetAttendanceController = require('../controllers/GetAttendanceController');
 const AttendanceMeController = require('../controllers/AttendanceMeController');
+const SigningOptionsController = require('../controllers/SigningOptionsController');
 const upload = require('../utilities/upload');
 
 /**
@@ -32,6 +33,8 @@ Router.post('/', upload.single('digitalCertificate'), (req, res, next) => {
 });
 // Signed-in attendee's own account and signing status; must precede the list route
 Router.get('/me', AttendanceMeController.handle);
+// Whether the typed email has an account with a saved signature to show next to a certificate signature
+Router.post('/signing-options', SigningOptionsController.handle);
 Router.get('/', GetAttendanceController.handle);
 
 module.exports = Router;

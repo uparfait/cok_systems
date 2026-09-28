@@ -1,7 +1,7 @@
 const { authenticateBearer } = require('../middlewares/authenticate');
 const { findSystemUserById, findSigningProfile } = require('../utilities/cokUsers');
 
-// Tells the signed-in attendee what the attendance form can prefill and whether a certificate is pinned
+// Tells the signed-in attendee what the attendance form can prefill and whether a signature image is saved
 class AttendanceMeController {
   static async handle(req, res) {
     try {
@@ -19,8 +19,6 @@ class AttendanceMeController {
           email: user.email || '',
           telephone: user.telephone || '',
           hasSignatureImage: !!profile?.signature_image?.data,
-          hasSigningCertificate: !!profile?.signing_certificate?.thumbprint,
-          certificateValidTo: profile?.signing_certificate?.valid_to || null,
         },
       });
     } catch (error) {

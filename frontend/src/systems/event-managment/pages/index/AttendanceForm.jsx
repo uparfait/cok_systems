@@ -260,7 +260,6 @@ export default function AttendanceForm() {
         if (cancelled || !profile) return;
         setStaffProfile(profile);
         setStaffMode(true);
-        setSignatureMethod('certificate');
         setFormData((prev) => ({
           ...prev,
           attendeeFullName: profile.fullName || '',
@@ -274,7 +273,23 @@ export default function AttendanceForm() {
 
   // The phone stays editable when the account has none, or the staff member could never submit
   const lockedPhone = staffMode && !!staffProfile?.telephone;
-  const signBlocked = staffMode && !staffProfile?.hasSigningCertificate;
+  // The typed email is looked up so a saved profile signature can appear next to a certificate signature
+  const [emailLookup, setEmailLookup] = useState(null);
+  useEffect(() => {
+    const email = formData.attendeeEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailLookup(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      axios.post(`${BASE_URL}/attendance/signing-options`, { email })
+        .then((res) => { if (!cancelled) setEmailLookup(res.data?.success ? res.data.data : null); })
+        .catch(() => { if (!cancelled) setEmailLookup(null); });
+    }, 500);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [formData.attendeeEmail]);
+  const hasSavedSignature = !!emailLookup?.hasSignatureImage;
 
   const validate = ({ skipSignature = false } = {}) => {
     const newErrors = {};
@@ -373,13 +388,13 @@ export default function AttendanceForm() {
       const signedAt = new Date().toISOString();
       const fields = buildSignedFields(signedAt);
       const signatureValue = await signCanonicalBytes(unlocked.pkcs8Bytes, canonicalPayloadBytes(fields));
-      // The server renders the staff appearance from the enrolled profile, so no client image is drawn
-      const appearanceImage = staffMode ? null : await renderAppearanceImage({
+      // The server swaps this for the enrolled profile image when the account has one
+      const appearanceImage = await renderAppearanceImage({
         signerName: unlocked.subjectCommonName,
         issuerName: unlocked.issuerCommonName,
         serialNumber: unlocked.serialNumber,
         signedAt,
-        handwritingDataUrl: signature || null,
+        handwritingDataUrl: null,
       });
 
       setCertificateSignature({
@@ -425,7 +440,7 @@ export default function AttendanceForm() {
           signatureValue: certificateSignature.signatureValue,
           certificate: certificateSignature.certificate,
           signedAt: certificateSignature.signedAt,
-          appearanceImage: staffMode ? undefined : certificateSignature.appearanceImage,
+          appearanceImage: certificateSignature.appearanceImage,
         },
       };
     } else {
@@ -580,15 +595,11 @@ export default function AttendanceForm() {
           {staffMode && (
             <div
               className="flex items-start gap-2.5 p-3 text-sm"
-              style={signBlocked
-                ? { backgroundColor: '#FEF5E7', border: '1px solid #F5CBA7', color: '#7E5109', fontFamily: fontHeading }
-                : { backgroundColor: '#E3F2FD', border: '1px solid #9CC7E4', color: NEUTRAL_DARK, fontFamily: fontHeading }}
+              style={{ backgroundColor: '#E3F2FD', border: '1px solid #9CC7E4', color: NEUTRAL_DARK, fontFamily: fontHeading }}
             >
-              <FiLock className="w-4 h-4 shrink-0 mt-0.5" style={{ color: signBlocked ? '#F39C12' : PRIMARY }} />
+              <FiLock className="w-4 h-4 shrink-0 mt-0.5" style={{ color: PRIMARY }} />
               <span>
-                {signBlocked
-                  ? 'Your account has no signing certificate yet. Open Profile, then Signature in CoK Systems to enrol it.'
-                  : `You are signing as ${staffProfile?.fullName}. Verify your digital certificate to sign.`}
+                {`You are signing as ${staffProfile?.fullName}. Draw your signature or sign with your digital certificate.`}
               </span>
             </div>
           )}
@@ -731,9 +742,8 @@ export default function AttendanceForm() {
             )}
           </div>
 
-          {/* Signature Method: required, sign or upload a digital signature; staff always use their certificate */}
-          {!staffMode && (
-            <div>
+          {/* Signature Method: required; staff may also reuse the signature saved on their profile */}
+          <div>
               <label style={labelStyle}>
                 Signature Method <span style={{ color: DANGER }}>*</span>
               </label>
@@ -755,16 +765,15 @@ export default function AttendanceForm() {
                     name="signatureMethod"
                     value="certificate"
                     checked={signatureMethod === 'certificate'}
-                    onChange={() => { setSignatureMethod('certificate'); setErrors((p) => ({ ...p, signature: null })); }}
+                    onChange={() => { setSignatureMethod('certificate'); setSignature(''); setPadKey((k) => k + 1); setErrors((p) => ({ ...p, signature: null })); }}
                     style={{ accentColor: PRIMARY }}
                   />
                   <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Sign with Digital Certificate</span>
                 </label>
               </div>
-            </div>
-          )}
+          </div>
 
-          {!staffMode && signatureMethod === 'draw' && (
+          {signatureMethod === 'draw' && (
             <div>
               <label style={labelStyle}>
                 Draw your signature <span style={{ color: DANGER }}>*</span>
@@ -778,21 +787,15 @@ export default function AttendanceForm() {
 
           {signatureMethod === 'certificate' && (
             <div>
-              {/* A certificate holds no handwriting, so the ink is drawn here like a PDF signature appearance; staff sheets use the profile image instead */}
-              {!staffMode && (
-                <>
-                  <label style={labelStyle}>
-                    Your handwritten signature
-                    <span className="normal-case font-normal ml-1" style={{ color: GRAY_DISABLED }}>(optional, shown on the sheet)</span>
-                  </label>
-                  <SignaturePad
-                    key={`cert-${padKey}`}
-                    onChange={(v) => setSignature(v)}
-                  />
-                </>
+              {/* When the typed email belongs to an account with a saved signature, the server puts that image on the sheet */}
+              {hasSavedSignature && (
+                <div className="flex items-center gap-2 p-3 mb-3 text-sm" style={{ border: `1px solid ${SUCCESS}`, backgroundColor: '#F1F8F2', color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                  <FiCheckCircle className="w-4 h-4 shrink-0" style={{ color: SUCCESS }} />
+                  <span>You have saved signature!</span>
+                </div>
               )}
 
-              <label style={staffMode ? labelStyle : { ...labelStyle, marginTop: '18px' }}>
+              <label style={labelStyle}>
                 Digital Certificate <span style={{ color: DANGER }}>*</span>
                 <span className="normal-case font-normal ml-1" style={{ color: GRAY_DISABLED }}>(.p12 or .pfx)</span>
               </label>
@@ -883,9 +886,9 @@ export default function AttendanceForm() {
                   <button
                     type="button"
                     onClick={handleSignWithCertificate}
-                    disabled={signing || signBlocked}
+                    disabled={signing}
                     className="cok-btn-primary mt-2.5 disabled:cursor-not-allowed"
-                    style={signing || signBlocked ? { opacity: 0.6 } : undefined}
+                    style={signing ? { opacity: 0.6 } : undefined}
                   >
                     <span className="inline-flex items-center justify-center gap-2">
                       {signing && <SpiralLoader color="#FFFFFF" padded={false} size={16} />}
@@ -907,7 +910,7 @@ export default function AttendanceForm() {
                       Signed as {certificateSignature.signerName}
                     </p>
                   </div>
-                  {certificateSignature.appearanceImage ? (
+                  {certificateSignature.appearanceImage && !hasSavedSignature ? (
                     <img
                       src={certificateSignature.appearanceImage}
                       alt={`Digital signature of ${certificateSignature.signerName}`}
@@ -916,7 +919,7 @@ export default function AttendanceForm() {
                     />
                   ) : (
                     <p className="text-xs" style={{ color: GRAY_DISABLED }}>
-                      Issued by {certificateSignature.issuerName || 'an unknown issuer'}. The signature shown on the sheet comes from your enrolled profile.
+                      Issued by {certificateSignature.issuerName || 'an unknown issuer'}. The signature shown on the sheet comes from your saved profile signature.
                     </p>
                   )}
                   <button

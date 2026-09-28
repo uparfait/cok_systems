@@ -52,7 +52,6 @@ interface CertificateSignatureSummary {
   verifiedAt?: string;
   chainVerified?: boolean;
   nameMatchedTypedName?: boolean;
-  thumbprintPinned?: boolean;
   nameMatchedAccountName?: boolean;
   emailMatchedAccount?: boolean;
 }
@@ -78,20 +77,13 @@ function signatureImageSrc(a: AttendanceRecord): string | null {
   return null;
 }
 
-// Caption naming the certificate holder, tagged by whether it matched the enrolled certificate
+// Caption naming the certificate holder; the signature itself was checked before the row was stored
 function CertificateCaption({ cert }: { cert?: CertificateSignatureSummary }) {
   if (!cert?.subjectCommonName) return null;
-  const verified = cert.thumbprintPinned === true;
   return (
     <div className="flex items-center gap-1.5 mt-1">
       <span className="text-[10px] leading-tight" style={{ fontFamily: fontHeading, color: '#888888' }}>
         Digitally signed by {cert.subjectCommonName}
-      </span>
-      <span
-        className="text-[9px] font-semibold uppercase px-1 py-px shrink-0"
-        style={{ fontFamily: fontHeading, backgroundColor: verified ? '#E8F5E9' : '#FFF3E0', color: verified ? '#2E7D32' : '#E65100' }}
-      >
-        {verified ? 'Verified' : 'Unverified'}
       </span>
     </div>
   );

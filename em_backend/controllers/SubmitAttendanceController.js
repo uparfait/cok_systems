@@ -186,23 +186,17 @@ class SubmitAttendanceController {
         }
       }
 
-      const staffRules = !!matched && config.signing.requireCertificateForStaff;
-      let profile = null;
-      let pinnedThumbprint = '';
+      // A matched account may sign any way it likes; the profile only supplies the saved signature image
+      const profile = matched ? await findSigningProfile(matched.user._id) : null;
+      const profileImage = matched ? toBuffer(profile?.signature_image?.data) : null;
 
-      if (staffRules) {
-        profile = await findSigningProfile(matched.user._id);
-        pinnedThumbprint = profile?.signing_certificate?.thumbprint || '';
-
-        if (!isCertificateSigned) {
-          // Rollout escape hatch only: unenrolled staff may still draw when the config allows it
-          if (!(config.signing.allowDrawForStaffWithoutCertificate && !pinnedThumbprint)) {
-            return staffRefusal(res, 403, 'STAFF_CERTIFICATE_REQUIRED', 'This name belongs to a CoK Systems account. Sign with your digital certificate.');
-          }
-        } else if (!pinnedThumbprint) {
-          return staffRefusal(res, 403, 'STAFF_CERTIFICATE_NOT_ENROLLED', 'Your account has no signing certificate yet. Sign in to CoK Systems, open Profile, then Signature, and enrol your certificate.');
-        }
+      // Opt-in strict mode: a matched account must present a digital certificate
+      if (matched && config.signing.requireCertificateForStaff && !isCertificateSigned) {
+        return staffRefusal(res, 403, 'STAFF_CERTIFICATE_REQUIRED', 'This name belongs to a CoK Systems account. Sign with your digital certificate.');
       }
+
+      // The sheet shows the saved image whenever the account has one, else the browser-rendered appearance
+      const useProfileImage = !!matched && isCertificateSigned && !!profileImage;
 
       const uploadedCertificateUrl = req.file
         ? `${config.api.basePath}/uploads/${req.file.filename}`
@@ -214,9 +208,9 @@ class SubmitAttendanceController {
       let signatureSource = 'drawn';
 
       if (isCertificateSigned) {
-        // The browser-rendered appearance is only trusted for the public; staff render from their enrolled image
+        // The browser-rendered appearance is only needed when the account holds no enrolled image
         let appearanceBlob;
-        if (!staffRules) {
+        if (!useProfileImage) {
           const appearance = decodeAppearanceImage(certificateSignature.appearanceImage);
           if (appearance.error) {
             return res.status(400).json({ success: false, message: appearance.error });
@@ -239,17 +233,13 @@ class SubmitAttendanceController {
         const accountEmail = matched ? String(matched.user.email || '').toLowerCase() : '';
         const certificateEmail = String(identity.subjectEmail || '').toLowerCase();
 
-        if (staffRules) {
-          // Stored names and emails are never echoed back; the account holder already knows them
-          if (identity.thumbprint !== pinnedThumbprint) {
-            return staffRefusal(res, 422, 'STAFF_CERTIFICATE_MISMATCH', 'This is not the certificate enrolled on your account.');
-          }
-          if (!namesMatch(matched.user.full_name, identity.subjectCommonName)) {
-            return staffRefusal(res, 422, 'STAFF_CERTIFICATE_MISMATCH', 'The certificate name does not match your account.');
-          }
-          if (certificateEmail && certificateEmail !== accountEmail) {
-            return staffRefusal(res, 422, 'STAFF_CERTIFICATE_MISMATCH', 'The certificate name does not match your account.');
-          }
+        // A staff member may sign with any certificate, but never with one issued to someone else
+        const nameMatchedAccount = !!matched && namesMatch(matched.user.full_name, identity.subjectCommonName);
+        if (matched && !nameMatchedAccount) {
+          return staffRefusal(res, 422, 'STAFF_CERTIFICATE_MISMATCH', 'The certificate name does not match your account.');
+        }
+        if (matched && certificateEmail && certificateEmail !== accountEmail) {
+          return staffRefusal(res, 422, 'STAFF_CERTIFICATE_MISMATCH', 'The certificate email does not match your account.');
         }
 
         // This is what stops one person signing in another person's name
@@ -277,15 +267,14 @@ class SubmitAttendanceController {
           verifiedAt: verification.verifiedAt,
           chainVerified: verification.chainVerified,
           nameMatchedTypedName: nameMatched,
-          thumbprintPinned: staffRules,
-          nameMatchedAccountName: staffRules,
-          emailMatchedAccount: staffRules && !!certificateEmail && certificateEmail === accountEmail,
+          nameMatchedAccountName: nameMatchedAccount,
+          emailMatchedAccount: !!matched && !!certificateEmail && certificateEmail === accountEmail,
         };
 
-        if (staffRules) {
-          signatureImage = toBuffer(profile.signature_image?.data) || undefined;
+        if (useProfileImage) {
+          signatureImage = profileImage;
           signatureImageType = profile.signature_image?.mime || 'image/png';
-          signatureSource = signatureImage ? 'profile-image' : 'none';
+          signatureSource = 'profile-image';
         } else {
           signatureImage = appearanceBlob;
           signatureImageType = 'image/png';
