@@ -39,6 +39,35 @@ export const grow_box = (box, other) => {
   };
 };
 
+/** The box a scatter of points covers; a single point is given room to be seen in. */
+export function points_box(points) {
+  let box = null;
+  (points || []).forEach((point) => {
+    const x = Number(point.lng);
+    const y = Number(point.lat);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    box = grow_box(box, { min_x: x, min_y: y, max_x: x, max_y: y });
+  });
+  if (!box) return null;
+  if (box.max_x - box.min_x < 0.004) {
+    box.min_x -= 0.002;
+    box.max_x += 0.002;
+  }
+  if (box.max_y - box.min_y < 0.004) {
+    box.min_y -= 0.002;
+    box.max_y += 0.002;
+  }
+  return box;
+}
+
+/** How light a color is, 0 to 1 - what tells a dark board from a light one. */
+export function lightness(color) {
+  const hex = String(color || "").replace("#", "");
+  if (hex.length < 6) return 1;
+  const part = (at) => parseInt(hex.slice(at, at + 2), 16) / 255;
+  return 0.2126 * part(0) + 0.7152 * part(2) + 0.0722 * part(4);
+}
+
 /** A box MapLibre understands: [[west, south], [east, north]]. */
 export const map_bounds = (box) => (box ? [[box.min_x, box.min_y], [box.max_x, box.max_y]] : null);
 

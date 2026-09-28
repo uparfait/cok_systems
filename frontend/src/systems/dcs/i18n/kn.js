@@ -556,6 +556,8 @@ const kn = {
   DCS_DB_MAP_NO_SOURCE: "Iyi kopi y'imbonerahamwe ntishobora gupakira imbibi",
   DCS_DB_MAP_FAILED: "Imbibi ntizashoboye gupakirwa",
   DCS_DB_MAP_ENGINE_FAILED: "Ikarita ntiyashoboye gutangira muri iyi mushakisha. Ikenera WebGL: fungura hardware acceleration cyangwa ugerageze indi mushakisha, hanyuma wongere ugerageze.",
+  DCS_DB_MAP_BASEMAP_LOADING: "Ishusho y'ikarita iri gupakirwa...",
+  DCS_DB_MAP_BASEMAP_MISSING: "Ishusho y'ikarita ntibonetse - kanda wongere ugerageze",
   DCS_DB_MAP_NO_VALUE: "Nta nyandiko",
   DCS_DB_MAP_ZOOM_IN: "Egereza",
   DCS_DB_MAP_ZOOM_OUT: "Kuraho kwegereza",

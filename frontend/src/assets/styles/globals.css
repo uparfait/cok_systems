@@ -3917,6 +3917,26 @@ background-color: #056daa;
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
+.dcs-map-basemap {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 5;
+  max-width: calc(100% - 16px);
+  padding: 3px 9px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1.4;
+  pointer-events: none;
+}
+.dcs-map-basemap-retry {
+  cursor: pointer;
+  pointer-events: auto;
+}
 .dcs-map-legend {
   padding-top: 6px;
 }

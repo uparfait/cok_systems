@@ -19,15 +19,13 @@ import { heat_ramp, spread_of } from "./heatScale.js";
  * map by the widget, so the icon component and the theme keep working and
  * nothing depends on the basemap's fonts.
  *
- * The basemap is a vector style fetched once; when it cannot be reached the
- * map falls back to a plain background in the widget's own color, and every
- * data layer still draws. Either way it is washed with the widget's own
- * background before anything of this widget is drawn over it, so a dark
- * board gets a dark map and the data keeps the contrast it was given.
+ * The map starts on a plain ground in the widget's own color and the
+ * basemap (see basemap.js) is slid under the widget's layers whenever it
+ * arrives - the data never waits for it. Either way the ground is washed
+ * with the widget's own background before anything of this widget is drawn
+ * over it, so a dark board gets a dark map and the data keeps the contrast
+ * it was given.
  */
-
-export const BASEMAP_STYLE = "https://tiles.openfreemap.org/styles/bright";
-const STYLE_TIMEOUT = 8000;
 
 const SOURCES = { land: "dcs-land", outline: "dcs-outline", point: "dcs-point" };
 export const LAND_FILL = "dcs-land-fill";
@@ -46,25 +44,14 @@ const TINT = "dcs-map-tint";
 const ANSWERED_OPACITY = ["case", ["boolean", ["get", "answered"], false], 0.62, 0.12];
 const EMPTY = { type: "FeatureCollection", features: [] };
 
+export const BLANK_BACKGROUND = "dcs-map-background";
+
+/** A plain ground in the widget's own color: what the map starts on. */
 export const blank_style = (background) => ({
   version: 8,
   sources: {},
-  layers: [{ id: "dcs-map-background", type: "background", paint: { "background-color": background || "#F2F4F7" } }],
+  layers: [{ id: BLANK_BACKGROUND, type: "background", paint: { "background-color": background || "#F2F4F7" } }],
 });
-
-/** The basemap style, or a plain background when it cannot be fetched. */
-export async function resolve_style(background) {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), STYLE_TIMEOUT);
-    const response = await fetch(BASEMAP_STYLE, { signal: controller.signal });
-    clearTimeout(timer);
-    if (!response.ok) throw new Error("basemap");
-    return await response.json();
-  } catch (error) {
-    return blank_style(background);
-  }
-}
 
 const multipolygon = (shape) => ({ type: "MultiPolygon", coordinates: (shape.rings || []).map((ring) => [ring]) });
 

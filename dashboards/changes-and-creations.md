@@ -293,3 +293,16 @@ Nothing changes for widgets built in the app: the composers still stamp the form
 **A parent walk bug found by the new test.** The walk that narrows the tree to the filtered places kept the parent names in a set, so a cell named like its sector (Kimihurura in Kimihurura, Gasabo) counted as one step and opened the whole sector. `real_parents` and `drill` now keep repeats: a name given twice must be passed twice.
 
 **Proof.** `dc_backend/tests/map_shapes.test.js` (no database) loads the real Kigali tree and asserts it is whole (1 province, 3 districts, 35 sectors, 161 cells, 1,162 villages, no place without an outline), finds all 1,361 places by name under their own parents in 200 requests with nothing from another branch, checks the context at every level and its cap, the kept-shapes rule, the consonant match and the unknown report, and times 100 district requests. Output in `dashboards/disaster/logs/map_shapes_test.log`. The browser-level proof (a real Chromium with WebGL, the basemap made to hang) is in `dashboards/disaster/logs/map_proof.log` with its screenshots.
+
+### 11.15 The map background itself, on a slow link (2026-09-28)
+
+With the boundaries no longer waiting for the basemap, a slow or unreachable basemap showed as bare ground under the boundaries and their labels, with nothing to say why. Two things caused that: the basemap style (from tiles.openfreemap.org) was fetched with an 8-second limit and, once that passed, the map kept a plain ground for good; and the vector tiles behind the style take long on a thin link with nothing cached.
+
+Now (`charts/basemap.js`, `mapKeeper.js`, `MapChrome.jsx`):
+
+- The map is built at once on a plain ground - or on the basemap this browser already holds - and the basemap is fetched beside it with a 45-second limit, one fetch shared by every map on the page, retried on its own on a widening schedule (5 s, 15 s, 30 s, 1 min, 2 min) and then left to the viewer. When it comes it is slid under the widget's layers with MapLibre's `setStyle` and a `transformStyle` that carries the widget's sources (with their data) and layers over, under the basemap's first labels.
+- A style that came once is kept in the browser (`localStorage`, key `dcs_basemap_style_v1`) so the next page starts on it and only the tiles are still to come; the kept copy is refreshed behind.
+- A small note in the corner of the map says "Map background loading..." until the basemap's tiles have filled the ground (the map's `idle`), and "Map background unavailable - click to retry" when the fetch gave up or the ground stayed bare for 90 seconds; the click fetches or re-applies the basemap. The note is in the three languages and never covers the boundaries, which draw regardless.
+- `points_box` and `lightness` moved from `MapChart.jsx` to `mapGeometry.js` to keep the chart under 500 lines.
+
+What this cannot do: make tiles arrive when the browser cannot reach tiles.openfreemap.org at all (a blocked network); the note then says so. Serving the basemap through the backend with a cache would be the next step if that turns out to be the case.

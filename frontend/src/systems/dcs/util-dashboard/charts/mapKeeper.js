@@ -1,5 +1,6 @@
 import { Map as GlMap } from "maplibre-gl";
-import { resolve_style } from "./mapDraw.js";
+import { blank_style } from "./mapDraw.js";
+import { cached_basemap, load_basemap, apply_basemap, retries_left, retry_delay } from "./basemap.js";
 
 /**
  * What a map widget keeps between mounts: the boundaries it has been given,
@@ -41,7 +42,7 @@ function new_entry(key) {
   // which would take the frame's height away from it, so the size is
   // written on the element itself where no stylesheet can reach.
   container.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
-  const entry = { key, container, map: null, loaded: false, failed: false, starting: false, dropped: false, waiters: [], held: false, heat: "", fitted: null, timer: null, watch: null };
+  const entry = { key, container, map: null, loaded: false, failed: false, starting: false, dropped: false, waiters: [], held: false, heat: "", fitted: null, timer: null, watch: null, basemap: "loading", basemap_style: null, basemap_attempt: 0, basemap_timer: null, basemap_watchers: [] };
   // However the element gets its size - mounted late, moved into a bigger
   // frame, the card resized - the map is told. A map built while its
   // element was off the page has no size at all until this fires.
@@ -90,8 +91,9 @@ export function attach_map(entry, host) {
 }
 
 /**
- * Builds the map itself, once. The basemap style is fetched first, so a map
- * that cannot reach it still draws over the widget's own background.
+ * Builds the map itself, once, and at once: on the basemap this browser
+ * already holds, or on a plain ground while the basemap is fetched beside
+ * it (see basemap.js) - the boundaries never wait for another server.
  *
  * Whoever is waiting is told when it is up - not only whoever asked first.
  * A card that remounts while the map is still being built would otherwise
@@ -107,46 +109,129 @@ export function start_map(entry, background, on_ready, on_failed) {
     entry.starting = false;
     waiting.forEach((one) => one[what]());
   };
-  resolve_style(background)
-    .then((style) => {
-      // Dropped while its style was still coming: it stays silent.
-      if (entry.dropped) return;
-      const map = new GlMap({
-        container: entry.container,
-        style,
-        center: [30.06, -1.94],
-        zoom: 9,
-        minZoom: 0,
-        maxZoom: 20,
-        attributionControl: false,
-        dragRotate: false,
-        pitchWithRotate: false,
-        touchPitch: false,
-      });
-      map.touchZoomRotate.disableRotation();
-      entry.map = map;
-      // The card is told the moment the STYLE is in - when the widget's own
-      // layers can be added - and never made to wait for the basemap's
-      // tiles, sprite and fonts. Those come from another server and, in a
-      // browser with nothing cached yet, can take longer than the card's
-      // patience; they fill in behind the boundaries as they arrive.
-      let told = false;
-      const up = () => {
-        if (told) return;
-        told = true;
-        entry.loaded = true;
-        map.resize();
-        tell("on_ready");
-      };
-      map.once("style.load", up);
-      map.once("load", up);
-    })
+  const cached = cached_basemap();
+  let map;
+  try {
+    map = new GlMap({
+      container: entry.container,
+      style: cached || blank_style(background),
+      center: [30.06, -1.94],
+      zoom: 9,
+      minZoom: 0,
+      maxZoom: 20,
+      attributionControl: false,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
+    });
+  } catch (error) {
     // A map engine that cannot start (no WebGL, a blocked worker) must say
     // so with its retry, never leave an empty box behind.
+    entry.failed = true;
+    tell("on_failed");
+    return;
+  }
+  map.touchZoomRotate.disableRotation();
+  entry.map = map;
+  // The card is told the moment the STYLE is in - when the widget's own
+  // layers can be added - and never made to wait for the basemap's tiles,
+  // sprite and fonts: those fill in behind the boundaries as they arrive.
+  let told = false;
+  const up = () => {
+    if (told || entry.dropped) return;
+    told = true;
+    entry.loaded = true;
+    map.resize();
+    tell("on_ready");
+  };
+  map.once("style.load", up);
+  map.once("load", up);
+  if (cached) {
+    entry.basemap_style = cached;
+    set_basemap(entry, "loading");
+    await_ground(entry);
+  } else seek_basemap(entry);
+}
+
+// How long a basemap that is in may take to fill its ground with tiles
+// before the card says it did not come.
+const GROUND_TIMEOUT = 90000;
+
+function set_basemap(entry, state) {
+  entry.basemap = state;
+  entry.basemap_watchers.forEach((watch) => watch(state));
+}
+
+function clear_basemap_timer(entry) {
+  if (entry.basemap_timer) window.clearTimeout(entry.basemap_timer);
+  entry.basemap_timer = null;
+}
+
+/** The basemap is in: its tiles are awaited, and a ground that never fills is reported. */
+function await_ground(entry) {
+  const map = entry.map;
+  if (!map) return;
+  clear_basemap_timer(entry);
+  const done = () => {
+    if (entry.dropped) return;
+    clear_basemap_timer(entry);
+    set_basemap(entry, "ready");
+  };
+  map.once("idle", done);
+  entry.basemap_timer = window.setTimeout(() => {
+    map.off("idle", done);
+    if (!entry.dropped && entry.basemap !== "ready") set_basemap(entry, "missing");
+  }, GROUND_TIMEOUT);
+}
+
+/**
+ * Fetches the basemap and slides it under the widget's layers when it
+ * comes; a fetch that fails is tried again on its own, then left to the
+ * viewer's retry.
+ */
+function seek_basemap(entry) {
+  if (entry.dropped || !entry.map) return;
+  set_basemap(entry, "loading");
+  load_basemap()
+    .then((style) => {
+      if (entry.dropped || !entry.map) return;
+      entry.basemap_style = style;
+      apply_basemap(entry.map, style);
+      await_ground(entry);
+    })
     .catch(() => {
-      entry.failed = true;
-      tell("on_failed");
+      if (entry.dropped) return;
+      if (retries_left(entry.basemap_attempt)) {
+        const delay = retry_delay(entry.basemap_attempt);
+        entry.basemap_attempt += 1;
+        entry.basemap_timer = window.setTimeout(() => seek_basemap(entry), delay);
+        return;
+      }
+      set_basemap(entry, "missing");
     });
+}
+
+/** Tells the card how the basemap stands, now and whenever that changes; returns the way to stop listening. */
+export function watch_basemap(entry, watch) {
+  entry.basemap_watchers = entry.basemap_watchers.concat(watch);
+  watch(entry.basemap);
+  return () => {
+    entry.basemap_watchers = entry.basemap_watchers.filter((one) => one !== watch);
+  };
+}
+
+/** The viewer asks again for a basemap that did not come. */
+export function retry_basemap(entry) {
+  if (!entry || entry.dropped || !entry.map || entry.basemap === "ready") return;
+  clear_basemap_timer(entry);
+  entry.basemap_attempt = 0;
+  if (entry.basemap_style) {
+    set_basemap(entry, "loading");
+    apply_basemap(entry.map, entry.basemap_style);
+    await_ground(entry);
+    return;
+  }
+  seek_basemap(entry);
 }
 
 function destroy(entry) {
@@ -155,6 +240,8 @@ function destroy(entry) {
   // unregister the one that took its place.
   entry.dropped = true;
   entry.waiters = [];
+  entry.basemap_watchers = [];
+  clear_basemap_timer(entry);
   if (entry.watch) entry.watch.disconnect();
   if (entry.map) entry.map.remove();
   if (MAPS.get(entry.key) === entry) MAPS.delete(entry.key);

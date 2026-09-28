@@ -93,5 +93,10 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] Every boundary of the drawn level is shown: the server sends the rest of the level as context (capped at 200 places), the card draws it pale, frames it and names it
 - [x] Parent walk keeps repeated names (a cell named like its sector no longer opens the whole sector)
 - [x] Review findings fixed: controller forwards have / have_level / have_context (held shapes and context no longer travel twice); a drawn place cannot satisfy a filter by its own name; one name from two unrelated filter fields travels once; retry races in the map keeper closed; watchdog cleared when a late map comes up
+
+## 15. Map background on a slow link
+- [x] The basemap is fetched beside the map (45 s limit, shared, retried on a widening schedule) and slid under the widget's layers when it comes; a style that came once is kept in the browser for the next page
+- [x] A note in the corner says the background is loading, or unavailable with a click to retry; the boundaries never wait
+- [x] MapChart under 500 lines; three language files in step; build green; browser proof re-run (note shown while the basemap hangs, gone once it is in)
 - [x] Proof: `map_shapes.test.js` passes against the real Kigali tree (all 1,361 places found, context and cap checked); backend suite green; frontend build green
 - [x] Browser proof: a real headless browser (Edge, WebGL2 via SwiftShader) with the basemap hanging draws all three districts within 6 seconds and never shows the veil; the committed code reproduced the bug at 23 seconds; logs and screenshots saved in dashboards/disaster/logs/map_proof*.log and map_proof*.png

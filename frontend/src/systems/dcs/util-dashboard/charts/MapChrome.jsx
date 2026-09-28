@@ -133,6 +133,27 @@ export function MapVeil({ failed, message, colors, translate, onRetry }) {
 }
 
 /**
+ * A word in the corner of the map while its background is still coming,
+ * or when it did not come: the boundaries never wait for it, so the viewer
+ * is told why the ground is bare - and can ask again.
+ */
+export function MapBasemapNote({ state, colors, translate, onRetry }) {
+  const style = { backgroundColor: with_alpha(colors.background, 0.88), color: colors.text, borderColor: colors.border };
+  if (state === "loading") {
+    return (
+      <div className="dcs-map-basemap" style={style}>
+        {translate("DCS_DB_MAP_BASEMAP_LOADING")}
+      </div>
+    );
+  }
+  return (
+    <button type="button" className="dcs-map-basemap dcs-map-basemap-retry" style={style} onClick={onRetry}>
+      {translate("DCS_DB_MAP_BASEMAP_MISSING")}
+    </button>
+  );
+}
+
+/**
  * The names and markers themselves, rendered into the elements MapLibre
  * holds over each place (see mapOverlay) - React content on a real map.
  */

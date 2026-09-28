@@ -4,13 +4,13 @@ import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useMapScope } from "../mapScope.jsx";
 import { build_palette, spread_color, with_alpha } from "../appearance.js";
 import { chart_density } from "./density.js";
-import { bounds_of, anchor_of, map_bounds, map_key, grow_box } from "./mapGeometry.js";
+import { bounds_of, anchor_of, map_bounds, map_key, grow_box, points_box, lightness } from "./mapGeometry.js";
 import { create_layers, set_shapes, set_theme, set_heat, highlight, shape_geojson, point_geojson, heat_geojson, set_heat_map, clear_heat_map, LAND_FILL } from "./mapDraw.js";
 import { HEAT_LOW, HEAT_HIGH } from "./heatScale.js";
-import { take_cache, take_map, attach_map, start_map, release_map, drop_map } from "./mapKeeper.js";
+import { take_cache, take_map, attach_map, start_map, release_map, drop_map, watch_basemap, retry_basemap } from "./mapKeeper.js";
 import { usePlaceMarkers } from "./mapOverlay.jsx";
 import { use_boundaries } from "./useBoundaries.js";
-import { MapKindToggle, MapTools, MapTip, MapVeil, PlaceLabels } from "./MapChrome.jsx";
+import { MapKindToggle, MapTools, MapTip, MapVeil, MapBasemapNote, PlaceLabels } from "./MapChrome.jsx";
 import MapLegend from "./MapLegend.jsx";
 import { LegendFrame } from "./SeriesLegend.jsx";
 import { MARKER_SET } from "./mapMarkers.js";
@@ -19,36 +19,6 @@ import { MARKER_SET } from "./mapMarkers.js";
 const LETTER_WIDTH = 0.58;
 const LEVEL_ORDER = ["province", "district", "sector", "cell", "village"];
 const chain_of = (shape) => (shape.path || []).concat(shape.name).join("/");
-
-/** How light a color is, 0 to 1 - what tells a dark board from a light one. */
-function lightness(color) {
-  const hex = String(color || "").replace("#", "");
-  if (hex.length < 6) return 1;
-  const part = (at) => parseInt(hex.slice(at, at + 2), 16) / 255;
-  return 0.2126 * part(0) + 0.7152 * part(2) + 0.0722 * part(4);
-}
-
-/** The box a scatter of points covers. */
-function points_box(points) {
-  let box = null;
-  (points || []).forEach((point) => {
-    const x = Number(point.lng);
-    const y = Number(point.lat);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    box = grow_box(box, { min_x: x, min_y: y, max_x: x, max_y: y });
-  });
-  if (!box) return null;
-  // A single point is a place, not a box: give it room to be seen in.
-  if (box.max_x - box.min_x < 0.004) {
-    box.min_x -= 0.002;
-    box.max_x += 0.002;
-  }
-  if (box.max_y - box.min_y < 0.004) {
-    box.min_y -= 0.002;
-    box.max_y += 0.002;
-  }
-  return box;
-}
 
 /**
  * A map widget, drawn by MapLibre GL over a vector basemap, one of two ways.
@@ -111,6 +81,8 @@ export default function MapChart({
   const [ready, setReady] = useState(false);
   const [broken, setBroken] = useState(false);
   const [tip, setTip] = useState(null);
+  // How the basemap under the boundaries stands: coming, in, or not coming.
+  const [basemap, setBasemap] = useState("ready");
   const host_ref = useRef(null);
   const bounds_ref = useRef(null);
   const outer_ref = useRef(null);
@@ -287,7 +259,9 @@ export default function MapChart({
     if (entry.failed) setBroken(true);
     else if (entry.loaded) up();
     else start_map(entry, colors.background_solid, up, () => mine() && setBroken(true));
+    const unwatch = watch_basemap(entry, (state) => mine() && setBasemap(state));
     return () => {
+      unwatch();
       setReady(false);
       live_ref.current = null;
       release_map(entry);
@@ -483,6 +457,7 @@ export default function MapChart({
         <div ref={host_ref} className="dcs-map-canvas" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
         <PlaceLabels shown={shown} icon={marker_icon} size={mark_size} colors={colors} halo={halo} format={number_text} onZoom={zoom_to} />
         <MapTools colors={colors} translate={translate} onZoom={zoom_by} onReset={reset_view} />
+        {basemap !== "ready" && !failed && <MapBasemapNote state={basemap} colors={colors} translate={translate} onRetry={() => retry_basemap(live_ref.current)} />}
         <MapTip tip={tip} row={tip_row} colors={colors} split={split_values} colorOf={value_color} translate={translate} format={number_text} />
         {(failed || waiting) && (
           <MapVeil
