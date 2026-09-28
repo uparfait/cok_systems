@@ -555,6 +555,7 @@ const fr = {
   DCS_DB_MAP_ADDED: "Carte ajoutee a votre brouillon",
   DCS_DB_MAP_NO_SOURCE: "Cette copie du tableau ne peut pas charger les limites",
   DCS_DB_MAP_FAILED: "Les limites n'ont pas pu etre chargees",
+  DCS_DB_MAP_ENGINE_FAILED: "La carte n'a pas pu demarrer dans ce navigateur. Elle a besoin de WebGL : activez l'acceleration materielle ou essayez un autre navigateur, puis reessayez.",
   DCS_DB_MAP_NO_VALUE: "Aucun enregistrement",
   DCS_DB_MAP_ZOOM_IN: "Zoomer",
   DCS_DB_MAP_ZOOM_OUT: "Dezoomer",

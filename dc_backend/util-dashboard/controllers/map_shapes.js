@@ -13,7 +13,15 @@ const { success_response, warning_response, error_response } = require("../../ut
 function read_request(req) {
   const body = req.body || {};
   const list = (value) => (Array.isArray(value) ? value.filter((entry) => typeof entry === "string" && entry.trim()) : []);
-  return { names: list(body.names), parents: list(body.parents), outline: body.outline === true };
+  // What the widget already holds travels too, so it is not sent twice.
+  return {
+    names: list(body.names),
+    parents: list(body.parents),
+    have: list(body.have),
+    have_level: typeof body.have_level === "string" ? body.have_level.trim() : "",
+    have_context: body.have_context === true,
+    outline: body.outline === true,
+  };
 }
 
 async function widget_map_shapes(req, res) {

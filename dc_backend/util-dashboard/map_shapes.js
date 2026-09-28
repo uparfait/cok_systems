@@ -33,6 +33,13 @@ const { MAP_LEVELS, load_tree } = require("./map_tree.js");
  * ("Mageragere" finds "Mageregere"), which is only accepted when it lands
  * on a single spelling. What is still unmatched is reported back, so the
  * widget can say which answers have no shape on the map.
+ *
+ * Beside the shapes it named, the widget is given the REST of the drawn
+ * level under the same filters - every place it did not name - so it can
+ * draw the level whole with the places nobody answered left pale. A level
+ * too large to draw whole (every village of a city) sends none of that,
+ * and a widget that says it already holds the rest for these same filters
+ * is not sent it again.
  */
 
 const MAX_NAMES = 2000;
@@ -56,40 +63,53 @@ function wanted_names(names) {
 /**
  * Of everything the board is filtered by, only what really names a place
  * can narrow a map. A status, a date or a person's answer is not a place
- * and is dropped rather than emptying the map.
+ * and is dropped rather than emptying the map. A name kept twice stays
+ * twice: a sector and a cell called alike are two steps of one chain, and
+ * folding them into one would open the whole sector.
  */
 function real_parents(tree, parents) {
-  const asked = new Set((Array.isArray(parents) ? parents : []).map((name) => normalize(name)).filter(Boolean));
-  if (asked.size === 0) return [];
-  const found = new Set();
+  const asked = (Array.isArray(parents) ? parents : []).map((name) => normalize(name)).filter(Boolean);
+  if (asked.length === 0) return [];
+  const known = new Set();
   const walk = (node) => {
-    if (asked.has(node.key)) found.add(node.key);
+    known.add(node.key);
     (node.children || []).forEach(walk);
   };
   (tree.provinces || []).forEach(walk);
-  return Array.from(found);
+  return asked.filter((key) => known.has(key));
 }
 
 /**
  * Walks every province down to one level, handing each node of that level
  * to a matcher. A branch only counts once it has passed through every
- * parent the board is filtered to, and nothing below the drawn level is
- * ever visited.
+ * parent the board is filtered to ABOVE the drawn level - a name given
+ * twice through two nodes of that name - and nothing below the drawn level
+ * is ever visited.
  */
 function drill(tree, level, parents, matcher, take) {
   const walk = (node, path, chain, left) => {
-    const remaining = left.has(node.key) ? new Set(Array.from(left).filter((name) => name !== node.key)) : left;
     if (node.level === level) {
-      if (remaining.size > 0) return;
+      // A drawn place never satisfies a filter by carrying the name itself:
+      // the cells of the sector Kigarama must not bring along a cell called
+      // Kigarama from another district.
+      if (left.size > 0) return;
       const asked = matcher(node);
       if (asked !== null) take(node, path, chain, asked);
       return;
+    }
+    let remaining = left;
+    if (left.has(node.key)) {
+      remaining = new Map(left);
+      if (remaining.get(node.key) > 1) remaining.set(node.key, remaining.get(node.key) - 1);
+      else remaining.delete(node.key);
     }
     const next_path = path.concat(node.name);
     const next_chain = chain.concat(node);
     (node.children || []).forEach((child) => walk(child, next_path, next_chain, remaining));
   };
-  (tree.provinces || []).forEach((province) => walk(province, [], [], new Set(parents)));
+  const counts = new Map();
+  (parents || []).forEach((key) => counts.set(key, (counts.get(key) || 0) + 1));
+  (tree.provinces || []).forEach((province) => walk(province, [], [], counts));
 }
 
 const shape_of = (node, path, asked) => ({
@@ -101,17 +121,38 @@ const shape_of = (node, path, asked) => ({
   rings: node.rings || [],
 });
 
+/** One shape's whole chain of parents, kept by identity. */
+function remember(ancestors, path, chain) {
+  chain.forEach((node, depth) => {
+    if (!ancestors.has(node.level)) ancestors.set(node.level, new Map());
+    if (!ancestors.get(node.level).has(node)) ancestors.get(node.level).set(node, path.slice(0, depth));
+  });
+}
+
 /** Every parent of a shape that was found, kept by identity. */
 function keeper() {
   const ancestors = new Map();
-  return {
-    ancestors,
-    of: (path, chain) =>
-      chain.forEach((node, depth) => {
-        if (!ancestors.has(node.level)) ancestors.set(node.level, new Map());
-        if (!ancestors.get(node.level).has(node)) ancestors.get(node.level).set(node, path.slice(0, depth));
-      }),
-  };
+  return { ancestors, of: (path, chain) => remember(ancestors, path, chain) };
+}
+
+/**
+ * The REST of the drawn level under the same filters: every place of that
+ * level the widget did not name, so it can draw the level whole with the
+ * places nobody answered left pale. Their parents join the answer's. A
+ * level too large to draw whole (every village of a city) sends none, and
+ * the named places are drawn alone.
+ */
+function level_context(tree, answer, parents) {
+  const drawn = new Set(answer.shapes.map((shape) => shape.path.concat(shape.name).join("/")));
+  const rest = [];
+  let total = 0;
+  drill(tree, answer.level, parents, (node) => node.name, (node, path, chain) => {
+    total += 1;
+    if (!drawn.has(path.concat(node.name).join("/"))) rest.push({ node, path, chain });
+  });
+  if (total > WHOLE_LEVEL_MAX) return [];
+  rest.forEach((entry) => remember(answer.ancestors, entry.path, entry.chain));
+  return rest.map((entry) => shape_of(entry.node, entry.path));
 }
 
 /**
@@ -227,16 +268,36 @@ function map_shapes(request) {
   const wanted = wanted_names(asked.names);
   const have = new Set((Array.isArray(asked.have) ? asked.have : []).map((name) => normalize(name)).filter(Boolean));
 
-  let answer = wanted.size === 0 ? whole_level(tree, parents) : pick_level(tree, wanted, parents);
+  let scope = parents;
+  let answer = wanted.size === 0 ? whole_level(tree, scope) : pick_level(tree, wanted, scope);
+  if (wanted.size > 0 && parents.length > 0) {
+    // The filters keep the walk in their branch, but a widget that ignores
+    // them (a row of district cards under a district filter) names places
+    // outside it: when the open walk answers more of its names, it wins.
+    const open = pick_level(tree, wanted, []);
+    if (open.exact > answer.exact || (open.exact === answer.exact && open.matched > answer.matched)) {
+      answer = open;
+      scope = [];
+    }
+  }
   // A filter that names a place the map cannot hold must not empty it.
-  if (answer.shapes.length === 0 && parents.length > 0) answer = wanted.size === 0 ? whole_level(tree, []) : pick_level(tree, wanted, []);
+  if (answer.shapes.length === 0 && parents.length > 0) {
+    scope = [];
+    answer = wanted.size === 0 ? whole_level(tree, scope) : pick_level(tree, wanted, scope);
+  }
+  // A widget that names nothing has nothing to color: the whole level it
+  // is looking at is context, drawn pale, and none of it counts as answered.
+  if (wanted.size === 0) answer = Object.assign({}, answer, { shapes: [] });
 
   // What the widget already holds does not travel a second time - neither
-  // the boundaries themselves nor the parents it was given with them.
+  // the boundaries themselves nor the parents it was given with them, nor
+  // the rest of the level when the widget says it holds it for these same
+  // filters (context null then means: keep what you have).
   const kept = have.size > 0 && asked.have_level === answer.level;
+  const context = kept && asked.have_context === true ? null : level_context(tree, answer, scope);
   const sent = kept ? answer.shapes.filter((shape) => !have.has(normalize(shape.asked))) : answer.shapes;
   const needed = new Set();
-  sent.forEach((shape) => (shape.path || []).forEach((step, depth) => needed.add(shape.path.slice(0, depth + 1).join("/"))));
+  sent.concat(context || []).forEach((shape) => (shape.path || []).forEach((step, depth) => needed.add(shape.path.slice(0, depth + 1).join("/"))));
 
   const held = [];
   MAP_LEVELS.slice(0, MAP_LEVELS.indexOf(answer.level))
@@ -253,6 +314,7 @@ function map_shapes(request) {
     level: answer.level,
     kept,
     shapes: sent,
+    context,
     parents: held,
     outline: asked.outline === true && tree.outline ? { name: tree.outline.name, rings: tree.outline.rings } : null,
     unknown: answer.unknown,

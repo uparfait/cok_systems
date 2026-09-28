@@ -31,7 +31,7 @@ let private_seq = 0;
 
 /** Every boundary a widget has been given, by the name it was asked for. */
 export function take_cache(key) {
-  if (!CACHES.has(key)) CACHES.set(key, { level: "", places: new Map(), parents: new Map(), unknown: new Set(), box: null });
+  if (!CACHES.has(key)) CACHES.set(key, { level: "", scope: "", places: new Map(), parents: new Map(), context: new Map(), unknown: new Set(), box: null });
   return CACHES.get(key);
 }
 
@@ -41,7 +41,7 @@ function new_entry(key) {
   // which would take the frame's height away from it, so the size is
   // written on the element itself where no stylesheet can reach.
   container.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
-  const entry = { key, container, map: null, loaded: false, failed: false, starting: false, waiters: [], held: false, heat: "", fitted: null, timer: null, watch: null };
+  const entry = { key, container, map: null, loaded: false, failed: false, starting: false, dropped: false, waiters: [], held: false, heat: "", fitted: null, timer: null, watch: null };
   // However the element gets its size - mounted late, moved into a bigger
   // frame, the card resized - the map is told. A map built while its
   // element was off the page has no size at all until this fires.
@@ -109,6 +109,8 @@ export function start_map(entry, background, on_ready, on_failed) {
   };
   resolve_style(background)
     .then((style) => {
+      // Dropped while its style was still coming: it stays silent.
+      if (entry.dropped) return;
       const map = new GlMap({
         container: entry.container,
         style,
@@ -123,11 +125,21 @@ export function start_map(entry, background, on_ready, on_failed) {
       });
       map.touchZoomRotate.disableRotation();
       entry.map = map;
-      map.on("load", () => {
+      // The card is told the moment the STYLE is in - when the widget's own
+      // layers can be added - and never made to wait for the basemap's
+      // tiles, sprite and fonts. Those come from another server and, in a
+      // browser with nothing cached yet, can take longer than the card's
+      // patience; they fill in behind the boundaries as they arrive.
+      let told = false;
+      const up = () => {
+        if (told) return;
+        told = true;
         entry.loaded = true;
         map.resize();
         tell("on_ready");
-      });
+      };
+      map.once("style.load", up);
+      map.once("load", up);
     })
     // A map engine that cannot start (no WebGL, a blocked worker) must say
     // so with its retry, never leave an empty box behind.
@@ -138,9 +150,14 @@ export function start_map(entry, background, on_ready, on_failed) {
 }
 
 function destroy(entry) {
+  // A map still being built when it is dropped must not come up later and
+  // tell a card that has since moved on; and a stale entry must never
+  // unregister the one that took its place.
+  entry.dropped = true;
+  entry.waiters = [];
   if (entry.watch) entry.watch.disconnect();
   if (entry.map) entry.map.remove();
-  MAPS.delete(entry.key);
+  if (MAPS.get(entry.key) === entry) MAPS.delete(entry.key);
 }
 
 /** Throws this map away, so the next card to ask builds a new one. */

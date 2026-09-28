@@ -90,7 +90,7 @@ function PublicBoard({ onFixedTheme }) {
   // Only the filters the link fixed are locked; the rest stay the viewer's ("All" by default).
   // A shared link can fix some filters itself: the map is scoped by those
   // too, exactly as the filter bar shows them.
-  const map_scope = filter_names(locked ? { ...data.filter_values, ...applied_filter_map(config.locked_filters) } : data.filter_values);
+  const map_scope = filter_names(locked ? { ...data.filter_values, ...applied_filter_map(config.locked_filters) } : data.filter_values, public_fields);
   const board_title = (config.show_title && info && info.link && info.link.title) || (info && info.dashboard_name) || (info && info.form_name) || "";
   const locked_ids = useMemo(() => new Set(locked ? (config.locked_filters || []).map((entry) => entry.field_id) : []), [locked, config.locked_filters]);
   const fetch_filter_values = (field_id) => get_public_filter_values(token, field_id, data.applied_filters_ref.current, data.applied_period_ref.current, open_id).then((response) => (response.data && response.data.values) || []);

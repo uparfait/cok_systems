@@ -69,7 +69,7 @@ export function get_dashboard_data(form_group_id, widgets, period, filters) {
  */
 export function get_map_shapes(form_group_id, names, parents, held) {
   const known = held || {};
-  return dcs_request(`/forms/${form_group_id}/dashboard/map-shapes`, "POST", { names: names || [], parents: parents || [], have: known.have || [], have_level: known.have_level || "" });
+  return dcs_request(`/forms/${form_group_id}/dashboard/map-shapes`, "POST", { names: names || [], parents: parents || [], have: known.have || [], have_level: known.have_level || "", have_context: known.have_context === true });
 }
 
 export function get_widget_records(form_group_id, body) {
@@ -201,7 +201,7 @@ export function get_public_widget_records(token, body) {
 
 export function get_public_map_shapes(token, names, parents, held) {
   const known = held || {};
-  return dcs_request(`/public/dashboard/${token}/map-shapes`, "POST", { names: names || [], parents: parents || [], have: known.have || [], have_level: known.have_level || "" }, PUBLIC_CONFIG);
+  return dcs_request(`/public/dashboard/${token}/map-shapes`, "POST", { names: names || [], parents: parents || [], have: known.have || [], have_level: known.have_level || "", have_context: known.have_context === true }, PUBLIC_CONFIG);
 }
 
 export function get_public_filter_values(token, field_id, filters, period, dashboard_id) {

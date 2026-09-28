@@ -86,3 +86,12 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] Creation guide: no form id under `form`, none in the examples, a rule that says a widget never names its form and that such keys are dropped
 - [x] Copying widgets out of the Ctrl+6 overlay strips the form id
 - [x] Boards validate and compute without it; frontend build green
+
+## 14. Map boundaries in a fresh browser
+- [x] Root cause found: the map waited for the remote basemap's `load` before drawing anything and the 20-second watchdog blamed the boundaries; the map is now ready on `style.load` and draws the boundaries while the basemap streams in
+- [x] A map engine that cannot start says so (WebGL message in en/fr/kn); a failed boundaries request shows the server's reason
+- [x] Every boundary of the drawn level is shown: the server sends the rest of the level as context (capped at 200 places), the card draws it pale, frames it and names it
+- [x] Parent walk keeps repeated names (a cell named like its sector no longer opens the whole sector)
+- [x] Review findings fixed: controller forwards have / have_level / have_context (held shapes and context no longer travel twice); a drawn place cannot satisfy a filter by its own name; one name from two unrelated filter fields travels once; retry races in the map keeper closed; watchdog cleared when a late map comes up
+- [x] Proof: `map_shapes.test.js` passes against the real Kigali tree (all 1,361 places found, context and cap checked); backend suite green; frontend build green
+- [x] Browser proof: a real headless browser (Edge, WebGL2 via SwiftShader) with the basemap hanging draws all three districts within 6 seconds and never shows the veil; the committed code reproduced the bug at 23 seconds; logs and screenshots saved in dashboards/disaster/logs/map_proof*.log and map_proof*.png

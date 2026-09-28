@@ -214,6 +214,12 @@ export default function MapChart({
         if (entry) shapes.push(...entry.list);
         else if (cache.unknown.has(key)) unknown.push(row.label);
       });
+      // The rest of the level behind them, pale: every place the board is
+      // looking at is on the map, answered or not.
+      const drawn = new Set(shapes.map(chain_of));
+      (cache.context || new Map()).forEach((shape) => {
+        if (!drawn.has(chain_of(shape))) shapes.push(shape);
+      });
     }
     const chains = new Set();
     shapes.forEach((shape) => (shape.path || []).forEach((step, depth) => chains.add(shape.path.slice(0, depth + 1).join("/"))));
@@ -269,9 +275,18 @@ export default function MapChart({
     const entry = take_map(id_ref.current);
     live_ref.current = entry;
     attach_map(entry, host_ref.current);
+    // Only the entry this card holds may speak to it - a map dropped by a
+    // retry can still come up later - and a map that comes up late is not
+    // a broken one, whatever the watchdog said meanwhile.
+    const mine = () => live_ref.current === entry;
+    const up = () => {
+      if (!mine()) return;
+      setBroken(false);
+      setReady(true);
+    };
     if (entry.failed) setBroken(true);
-    else if (entry.loaded) setReady(true);
-    else start_map(entry, colors.background_solid, () => setReady(true), () => setBroken(true));
+    else if (entry.loaded) up();
+    else start_map(entry, colors.background_solid, up, () => mine() && setBroken(true));
     return () => {
       setReady(false);
       live_ref.current = null;
@@ -335,7 +350,7 @@ export default function MapChart({
           name: shape.name,
           asked: shape.asked || shape.name,
           path: (shape.path || []).join(" / "),
-          color: color_of(shape),
+          color: value_of(shape) === null ? colors.text : color_of(shape),
           answered: value_of(shape) !== null,
         })),
         outlines: shape_geojson(drawing.outlines, (shape, index) => ({ color: colors.color_for(shape.name, index + 3), weight: Math.max(0.8, 2.2 - depth_of(shape) * 0.5) })),
@@ -348,9 +363,10 @@ export default function MapChart({
           return props;
         }),
       });
-      // The view is framed on THE PLACES THIS WIDGET HIGHLIGHTS - never on
-      // the parents outlined behind them. One village fills the map with
-      // that village; three districts fill it with those three.
+      // The view is framed on THE LEVEL THIS WIDGET DRAWS - its answered
+      // places and the pale rest of the level around them - never on the
+      // parents outlined behind. One cell's villages fill the map with that
+      // cell; the three districts fill it with the city.
       box = bounds_of(drawing.shapes) || bounds_of(drawing.outlines);
     }
     set_theme(map, theme_ref.current);
@@ -471,13 +487,13 @@ export default function MapChart({
         {(failed || waiting) && (
           <MapVeil
             failed={failed}
-            message={!broken && status.error ? status.error : ""}
+            message={broken ? translate("DCS_DB_MAP_ENGINE_FAILED") : status.error || ""}
             colors={colors}
             translate={translate}
             onRetry={() => {
               // A retry builds the map again from nothing: whatever stopped
               // it the first time is still in the one that failed.
-              drop_map(id_ref.current);
+              drop_map(live_ref.current ? live_ref.current.key : id_ref.current);
               setBroken(false);
               setAttempt((current) => current + 1);
             }}

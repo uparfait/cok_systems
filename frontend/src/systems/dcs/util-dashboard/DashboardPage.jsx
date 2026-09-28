@@ -321,7 +321,7 @@ function DashboardBoard({ form }) {
     />
   );
 
-  const map_scope = filter_names(data.filter_values);
+  const map_scope = filter_names(data.filter_values, form_fields);
   // A person keeps several boards open at once and they look identical.
   const board_name = library.active ? library.active.name : "";
   return (

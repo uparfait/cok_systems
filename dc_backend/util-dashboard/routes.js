@@ -138,7 +138,7 @@ Router.post("/:form_group_id/dashboard/records", widget_records);
  * @swagger
  * /dcs/api/forms/{form_group_id}/dashboard/map-shapes:
  *   post:
- *     summary: The boundary outlines a map widget draws - the named shapes of one administrative level, their parents and the country outline
+ *     summary: The boundary outlines a map widget draws - the named shapes of one administrative level, the rest of that level, their parents and the country outline
  *     tags: [Dashboard]
  *     security:
  *       - BearerAuth: []

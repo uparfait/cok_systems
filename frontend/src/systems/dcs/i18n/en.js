@@ -555,6 +555,7 @@ const en = {
   DCS_DB_MAP_ADDED: "Map added to your draft",
   DCS_DB_MAP_NO_SOURCE: "This copy of the board cannot load boundaries",
   DCS_DB_MAP_FAILED: "The boundaries could not be loaded",
+  DCS_DB_MAP_ENGINE_FAILED: "The map could not start in this browser. It needs WebGL: turn on hardware acceleration or try another browser, then retry.",
   DCS_DB_MAP_NO_VALUE: "No records",
   DCS_DB_MAP_ZOOM_IN: "Zoom in",
   DCS_DB_MAP_ZOOM_OUT: "Zoom out",
