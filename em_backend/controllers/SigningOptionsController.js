@@ -19,7 +19,6 @@ class SigningOptionsController {
         data: {
           isSystemUser: !!matched,
           hasSignatureImage: !!profile?.signature_image?.data,
-          hasSigningCertificate: !!profile?.signing_certificate?.thumbprint,
         },
       });
     } catch (error) {

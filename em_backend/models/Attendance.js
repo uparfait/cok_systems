@@ -99,7 +99,6 @@ const attendanceSchema = new mongoose.Schema({
     verifiedAt: { type: Date },
     chainVerified: { type: Boolean, default: false },
     nameMatchedTypedName: { type: Boolean, default: false },
-    thumbprintPinned: { type: Boolean, default: false }, // certificate is the one enrolled on the matched account
     nameMatchedAccountName: { type: Boolean, default: false },
     emailMatchedAccount: { type: Boolean, default: false },
   },

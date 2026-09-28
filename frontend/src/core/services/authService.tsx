@@ -29,22 +29,13 @@
    put('/profile/notification-settings', { notifications_enabled: enabled });
 
  // ==================== SIGNING PROFILE APIs ====================
- // Signature image and enrolled certificate used when this account signs attendance sheets
+ // Signature image shown when this account signs attendance sheets
 
  export const getSigningProfile = () => get('/profile/signing-profile');
 
  export const uploadSignatureImage = (imageDataUrl: string) => put('/profile/signature-image', { image: imageDataUrl });
 
  export const deleteSignatureImage = () => del('/profile/signature-image');
-
- // The browser signs the enrolment payload with the certificate's key; the .p12 itself is never sent
- export const enrolSigningCertificate = (data: {
-   certificate: string;
-   signatureValue: string;
-   signedAt: string;
- }) => post('/profile/signing-certificate', data);
-
- export const removeSigningCertificate = () => del('/profile/signing-certificate');
 
  // ==================== LOGIN APIs ====================
  

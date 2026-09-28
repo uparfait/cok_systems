@@ -25,7 +25,6 @@ function presentAttendance(record, req) {
       verifiedAt: certificateSignature.verifiedAt,
       chainVerified: certificateSignature.chainVerified,
       nameMatchedTypedName: certificateSignature.nameMatchedTypedName,
-      thumbprintPinned: !!certificateSignature.thumbprintPinned,
       nameMatchedAccountName: !!certificateSignature.nameMatchedAccountName,
       emailMatchedAccount: !!certificateSignature.emailMatchedAccount,
     };

@@ -186,21 +186,16 @@ class SubmitAttendanceController {
         }
       }
 
-      // A matched account may sign any way it likes; the profile only adds optional checks and the saved image
+      // A matched account may sign any way it likes; the profile only supplies the saved signature image
       const profile = matched ? await findSigningProfile(matched.user._id) : null;
-      const pinnedThumbprint = profile?.signing_certificate?.thumbprint || '';
       const profileImage = matched ? toBuffer(profile?.signature_image?.data) : null;
 
-      // Opt-in strict mode: staff must present a certificate, unenrolled staff may draw only when allowed
+      // Opt-in strict mode: a matched account must present a digital certificate
       if (matched && config.signing.requireCertificateForStaff && !isCertificateSigned) {
-        if (!(config.signing.allowDrawForStaffWithoutCertificate && !pinnedThumbprint)) {
-          return staffRefusal(res, 403, 'STAFF_CERTIFICATE_REQUIRED', 'This name belongs to a CoK Systems account. Sign with your digital certificate.');
-        }
+        return staffRefusal(res, 403, 'STAFF_CERTIFICATE_REQUIRED', 'This name belongs to a CoK Systems account. Sign with your digital certificate.');
       }
 
-      // The pinned certificate is enforced only when one is enrolled and a certificate is presented
-      const pinCertificate = !!matched && isCertificateSigned && !!pinnedThumbprint;
-      // The sheet shows the enrolled image whenever the account has one, else the browser-rendered appearance
+      // The sheet shows the saved image whenever the account has one, else the browser-rendered appearance
       const useProfileImage = !!matched && isCertificateSigned && !!profileImage;
 
       const uploadedCertificateUrl = req.file
@@ -238,9 +233,6 @@ class SubmitAttendanceController {
         const accountEmail = matched ? String(matched.user.email || '').toLowerCase() : '';
         const certificateEmail = String(identity.subjectEmail || '').toLowerCase();
 
-        if (pinCertificate && identity.thumbprint !== pinnedThumbprint) {
-          return staffRefusal(res, 422, 'STAFF_CERTIFICATE_MISMATCH', 'This is not the certificate enrolled on your account.');
-        }
         // A staff member may sign with any certificate, but never with one issued to someone else
         const nameMatchedAccount = !!matched && namesMatch(matched.user.full_name, identity.subjectCommonName);
         if (matched && !nameMatchedAccount) {
@@ -275,7 +267,6 @@ class SubmitAttendanceController {
           verifiedAt: verification.verifiedAt,
           chainVerified: verification.chainVerified,
           nameMatchedTypedName: nameMatched,
-          thumbprintPinned: pinCertificate,
           nameMatchedAccountName: nameMatchedAccount,
           emailMatchedAccount: !!matched && !!certificateEmail && certificateEmail === accountEmail,
         };

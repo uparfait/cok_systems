@@ -47,10 +47,8 @@ module.exports = {
   signing: {
     trustedIssuerCommonName: process.env.SIGNING_TRUSTED_ISSUER_CN || '',
     requireNameMatch: (process.env.SIGNING_REQUIRE_NAME_MATCH || 'true') !== 'false',
-    // Opt-in strict mode: force matched system users to sign with their pinned certificate (off by default)
+    // Opt-in strict mode: force matched system users to sign with a digital certificate (off by default)
     requireCertificateForStaff: (process.env.SIGNING_REQUIRE_CERTIFICATE_FOR_STAFF || 'false') === 'true',
-    // Rollout escape hatch: let staff with no enrolled certificate fall back to drawing
-    allowDrawForStaffWithoutCertificate: (process.env.SIGNING_ALLOW_DRAW_FOR_UNENROLLED_STAFF || 'false') === 'true',
   },
   email: {
     host: process.env.EMAIL_HOST || '197.243.27.181',

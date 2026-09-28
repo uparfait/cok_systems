@@ -68,24 +68,13 @@ function hasSignature(a) {
   return !!(a?.attendeeSignature || a?.digitalCertificate);
 }
 
-// Caption naming the certificate holder, tagged by whether it matched the enrolled certificate
+// Caption naming the certificate holder; the signature itself was checked before the row was stored
 function CertificateCaption({ cert }) {
   if (!cert?.subjectCommonName) return null;
-  const verified = cert.thumbprintPinned === true;
   return (
     <div className="flex items-center gap-1.5 mt-1">
       <span className="text-[10px] leading-tight" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
         Digitally signed by {cert.subjectCommonName}
-      </span>
-      <span
-        className="text-[9px] font-semibold uppercase px-1 py-px shrink-0"
-        style={{
-          backgroundColor: verified ? '#E8F5E9' : '#FFF3E0',
-          color: verified ? '#2E7D32' : '#E65100',
-          fontFamily: fontHeading,
-        }}
-      >
-        {verified ? 'Verified' : 'Unverified'}
       </span>
     </div>
   );
