@@ -20,6 +20,11 @@ const FONT = { fontFamily: "'Montserrat', sans-serif" };
  * same two-part bar as the board's cards: the table of its records on the
  * left, the level below on the right, until the chain ends. On a phone or
  * a tablet each panel fills the screen.
+ *
+ * Every panel is the same width as the one it was opened from - only its
+ * top edge steps down, which is what shows the depth - so a cascade five
+ * levels deep is still five panels of one width rather than a card
+ * shrinking towards the middle of the screen.
  */
 export default function DrillOverlay({ stack, fields, onDrill, onOpenRecords, onBack, onClose }) {
   const { translate } = useDcsLanguage();
@@ -43,7 +48,7 @@ export default function DrillOverlay({ stack, fields, onDrill, onOpenRecords, on
         const target = drill_target(level.widget, fields);
         const step = narrow ? 0 : Math.min(index, 4) * 18;
         return (
-          <div key={level.widget.id} className={`dcs-drill-panel dcs-board-root ${is_top ? "is-top" : ""} ${narrow ? "is-full" : ""}`} style={{ top: step, left: step, right: step, bottom: 0 }} aria-hidden={!is_top}>
+          <div key={level.widget.id} className={`dcs-drill-panel dcs-board-root ${is_top ? "is-top" : ""} ${narrow ? "is-full" : ""}`} style={{ top: step, left: 0, right: 0, bottom: 0 }} aria-hidden={!is_top}>
             <div className="flex items-center justify-between gap-3 flex-shrink-0 px-4 py-2" style={{ backgroundColor: PRIMARY }}>
               <div className="min-w-0 flex items-center gap-3">
                 {index > 0 && is_top && (

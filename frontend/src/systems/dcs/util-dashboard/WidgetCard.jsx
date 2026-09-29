@@ -243,6 +243,14 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // What a KPI card of this width may draw: its icon, its title, its
   // number and its padding all follow the room it ended up with.
   const kpi = kpi_density(chart_size.width, widget.size);
+  // The hover bar carries its whole label at any width: the narrower the
+  // card, the smaller the words, and below about two label widths the two
+  // halves wrap onto a line each (see .dcs-widget-drill in globals.css).
+  // On the smallest card the bar also goes TIGHT - mixed case, no letter
+  // spacing, less padding - which is what makes the whole label fit two
+  // lines and the bar fit the card.
+  const drill_tight = chart_size.width > 0 && chart_size.width < 150;
+  const drill_font = drill_tight ? 9 : chart_size.width > 0 && chart_size.width < 230 ? 10 : 11;
   const base_need = wordless ? 0 : !has_chart ? state_height : is_kpi ? 0 : base_chart_height + 56;
   const filled = has_chart && !is_kpi && !wordless && fill_height > base_chart_height;
   useEffect(() => {
@@ -282,12 +290,14 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           <SpiralLoader />
         </div>
       )}
-      {/* A SECTION need not be named. A canvas holds widgets, not data,
-          so its title and its description are both optional and an unnamed
-          one shows no title bar at all - an empty strip above a group of
-          widgets is just a gap. While the board is editable the bar stays,
-          because that is where a name is added and where its menu lives. */}
-      {(!wordless || !!widget.title || !!widget.description) && (
+      {/* A SECTION and a TEXT BLOCK need not be named: a section holds
+          widgets rather than data, and a block carries its words inside
+          itself, so an unnamed one shows no title bar at all to a reader -
+          an empty strip above it is just a gap. WHILE THE BOARD IS
+          EDITABLE THE BAR STAYS on both, because that is where the name is
+          added and where the card's own menu lives: its size, its colour
+          settings, its words and the way to remove it. */}
+      {(!wordless || editable || !!widget.title || !!widget.description) && (
       <div className={`${is_kpi ? `${kpi.pad} pt-2 pb-1` : "px-3 pt-3 pb-2"} flex items-start gap-2`}>
         {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} size={kpi.icon} />}
         <div className="min-w-0 flex-1 relative">
@@ -322,7 +332,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
         {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon || onMapMode) && (
-          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onMapMode={is_map ? onMapMode : undefined} canHeat={canHeat} fields={fields} onOverTime={onOverTime} onReconfigure={onReconfigure} onBehavior={wordless ? undefined : onBehavior} />
+          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onMapMode={is_map ? onMapMode : undefined} canHeat={canHeat} fields={fields} onOverTime={onOverTime} onReconfigure={onReconfigure} onBehavior={is_canvas ? undefined : onBehavior} />
         )}
       </div>
       )}
@@ -330,7 +340,13 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
       {/* The chart area never widens the card: it is the measured box the
           chart sizes itself to, and anything still wider than it (a long
           time range, a wide heatmap) scrolls inside here instead. */}
-      <div ref={chart_ref} className={`dcs-widget-area ${is_canvas ? "" : `px-2 ${is_kpi ? "pb-2" : "pb-3"}`} flex-1 min-w-0 max-w-full`} style={{ overflowX: "auto", overflowY: "hidden" }} data-base-need={base_need} data-filled={filled ? "1" : "0"}>
+      {/* Everything the widget holds is REACHABLE here. A chart opened out
+          to all of its values, a legend of three hundred entries, a wide
+          heatmap: the area scrolls in both directions rather than clipping
+          what will not fit, which is what used to make "Show more" look
+          like it had done nothing. min-h-0 is what lets it scroll instead
+          of pushing the card taller than the row. */}
+      <div ref={chart_ref} className={`dcs-widget-area ${is_canvas ? "" : `px-2 ${is_kpi ? "pb-2" : "pb-3"}`} flex-1 min-w-0 min-h-0 max-w-full`} style={{ overflowX: "auto", overflowY: "auto" }} data-base-need={base_need} data-filled={filled ? "1" : "0"}>
         {slot ? (
           // A canvas has no data to wait for or fail at: what it holds is
           // handed in and drawn straight away.
@@ -379,14 +395,14 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           the right, as an overlay of the same card regrouped. Waits for a
           hover where there is one to wait for; is simply there where not. */}
       {!wordless && (can_drill || (onDrill && drillChild)) && (
-        <div className={`dcs-widget-drill dcs-no-drill ${touch_like ? "is-static" : ""}`} style={{ backgroundColor: palette.background_solid, borderColor: palette.border }} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
+        <div className={`dcs-widget-drill dcs-no-drill ${touch_like ? "is-static" : ""} ${drill_tight ? "is-tight" : ""}`} style={{ backgroundColor: palette.background_solid, borderColor: palette.border }} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
           {can_drill && (
-            <button type="button" className="dcs-widget-drill-part" style={{ color: palette.number }} onClick={() => onOpenRecords(null)}>
+            <button type="button" className="dcs-widget-drill-part" style={{ color: palette.number, fontSize: drill_font }} onClick={() => onOpenRecords(null)}>
               {translate("DCS_DB_DRILL_TABLE")}
             </button>
           )}
           {onDrill && drillChild && (
-            <button type="button" className="dcs-widget-drill-part is-next" style={{ color: palette.number }} onClick={() => onDrill()}>
+            <button type="button" className="dcs-widget-drill-part is-next" style={{ color: palette.number, fontSize: drill_font }} onClick={() => onDrill()}>
               {translate("DCS_DB_DRILL_CHILD", { field: drillChild })}
             </button>
           )}

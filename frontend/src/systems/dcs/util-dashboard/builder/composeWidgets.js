@@ -2,7 +2,8 @@ import { chart_definition, flatten_schema_fields, field_label_text, is_derived_f
 import { TIME_SOURCE_IDS } from "../overTime.js";
 import { KPI_FORMULAS } from "../kpiCatalog.js";
 import { has_preset_config } from "../../fields/presetFields.js";
-import { behavior_spec } from "./widgetBehavior.js";
+import { with_behavior, behavior_spec } from "./widgetBehavior.js";
+import { KPI_SIZES } from "../boardRows.js";
 
 /**
  * Pure helpers of the dashboard builder: the fields a form offers, the
@@ -255,6 +256,10 @@ export function kpi_card_count(spec, fields, values) {
 }
 
 /** The KPI cards (one per "in each" value, or a single one) plus the optional chart. */
+// The share of a row each card the KPI tab builds claims; six to a wide
+// row unless the author chose otherwise.
+const kpi_card_size = (spec) => (KPI_SIZES.includes(spec.size) ? spec.size : "small");
+
 export function build_kpi_drafts(form, spec, values, translate) {
   const shape = kpi_shape(spec, fields_from_spec(spec, form));
   const title = (spec.title || "").trim();
@@ -275,7 +280,7 @@ export function build_kpi_drafts(form, spec, values, translate) {
           title: `${title} - ${String(value)}`.slice(0, 120),
           description,
           chart_type: "kpi",
-          size: "small",
+          size: kpi_card_size(spec),
           metric,
           legend_by,
           appearance,
@@ -285,7 +290,7 @@ export function build_kpi_drafts(form, spec, values, translate) {
       );
     });
   } else {
-    widgets.push(make_widget(form, { title, description, chart_type: "kpi", size: "small", metric, legend_by, appearance, ...extra }));
+    widgets.push(make_widget(form, { title, description, chart_type: "kpi", size: kpi_card_size(spec), metric, legend_by, appearance, ...extra }));
   }
 
   if (spec.chart_enabled && shape.chart_field && shape.chart_types.includes(spec.chart_type)) {

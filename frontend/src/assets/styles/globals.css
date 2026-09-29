@@ -5330,11 +5330,22 @@ background-color: #056daa;
   right: 0;
   bottom: 0;
   display: flex;
+  /* Two halves side by side while both fit; on a card too narrow for that
+     they wrap onto a line each, so neither is ever squeezed into an
+     ellipsis. */
+  flex-wrap: wrap;
   border-top: 1px solid;
   opacity: 0;
   pointer-events: none;
   transition: opacity 160ms ease;
   z-index: 3;
+  /* The bar grows upwards from the card's bottom edge, so on a very short
+     card it could reach past the top and have its first line cut off by
+     the card. It is held to the card's own height instead, and scrolls
+     inside itself in the one case that still does not fit - a cascade
+     field with a very long name on the smallest card there is. */
+  max-height: 100%;
+  overflow-y: auto;
 }
 .dcs-widget-hover:hover .dcs-widget-drill,
 .dcs-widget-drill.is-static,
@@ -5347,23 +5358,41 @@ background-color: #056daa;
   margin-top: auto;
 }
 .dcs-widget-drill-part {
-  flex: 1 1 0;
+  /* 112px is what the longer of the two labels needs on one line; below
+     that the parts wrap rather than clip. The card passes a font size
+     measured from its own width. */
+  flex: 1 1 112px;
   min-width: 0;
-  padding: 7px 10px;
+  padding: 6px 8px;
   font-family: 'Montserrat', sans-serif;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
+  line-height: 1.25;
+  text-align: center;
   background: transparent;
   border: none;
   cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* The WHOLE label, always: it wraps, and a single word longer than the
+     card breaks rather than pushing the card open. */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .dcs-widget-drill-part + .dcs-widget-drill-part {
   border-left: 1px solid rgba(127, 127, 127, 0.35);
+}
+
+/* On the smallest card of all - twelve to a row, about 90px wide and 70px
+   tall - the two halves are stacked, and capitals at that size need three
+   lines each where mixed case needs two. So the words drop their capitals
+   and their letter spacing and sit tighter: the WHOLE label still reads,
+   and the bar fits the card instead of outgrowing it. */
+.dcs-widget-drill.is-tight .dcs-widget-drill-part {
+  padding: 3px 5px;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.15;
 }
 .dcs-widget-drill-part:hover {
   background-color: rgba(5, 109, 170, 0.08);
@@ -5374,6 +5403,8 @@ background-color: #056daa;
   position: fixed;
   inset: 0;
   z-index: 9990;
+  /* Nothing a drilled card holds may reach past the screen. */
+  overflow: hidden;
 }
 .dcs-drill-backdrop {
   position: absolute;
@@ -5385,12 +5416,32 @@ background-color: #056daa;
   display: flex;
   flex-direction: column;
   margin: 16px;
+  /* Every panel of the cascade is the SAME WIDTH as the one it came from -
+     only the top edge steps down, so the stack reads as a stack - and none
+     of them may grow past the screen whatever it holds. */
+  box-sizing: border-box;
+  max-width: 100%;
+  max-height: 100%;
+  min-width: 0;
+  overflow: hidden;
   background-color: var(--board-bg, #F4F7F9);
   border: 2px solid #056daa;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
   pointer-events: none;
   opacity: 0.6;
 }
+/* A drill panel is also a BOARD - it carries the board's own variables so
+   the card inside it paints itself the same way - and a board is
+   "width: 100%; min-height: 70vh". On an absolutely positioned box a
+   stated width over-constrains it: the browser then honours left and
+   ignores right, and the panel hangs 16px (its own gutter) past the right
+   edge of the screen. The panel is sized by its four edges instead, and a
+   shallow one is not forced to 70vh. */
+.dcs-drill-overlay .dcs-drill-panel.dcs-board-root {
+  width: auto;
+  min-height: 0;
+}
+
 .dcs-drill-panel.is-top {
   pointer-events: auto;
   opacity: 1;
@@ -5410,4 +5461,8 @@ background-color: #056daa;
 .dcs-drill-body > .dcs-widget-card {
   flex: 1 1 auto;
   min-height: 0;
+  /* Without this a wide table or a long axis inside the card would push
+     the panel open instead of scrolling in the body. */
+  min-width: 0;
+  max-width: 100%;
 }

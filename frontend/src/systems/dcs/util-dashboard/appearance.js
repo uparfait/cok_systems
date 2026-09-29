@@ -11,6 +11,10 @@ import { SERIES_COLORS } from "./charts/chartTheme.js";
  * cards never read the raw appearance themselves.
  */
 
+// The four colors a widget may be given. A color set in one mode is the
+// author's decision about the widget, so it holds in the other too.
+export const MODE_KEYS = ["background", "text", "number", "border"];
+
 export const MODE_DEFAULTS = {
   light: { background: "#FFFFFF", text: "#333333", number: "#056daa", border: "#E0E0E0" },
   dark: { background: "#1E2A35", text: "#F2F5F8", number: "#7CC4FF", border: "#2E3B48" },
@@ -247,14 +251,20 @@ export function resolve_appearance(raw) {
  * with its dark color set regardless of its own saved mode; anything else
  * leaves the widget's own choice in charge.
  *
- * board_colors is the BOARD'S OWN LOOK (see boardColors.js), saved with
+ * board_colors is the BOARD'S OWN LOOK (see boardColors.jsx), saved with
  * the dashboard: its background is what every widget is painted in and its
  * border color is what every widget outlines itself with, so the board
- * reads as one surface. A widget that was given a background, a border or a text
- * color OF ITS OWN keeps it - in either mode, because the choice was
- * deliberate - and the board fills in the rest. The muted tones, grids and
- * empty areas all come from the board, and its background also decides
- * which color set the widget draws with: a dark board gets pale grids.
+ * reads as one surface. The muted tones, grids and empty areas all come
+ * from the board, and its background also decides which color set the
+ * widget draws with: a dark board gets pale grids.
+ *
+ * A COLOR THE AUTHOR SET ON THIS WIDGET SURVIVES BOTH. It is a decision
+ * about this card, not a preference of the mode it happened to be set in,
+ * so a card given its own background keeps that background when the page
+ * is switched to dark, when the board is painted in its own colors, and
+ * when both. Only what was never set follows the mode or the board - and
+ * whatever the card ends up with, its words are still forced to a color
+ * that can be read on it (see readable_on).
  */
 export function build_palette(raw, board_theme, board_colors) {
   const appearance = resolve_appearance(raw);
@@ -262,9 +272,16 @@ export function build_palette(raw, board_theme, board_colors) {
   if (board_colors) appearance.theme = board_colors.is_dark ? "dark" : "light";
   const mode = appearance[appearance.theme];
   let extras = MODE_EXTRAS[appearance.theme];
+  // What this widget was actually GIVEN, in either mode: only a color that
+  // differs from the mode's default is stored (see the dialog's compact),
+  // so anything here was chosen on purpose.
+  const held = raw && typeof raw === "object" ? raw : {};
+  const own = (key) => (held[appearance.theme] && held[appearance.theme][key]) || (held.light && held.light[key]) || (held.dark && held.dark[key]) || null;
+  MODE_KEYS.forEach((key) => {
+    const chosen = own(key);
+    if (chosen) mode[key] = chosen;
+  });
   if (board_colors) {
-    const held = raw && typeof raw === "object" ? raw : {};
-    const own = (key) => (held.light && held.light[key]) || (held.dark && held.dark[key]) || null;
     mode.background = own("background") || board_colors.surface;
     mode.border = own("border") || board_colors.border;
     mode.text = own("text") || board_colors.text;

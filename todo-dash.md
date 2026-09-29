@@ -114,3 +114,14 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] A widget's own background or border still wins; its colour dialog shows what is inherited and resets back to the board
 - [x] Shared links carry the colours; the light/dark toggle steps aside on a coloured board
 - [x] Backend test green (mongodb-memory-server), whole suite green, frontend build green
+
+## 18. How the board reads and behaves
+- [x] The hover bar carries its whole label at any card width: it wraps instead of clipping, the halves take a line each on a narrow card, and the font follows the measured width
+- [ ] The cascade overlay: every panel the same width as its parent, nothing reaching outside the screen
+- [x] "Show more" is reachable: the card's area scrolls in both directions instead of clipping a grown chart or a long legend
+- [x] No "fill the screen" button on a phone or a tablet
+- [x] The KPI tab offers the card's four sizes and builds every card at the chosen one
+- [x] Board colours: an explicit choice between this dashboard and every dashboard of the form
+- [x] A colour set on a widget survives dark mode and a painted board; its words stay readable
+- [x] A text block (and a canvas) shows its three-dots menu while the board is editable: size, colours, reconfigure, date and filters, remove
+- [ ] Measured in a real browser and the build green

@@ -9,7 +9,7 @@ const transporter = nodemailer.createTransport({
     // Port 587 is the submission port: the connection starts in the clear
     // and STARTTLS upgrades it, which is why secure is false here. secure
     // true would be port 465, where TLS is there from the first byte.
-    secure: false,
+    secure: true,
     // Encryption is REQUIRED, not merely attempted. Without this nodemailer
     // treats STARTTLS as optional and would fall back to sending the
     // credentials and the mail unencrypted if the server did not offer it.

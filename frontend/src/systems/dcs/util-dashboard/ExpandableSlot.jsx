@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { portal_root } from "./portalRoot.js";
+import { useTouchLikeViewport } from "./useNarrowViewport.js";
 import { FULLSCREEN_SVG, EXIT_SVG } from "./BoardIcons.jsx";
 
 const MARGIN = 12;
@@ -27,6 +28,12 @@ const COLLAPSE_SVG = icon(EXIT_SVG);
  * The motion measures the slot's box on screen and transitions from that
  * box to the screen's edges (and back), so it works wherever the board is:
  * the page, browser full screen, or the fitted full-screen view.
+ *
+ * ON A PHONE OR A TABLET THERE IS NO BUTTON. A card on a small screen is
+ * already nearly the width of it, so there is nothing to gain by lifting
+ * it out - and a control that only ever appears on hover has no business
+ * on a screen with nothing to hover with, where it would sit permanently
+ * over the card's own corner instead.
  */
 export default function ExpandableSlot({ expanded, onToggle, hideButton, palette, children }) {
   const { translate } = useDcsLanguage();
@@ -36,6 +43,7 @@ export default function ExpandableSlot({ expanded, onToggle, hideButton, palette
   const [phase, setPhase] = useState("idle");
   const [frame, setFrame] = useState(null);
   const [held_height, setHeldHeight] = useState(0);
+  const touch_like = useTouchLikeViewport();
 
   const set_phase = (next) => {
     phase_ref.current = next;
@@ -96,7 +104,7 @@ export default function ExpandableSlot({ expanded, onToggle, hideButton, palette
   return (
     <div ref={slot_ref} className={`dcs-expand-slot relative h-full ${active ? "is-held" : ""}`} style={active ? { height: held_height } : undefined}>
       {!active && children}
-      {!active && !hideButton && (
+      {!active && !hideButton && !touch_like && (
         <button type="button" className="dcs-expand-btn" style={button_style} title={translate("DCS_DB_EXPAND_WIDGET")} aria-label={translate("DCS_DB_EXPAND_WIDGET")} onClick={onToggle}>
           {EXPAND_SVG}
         </button>

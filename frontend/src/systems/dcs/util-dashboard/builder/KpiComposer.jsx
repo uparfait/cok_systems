@@ -23,6 +23,7 @@ import {
   occurrence_problem,
 } from "./composeWidgets.js";
 import { useFanOutValues } from "./useFanOutValues.js";
+import { KPI_SIZES } from "../boardRows.js";
 
 export const EMPTY_KPI_SPEC = {
   formula_id: "",
@@ -43,6 +44,9 @@ export const EMPTY_KPI_SPEC = {
   chart_enabled: false,
   chart_type: "",
   appearance: null,
+  // How much of a row each card claims. Six of these fit a wide row, and
+  // whatever a row ends up holding widens to fill it (see boardRows.js).
+  size: "small",
 };
 
 /**
@@ -198,6 +202,15 @@ export default function KpiComposer({ form, fields, filterDefs, onAdd, disabled,
           onDescription={(description) => patch({ description })}
           disabled={disabled}
         />
+        {/* How much of a row each card claims. A card is one number, so it
+            has a step below the small a chart starts at, and a row holds
+            twelve of the smallest. The same four are on the card's own
+            menu once it is on the board. */}
+        <div className="mt-2">
+          <p className="text-xs mb-1" style={{ color: TEXT_MUTED }}>{translate("DCS_DB_SIZE")}</p>
+          <ChipGrid options={KPI_SIZES.map((size) => ({ id: size, label: translate(`DCS_DB_SIZE_${size.toUpperCase()}`) }))} value={spec.size} onChange={(size) => patch({ size })} disabled={disabled} columns="grid-cols-2 sm:grid-cols-4" />
+          <p className="text-xs mt-1" style={{ color: TEXT_MUTED }}>{translate("DCS_DB_SIZE_KPI_COUNTS")}</p>
+        </div>
       </Step>
 
       <Step number={5} titleKey="DCS_DB_STEP_CHART" hintKey="DCS_DB_STEP_CHART_HINT">

@@ -4,7 +4,7 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { IconButton, CLOSE_SVG } from "./BoardIcons.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
-import { Switch, PRIMARY, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builder/builderUi.jsx";
+import { ChipGrid, PRIMARY, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builder/builderUi.jsx";
 import ColorInput from "./builder/ColorInput.jsx";
 import { resolve_board_colors, auto_border, auto_text } from "./boardColors.jsx";
 import { portal_root } from "./portalRoot.js";
@@ -25,8 +25,9 @@ const START = "#0f171f";
  * The preview is the real thing: the same colors, the same outlines, the
  * same worked-out muted tone, on two cards and a chart's grid.
  *
- * "Every dashboard of this form" paints the form's other boards the same
- * way in one go, so a form's boards read as one set.
+ * The colours go to THIS board alone, or to every dashboard of the form
+ * in one go so a form's boards read as one set - an explicit choice, made
+ * before they are applied.
  */
 export default function BoardColorsDialog({ appearance, boardName, onApply, onClose }) {
   const { translate } = useDcsLanguage();
@@ -157,7 +158,21 @@ export default function BoardColorsDialog({ appearance, boardName, onApply, onCl
             </div>
           </div>
 
-          <Switch checked={every} onChange={setEvery} label={translate("DCS_DB_BOARD_COLORS_ALL")} disabled={applying} />
+          <div>
+            <p className="text-xs font-bold uppercase mb-1" style={{ color: TEXT_DARK, letterSpacing: "0.5px", ...HEADING_FONT }}>
+              {translate("DCS_DB_BOARD_COLORS_SCOPE")}
+            </p>
+            <ChipGrid
+              options={[
+                { id: "one", label: translate("DCS_DB_BOARD_COLORS_ONE") },
+                { id: "every", label: translate("DCS_DB_BOARD_COLORS_EVERY") },
+              ]}
+              value={every ? "every" : "one"}
+              onChange={(scope) => setEvery(scope === "every")}
+              disabled={applying}
+              columns="grid-cols-1 sm:grid-cols-2"
+            />
+          </div>
         </div>
 
         <div className="flex-shrink-0 px-4 sm:px-5 py-2 border-t-2 flex items-center justify-between gap-2" style={{ borderColor: PRIMARY }}>
