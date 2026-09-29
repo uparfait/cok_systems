@@ -31,7 +31,7 @@ export const KPI_SIZES = ["xs", "small", "medium", "large"];
 export const CHART_SIZES = ["small", "medium", "large"];
 
 export const KPI_PER_ROW = { xs: 12, small: 6, medium: 4, large: 3 };
-export const CHART_PER_ROW = { small: 3, medium: 2, large: 1, full: 1 };
+export const CHART_PER_ROW = { xs: 3, small: 3, medium: 2, large: 1, full: 1 };
 
 const KPI_CLASSES = {
   xs: "grow basis-[calc(33.333%-0.75rem)] sm:basis-[calc(16.666%-0.75rem)] lg:basis-[calc(8.333%-0.75rem)]",
@@ -41,6 +41,7 @@ const KPI_CLASSES = {
 };
 
 const CHART_CLASSES = {
+  xs: "grow basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(33.333%-0.75rem)]",
   small: "grow basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(33.333%-0.75rem)]",
   medium: "grow basis-full sm:basis-[calc(50%-0.75rem)]",
   large: "grow basis-full",
@@ -48,6 +49,7 @@ const CHART_CLASSES = {
 };
 
 export const is_kpi_widget = (widget) => !!widget && widget.chart_type === "kpi";
+
 
 /** The sizes this widget may be given, in order. */
 export const sizes_for = (widget) => (is_kpi_widget(widget) ? KPI_SIZES : CHART_SIZES);

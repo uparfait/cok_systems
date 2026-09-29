@@ -5,6 +5,12 @@
 # update-deploy.sh.
 
 SERVICES=(frontend backend em-backend dc-backend)
+# Values EVERY backend shares, whatever stack it belongs to: the mail
+# account the system sends from. They are NOT in this repository - a
+# password does not belong in git - but in deploy/env/shared.env on the
+# server (git-ignored), or in an x-email block of docker-compose.yml, which
+# is where the mongo credentials already live.
+SHARED_KEYS=(EMAIL_HOST EMAIL_PORT EMAIL_USER EMAIL_PASS EMAIL_FROM)
 declare -A PORT=([frontend]=5713 [backend]=2026 [em-backend]=2027 [dc-backend]=8765)
 declare -A PROBE=([frontend]="/" [backend]="/cok/api/profile" [em-backend]="/health" [dc-backend]="/dcs/api/docs/")
 declare -A LABEL=([frontend]="Frontend" [backend]="Main backend" [em-backend]="Event backend" [dc-backend]="DCS backend")
@@ -33,6 +39,16 @@ select_stack() {
 }
 
 current_branch() { git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?"; }
+
+# A shared value: from deploy/env/shared.env if it is there, else from
+# docker-compose.yml, else "" (and then whatever the stack's .env holds for
+# that key is left alone).
+shared_value() {
+  local key="$1" value
+  value="$(env_value "$ENV_STORE/shared.env" "$key")"
+  [ -n "$value" ] || value="$(compose_value "$REPO_DIR/docker-compose.yml" "$key")"
+  printf '%s' "$value"
+}
 
 # The folder on the stack's branch. Switching is what makes a stack build
 # from its own code, so it happens even with --no-pull; only the pull is
@@ -72,6 +88,17 @@ ensure_stack_files() {
   for service in "${ENV_SERVICES[@]}"; do
     store="$STACK_ENV_DIR/$service.env"
     placed="$REPO_DIR/$service/.env"
+    # --fresh-env throws this stack's stored copy away and starts again
+    # from the file uploaded into the folder. Everything the stack needs of
+    # its own - its mongo lines, its origin, its JWT_SECRET, the shared mail
+    # account - is written again below, so the only thing lost is a value
+    # somebody set by hand in deploy/env/ and nowhere else.
+    if [ -f "$store" ] && [ "${FRESH_ENV:-0}" = 1 ] && [ -f "$placed" ]; then
+      if [ "$DRY_RUN" = 1 ]; then warn "(dry run) would start $STACK $service.env again from $service/.env"; continue; fi
+      cp "$store" "$store.replaced.$STAMP"
+      cp "$placed" "$store" && ok "$STACK $service.env started again from $service/.env (previous copy at $store.replaced.$STAMP)"
+      continue
+    fi
     [ -f "$store" ] && continue
     if [ -f "$placed" ]; then
       if [ "$DRY_RUN" = 1 ]; then warn "$STACK has no $service.env yet (a real run starts it from $service/.env)"; else cp "$placed" "$store" && ok "$STACK $service.env started from $service/.env"; fi
@@ -96,7 +123,7 @@ place_env_files() {
 # host as the allowed origin, and one JWT_SECRET for its three backends -
 # a different one from the other stack, so a token never crosses over.
 fix_env_files() {
-  local compose_file="$REPO_DIR/docker-compose.yml" user pass mongo_url secret other_secret other_stack service file backup origins
+  local compose_file="$REPO_DIR/docker-compose.yml" user pass mongo_url secret other_secret other_stack service file backup origins key value missing=""
   user="$(compose_value "$compose_file" MONGO_INITDB_ROOT_USERNAME)"
   pass="$(compose_value "$compose_file" MONGO_INITDB_ROOT_PASSWORD)"
   if [ -z "$user" ] || [ -z "$pass" ]; then
@@ -133,6 +160,12 @@ fix_env_files() {
       cp "$file" "$backup"
       sed -i 's/\r$//' "$file"
     fi
+    # The mail account is the same on all three, so it is written before
+    # the lines that differ between them.
+    for key in "${SHARED_KEYS[@]}"; do
+      value="$(shared_value "$key")"
+      [ -n "$value" ] && set_env_key "$file" "$key" "$value"
+    done
     case "$service" in
       backend)
         set_env_key "$file" conne_string "${mongo_url}/cok?authSource=admin"
@@ -155,6 +188,10 @@ fix_env_files() {
       if cmp -s "$file" "$backup"; then rm -f "$backup"; else ok "$STACK $service.env updated - previous copy at $backup"; fi
     fi
   done
+  for key in "${SHARED_KEYS[@]}"; do
+    [ -n "$(shared_value "$key")" ] || missing="$missing $key"
+  done
+  [ -z "$missing" ] || warn "no value for$missing - put them in $ENV_STORE/shared.env (git-ignored, one copy per server) or in an x-email block of docker-compose.yml; without them no backend can send mail"
   if [ "${#CHANGED_ENV[@]}" -eq 0 ]; then ok "the $STACK .env files already carry this stack's values"; else printf '   set: %s\n' "${CHANGED_ENV[@]}"; fi
 }
 
@@ -170,11 +207,72 @@ mongo_run() {
   compose exec -T mongo mongosh --quiet -u "$(mongo_user)" -p "$(mongo_pass)" --authenticationDatabase admin "$1" --eval "$script"
 }
 
+# The services this stack BUILDS (certbot and mongo are pulled images).
+buildable_services() {
+  local service
+  BUILDABLE=()
+  for service in "${STACK_SERVICES[@]}"; do
+    case " ${SERVICES[*]} " in *" $service "*) BUILDABLE+=("$service") ;; esac
+  done
+}
+
+# NOTHING STALE IS REUSED.
+#
+# A container keeps the environment it was created with, and a build reuses
+# any layer that looks unchanged - so "up -d --build" could run new code
+# with the old .env, or skip the build altogether. Worse for the frontend,
+# which bakes its .env INTO the bundle while it builds: a cached layer
+# there meant a deployment that quietly kept the previous API addresses.
+#
+# So every deployment builds with NO CACHE and a fresh pull of the base
+# images, then recreates every container (and the anonymous volumes inside
+# them) so each one reads the .env files just put in place.
+#
+# The build comes FIRST and the swap second, deliberately: the old
+# containers keep serving the site - and the page that asked for the
+# deployment - while the new images are built, so the only downtime is the
+# few seconds of the swap itself rather than the whole build.
+#
+# MONGO IS NEVER TOUCHED, and neither is any named volume: the databases,
+# the uploaded files and the certificates are data, not cache.
 start_stack() {
   log "Starting $STACK (project $STACK_PROJECT): mongo, then ${STACK_SERVICES[*]}"
-  [ "$DRY_RUN" = 1 ] && return 0
+  buildable_services
+  if [ "$DRY_RUN" = 1 ]; then
+    ok "(dry run) would run: docker compose -p $STACK_PROJECT up -d --no-deps --no-recreate mongo"
+    if [ "$BUILD" = 1 ] && [ "${CLEAR_CACHE:-1}" = 1 ]; then
+      ok "(dry run) would run: docker compose -p $STACK_PROJECT build --no-cache --pull ${BUILDABLE[*]}"
+      ok "(dry run) would run: docker compose -p $STACK_PROJECT up -d --no-deps --force-recreate --renew-anon-volumes ${STACK_SERVICES[*]}"
+    elif [ "$BUILD" = 1 ]; then
+      ok "(dry run) would run: docker compose -p $STACK_PROJECT up -d --build --no-deps --force-recreate ${STACK_SERVICES[*]}"
+    else
+      ok "(dry run) would run: docker compose -p $STACK_PROJECT up -d --no-deps --force-recreate ${STACK_SERVICES[*]}"
+    fi
+    ok "(dry run) mongo, the named volumes (databases, uploads, certificates) and every other project are untouched"
+    return 0
+  fi
   compose up -d --no-deps --no-recreate mongo
-  if [ "$BUILD" = 1 ]; then compose up -d --build --no-deps "${STACK_SERVICES[@]}"; else compose up -d --no-deps "${STACK_SERVICES[@]}"; fi
+  if [ "$BUILD" = 1 ] && [ "${CLEAR_CACHE:-1}" = 1 ]; then
+    log "Building $STACK from nothing (no cache, base images pulled again) - the running site is untouched until it succeeds"
+    compose build --no-cache --pull "${BUILDABLE[@]}"
+    compose up -d --no-deps --force-recreate --renew-anon-volumes "${STACK_SERVICES[@]}"
+  elif [ "$BUILD" = 1 ]; then
+    compose up -d --build --no-deps --force-recreate "${STACK_SERVICES[@]}"
+  else
+    compose up -d --no-deps --force-recreate "${STACK_SERVICES[@]}"
+  fi
+}
+
+# What the build left behind: images nothing points at any more and the
+# builder's own cache. Both are rebuilt from the code whenever they are
+# needed again, and a server that never drops them fills its disk - which
+# is what stops mongo from starting at all. Named volumes and the images
+# the running containers use are never candidates.
+prune_build_leftovers() {
+  log "Reclaiming the disk the old images and the build cache were using"
+  if [ "$DRY_RUN" = 1 ]; then ok "(dry run) would run: docker image prune -f && docker builder prune -f"; return 0; fi
+  docker image prune -f 2>&1 | tail -n 1 | sed 's/^/   /' || warn "could not prune the unused images"
+  docker builder prune -f 2>&1 | tail -n 1 | sed 's/^/   /' || warn "could not prune the build cache"
 }
 
 ensure_running() {
@@ -184,6 +282,7 @@ ensure_running() {
   warn "${LABEL[$service]} container is '$state' - starting it from scratch"
   [ "$state" = "missing" ] || show_logs "$service"
   if [ "$BUILD" = 1 ]; then compose up -d --build --no-deps --force-recreate "$service"; else compose up -d --no-deps --force-recreate "$service"; fi
+  # A container recreated on its own must read the .env files too.
 }
 
 read_addresses() {

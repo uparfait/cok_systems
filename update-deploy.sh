@@ -13,7 +13,23 @@
 #   sudo ./update-deploy.sh                  both stacks (UAT first), same as --all
 #   sudo ./update-deploy.sh --ikaze          production only
 #   sudo ./update-deploy.sh --uat-ikaze      UAT only
-#   options: --no-pull  --no-build  --keep-env  --dry-run
+#   options: --no-pull  --no-build  --keep-env  --keep-cache  --fresh-env  --dry-run
+#
+# EVERY DEPLOYMENT STARTS FROM NOTHING. The images are built with no cache
+# and a fresh pull of their base images, and every container is recreated
+# with the anonymous volumes inside it thrown away, so nothing that was
+# cached in a layer or baked into a container survives - the frontend in
+# particular bakes its .env into its bundle while it builds, and a cached
+# layer there used to keep the previous API addresses. The build runs
+# BEFORE the swap, so the site stays up while it builds.
+#   --keep-cache  the old, faster behaviour: reuse layers, build only what
+#                 changed. For a quick iteration, never for a release.
+#   --fresh-env   throw away the stack's stored .env files and start them
+#                 again from the ones uploaded into the folder.
+#
+# MONGO AND EVERY NAMED VOLUME ARE LEFT ALONE: the databases, the uploaded
+# files and the certificates are data, not cache. Only the service
+# containers, their images and the build cache are cleared.
 #
 #   --admin-email=<email>  says production is being created for the FIRST
 #       time: that person is looked up in the UAT accounts and copied into
@@ -31,13 +47,19 @@
 #      docker-compose.yml), its frontend host as the allowed browser origin,
 #      one JWT_SECRET for its three backends that differs from the other
 #      stack's - and copied into place
-#   3. mongo is started if needed, the services are rebuilt and restarted
+#   3. mongo is started if needed; the services are built from nothing and
+#      every container is recreated, so each reads the .env just placed
 #   4. container addresses are read, every container is waited for, the
 #      sign-in settings are checked and the backends' own report is shown
 #   5. production only: the first user is copied from UAT (see --admin-email)
 #   6. the stack's nginx file is written from the container addresses
-# Then nginx is tested and restarted once, every public URL is verified, and
-# the folder is left on the production branch with production's .env files.
+# Then nginx is tested and restarted once, the images and build cache left
+# over are dropped, every public URL is verified, and the folder is left on
+# the production branch with production's .env files.
+#
+# The mail account every backend sends from is written into all three .env
+# files of every stack from deploy/env/shared.env (git-ignored: one copy per
+# server) or from an x-email block of docker-compose.yml.
 # =============================================================================
 set -euo pipefail
 
@@ -52,12 +74,19 @@ PULL=1
 BUILD=1
 DRY_RUN=0
 FIX_ENV=1
+# Clearing everything cached is the DEFAULT: a deployment that reuses a
+# layer or keeps a container is the reason a release can go out carrying
+# the previous .env.
+CLEAR_CACHE=1
+FRESH_ENV=0
 ADMIN_EMAIL=""
 STAMP="$(date '+%Y%m%d-%H%M%S')"
 STACKS=()
 STARTED_WORK=0
 
-usage() { sed -n '3,40p' "$0"; }
+# Everything between the two rules at the top of this file, so the help
+# can never again stop halfway through it.
+usage() { sed -n '3,/^# =\{20,\}$/p' "$0" | sed '$d'; }
 
 parse_args() {
   local arg
@@ -69,6 +98,8 @@ parse_args() {
       --no-pull) PULL=0 ;;
       --no-build) BUILD=0 ;;
       --keep-env) FIX_ENV=0 ;;
+      --keep-cache) CLEAR_CACHE=0 ;;
+      --fresh-env) FRESH_ENV=1 ;;
       --dry-run) DRY_RUN=1 ;;
       --admin-email=*) ADMIN_EMAIL="${arg#*=}" ;;
       -h|--help) usage; exit 0 ;;
@@ -143,6 +174,7 @@ main() {
     run_stack "$name"
   done
   apply_nginx
+  [ "$CLEAR_CACHE" = 1 ] && prune_build_leftovers
   for name in "${STACKS[@]}"; do
     select_stack "$name"
     refresh_addresses

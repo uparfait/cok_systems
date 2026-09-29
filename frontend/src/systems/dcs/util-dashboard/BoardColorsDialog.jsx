@@ -175,8 +175,11 @@ export default function BoardColorsDialog({ appearance, boardName, onApply, onCl
           </div>
         </div>
 
-        <div className="flex-shrink-0 px-4 sm:px-5 py-2 border-t-2 flex items-center justify-between gap-2" style={{ borderColor: PRIMARY }}>
-          <div className="min-w-0 flex-1">
+        {/* The line that puts the board back to the usual colours reads in
+            full: on a narrow dialog it takes a row of its own above the
+            buttons rather than being squeezed behind them. */}
+        <div className="flex-shrink-0 px-4 sm:px-5 py-2 border-t-2 flex flex-wrap items-center justify-end gap-2" style={{ borderColor: PRIMARY }}>
+          <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
             {outcome ? (
               <p className="text-[11px] font-semibold truncate m-0" style={{ color: outcome.error ? "#E74C3C" : "#1E8449", ...HEADING_FONT }}>
                 {outcome.text}

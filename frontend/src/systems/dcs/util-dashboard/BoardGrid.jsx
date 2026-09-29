@@ -155,11 +155,27 @@ export default function BoardGrid({
       </CanvasWidget>
     );
 
+  // Everything a widget can do, handed to the menu a right click (or a
+  // double click) opens. The card itself carries no control for any of it.
+  const menu_actions = (widget) => {
+    const entry = dataByWidget[widget.id];
+    const has_data = !!entry && !entry.error && !entry.locked;
+    const target = drill_target(widget, fields || []);
+    const wordless = is_canvas(widget) || widget.chart_type === "text";
+    return {
+      onOpenRecords: onOpenRecords && has_data && !wordless ? () => onOpenRecords(widget, null) : undefined,
+      onDrill: onDrill && target ? () => onDrill(widget) : undefined,
+      drillChild: target ? field_label(target.child) : "",
+      onExpand: is_canvas(widget) ? undefined : () => setExpandedId((current) => (current === widget.id ? null : widget.id)),
+      expanded: expanded_id === widget.id,
+    };
+  };
+
   const render_card = (widget) => (
     // A SECTION carries no "view full" button. It is the page's own layout,
     // not a card with something in it worth filling the screen with - the
     // widgets inside it each keep their own button.
-    <ExpandableSlot expanded={expanded_id === widget.id} onToggle={() => setExpandedId((current) => (current === widget.id ? null : widget.id))} hideButton={arranging || is_canvas(widget)} palette={build_palette(widget.appearance, board.theme, board_colors)}>
+    <ExpandableSlot expanded={expanded_id === widget.id} onToggle={() => setExpandedId((current) => (current === widget.id ? null : widget.id))} palette={build_palette(widget.appearance, board.theme, board_colors)}>
       <WidgetCard
       widget={widget}
       data={dataByWidget[widget.id]}
@@ -185,7 +201,7 @@ export default function BoardGrid({
         return target ? field_label(target.child) : null;
       })()}
       slot={canvas_slot(widget)}
-      onContextMenu={onWidgetMenu ? (event) => onWidgetMenu(event, widget) : undefined}
+      onContextMenu={onWidgetMenu ? (event) => onWidgetMenu(event, widget, menu_actions(widget)) : undefined}
       onChangeSize={editable ? (next_size) => onUpdateWidget(widget.id, { size: next_size }) : undefined}
       onRetry={() => onRetryWidget(widget)}
       onShowSkipped={onShowSkipped}

@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
 import BoardContextMenu from "./BoardContextMenu.jsx";
+import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { default_box } from "./boxLayout.js";
 
 /**
@@ -65,6 +66,7 @@ export function new_canvas_widget(form, title, parent_id) {
 }
 
 export function useBoardCanvas({ form, editable, isDark, arranging, studio, onAdd, onSettings, onReconfigure, onAddWidget, onAddText, onRemove }) {
+  const { translate } = useDcsLanguage();
   const [menu, setMenu] = useState(null);
   const close = useCallback(() => setMenu(null), []);
 
@@ -79,11 +81,19 @@ export function useBoardCanvas({ form, editable, isDark, arranging, studio, onAd
     setMenu({ x: event.clientX, y: event.clientY, widget: null, dark: isDark });
   };
 
-  const open_widget_menu = (event, widget) => {
-    if (!editable && !studio) return;
+  // A right click on a widget - or a double click, which is how a phone
+  // asks for the same thing - opens everything that widget can do. The
+  // VIEWING actions (its table, the level below it, filling the screen)
+  // are offered to anyone; only the ones that change the board need the
+  // right to edit it. The card carries no hover controls at all any more,
+  // so this menu is the one way in and it opens for a viewer too.
+  const open_widget_menu = (event, widget, actions) => {
+    const offers = actions || {};
+    const can_view = !!(offers.onOpenRecords || offers.onDrill || offers.onExpand);
+    if (!editable && !studio && !can_view) return;
     event.preventDefault();
     event.stopPropagation();
-    setMenu({ x: event.clientX, y: event.clientY, widget, dark: isDark });
+    setMenu({ x: event.clientX, y: event.clientY, widget, actions: offers, dark: isDark });
   };
 
   // A new section is handed to the board to SAVE, not just to show: the
@@ -91,6 +101,7 @@ export function useBoardCanvas({ form, editable, isDark, arranging, studio, onAd
   const add_canvas = (parent_id) => onAdd(new_canvas_widget(form, "", parent_id));
 
   const target = menu ? menu.widget : null;
+  const offers = (menu && menu.actions) || {};
   const is_canvas = !!target && target.chart_type === "canvas";
   // While STUDIO MODE is on it is the only thing on offer: the rest of
   // these would commit straight to the board behind the working copy the
@@ -103,6 +114,10 @@ export function useBoardCanvas({ form, editable, isDark, arranging, studio, onAd
           : null,
       ]
     : [
+        // What a reader of the board came for, first and unconditionally.
+        target && offers.onOpenRecords ? { key: "table", labelKey: "DCS_DB_DRILL_TABLE", strong: true, onPick: () => offers.onOpenRecords(target) } : null,
+        target && offers.onDrill ? { key: "child", label: translate("DCS_DB_DRILL_CHILD", { field: offers.drillChild }), strong: true, onPick: () => offers.onDrill(target) } : null,
+        target && offers.onExpand ? { key: "full", labelKey: offers.expanded ? "DCS_DB_COLLAPSE_WIDGET" : "DCS_DB_EXPAND_WIDGET", onPick: () => offers.onExpand(target) } : null,
         studio ? { key: "studio", labelKey: "DCS_DB_STUDIO_ENTER", strong: true, onPick: () => studio.toggle() } : null,
         editable ? { key: "canvas", labelKey: is_canvas ? "DCS_DB_CANVAS_ADD_INSIDE" : "DCS_DB_CANVAS_ADD_EMPTY", onPick: () => add_canvas(is_canvas ? target.id : null) } : null,
         editable && is_canvas && onAddWidget ? { key: "add", labelKey: "DCS_DB_CANVAS_ADD", onPick: () => onAddWidget(target) } : null,

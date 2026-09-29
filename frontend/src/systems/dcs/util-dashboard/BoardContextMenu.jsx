@@ -16,6 +16,10 @@ import { useBoardColors, portal_tint } from "./boardColors.jsx";
  * It is a plain portalled list rather than the board's MenuPopover because
  * it opens where the pointer is, not under a button, and must not be
  * clipped by whatever card was clicked.
+ *
+ * An item names itself with a translation key, or with `label` when the
+ * words are built at the time (the name of the next level down a cascade).
+ * A long label wraps rather than widening the menu off the screen.
  */
 
 const ITEM = {
@@ -28,7 +32,9 @@ const ITEM = {
   background: "none",
   border: "none",
   cursor: "pointer",
-  whiteSpace: "nowrap",
+  whiteSpace: "normal",
+  overflowWrap: "anywhere",
+  lineHeight: 1.3,
   color: "var(--board-text, #333333)",
 };
 
@@ -41,13 +47,28 @@ export default function BoardContextMenu({ at, items, onClose }) {
     if (!at) return undefined;
     const close = () => onClose();
     const key = (event) => event.key === "Escape" && onClose();
-    // Any click anywhere, any scroll, any Escape: the menu is done.
+    // Any click anywhere, any Escape, and any scroll THAT REALLY MOVED THE
+    // PAGE: the menu is done.
+    //
+    // The last of those is not the obvious test. Putting this menu into a
+    // long page makes the browser fire a scroll event of its own - scroll
+    // anchoring, keeping what you were looking at still while the document
+    // grows - without the page having moved a pixel. A menu that closed on
+    // any scroll at all therefore opened and shut itself in the same frame,
+    // and on a board long enough to be scrolled near its end it never
+    // appeared at all. So where the page WAS when the menu opened is
+    // remembered, and only a real move closes it.
+    const from = { x: window.scrollX, y: window.scrollY };
+    const on_scroll = () => {
+      if (window.scrollX === from.x && window.scrollY === from.y) return;
+      onClose();
+    };
     window.addEventListener("pointerdown", close);
-    window.addEventListener("scroll", close, true);
+    window.addEventListener("scroll", on_scroll, true);
     window.addEventListener("keydown", key);
     return () => {
       window.removeEventListener("pointerdown", close);
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", on_scroll, true);
       window.removeEventListener("keydown", key);
     };
   }, [at, onClose]);
@@ -80,7 +101,7 @@ export default function BoardContextMenu({ at, items, onClose }) {
             item.onPick();
           }}
         >
-          {translate(item.labelKey)}
+          {item.label || translate(item.labelKey)}
         </button>
       ))}
       <style>{`.dcs-db-menu-item:hover { background-color: var(--board-surface-hover, #F0F7FB) !important; }`}</style>

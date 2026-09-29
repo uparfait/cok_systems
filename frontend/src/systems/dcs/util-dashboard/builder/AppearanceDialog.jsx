@@ -459,7 +459,7 @@ export default function AppearanceDialog({ form, title, description, naming, val
               {outcome.text}
             </p>
           ) : (
-            <button type="button" onClick={reset_all} className="text-xs text-left cursor-pointer sm:flex-1" style={{ color: TEXT_MUTED, background: "none", border: "none", padding: 0, textDecoration: "underline", ...HEADING_FONT }}>
+            <button type="button" onClick={reset_all} className="text-xs text-left cursor-pointer basis-full sm:basis-auto sm:flex-1" style={{ color: TEXT_MUTED, background: "none", border: "none", padding: 0, textDecoration: "underline", ...HEADING_FONT }}>
               {translate("DCS_DB_COLOR_RESET_ALL")}
             </button>
           )}

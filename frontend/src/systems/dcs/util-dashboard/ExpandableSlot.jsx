@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { portal_root } from "./portalRoot.js";
-import { useTouchLikeViewport } from "./useNarrowViewport.js";
 import { FULLSCREEN_SVG, EXIT_SVG } from "./BoardIcons.jsx";
 
 const MARGIN = 12;
@@ -18,24 +17,19 @@ const EXPAND_SVG = icon(FULLSCREEN_SVG);
 const COLLAPSE_SVG = icon(EXIT_SVG);
 
 /**
- * The place a widget card occupies on the board, with a corner button that
- * appears on hover: clicking it lifts the card out of the grid and grows
- * it, in one smooth motion, until it fills the screen above every other
- * widget; clicking again (or Escape, or the shaded backdrop) shrinks it
- * back into its own place. While the card is out, its slot keeps its
- * height so the rest of the board does not move.
+ * The place a widget card occupies on the board. FILLING THE SCREEN is
+ * asked for in the widget's own menu (a right click, or a double click
+ * where there is no right button) - the slot shows no button of its own,
+ * because nothing on a card waits for a pointer to arrive any more.
+ * Clicking the button inside the opened card, Escape, or the shaded
+ * backdrop shrinks it back into its own place. While the card is out, its
+ * slot keeps its height so the rest of the board does not move.
  *
  * The motion measures the slot's box on screen and transitions from that
  * box to the screen's edges (and back), so it works wherever the board is:
  * the page, browser full screen, or the fitted full-screen view.
- *
- * ON A PHONE OR A TABLET THERE IS NO BUTTON. A card on a small screen is
- * already nearly the width of it, so there is nothing to gain by lifting
- * it out - and a control that only ever appears on hover has no business
- * on a screen with nothing to hover with, where it would sit permanently
- * over the card's own corner instead.
  */
-export default function ExpandableSlot({ expanded, onToggle, hideButton, palette, children }) {
+export default function ExpandableSlot({ expanded, onToggle, palette, children }) {
   const { translate } = useDcsLanguage();
   const slot_ref = useRef(null);
   const phase_ref = useRef("idle");
@@ -43,7 +37,6 @@ export default function ExpandableSlot({ expanded, onToggle, hideButton, palette
   const [phase, setPhase] = useState("idle");
   const [frame, setFrame] = useState(null);
   const [held_height, setHeldHeight] = useState(0);
-  const touch_like = useTouchLikeViewport();
 
   const set_phase = (next) => {
     phase_ref.current = next;
@@ -104,11 +97,6 @@ export default function ExpandableSlot({ expanded, onToggle, hideButton, palette
   return (
     <div ref={slot_ref} className={`dcs-expand-slot relative h-full ${active ? "is-held" : ""}`} style={active ? { height: held_height } : undefined}>
       {!active && children}
-      {!active && !hideButton && !touch_like && (
-        <button type="button" className="dcs-expand-btn" style={button_style} title={translate("DCS_DB_EXPAND_WIDGET")} aria-label={translate("DCS_DB_EXPAND_WIDGET")} onClick={onToggle}>
-          {EXPAND_SVG}
-        </button>
-      )}
       {active &&
         createPortal(
           <>

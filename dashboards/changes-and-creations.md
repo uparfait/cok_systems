@@ -337,6 +337,8 @@ Measuring that found a second cause of the overflow, and the more interesting on
 
 **No "fill the screen" on a phone or a tablet.** `ExpandableSlot` no longer renders its corner button when `(hover: none), (pointer: coarse), (max-width: 1024px)` holds. A card on a small screen is already nearly the width of it, and a control that only appears on hover has no business on a screen with nothing to hover with, where it sat permanently over the card's corner.
 
+Nor on the SMALLEST CARD, for the same reason at a different scale: an xs card is about 90px across and 70px tall, the hover bar takes four fifths of it, and the expand button then sat over the bar's first line and hid the word "Click". Two hover controls do not fit on one of these, so the one that matters there - the bar that opens the records and the level below - keeps the card to itself (`claims_little` in `boardRows.js`). The card's own three-dots menu, at the other corner, is unaffected.
+
 **The card's four sizes are in the KPI settings too.** The KPI tab now carries the same four tiers as the card's own menu (xs, small, medium, large) with a line saying what each means in practice, and every card the tab builds - including one card per value of an "in each" field - is built at the chosen size. The chart, map and table tabs already had their three.
 
 **Board colours: this board, or every board of the form.** The Actions menu entry opens the colour settings, and the scope is now an explicit choice of two - "This dashboard only" or "Every dashboard of this form" - rather than a switch to notice.
@@ -346,3 +348,42 @@ Measuring that found a second cause of the overflow, and the more interesting on
 **Text blocks have their settings and their delete.** A text block carries its words inside itself, so it usually has no card title - and the card's title bar, which is where the three-dots menu lives, was only drawn when there was a title. A block therefore had no menu at all. The bar is now drawn on a text block and on a canvas WHILE THE BOARD IS EDITABLE, so its size, its colour settings, its words ("Reconfigure"), its date and filters and its removal are all one click away; a reader still sees only the words. "Date & filters" is now offered on a text block as well, because a block's live figures read filters and a period like any widget.
 
 **Proof.** Measured in a real browser, in the same harness as the row packing - see `dashboards/disaster/logs/board_proof.log` and its screenshots.
+
+### 11.18 One menu per widget, nothing on hover, and words that fit (2026-09-29)
+
+**A card has no hover controls at all.** The two-part bar at its foot and the corner button that filled the screen are both gone. Everything a widget can do now lives in ONE menu, opened by a right click - or by a DOUBLE CLICK, which is how a screen with no right button asks for the same thing:
+
+- the table of records behind the whole widget,
+- the level below it in a cascade, named ("View Sectors"),
+- filling the screen, and leaving it again,
+- and, for whoever may edit the board, its size, what it can be turned into, its colours, its icon, its words, its date and filters, and its removal.
+
+The viewing actions are offered to ANY viewer, not only an editor: the menu is the only way in now, so it opens for a reader too. A click on a bar, a slice, a point, a cell or a legend entry still opens that one thing's records, because that is a deliberate click on a mark rather than a control hiding until the pointer arrives. On a map the two clicks belong to the map, so there the menu is reached by a long press, which a browser reports as a context menu.
+
+The cascade overlay carries the same two actions as buttons in its own header, beside Back, since its cards have no bar either.
+
+**A text block's words scale to the card.** A block in a narrow card, or one carrying far more words than a card that size can hold, is drawn smaller rather than spilling over the card or being cut off by it: the size falls with the card's measured width (to 60% of what was asked for below 150px) and again with the sheer length of the body (to 70% past four thousand characters), with a floor of 8px past which the card's own area scrolls. So a title band in a twelfth of a row still reads as a title band, and a page of text in a small card is a small page of text.
+
+**"Back to the usual colours" is never covered.** In both colour dialogs that line now takes a row of its own above the buttons on a narrow dialog instead of being squeezed behind them.
+
+Also gone with the hover controls: the description placeholder that appeared on a card while it was hovered, and the rule that forced the corner button visible on touch screens.
+
+**A bug the measuring found, in the menu itself.** `BoardContextMenu` closed on any scroll event. Putting the menu into a long page makes the browser fire a scroll of its own - scroll anchoring, holding what you were looking at still while the document grows - without the page moving a pixel, so on a board long enough to be scrolled near its end the menu opened and shut itself in the same frame and never appeared at all. It now remembers where the page was when it opened and closes only on a scroll that really moved it. Since the menu is the only way into a widget's actions now, that would have left a long dashboard with no way in at all.
+
+A non-KPI widget asked for the twelve-to-a-row size (only a pasted board can ask) now takes the smallest share a drawing is given, a third of a row, rather than falling through to half of it.
+
+### 11.19 Every deployment starts from nothing (2026-09-29)
+
+`update-deploy.sh` - and therefore both buttons on the Deployment Management page, which ask the host agent to run that same script - now clears everything a deployment used to carry over:
+
+- the images are built with **no cache** and a **fresh pull** of their base images;
+- every container is **recreated**, with the anonymous volumes inside it thrown away, so each reads the `.env` files just put in place. A container keeps the environment it was created with, so a plain `up -d` could run new code with the old `.env` - and the frontend bakes its `.env` INTO its bundle while it builds, so a cached layer there used to keep the previous API addresses.
+- afterwards the images nothing points at any more and the builder's own cache are dropped, which is what keeps a server from filling its disk (a full disk is what stops mongo from starting at all).
+
+The build runs BEFORE the swap, deliberately: the old containers keep serving the site - and the page that asked for the deployment - while the new images are built, so the only downtime is the few seconds of the swap rather than the whole build.
+
+**MONGO AND EVERY NAMED VOLUME ARE LEFT ALONE.** The databases, the uploaded files and the certificates are data, not cache; only the service containers, their images and the build cache are cleared. Two new options: `--keep-cache` for the old, faster behaviour (a quick iteration, never a release) and `--fresh-env` to throw a stack's stored `.env` files away and start them again from the ones uploaded into the folder.
+
+**The mail account every backend sends from** is now written into all three `.env` files of every stack on every deployment: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS` and `EMAIL_FROM`, which is exactly what the three backends read. The values come from `deploy/env/shared.env` - git-ignored, one copy per server, because a mail password does not belong in a repository that is pushed to GitHub - or, failing that, from an `x-email` block of `docker-compose.yml`, which is where the mongo credentials already live. A key nobody provides is not written, so whatever a stack's `.env` already held is kept, and the run is repeatable: a second run changes nothing.
+
+**Proof.** `bash update-deploy.sh --uat-ikaze --dry-run` prints the exact commands (`build --no-cache --pull`, then `up -d --force-recreate --renew-anon-volumes`, with mongo only ever `--no-recreate`). The env writing was exercised against a sandbox copy of a stack's store: all five mail keys land in `backend.env`, `em_backend.env` and `dc_backend.env`, an existing `EMAIL_HOST` is replaced rather than duplicated (the old line kept as a comment), `JWT_SECRET` and the mongo lines survive untouched, and a second run reports no further changes.

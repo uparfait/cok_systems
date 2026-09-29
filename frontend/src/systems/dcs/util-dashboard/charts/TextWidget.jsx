@@ -19,6 +19,13 @@ import { substitute_variables, has_text_variables } from "../textVariables.js";
  * {{share(field = value)}} and the rest (see textVariables.js) - which the
  * server computes under the board's filters and date and hands back in
  * data.values; until they land each reads "...".
+ *
+ * THE WORDS SCALE TO THE CARD. A block put in a narrow card, or one
+ * carrying far more words than a card that size can hold, is drawn smaller
+ * rather than spilling over the card or being cut off by it - down to 8px,
+ * past which the card's own area scrolls instead. So a title band in a
+ * twelfth of a row still reads as a title band, and a page of text in a
+ * small card is a small page of text.
  */
 
 const SIZES = {
@@ -56,24 +63,31 @@ export const paragraphs_of = (body) =>
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
 
-export default function TextWidget({ widget, palette, data }) {
+export default function TextWidget({ widget, palette, data, width }) {
   const colors = palette || build_palette(widget && widget.appearance);
   const text = (widget && widget.text) || {};
   const live = has_text_variables(widget);
   const body = live ? substitute_variables(text.body, data && data.values ? data.values : null) : text.body;
   const size = SIZES[text.size] || SIZES.md;
+  // How much of its asked-for size the words are drawn at: what the card's
+  // width allows, and what its sheer length asks for.
+  const room = Number(width) > 0 ? Number(width) : 520;
+  const narrow = room < 150 ? 0.6 : room < 230 ? 0.75 : room < 340 ? 0.88 : 1;
+  const length = String(body || "").length;
+  const wordy = length > 4000 ? 0.7 : length > 1200 ? 0.82 : length > 400 ? 0.92 : 1;
+  const font = (value) => Math.max(8, Math.round(value * narrow * wordy));
   const accent = text.accent || colors.number;
   const align = ["left", "center", "right"].includes(text.align) ? text.align : "left";
   const paragraphs = paragraphs_of(body);
   return (
     <div className="dcs-text-widget" style={{ textAlign: align, color: colors.text }}>
       {text.heading ? (
-        <p className="dcs-text-heading" style={{ fontSize: size.heading, color: colors.text }}>
+        <p className="dcs-text-heading" style={{ fontSize: font(size.heading), color: colors.text }}>
           {text.heading}
         </p>
       ) : null}
       {paragraphs.map((paragraph, index) => (
-        <p key={index} className="dcs-text-paragraph" style={{ fontSize: size.body }}>
+        <p key={index} className="dcs-text-paragraph" style={{ fontSize: font(size.body) }}>
           {render_marked(paragraph, accent, `p${index}`)}
         </p>
       ))}

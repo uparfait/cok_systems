@@ -117,11 +117,30 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 
 ## 18. How the board reads and behaves
 - [x] The hover bar carries its whole label at any card width: it wraps instead of clipping, the halves take a line each on a narrow card, and the font follows the measured width
-- [ ] The cascade overlay: every panel the same width as its parent, nothing reaching outside the screen
+- [x] The cascade overlay: every panel the same width as its parent, nothing reaching outside the screen (the panel is also a board, and a board is width:100%, which over-constrained the absolute box; sized by its four edges now: 1368px wide, 16px of gutter on both sides)
 - [x] "Show more" is reachable: the card's area scrolls in both directions instead of clipping a grown chart or a long legend
 - [x] No "fill the screen" button on a phone or a tablet
 - [x] The KPI tab offers the card's four sizes and builds every card at the chosen one
 - [x] Board colours: an explicit choice between this dashboard and every dashboard of the form
 - [x] A colour set on a widget survives dark mode and a painted board; its words stay readable
 - [x] A text block (and a canvas) shows its three-dots menu while the board is editable: size, colours, reconfigure, date and filters, remove
-- [ ] Measured in a real browser and the build green
+- [x] Measured in a real browser and the build green (13 scenarios, 108 checks, 0 failures, 0 console or page errors)
+
+## 19. One menu per widget
+- [x] No control on a card waits for a hover: the two-part bar and the corner expand button are gone, and so is the hovered description placeholder
+- [x] A right click, or a double click, opens one menu holding the table, the level below, filling the screen, and everything an editor can change
+- [x] The viewing actions open for a reader too, not only an editor; a click on a mark still opens that mark's records; a map keeps its two clicks and answers a long press
+- [x] The cascade overlay carries the table and the next level as buttons in its header
+- [x] A text block's words scale with the card's width and with their own length, down to 8px, then the area scrolls
+- [x] "Back to the usual colours" takes its own row rather than sitting behind the buttons (layout applied; not separately measured)
+- [x] The menu no longer shuts itself on a long board: it closes on a scroll that really moved the page, not on the browser's own scroll-anchoring event
+- [x] A non-KPI widget asked for the xs size takes a third of a row rather than half
+- [x] Build green and measured in a real browser (18 scenarios, 163 checks, 0 failures)
+
+## 20. Every deployment starts from nothing
+- [x] Images built with no cache and a fresh pull; every container recreated with its anonymous volumes renewed, so the new .env is always read
+- [x] Mongo and every named volume (databases, uploads, certificates) left alone; unused images and the build cache dropped afterwards
+- [x] The build runs before the swap, so the site and the page that asked for the deployment stay up while it builds
+- [x] --keep-cache and --fresh-env; the same behaviour for both Deployment Management buttons, which run this same script
+- [x] The five EMAIL_* keys written into all three backends of every stack from deploy/env/shared.env (git-ignored) or an x-email block of docker-compose.yml
+- [x] Proven: the dry run prints the exact commands; the env writing exercised on a sandbox store (five keys land, an old value is replaced not duplicated, JWT and mongo lines survive, a second run changes nothing)

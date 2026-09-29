@@ -3089,7 +3089,9 @@ background-color: #056daa;
   transform: scale(0.9);
   transition: opacity 160ms ease, transform 160ms ease, color 160ms ease;
 }
-.dcs-expand-slot:hover .dcs-expand-btn,
+/* Only the button INSIDE an opened card, the one that leaves full screen
+   again. Filling the screen is asked for in the widget own menu now, so
+   the slot has no button of its own to reveal. */
 .dcs-expand-btn.is-visible {
   animation: dcs-expand-pulse 1.6s ease-out infinite;
 }
@@ -3101,7 +3103,6 @@ background-color: #056daa;
     box-shadow: 0 0 0 9px color-mix(in srgb, var(--expand-accent, #056daa) 0%, transparent);
   }
 }
-.dcs-expand-slot:hover .dcs-expand-btn,
 .dcs-expand-btn:focus-visible,
 .dcs-expand-btn.is-visible {
   opacity: 1;
@@ -3110,12 +3111,8 @@ background-color: #056daa;
 .dcs-expand-btn:hover {
   color: var(--expand-accent, #056daa);
 }
-@media (hover: none) {
-  .dcs-expand-btn {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
+/* Nothing here for a screen that cannot hover: there is no slot button on
+   any screen any more. */
 .dcs-expand-backdrop {
   position: fixed;
   inset: 0;
@@ -3562,7 +3559,7 @@ background-color: #056daa;
 .dcs-widget-hint {
   display: none;
 }
-.dcs-widget-hover:hover .dcs-widget-hint {
+.dcs-widget-hint.is-shown {
   /* Absolute, so hovering a card never makes it taller and shifts the board. */
   display: block;
   position: absolute;
@@ -5321,82 +5318,11 @@ background-color: #056daa;
   border-radius: 0;
 }
 
-/* Two ways down from a card: its records (left) and the cascade level
-   below it (right). Hidden until the card is hovered; simply there on a
-   screen that cannot hover. */
-.dcs-widget-drill {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  /* Two halves side by side while both fit; on a card too narrow for that
-     they wrap onto a line each, so neither is ever squeezed into an
-     ellipsis. */
-  flex-wrap: wrap;
-  border-top: 1px solid;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 160ms ease;
-  z-index: 3;
-  /* The bar grows upwards from the card's bottom edge, so on a very short
-     card it could reach past the top and have its first line cut off by
-     the card. It is held to the card's own height instead, and scrolls
-     inside itself in the one case that still does not fit - a cascade
-     field with a very long name on the smallest card there is. */
-  max-height: 100%;
-  overflow-y: auto;
-}
-.dcs-widget-hover:hover .dcs-widget-drill,
-.dcs-widget-drill.is-static,
-.dcs-widget-drill:focus-within {
-  opacity: 1;
-  pointer-events: auto;
-}
-.dcs-widget-drill.is-static {
-  position: static;
-  margin-top: auto;
-}
-.dcs-widget-drill-part {
-  /* 112px is what the longer of the two labels needs on one line; below
-     that the parts wrap rather than clip. The card passes a font size
-     measured from its own width. */
-  flex: 1 1 112px;
-  min-width: 0;
-  padding: 6px 8px;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.2px;
-  line-height: 1.25;
-  text-align: center;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  /* The WHOLE label, always: it wraps, and a single word longer than the
-     card breaks rather than pushing the card open. */
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-.dcs-widget-drill-part + .dcs-widget-drill-part {
-  border-left: 1px solid rgba(127, 127, 127, 0.35);
-}
-
-/* On the smallest card of all - twelve to a row, about 90px wide and 70px
-   tall - the two halves are stacked, and capitals at that size need three
-   lines each where mixed case needs two. So the words drop their capitals
-   and their letter spacing and sit tighter: the WHOLE label still reads,
-   and the bar fits the card instead of outgrowing it. */
-.dcs-widget-drill.is-tight .dcs-widget-drill-part {
-  padding: 3px 5px;
-  text-transform: none;
-  letter-spacing: 0;
-  line-height: 1.15;
-}
-.dcs-widget-drill-part:hover {
-  background-color: rgba(5, 109, 170, 0.08);
-}
+/* The two-part hover bar that used to sit at the foot of a card is gone:
+ * everything a widget can do - its table, the level below it, filling the
+ * screen, and everything an editor can change - is in the one menu a right
+ * click or a double click opens (see useBoardCanvas / BoardContextMenu).
+ * Nothing on a card waits for a pointer to arrive any more. */
 
 /* The levels drilled into, one panel each, stacked. */
 .dcs-drill-overlay {

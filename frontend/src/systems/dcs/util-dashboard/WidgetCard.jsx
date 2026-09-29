@@ -12,7 +12,6 @@ import { chart_density, kpi_density } from "./charts/density.js";
 import TextWidget from "./charts/TextWidget.jsx";
 import { period_of, period_label } from "./builder/widgetBehavior.js";
 import { shown_title } from "./cascade.js";
-import { useTouchLikeViewport } from "./useNarrowViewport.js";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -200,8 +199,6 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // filters it ignores is the author's business (the Date & filters
   // dialog) and is not written on it.
   const own_period = period_of(widget);
-  // Phones and tablets cannot hover: the two-part bar is simply there.
-  const touch_like = useTouchLikeViewport();
   const fixed = own_period.locked && !wordless;
   // The card paints itself from the widget's own appearance (light or dark
   // mode with its background, text and number colors) - unless the viewer
@@ -243,46 +240,30 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // What a KPI card of this width may draw: its icon, its title, its
   // number and its padding all follow the room it ended up with.
   const kpi = kpi_density(chart_size.width, widget.size);
-  // The hover bar carries its whole label at any width: the narrower the
-  // card, the smaller the words, and below about two label widths the two
-  // halves wrap onto a line each (see .dcs-widget-drill in globals.css).
-  // On the smallest card the bar also goes TIGHT - mixed case, no letter
-  // spacing, less padding - which is what makes the whole label fit two
-  // lines and the bar fit the card.
-  const drill_tight = chart_size.width > 0 && chart_size.width < 150;
-  const drill_font = drill_tight ? 9 : chart_size.width > 0 && chart_size.width < 230 ? 10 : 11;
   const base_need = wordless ? 0 : !has_chart ? state_height : is_kpi ? 0 : base_chart_height + 56;
   const filled = has_chart && !is_kpi && !wordless && fill_height > base_chart_height;
   useEffect(() => {
     if (data && !data.error && !data.locked) drawn_ref.current = true;
   }, [data]);
 
-  // Opening the records: a bar, slice, point, cell or legend entry picks its
-  // own; a click anywhere else on the card (not on a control) opens them
-  // all - on a map, where a single click belongs to panning the city, that
-  // whole-widget click is a DOUBLE click outside the map itself. The specific pick runs first and marks the click consumed so the
-  // card's own handler, reached next as the event bubbles, stays quiet.
+  // OPENING THE RECORDS. A bar, a slice, a point, a cell or a legend entry
+  // opens its own: that is a deliberate click on a mark, and it stays.
+  // Everything else about a widget - the table behind all of it, the level
+  // below it in a cascade, filling the screen, and everything an editor can
+  // change - is in ONE MENU, opened by a right click or, where there is no
+  // right button to press, by a double click. The card carries no control
+  // that waits for a hover: nothing appears when the pointer arrives and
+  // nothing is hidden when it leaves.
   const is_map = widget.chart_type === "map";
-  const consumed_ref = useRef(false);
   const can_drill = !wordless && !!onOpenRecords && !!data && !data.error && !data.locked;
-  const pick_records = can_drill
-    ? (pick) => {
-        consumed_ref.current = true;
-        window.setTimeout(() => {
-          consumed_ref.current = false;
-        }, 0);
-        onOpenRecords(pick);
-      }
-    : undefined;
-  const handle_card_click = (event) => {
-    if (!can_drill) return;
-    if (consumed_ref.current) return;
-    if (event.target.closest("button, input, a, textarea, select, .dcs-no-drill, .recharts-tooltip-wrapper")) return;
-    onOpenRecords(null);
-  };
+  const pick_records = can_drill ? (pick) => onOpenRecords(pick) : undefined;
+  // A double click is a right click on a screen that has no right button.
+  // On a map the two clicks belong to the map (zooming), so there the menu
+  // is reached by a long press, which the browser reports as a context menu.
+  const handle_double_click = onContextMenu && !is_map ? onContextMenu : undefined;
 
   return (
-    <div data-widget-id={widget.id} onContextMenu={onContextMenu} {...(is_map ? { onDoubleClick: handle_card_click } : { onClick: handle_card_click })} className="dcs-widget-card dcs-widget-hover relative flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderStyle: "solid", borderWidth: failed || skipped_count > 0 ? 2 : palette.border_width, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
+    <div data-widget-id={widget.id} onContextMenu={onContextMenu} onDoubleClick={handle_double_click} className="dcs-widget-card relative flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderStyle: "solid", borderWidth: failed || skipped_count > 0 ? 2 : palette.border_width, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
       {busy && (
         // The board is fetching again: what the card holds stays on show,
         // under a veil that takes every click until the new data lands.
@@ -354,7 +335,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
         ) : is_text ? (
           // Words need no data either: the block is drawn from the widget.
           <div className="px-1 pt-1">
-            <TextWidget widget={widget} palette={palette} data={data && !data.error ? data : null} />
+            <TextWidget widget={widget} palette={palette} data={data && !data.error ? data : null} width={chart_size.width} />
           </div>
         ) : loading ? (
           <div className="flex items-center justify-center" style={{ height: state_height }}>
@@ -390,24 +371,6 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
         )}
       </div>
 
-      {/* Two ways down from a card: the records behind it on the left, and
-          - when its field has a level below it in a cascade - that level on
-          the right, as an overlay of the same card regrouped. Waits for a
-          hover where there is one to wait for; is simply there where not. */}
-      {!wordless && (can_drill || (onDrill && drillChild)) && (
-        <div className={`dcs-widget-drill dcs-no-drill ${touch_like ? "is-static" : ""} ${drill_tight ? "is-tight" : ""}`} style={{ backgroundColor: palette.background_solid, borderColor: palette.border }} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
-          {can_drill && (
-            <button type="button" className="dcs-widget-drill-part" style={{ color: palette.number, fontSize: drill_font }} onClick={() => onOpenRecords(null)}>
-              {translate("DCS_DB_DRILL_TABLE")}
-            </button>
-          )}
-          {onDrill && drillChild && (
-            <button type="button" className="dcs-widget-drill-part is-next" style={{ color: palette.number, fontSize: drill_font }} onClick={() => onDrill()}>
-              {translate("DCS_DB_DRILL_CHILD", { field: drillChild })}
-            </button>
-          )}
-        </div>
-      )}
       {skipped_count > 0 && (
         <button
           type="button"

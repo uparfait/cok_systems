@@ -16,10 +16,11 @@ const FONT = { fontFamily: "'Montserrat', sans-serif" };
  * The levels a widget was drilled down through, one panel each, stacked
  * on top of one another - the last one opened on top and the only one
  * that answers to the pointer. Every panel holds the derived widget as a
- * full card, computed under the board's own period and filters, with the
- * same two-part bar as the board's cards: the table of its records on the
- * left, the level below on the right, until the chain ends. On a phone or
- * a tablet each panel fills the screen.
+ * full card, computed under the board's own period and filters, and its
+ * header carries the two ways on: the table of its records, and the level
+ * below it, until the chain ends. They are buttons in the header rather
+ * than anything that appears on a hover. On a phone or a tablet each panel
+ * fills the screen.
  *
  * Every panel is the same width as the one it was opened from - only its
  * top edge steps down, which is what shows the depth - so a cascade five
@@ -54,6 +55,16 @@ export default function DrillOverlay({ stack, fields, onDrill, onOpenRecords, on
                 {index > 0 && is_top && (
                   <button type="button" className="text-xs font-bold uppercase px-2 py-1 cursor-pointer" style={{ color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.7)", background: "none", letterSpacing: "0.4px", ...FONT }} onClick={onBack}>
                     {translate("DCS_DB_DRILL_BACK")}
+                  </button>
+                )}
+                {is_top && onOpenRecords && (
+                  <button type="button" className="text-xs font-bold uppercase px-2 py-1 cursor-pointer flex-shrink-0" style={{ color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.7)", background: "none", letterSpacing: "0.4px", ...FONT }} onClick={() => onOpenRecords(level.widget, null)}>
+                    {translate("DCS_DB_DRILL_TABLE")}
+                  </button>
+                )}
+                {is_top && target && (
+                  <button type="button" className="text-xs font-bold uppercase px-2 py-1 cursor-pointer flex-shrink-0" style={{ color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.7)", background: "none", letterSpacing: "0.4px", ...FONT }} onClick={() => onDrill(level.widget)}>
+                    {translate("DCS_DB_DRILL_CHILD", { field: field_label(target.child) })}
                   </button>
                 )}
                 <div className="min-w-0">
