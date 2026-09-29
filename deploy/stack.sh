@@ -191,7 +191,29 @@ fix_env_files() {
   for key in "${SHARED_KEYS[@]}"; do
     [ -n "$(shared_value "$key")" ] || missing="$missing $key"
   done
-  [ -z "$missing" ] || warn "no value for$missing - put them in $ENV_STORE/shared.env (git-ignored, one copy per server) or in an x-email block of docker-compose.yml; without them no backend can send mail"
+  if [ -n "$missing" ]; then
+    warn "no value for$missing - no backend of $STACK can send mail until they are set"
+    printf '   These are kept OUT of git on purpose (a mail password must not be pushed),
+'
+    printf '   so they are written once per server. On this one, paste:
+
+'
+    printf '      cat > %s <<'"'"'EOF'"'"'
+' "$ENV_STORE/shared.env"
+    printf '      EMAIL_HOST=<host>
+      EMAIL_PORT=587
+      EMAIL_USER=<account>
+      EMAIL_PASS=<password>
+      EMAIL_FROM=<address>
+'
+    printf '      EOF
+
+'
+    printf '   then run this script again. An x-email block in docker-compose.yml is
+'
+    printf '   read too, but that file is pushed, so the password would go with it.
+'
+  fi
   if [ "${#CHANGED_ENV[@]}" -eq 0 ]; then ok "the $STACK .env files already carry this stack's values"; else printf '   set: %s\n' "${CHANGED_ENV[@]}"; fi
 }
 
