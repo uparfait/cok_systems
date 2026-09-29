@@ -8,8 +8,12 @@ const transporter = nodemailer.createTransport({
     port: config.email.port,
     // Port 587 is the submission port: the connection starts in the clear
     // and STARTTLS upgrades it, which is why secure is false here. secure
-    // true would be port 465, where TLS is there from the first byte.
-    secure: true,
+    // true would be port 465, where TLS is there from the first byte - on
+    // 587 it makes nodemailer open a TLS handshake against a port that
+    // answers in plain text, the handshake fails, and EVERY mail this
+    // backend sends throws. That is what it was set to, against this
+    // comment and against the two other backends that use the same server.
+    secure: false,
     // Encryption is REQUIRED, not merely attempted. Without this nodemailer
     // treats STARTTLS as optional and would fall back to sending the
     // credentials and the mail unencrypted if the server did not offer it.
