@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import { sizes_for, per_row } from "./boardRows.js";
 import { chart_definition, convertible_types } from "./chartCatalog.js";
 import { can_over_time, over_time_of, default_over_time, time_sources } from "./overTime.js";
 import MenuPopover from "./MenuPopover.jsx";
@@ -9,12 +10,10 @@ const DANGER = "#E74C3C";
 const SURFACE = "var(--board-surface, #FFFFFF)";
 const SURFACE_BORDER = "var(--board-border, #E0E0E0)";
 const SURFACE_TEXT = "var(--board-text, #333333)";
-// The widths a chart can take on the board (KPI cards keep their own dense grid).
-const SIZE_OPTIONS = [
-  { id: "small", labelKey: "DCS_DB_SIZE_SMALL" },
-  { id: "medium", labelKey: "DCS_DB_SIZE_MEDIUM" },
-  { id: "large", labelKey: "DCS_DB_SIZE_LARGE" },
-];
+// How much of a row a widget claims. A chart takes a third, a half or all
+// of it; a KPI card is one number and has a step below that, so a row
+// holds twelve of the smallest (see boardRows.js).
+const SIZE_LABELS = { xs: "DCS_DB_SIZE_XS", small: "DCS_DB_SIZE_SMALL", medium: "DCS_DB_SIZE_MEDIUM", large: "DCS_DB_SIZE_LARGE", full: "DCS_DB_SIZE_FULL" };
 
 /**
  * The three-dots menu at each card's top right: pick the icon a KPI card
@@ -86,6 +85,7 @@ export default function CardMenu({ widget, palette, canMap, canHeat, fields, onC
   // A canvas draws no data, so there is nothing in it to reconfigure and
   // no other look to turn it into: its menu is about size and colors.
   const is_canvas = widget.chart_type === "canvas";
+  const sizes = sizes_for(widget);
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
   const button_ref = useRef(null);
@@ -138,20 +138,27 @@ export default function CardMenu({ widget, palette, canMap, canHeat, fields, onC
           {onChangeSize && !is_canvas && (
             <>
               {section_title("DCS_DB_SIZE")}
-              <div className="flex gap-1 px-3 pb-2">
-                {SIZE_OPTIONS.map((option) => {
-                  const current = (widget.size || "medium") === option.id;
+              {/* What each choice means in practice: how many of this
+                  widget a wide row then holds, and that whatever a row
+                  ends up holding widens to fill it. */}
+              <p className="px-3 pb-1 text-[11px]" style={{ color: "var(--board-muted, #9E9E9E)", fontFamily: "'Montserrat', sans-serif", margin: 0 }}>
+                {translate("DCS_DB_SIZE_HINT")}
+              </p>
+              <div className={`${sizes.length > 3 ? "flex flex-wrap" : "flex"} gap-1 px-3 pb-2`}>
+                {sizes.map((size) => {
+                  const current = (widget.size || "medium") === size;
                   return (
                     <button
-                      key={option.id}
+                      key={size}
                       type="button"
                       role="menuitemradio"
                       aria-checked={current}
-                      className="dcs-db-menu-item flex-1 text-xs font-semibold py-1 px-2"
+                      title={translate("DCS_DB_SIZE_PER_ROW", { count: per_row(widget, size) })}
+                      className={`dcs-db-menu-item text-xs font-semibold py-1 px-2 ${sizes.length > 3 ? "grow basis-[calc(50%-0.25rem)]" : "flex-1"}`}
                       style={{ border: `1px solid ${current ? PRIMARY : SURFACE_BORDER}`, color: current ? "#FFFFFF" : PRIMARY, backgroundColor: current ? PRIMARY : "transparent", cursor: current ? "default" : "pointer", fontFamily: "'Montserrat', sans-serif" }}
-                      onClick={() => !current && pick(() => onChangeSize(option.id))}
+                      onClick={() => !current && pick(() => onChangeSize(size))}
                     >
-                      {translate(option.labelKey)}
+                      {translate(SIZE_LABELS[size] || "DCS_DB_SIZE_MEDIUM")}
                     </button>
                   );
                 })}

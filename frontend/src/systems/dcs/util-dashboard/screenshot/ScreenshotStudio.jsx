@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useToast } from "../../../../core/contexts/ToastContext.tsx";
 import { useBoardTheme } from "../boardTheme.jsx";
+import { useBoardColors } from "../boardColors.jsx";
 import { portal_root } from "../portalRoot.js";
 import { IconButton, CLOSE_SVG } from "../BoardIcons.jsx";
 import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
@@ -43,7 +44,8 @@ export default function ScreenshotStudio({ form, widgets, dataByWidget, rects, b
 
   const widget_by_id = useMemo(() => new Map((widgets || []).map((widget) => [widget.id, widget])), [widgets]);
   const canvas = canvas_size(items, base || { w: 0, h: 0 });
-  const background = board.is_dark ? DARK_BG : LIGHT_BG;
+  const tint = useBoardColors();
+  const background = tint ? tint.background : board.is_dark ? DARK_BG : LIGHT_BG;
   // While exporting the canvas is drawn at its real size; otherwise it is
   // scaled down to fit the studio's width.
   const scale = exporting ? 1 : fit;

@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { get_dashboard, save_dashboard, request_error_text } from "./dashboardService.js";
+import { get_dashboard, save_dashboard, save_dashboard_appearance, request_error_text } from "./dashboardService.js";
 
 /**
  * WHAT IS ON the open dashboard: its widgets, the filter fields along its
- * top, and how the board is arranged - the responsive grid, or studio,
- * with every widget placed and sized by hand.
+ * top, how the board is arranged - the responsive grid, or studio, with
+ * every widget placed and sized by hand - and the colors it is painted in.
+ *
+ * The colors are saved on their own (a board is recolored without
+ * rewriting its widgets) and may be given to every dashboard of the form
+ * in one go; the answer is handed back so the dialog can show it.
  *
  * The three travel together because they are saved together, in one write
  * of the whole dashboard. Switching to another board in the switcher loads
@@ -26,6 +30,7 @@ export function useBoardContents({ form, scoped_form, active_id, library, dataRe
   const [widgets, setWidgets] = useState([]);
   const [filters, setFilters] = useState([]);
   const [layout, setLayout] = useState(null);
+  const [appearance, setAppearance] = useState(null);
 
   useEffect(() => {
     if (!active_id) {
@@ -41,6 +46,7 @@ export function useBoardContents({ form, scoped_form, active_id, library, dataRe
         setWidgets((response.data && response.data.widgets) || []);
         setFilters((response.data && response.data.filters) || []);
         setLayout((response.data && response.data.layout) || null);
+        setAppearance((response.data && response.data.appearance) || null);
       })
       .catch((error) => is_mounted && showError(request_error_text(error, translate("DCS_ERROR_GENERIC"))))
       .finally(() => is_mounted && setLoading(false));
@@ -71,5 +77,16 @@ export function useBoardContents({ form, scoped_form, active_id, library, dataRe
     }
   };
 
-  return { loading, widgets, setWidgets, filters, layout, commit, change_filters };
+  /** The board's own colors, this board's or every board's of the form. */
+  const save_colors = async (next, apply_to_all) => {
+    try {
+      const response = await save_dashboard_appearance(form.form_group_id, active_id, next, apply_to_all);
+      setAppearance((response.data && response.data.appearance) || null);
+      return { ok: true, message: response.message || "" };
+    } catch (error) {
+      return { ok: false, message: request_error_text(error, translate("DCS_ERROR_GENERIC")) };
+    }
+  };
+
+  return { loading, widgets, setWidgets, filters, layout, appearance, save_colors, commit, change_filters };
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { build_palette } from "../appearance.js";
-import { chart_density } from "./density.js";
+import { chart_density, kpi_density } from "./density.js";
 import { fit_text_font } from "./labelDensity.jsx";
 
 const GOOD = "#27AE60";
@@ -82,8 +82,11 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
   // rather than wrapping. "$1.2bn Rwf" comes out smaller than "42" does,
   // which is right: a number broken across two lines has stopped being a
   // number anyone can read at a glance.
-  const roomy_font = Math.max(17, Math.min(28, Math.round(size.width / 8)));
-  const number_font = fit_text_font(colors.number_text(value), Math.max(60, size.width - 24), roomy_font, 8);
+  // What this card's own width allows: a card made very small writes a
+  // smaller number, not a number spilling out of it.
+  const room = kpi_density(size.width);
+  const roomy_font = Math.max(11, Math.min(room.number, Math.round(size.width / 7)));
+  const number_font = fit_text_font(colors.number_text(value), Math.max(48, size.width - 16), roomy_font, 8);
   const direction = changePct === null || changePct === undefined ? null : changePct >= 0 ? "up" : "down";
   const has_legend = Array.isArray(legend) && legend.length > 0;
   const { translate } = useDcsLanguage();
@@ -107,7 +110,7 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
       {has_legend && (
         <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0, maxHeight: shown.length > 12 ? 280 : undefined, overflowY: shown.length > 12 ? "auto" : "visible" }}>
           {shown.map((row, index) => (
-            <li key={`${row.label}-${index}`} className={`flex items-center justify-between gap-2 text-xs min-w-0 ${onLegendClick ? "dcs-legend-clickable" : ""}`} style={{ opacity: row.matches === false ? 0.6 : 1 }} onClick={onLegendClick ? () => onLegendClick(row) : undefined}>
+            <li key={`${row.label}-${index}`} className={`flex items-center justify-between gap-2 min-w-0 ${onLegendClick ? "dcs-legend-clickable" : ""}`} style={{ opacity: row.matches === false ? 0.6 : 1, fontSize: room.legend }} onClick={onLegendClick ? () => onLegendClick(row) : undefined}>
               <span className="flex items-center gap-1.5 min-w-0">
                 <span className="flex-shrink-0" style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: colors.color_for(row.label, index), transition: "background-color 300ms ease" }} />
                 {/* An occurrence card showing every value marks the ones that met its rule. */}

@@ -3,6 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { portal_root } from "../util-dashboard/portalRoot.js";
 import { useBoardTheme } from "../util-dashboard/boardTheme.jsx";
+import { useBoardColors, portal_tint } from "../util-dashboard/boardColors.jsx";
 import MenuPopover from "../util-dashboard/MenuPopover.jsx";
 
 // Outside a dashboard the board theme context is light, so these resolve to the usual colors.
@@ -81,6 +82,7 @@ function PickerInput({ label, type, value, onChange }) {
  */
 function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange, onToChange, onApply, translate }) {
   const board = useBoardTheme();
+  const tint = portal_tint(useBoardColors());
   const [mode, setMode] = useState(from && to && from === to ? "day" : "range");
   const [with_time, setWithTime] = useState(has_time(from) || has_time(to));
   const [local_from, setLocalFrom] = useState(from || "");
@@ -132,7 +134,8 @@ function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange,
         {/* Above the expanded table (100) and the dialogs (10000), like every other menu of the module. */}
         <Dialog.Overlay className="fixed inset-0 z-[10060] bg-black/40" />
         <Dialog.Content
-          className={`fixed top-1/2 left-1/2 z-[10060] w-full max-w-xs -translate-x-1/2 -translate-y-1/2 rounded-none p-5 shadow-xl ${board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`}
+          className={`fixed top-1/2 left-1/2 z-[10060] w-full max-w-xs -translate-x-1/2 -translate-y-1/2 rounded-none p-5 shadow-xl ${tint.className || (board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : "")}`}
+          style={tint.style}
           style={{ backgroundColor: SURFACE, color: TEXT, border: `1px solid ${BORDER}` }}
         >
           <Dialog.Title className="text-sm font-semibold mb-3" style={{ fontFamily: FONT, color: TEXT }}>

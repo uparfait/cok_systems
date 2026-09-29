@@ -58,6 +58,8 @@ async function create_dashboard(form_group_id, project_id, name) {
     filters: [],
     // A new board is a grid until somebody arranges it by hand.
     layout: { mode: "grid", width: 1280 },
+    // And it wears the system's own colors until somebody colors it.
+    appearance: null,
     created_at: now,
     updated_at: now,
   };
@@ -97,6 +99,27 @@ async function save_widgets(form_group_id, dashboard_id, widgets, filters, layou
 }
 
 /**
+ * The colors ONE board is painted in - its background, the outline of the
+ * widgets on it, the color of its words - or null for the system's own
+ * look. Nothing else about the board is touched.
+ */
+async function save_appearance(form_group_id, dashboard_id, appearance) {
+  const object_id = to_object_id(dashboard_id);
+  if (!object_id) return null;
+  await collection().updateOne({ _id: object_id, form_group_id: form_group_id.toString() }, { $set: { appearance: appearance || null, updated_at: new Date() } });
+  return get_dashboard_by_id(form_group_id, dashboard_id);
+}
+
+/**
+ * The same colors on EVERY dashboard of the form, so a form's boards read
+ * as one set rather than each its own way. Returns how many were painted.
+ */
+async function save_appearance_for_form(form_group_id, appearance) {
+  const result = await collection().updateMany({ form_group_id: form_group_id.toString() }, { $set: { appearance: appearance || null, updated_at: new Date() } });
+  return result.modifiedCount;
+}
+
+/**
  * Unscoped save (the older single-dashboard route): writes the form's first
  * dashboard, creating "Dashboard 1" when the form has none yet.
  */
@@ -121,6 +144,8 @@ function strip_dashboard(dashboard) {
     id: dashboard._id.toString(),
     name: dashboard.name || FIRST_NAME,
     widgets_count: Array.isArray(dashboard.widgets) ? dashboard.widgets.length : 0,
+    // The colors it is painted in, so the switcher's list carries them too.
+    appearance: dashboard.appearance || null,
     created_at: dashboard.created_at,
     updated_at: dashboard.updated_at,
   };
@@ -135,6 +160,8 @@ module.exports = {
   rename_dashboard,
   delete_dashboard,
   save_widgets,
+  save_appearance,
+  save_appearance_for_form,
   save_dashboard,
   delete_dashboards_by_project,
   strip_dashboard,

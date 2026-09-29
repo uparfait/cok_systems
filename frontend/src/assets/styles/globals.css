@@ -1714,6 +1714,13 @@ background-color: #056daa;
   color-scheme: dark;
 }
 
+/* A portalled panel of a board painted in its own colors: the variables
+   are written onto the element itself (see portal_tint), so only the words
+   need saying here. */
+.dcs-board-tinted-portal {
+  color: var(--board-text);
+}
+
 /* Panels portalled outside the board (menus, the period dialog) sit
    beside the board in the DOM, so they carry the dark variables themselves. */
 .dcs-board-dark-portal {
@@ -1727,10 +1734,20 @@ background-color: #056daa;
   color-scheme: dark;
 }
 
+/* A board painted in ITS OWN colors (saved with the dashboard, see
+   boardColors.js): the page writes the variables onto this element, so the
+   board, its gutter and every panel on it follow them without a single
+   color being written into the components. */
+.dcs-board-root.dcs-board-tinted {
+  background-color: var(--board-bg);
+  color: var(--board-text);
+}
+
 /* Inside the signed-in shell the dark board bleeds into the page gutter;
    the public page IS the page, so it keeps its own padding and never grows
    wider than the screen. */
-.dcs-board-root:not(.dcs-board-fullscreen):not(.dcs-board-public).dcs-board-dark {
+.dcs-board-root:not(.dcs-board-fullscreen):not(.dcs-board-public).dcs-board-dark,
+.dcs-board-root:not(.dcs-board-fullscreen):not(.dcs-board-public).dcs-board-tinted {
   padding: 12px;
   margin: -12px;
 }
@@ -1829,6 +1846,8 @@ background-color: #056daa;
   transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
+.dcs-board-tinted .dcs-board-chrome select,
+.dcs-board-tinted .dcs-board-chrome input,
 .dcs-board-dark .dcs-board-chrome select,
 .dcs-board-dark .dcs-board-chrome input {
   background-color: var(--board-surface);
@@ -1836,6 +1855,8 @@ background-color: #056daa;
   border-color: var(--board-border);
 }
 
+.dcs-board-tinted .dcs-board-chrome .text-xs,
+.dcs-board-tinted .dcs-board-chrome label,
 .dcs-board-dark .dcs-board-chrome .text-xs,
 .dcs-board-dark .dcs-board-chrome label {
   color: var(--board-text);

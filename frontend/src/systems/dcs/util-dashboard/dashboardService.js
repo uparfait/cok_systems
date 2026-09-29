@@ -32,6 +32,15 @@ export function save_dashboard(scope, widgets, filters, layout) {
   return dcs_request(dashboard_path(scope), "PUT", body);
 }
 
+/**
+ * The colors ONE dashboard is painted in - or, with apply_to_all, every
+ * dashboard of the same form. null puts the board back to the system's
+ * own look.
+ */
+export function save_dashboard_appearance(form_group_id, dashboard_id, appearance, apply_to_all) {
+  return dcs_request(`/forms/${form_group_id}/dashboards/${dashboard_id}/appearance`, "PUT", { appearance: appearance || null, apply_to_all: apply_to_all === true });
+}
+
 /** The form's named dashboards: { dashboards: [{id, name, widgets_count}], can_edit }. */
 export function list_dashboards(form_group_id) {
   return dcs_request(`/forms/${form_group_id}/dashboards`, "GET");

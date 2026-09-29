@@ -12,6 +12,7 @@ import TableWidget from "./charts/TableWidget.jsx";
 import DimensionTotals from "./charts/DimensionTotals.jsx";
 import { build_palette } from "./appearance.js";
 import { useBoardTheme } from "./boardTheme.jsx";
+import { useBoardColors } from "./boardColors.jsx";
 import { chart_density } from "./charts/density.js";
 import { drawn_chart_type } from "./overTime.js";
 
@@ -51,7 +52,8 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
   const [show_other, setShowOther] = useState(false);
   const [show_all, setShowAll] = useState(false);
   const board = useBoardTheme();
-  const palette = build_palette(widget.appearance, board.theme);
+  const board_colors = useBoardColors();
+  const palette = build_palette(widget.appearance, board.theme, board_colors);
   // Everything the chart draws is sized from the card it was given, never
   // the other way round - a small widget stays small whatever it holds.
   const base_density = chart_density(cardWidth);

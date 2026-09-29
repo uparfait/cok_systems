@@ -158,7 +158,17 @@ const TEXT_LIMITS = { MAX_HEADING: 200, MAX_BODY: 4000 };
  */
 const MAX_PINNED_FIELDS = 10;
 
-const WIDGET_SIZES = ["small", "medium", "large", "full"];
+/**
+ * How wide a widget is on the board, as the SHARE OF A ROW it claims. A
+ * chart is a third (small), a half (medium) or a whole row (large, full).
+ * A KPI card is a card rather than a drawing, so it claims far less and
+ * has one more step below small: on a wide screen a row holds twelve xs
+ * cards, six small, four medium or three large. Whatever a row ends up
+ * holding widens to fill it, so no gap is ever left at the end.
+ */
+const WIDGET_SIZES = ["xs", "small", "medium", "large", "full"];
+const KPI_SIZES = ["xs", "small", "medium", "large"];
+const KPI_PER_ROW = { xs: 12, small: 6, medium: 4, large: 3 };
 
 const TIME_GRANULARITIES = ["auto", "hour", "day", "week", "month", "year"];
 
@@ -233,6 +243,8 @@ module.exports = {
   PERIOD_PRESETS,
   SORT_OPTIONS,
   WIDGET_SIZES,
+  KPI_SIZES,
+  KPI_PER_ROW,
   MAP_LEVELS,
   TABLE_MODES,
   TABLE_LIMITS,

@@ -29,6 +29,7 @@ async function get_dashboard(req, res) {
       success_response(req, "DASHBOARD_FETCHED", {
         widgets: (dashboard && dashboard.widgets) || [],
         filters: (dashboard && dashboard.filters) || [],
+        appearance: (dashboard && dashboard.appearance) || null,
         updated_at: dashboard ? dashboard.updated_at : null,
         can_edit: context.can_edit,
       }),

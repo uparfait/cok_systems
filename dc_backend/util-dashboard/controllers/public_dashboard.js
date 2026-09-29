@@ -161,6 +161,9 @@ async function get_public_dashboard(req, res) {
         // sizes, positions): viewers see exactly what the editor arranged.
         layout: (dashboard && dashboard.layout) || null,
         filters: (dashboard && dashboard.filters) || [],
+        // The colors the board was painted in: a shared board looks like
+        // the board it was shared from.
+        appearance: (dashboard && dashboard.appearance) || null,
         filter_fields: filter_fields(dashboard, context.form_version),
         cascade_fields: cascade_fields(context.form_version),
         updated_at: dashboard ? dashboard.updated_at : null,

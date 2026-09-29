@@ -100,3 +100,17 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] MapChart under 500 lines; three language files in step; build green; browser proof re-run (note shown while the basemap hangs, gone once it is in)
 - [x] Proof: `map_shapes.test.js` passes against the real Kigali tree (all 1,361 places found, context and cap checked); backend suite green; frontend build green
 - [x] Browser proof: a real headless browser (Edge, WebGL2 via SwiftShader) with the basemap hanging draws all three districts within 6 seconds and never shows the veil; the committed code reproduced the bug at 23 seconds; logs and screenshots saved in dashboards/disaster/logs/map_proof*.log and map_proof*.png
+
+## 16. KPI card sizes and rows that fill themselves
+- [x] Four sizes for a KPI card, offered in its own menu: xs (12 a row), small (6), medium (4), large (3); "xs" accepted by the server and documented in the creation guide
+- [x] A card's number, title, description, legend and padding scale to the width it ended up with; the icon is dropped where it would leave no room for the figure
+- [x] One flowing grid: a widget takes a new row only when it does not fit, whatever a row holds widens evenly to fill it, and cards and charts can share a row
+- [x] Measured in a real browser: 12 xs on one row, 10 xs filling the row, 10 xs pushing a medium chart to the next row, 2 small cards sharing a row with a medium chart (42 checks, 0 failures; logs/board_proof.log and its six screenshots)
+
+## 17. A board's own colours
+- [x] Background and widget-border colours saved per dashboard; text, muted tones, grids and empty areas worked out from the background so nothing is unreadable
+- [x] Border and text may be set by hand or put back to automatic; the whole board can be reset to the usual colours
+- [x] "Paint every dashboard of this form the same way" writes them across the form's boards in one call, touching nothing else
+- [x] A widget's own background or border still wins; its colour dialog shows what is inherited and resets back to the board
+- [x] Shared links carry the colours; the light/dark toggle steps aside on a coloured board
+- [x] Backend test green (mongodb-memory-server), whole suite green, frontend build green

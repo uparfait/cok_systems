@@ -8,7 +8,7 @@ const filter_values = require("./controllers/filter_values.js");
 const { widget_records, widget_records_export } = require("./controllers/widget_records.js");
 const { widget_map_shapes } = require("./controllers/map_shapes.js");
 const { list_dashboard_links, create_dashboard_link, update_dashboard_link, delete_dashboard_link } = require("./controllers/dashboard_links.js");
-const { list_dashboards, create_dashboard, rename_dashboard, delete_dashboard, get_dashboard_by_id, save_dashboard_by_id } = require("./controllers/dashboards.js");
+const { list_dashboards, create_dashboard, rename_dashboard, delete_dashboard, get_dashboard_by_id, save_dashboard_by_id, set_dashboard_appearance } = require("./controllers/dashboards.js");
 
 /**
  * @swagger
@@ -54,6 +54,15 @@ Router.post("/:form_group_id/dashboards", create_dashboard);
 Router.get("/:form_group_id/dashboards/:dashboard_id", get_dashboard_by_id);
 Router.put("/:form_group_id/dashboards/:dashboard_id", save_dashboard_by_id);
 Router.patch("/:form_group_id/dashboards/:dashboard_id", rename_dashboard);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/dashboards/{dashboard_id}/appearance:
+ *   put:
+ *     summary: The colors one dashboard - or, with apply_to_all, every dashboard of the form - is painted in
+ *     tags: [Dashboards]
+ */
+Router.put("/:form_group_id/dashboards/:dashboard_id/appearance", set_dashboard_appearance);
 Router.delete("/:form_group_id/dashboards/:dashboard_id", delete_dashboard);
 
 /**

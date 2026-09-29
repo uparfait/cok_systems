@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useToast } from "../../../../core/contexts/ToastContext.tsx";
 import { useBoardTheme } from "../boardTheme.jsx";
+import { useBoardColors } from "../boardColors.jsx";
 import { save_dashboard, request_error_text } from "../dashboardService.js";
 import { finalize_widgets } from "../builder/composeWidgets.js";
 import DcsConfirmDialog from "../../components/DcsConfirmDialog.jsx";
@@ -130,7 +131,8 @@ export default function StudioBoard({ form, fields, widgets, layout, editable, o
 
   if (!studio.active) return <div ref={board_ref}>{surface}</div>;
 
-  const background = board.is_dark ? DARK_BG : LIGHT_BG;
+  const tint = useBoardColors();
+  const background = tint ? tint.background : board.is_dark ? DARK_BG : LIGHT_BG;
   return (
     <>
       {createPortal(

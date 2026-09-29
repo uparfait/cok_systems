@@ -19,6 +19,9 @@ function sanitize_field_ref(value) {
 // Six digits, or eight when the color carries transparency with it.
 const HEX_COLOR = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
 const MODE_COLOR_KEYS = ["background", "text", "number", "border"];
+// A whole board is colored by two: what it sits on and the border each
+// widget draws. Its text follows the background unless it is overridden.
+const BOARD_COLOR_KEYS = ["background", "border", "text"];
 const MAX_VALUE_COLORS = 100;
 const LEGEND_POSITIONS = ["bottom", "top", "right", "left"];
 
@@ -52,6 +55,29 @@ function sanitize_board_layout(raw) {
     mode: BOARD_MODES.includes(clean_string(raw.mode)) ? clean_string(raw.mode) : "grid",
     width: Number.isFinite(width) ? Math.min(Math.max(Math.round(width), BOARD_WIDTH.least), BOARD_WIDTH.most) : BOARD_WIDTH.usual,
   };
+}
+
+/**
+ * A BOARD'S OWN COLORS: the background the whole dashboard and every
+ * widget on it is painted in, the color of the outline each widget draws
+ * around itself, and - when the author overrides the automatic one - the
+ * color its words are written in. Everything else (muted labels, grids,
+ * empty areas) is worked out from the background by the page itself, so
+ * nothing is ever written in a color nobody can see. Null is the system's
+ * own look, which is what a board has until somebody colors it.
+ */
+function sanitize_board_appearance(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const color = (value) => (typeof value === "string" && HEX_COLOR.test(value.trim()) ? value.trim().toLowerCase() : null);
+  const out = {};
+  BOARD_COLOR_KEYS.forEach((key) => {
+    const held = color(raw[key]);
+    if (held) out[key] = held;
+  });
+  // A board colored only in its border is not a colored board: the
+  // background is what the rest is worked out from.
+  if (!out.background) return null;
+  return out;
 }
 
 function sanitize_appearance(appearance) {
@@ -338,6 +364,7 @@ function sanitize_period_override(period) {
 
 module.exports = {
   sanitize_board_layout,
+  sanitize_board_appearance,
   sanitize_widget,
   sanitize_widgets,
   sanitize_period_override,

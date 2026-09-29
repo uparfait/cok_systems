@@ -25,6 +25,32 @@ const PROFILES = [
 
 export const DEFAULT_WIDTH = 520;
 
+/**
+ * How big a KPI CARD may draw itself at the width it ended up with. A card
+ * made very small is not a broken card: its number, its title, its icon
+ * and its legend all come out smaller, down to the point where the icon
+ * would leave no room for the figure and is dropped rather than shrunk
+ * into a smudge. Nothing here ever GROWS a card - the width decides, the
+ * contents follow.
+ */
+const KPI_PROFILES = [
+  { max: 132, icon: 0, title: 10, number: 17, legend: 10, pad: "px-1.5" },
+  { max: 230, icon: 22, title: 11, number: 21, legend: 11, pad: "px-2" },
+  { max: 340, icon: 28, title: 12, number: 25, legend: 12, pad: "px-3" },
+  { max: Infinity, icon: 34, title: 12, number: 28, legend: 12, pad: "px-3" },
+];
+
+// Roughly how wide a card of each size comes out, for the first paint -
+// before the card has been measured there is nothing else to go on.
+const KPI_NOMINAL = { xs: 96, small: 190, medium: 300, large: 420 };
+
+/** The sizing profile for a KPI card of this width, or of this size before it is measured. */
+export function kpi_density(width, size) {
+  const measured = Number(width) > 0 ? Number(width) : KPI_NOMINAL[size] || KPI_NOMINAL.small;
+  const profile = KPI_PROFILES.find((entry) => measured < entry.max) || KPI_PROFILES[KPI_PROFILES.length - 1];
+  return Object.assign({ width: measured }, profile);
+}
+
 /** The sizing profile for a card of this pixel width. */
 export function chart_density(width) {
   const measured = Number(width) > 0 ? Number(width) : DEFAULT_WIDTH;

@@ -11,6 +11,7 @@ import BoxSettings from "./BoxSettings.jsx";
 import { useFanOutValues } from "./useFanOutValues.js";
 import { resolve_appearance, build_palette, auto_color, random_color, MODE_DEFAULTS, LEGEND_POSITIONS, UNIT_SIDES } from "../appearance.js";
 import { portal_root } from "../portalRoot.js";
+import { useBoardColors } from "../boardColors.jsx";
 import NameSettings from "./NameSettings.jsx";
 import CanvasSettings from "./CanvasSettings.jsx";
 import { HEAT_LOW, HEAT_HIGH } from "../charts/heatScale.js";
@@ -107,8 +108,16 @@ export default function AppearanceDialog({ form, title, description, naming, val
   // the board itself the grid decides, and there is nothing to show.
   const [draft_box, setDraftBox] = useState(() => (box ? { ...box } : null));
   const values = useFanOutValues(form, valuesField);
-  const palette = useMemo(() => build_palette(draft), [draft]);
+  // A board painted in its own colors is what this widget FOLLOWS: the
+  // preview shows the real result, and a color still on the system's
+  // default is shown as the board's, marked automatic, so what is
+  // inherited and what was chosen here are never confused. Choosing one
+  // pins it; resetting it hands the widget back to the board.
+  const board_colors = useBoardColors();
+  const palette = useMemo(() => build_palette(draft, undefined, board_colors), [draft, board_colors]);
   const mode = draft[draft.theme];
+  const inherited = (key) => (board_colors ? { background: board_colors.surface, border: board_colors.border, text: board_colors.text }[key] || null : null);
+  const chosen = (key) => (inherited(key) && mode[key] === MODE_DEFAULTS[draft.theme][key] ? "" : mode[key]);
 
   const set_mode_color = (key, color) => setDraft((current) => ({ ...current, [current.theme]: { ...current[current.theme], [key]: color } }));
   const set_value_color = (label, color) =>
@@ -263,14 +272,16 @@ export default function AppearanceDialog({ form, title, description, naming, val
               {translate("DCS_DB_COLOR_MODE_COLORS", { mode: translate(draft.theme === "dark" ? "DCS_DB_COLOR_DARK" : "DCS_DB_COLOR_LIGHT") })}
             </p>
             <p className="text-xs mb-2" style={{ color: TEXT_MUTED }}>
-              {translate("DCS_DB_COLOR_MODE_HINT")}
+              {translate(board_colors ? "DCS_DB_COLOR_BOARD_HINT" : "DCS_DB_COLOR_MODE_HINT")}
             </p>
             <div className="flex flex-col gap-2">
               {colors_shown.map((entry) => (
                 <ColorInput
                   key={`${draft.theme}-${entry.id}`}
                   label={translate(entry.labelKey)}
-                  value={mode[entry.id]}
+                  value={chosen(entry.id)}
+                  fallback={inherited(entry.id) || undefined}
+                  autoTag={inherited(entry.id) ? translate("DCS_DB_COLOR_AUTO_TAG") : ""}
                   alpha={entry.alpha}
                   onChange={(color) => set_mode_color(entry.id, color)}
                   onClear={mode[entry.id] !== MODE_DEFAULTS[draft.theme][entry.id] ? () => set_mode_color(entry.id, MODE_DEFAULTS[draft.theme][entry.id]) : null}

@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { portal_root } from "./portalRoot.js";
+import { useBoardColors, portal_tint } from "./boardColors.jsx";
 
 /**
  * The right-click menu of a board.
@@ -34,6 +35,8 @@ const ITEM = {
 export default function BoardContextMenu({ at, items, onClose }) {
   const { translate } = useDcsLanguage();
 
+  const tint = portal_tint(useBoardColors());
+
   useEffect(() => {
     if (!at) return undefined;
     const close = () => onClose();
@@ -59,7 +62,8 @@ export default function BoardContextMenu({ at, items, onClose }) {
   return createPortal(
     <div
       role="menu"
-      className={`dcs-menu-popover fixed border-2 shadow-lg ${at.dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`}
+      className={`dcs-menu-popover fixed border-2 shadow-lg ${tint.className || (at.dark ? "dcs-board-dark dcs-board-dark-portal" : "")}`}
+      data-tinted={tint.className ? "1" : undefined}
       style={{ top, left, minWidth: 210, zIndex: 10070, backgroundColor: "var(--board-surface, #FFFFFF)", borderColor: "var(--board-border, #E0E0E0)", paddingTop: 4, paddingBottom: 4 }}
       onPointerDown={(event) => event.stopPropagation()}
       onContextMenu={(event) => event.preventDefault()}

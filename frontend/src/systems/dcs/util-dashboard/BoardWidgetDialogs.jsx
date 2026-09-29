@@ -5,12 +5,13 @@ import IconPickerPanel from "./icons/IconPickerPanel.jsx";
 import SkippedDetailsModal from "./SkippedDetailsModal.jsx";
 import WidgetBehaviorDialog from "./WidgetBehaviorDialog.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
+import BoardColorsDialog from "./BoardColorsDialog.jsx";
 
 /**
- * The dialogs of the dashboard page - color settings, the icon picker,
- * the skipped-answers detail, and the two confirmations that something is
- * about to be thrown away - each shown for whatever the page currently
- * holds in the matching state slot.
+ * The dialogs of the dashboard page - one widget's color settings, the
+ * WHOLE BOARD'S colors, the icon picker, the skipped-answers detail, and
+ * the two confirmations that something is about to be thrown away - each
+ * shown for whatever the page currently holds in the matching state slot.
  */
 // A KPI card's icon is its own; a map's is the marker it plants on every
 // place, which lives with the rest of its map settings.
@@ -19,11 +20,14 @@ const icon_of = (widget) => (is_map(widget) ? { ...widget, icon: (widget.map && 
 // Picking one for a map also plants it; removing it takes the markers off.
 const icon_change = (widget, name) => (is_map(widget) ? { map: Object.assign({}, widget.map, { marker: name, show_markers: !!name }) } : { icon: name });
 
-export default function BoardWidgetDialogs({ form, fields, widgets, savingWidgetId, appearanceWidget, behaviorWidget, filterDefs, iconWidget, skippedWidget, period, appliedFilters, onUpdate, onCloseAppearance, onCloseBehavior, onCloseIcon, onCloseSkipped, confirmDelete, confirmRemove }) {
+export default function BoardWidgetDialogs({ form, fields, widgets, savingWidgetId, appearanceWidget, behaviorWidget, filterDefs, iconWidget, skippedWidget, period, appliedFilters, boardColors, onUpdate, onCloseAppearance, onCloseBehavior, onCloseIcon, onCloseSkipped, confirmDelete, confirmRemove }) {
   const current_widget = () => (iconWidget ? widgets.find((widget) => widget.id === iconWidget.id) || iconWidget : null);
 
   return (
     <>
+      {boardColors && boardColors.open && (
+        <BoardColorsDialog appearance={boardColors.appearance} boardName={boardColors.boardName} onApply={boardColors.onApply} onClose={boardColors.onClose} />
+      )}
       {appearanceWidget && (
         <AppearanceDialog
           form={form}

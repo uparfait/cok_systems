@@ -1,7 +1,7 @@
 const dashboards_model = require("../dashboards_model.js");
 const dashboard_links_model = require("../dashboard_links_model.js");
 const { load_form_dashboard_context } = require("../form_context.js");
-const { sanitize_widgets, sanitize_board_layout } = require("../sanitize.js");
+const { sanitize_widgets, sanitize_board_layout, sanitize_board_appearance } = require("../sanitize.js");
 const { validate_dashboard } = require("../widget_validation.js");
 const { build_field_catalog } = require("../field_catalog.js");
 const { sanitize_filter_defs, validate_filter_defs } = require("../board_filters.js");
@@ -121,6 +121,7 @@ async function get_dashboard_by_id(req, res) {
         widgets: dashboard.widgets || [],
         filters: dashboard.filters || [],
         layout: dashboard.layout || null,
+        appearance: dashboard.appearance || null,
         updated_at: dashboard.updated_at,
         can_edit: context.can_edit,
       }),
@@ -162,10 +163,32 @@ async function save_dashboard_by_id(req, res) {
         widgets: saved.widgets,
         filters: saved.filters || [],
         layout: saved.layout || null,
+        appearance: saved.appearance || null,
         updated_at: saved.updated_at,
         can_edit: true,
       }),
     );
+  } catch (error) {
+    return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
+  }
+}
+
+/**
+ * The colors ONE board is painted in, or - with apply_to_all - the colors
+ * EVERY dashboard of this form is painted in. No appearance at all (or one
+ * carrying no background) puts the board back to the system's own look.
+ */
+async function set_dashboard_appearance(req, res) {
+  try {
+    const context = await editor_context(req, res);
+    if (!context) return undefined;
+    const { form_group_id, dashboard_id } = req.params;
+    const existing = await dashboards_model.get_dashboard_by_id(form_group_id, dashboard_id);
+    if (!existing) return res.status(404).json(warning_response(req, "DASHBOARD_NOT_FOUND"));
+    const appearance = sanitize_board_appearance((req.body || {}).appearance);
+    const every = (req.body || {}).apply_to_all === true;
+    const painted = every ? await dashboards_model.save_appearance_for_form(form_group_id, appearance) : ((await dashboards_model.save_appearance(form_group_id, dashboard_id, appearance)) ? 1 : 0);
+    return res.status(200).json(success_response(req, "DASHBOARD_SAVED", { appearance, painted }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }
@@ -178,4 +201,5 @@ module.exports = {
   delete_dashboard,
   get_dashboard_by_id,
   save_dashboard_by_id,
+  set_dashboard_appearance,
 };

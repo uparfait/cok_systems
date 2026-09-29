@@ -28,6 +28,15 @@ import React, { useLayoutEffect, useRef, useState } from "react";
 const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "1");
 const TOLERANCE = 0.02;
 
+/**
+ * A WHOLE BOARD fitted onto one screen: the style that scales it by the
+ * ratio the page worked out. zoom re-lays the board out at the new size
+ * and keeps its text crisp; where the browser has no zoom, a transform
+ * paints it smaller and the box is widened to match.
+ */
+export const fit_board_style = (scale) =>
+  SUPPORTS_ZOOM ? { zoom: scale } : { transform: `scale(${scale})`, transformOrigin: "top left", width: `${Math.round(10000 / scale) / 100}%` };
+
 export default function FitScale({ children, className, style }) {
   const outer = useRef(null);
   const inner = useRef(null);

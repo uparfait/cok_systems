@@ -246,12 +246,30 @@ export function resolve_appearance(raw) {
  * viewer's page-wide mode (see boardTheme.jsx): "dark" paints every widget
  * with its dark color set regardless of its own saved mode; anything else
  * leaves the widget's own choice in charge.
+ *
+ * board_colors is the BOARD'S OWN LOOK (see boardColors.js), saved with
+ * the dashboard: its background is what every widget is painted in and its
+ * border color is what every widget outlines itself with, so the board
+ * reads as one surface. A widget that was given a background, a border or a text
+ * color OF ITS OWN keeps it - in either mode, because the choice was
+ * deliberate - and the board fills in the rest. The muted tones, grids and
+ * empty areas all come from the board, and its background also decides
+ * which color set the widget draws with: a dark board gets pale grids.
  */
-export function build_palette(raw, board_theme) {
+export function build_palette(raw, board_theme, board_colors) {
   const appearance = resolve_appearance(raw);
   if (board_theme === "dark") appearance.theme = "dark";
+  if (board_colors) appearance.theme = board_colors.is_dark ? "dark" : "light";
   const mode = appearance[appearance.theme];
-  const extras = MODE_EXTRAS[appearance.theme];
+  let extras = MODE_EXTRAS[appearance.theme];
+  if (board_colors) {
+    const held = raw && typeof raw === "object" ? raw : {};
+    const own = (key) => (held.light && held.light[key]) || (held.dark && held.dark[key]) || null;
+    mode.background = own("background") || board_colors.surface;
+    mode.border = own("border") || board_colors.border;
+    mode.text = own("text") || board_colors.text;
+    extras = { muted: board_colors.muted, grid: board_colors.grid, empty: board_colors.empty, soft: board_colors.soft };
+  }
   // A translucent background is the widget's own look; anything that has
   // to paint a solid surface behind something (a map's base, a slice
   // outline) takes the same color with the transparency taken off.

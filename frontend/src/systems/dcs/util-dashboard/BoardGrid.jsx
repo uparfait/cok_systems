@@ -7,34 +7,23 @@ import BoardFreeSurface from "./BoardFreeSurface.jsx";
 import { is_studio } from "./boxLayout.js";
 import ExpandableSlot from "./ExpandableSlot.jsx";
 import { build_palette } from "./appearance.js";
+import { row_class } from "./boardRows.js";
 import { drill_target, field_label } from "./cascade.js";
 import { useBoardTheme } from "./boardTheme.jsx";
+import { useBoardColors } from "./boardColors.jsx";
 
-// Flexible auto-grow grid: a chart's own size (changed from its menu) is
-// the FRACTION OF A ROW it claims, and neighbours that still fit share
-// that row - small is a third (three small charts in a row on a laptop),
-// medium a half (two in a row), and large a whole row to itself. A small
-// beside a medium therefore fills one row between them, and `grow` widens
-// whatever a row ends up holding so no gap is ever left. Mobile is always
-// one column, and a lone chart always spans the board. The basis subtracts
-// its share of the 0.75rem gaps so the intended count really fits. Static
-// class strings so Tailwind keeps them.
 // A zero-height full-width item, which is how flex-wrap is made to break
 // a line where it is told rather than only where it runs out of room.
 const ROW_BREAK = { flexBasis: "100%", height: 0 };
-const HALF_ROW = "grow basis-full sm:basis-[calc(50%-0.75rem)]";
-const SIZE_CLASSES = {
-  small: `${HALF_ROW} lg:basis-[calc(33.333%-0.75rem)]`,
-  medium: HALF_ROW,
-  large: "grow basis-full",
-  full: "grow basis-full",
-};
 
 /**
- * The board itself: KPI cards first in their own DENSE row - 2 per row on
- * phones, 3 on tablets, 4 on large screens, and fewer cards stretch to
- * fill the row instead of huddling small - then every chart in the
- * flexible auto-grow grid below. With `studio` (studio mode) each card is
+ * The board itself: ONE flowing grid, KPI cards first and then the charts,
+ * each widget claiming the share of a row its own size asks for (see
+ * boardRows.js) and taking a new row only when it genuinely does not fit
+ * in what is left of the current one. Whatever a row ends up holding
+ * widens evenly to fill it, so no gap is ever left at the end - and
+ * because cards and charts flow together, two cards and a chart share one
+ * row while twelve cards keep it to themselves. With `studio` each card is
  * draggable onto another to move it there, placed and sized by hand when
  * the board is arranged as a surface, and removable; inline editing is off
  * meanwhile. Every card sits in an ExpandableSlot: its hover button grows
@@ -75,6 +64,7 @@ export default function BoardGrid({
   const [over_id, setOverId] = useState(null);
   const [expanded_id, setExpandedId] = useState(null);
   const board = useBoardTheme();
+  const board_colors = useBoardColors();
   // A widget that the board filters leave with nothing to show (a KPI with
   // no total and no legend, a chart with no rows, points or nodes) hides
   // until the filters change - an empty card would only say that the
@@ -169,7 +159,7 @@ export default function BoardGrid({
     // A SECTION carries no "view full" button. It is the page's own layout,
     // not a card with something in it worth filling the screen with - the
     // widgets inside it each keep their own button.
-    <ExpandableSlot expanded={expanded_id === widget.id} onToggle={() => setExpandedId((current) => (current === widget.id ? null : widget.id))} hideButton={arranging || is_canvas(widget)} palette={build_palette(widget.appearance, board.theme)}>
+    <ExpandableSlot expanded={expanded_id === widget.id} onToggle={() => setExpandedId((current) => (current === widget.id ? null : widget.id))} hideButton={arranging || is_canvas(widget)} palette={build_palette(widget.appearance, board.theme, board_colors)}>
       <WidgetCard
       widget={widget}
       data={dataByWidget[widget.id]}
@@ -196,7 +186,7 @@ export default function BoardGrid({
       })()}
       slot={canvas_slot(widget)}
       onContextMenu={onWidgetMenu ? (event) => onWidgetMenu(event, widget) : undefined}
-      onChangeSize={editable && widget.chart_type !== "kpi" ? (next_size) => onUpdateWidget(widget.id, { size: next_size }) : undefined}
+      onChangeSize={editable ? (next_size) => onUpdateWidget(widget.id, { size: next_size }) : undefined}
       onRetry={() => onRetryWidget(widget)}
       onShowSkipped={onShowSkipped}
       onPickIcon={editable && onPickIcon ? () => onPickIcon(widget) : undefined}
@@ -267,27 +257,21 @@ export default function BoardGrid({
     );
   }
 
+  // A board holding a single CHART gives it the whole row: one small
+  // drawing floating in empty space reads as broken. A card is a card -
+  // it keeps the share its size asked for, and widens to fill its row
+  // like every other.
+  const lone_chart = kpi_widgets.length === 0 && chart_widgets.length === 1 && !is_canvas(chart_widgets[0]) ? chart_widgets[0] : null;
   return (
     <>
-      {kpi_widgets.length > 0 && (
-        <div className="flex flex-wrap items-stretch gap-3 mb-3">
-          {kpi_widgets.map((widget) => (
-            <div key={widget.id} className={`grow basis-[calc(50%-0.75rem)] md:basis-[calc(33.333%-0.75rem)] xl:basis-[calc(25%-0.75rem)] ${item_class(widget)}`} {...drag_props(widget)}>
-              {render_card(widget)}
-            </div>
-          ))}
-        </div>
-      )}
       <div>
         <div className="flex flex-wrap items-stretch gap-3">
-          {chart_widgets.map((widget) => {
+          {kpi_widgets.concat(chart_widgets).map((widget) => {
             if (!is_canvas(widget)) {
               return (
                 <div
                   key={widget.id}
-                  // A lone widget always spans the whole board - a small
-                  // card floating in empty space reads as broken.
-                  className={`${chart_widgets.length === 1 ? SIZE_CLASSES.full : SIZE_CLASSES[widget.size] || SIZE_CLASSES.medium} ${item_class(widget)}`}
+                  className={`${row_class(widget, widget === lone_chart)} ${item_class(widget)}`}
                   {...drag_props(widget)}
                 >
                   {render_card(widget)}

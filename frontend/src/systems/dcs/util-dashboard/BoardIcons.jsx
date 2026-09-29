@@ -134,6 +134,16 @@ export const CAMERA_SVG = (
   </>
 );
 
+export const PALETTE_SVG = (
+  <>
+    <circle cx="13.5" cy="6.5" r="1.2" />
+    <circle cx="17.5" cy="10.5" r="1.2" />
+    <circle cx="8.5" cy="7.5" r="1.2" />
+    <circle cx="6.5" cy="12.5" r="1.2" />
+    <path d="M12 2a10 10 0 1 0 0 20 2.5 2.5 0 0 0 0-5h-1a2 2 0 0 1 0-4h5.5A4.5 4.5 0 0 0 21 8.5C21 4.9 16.97 2 12 2z" />
+  </>
+);
+
 export const TRASH_SVG = (
   <>
     <polyline points="3 6 5 6 21 6" />

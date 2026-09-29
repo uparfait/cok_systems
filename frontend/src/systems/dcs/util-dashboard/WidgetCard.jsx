@@ -7,7 +7,8 @@ import { chart_definition } from "./chartCatalog.js";
 import { build_palette, with_alpha } from "./appearance.js";
 import CardMenu from "./WidgetCardMenu.jsx";
 import { useBoardTheme } from "./boardTheme.jsx";
-import { chart_density } from "./charts/density.js";
+import { useBoardColors } from "./boardColors.jsx";
+import { chart_density, kpi_density } from "./charts/density.js";
 import TextWidget from "./charts/TextWidget.jsx";
 import { period_of, period_label } from "./builder/widgetBehavior.js";
 import { shown_title } from "./cascade.js";
@@ -166,11 +167,12 @@ function widget_total(widget, data) {
  * for editors only - a dashed placeholder inviting one. Clicking it (like
  * clicking the card's number) opens the icon picker.
  */
-function KpiIconSlot({ icon, color }) {
-  if (!icon) return null;
+function KpiIconSlot({ icon, color, size }) {
+  // A card too narrow to hold both an icon and its number keeps the number.
+  if (!icon || !size) return null;
   return (
-    <span className="flex items-center justify-center flex-shrink-0" style={{ width: 40, height: 40 }}>
-      <LibraryIcon icon={icon} size={34} color={color} />
+    <span className="flex items-center justify-center flex-shrink-0" style={{ width: size + 6, height: size + 6 }}>
+      <LibraryIcon icon={icon} size={size} color={color} />
     </span>
   );
 }
@@ -204,7 +206,8 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // The card paints itself from the widget's own appearance (light or dark
   // mode with its background, text and number colors) - unless the viewer
   // switched the whole board to dark mode, which paints every card dark.
-  const palette = build_palette(widget.appearance, board.theme);
+  const board_colors = useBoardColors();
+  const palette = build_palette(widget.appearance, board.theme, board_colors);
   // The title as shown: a card stacked on one value always names it, in
   // brackets when the author's own title does not.
   const title_shown = wordless ? widget.title : shown_title(widget, palette.name_for);
@@ -237,6 +240,9 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // height then tells nothing about what it needs.
   const has_chart = !!data && !data.error && !data.locked && !loading;
   const base_chart_height = chart_density(chart_size.width).height;
+  // What a KPI card of this width may draw: its icon, its title, its
+  // number and its padding all follow the room it ended up with.
+  const kpi = kpi_density(chart_size.width, widget.size);
   const base_need = wordless ? 0 : !has_chart ? state_height : is_kpi ? 0 : base_chart_height + 56;
   const filled = has_chart && !is_kpi && !wordless && fill_height > base_chart_height;
   useEffect(() => {
@@ -282,8 +288,8 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           widgets is just a gap. While the board is editable the bar stays,
           because that is where a name is added and where its menu lives. */}
       {(!wordless || !!widget.title || !!widget.description) && (
-      <div className={`px-3 ${is_kpi ? "pt-2 pb-1" : "pt-3 pb-2"} flex items-start gap-2`}>
-        {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} />}
+      <div className={`${is_kpi ? `${kpi.pad} pt-2 pb-1` : "px-3 pt-3 pb-2"} flex items-start gap-2`}>
+        {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} size={kpi.icon} />}
         <div className="min-w-0 flex-1 relative">
           <div className="flex flex-wrap items-baseline gap-x-1.5">
           {/* The name and the description are SHOWN here and set in the
@@ -296,7 +302,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             hideWhenEmpty={wordless}
             editable={false}
             maxLength={120}
-            textStyle={{ color: palette.text, fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: is_kpi ? 12 : 14 }}
+            textStyle={{ color: palette.text, fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: is_kpi ? kpi.title : 14 }}
           />
           </div>
           <EditableText
@@ -304,7 +310,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             hideWhenEmpty
             editable={false}
             maxLength={300}
-            textStyle={{ color: palette.muted, fontSize: is_kpi ? 11 : 12 }}
+            textStyle={{ color: palette.muted, fontSize: is_kpi ? Math.max(9, kpi.title - 1) : 12 }}
           />
           {fixed && (
             <div className="flex flex-wrap gap-1 mt-1">
@@ -316,7 +322,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
         {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon || onMapMode) && (
-          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={is_kpi ? undefined : onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onMapMode={is_map ? onMapMode : undefined} canHeat={canHeat} fields={fields} onOverTime={onOverTime} onReconfigure={onReconfigure} onBehavior={wordless ? undefined : onBehavior} />
+          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onMapMode={is_map ? onMapMode : undefined} canHeat={canHeat} fields={fields} onOverTime={onOverTime} onReconfigure={onReconfigure} onBehavior={wordless ? undefined : onBehavior} />
         )}
       </div>
       )}

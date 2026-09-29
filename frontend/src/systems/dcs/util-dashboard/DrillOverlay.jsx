@@ -7,6 +7,7 @@ import { useBoardTheme } from "./boardTheme.jsx";
 import { useNarrowViewport } from "./useNarrowViewport.js";
 import { drill_target, derive_child_widget, field_label } from "./cascade.js";
 import { portal_root } from "./portalRoot.js";
+import { useBoardColors, portal_tint } from "./boardColors.jsx";
 
 const PRIMARY = "#056daa";
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
@@ -23,6 +24,7 @@ const FONT = { fontFamily: "'Montserrat', sans-serif" };
 export default function DrillOverlay({ stack, fields, onDrill, onOpenRecords, onBack, onClose }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
+  const tint = portal_tint(useBoardColors());
   const narrow = useNarrowViewport();
   useEffect(() => {
     const on_key = (event) => {
@@ -34,7 +36,7 @@ export default function DrillOverlay({ stack, fields, onDrill, onOpenRecords, on
   if (!stack || stack.length === 0) return null;
   const top = stack.length - 1;
   return createPortal(
-    <div className={`dcs-drill-overlay ${board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`}>
+    <div className={`dcs-drill-overlay ${tint.className || (board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : "")}`} style={tint.style}>
       <div className="dcs-drill-backdrop" onClick={onClose} />
       {stack.map((level, index) => {
         const is_top = index === top;

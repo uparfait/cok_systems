@@ -22,14 +22,13 @@ import BoardSkeleton from "./BoardSkeleton.jsx";
 import StudioBoard from "./studio/StudioBoard.jsx";
 import { useDashboardCodeShortcut } from "./DashboardCodeOverlay.jsx";
 import { BoardThemeProvider, useBoardTheme } from "./boardTheme.jsx";
+import { BoardColorsProvider, board_css_vars, resolve_board_colors } from "./boardColors.jsx";
+import { fit_board_style } from "./FitScale.jsx";
 import { MapScopeProvider, filter_names } from "./mapScope.jsx";
 import { location_fields, geo_fields } from "./builder/mapFields.js";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import { useDrillStack } from "./DrillOverlay.jsx";
 import { useDashboardBulk } from "./useDashboardBulk.js";
-
-// CSS zoom keeps text crisp when fitting the board; transform is the fallback.
-const SUPPORTS_ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "2");
 
 /**
  * The form's dashboards: a form holds any number of NAMED boards, picked
@@ -86,6 +85,8 @@ function DashboardBoard({ form }) {
   const [appearance_widget, setAppearanceWidget] = useState(null);
   // The widget whose "Date & filters" are being edited.
   const [behavior_widget, setBehaviorWidget] = useState(null);
+  // Whether the board's own colors are being set.
+  const [colors_open, setColorsOpen] = useState(false);
   const form_fields = useMemo(() => builder_fields(form.schema), [form.schema]);
   // Which fields name a place, so any widget grouped by one can become a map.
   const map_levels = useMemo(() => new Map(location_fields(form_fields).map((entry) => [entry.id, entry.level])), [form_fields]);
@@ -322,10 +323,14 @@ function DashboardBoard({ form }) {
   );
 
   const map_scope = filter_names(data.filter_values, form_fields);
+  // The colors this board was painted in, if any: the page, its gutter and
+  // every widget on it follow them.
+  const tint = resolve_board_colors(contents.appearance);
   // A person keeps several boards open at once and they look identical.
   const board_name = library.active ? library.active.name : "";
   return (
     <MapScopeProvider fetchShapes={(names, held) => get_map_shapes(form.form_group_id, names, map_scope, held)} scopeKey={map_scope.join("|")}>
+    <BoardColorsProvider colors={contents.appearance}>
     {/* Which board is open, in the tab. */}
     {board_name ? <Helmet><title>{board_name}</title></Helmet> : null}
     {/* Full screen means the SCREEN: no padding holding the board off
@@ -333,8 +338,8 @@ function DashboardBoard({ form }) {
         genuinely more board than screen. */}
     <div
       ref={container_ref}
-      className={`dcs-board-root dcs-board-no-select relative select-none ${board.is_dark ? "dcs-board-dark" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen" : "pb-16 space-y-4"}`}
-      style={is_fullscreen ? { backgroundColor: "var(--board-bg, #F4F7F9)", width: "100%", height: "100%", overflowY: fs_mode === "fit" || content_fits ? "hidden" : "auto" } : undefined}
+      className={`dcs-board-root dcs-board-no-select relative select-none ${board.is_dark || (tint && tint.is_dark) ? "dcs-board-dark" : ""} ${tint ? "dcs-board-tinted" : ""} ${is_fullscreen ? (is_fallback ? "fixed inset-0 z-[10000] " : "") + "dcs-board-fullscreen" : "pb-16 space-y-4"}`}
+      style={Object.assign({}, board_css_vars(tint), is_fullscreen ? { backgroundColor: "var(--board-bg, #F4F7F9)", width: "100%", height: "100%", overflowY: fs_mode === "fit" || content_fits ? "hidden" : "auto" } : null)}
       onContextMenu={canvas_menu.open_board_menu}
     >
       <BoardHeader
@@ -373,6 +378,7 @@ function DashboardBoard({ form }) {
         onAddKpi={() => setBuilderTab("kpi")}
         onShare={() => setShareOpen(true)}
         onDelete={() => setConfirming("delete")}
+        onColors={has_board ? () => setColorsOpen(true) : undefined}
         onScreenshot={open_screenshot}
       />
 
@@ -385,13 +391,7 @@ function DashboardBoard({ form }) {
       ) : (
         <div
           ref={grid_ref}
-          style={
-            is_fullscreen && fs_mode === "fit"
-              ? SUPPORTS_ZOOM
-                ? { zoom: fit_scale }
-                : { transform: `scale(${fit_scale})`, transformOrigin: "top left", width: `${Math.round(10000 / fit_scale) / 100}%` }
-              : undefined
-          }
+          style={is_fullscreen && fs_mode === "fit" ? fit_board_style(fit_scale) : undefined}
         >
           <StudioBoard
             form={scoped_form}
@@ -483,6 +483,7 @@ function DashboardBoard({ form }) {
         skippedWidget={skipped_widget}
         period={data.applied_period_ref.current}
         appliedFilters={data.applied_filters_ref.current}
+        boardColors={{ open: colors_open, appearance: contents.appearance, boardName: board_name, onApply: (result) => contents.save_colors(result.appearance, result.apply_to_all), onClose: () => setColorsOpen(false) }}
         onUpdate={handle_update_widget}
         onCloseAppearance={() => setAppearanceWidget(null)}
         onCloseBehavior={() => setBehaviorWidget(null)}
@@ -492,6 +493,7 @@ function DashboardBoard({ form }) {
         confirmRemove={{ open: !!widget_to_remove, busy: removing, onConfirm: handle_remove_widget, onCancel: () => setWidgetToRemove(null) }}
       />
     </div>
+    </BoardColorsProvider>
     </MapScopeProvider>
   );
 }
