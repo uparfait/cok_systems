@@ -36,6 +36,40 @@ const dataUrlByteSize = (dataUrl: string) => {
   return Math.floor((base64.length * 3) / 4) - padding;
 };
 
+// Default brightness (0-255) above which an uploaded pixel counts as paper and is made transparent
+const DEFAULT_BACKGROUND_THRESHOLD = 200;
+// Pixels this far below the threshold fade out gradually so ink edges stay smooth
+const BACKGROUND_FADE_BAND = 40;
+
+// Redraws an uploaded signature PNG with light background pixels made transparent
+const removeSignatureBackground = (dataUrl: string, threshold: number): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('Canvas is not available'));
+      ctx.drawImage(img, 0, 0);
+      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const px = frame.data;
+      const fadeStart = threshold - BACKGROUND_FADE_BAND;
+      for (let i = 0; i < px.length; i += 4) {
+        const brightness = (px[i] + px[i + 1] + px[i + 2]) / 3;
+        if (brightness >= threshold) {
+          px[i + 3] = 0;
+        } else if (brightness > fadeStart) {
+          px[i + 3] = Math.round(px[i + 3] * (1 - (brightness - fadeStart) / BACKGROUND_FADE_BAND));
+        }
+      }
+      ctx.putImageData(frame, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => reject(new Error('Could not decode the selected image'));
+    img.src = dataUrl;
+  });
+
 // Mirrors backend namesMatch: case, punctuation and word order are ignored
 
 interface UserProfile {
@@ -109,6 +143,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [padKey, setPadKey] = useState(0);
   const [savingSignature, setSavingSignature] = useState(false);
   const [removingSignature, setRemovingSignature] = useState(false);
+  // Uploaded PNG awaiting confirmation, with its background-cleaned preview
+  const [pendingUpload, setPendingUpload] = useState('');
+  const [pendingPreview, setPendingPreview] = useState('');
+  const [transparentBackground, setTransparentBackground] = useState(true);
+  const [backgroundThreshold, setBackgroundThreshold] = useState(DEFAULT_BACKGROUND_THRESHOLD);
   const signatureInputRef = useRef<HTMLInputElement>(null);
 
   // Role display name mapping
@@ -287,8 +326,30 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     setImageReplaceMode(false);
     setDrawingSignature(false);
     setDrawnSignature('');
+    setPendingUpload('');
+    setPendingPreview('');
+    setTransparentBackground(true);
+    setBackgroundThreshold(DEFAULT_BACKGROUND_THRESHOLD);
     setPadKey((k) => k + 1);
   };
+
+  // Rebuild the preview whenever the upload, the toggle or the threshold changes
+  useEffect(() => {
+    if (!pendingUpload) return;
+    if (!transparentBackground) {
+      setPendingPreview(pendingUpload);
+      return;
+    }
+    let cancelled = false;
+    removeSignatureBackground(pendingUpload, backgroundThreshold)
+      .then((result) => { if (!cancelled) setPendingPreview(result); })
+      .catch((error: any) => {
+        if (cancelled) return;
+        showError(error?.message || 'Could not process the selected image');
+        setPendingPreview(pendingUpload);
+      });
+    return () => { cancelled = true; };
+  }, [pendingUpload, transparentBackground, backgroundThreshold, showError]);
 
   // The password must not linger in state once the modal is closed
   useEffect(() => {
@@ -316,6 +377,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
         setImageReplaceMode(false);
         setDrawingSignature(false);
         setDrawnSignature('');
+        setPendingUpload('');
+        setPendingPreview('');
         setPadKey((k) => k + 1);
         loadSigningProfile(true);
       } else {
@@ -341,9 +404,19 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => saveSignatureImage(String(reader.result || ''));
+    // Show the cleaned preview first; saving happens when the user confirms
+    reader.onload = () => {
+      setTransparentBackground(true);
+      setBackgroundThreshold(DEFAULT_BACKGROUND_THRESHOLD);
+      setPendingUpload(String(reader.result || ''));
+    };
     reader.onerror = () => showError('Could not read the selected image');
     reader.readAsDataURL(file);
+  };
+
+  const cancelPendingUpload = () => {
+    setPendingUpload('');
+    setPendingPreview('');
   };
 
   const handleRemoveSignatureImage = async () => {
@@ -950,6 +1023,81 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                    </button>
                                  </div>
                                </div>
+                             ) : pendingUpload ? (
+                               <div className="space-y-3">
+                                 {/* Checkered backdrop so transparent areas are visible */}
+                                 <div
+                                   className="flex items-center justify-center p-3"
+                                   style={{
+                                     border: `1px solid ${BORDER}`,
+                                     backgroundColor: WHITE,
+                                     backgroundImage: 'linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)',
+                                     backgroundSize: '16px 16px',
+                                     backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
+                                   }}
+                                 >
+                                   {pendingPreview ? (
+                                     <img src={pendingPreview} alt="Signature preview" className="max-h-24 max-w-full object-contain" />
+                                   ) : (
+                                     <div className="w-6 h-6 border-2 border-[#056daa] border-t-transparent rounded-full animate-spin" />
+                                   )}
+                                 </div>
+                                 <label className="flex items-center justify-between gap-3 cursor-pointer">
+                                   <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Make the background transparent</span>
+                                   <input
+                                     type="checkbox"
+                                     checked={transparentBackground}
+                                     onChange={(e) => setTransparentBackground(e.target.checked)}
+                                     className="w-4 h-4"
+                                     style={{ accentColor: PRIMARY }}
+                                   />
+                                 </label>
+                                 {transparentBackground && (
+                                   <div className="space-y-1">
+                                     <div className="flex justify-between text-xs" style={{ color: GRAY_DISABLED }}>
+                                       <span>Keep more ink</span>
+                                       <span>Remove more background</span>
+                                     </div>
+                                     <input
+                                       type="range"
+                                       min={120}
+                                       max={250}
+                                       step={5}
+                                       value={backgroundThreshold}
+                                       onChange={(e) => setBackgroundThreshold(Number(e.target.value))}
+                                       className="w-full"
+                                       style={{ accentColor: PRIMARY }}
+                                     />
+                                   </div>
+                                 )}
+                                 <div className="flex gap-3">
+                                   <button
+                                     type="button"
+                                     onClick={cancelPendingUpload}
+                                     disabled={savingSignature}
+                                     className="flex-1 h-12 cok-btn-outlined disabled:opacity-60 disabled:cursor-not-allowed"
+                                     style={btnTypography}
+                                   >
+                                     Cancel
+                                   </button>
+                                   <button
+                                     type="button"
+                                     onClick={() => saveSignatureImage(pendingPreview)}
+                                     disabled={savingSignature || !pendingPreview}
+                                     className="flex-1 h-12 cok-btn-primary flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                     style={btnTypography}
+                                   >
+                                     {savingSignature ? (
+                                       <>
+                                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                         <span>Saving...</span>
+                                       </>
+                                     ) : (
+                                       <span>Save signature</span>
+                                     )}
+                                   </button>
+                                 </div>
+                               </div>
                              ) : drawingSignature ? (
                                <div className="space-y-3">
                                  <SignaturePad key={`profile-pad-${padKey}`} onChange={(value: string) => setDrawnSignature(value)} />
@@ -995,7 +1143,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                    <p className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
                                      {savingSignature ? 'Saving...' : 'Upload a PNG of your signature'}
                                    </p>
-                                   <p className="text-xs" style={{ color: GRAY_DISABLED }}>PNG only, up to 200 KB, ideally on a transparent or white background</p>
+                                   <p className="text-xs" style={{ color: GRAY_DISABLED }}>PNG only, up to 200 KB. A white or light background is removed automatically before saving.</p>
                                  </div>
                                  <div className="flex gap-3">
                                    {imageReplaceMode && (
