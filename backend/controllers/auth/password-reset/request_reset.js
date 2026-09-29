@@ -129,8 +129,31 @@ async function requestReset(req, res, next) {
       });
     }
 
-    // Send OTP via email
-    await email.sendOTPEmail(userEmail, otpCode, "password_reset");
+    // Send OTP via email. The mailer NEVER THROWS - it answers
+    // { success: false } - so the answer has to be read. Ignoring it was
+    // how a mail server that refused every message still produced "OTP
+    // sent to your email", an audit line saying the same, and a person
+    // waiting for a code that had never left the building.
+    const sent = await email.sendOTPEmail(userEmail, otpCode, "password_reset");
+    if (!sent || sent.success === false) {
+      await logAuditEvent('ERROR', `Password reset OTP could NOT be sent to: ${userEmail}`, req, {
+        resource: 'auth',
+        resource_id: user._id.toString(),
+        status_code: 502,
+        error_message: (sent && sent.error) || 'the mail server did not accept the message',
+        metadata: {
+          email: userEmail,
+          purpose: 'password_reset'
+        }
+      });
+
+      return res.status(502).json({
+        status: false,
+        error: "The reset code could not be emailed",
+        type: 'error',
+        message: "The reset code could not be emailed. Try again in a moment; if it keeps failing, tell the administrator - the mail server is refusing messages.",
+      });
+    }
 
     // Log successful password reset request
     await logAuditEvent('SYSTEM', `Password reset OTP sent to: ${userEmail}`, req, {

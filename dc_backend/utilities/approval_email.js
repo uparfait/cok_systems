@@ -25,6 +25,13 @@ const transporter = nodemailer.createTransport({
     // can never pass. The connection is still encrypted.
     rejectUnauthorized: false,
   },
+  // Without these, a mail server that is up but not answering keeps the
+  // socket open until the operating system gives up, and whatever request
+  // is waiting for the mail hangs with it - an approval, an invitation, a
+  // sign-in code. The same three the main backend uses.
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
 });
 
 if (!config.email.user) {

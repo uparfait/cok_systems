@@ -35,6 +35,10 @@ const format_when = (value, language) => {
  * visible around it; it rises into place when opened and sinks away when
  * closed from its Close button (or Escape).
  *
+ * Its head is WHITE, like the form's own data page: a band of colour above
+ * a table only competes with the table, and the two pages show the same
+ * records in the same table and should read the same way.
+ *
  * fetchPage(page) returns the server's { items, total, limit, columns,
  * criteria, period }.
  */
@@ -133,18 +137,18 @@ export default function RecordsOverlay({ title, subtitle, fetchPage, exportRecor
   return createPortal(
     <div className={`dcs-records-overlay ${closing ? "is-closing" : ""}`} role="dialog" aria-modal="true">
       <div className="dcs-records-panel">
-        <div className="flex items-center justify-between gap-3 flex-shrink-0 px-4 sm:px-5 py-2" style={{ backgroundColor: PRIMARY }}>
+        <div className="flex items-center justify-between gap-3 flex-shrink-0 px-4 sm:px-5 py-2 border-b" style={{ backgroundColor: "#FFFFFF", borderColor: "#E0E0E0" }}>
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...FONT }}>
+            <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#333333", letterSpacing: "0.3px", ...FONT }}>
               {translate("DCS_DB_RECORDS_TITLE_OF", { title })}
             </p>
-            <p className="text-[11px] font-semibold truncate" style={{ color: "rgba(255,255,255,0.85)", ...FONT }}>
+            <p className="text-[11px] font-semibold truncate" style={{ color: "#9E9E9E", ...FONT }}>
               {subtitle || ""}
               {result ? `${subtitle ? " - " : ""}${translate("DCS_DB_RECORDS_COUNT", { count: total.toLocaleString("en-US") })}` : ""}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <IconButton title={translate("DCS_BTN_CLOSE")} onClick={request_close} onDark danger>
+            <IconButton title={translate("DCS_BTN_CLOSE")} onClick={request_close} danger>
               {CLOSE_SVG}
             </IconButton>
           </div>

@@ -387,3 +387,51 @@ The build runs BEFORE the swap, deliberately: the old containers keep serving th
 **The mail account every backend sends from** is now written into all three `.env` files of every stack on every deployment: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS` and `EMAIL_FROM`, which is exactly what the three backends read. The values come from `deploy/env/shared.env` - git-ignored, one copy per server, because a mail password does not belong in a repository that is pushed to GitHub - or, failing that, from an `x-email` block of `docker-compose.yml`, which is where the mongo credentials already live. A key nobody provides is not written, so whatever a stack's `.env` already held is kept, and the run is repeatable: a second run changes nothing.
 
 **Proof.** `bash update-deploy.sh --uat-ikaze --dry-run` prints the exact commands (`build --no-cache --pull`, then `up -d --force-recreate --renew-anon-volumes`, with mongo only ever `--no-recreate`). The env writing was exercised against a sandbox copy of a stack's store: all five mail keys land in `backend.env`, `em_backend.env` and `dc_backend.env`, an existing `EMAIL_HOST` is replaced rather than duplicated (the old line kept as a comment), `JWT_SECRET` and the mongo lines survive untouched, and a second run reports no further changes.
+
+### 11.20 Why no email was being sent, in all three backends (2026-09-29)
+
+**The cause, in one value.** `backend/utilities/email.js` built its transporter with `secure: true` on port 587. Port 587 is the submission port: it answers in plain text and STARTTLS upgrades the connection afterwards. `secure: true` makes nodemailer open a TLS handshake against it from the first byte, the handshake fails, and every message the main backend tries to send throws before it reaches the server. The comment directly above that line already said secure must be false for 587 and that true belongs to port 465, and both other backends used `false` against the same server - so the value contradicted its own documentation and its two siblings. Measured against the real server: `secure: true` fails in 4.3 s with `ESOCKET` and OpenSSL's "wrong version number"; `secure: false` connects and the credentials are accepted in 2.7 s.
+
+**Why nobody saw it.** The failure was swallowed twice. `sendEmail` catches, logs "SMTP Error" and answers `{ success: false }` - it never throws - and `request_reset.js` ignored the answer, wrote "Password reset OTP sent to..." into the audit log and returned 200. So the person was told to check an inbox, the audit trail recorded a code that was sent, and nothing had left the building. The only trace was one `SMTP Connection Error` line from `transporter.verify()` at startup. The reset request now reads the answer: a refused message is audited as a failure and answered 502 with words that say what to do, rather than a success that is not one. The two event access-token flows answer before the mail is away on purpose, and they now LOG a refusal (their `.catch` never ran, because the mailer answers instead of throwing).
+
+**Three more faults of the same family, found by checking the other two backends.**
+
+- `em_backend` and `dc_backend` had no SMTP timeouts. A mail server that is up but not answering would keep the socket open until the operating system gave up, hanging whatever request was waiting for the mail - an approval, an invitation, a token. Both now use the same three the main backend has (10 s to connect, 10 s for the greeting, 15 s on the socket).
+- `em_backend` signed in with empty credentials when `EMAIL_USER` was unset, which the server refuses on every send. It now omits authentication and says so once at startup, as `dc_backend` already did.
+- All three sent from a HARD-CODED address, so changing the mail account in the environment changed who the mail was sent as everywhere except in the mailers themselves. Each now sends from `config.email.from`, and each config normalizes `EMAIL_FROM` through one rule: a bare address or an address in angle brackets gets the system's name in front of it, and an `EMAIL_FROM` that already carries a display name is left exactly as it is. With the deployment's own value all three send as `IKAZE <coksystems@kigalicity.gov.rw>`.
+
+**Proof.** Each backend's own configuration and its own mailer module loaded with the deployment's real values, against the real server: all three report the connection and the credentials accepted, all three send as `IKAZE <coksystems@kigalicity.gov.rw>`, and the main backend's own `verify()` now prints `SMTP Server is ready` where it used to print `SMTP Connection Error`. No message was sent and no secret printed. To confirm end to end on the server, inside the container:
+
+```
+docker compose -p cok-systems exec -T backend \
+  node -e "require('./utilities/email').sendOTPEmail('coksystems@kigalicity.gov.rw','123456','password_reset').then(r=>console.log(r))"
+```
+
+### 11.21 The widget's menu, and three overlays that got in each other's way (2026-09-29)
+
+**The three dots are gone.** The button at each card's corner has been removed, and everything behind it now lives in the menu the card itself opens - a right click, or a double click where there is no right button. The menu opens AT THE POINT that asked for it, and reads:
+
+1. the records behind the widget,
+2. the level below it in a cascade, named,
+3. filling the screen, or coming back from it,
+4. then **Other settings**, and under that heading everything the three dots used to hold: the size, what the widget can be turned into, the icon or map marker, over time, Reconfigure, Date & filters, the colour settings and Remove.
+
+The first three are offered to any reader; the rest only to whoever may edit the board. Nothing was flattened to achieve it - `CardMenu` is the same panel, with the same size chips, the same convertible-type list and the same over-time section; it is simply opened from a point instead of from a button (a virtual anchor the popover reads a box from). A SECTION still routes its right click to the board's own menu, where a widget can be put inside it.
+
+**The records table now reads like the form's data page.** Its head was a blue band; a band of colour above a table only competes with the table, and the two pages show the same records in the same table. The head is white, with dark words and a hairline under it.
+
+**An image opened from that table rises above it.** `DcsFileViewerModal` rendered inline, inside the table cell, inside a panel that hides its own overflow - so a file opened from a records table appeared trapped behind the table it came from. It is now portalled to the page root at `z-index: 10090`, above the records overlay (10000), every menu (10060) and every confirmation (10070).
+
+**A bug the measuring found in the new menu.** `MenuPopover` asked its anchor whether a click had landed inside it - `anchor.contains(event.target)`. A menu opened where the pointer was anchors to a POINT rather than an element, and a point has no `contains`, so every click while a card menu was open threw before the outside-click check ran: the menu never closed on a click away from it (Escape still did), and the console collected one TypeError per click. The check now asks whether the anchor is an element first. While there, a point-anchored menu also closes on a scroll that really moved the page: it cannot follow the page as an element anchor does, so it would otherwise hang over content that had moved out from under it.
+
+**The cascade shows one panel, not a pile.** Going a level deeper used to add a panel on top of the last, so five levels down meant five panels on the screen at once. Only the level being looked at is drawn now; the ones above it are remembered rather than painted, the header still names the whole chain ("District > Sector > Cell") and Back returns to the level above.
+
+### 11.22 Maps counted by category, coordinates that can be typed, and a frame in full screen (2026-09-29)
+
+**Counting a map by a category was already there, under a name nobody would look for.** Both kinds of map take a choice field and break their measure across its values - a heat map spreads each value's own heat in its own colour, a world map plants one marker per value per place - and the control offering it was labelled "Split each place by". It is now called **Count by category**, in the three languages, which is what it does and what people were looking for. Nothing about the behaviour changed: the field list is every choice field of the form (single select - the one that draws as radio buttons - multi select, cascading select, select group and likert scale), on the heat map and the world map alike.
+
+**What WAS missing is which fields could name a place.** `mapFields.js` recognised a level from a field's own name using a narrower list of choice types than the rest of the system - `single_select`, `cascading_select`, `select_group` - so a form whose district was captured as a multi select or a likert scale could not be mapped at all. It now uses the same list as `chartCatalog.js` and the server's `field_catalog.js`.
+
+**The coordinates of a geolocation answer can be typed.** The latitude and longitude boxes were disabled, so a reading taken in the wrong place had to be retaken on the spot. They are editable now: the text stays as typed so a partial number can be finished, a number that reads as one and lies inside the range the earth has is committed at once, and the map - which already watches those two numbers - moves to it. The stored address belongs to the old point, so it is dropped and looked up again for the new one, exactly as the search box does. Emptying a box clears the answer rather than committing a zero, which is a real place in the Atlantic. In the form builder they are shown but not editable: there is nothing to answer there.
+
+**A full screen board has a frame again.** It was deliberately edge to edge, which left the cards running into the sides of the screen (and, on a phone, into its rounded corners). It is padded on all four sides now, and the fit-to-screen calculation measures the room INSIDE that frame - `clientHeight` counts padding as usable room, which would have scaled a fitted board slightly too large and left its last row under the bottom edge.

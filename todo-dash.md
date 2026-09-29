@@ -144,3 +144,27 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] --keep-cache and --fresh-env; the same behaviour for both Deployment Management buttons, which run this same script
 - [x] The five EMAIL_* keys written into all three backends of every stack from deploy/env/shared.env (git-ignored) or an x-email block of docker-compose.yml
 - [x] Proven: the dry run prints the exact commands; the env writing exercised on a sandbox store (five keys land, an old value is replaced not duplicated, JWT and mongo lines survive, a second run changes nothing)
+
+## 21. Email
+- [x] Root cause: the main backend used secure true on port 587, so every send failed the TLS handshake before reaching the server; measured both ways against the real server
+- [x] The reset request no longer reports success when the mail was refused: it audits the failure and answers 502
+- [x] The two event access-token flows log a refusal instead of hiding it
+- [x] em_backend and dc_backend given the same SMTP timeouts, so a silent mail server cannot hang an approval or an invitation
+- [x] em_backend no longer signs in with empty credentials; it says so at startup like dc_backend
+- [x] All three send from the configured address, normalized to carry the system's name, so changing the account in the environment really changes the sender
+- [x] Proven: all three backends' own configs and mailers accepted by the real server, all sending as IKAZE <coksystems@kigalicity.gov.rw>
+
+## 22. The widget's menu and the overlays
+- [ ] The three-dots button removed; everything it held is under "Other settings" in the menu the card opens at the pointer, on a right click or a double click
+- [ ] The view actions (table, next level, full screen) sit above that heading and are offered to a reader too
+- [ ] The records overlay's head is white, like the form's data page
+- [ ] A file opened from a records table is portalled to the page root and rises above the overlay, the menus and the confirmations
+- [ ] The cascade draws one panel at a time; Back and the breadcrumb carry the chain
+- [ ] Build green and measured in a real browser
+
+## 23. Maps, coordinates and the full screen frame
+- [x] The map's count-by-category control renamed from "Split each place by" in the three languages; it already worked on both heat and world maps, for every choice field including single select
+- [x] Which fields can name a place now uses the same choice types as the rest of the system, so a district captured as a multi select or a likert scale can be mapped
+- [x] A geolocation answer's latitude and longitude can be typed; the map follows and the address is looked up again for the new point
+- [x] A full screen board is padded on all four sides, and the fit calculation measures the room inside that frame
+- [x] Build green (tsc and vite both exit 0)

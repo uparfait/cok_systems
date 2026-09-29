@@ -1,3 +1,16 @@
+// THE ADDRESS THE SYSTEM SENDS FROM, however EMAIL_FROM is written.
+//
+// A From header may carry a display name ("IKAZE <a@b>") or not ("<a@b>",
+// "a@b"). The deployment writes the bare address, so the system's own name
+// is put in front of it here; an EMAIL_FROM that already carries a name is
+// left exactly as it is. Without this the mail arrives showing nothing but
+// an address.
+const mail_from = (value) => {
+  const held = String(value || "").trim();
+  if (!held) return "IKAZE <coksystems@kigalicity.gov.rw>";
+  if (/^[^<]+</.test(held)) return held;
+  return `IKAZE ${held.startsWith("<") ? held : `<${held}>`}`;
+};
 const DB_CONFIG = {
     // Email Configuration (from environment variables)
     // The City's outgoing mail server: 197.243.27.181 on port 587 with
@@ -9,7 +22,7 @@ const DB_CONFIG = {
         port: parseInt(process.env.EMAIL_PORT, 10) || 587,
         user: process.env.EMAIL_USER || '',
         pass: process.env.EMAIL_PASS || '',
-        from: `"IKAZE" ${process.env.EMAIL_FROM || ''}`
+        from: mail_from(process.env.EMAIL_FROM)
     },
 
     // Redis Configuration

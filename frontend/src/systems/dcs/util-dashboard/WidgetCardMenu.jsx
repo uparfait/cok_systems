@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { sizes_for, per_row } from "./boardRows.js";
 import { chart_definition, convertible_types } from "./chartCatalog.js";
@@ -7,7 +7,6 @@ import MenuPopover from "./MenuPopover.jsx";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
-const SURFACE = "var(--board-surface, #FFFFFF)";
 const SURFACE_BORDER = "var(--board-border, #E0E0E0)";
 const SURFACE_TEXT = "var(--board-text, #333333)";
 // How much of a row a widget claims. A chart takes a third, a half or all
@@ -16,7 +15,15 @@ const SURFACE_TEXT = "var(--board-text, #333333)";
 const SIZE_LABELS = { xs: "DCS_DB_SIZE_XS", small: "DCS_DB_SIZE_SMALL", medium: "DCS_DB_SIZE_MEDIUM", large: "DCS_DB_SIZE_LARGE", full: "DCS_DB_SIZE_FULL" };
 
 /**
- * The three-dots menu at each card's top right: pick the icon a KPI card
+ * THE WIDGET'S MENU, opened by a right click on the card or a double click
+ * where there is no right button to press - never by a control sitting on
+ * the card, because nothing on a card waits for a pointer any more.
+ *
+ * It opens at the point that asked for it. At the top are the things a
+ * READER wants: the records behind the widget, the level below it in a
+ * cascade, and filling the screen. Under "Other settings", for whoever may
+ * edit the board, is everything that was once behind the three dots at the
+ * card's corner: pick the icon a KPI card
  * shows or the marker a map plants, flip the widget into ANY
  * compatible look (single-series category charts reach every bar, column,
  * lollipop, dot, slice, waffle, treemap, line and area form; split ones
@@ -81,14 +88,17 @@ function OverTimeSection({ widget, fields, translate, onOverTime, sectionTitle, 
   );
 }
 
-export default function CardMenu({ widget, palette, canMap, canHeat, fields, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onMapMode, onOverTime, onReconfigure, onBehavior }) {
+export default function CardMenu({ widget, palette, canMap, canHeat, fields, at, onClose, onOpenRecords, onDrill, drillChild, onExpand, expanded, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onMapMode, onOverTime, onReconfigure, onBehavior }) {
   // A canvas draws no data, so there is nothing in it to reconfigure and
   // no other look to turn it into: its menu is about size and colors.
   const is_canvas = widget.chart_type === "canvas";
   const sizes = sizes_for(widget);
   const { translate } = useDcsLanguage();
-  const [open, setOpen] = useState(false);
-  const button_ref = useRef(null);
+  // The point the menu was asked for at, as an anchor the popover can read
+  // a box from - there is no button to hang it under any more.
+  const anchor = useRef(null);
+  anchor.current = at ? { getBoundingClientRect: () => ({ top: at.y, bottom: at.y, left: at.x, right: at.x, width: 0, height: 0 }) } : null;
+  const open = !!at;
 
   const item_style = (danger) => ({
     display: "block",
@@ -110,31 +120,35 @@ export default function CardMenu({ widget, palette, canMap, canHeat, fields, onC
   );
 
   const pick = (action) => {
-    setOpen(false);
+    if (onClose) onClose();
     action();
   };
+  // A strong row: what the menu is mostly opened for.
+  const lead_style = () => Object.assign(item_style(false), { color: PRIMARY, fontWeight: 600 });
+  const has_settings = !!(onChangeSize || onChangeType || onPickIcon || onMapMode || onOverTime || onReconfigure || onBehavior || onAppearance || onRemove);
 
+  if (!at) return null;
   return (
-    <div className="flex-shrink-0">
-      <button
-        ref={button_ref}
-        type="button"
-        title={translate("DCS_DB_MENU")}
-        aria-label={translate("DCS_DB_MENU")}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="flex items-center justify-center"
-        style={{ width: 26, height: 26, border: `1px solid ${palette ? palette.border : SURFACE_BORDER}`, color: palette ? palette.muted : "var(--board-muted, #555555)", backgroundColor: open ? "var(--board-surface-hover, #F0F7FB)" : palette ? palette.background : SURFACE, cursor: "pointer" }}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <circle cx="12" cy="5" r="2" />
-          <circle cx="12" cy="12" r="2" />
-          <circle cx="12" cy="19" r="2" />
-        </svg>
-      </button>
-      <MenuPopover open={open} anchorRef={button_ref} onClose={() => setOpen(false)} minWidth={200}>
+    <MenuPopover open={open} anchorRef={anchor} onClose={onClose} minWidth={210} align="start">
         <>
+          {/* What a reader of the board came for, first. */}
+          {onOpenRecords && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={lead_style()} onClick={() => pick(() => onOpenRecords(null))}>
+              {translate("DCS_DB_DRILL_TABLE")}
+            </button>
+          )}
+          {onDrill && drillChild && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={lead_style()} onClick={() => pick(onDrill)}>
+              {translate("DCS_DB_DRILL_CHILD", { field: drillChild })}
+            </button>
+          )}
+          {onExpand && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={item_style(false)} onClick={() => pick(onExpand)}>
+              {translate(expanded ? "DCS_DB_COLLAPSE_WIDGET" : "DCS_DB_EXPAND_WIDGET")}
+            </button>
+          )}
+          {/* Everything the three dots at the card's corner used to hold. */}
+          {has_settings && section_title("DCS_DB_OTHER_SETTINGS")}
           {onChangeSize && !is_canvas && (
             <>
               {section_title("DCS_DB_SIZE")}
@@ -224,7 +238,6 @@ export default function CardMenu({ widget, palette, canMap, canHeat, fields, onC
           )}
           <style>{`.dcs-db-menu-item:hover { background-color: var(--board-surface-hover, #F0F7FB) !important; }`}</style>
         </>
-      </MenuPopover>
-    </div>
+    </MenuPopover>
   );
 }

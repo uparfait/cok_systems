@@ -60,9 +60,13 @@ class EventAccessController {
 
       const textContent = `Your event access token is: ${token}\n\nThis token is valid for 15 minutes.\n\nVerify it at: ${verifyUrl}`;
 
-      sendNotificationEmail(normalizedEmail, 'Event Access Token', htmlContent, textContent).catch(err => {
-        console.error('Failed to send event access token email:', err);
-      });
+      sendNotificationEmail(normalizedEmail, 'Event Access Token', htmlContent, textContent)
+        .then((result) => {
+          if (!result || result.success === false) console.error('The event access token email was NOT sent:', (result && result.error) || 'the mail server did not accept it');
+        })
+        .catch((err) => {
+          console.error('The event access token email was NOT sent:', err);
+        });
 
       return res.status(200).json({ success: true, message: 'Token sent to your email' });
     } catch (error) {

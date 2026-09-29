@@ -32,7 +32,9 @@ class GetMyTasksController {
 
       const textContent = `Your My Tasks access token is: ${token}\n\nThis token is valid for 15 minutes.\n\nVerify it at: ${verifyUrl}`;
 
-      sendNotificationEmail(email.toLowerCase().trim(), 'Your My Tasks Access Token', htmlContent, textContent).catch(err => {
+      sendNotificationEmail(email.toLowerCase().trim(), 'Your My Tasks Access Token', htmlContent, textContent).then((result) => {
+        if (!result || result.success === false) console.error('The My Tasks access token email was NOT sent:', (result && result.error) || 'the mail server did not accept it');
+      }).catch(err => {
         console.error('Failed to send my-tasks token email:', err);
       });
 

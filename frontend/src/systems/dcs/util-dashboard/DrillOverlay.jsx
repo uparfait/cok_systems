@@ -13,19 +13,18 @@ const PRIMARY = "#056daa";
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 
 /**
- * The levels a widget was drilled down through, one panel each, stacked
- * on top of one another - the last one opened on top and the only one
- * that answers to the pointer. Every panel holds the derived widget as a
- * full card, computed under the board's own period and filters, and its
- * header carries the two ways on: the table of its records, and the level
- * below it, until the chain ends. They are buttons in the header rather
- * than anything that appears on a hover. On a phone or a tablet each panel
- * fills the screen.
+ * The level a widget was drilled down to: ONE PANEL, the one being
+ * looked at. Going a level deeper replaces it rather than piling another
+ * panel on top - five levels down used to mean five panels on the screen
+ * at once, each one a little smaller than the last. The chain is not lost:
+ * the header names every level passed through ("District > Sector > Cell")
+ * and Back returns to the one above.
  *
- * Every panel is the same width as the one it was opened from - only its
- * top edge steps down, which is what shows the depth - so a cascade five
- * levels deep is still five panels of one width rather than a card
- * shrinking towards the middle of the screen.
+ * The panel holds the derived widget as a full card, computed under the
+ * board's own period and filters, and its header carries the two ways on:
+ * the table of its records, and the level below it, until the chain ends.
+ * They are buttons in the header rather than anything that appears on a
+ * hover. On a phone or a tablet the panel fills the screen.
  */
 export default function DrillOverlay({ stack, fields, onDrill, onOpenRecords, onBack, onClose }) {
   const { translate } = useDcsLanguage();
@@ -44,10 +43,13 @@ export default function DrillOverlay({ stack, fields, onDrill, onOpenRecords, on
   return createPortal(
     <div className={`dcs-drill-overlay ${tint.className || (board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : "")}`} style={tint.style}>
       <div className="dcs-drill-backdrop" onClick={onClose} />
-      {stack.map((level, index) => {
-        const is_top = index === top;
+      {/* Only the level being looked at. The ones above it are remembered
+          (the breadcrumb names them and Back goes there) but not drawn. */}
+      {stack.slice(top).map((level, offset) => {
+        const index = top + offset;
+        const is_top = true;
         const target = drill_target(level.widget, fields);
-        const step = narrow ? 0 : Math.min(index, 4) * 18;
+        const step = 0;
         return (
           <div key={level.widget.id} className={`dcs-drill-panel dcs-board-root ${is_top ? "is-top" : ""} ${narrow ? "is-full" : ""}`} style={{ top: step, left: 0, right: 0, bottom: 0 }} aria-hidden={!is_top}>
             <div className="flex items-center justify-between gap-3 flex-shrink-0 px-4 py-2" style={{ backgroundColor: PRIMARY }}>

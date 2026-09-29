@@ -1752,11 +1752,13 @@ background-color: #056daa;
   margin: -12px;
 }
 
-/* A full screen board is edge to edge. Nothing insets it and nothing
-   pushes it about: the screen is the frame, so the board has no frame of
-   its own. A rubber band at the end of it would only show the page behind. */
+/* A full screen board keeps a FRAME OF ITS OWN on every side: cards that
+   run into the edge of the screen read as if they had fallen off it, and on
+   a phone the rounded corners of the screen itself would clip them. Nothing
+   pushes the board about beyond that - a rubber band at the end of it would
+   only show the page behind. */
 .dcs-board-fullscreen {
-  padding: 0;
+  padding: 16px;
   margin: 0;
   overflow-x: hidden;
   overscroll-behavior: contain;

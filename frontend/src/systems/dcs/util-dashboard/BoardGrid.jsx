@@ -208,6 +208,7 @@ export default function BoardGrid({
       onPickIcon={editable && onPickIcon ? () => onPickIcon(widget) : undefined}
       onAppearance={editable && onAppearance ? () => onAppearance(widget) : undefined}
       expanded={expanded_id === widget.id || is_studio(layout)}
+      onExpand={is_canvas(widget) || arranging ? undefined : () => setExpandedId((current) => (current === widget.id ? null : widget.id))}
       onOpenRecords={onOpenRecords ? (pick) => onOpenRecords(widget, pick) : undefined}
     />
     </ExpandableSlot>

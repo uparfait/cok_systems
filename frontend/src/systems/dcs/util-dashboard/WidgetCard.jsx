@@ -184,7 +184,7 @@ function KpiIconSlot({ icon, color, size }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, onBehavior, onTablePage, onDrill, drillChild, slot, onContextMenu }) {
+export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, onExpand, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, onBehavior, onTablePage, onDrill, drillChild, slot, onContextMenu }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -257,13 +257,24 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   const is_map = widget.chart_type === "map";
   const can_drill = !wordless && !!onOpenRecords && !!data && !data.error && !data.locked;
   const pick_records = can_drill ? (pick) => onOpenRecords(pick) : undefined;
-  // A double click is a right click on a screen that has no right button.
-  // On a map the two clicks belong to the map (zooming), so there the menu
-  // is reached by a long press, which the browser reports as a context menu.
-  const handle_double_click = onContextMenu && !is_map ? onContextMenu : undefined;
+  // THE WIDGET'S MENU opens where it was asked for: a right click, or a
+  // double click on a screen with no right button. On a map the two clicks
+  // belong to the map (zooming), so there only the long press - which the
+  // browser reports as a context menu - reaches it.
+  //
+  // A SECTION is the board's own layout rather than a widget, so it keeps
+  // the board's menu (a widget put inside it, its settings, its removal).
+  const [menu_at, setMenuAt] = useState(null);
+  const open_own_menu = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMenuAt({ x: event.clientX, y: event.clientY });
+  };
+  const open_menu = is_canvas ? onContextMenu : open_own_menu;
+  const handle_double_click = is_map ? undefined : open_menu;
 
   return (
-    <div data-widget-id={widget.id} onContextMenu={onContextMenu} onDoubleClick={handle_double_click} className="dcs-widget-card relative flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderStyle: "solid", borderWidth: failed || skipped_count > 0 ? 2 : palette.border_width, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
+    <div data-widget-id={widget.id} onContextMenu={open_menu} onDoubleClick={handle_double_click} className="dcs-widget-card relative flex flex-col h-full min-w-0 max-w-full overflow-hidden" style={{ backgroundColor: palette.background, color: palette.text, borderStyle: "solid", borderWidth: failed || skipped_count > 0 ? 2 : palette.border_width, borderColor: failed ? DANGER : skipped_count > 0 ? ORANGE : palette.border }}>
       {busy && (
         // The board is fetching again: what the card holds stays on show,
         // under a veil that takes every click until the new data lands.
@@ -312,9 +323,6 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           )}
         </div>
         {savingText && <span className="dcs-inline-spinner flex-shrink-0 mt-1" style={{ color: PRIMARY }} />}
-        {editable && !savingText && (onRemove || onChangeType || onAppearance || onPickIcon || onMapMode) && (
-          <CardMenu widget={widget} palette={palette} canMap={canMap} onChangeType={onChangeType} onChangeSize={onChangeSize} onRemove={onRemove} onAppearance={onAppearance} onPickIcon={is_kpi || is_map ? onPickIcon : undefined} onMapMode={is_map ? onMapMode : undefined} canHeat={canHeat} fields={fields} onOverTime={onOverTime} onReconfigure={onReconfigure} onBehavior={is_canvas ? undefined : onBehavior} />
-        )}
       </div>
       )}
 
@@ -371,6 +379,33 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
         )}
       </div>
 
+      {/* Opened at the point that asked for it, and holding everything
+          this widget can do - the card itself shows no control. */}
+      {!is_canvas && (
+        <CardMenu
+          widget={widget}
+          palette={palette}
+          at={menu_at}
+          onClose={() => setMenuAt(null)}
+          onOpenRecords={can_drill ? pick_records : undefined}
+          onDrill={onDrill}
+          drillChild={drillChild}
+          onExpand={onExpand}
+          expanded={expanded}
+          canMap={canMap}
+          canHeat={canHeat}
+          fields={fields}
+          onChangeType={editable ? onChangeType : undefined}
+          onChangeSize={editable ? onChangeSize : undefined}
+          onRemove={editable ? onRemove : undefined}
+          onAppearance={editable ? onAppearance : undefined}
+          onPickIcon={editable && (is_kpi || is_map) ? onPickIcon : undefined}
+          onMapMode={editable && is_map ? onMapMode : undefined}
+          onOverTime={editable ? onOverTime : undefined}
+          onReconfigure={editable ? onReconfigure : undefined}
+          onBehavior={editable ? onBehavior : undefined}
+        />
+      )}
       {skipped_count > 0 && (
         <button
           type="button"

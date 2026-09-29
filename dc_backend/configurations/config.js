@@ -1,3 +1,16 @@
+// THE ADDRESS THE SYSTEM SENDS FROM, however EMAIL_FROM is written.
+//
+// A From header may carry a display name ("IKAZE <a@b>") or not ("<a@b>",
+// "a@b"). The deployment writes the bare address, so the system's own name
+// is put in front of it here; an EMAIL_FROM that already carries a name is
+// left exactly as it is. Without this the mail arrives showing nothing but
+// an address.
+const mail_from = (value) => {
+  const held = String(value || "").trim();
+  if (!held) return "IKAZE <coksystems@kigalicity.gov.rw>";
+  if (/^[^<]+</.test(held)) return held;
+  return `IKAZE ${held.startsWith("<") ? held : `<${held}>`}`;
+};
 const DC_CONFIG = {
   port: process.env.DC_PORT || 8765,
   jwt_secret: process.env.JWT_SECRET || "cok-jwt-secret-2026",
@@ -18,7 +31,7 @@ const DC_CONFIG = {
     port: Number(process.env.EMAIL_PORT) || 587,
     user: process.env.EMAIL_USER || "",
     pass: process.env.EMAIL_PASS || "",
-    from: process.env.EMAIL_FROM || "IKAZE <coksystems@kigalicity.gov.rw>",
+    from: mail_from(process.env.EMAIL_FROM),
   },
   max_upload_size_mb: 9999999999999999999999999999999999999999999999,
   max_request_body_size: "40tb",

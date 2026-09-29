@@ -18,6 +18,13 @@ const MARGIN = 8;
  * outside click, on Escape, and whenever the trigger itself scrolls out of
  * sight. Every popover is drawn in the BOARD's colors - a widget's own
  * color settings paint the widget, not the menus hanging off it.
+ *
+ * AN ANCHOR NEED NOT BE AN ELEMENT. A menu opened where the pointer was
+ * (a widget's own menu) anchors to a POINT instead: an object carrying
+ * nothing but getBoundingClientRect. Such an anchor has no element to ask
+ * whether a click landed inside it, and it cannot follow the page, so a
+ * real scroll closes the menu rather than leaving it hanging over content
+ * that has moved out from under it.
  */
 export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHeight, children, role, align }) {
   const panel_ref = useRef(null);
@@ -59,18 +66,32 @@ export default function MenuPopover({ open, anchorRef, onClose, minWidth, maxHei
     if (!open) return undefined;
     const on_outside = (event) => {
       const anchor = anchorRef.current;
-      if (anchor && anchor.contains(event.target)) return;
+      // A point anchor has no contains: asking it threw on every click
+      // while the menu was open, which stopped the check that follows and
+      // left the menu standing.
+      if (anchor && typeof anchor.contains === "function" && anchor.contains(event.target)) return;
       if (panel_ref.current && panel_ref.current.contains(event.target)) return;
       onClose();
     };
     const on_key = (event) => {
       if (event.key === "Escape") onClose();
     };
+    // A menu anchored to a point cannot follow the page: once the page
+    // really moves, what it was opened over is no longer under it.
+    const from = { x: window.scrollX, y: window.scrollY };
+    const on_scroll = () => {
+      const anchor = anchorRef.current;
+      if (anchor && typeof anchor.contains === "function") return;
+      if (window.scrollX === from.x && window.scrollY === from.y) return;
+      onClose();
+    };
     document.addEventListener("mousedown", on_outside);
     document.addEventListener("keydown", on_key);
+    window.addEventListener("scroll", on_scroll, true);
     return () => {
       document.removeEventListener("mousedown", on_outside);
       document.removeEventListener("keydown", on_key);
+      window.removeEventListener("scroll", on_scroll, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, onClose]);

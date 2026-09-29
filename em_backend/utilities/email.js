@@ -21,16 +21,28 @@ const transporter = nodemailer.createTransport({
   // Encryption is REQUIRED, not merely attempted: without this nodemailer
   // would fall back to sending the credentials in the clear.
   requireTLS: true,
-  auth: {
-    user: config.email.user,
-    pass: config.email.pass,
-  },
+  // The server wants SMTP authentication, so a missing EMAIL_USER is a
+  // misconfiguration rather than a reason to connect anonymously: empty
+  // credentials are refused by the server on every single send, which reads
+  // as "the mail silently does not arrive" instead of "it is not configured".
+  auth: config.email.user ? { user: config.email.user, pass: config.email.pass } : undefined,
   tls: {
     // Reached by IP, and a certificate cannot name an IP, so the name check
     // can never pass. The connection is still encrypted.
     rejectUnauthorized: false,
   },
+  // Without these, a mail server that is up but not answering keeps the
+  // socket open until the operating system gives up, and whatever request
+  // is waiting for the mail hangs with it - an approval, an invitation, a
+  // sign-in code. The same three the main backend uses.
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
 });
+
+if (!config.email.user) {
+  console.warn("[MAIL] EMAIL_USER is not set in em_backend/.env - the mail server requires SMTP authentication, so no invitation or notification mail will be accepted.");
+}
 
 transporter.verify((error) => {
   if (error) {
@@ -40,7 +52,9 @@ transporter.verify((error) => {
   }
 });
 
-const EMAIL_FROM = 'IKAZE <coksystems@kigalicity.gov.rw>';
+// Whatever EMAIL_FROM names, with the system's own name in front of it (see
+// the config). Kept as a constant here so every send below reads the same.
+const EMAIL_FROM = config.email.from;
 
 const PRIMARY = '#056daa';
 const TEXT_DARK = '#333333';

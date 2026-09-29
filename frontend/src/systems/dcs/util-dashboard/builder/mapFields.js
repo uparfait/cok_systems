@@ -22,7 +22,11 @@ const LEVEL_WORDS = {
   village: ["village", "umudugudu", "mudugudu"],
 };
 
-const CHOICE_TYPES = ["single_select", "cascading_select", "select_group"];
+// Every kind of choice field the rest of the system counts as one (see
+// CATEGORICAL_TYPES in chartCatalog.js and field_catalog.js). A district
+// captured as a multi-select or a likert scale is still a district, and
+// leaving those two out here meant such a form could not be mapped at all.
+const CHOICE_TYPES = ["single_select", "multi_select", "cascading_select", "select_group", "likert_scale"];
 
 const words_of = (label) =>
   String(label || "")

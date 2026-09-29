@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import mammoth from "mammoth";
 import * as XLSX from "xlsx";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_file_kind } from "./fileKind.js";
+import { portal_root } from "../util-dashboard/portalRoot.js";
 import DcsVideoPlayer from "./DcsVideoPlayer.jsx";
 import DcsAudioPlayer from "./DcsAudioPlayer.jsx";
 
@@ -226,8 +228,13 @@ export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClos
     return () => window.removeEventListener("keydown", handle_key);
   }, [onClose]);
 
-  return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+  // PORTALLED TO THE PAGE. Opened from a cell of a table, this used to be
+  // rendered inside that table - inside a panel that hides its own overflow
+  // - so the file appeared trapped behind or beneath the table it was
+  // opened from. Mounted at the page root it rises above everything,
+  // including the records overlay and any menu.
+  return createPortal(
+    <div className="fixed inset-0 z-[10090] flex items-center justify-center p-4">
       <div className="absolute inset-0" style={{ backgroundColor: "rgba(0,0,0,0.5)" }} onClick={onClose} />
       <div className="relative bg-white w-full max-w-4xl max-h-[90vh] flex flex-col">
         {/* The bar over the file carries its name and nothing else but
@@ -299,6 +306,7 @@ export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClos
         </div>
       </div>
       <style>{DOC_PREVIEW_STYLE}</style>
-    </div>
+    </div>,
+    portal_root(),
   );
 }

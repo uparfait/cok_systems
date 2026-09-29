@@ -66,6 +66,11 @@ export default function GeolocationField({ field, language, mode, value, onChang
   const [status, setStatus] = useState(null);
   const [failure, setFailure] = useState(null);
   const [search_text, setSearchText] = useState("");
+  // What is being TYPED into the two coordinate boxes. A number is only
+  // committed once it reads as one, so "-1." or "3" on the way to "30" does
+  // not move the map to somewhere it was never asked to go; null means the
+  // box is showing the saved value rather than something half-typed.
+  const [typed, setTyped] = useState({ latitude: null, longitude: null });
   const [is_online, setIsOnline] = useState(window.navigator.onLine);
 
   const map_container_ref = useRef(null);
@@ -153,6 +158,33 @@ export default function GeolocationField({ field, language, mode, value, onChang
    * barely moved, refreshed otherwise. The first accepted fix is announced,
    * the refinements after it arrive silently.
    */
+  /**
+   * One coordinate typed by hand. The text stays as typed so a partial
+   * number can be finished; a number that reads as one, and is inside the
+   * range the earth has, is committed at once - which moves the map and
+   * starts the address lookup for the new point. Emptying a box clears the
+   * answer rather than committing a zero, which is a real place off Africa.
+   */
+  const type_coordinate = (key, text, limit) => {
+    setTyped((current) => Object.assign({}, current, { [key]: text }));
+    const current = details_ref.current || build_geo_value();
+    if (String(text).trim() === "") {
+      const cleared = build_geo_value(Object.assign({}, current, { [key]: null, accuracy: null, is_manual: true }));
+      details_ref.current = cleared;
+      on_change_ref.current(cleared);
+      return;
+    }
+    const number = Number(text);
+    if (!Number.isFinite(number) || Math.abs(number) > limit) return;
+    // The address that was stored belongs to the old point, so it is
+    // dropped and looked up again for the new one.
+    const next = build_geo_value({ latitude: key === "latitude" ? number : current.latitude, longitude: key === "longitude" ? number : current.longitude, accuracy: null, is_manual: true });
+    details_ref.current = next;
+    on_change_ref.current(next);
+    last_geocoded_ref.current = null;
+    schedule_geocode(true);
+  };
+
   const apply_device_reading = ({ latitude, longitude, accuracy }) => {
     const current = details_ref.current;
     starting_ref.current = false;
@@ -357,15 +389,34 @@ export default function GeolocationField({ field, language, mode, value, onChang
         </div>
       )}
 
+      {/* THE TWO COORDINATES ARE THE FIELD'S ANSWER, so they can be
+          typed - a reading taken in the wrong place, or a position read off
+          another device, is corrected here instead of being retaken. The
+          map watches these two numbers, so it moves the moment a valid one
+          is committed, and the address underneath is looked up again for
+          the new point (the same path the search box uses). In the form
+          builder they are shown but not editable: there is nothing to
+          answer there. */}
       <div className="dcs-geo-coords-row flex gap-2 mb-3">
-        <div className="flex-1" style={{ minWidth: 0 }}>
-          <label className="cok-auth-label">{translate("DCS_GEO_LATITUDE_LABEL")}</label>
-          <input type="number" step="any" className="cok-auth-input w-full py-2" disabled value={details.latitude ?? ""} />
-        </div>
-        <div className="flex-1" style={{ minWidth: 0 }}>
-          <label className="cok-auth-label">{translate("DCS_GEO_LONGITUDE_LABEL")}</label>
-          <input type="number" step="any" className="cok-auth-input w-full py-2" disabled value={details.longitude ?? ""} />
-        </div>
+        {[
+          { key: "latitude", label: "DCS_GEO_LATITUDE_LABEL", limit: 90 },
+          { key: "longitude", label: "DCS_GEO_LONGITUDE_LABEL", limit: 180 },
+        ].map((entry) => (
+          <div key={entry.key} className="flex-1" style={{ minWidth: 0 }}>
+            <label className="cok-auth-label">{translate(entry.label)}</label>
+            <input
+              type="number"
+              step="any"
+              min={-entry.limit}
+              max={entry.limit}
+              className="cok-auth-input w-full py-2"
+              disabled={is_builder}
+              value={typed[entry.key] !== null ? typed[entry.key] : details[entry.key] ?? ""}
+              onChange={(event) => type_coordinate(entry.key, event.target.value, entry.limit)}
+              onBlur={() => setTyped((current) => Object.assign({}, current, { [entry.key]: null }))}
+            />
+          </div>
+        ))}
       </div>
 
       {is_online ? (

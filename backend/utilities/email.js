@@ -43,7 +43,10 @@ transporter.verify((error, success) => {
     }
 });
 
-const EMAIL_FROM = 'IKAZE <coksystems@kigalicity.gov.rw>';
+// Whatever EMAIL_FROM names, with the system's own name in front of it (see
+// the config). It was a constant here, so changing the account in the
+// environment changed who the mail was sent AS everywhere except here.
+const EMAIL_FROM = config.email.from;
 
 const PRIMARY_COLOR = '#056daa';
 const TEXT_MUTED = '#555555';

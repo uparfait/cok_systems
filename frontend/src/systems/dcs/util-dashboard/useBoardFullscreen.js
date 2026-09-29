@@ -8,6 +8,18 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
  * full-viewport overlay. Exiting through the button, the Escape key or the
  * browser's own UI all land back in the normal layout.
  */
+/**
+ * The room INSIDE an element: its own height without the frame it keeps
+ * around its contents. A full screen board is padded on every side, and
+ * clientHeight counts that padding as room the board could fill - which
+ * would scale a fitted board slightly too large and leave the last row
+ * under the bottom edge.
+ */
+function inner_height(element) {
+  const style = window.getComputedStyle(element);
+  return element.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0);
+}
+
 export function useBoardFullscreen() {
   const container_ref = useRef(null);
   const grid_ref = useRef(null);
@@ -139,7 +151,7 @@ export function useBoardFullscreen() {
 
     let frame = null;
     const compute = () => {
-      const available = container.clientHeight - 40;
+      const available = inner_height(container) - 40;
       const visual = grid.getBoundingClientRect().height;
       if (visual <= 0 || available <= 0) return;
       setFitScale((current) => {
@@ -186,7 +198,7 @@ export function useBoardFullscreen() {
 
     let frame = null;
     const measure = () => {
-      const room = container.clientHeight;
+      const room = inner_height(container);
       if (room <= 0) return;
       setContentFits(grid.scrollHeight <= room + 1);
     };
