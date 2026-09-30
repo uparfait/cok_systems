@@ -15,6 +15,10 @@ const OPTIONAL_TEXT_FIELDS = ['attendeeEmail', 'attendeeDepartment', 'eventName'
 
 const DUPLICATE_MESSAGE = 'You have already signed attendance for this event';
 
+function toTitleCase(name) {
+  return name.trim().toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // Anything that is not a string would make .trim() throw and leak the error as a 500
 function findNonStringField(body) {
   return [...REQUIRED_TEXT_FIELDS, ...OPTIONAL_TEXT_FIELDS].find(
@@ -288,7 +292,7 @@ class SubmitAttendanceController {
         : undefined;
 
       const attendance = new Attendance({
-        attendeeFullName: signedFields.attendeeFullName,
+        attendeeFullName: toTitleCase(signedFields.attendeeFullName),
         attendeeEmail: signedFields.attendeeEmail || undefined,
         attendeePhoneNumber: signedFields.attendeePhoneNumber,
         attendeePhoneNormalized: attendeePhoneNormalized || undefined,
