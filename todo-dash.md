@@ -178,3 +178,13 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] `deploy/stack.sh` reports per backend whether its env carries the mail account, and warns when a stack's store has no file for a backend at all
 - [x] em_backend's invitation path proven sound end to end without sending (config, calendar, composed message)
 - [x] dc_backend and em_backend suites green (9 files, 0 fail)
+
+## 25. A mail transport that finds out instead of assuming
+- [x] One shared transport per backend (`utilities/mail_transport.js`, identical copies): tries the asked-for way, falls back through the others on a connection failure, remembers what worked
+- [x] `EMAIL_SECURE` settles the first way to try; optional, and shared through `deploy/env/shared.env`
+- [x] Only connection failures are retried - a wrong password or an unknown recipient is answered at once
+- [x] em_backend reaches the server exactly as the backend whose mail arrives does
+- [x] All three say one actionable line at startup; dc_backend said nothing before
+- [x] A re-activated invitation reports a refused email instead of discarding the answer
+- [x] `node test.js` in each backend sends through the real transport and names the way that worked
+- [x] Permanent test: 4 cases, ALL_TESTS_PASSED. Each backend's own message: 12 checks, 0 failed

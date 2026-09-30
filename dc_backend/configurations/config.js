@@ -5,6 +5,21 @@
 // is put in front of it here; an EMAIL_FROM that already carries a name is
 // left exactly as it is. Without this the mail arrives showing nothing but
 // an address.
+// How the connection to the mail server starts. Port 465 answers with TLS
+// from the first byte; 587 - the city's submission port - answers in the
+// clear and STARTTLS upgrades it afterwards. EMAIL_SECURE settles it when
+// the port is not a reliable guide, which on this network it has not been:
+// the same address has wanted different answers from a workstation and
+// from a container. A wrong answer here costs one extra attempt and not
+// the mail, because utilities/mail_transport.js tries the other way by
+// itself (and remembers which one the server accepted).
+const mail_secure = (value, port) => {
+  const held = String(value || "").trim().toLowerCase();
+  if (held === "true" || held === "1" || held === "yes") return true;
+  if (held === "false" || held === "0" || held === "no") return false;
+  return Number(port) === 465;
+};
+
 const mail_from = (value) => {
   const held = String(value || "").trim();
   // Nothing, or something that is not an address at all: the system's own.
@@ -34,6 +49,7 @@ const DC_CONFIG = {
     // STARTTLS and SMTP authentication (see utilities/approval_email.js).
     host: process.env.EMAIL_HOST || "197.243.27.181",
     port: Number(process.env.EMAIL_PORT) || 587,
+    secure: mail_secure(process.env.EMAIL_SECURE, Number(process.env.EMAIL_PORT) || 587),
     user: process.env.EMAIL_USER || "",
     pass: process.env.EMAIL_PASS || "",
     from: mail_from(process.env.EMAIL_FROM),

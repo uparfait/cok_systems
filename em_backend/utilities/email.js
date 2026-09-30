@@ -7,48 +7,26 @@
  * (no text) followed by the message body. No footers or system names.
  */
 
-const nodemailer = require('nodemailer');
 const config = require('../configurations/config');
 const { buildInviteICS } = require('./eventCalendar');
 
-const transporter = nodemailer.createTransport({
-  host: config.email.host,
-  port: config.email.port,
-  // Port 587 is the submission port: the connection starts in the clear and
-  // STARTTLS upgrades it, which is why secure is false. secure true would
-  // be port 465, where TLS is there from the first byte.
-  secure: false,
-  // Encryption is REQUIRED, not merely attempted: without this nodemailer
-  // would fall back to sending the credentials in the clear.
-  requireTLS: true,
-  // The server wants SMTP authentication, so a missing EMAIL_USER is a
-  // misconfiguration rather than a reason to connect anonymously: empty
-  // credentials are refused by the server on every single send, which reads
-  // as "the mail silently does not arrive" instead of "it is not configured".
-  auth: config.email.user ? { user: config.email.user, pass: config.email.pass } : undefined,
-  tls: {
-    // Reached by IP, and a certificate cannot name an IP, so the name check
-    // can never pass. The connection is still encrypted.
-    rejectUnauthorized: false,
-  },
-  // Without these, a mail server that is up but not answering keeps the
-  // socket open until the operating system gives up, and whatever request
-  // is waiting for the mail hangs with it - an approval, an invitation, a
-  // sign-in code. The same three the main backend uses.
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
-});
+// How this backend talks to the mail server, and how it finds out. See
+// utilities/mail_transport.js: the way the connection starts is not
+// guessed here, because guessing it wrong stops the mail rather than
+// degrading it.
+const transporter = require('./mail_transport');
 
-if (!config.email.user) {
-  console.warn("[MAIL] EMAIL_USER is not set in em_backend/.env - the mail server requires SMTP authentication, so no invitation or notification mail will be accepted.");
-}
-
+// One line at startup, so the state of the mail is known before somebody
+// reports that an email never arrived. mail_transport has already tried
+// every way of connecting by the time this runs, and says which one the
+// server answered.
 transporter.verify((error) => {
   if (error) {
-    console.error('SMTP Connection Error:', error);
+    console.error(
+      `[MAIL] em_backend: SMTP at ${config.email.host}:${config.email.port} accepted no connection, any way it was tried (${error.code || 'no code'}: ${error.message}). Each message will try again; if this does not clear, check the EMAIL_ lines in em_backend/.env and that this container can reach the mail server.`
+    );
   } else {
-    console.log('SMTP Server is ready (em_backend)');
+    console.log(`[MAIL] em_backend: SMTP server is ready`);
   }
 });
 

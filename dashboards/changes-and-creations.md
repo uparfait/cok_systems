@@ -465,3 +465,41 @@ docker compose -p cok-systems logs --tail 40 em-backend | grep -iE 'smtp|\[MAIL\
 docker compose -p cok-systems exec -T em-backend \
   node -e "require('./utilities/email').sendEmail('coksystems@kigalicity.gov.rw','Test','<p>test</p>').then(r=>console.log(r))"
 ```
+
+### 11.24 A mail transport that finds out instead of assuming (2026-09-30)
+
+**What went wrong with the previous fix.** Section 11.20 changed one assumption for its opposite. The main backend had `secure: true` on port 587, which a workstation's own measurement says cannot work, so it was set to `false` - and the reset code, which HAD been arriving, stopped arriving and the request started answering 502. Both settings are defensible in the abstract and neither can be trusted in this network. Measured from a city workstation against the real server, on the same afternoon, in the same minute:
+
+```
+197.243.27.181:587
+  refused   secure:true   TLS from the first byte        330 ms   ESOCKET wrong version number
+  refused   secure:false  STARTTLS mandatory           20932 ms   ETIMEDOUT
+  refused   secure:false  STARTTLS optional            21120 ms   ETIMEDOUT
+```
+
+The first answer comes back in a third of a second and says the port is NOT speaking TLS. The other two time out, which says nothing about the port and everything about the path between this machine and it. Earlier in the week the same probe from the same machine connected and had its credentials accepted in 2.7 s. A value chosen from evidence like that is a guess wearing a measurement's clothes, and guessing wrong here does not degrade the mail - it stops the mail, silently, because a failed handshake looks exactly like a mail server that is down.
+
+**So the source no longer decides.** `utilities/mail_transport.js`, one identical copy in each of the three backends, is now the only way any of them reaches a mail server. It tries the way the environment asks for, and if the CONNECTION fails - refused, timed out, or a TLS handshake against a port that answers in the clear - it tries the SAME message the other ways before anybody is told it could not be sent:
+
+- TLS from the first byte, as port 465 does,
+- in the clear, then STARTTLS, required,
+- in the clear, STARTTLS only if offered - the last resort, because a server that does not advertise STARTTLS refuses every message while `requireTLS` is on, and refusing to send at all is worse than sending the way that server asks for.
+
+`EMAIL_SECURE` puts one of them first (`true`, `false`, or nothing, in which case port 465 means TLS-first and anything else means STARTTLS). Whichever way the server accepted is remembered for the life of the process, so the extra attempt is paid once after a restart and not per message. A refusal that is NOT about the connection - wrong password, unknown recipient, message too large - is not retried, because the same credentials a second way would only slow the answer down. Every attempt is logged, so the log states how the server wants to be talked to:
+
+```
+[MAIL] em_backend: TLS from the first byte (as port 465 does) did not connect (ESOCKET: wrong version number) - trying in the clear, then STARTTLS (required) for this message
+[MAIL] em_backend: 197.243.27.181:587 answers in the clear, STARTTLS only if offered
+```
+
+**What this settles for em_backend.** It now reaches the mail server through exactly the same transport as the backend whose mail arrives, so it can no longer be the one backend that is talking to the server the wrong way. On top of that: it says `[MAIL] em_backend: SMTP server is ready` or one sentence naming the host, the code and what to check when no way of connecting was accepted; `dc_backend`, which said nothing at all at startup, now says the same; and re-activating a cancelled invitation reads the mailer's answer instead of discarding it, so a refused invitation is no longer indistinguishable from a delivered one (the re-activation itself still succeeds - it is the mail that is reported).
+
+**`EMAIL_SECURE` is a shared key too**, optional: `deploy/stack.sh` writes it into all three backend envs when `deploy/env/shared.env` names it, and never complains when it does not, because a backend that is left to find out for itself is not misconfigured.
+
+**Proof.**
+
+- `backend/tests/mail_transport.test.js` (permanent, no dependencies, nothing leaves the machine): against a mail server that speaks plaintext only and does not offer STARTTLS, with `EMAIL_SECURE=true` - the exact production mistake - the message is still delivered, the recipient survives the retry, the failed way and the working way are both named, the second message does not repeat the discovery, `EMAIL_SECURE=false` is not overridden by trying TLS first, a server that is genuinely absent still raises `ECONNREFUSED` rather than looking like a success, and a backend with no `EMAIL_USER` says so when it boots. 4 cases, `ALL_TESTS_PASSED`.
+- Each backend's OWN message through the same fake server, with the setting deliberately wrong: em_backend's event invitation (delivered, carrying `BEGIN:VCALENDAR` and `METHOD:REQUEST`, addressed to the attendee, sent from the system's account), em_backend's task notification, the main backend's password reset code (the code present in the body), and dc_backend's approval request. 12 checks, 0 failed.
+- `node test.js` in any backend sends one message through this transport and reports which way the server answered. The same script is now in all three.
+
+**One thing to know about where a backend's environment comes from.** `backend/Dockerfile` and `em_backend/Dockerfile` both end with `COPY .env .env`, so each image carries a COPY of the environment it was built with, and `docker-compose.yml` also hands the same file in through `env_file`. Either way the value a container uses is fixed when the image is built and the container created - which is why a deployment that only restarts the containers can leave one backend running last month's mail account while another has this month's, and why `update-deploy.sh` builds with no cache and recreates the containers on every run (11.19). A mail setting that is changed and not deployed that way has not been changed.

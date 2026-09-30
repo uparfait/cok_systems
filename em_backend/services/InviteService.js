@@ -327,6 +327,7 @@ class InviteService {
     }
 
     const event = await this.fetchEventForInvite(invite.eventSpecialId);
+    let sent = null;
     if (event && invite.invitationUid) {
       if (invite.specificDate && invite.specificDate.start) {
         const specificEvent = {
@@ -342,21 +343,29 @@ class InviteService {
           isRecurring: false,
           recurring: null,
         };
-        await emailUtil.sendEventInvitation(
+        sent = await emailUtil.sendEventInvitation(
           invite.email,
           specificEvent,
           invite.invitationUid,
           invite.specificDate.start
         );
       } else {
-        await emailUtil.sendEventInvitation(invite.email, event, invite.invitationUid);
+        sent = await emailUtil.sendEventInvitation(invite.email, event, invite.invitationUid);
       }
     }
 
     invite.cancelled = false;
     invite.cancelledAt = null;
     await invite.save();
-    return { success: true, message: 'Invitation re-activated successfully' };
+    // The invitation IS re-activated whether or not the mail went out, so
+    // this stays a success - but it says which. The mailer answers
+    // { success: false } rather than throwing, so without reading its
+    // answer a refused invitation looked exactly like a delivered one.
+    if (sent && sent.success === false) {
+      console.error(`[MAIL] em_backend: the re-activated invitation to ${invite.email} was NOT sent: ${sent.error}`);
+      return { success: true, message: 'Invitation re-activated, but the invitation email could not be sent', emailSent: false, emailError: sent.error };
+    }
+    return { success: true, message: 'Invitation re-activated successfully', emailSent: !!(sent && sent.success) };
   }
 }
 

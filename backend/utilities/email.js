@@ -1,46 +1,25 @@
-const nodemailer = require('nodemailer');
 const fs = require('fs').promises;
 const path = require('path');
 const config = require('../configurations/config');
 
-const transporter = nodemailer.createTransport({
-    host: config.email.host,
-    port: config.email.port,
-    // Port 587 is the submission port: the connection starts in the clear
-    // and STARTTLS upgrades it, which is why secure is false here. secure
-    // true would be port 465, where TLS is there from the first byte - on
-    // 587 it makes nodemailer open a TLS handshake against a port that
-    // answers in plain text, the handshake fails, and EVERY mail this
-    // backend sends throws. That is what it was set to, against this
-    // comment and against the two other backends that use the same server.
-    secure: false,
-    // Encryption is REQUIRED, not merely attempted. Without this nodemailer
-    // treats STARTTLS as optional and would fall back to sending the
-    // credentials and the mail unencrypted if the server did not offer it.
-    requireTLS: true,
-    auth: {
-        user: config.email.user,
-        pass: config.email.pass,
-    },
-    tls: {
-        // The server is reached by IP address, and a certificate cannot name
-        // an IP, so the name check can never pass. The connection is still
-        // encrypted; only the identity of the far end goes unverified.
-        rejectUnauthorized: false,
-    },
-    // Without these, an unreachable SMTP host keeps the socket open until the
-    // OS gives up, which hangs whatever request is awaiting the mail
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-});
+// How this backend talks to the mail server, and how it finds out. See
+// utilities/mail_transport.js: the way the connection starts is not
+// guessed here, because guessing it wrong stops the mail rather than
+// degrading it.
+const transporter = require('./mail_transport');
 
-transporter.verify((error, success) => {
-    if (error) {
-        console.error('SMTP Connection Error:', error);
-    } else {
-        console.log('SMTP Server is ready');
-    }
+// One line at startup, so the state of the mail is known before somebody
+// reports that an email never arrived. mail_transport has already tried
+// every way of connecting by the time this runs, and says which one the
+// server answered.
+transporter.verify((error) => {
+  if (error) {
+    console.error(
+      `[MAIL] backend: SMTP at ${config.email.host}:${config.email.port} accepted no connection, any way it was tried (${error.code || 'no code'}: ${error.message}). Each message will try again; if this does not clear, check the EMAIL_ lines in backend/.env and that this container can reach the mail server.`
+    );
+  } else {
+    console.log(`[MAIL] backend: SMTP server is ready`);
+  }
 });
 
 // Whatever EMAIL_FROM names, with the system's own name in front of it (see
