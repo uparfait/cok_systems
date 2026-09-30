@@ -155,12 +155,14 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] Proven: all three backends' own configs and mailers accepted by the real server, all sending as IKAZE <coksystems@kigalicity.gov.rw>
 
 ## 22. The widget's menu and the overlays
-- [ ] The three-dots button removed; everything it held is under "Other settings" in the menu the card opens at the pointer, on a right click or a double click
-- [ ] The view actions (table, next level, full screen) sit above that heading and are offered to a reader too
-- [ ] The records overlay's head is white, like the form's data page
-- [ ] A file opened from a records table is portalled to the page root and rises above the overlay, the menus and the confirmations
-- [ ] The cascade draws one panel at a time; Back and the breadcrumb carry the chain
-- [ ] Build green and measured in a real browser
+- [x] The three-dots button removed; everything it held is under "Other settings" in the menu the card opens at the pointer, on a right click or a double click
+- [x] The view actions (table, next level, full screen) sit above that heading and are offered to a reader too
+- [x] The records overlay's head is white (measured rgb(255,255,255)), like the form's data page
+- [x] A file opened from a records table is portalled (parent is the page body, z-index 10090, topmost at its centre) to the page root and rises above the overlay, the menus and the confirmations
+- [x] The cascade draws one panel at a time (1 panel at every depth, the same box each time); Back and the breadcrumb carry the chain
+- [x] A point-anchored menu closes on an outside click and on a real page scroll: asking a point anchor for contains threw on every click and left the menu standing
+- [x] A canvas still opens the board's own menu, and an editable map's menu carries the marker picker and the map kind
+- [x] Build green and measured in a real browser (20 scenarios, 213 checks, 0 failures, 0 page errors)
 
 ## 23. Maps, coordinates and the full screen frame
 - [x] The map's count-by-category control renamed from "Split each place by" in the three languages; it already worked on both heat and world maps, for every choice field including single select
