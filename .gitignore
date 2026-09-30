@@ -27,6 +27,7 @@ docker-compose.yml
 *.swp
 *.swo
 *~
+.kilo
 
 # OS
 .DS_Store
