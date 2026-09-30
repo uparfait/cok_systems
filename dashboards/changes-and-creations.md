@@ -517,3 +517,33 @@ The first answer comes back in a third of a second and says the port is NOT spea
 **One thing left standing on purpose.** `request_reset.js` still answers 502 when the mail server refuses the reset code, rather than 200 with "check your inbox". That is the message quoted back at me twice, and it is only ever seen when a code genuinely did not leave the building - the alternative is what hid this fault for weeks, including an audit line that recorded a code as sent. It is one line to put back if the 200 is wanted.
 
 **Proof that the restored mailer is the working one.** `backend/utilities/email.js` was loaded EXACTLY as restored, with no edits, against a local mail server holding a throwaway certificate and speaking TLS from the first byte the way this city's server does. It reports `{ success: true }`, the server receives the message, the reset code is in the body, it is addressed to the person who asked, and it is sent as `IKAZE <coksystems@kigalicity.gov.rw>` from its own constant - with `EMAIL_FROM` deliberately set to `NONSENSE` and correctly ignored, as it was when the mail was arriving. The condition `request_reset.js` uses to choose between 200 and 502 evaluates to 200. 6 checks, 0 failed; the certificate was destroyed afterwards and nothing left the machine. The DCS suite, which now includes the transport test, is 10 files, 10 pass, 0 fail.
+
+### 11.26 What the server itself says, and the correction it forces (2026-09-30)
+
+**Measured on the production server, not reasoned about.** `deploy/mail_check.js` (new) reads each backend's `.env`, knocks on every candidate host and port, prints what the server says FIRST, and then tries each way of signing in. Run on `ikaze-sys`:
+
+```
+OPEN     197.243.27.181:587    31 ms  says: "220 proxymta-server.aos.rw ESMTP Postfix"
+OPEN     197.243.27.181:25      4 ms  says: "220-proxymta-server.aos.rw ESMTP Postfix"
+open     197.243.27.181:465  6002 ms  opened but said nothing
+blocked  mail.kigalicity.gov.rw:587    ECONNREFUSED
+blocked  mail.kigalicity.gov.rw:25     ECONNREFUSED
+
+refused  197.243.27.181:587  secure:true    42 ms  ESOCKET wrong version number
+refused  197.243.27.181:587  secure:false  15061 ms  ETIMEDOUT
+refused  197.243.27.181:465  secure:true   10002 ms  ETIMEDOUT connection timeout
+```
+
+**This corrects 11.25.** That section said production had settled the argument in favour of `secure: true`, on the strength of a report that mail had been arriving with it. The server disagrees: with `secure: true` the connection is refused in 42 milliseconds with OpenSSL's "wrong version number", which is what happens when TLS is opened against a port that has just answered in plain text - and port 587 there answers `220 proxymta-server.aos.rw ESMTP Postfix` in 31 ms. **No message has been leaving the main backend on `secure: true`.** 11.20's reading of the protocol was right about this port after all; what was wrong in 11.20 was changing a file on the strength of reasoning, and what was wrong in 11.25 was accepting a recollection as a measurement. The setting in `backend/utilities/email.js` stays as the user set it until the user says otherwise - it is their file and their call - but it cannot send.
+
+**And `secure: false` does not send either.** The banner arrives and then the server stops: `ETIMEDOUT` at 15061 ms, which is the socket timeout rather than the greeting timeout, so the greeting WAS received and the EHLO after it was not answered. That is not a setting. Two things can produce it and they need different people to fix them: a server slower to answer EHLO than the backends' 15 second socket timeout, or a conversation that is cut after the greeting by an anti-spam front, a relay policy or a middlebox - `proxymta` in the banner, and the multiline `220-` form on port 25, are the signature of exactly such a front.
+
+**So `deploy/mail_dialogue.js` (new) holds the whole conversation by hand** - connect, banner, EHLO, STARTTLS, the TLS upgrade, `AUTH LOGIN`, QUIT - printing every line with the milliseconds it took and waiting 60 seconds a step, far longer than any backend would. Its verdict names which of the two cases it is, and therefore whether the answer is a timeout in this repository or a question for whoever runs the mail server. It never prints the password, and it says in its own header to be run ONCE, because a mail server fronted like this one can block an address that keeps failing handshakes.
+
+Proven against two stand-in servers on 127.0.0.1: one that answers EHLO after 2.5 s (waited for, not called silence, and its offered STARTTLS and AUTH reported) and one that greets and then says nothing (reported against EHLO, with the verdict naming the conversation as cut rather than misconfigured, and saying who has to fix it). 6 checks, 0 failed.
+
+**Neither of the other candidates is the answer**: `mail.kigalicity.gov.rw` - the address this code defaulted to before 2026-09-29 - refuses 25 and 587 outright, and port 465 on both hosts accepts a TCP connection and then completes no handshake at all, which is a firewall accepting a connection on the server's behalf and passing nothing on.
+
+**`deploy/mail_dialogue.js` tries four things, not one.** Silence after a banner has four possible causes and they are not equally likely, so each is tried on its own fresh connection, in order of what costs least to believe: EHLO with a full domain name; HELO with it; EHLO with the bare machine name a mailer sends by default (`ikaze-sys`, which a strict mail server or an anti-spam appliance will quietly stall); and then port 25, which greeted that server in 4 ms and can be open to a machine that the submission port is closed to. The first combination that answers is carried through STARTTLS, the TLS upgrade and `AUTH LOGIN`, and printed as the exact `EMAIL_*` lines to deploy - including a line saying the name or the older verb was what mattered, because that is a change to make in the mailers and not in an env file. If nothing answers, the verdict says so plainly, lists every attempt, and prints the three questions to put to whoever runs the mail server, with the timed transcript as the evidence.
+
+Proven against four stand-in servers on 127.0.0.1 - one merely slow, one silent whatever is said, one that stalls a bare name and answers a dotted one, one that wants HELO rather than EHLO: 11 checks, 0 failed.

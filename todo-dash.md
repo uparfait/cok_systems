@@ -196,3 +196,13 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] `EMAIL_SECURE=true` in `deploy/env/shared.env`, so those two open the connection the way the delivering backend does
 - [x] The permanent test moved to `dc_backend/tests/mail_transport.test.js` and joins the DCS suite
 - [x] 11.20 and 11.24's claim that STARTTLS is right for this server corrected in 11.25
+
+## 27. Measuring the mail server instead of arguing about it
+- [x] `deploy/mail_check.js`: every backend's configured account, TCP to 25/465/587 on every candidate host, the server's first words, which way the credentials are accepted, and the exact EMAIL_* lines to deploy
+- [x] Run on the server: 587 answers in plain text, so `secure: true` is refused in 42 ms - the main backend has not been sending
+- [x] 11.25's claim that production proved `secure: true` corrected in 11.26
+- [x] `secure: false` gets the banner and then times out at the socket timeout, so the failure is after the greeting and is not a setting
+- [x] `deploy/mail_dialogue.js`: the whole conversation line by line with 60 s of patience a step, to tell a SLOW server from a SILENT one
+- [x] Proven against a slow stand-in and a silent one: 6 checks, 0 failed
+- [x] The transcript tool tries EHLO with a full domain name, HELO, the bare name, and port 25 - each on a fresh connection - and prints either the settings that worked or the questions for the provider (11 checks, 0 failed)
+- [ ] Waiting on the transcript from the server to decide between a change here and a question for whoever runs the mail server
