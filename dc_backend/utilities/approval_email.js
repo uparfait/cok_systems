@@ -1,3 +1,4 @@
+const nodemailer = require("nodemailer");
 const config = require("../configurations/config.js");
 
 const PRIMARY_COLOR = "#056daa";
@@ -5,20 +6,56 @@ const TEXT_MUTED = "#555555";
 const BORDER = "#E0E0E0";
 const FONT = "'Montserrat', Arial, sans-serif";
 
-// How this backend talks to the mail server, and how it finds out. See
-// utilities/mail_transport.js: the way the connection starts is not
-// guessed here, because guessing it wrong stops the mail rather than
-// degrading it.
-const transporter = require("./mail_transport");
+// IDENTICAL to backend/utilities/email.js, deliberately and to the letter.
+// That backend is the one whose mail arrives, so this one is not going to
+// be clever about it: same options, same values, nothing added.
+const transporter = nodemailer.createTransport({
+  host: config.email.host,
+  port: config.email.port,
+  // Port 587 is the submission port: the connection starts in the clear
+  // and STARTTLS upgrades it, which is why secure is false here. secure
+  // true would be port 465, where TLS is there from the first byte.
+  //
+  // PROVEN on the server: this server answers "220 proxymta-server.aos.rw
+  // ESMTP Postfix" in plain text 34 ms after the connection opens, so a
+  // connection opened in TLS is refused in 42 ms with OpenSSL's "wrong
+  // version number". See dashboards/changes-and-creations.md 11.27.
+  secure: false,
+  // Encryption is REQUIRED, not merely attempted. Without this nodemailer
+  // treats STARTTLS as optional and would fall back to sending the
+  // credentials and the mail unencrypted if the server did not offer it.
+  requireTLS: true,
+  auth: {
+    user: config.email.user,
+    pass: config.email.pass,
+  },
+  tls: {
+    // The server is reached by IP address, and a certificate cannot name
+    // an IP, so the name check can never pass. The connection is still
+    // encrypted; only the identity of the far end goes unverified.
+    rejectUnauthorized: false,
+  },
+  // Without these, an unreachable SMTP host keeps the socket open until the
+  // OS gives up, which hangs whatever request is awaiting the mail.
+  //
+  // THIS IS WHY NO MAIL WAS ARRIVING. The server greets in 34 ms and then
+  // takes THIRTY-EIGHT SECONDS to check the password - measured, by hand,
+  // in the transcript kept in 11.27. Anything under that is cut off in the
+  // middle of signing in and reports ETIMEDOUT, which from inside the
+  // application is indistinguishable from a mail server that is down. The
+  // values below are the ones the server was tested with and mail arrived
+  // on; they are deliberately far larger than the slowest answer seen.
+  connectionTimeout: 6550000,
+  greetingTimeout: 6550000,
+  socketTimeout: 655000,
+});
 
 // One line at startup, so the state of the mail is known before somebody
-// reports that an email never arrived. mail_transport has already tried
-// every way of connecting by the time this runs, and says which one the
-// server answered.
+// reports that an approval email never arrived.
 transporter.verify((error) => {
   if (error) {
     console.error(
-      `[MAIL] dc_backend: SMTP at ${config.email.host}:${config.email.port} accepted no connection, any way it was tried (${error.code || 'no code'}: ${error.message}). Each message will try again; if this does not clear, check the EMAIL_ lines in dc_backend/.env and that this container can reach the mail server.`
+      `[MAIL] dc_backend: SMTP at ${config.email.host}:${config.email.port} did not answer (${error.code || 'no code'}: ${error.message}). Check the EMAIL_ lines in dc_backend/.env and that this container can reach the mail server.`
     );
   } else {
     console.log(`[MAIL] dc_backend: SMTP server is ready`);

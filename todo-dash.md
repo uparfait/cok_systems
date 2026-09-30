@@ -217,3 +217,12 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] Test: a server that holds the password for 17 s - fails on the old timeouts, passes now. 8 checks, ALL_TESTS_PASSED
 - [x] Fixed two lies in the tooling: a stand-in that could not speak AUTH PLAIN, and process.exit() discarding a passing test's output on Windows
 - [ ] For the provider (AOS): why does the SASL lookup for coksystems@ take 38 s on proxymta-server.aos.rw
+
+## 29. One mailer, three backends
+- [x] em_backend and dc_backend build the same transporter as backend, option for option, with nothing added
+- [x] `utilities/mail_transport.js` removed from both, with its two `test.js` scripts and its test - the question it answered is now closed
+- [x] Dead settings removed: `secure`, `helo`, `patience` and `mail_secure` from both configs, `SHARED_OPTIONAL` from stack.sh, `EMAIL_SECURE` and `EMAIL_HELO_NAME` from shared.env
+- [x] All three configs read the same five EMAIL_ values and nothing else
+- [x] `dc_backend/tests/mail_settings.test.js` refuses to let one mailer drift from the other two (6 checks, ALL_TESTS_PASSED)
+- [x] em_backend's real invitation proven over STARTTLS with a slow sign-in: 9 checks, 0 failed
+- [x] Noted: startup verify() is itself a sign-in, so "SMTP server is ready" arrives ~38 s after boot

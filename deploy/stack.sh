@@ -11,12 +11,6 @@ SERVICES=(frontend backend em-backend dc-backend)
 # server (git-ignored), or in an x-email block of docker-compose.yml, which
 # is where the mongo credentials already live.
 SHARED_KEYS=(EMAIL_HOST EMAIL_PORT EMAIL_USER EMAIL_PASS EMAIL_FROM)
-# Shared too, but not required: written when shared.env names it, never
-# complained about. EMAIL_SECURE settles how the connection to the mail
-# server starts when the port is not a reliable guide - and on this network
-# it has not been. Leaving it out is safe: each backend tries the other way
-# by itself and remembers what worked (see utilities/mail_transport.js).
-SHARED_OPTIONAL=(EMAIL_SECURE EMAIL_HELO_NAME)
 declare -A PORT=([frontend]=5713 [backend]=2026 [em-backend]=2027 [dc-backend]=8765)
 declare -A PROBE=([frontend]="/" [backend]="/cok/api/profile" [em-backend]="/health" [dc-backend]="/dcs/api/docs/")
 declare -A LABEL=([frontend]="Frontend" [backend]="Main backend" [em-backend]="Event backend" [dc-backend]="DCS backend")
@@ -171,7 +165,7 @@ fix_env_files() {
     fi
     # The mail account is the same on all three, so it is written before
     # the lines that differ between them.
-    for key in "${SHARED_KEYS[@]}" "${SHARED_OPTIONAL[@]}"; do
+    for key in "${SHARED_KEYS[@]}"; do
       value="$(shared_value "$key")"
       [ -n "$value" ] && set_env_key "$file" "$key" "$value"
     done
