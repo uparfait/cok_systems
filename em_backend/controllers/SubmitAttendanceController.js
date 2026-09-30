@@ -238,10 +238,6 @@ class SubmitAttendanceController {
         if (matched && !nameMatchedAccount) {
           return staffRefusal(res, 422, 'STAFF_CERTIFICATE_MISMATCH', 'The certificate name does not match your account.');
         }
-        if (matched && certificateEmail && certificateEmail !== accountEmail) {
-          return staffRefusal(res, 422, 'STAFF_CERTIFICATE_MISMATCH', 'The certificate email does not match your account.');
-        }
-
         // This is what stops one person signing in another person's name
         const nameMatched = namesMatch(signedFields.attendeeFullName, identity.subjectCommonName);
         if (config.signing.requireNameMatch && !nameMatched) {
