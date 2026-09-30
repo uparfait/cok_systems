@@ -188,3 +188,11 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] A re-activated invitation reports a refused email instead of discarding the answer
 - [x] `node test.js` in each backend sends through the real transport and names the way that worked
 - [x] Permanent test: 4 cases, ALL_TESTS_PASSED. Each backend's own message: 12 checks, 0 failed
+
+## 26. The main backend's mailer restored
+- [x] `backend/utilities/email.js` back to its state at 27521f31 (secure: true, its own sender constant) - `git diff` against that commit is empty
+- [x] `backend/test.js` and `backend/configurations/config.js` back to their pre-round state; `backend/utilities/mail_transport.js` removed from that backend
+- [x] The shared transport kept only in em_backend and dc_backend, where the mail was not arriving
+- [x] `EMAIL_SECURE=true` in `deploy/env/shared.env`, so those two open the connection the way the delivering backend does
+- [x] The permanent test moved to `dc_backend/tests/mail_transport.test.js` and joins the DCS suite
+- [x] 11.20 and 11.24's claim that STARTTLS is right for this server corrected in 11.25
