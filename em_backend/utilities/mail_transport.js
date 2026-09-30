@@ -50,6 +50,14 @@ const ORDER = config.email.secure ? ["tls_first", "starttls", "plain"] : ["start
 const options_for = (key) => ({
   host: config.email.host,
   port: config.email.port,
+  // HOW THIS MACHINE INTRODUCES ITSELF. A mailer sends EHLO <the machine's
+  // own name>, which on a server is a bare word like "ikaze-sys" and inside
+  // a container is a random hexadecimal id. A strict mail server, or the
+  // anti-spam front this city's mail sits behind, can stall a client whose
+  // name is not a real one - and stalling is indistinguishable from a
+  // server that is down. EMAIL_HELO_NAME is a name that server has been
+  // seen to accept. Unset, nodemailer uses the machine's own, as before.
+  name: config.email.helo || undefined,
   // The server wants SMTP authentication, so a missing EMAIL_USER is a
   // misconfiguration rather than a reason to sign in anonymously: empty
   // credentials are refused on every single send, which reads as "mail
@@ -61,12 +69,29 @@ const options_for = (key) => ({
     // the identity of the far end goes unverified.
     rejectUnauthorized: false,
   },
-  // Without these, a mail server that is up but not answering keeps the
-  // socket open until the operating system gives up, and whatever request
-  // is waiting for the mail hangs with it.
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
+  // MEASURED, not chosen. This city's mail server answers the greeting in
+  // 34 ms, offers STARTTLS at once, and then takes THIRTY-EIGHT SECONDS to
+  // check the password (the transcript is in section 11.27 of
+  // dashboards/changes-and-creations.md). Every backend here gave up after
+  // 15 s - in the middle of that step - and reported ETIMEDOUT, which reads
+  // exactly like a mail server that is down and sent everybody looking in
+  // the wrong place. These are the same values the main backend was tested
+  // with on the server, the run where mail finally arrived.
+  // One number for all three, because they are three forms of the same
+  // question: how long this mail server is allowed to take. EMAIL_TIMEOUT_MS
+  // moves it without a code change - and lets a test use a short one, since
+  // at the real value a stuck step hangs for eleven minutes.
+  connectionTimeout: config.email.patience,
+  greetingTimeout: config.email.patience,
+  socketTimeout: config.email.patience,
+  // NOT pooled, deliberately. Keeping the connection would spare the slow
+  // sign-in on later messages, but a pool and a fallback do not mix: each
+  // way of connecting would hold its own pool, and a message queued on a
+  // pool that is then abandoned is never sent and never reported. The main
+  // backend, which is the one that was proven to work on this server, does
+  // not pool either. The cost is one sign-in per message; sends that matter
+  // in bulk - the invitations - already go out in parallel, so thirty
+  // invitations are one slow sign-in wide, not thirty.
   ...WAYS[key].extra,
 });
 
@@ -106,6 +131,14 @@ const through_a_working_way = async (act, what) => {
       last = error;
       if (settled === key) settled = null;
       const more = index + 1 < keys.length;
+      // A pooled transport that could not connect holds nothing worth
+      // keeping - and holding it would keep its sockets, and a script
+      // waiting on them, open. It is rebuilt if it is ever tried again.
+      if (about_the_connection(error)) {
+        const held = built.get(key);
+        if (held && typeof held.close === "function") held.close();
+        built.delete(key);
+      }
       if (!more || !about_the_connection(error)) break;
       console.warn(`[MAIL] ${SERVICE}: ${WAYS[key].label} did not connect (${error.code || "no code"}: ${error.message}) - trying ${WAYS[keys[index + 1]].label} for this ${what}`);
     }

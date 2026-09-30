@@ -87,6 +87,14 @@ module.exports = {
     host: process.env.EMAIL_HOST || '197.243.27.181',
     port: parseInt(process.env.EMAIL_PORT, 10) || 587,
     secure: mail_secure(process.env.EMAIL_SECURE, parseInt(process.env.EMAIL_PORT, 10) || 587),
+    // The name this backend gives the mail server when it says EHLO. Empty
+    // means the machine's own name, which in a container is a random id.
+    helo: (process.env.EMAIL_HELO_NAME || "").trim(),
+    // How long this mail server is allowed to take, for connecting, for
+    // greeting and for each answer. The default is the value the main
+    // backend was proven to need on this network, where checking a password
+    // takes thirty-eight seconds.
+    patience: Number(process.env.EMAIL_TIMEOUT_MS) || 655000,
     // No fallback for either: the account password does not belong in a
     // tracked file, and a blank here fails loudly at startup instead of
     // quietly signing in with something stale.

@@ -50,6 +50,14 @@ const DC_CONFIG = {
     host: process.env.EMAIL_HOST || "197.243.27.181",
     port: Number(process.env.EMAIL_PORT) || 587,
     secure: mail_secure(process.env.EMAIL_SECURE, Number(process.env.EMAIL_PORT) || 587),
+    // The name this backend gives the mail server when it says EHLO. Empty
+    // means the machine's own name, which in a container is a random id.
+    helo: (process.env.EMAIL_HELO_NAME || "").trim(),
+    // How long this mail server is allowed to take, for connecting, for
+    // greeting and for each answer. The default is the value the main
+    // backend was proven to need on this network, where checking a password
+    // takes thirty-eight seconds.
+    patience: Number(process.env.EMAIL_TIMEOUT_MS) || 655000,
     user: process.env.EMAIL_USER || "",
     pass: process.env.EMAIL_PASS || "",
     from: mail_from(process.env.EMAIL_FROM),

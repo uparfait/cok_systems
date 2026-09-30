@@ -9,7 +9,12 @@ const transporter = nodemailer.createTransport({
     // Port 587 is the submission port: the connection starts in the clear
     // and STARTTLS upgrades it, which is why secure is false here. secure
     // true would be port 465, where TLS is there from the first byte.
-    secure: true,
+    //
+    // PROVEN on the server: this server answers "220 proxymta-server.aos.rw
+    // ESMTP Postfix" in plain text 34 ms after the connection opens, so a
+    // connection opened in TLS is refused in 42 ms with OpenSSL's "wrong
+    // version number". See dashboards/changes-and-creations.md 11.27.
+    secure: false,
     // Encryption is REQUIRED, not merely attempted. Without this nodemailer
     // treats STARTTLS as optional and would fall back to sending the
     // credentials and the mail unencrypted if the server did not offer it.
@@ -25,10 +30,18 @@ const transporter = nodemailer.createTransport({
         rejectUnauthorized: false,
     },
     // Without these, an unreachable SMTP host keeps the socket open until the
-    // OS gives up, which hangs whatever request is awaiting the mail
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+    // OS gives up, which hangs whatever request is awaiting the mail.
+    //
+    // THIS IS WHY NO MAIL WAS ARRIVING. The server greets in 34 ms and then
+    // takes THIRTY-EIGHT SECONDS to check the password - measured, by hand,
+    // in the transcript kept in 11.27. Anything under that is cut off in the
+    // middle of signing in and reports ETIMEDOUT, which from inside the
+    // application is indistinguishable from a mail server that is down. The
+    // values below are the ones the server was tested with and mail arrived
+    // on; they are deliberately far larger than the slowest answer seen.
+    connectionTimeout: 6550000,
+    greetingTimeout: 6550000,
+    socketTimeout: 655000,
 });
 
 transporter.verify((error, success) => {
