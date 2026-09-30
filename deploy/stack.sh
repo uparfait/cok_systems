@@ -154,7 +154,10 @@ fix_env_files() {
   fi
   for service in "${ENV_SERVICES[@]}"; do
     file="$STACK_ENV_DIR/$service.env"
-    [ -f "$file" ] || continue
+    if [ ! -f "$file" ]; then
+      warn "$STACK has no $service.env, so none of this stack's values - the mail account among them - reach that backend"
+      continue
+    fi
     backup="$file.bak.$STAMP"
     if [ "$DRY_RUN" = 0 ]; then
       cp "$file" "$backup"
@@ -378,8 +381,8 @@ wait_for_answers() {
 # The two verifying backends compared with the main one, and what they
 # themselves reported at startup ([AUTH CHECK] lines).
 check_sign_in() {
-  log "Sign-in settings of $STACK"
-  local main_secret main_db name key value service lines
+  log "Sign-in and mail settings of $STACK"
+  local main_secret main_db name key value service lines file missing
   main_secret="$(env_value "$STACK_ENV_DIR/backend.env" JWT_SECRET)"
   main_db="$(env_value "$STACK_ENV_DIR/backend.env" conne_string)"
   for name in em_backend dc_backend; do
@@ -388,6 +391,22 @@ check_sign_in() {
     if [ "$name" = em_backend ]; then key=DATABASE_URL2; else key=conne_string; fi
     value="$(env_value "$STACK_ENV_DIR/$name.env" "$key")"
     if [ -n "$main_db" ] && ! same_mongo_server "$main_db" "$value"; then warn "$name.env $key does not reach the main backend's Mongo server - accounts will not be found"; else ok "$name.env $key reaches the same Mongo server as the main backend ($(mongo_cluster_of "$value"))"; fi
+  done
+  # THE MAIL ACCOUNT, per backend. One backend sending mail while another
+  # cannot is nearly always this: the keys reached one .env and not the
+  # other, and nothing said so until somebody noticed an email that never
+  # arrived.
+  for name in backend em_backend dc_backend; do
+    file="$STACK_ENV_DIR/$name.env"
+    if [ ! -f "$file" ]; then
+      warn "$name.env is not in $STACK's store at all - it gets no mail account, no database line and no JWT_SECRET from this run"
+      continue
+    fi
+    missing=""
+    for key in "${SHARED_KEYS[@]}"; do
+      [ -n "$(env_value "$file" "$key")" ] || missing="$missing $key"
+    done
+    if [ -n "$missing" ]; then warn "$name.env cannot send mail: no$missing"; else ok "$name.env carries the mail account ($(env_value "$file" EMAIL_USER) via $(env_value "$file" EMAIL_HOST))"; fi
   done
   for service in em-backend dc-backend; do
     lines="$(compose logs --tail 200 --no-color "$service" 2>/dev/null | grep -F "[AUTH CHECK]" | tail -n 4 | sed -E 's/^[^|]*\|[[:space:]]*//')" || true

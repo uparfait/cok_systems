@@ -170,3 +170,11 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] A geolocation answer's latitude and longitude can be typed; the map follows and the address is looked up again for the new point
 - [x] A full screen board is padded on all four sides, and the fit calculation measures the room inside that frame
 - [x] Build green (tsc and vite both exit 0)
+
+## 24. Why em_backend could not send while the main backend could
+- [x] Found the asymmetry: the main backend was stopped by `secure: true` (11.20); em_backend is stopped at the sign-in, because its transporter authenticates and its `.env` has no `EMAIL_USER`/`EMAIL_PASS`
+- [x] em_backend warns at startup when the mail account is missing instead of offering an empty user name on every message
+- [x] A stray `EMAIL_FROM` that is not an address can no longer make every send fail - all three configs require an `@` before treating it as one
+- [x] `deploy/stack.sh` reports per backend whether its env carries the mail account, and warns when a stack's store has no file for a backend at all
+- [x] em_backend's invitation path proven sound end to end without sending (config, calendar, composed message)
+- [x] dc_backend and em_backend suites green (9 files, 0 fail)

@@ -7,7 +7,12 @@
 // an address.
 const mail_from = (value) => {
   const held = String(value || "").trim();
-  if (!held) return "IKAZE <coksystems@kigalicity.gov.rw>";
+  // Nothing, or something that is not an address at all: the system's own.
+  // Without this last test a stray EMAIL_FROM of "IKAZE" would be turned
+  // into "IKAZE <IKAZE>" and the mail server would refuse every message -
+  // and refuse it on the FIRST send rather than at startup, which is the
+  // hardest kind of fault to find.
+  if (!held || held.indexOf("@") < 0) return "IKAZE <coksystems@kigalicity.gov.rw>";
   if (/^[^<]+</.test(held)) return held;
   return `IKAZE ${held.startsWith("<") ? held : `<${held}>`}`;
 };

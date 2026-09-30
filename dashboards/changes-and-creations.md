@@ -435,3 +435,33 @@ The first three are offered to any reader; the rest only to whoever may edit the
 **The coordinates of a geolocation answer can be typed.** The latitude and longitude boxes were disabled, so a reading taken in the wrong place had to be retaken on the spot. They are editable now: the text stays as typed so a partial number can be finished, a number that reads as one and lies inside the range the earth has is committed at once, and the map - which already watches those two numbers - moves to it. The stored address belongs to the old point, so it is dropped and looked up again for the new one, exactly as the search box does. Emptying a box clears the answer rather than committing a zero, which is a real place in the Atlantic. In the form builder they are shown but not editable: there is nothing to answer there.
 
 **A full screen board has a frame again.** It was deliberately edge to edge, which left the cards running into the sides of the screen (and, on a phone, into its rounded corners). It is padded on all four sides now, and the fit-to-screen calculation measures the room INSIDE that frame - `clientHeight` counts padding as usable room, which would have scaled a fitted board slightly too large and left its last row under the bottom edge.
+
+### 11.23 Why the main backend's reset code arrived and em_backend's invitations did not (2026-09-30)
+
+**They were never failing for the same reason, which is why one fix cured one of them.** The main backend was stopped by its own code - `secure: true` on port 587, section 11.20 - and the moment that value changed, forgot-password worked. `em_backend` never had that bug; it had always used `secure: false` against the same server. Its mail was being refused one step earlier, at the sign-in, and no fix to the mailers could reach that: **`em_backend`'s transporter authenticates, and its user name and password come from `EMAIL_USER` and `EMAIL_PASS` in `em_backend/.env`.** When the mail account is put into one backend's environment and not the others - by hand into `backend/.env`, or by a deployment that found no `deploy/env/shared.env` to copy from - then `backend` sends and `em_backend` offers the server an empty user name on every message. The server refuses it. That is the whole asymmetry.
+
+**Why it was silent.** Three things hid it, all now closed:
+
+- `em_backend` signed in with empty credentials instead of refusing to try, so the fault appeared once per message inside the mail server's answer rather than once at startup. It now omits authentication when there is no user name and says so in its log the moment it boots: `[MAIL] EMAIL_USER is not set in em_backend/.env`.
+- Invitations, task notices and access tokens are sent fire-and-forget - the request answers before the mail is away, deliberately, so a slow mail server cannot hold up a page. Their `.catch` never ran, because the mailer answers `{ success: false }` rather than throwing. The two access-token flows now log the refusal.
+- It had no SMTP timeouts, so a server that accepted the socket and then went quiet held the connection until the operating system gave up. It now uses the same three as the main backend.
+
+**A trap that 11.20 opened and this round closed.** Section 11.20 made all three backends send from `config.email.from` instead of a hard-coded literal. `em_backend` had never read `EMAIL_FROM` before, so on any server whose `em_backend/.env` carried something that is not an address - `EMAIL_FROM=IKAZE`, say - the normalizer would have built `IKAZE <IKAZE>` and the server would have refused every message, on the first send, with nothing said at startup. All three configs now test for an `@` before treating the value as an address and fall back to `IKAZE <coksystems@kigalicity.gov.rw>` otherwise, so a stray value costs a display name and not the mail.
+
+**The deployment now names the backend that cannot send.** `deploy/stack.sh` checks each of the three stored env files for the five mail keys and reports them one line each, and a backend with no file in the stack's store at all is warned about rather than skipped in silence - it was the silent skip that let one backend keep the mail account and another go without it:
+
+```
+==> Sign-in and mail settings of uat-ikaze
+   [ OK ] backend.env carries the mail account (coksystems@kigalicity.gov.rw via 197.243.27.181)
+   [WARN] em_backend.env cannot send mail: no EMAIL_HOST EMAIL_PORT EMAIL_USER EMAIL_PASS EMAIL_FROM
+   [WARN] dc_backend.env is not in uat-ikaze's store at all - it gets no mail account, no database line and no JWT_SECRET from this run
+```
+
+**Proof that nothing in em_backend's own code stops an invitation.** Its configuration, its calendar builder and its mailer were loaded with the deployment's real values and the invitation composed through a nodemailer transport that writes the message instead of sending it: the configuration resolves to `197.243.27.181:587` as `coksystems@kigalicity.gov.rw` from `IKAZE <coksystems@kigalicity.gov.rw>`, the calendar builds (61 lines, 1579 characters, with `METHOD:REQUEST`, `ORGANIZER` and `ATTENDEE`), and the message composes with all three parts - html, text and calendar. Nothing left this machine. To settle it on the server, in one command each:
+
+```
+docker compose -p cok-systems exec -T em-backend printenv | grep -E '^EMAIL_'
+docker compose -p cok-systems logs --tail 40 em-backend | grep -iE 'smtp|\[MAIL\]'
+docker compose -p cok-systems exec -T em-backend \
+  node -e "require('./utilities/email').sendEmail('coksystems@kigalicity.gov.rw','Test','<p>test</p>').then(r=>console.log(r))"
+```
