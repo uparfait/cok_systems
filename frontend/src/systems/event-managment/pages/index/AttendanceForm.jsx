@@ -363,28 +363,14 @@ export default function AttendanceForm() {
     setCertificateSignature(null);
   }, [formData, signature, eventSpecialId, isInternal]);
 
-  const handleSignWithCertificate = async () => {
-    if (!certificateFile) {
-      setCertError('Choose your certificate file first.');
-      return;
-    }
-    if (!certificatePassword) {
-      setCertError('Enter the password for your certificate.');
-      return;
-    }
-    if (!validate({ skipSignature: true })) {
-      setCertError('Fill in your details above before signing.');
-      return;
-    }
-
+  // Returns { data: certSig } on success or { error: 'message' } on failure; never sets state directly
+  const doSign = async () => {
     setSigning(true);
     setCertError('');
     try {
       const unlocked = await openCertificate(certificateFile, certificatePassword);
-      // Staff may only sign with a certificate issued in their own account name
       if (staffMode && !namesMatch(unlocked.subjectCommonName, staffProfile?.fullName)) {
-        setCertError(`This certificate belongs to ${unlocked.subjectCommonName}, not to your account.`);
-        return;
+        return { error: `This certificate belongs to ${unlocked.subjectCommonName}, not to your account.` };
       }
       const signedAt = new Date().toISOString();
       const fields = buildSignedFields(signedAt);
@@ -397,21 +383,18 @@ export default function AttendanceForm() {
         signedAt,
         handwritingDataUrl: null,
       });
-
-      setCertificateSignature({
-        signatureValue,
-        certificate: unlocked.certificateBase64,
-        signedAt,
-        appearanceImage,
-        signerName: unlocked.subjectCommonName,
-        issuerName: unlocked.issuerCommonName,
-      });
-      setErrors((p) => ({ ...p, signature: null }));
-      // The password is not needed again and should not linger in memory
-      setCertificatePassword('');
-      showSuccess(`Signed as ${unlocked.subjectCommonName}`);
+      return {
+        data: {
+          signatureValue,
+          certificate: unlocked.certificateBase64,
+          signedAt,
+          appearanceImage,
+          signerName: unlocked.subjectCommonName,
+          issuerName: unlocked.issuerCommonName,
+        },
+      };
     } catch (error) {
-      setCertError(error?.message || 'Could not sign with this certificate.');
+      return { error: error?.message || 'Could not sign with this certificate.' };
     } finally {
       setSigning(false);
     }
@@ -419,17 +402,45 @@ export default function AttendanceForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
-    if (signatureMethod === 'certificate' && certificateFile && certError) return;
+    // Skip the "must sign first" check when using certificate — signing happens below if needed
+    if (!validate({ skipSignature: signatureMethod === 'certificate' && !certificateSignature })) return;
 
     setLoading(true);
     setServerError('');
 
-    const isCertificateBranch = signatureMethod === 'certificate' && certificateSignature;
+    let certSig = certificateSignature;
+
+    // Auto-sign with certificate before submitting when the user hasn't signed yet
+    if (signatureMethod === 'certificate' && !certSig) {
+      if (!certificateFile) {
+        setCertError('Choose your certificate file first.');
+        setLoading(false);
+        return;
+      }
+      if (!certificatePassword) {
+        setCertError('Enter the password for your certificate.');
+        setLoading(false);
+        return;
+      }
+      const result = await doSign();
+      if (result.error) {
+        setCertError(result.error);
+        setLoading(false);
+        return;
+      }
+      certSig = result.data;
+      setCertificateSignature(certSig);
+      setErrors((p) => ({ ...p, signature: null }));
+      // The password is not needed again and should not linger in memory
+      setCertificatePassword('');
+      showSuccess(`Signed as ${certSig.signerName}`);
+    }
+
+    const isCertificateBranch = signatureMethod === 'certificate' && certSig;
     let body;
     if (isCertificateBranch) {
       // The signed field values go up exactly as they were signed, or verification fails
-      const signedFields = buildSignedFields(certificateSignature.signedAt);
+      const signedFields = buildSignedFields(certSig.signedAt);
       body = {
         ...signedFields,
         attendeeEmail: signedFields.attendeeEmail || undefined,
@@ -438,10 +449,10 @@ export default function AttendanceForm() {
         roomLocation,
         signatureMethod: 'digital-certificate',
         certificateSignature: {
-          signatureValue: certificateSignature.signatureValue,
-          certificate: certificateSignature.certificate,
-          signedAt: certificateSignature.signedAt,
-          appearanceImage: certificateSignature.appearanceImage,
+          signatureValue: certSig.signatureValue,
+          certificate: certSig.certificate,
+          signedAt: certSig.signedAt,
+          appearanceImage: certSig.appearanceImage,
         },
       };
     } else {
@@ -884,18 +895,6 @@ export default function AttendanceForm() {
                       style={inputStyle}
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleSignWithCertificate}
-                    disabled={signing}
-                    className="cok-btn-primary mt-2.5 disabled:cursor-not-allowed"
-                    style={signing ? { opacity: 0.6 } : undefined}
-                  >
-                    <span className="inline-flex items-center justify-center gap-2">
-                      {signing && <SpiralLoader color="#FFFFFF" padded={false} size={16} />}
-                      {signing ? 'Signing...' : 'Sign with certificate'}
-                    </span>
-                  </button>
                   <p className="text-xs mt-1.5" style={{ color: GRAY_DISABLED }}>
                     Your certificate and password stay on this device. Only the signature is sent.
                   </p>
@@ -961,11 +960,13 @@ export default function AttendanceForm() {
               ...(loading ? { opacity: 0.6 } : {}),
             }}
           >
-            {loading
-              ? 'Submitting...'
-              : success
-                ? 'Attendance Recorded'
-                : 'Submit Attendance'}
+            {signing
+              ? 'Signing...'
+              : loading
+                ? 'Submitting...'
+                : success
+                  ? 'Attendance Recorded'
+                  : 'Submit Attendance'}
           </button>
         </form>
       </div>
