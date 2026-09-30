@@ -337,6 +337,7 @@ export default function AttendanceForm() {
     // Letters and symbols are dropped as they are typed in the phone field
     const cleaned = name === 'attendeePhoneNumber' ? value.replace(/[^\d+\s]/g, '') : value;
     setFormData((prev) => ({ ...prev, [name]: cleaned }));
+    setServerError('');
     // Tell the user why their character did not appear instead of silently dropping it
     if (name === 'attendeePhoneNumber' && cleaned !== value) {
       setErrors((prev) => ({ ...prev, attendeePhoneNumber: 'Phone number must contain numbers only' }));
@@ -754,7 +755,7 @@ export default function AttendanceForm() {
                     name="signatureMethod"
                     value="draw"
                     checked={signatureMethod === 'draw'}
-                    onChange={() => { setSignatureMethod('draw'); setCertificateFile(null); setCertificateSignature(null); setCertificatePassword(''); setCertError(''); setErrors((p) => ({ ...p, signature: null })); }}
+                    onChange={() => { setSignatureMethod('draw'); setCertificateFile(null); setCertificateSignature(null); setCertificatePassword(''); setCertError(''); setErrors((p) => ({ ...p, signature: null })); setServerError(''); }}
                     style={{ accentColor: PRIMARY }}
                   />
                   <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Draw Signature</span>
@@ -765,7 +766,7 @@ export default function AttendanceForm() {
                     name="signatureMethod"
                     value="certificate"
                     checked={signatureMethod === 'certificate'}
-                    onChange={() => { setSignatureMethod('certificate'); setSignature(''); setPadKey((k) => k + 1); setErrors((p) => ({ ...p, signature: null })); }}
+                    onChange={() => { setSignatureMethod('certificate'); setSignature(''); setPadKey((k) => k + 1); setErrors((p) => ({ ...p, signature: null })); setServerError(''); }}
                     style={{ accentColor: PRIMARY }}
                   />
                   <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Sign with Digital Certificate</span>
@@ -780,7 +781,7 @@ export default function AttendanceForm() {
               </label>
               <SignaturePad
                 key={padKey}
-                onChange={(v) => { setSignature(v); if (v) setErrors((p) => ({ ...p, signature: null })); }}
+                onChange={(v) => { setSignature(v); if (v) { setErrors((p) => ({ ...p, signature: null })); setServerError(''); } }}
               />
             </div>
           )}
