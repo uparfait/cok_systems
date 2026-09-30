@@ -206,3 +206,14 @@ Goal: rebuild the seven boards of `dmis_dash.html` inside the DCS dashboard engi
 - [x] Proven against a slow stand-in and a silent one: 6 checks, 0 failed
 - [x] The transcript tool tries EHLO with a full domain name, HELO, the bare name, and port 25 - each on a fresh connection - and prints either the settings that worked or the questions for the provider (11 checks, 0 failed)
 - [ ] Waiting on the transcript from the server to decide between a change here and a question for whoever runs the mail server
+
+## 28. Thirty-eight seconds to check a password
+- [x] Timed the whole SMTP conversation on the server: everything under 100 ms except the password check, at 38.3 s
+- [x] The 15 s socket timeout in every backend was cutting the sign-in in half and reporting ETIMEDOUT
+- [x] `backend/utilities/email.js` carries the exact values proven on the server (secure false, requireTLS, 6550000/6550000/655000) - the hand edit is in the repository so a deploy cannot overwrite it
+- [x] em_backend and dc_backend take the same patience from one knob, `EMAIL_TIMEOUT_MS` (default 655000)
+- [x] Both also say EHLO with `EMAIL_HELO_NAME`, a name that server is known to accept
+- [x] No pooling: a pool and a fallback do not mix, and bulk sends already go out in parallel
+- [x] Test: a server that holds the password for 17 s - fails on the old timeouts, passes now. 8 checks, ALL_TESTS_PASSED
+- [x] Fixed two lies in the tooling: a stand-in that could not speak AUTH PLAIN, and process.exit() discarding a passing test's output on Windows
+- [ ] For the provider (AOS): why does the SASL lookup for coksystems@ take 38 s on proxymta-server.aos.rw

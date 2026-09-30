@@ -4,28 +4,30 @@ const path = require("path");
 
 /**
  * THE SHARED MAIL TRANSPORT (utilities/mail_transport.js, the same file in
- * dc_backend and em_backend), against a mail server that answers in PLAIN
- * TEXT and does not offer STARTTLS.
+ * dc_backend and em_backend), against the two things this city's mail
+ * server actually does.
  *
- * How a connection to this city's mail server has to start is not
- * knowable from the source, and has been changed back and forth in these
- * backends in both directions. A wrong answer does not make the mail
- * worse - it stops the mail, silently, because a failed handshake is
- * indistinguishable from a mail server that is down.
+ * It answers in PLAIN TEXT on its submission port, so a connection opened
+ * in TLS is refused in 42 milliseconds - and it takes THIRTY-EIGHT SECONDS
+ * to check a password, so a mailer that gives up after 15 is cut off in the
+ * middle of signing in and reports a timeout. Both failures look identical
+ * from inside the application: no mail, and no reason.
  *
- * So what is tested here is not a setting. It is that a WRONG setting
- * still delivers the message; that the way which worked is remembered
- * rather than rediscovered per message; that the order the environment
- * asks for is respected; and that a mail server which genuinely cannot be
- * reached is still reported rather than swallowed.
+ * So what is tested here is not a setting. It is that a WRONG setting still
+ * delivers the message; that the way which worked is remembered rather than
+ * rediscovered per message; that the order the environment asks for is
+ * respected; that a mail server which genuinely cannot be reached is still
+ * reported rather than swallowed; and that a SLOW sign-in is waited out and
+ * then paid once rather than once per message.
  *
- * Nothing leaves the machine: the server is on 127.0.0.1 and every message
- * is read back off the socket.
+ * Nothing leaves the machine: every server is on 127.0.0.1 and every
+ * message is read back off the socket.
  */
 
 const TRANSPORT = path.join(__dirname, "..", "utilities", "mail_transport.js");
 const CONFIG = path.join(__dirname, "..", "configurations", "config.js");
 const say = (text) => process.stdout.write(`${text}\n`);
+const CRLF = "\r\n";
 
 // A mail server that speaks plain text only. It advertises AUTH, so the
 // credentials are accepted, but NOT STARTTLS - so a transport that insists
@@ -36,7 +38,7 @@ function plaintext_server(port) {
   const server = net.createServer((socket) => {
     let in_data = false;
     let body = "";
-    socket.write("220 fake.kigalicity.local ESMTP\r\n");
+    socket.write(`220 fake.kigalicity.local ESMTP${CRLF}`);
     socket.on("data", (chunk) => {
       const text = chunk.toString();
       if (in_data) {
@@ -45,17 +47,17 @@ function plaintext_server(port) {
           in_data = false;
           received.push(body);
           body = "";
-          socket.write("250 2.0.0 Ok: queued as TEST\r\n");
+          socket.write(`250 2.0.0 Ok: queued as TEST${CRLF}`);
         }
         return;
       }
       text.split(/\r\n/).filter(Boolean).forEach((line) => {
         const verb = line.split(" ")[0].toUpperCase();
-        if (verb === "EHLO" || verb === "HELO") socket.write("250-fake\r\n250-AUTH PLAIN LOGIN\r\n250 SIZE 52428800\r\n");
-        else if (verb === "AUTH") socket.write("235 2.7.0 ok\r\n");
-        else if (verb === "DATA") { in_data = true; socket.write("354 go ahead\r\n"); }
-        else if (verb === "QUIT") { socket.write("221 bye\r\n"); socket.end(); }
-        else socket.write("250 2.0.0 Ok\r\n");
+        if (verb === "EHLO" || verb === "HELO") socket.write(`250-fake${CRLF}250-AUTH PLAIN LOGIN${CRLF}250 SIZE 52428800${CRLF}`);
+        else if (verb === "AUTH") socket.write(`235 2.7.0 ok${CRLF}`);
+        else if (verb === "DATA") { in_data = true; socket.write(`354 go ahead${CRLF}`); }
+        else if (verb === "QUIT") { socket.write(`221 bye${CRLF}`); socket.end(); }
+        else socket.write(`250 2.0.0 Ok${CRLF}`);
       });
     });
     // A client that hangs up mid-handshake is normal here: that is what a
@@ -65,6 +67,74 @@ function plaintext_server(port) {
   return new Promise((resolve) => {
     server.listen(port, "127.0.0.1", () => resolve({ server, received }));
   });
+}
+
+// A mail server that is slow exactly where this city's is slow: it greets
+// at once, offers AUTH, and then sits on the password.
+function slow_auth_server(port, hold_ms) {
+  const state = { greetings: [], sign_ins: 0, connections: 0, messages: 0 };
+  // The thirty-eight seconds that broke everything, in miniature.
+  const slowly = (socket) =>
+    setTimeout(() => {
+      state.sign_ins += 1;
+      socket.write(`235 2.7.0 Authentication successful${CRLF}`);
+    }, hold_ms);
+  const server = net.createServer((socket) => {
+    state.connections += 1;
+    let stage = "";
+    socket.on("error", () => {});
+    socket.write(`220 slow.kigalicity.local ESMTP Postfix${CRLF}`);
+    socket.on("data", (chunk) => {
+      String(chunk)
+        .split(/\r\n/)
+        .filter((line) => line.length > 0)
+        .forEach((line) => {
+          const verb = line.split(" ")[0].toUpperCase();
+          if (stage === "data") {
+            if (line === ".") {
+              stage = "";
+              state.messages += 1;
+              socket.write(`250 2.0.0 Ok: queued${CRLF}`);
+            }
+            return;
+          }
+          if (verb === "EHLO" || verb === "HELO") {
+            state.greetings.push(line.slice(verb.length + 1));
+            socket.write(`250-slow${CRLF}250-AUTH LOGIN PLAIN${CRLF}250 DSN${CRLF}`);
+          } else if (verb === "AUTH") {
+            // A mailer sends everything at once - "AUTH PLAIN <base64>" -
+            // when the server offers PLAIN, and only falls back to the
+            // question-and-answer form of LOGIN otherwise. A stand-in that
+            // knows only LOGIN answers the wrong thing and the real
+            // mailer then waits for an answer that never comes, which is
+            // what this test first did to itself.
+            const parts = line.split(" ");
+            if (parts[1] && parts[1].toUpperCase() === "PLAIN" && parts[2]) {
+              slowly(socket);
+            } else {
+              stage = "user";
+              socket.write(`334 VXNlcm5hbWU6${CRLF}`);
+            }
+          } else if (stage === "user") {
+            stage = "pass";
+            socket.write(`334 UGFzc3dvcmQ6${CRLF}`);
+          } else if (stage === "pass") {
+            stage = "";
+            slowly(socket);
+          } else if (verb === "DATA") {
+            stage = "data";
+            socket.write(`354 go ahead${CRLF}`);
+          } else if (verb === "QUIT") {
+            socket.write(`221 bye${CRLF}`);
+            socket.end();
+          } else {
+            socket.write(`250 2.0.0 Ok${CRLF}`);
+          }
+        });
+    });
+  });
+  server.on("error", () => {});
+  return new Promise((resolve) => server.listen(port, "127.0.0.1", () => resolve({ server, state })));
 }
 
 // A transport that has not seen this process's earlier environment.
@@ -93,6 +163,10 @@ const ACCOUNT = {
   EMAIL_USER: "coksystems@kigalicity.gov.rw",
   EMAIL_PASS: "not-a-real-password",
   EMAIL_FROM: "<coksystems@kigalicity.gov.rw>",
+  EMAIL_HELO_NAME: "",
+  // Short, so a test that goes wrong fails in seconds. In production this
+  // is nearly eleven minutes, because this city's mail server needs it.
+  EMAIL_TIMEOUT_MS: "8000",
 };
 
 const SENDER = "<coksystems@kigalicity.gov.rw>";
@@ -176,20 +250,77 @@ async function test_a_missing_account_is_said_at_startup() {
   say("  ok  a missing mail account is said at startup");
 }
 
+async function test_a_slow_sign_in_is_survived_and_paid_once() {
+  // Longer than the 15 s every backend here used to allow, so this case
+  // fails outright on the timeouts this repository had until 2026-09-30.
+  const HOLD = 17000;
+  const { server, state } = await slow_auth_server(2545, HOLD);
+  try {
+    const transport = load_transport({
+      ...ACCOUNT,
+      EMAIL_PORT: "2545",
+      EMAIL_SECURE: "false",
+      EMAIL_HELO_NAME: "ikaze-sys.kigalicity.gov.rw",
+      // Longer than the sign-in below, shorter than a test anybody would
+      // wait for. Production allows nearly eleven minutes.
+      EMAIL_TIMEOUT_MS: "40000",
+    });
+    const first_at = Date.now();
+    const first = await while_listening(() => transport.sendMail({ from: SENDER, ...MESSAGE }));
+    const first_took = Date.now() - first_at;
+    assert.ok(!first.error, `a slow sign-in must not lose the message, but: ${first.error && first.error.message}`);
+    assert.ok(first_took > HOLD - 2000, `the sign-in should have been waited out, took ${first_took} ms`);
+    say(`  ok  a sign-in that takes ${HOLD / 1000} s is waited out, not cut off (${(first_took / 1000).toFixed(1)} s)`);
+
+    // The next message pays the same slow sign-in, because nothing is
+    // pooled here - see the comment on that in the transport. What matters
+    // is that it ARRIVES: a second message must not inherit a broken
+    // connection or a remembered failure from the first.
+    const second_at = Date.now();
+    const second = await while_listening(() => transport.sendMail({ from: SENDER, ...MESSAGE }));
+    const second_took = Date.now() - second_at;
+    assert.ok(!second.error, `the second message had to go out too, but: ${second.error && second.error.message}`);
+    assert.strictEqual(state.messages, 2, `the server had to receive both messages, it got ${state.messages}`);
+    assert.strictEqual(state.sign_ins, 2, `one sign-in per message is expected without a pool, there were ${state.sign_ins}`);
+    assert.strictEqual(
+      second.said.filter((line) => /did not connect/.test(line)).length,
+      0,
+      "the way that worked had to be remembered, so the second message does not start over",
+    );
+    say(`  ok  the next message goes out the remembered way and pays the same sign-in (${(second_took / 1000).toFixed(1)} s)`);
+
+    // And it introduced itself with the name it was given, not the
+    // machine's own - which inside a container is a random id.
+    assert.ok(
+      state.greetings.length > 0 && state.greetings.every((name) => name === "ikaze-sys.kigalicity.gov.rw"),
+      `EHLO should carry EMAIL_HELO_NAME, got ${JSON.stringify(state.greetings)}`,
+    );
+    say("  ok  it says EHLO with the name it was configured with");
+  } finally {
+    server.close();
+  }
+}
+
 async function run_all_tests() {
   await test_a_wrong_setting_still_delivers();
   await test_the_order_asked_for_is_respected();
   await test_an_unreachable_server_is_still_reported();
   await test_a_missing_account_is_said_at_startup();
+  await test_a_slow_sign_in_is_survived_and_paid_once();
 }
 
+// process.exit() is NOT used here. On Windows, output redirected to a file
+// or a pipe is written asynchronously, and process.exit() throws away
+// whatever has not been flushed - which silently swallowed this file's last
+// test and its own verdict, leaving an exit code of 0 and no explanation.
+// Setting the code and letting the process end on its own keeps the output.
 run_all_tests().then(
   () => {
     process.stdout.write("ALL_TESTS_PASSED\n");
-    process.exit(0);
+    process.exitCode = 0;
   },
   (error) => {
     process.stdout.write(`${error && error.stack ? error.stack : error}\n`);
-    process.exit(1);
+    process.exitCode = 1;
   },
 );

@@ -547,3 +547,42 @@ Proven against two stand-in servers on 127.0.0.1: one that answers EHLO after 2.
 **`deploy/mail_dialogue.js` tries four things, not one.** Silence after a banner has four possible causes and they are not equally likely, so each is tried on its own fresh connection, in order of what costs least to believe: EHLO with a full domain name; HELO with it; EHLO with the bare machine name a mailer sends by default (`ikaze-sys`, which a strict mail server or an anti-spam appliance will quietly stall); and then port 25, which greeted that server in 4 ms and can be open to a machine that the submission port is closed to. The first combination that answers is carried through STARTTLS, the TLS upgrade and `AUTH LOGIN`, and printed as the exact `EMAIL_*` lines to deploy - including a line saying the name or the older verb was what mattered, because that is a change to make in the mailers and not in an env file. If nothing answers, the verdict says so plainly, lists every attempt, and prints the three questions to put to whoever runs the mail server, with the timed transcript as the evidence.
 
 Proven against four stand-in servers on 127.0.0.1 - one merely slow, one silent whatever is said, one that stalls a bare name and answers a dotted one, one that wants HELO rather than EHLO: 11 checks, 0 failed.
+
+### 11.27 Thirty-eight seconds to check a password (2026-09-30)
+
+**This is the answer, and it was never a setting.** `deploy/mail_dialogue.js` held the conversation by hand, on the server, and timed every line of it:
+
+```
+    4 ms  -- trying 197.243.27.181:587 in the clear
+   34 ms  << 220 proxymta-server.aos.rw ESMTP Postfix
+   34 ms  >> EHLO ikaze-sys.kigalicity.gov.rw
+   35 ms  << 250-STARTTLS / 250-AUTH LOGIN PLAIN / 250 DSN
+   37 ms  << 220 2.0.0 Ready to start TLS
+   48 ms  -- the connection is encrypted now
+   93 ms  >> AUTH LOGIN
+   93 ms  << 334 VXNlcm5hbWU6
+   95 ms  << 334 UGFzc3dvcmQ6
+38370 ms  << 235 2.7.0 Authentication successful
+38375 ms  << 221 2.0.0 Bye
+```
+
+Everything except one step is under a tenth of a second: the connection, the banner, the capability list, the STARTTLS upgrade, the user name. **The password check takes 38.3 seconds.** Every backend in this repository allowed 15 seconds on the socket, so every one of them was cut off in the middle of signing in and reported `ETIMEDOUT` - which from inside the application is indistinguishable from a mail server that is down, and which sent this investigation through two wrong answers (11.20's `secure: false` and 11.25's `secure: true`) before anybody timed the conversation.
+
+**What is actually slow, and why it is not ours.** Postfix does not check passwords itself; it hands them to a separate authentication service and waits. The banner, the capability list and the TLS upgrade all come from Postfix's own process in milliseconds, so neither the network nor the mail server's front end is slow - the delay is entirely inside that authentication lookup. The usual causes, in the order worth asking about: a directory the authentication service consults (LDAP, Active Directory, a remote IMAP with `saslauthd -a rimap`) that is unreachable, so each sign-in waits out a resolver or connect timeout ladder before a fallback succeeds - a ladder that lands near forty seconds surprisingly often; a deliberate penalty delay for an address that has failed handshakes, which this one had done a dozen times that hour; or authentication workers all busy, so requests queue. None of them can be seen or fixed from here, and none of them are the code.
+
+**What was changed.** The settings the server was proven to accept, in all three backends:
+
+```
+EMAIL_HOST=197.243.27.181   EMAIL_PORT=587   EMAIL_SECURE=false
+```
+
+- `backend/utilities/email.js` carries exactly the values the run that finally delivered was made with: `secure: false`, `requireTLS: true`, and connection, greeting and socket timeouts of 6550000, 6550000 and 655000 ms. This file was edited on the server by hand; it is in the repository now, because a deployment builds from the repository and the next one would have overwritten it.
+- `em_backend` and `dc_backend` take the same patience through their shared transport, from ONE number - `EMAIL_TIMEOUT_MS`, defaulting to 655000 - so it can be moved without a code change, and so a test can use a short one. At the real value a stuck step hangs for eleven minutes, which is exactly what it did to this repository's own test suite before the knob existed.
+- Those two also send `EHLO` with a configured name (`EMAIL_HELO_NAME`, `ikaze-sys.kigalicity.gov.rw` in `deploy/env/shared.env`). A mailer introduces itself with the machine's own name, which inside a container is a random hexadecimal id; whether this server minds was never established, because the full name was tried first and worked, and a name that is known to be accepted is the safe choice.
+- **Not pooled**, deliberately. Keeping the authenticated connection would spare the slow sign-in on later messages, but a pool and a fallback do not mix: each way of connecting would hold its own pool, and a message queued on a pool that is then abandoned is never sent and never reported. The cost is one sign-in per message - and the sends that come in bulk, the event invitations, already go out in parallel, so thirty invitations are one slow sign-in wide rather than thirty.
+
+**What this costs, and it should be said plainly.** Every message takes about forty seconds to leave. A password reset request therefore answers in about forty seconds. The honest fixes are on the mail server's side; the one available here is to keep the authenticated connection alive in the main backend (`pool: true`, safe there because that backend has no fallback), which would make every message after the first immediate.
+
+**Proof.** `dc_backend/tests/mail_transport.test.js` gained a mail server that greets at once, offers `AUTH LOGIN PLAIN`, and then sits on the password for 17 seconds - longer than the 15 this repository used to allow, so the case fails outright on the old timeouts. It proves the sign-in is waited out and the message delivered, that the second message goes out the remembered way without starting the search over, and that `EHLO` carries the configured name. 8 checks in that file, `ALL_TESTS_PASSED`; the suite is 10 files.
+
+Two faults in the tools themselves were found and fixed on the way, both of which had been lying: the stand-in mail server answered `AUTH PLAIN` - which is what a real mailer sends when the server offers it - with the question-and-answer form of `AUTH LOGIN`, so the mailer waited for an answer that never came; and the test ended with `process.exit()`, which on Windows discards output that has not been flushed to a file or a pipe, so a passing test printed nothing and looked like a silent crash. Tests in this folder now set `process.exitCode` and let the process end on its own.

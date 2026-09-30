@@ -84,6 +84,10 @@ const BARE = os.hostname();
 const FQDN = flag("name") || (BARE.includes(".") ? BARE : `${BARE}.kigalicity.gov.rw`);
 
 const began = Date.now();
+// How long each step took. The point of the transcript is not only what the
+// server says but WHEN: a step slower than a mailer's socket timeout is
+// indistinguishable, from inside that mailer, from a server that is down.
+const steps = [];
 const say = (text) => process.stdout.write(`${text}\n`);
 const stamp = () => String(Date.now() - began).padStart(6);
 const sent = (line) => say(`${stamp()} ms  >> ${line}`);
@@ -132,8 +136,9 @@ function conversation() {
     socket.on("close", () => settle({ code: 0, closed: true }));
   };
 
-  const reply = (what) =>
-    new Promise((resolve) => {
+  const reply = (what) => {
+    const from = Date.now();
+    return new Promise((resolve) => {
       const lines = [];
       const timer = setTimeout(() => {
         waiting = null;
@@ -141,7 +146,11 @@ function conversation() {
         resolve({ lines, code: 0, silent: true });
       }, STEP_WAIT);
       waiting = { lines, resolve, timer };
+    }).then((answer) => {
+      steps.push({ what, ms: Date.now() - from });
+      return answer;
     });
+  };
 
   const write = (line, shown) => {
     sent(shown || line);
@@ -165,7 +174,7 @@ function conversation() {
       raw.removeAllListeners("close");
       raw.removeAllListeners("error");
       const timer = setTimeout(() => resolve({ failed: "the TLS handshake did not finish in time" }), STEP_WAIT);
-      const next = tls.connect({ socket: raw, rejectUnauthorized: false, servername: host }, () => {
+      const next = tls.connect({ socket: raw, rejectUnauthorized: false, servername: /^[0-9.]+$/.test(host) ? undefined : host }, () => {
         clearTimeout(timer);
         attach(next);
         resolve({ ok: true });
@@ -283,16 +292,32 @@ async function finish(talk, { host, port, in_tls, verb, name }, offered) {
   say(`    EMAIL_SECURE=${in_tls ? "true" : "false"}`);
   say("");
   if (!secured) say("    (unencrypted - this server offered no STARTTLS)");
+
+  // The timing, which is usually the whole story when the settings turn out
+  // to be right and the mail still does not arrive.
+  const slowest = steps.slice().sort((one, other) => other.ms - one.ms)[0];
+  if (slowest) {
+    say(`The slowest step was "${slowest.what}" at ${(slowest.ms / 1000).toFixed(1)} s.`);
+    if (slowest.ms > 15000) {
+      say("");
+      say("THAT is the fault, and not the host, the port or the mode. A mailer with a");
+      say("15 s socket timeout - which is what every backend in this repository had -");
+      say(`is cut off in the middle of that step and reports ETIMEDOUT. The timeouts`);
+      say(`have to exceed ${Math.ceil(slowest.ms / 1000)} s, with room to spare, and a pooled`);
+      say("connection should be kept so the slow step is paid once and not per message.");
+    }
+  }
   if (name !== BARE) {
-    say(`The name mattered: it answered ${verb} ${name} and not the bare "${BARE}"`);
-    say("that a mailer sends by default. Every mailer here needs that name set -");
-    say("tell me and I will add it.");
+    say("");
+    say(`It answered ${verb} ${name}. A mailer introduces itself with the`);
+    say(`machine's own name, which here is the bare "${BARE}" and inside a container is`);
+    say("a random id. Neither was tried - this attempt succeeded first - so whether the");
+    say("name matters is NOT known. Setting it explicitly is the safe choice either way:");
+    say("EMAIL_HELO_NAME.");
   }
   if (verb === "HELO") {
     say("It wanted the older HELO rather than EHLO. Tell me and I will set that too.");
   }
-  say("If a backend still cannot send on these settings, the difference is its");
-  say("timeouts: this script waited far longer than any of them do.");
   return 0;
 }
 
