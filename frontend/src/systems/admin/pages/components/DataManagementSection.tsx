@@ -12,12 +12,13 @@ const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';
 const fontHeading = "'Montserrat', sans-serif";
 
 const PERIOD_OPTIONS = [
+  { value: 'all', label: 'All Time (No Date Filter)' },
   { value: 'today', label: 'Today' },
   { value: 'week', label: 'This Week' },
   { value: 'month', label: 'This Month' },
   { value: 'last_month', label: 'Last Month' },
   { value: 'year', label: 'This Year' },
-  { value: 'range', label: 'Custom Range' },
+  { value: 'range', label: 'Custom Date Range' },
 ];
 
 const AVAILABLE_COLLECTIONS = [
@@ -180,42 +181,6 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2" style={{ fontFamily: fontHeading }}>
-              Time Range
-            </label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <select
-                value={deletePeriod}
-                onChange={(e) => onDeletePeriodChange(e.target.value)}
-                className="cok-auth-input w-full sm:w-auto"
-                style={{ fontFamily: fontHeading }}
-              >
-                {PERIOD_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-              {deletePeriod === 'range' && (
-                <>
-                  <input
-                    type="date"
-                    value={deleteFrom}
-                    onChange={(e) => onDeleteFromChange(e.target.value)}
-                    className="cok-auth-input w-full sm:w-auto"
-                    style={{ fontFamily: fontHeading }}
-                  />
-                  <input
-                    type="date"
-                    value={deleteTo}
-                    onChange={(e) => onDeleteToChange(e.target.value)}
-                    className="cok-auth-input w-full sm:w-auto"
-                    style={{ fontFamily: fontHeading }}
-                  />
-                </>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2" style={{ fontFamily: fontHeading }}>
               Reason (Optional)
             </label>
             <textarea
@@ -351,8 +316,12 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
           deletePeriod={deletePeriod}
           deleteFrom={deleteFrom}
           deleteTo={deleteTo}
+          onDeletePeriodChange={onDeletePeriodChange}
+          onDeleteFromChange={onDeleteFromChange}
+          onDeleteToChange={onDeleteToChange}
           onConfirm={onConfirmWarnings}
           onCancel={onCancelWarnings}
+          showWarning={showWarning}
         />
       )}
     </div>
@@ -364,8 +333,12 @@ interface DeleteWarningModalProps {
   deletePeriod: string;
   deleteFrom: string;
   deleteTo: string;
+  onDeletePeriodChange: (value: string) => void;
+  onDeleteFromChange: (value: string) => void;
+  onDeleteToChange: (value: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
+  showWarning: (message: string) => void;
 }
 
 const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
@@ -373,16 +346,35 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
   deletePeriod,
   deleteFrom,
   deleteTo,
+  onDeletePeriodChange,
+  onDeleteFromChange,
+  onDeleteToChange,
   onConfirm,
   onCancel,
+  showWarning,
 }) => {
+  const handleConfirm = () => {
+    if (deletePeriod === 'range' && !deleteFrom) {
+      showWarning('Please enter a start date for the custom date range');
+      return;
+    }
+    onConfirm();
+  };
+
+  const periodLabel =
+    deletePeriod === 'all'
+      ? 'All Time (no date filter)'
+      : deletePeriod === 'range'
+        ? deleteFrom ? `${deleteFrom}${deleteTo ? ` to ${deleteTo}` : ' onwards'}` : 'Custom range (no start date set)'
+        : PERIOD_OPTIONS.find(o => o.value === deletePeriod)?.label ?? deletePeriod.replace('_', ' ');
+
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4"
       onClick={onCancel}
     >
       <div
-        className="bg-white w-full max-w-lg max-h-[80vh] overflow-hidden shadow-2xl flex flex-col"
+        className="bg-white w-full max-w-lg max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-3 sm:p-4 border-b bg-gray-50 flex items-center justify-between">
@@ -398,6 +390,7 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
             ✕
           </button>
         </div>
+
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <div className="bg-red-50 border border-red-200 p-4">
             <h4 className="text-sm font-semibold text-red-800 mb-2" style={{ fontFamily: fontHeading }}>
@@ -405,11 +398,54 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
             </h4>
             <ul className="text-xs text-red-700 space-y-1 list-disc list-inside">
               <li>You are about to permanently delete data from <strong>{selectedCollections.length} collection(s)</strong></li>
-              <li>The selected data will be removed for the time range: <strong>{deletePeriod === 'range' ? `${deleteFrom} to ${deleteTo}` : deletePeriod.replace('_', ' ')}</strong></li>
+              <li>The selected data will be removed for the time range: <strong>{periodLabel}</strong></li>
               <li>This operation is irreversible and cannot be recovered</li>
               <li>Related reports and analytics may be affected</li>
               <li>System audit logs will record this deletion</li>
             </ul>
+          </div>
+
+          {/* Date filter — user picks the range right here before confirming */}
+          <div className="border border-[#E0E0E0] p-3 space-y-2">
+            <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide" style={{ fontFamily: fontHeading }}>
+              Date Filter
+            </h4>
+            <div className="flex flex-col gap-2">
+              <select
+                value={deletePeriod}
+                onChange={(e) => onDeletePeriodChange(e.target.value)}
+                className="cok-auth-input w-full"
+                style={{ fontFamily: fontHeading }}
+              >
+                {PERIOD_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              {deletePeriod === 'range' && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">From</label>
+                    <input
+                      type="date"
+                      value={deleteFrom}
+                      onChange={(e) => onDeleteFromChange(e.target.value)}
+                      className="cok-auth-input w-full"
+                      style={{ fontFamily: fontHeading }}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">To (optional)</label>
+                    <input
+                      type="date"
+                      value={deleteTo}
+                      onChange={(e) => onDeleteToChange(e.target.value)}
+                      className="cok-auth-input w-full"
+                      style={{ fontFamily: fontHeading }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="bg-yellow-50 border border-yellow-200 p-4">
@@ -437,21 +473,22 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
             </div>
           </div>
         </div>
+
         <div className="p-3 border-t flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="px-4 py-2 border border-[#056daa] bg-white text-[#056daa] text-sm font-semibold uppercase hover:bg-[#F7F9FB]"
-                style={{ letterSpacing: '1px' }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={onConfirm}
-                className="px-4 py-2 bg-[#E74C3C] text-white text-sm font-semibold uppercase hover:bg-[#C0392B]"
-                style={{ letterSpacing: '1px' }}
-              >
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 border border-[#056daa] bg-white text-[#056daa] text-sm font-semibold uppercase hover:bg-[#F7F9FB]"
+            style={{ letterSpacing: '1px' }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            className="px-4 py-2 bg-[#E74C3C] text-white text-sm font-semibold uppercase hover:bg-[#C0392B]"
+            style={{ letterSpacing: '1px' }}
+          >
             I Understand, Proceed
           </button>
         </div>
