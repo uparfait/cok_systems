@@ -35,7 +35,7 @@ const StorageManagement: React.FC = () => {
 
   const [deleteStep, setDeleteStep] = useState<DeleteStep>('idle');
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
-  const [deletePeriod, setDeletePeriod] = useState<'today' | 'week' | 'month' | 'last_month' | 'year' | 'range'>('month');
+  const [deletePeriod, setDeletePeriod] = useState<'all' | 'today' | 'week' | 'month' | 'last_month' | 'year' | 'range'>('all');
   const [deleteFrom, setDeleteFrom] = useState('');
   const [deleteTo, setDeleteTo] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
@@ -130,7 +130,7 @@ const StorageManagement: React.FC = () => {
   const resetDeleteFlow = () => {
     setDeleteStep('idle');
     setSelectedCollections([]);
-    setDeletePeriod('month');
+    setDeletePeriod('all');
     setDeleteFrom('');
     setDeleteTo('');
     setDeleteReason('');
