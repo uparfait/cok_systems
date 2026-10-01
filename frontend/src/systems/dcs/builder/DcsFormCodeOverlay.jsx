@@ -8,7 +8,7 @@ import { strip_container_labels } from "./stripContainerLabels.js";
 import { resolve_template_placeholders } from "../jsonlogic/resolveTemplates.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
-import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
+import OverlayCloseButton from "../../../core/components/overlay/OverlayCloseButton.tsx";
 import { is_tracking_enabled, normalize_tracking, tracking_payload } from "../tracking/trackingConfig.js";
 
 /**
@@ -130,11 +130,11 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
 
   return (
     <div className="fixed inset-0 z-[10000] flex flex-col" style={{ backgroundColor: "#F7F9FB" }}>
-      <div className="cok-bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0">
-        <span className="text-white font-semibold uppercase tracking-wide text-sm" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+      <div className="bg-white border-b px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0" style={{ borderColor: "#E0E0E0" }}>
+        <span className="text-gray-900 font-semibold uppercase tracking-wide text-sm" style={{ fontFamily: "'Montserrat', sans-serif" }}>
           {translate("DCS_CODE_OVERLAY_TITLE")}
         </span>
-        <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
+        <OverlayCloseButton onClick={onClose} label={translate("DCS_BTN_CLOSE")} />
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 min-[700px]:p-6">
@@ -146,7 +146,7 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
             {allFields.length === 0 ? (
               <p className="text-xs" style={{ color: "#9E9E9E" }}>{translate("DCS_CODE_OVERLAY_NO_FIELDS")}</p>
             ) : (
-              <div className="w-full overflow-x-auto">
+              <div className="cok-table-scroll w-full">
                 <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ backgroundColor: "#F7F9FB" }}>
@@ -260,7 +260,7 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
           </div>
 
           <div className="bg-white border-2 p-4 space-y-3" style={{ borderColor: "#E0E0E0" }}>
-            <label className="cok-auth-label">{translate("DCS_CODE_OVERLAY_PASTE_LABEL")}</label>
+            <label className="cok-auth-label cok-req">{translate("DCS_CODE_OVERLAY_PASTE_LABEL")}</label>
             <textarea
               className="cok-auth-input w-full py-2"
               rows={10}

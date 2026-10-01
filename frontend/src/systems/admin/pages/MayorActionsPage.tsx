@@ -256,73 +256,73 @@ export default function MayorActionsPage() {
           {!error && !loading && filtered.length === 0 && <CokTableEmpty message="No actions found" />}
 
           {paged.length > 0 && (
-            <div className="overflow-x-auto px-4">
-              {/* Same table language as the System Admin reservation list: solid CoK-blue
-                  header, hairline row dividers, avatar initials, soft-tint status chips */}
-              <table className="w-full min-w-[720px]">
-                <thead className="cok-bg-primary sticky top-0 z-10 shadow-sm">
-                  <tr>
-                    {['Action', 'Assigned To', 'Due Date', 'Status'].map((h) => (
-                      <th key={h} className="text-left py-3 px-3 text-xs uppercase tracking-wider font-semibold text-white" style={{ fontFamily: COK.headingFont, letterSpacing: '0.5px' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {paged.map((a) => {
-                    const overdue = isOverdue(a);
-                    const status = a.currentStatus?.status || 'Pending';
-                    const statusColor = STATUS_COLORS[status] || COK.primary;
-                    return (
-                      <tr key={a._id} className="h-14" style={{ borderBottom: `1px solid ${COK.border}` }}>
-                        <td className="py-3 px-3 max-w-xs">
-                          <p style={{ fontFamily: COK.headingFont, fontSize: 13, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
-                            {a.title}
-                          </p>
-                          {a.actionDescription && (
-                            <p className="text-xs text-gray-500 truncate" style={{ margin: '2px 0 0 0', maxWidth: 320 }}>
-                              {a.actionDescription}
+            <div className="px-4">
+              <div className="cok-table-scroll">
+                <table className="w-full min-w-[720px]">
+                  <thead className="cok-bg-primary sticky top-0 z-10 shadow-sm">
+                    <tr>
+                      {['Action', 'Assigned To', 'Due Date', 'Status'].map((h) => (
+                        <th key={h} className="text-left py-3 px-3 text-xs uppercase tracking-wider font-semibold text-white" style={{ fontFamily: COK.headingFont, letterSpacing: '0.5px' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paged.map((a) => {
+                      const overdue = isOverdue(a);
+                      const status = a.currentStatus?.status || 'Pending';
+                      const statusColor = STATUS_COLORS[status] || COK.primary;
+                      return (
+                        <tr key={a._id} className="h-14" style={{ borderBottom: `1px solid ${COK.border}` }}>
+                          <td className="py-3 px-3">
+                            <p style={{ fontFamily: COK.headingFont, fontSize: 13, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
+                              {a.title}
                             </p>
-                          )}
-                        </td>
-                        <td className="py-3 px-3">
-                          {isAssigned(a) ? (
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont }}>
-                                {initialsOf(a.assignedPerson?.name)}
+                            {a.actionDescription && (
+                              <p className="text-xs text-gray-500 truncate" style={{ margin: '2px 0 0 0', maxWidth: 320 }}>
+                                {a.actionDescription}
+                              </p>
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
+                            {isAssigned(a) ? (
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont }}>
+                                  {initialsOf(a.assignedPerson?.name)}
+                                </div>
+                                <div>
+                                  <p className="text-[13px] font-medium" style={{ color: COK.neutralDark, margin: 0 }}>{a.assignedPerson!.name}</p>
+                                  {a.assignedPerson?.email && (
+                                    <p className="text-xs text-gray-400" style={{ margin: 0 }}>{a.assignedPerson.email}</p>
+                                  )}
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-[13px] font-medium" style={{ color: COK.neutralDark, margin: 0 }}>{a.assignedPerson!.name}</p>
-                                {a.assignedPerson?.email && (
-                                  <p className="text-xs text-gray-400" style={{ margin: 0 }}>{a.assignedPerson.email}</p>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400 italic">Unassigned</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 whitespace-nowrap">
-                          <span className="text-[13px] font-medium" style={{ color: overdue ? COK.danger : '#555555' }}>
-                            {a.dueDate
-                              ? new Date(a.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
-                              : '-'}
-                          </span>
-                          {overdue && (
-                            <p className="text-[10px] uppercase" style={{ color: COK.danger, fontFamily: COK.headingFont, fontWeight: 700, margin: 0 }}>
-                              Overdue
-                            </p>
-                          )}
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide" style={{ backgroundColor: tint(statusColor), color: statusColor }}>
-                            {status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">Unassigned</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <span className="text-[13px] font-medium" style={{ color: overdue ? COK.danger : '#555555' }}>
+                              {a.dueDate
+                                ? new Date(a.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+                                : '-'}
+                            </span>
+                            {overdue && (
+                              <p className="text-[10px] uppercase" style={{ color: COK.danger, fontFamily: COK.headingFont, fontWeight: 700, margin: 0 }}>
+                                Overdue
+                              </p>
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide" style={{ backgroundColor: tint(statusColor), color: statusColor }}>
+                              {status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -348,7 +348,7 @@ export default function MayorActionsPage() {
             Actions Overview
           </h3>
           {loading ? (
-            <div className="h-48 flex items-center justify-center text-xs text-gray-400">Loading…</div>
+            <div className="h-48 flex items-center justify-center text-xs text-gray-400">Loading...</div>
           ) : (
             <ActionsDonut
               total={counts.all}

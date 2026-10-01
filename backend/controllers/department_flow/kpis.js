@@ -1,13 +1,15 @@
-
 const ServiceDelivery = require('../../models/service_delivery.js');
 const Feedback = require('../../models/feedback_db.js');
 const Department = require('../../models/department.js');
 const Task = require('../../models/task.js');
 const User = require('../../models/user.js');
-const { getDepartmentIdsForHead } = require('./visitors_by_status');
+const { sendError } = require('../../utilities/visitors');
+const { visitScopeFor, assignedTo, statusFilter, noDepartments } = require('./visitors_by_status');
 
 // Kigali is UTC+2; mirrors the timezone shim used by the global statistics controller
 const TZ_OFFSET_MS = 2 * 60 * 60 * 1000;
+
+const OBJECT_ID = /^[0-9a-fA-F]{24}$/;
 
 const parseRange = (from, to) => {
     let fromDate = from ? new Date(from) : null;
@@ -19,27 +21,81 @@ const parseRange = (from, to) => {
     return { fromDate, toDate };
 };
 
+/** Math.round for a numeric expression (MongoDB $round rounds halves to even). */
+const roundExpr = (expr) => ({ $floor: { $add: [expr, 0.5] } });
+
+/**
+ * Finished service timers (durations.services_durations, closed for
+ * completed and transferred services alike) of the given departments in the
+ * matched visits, as { d: timer, minutes } with minutes > 0.
+ */
+const finishedTimers = (match, departmentIds) => ([
+    { $match: match },
+    { $unwind: '$durations.services_durations' },
+    { $project: { d: '$durations.services_durations' } },
+    { $match: { 'd.department_id': { $in: departmentIds }, 'd.started_at': { $type: 'date' }, 'd.ended_at': { $type: 'date' } } },
+    { $addFields: { minutes: roundExpr({ $divide: [{ $subtract: ['$d.ended_at', '$d.started_at'] }, 60000] }) } },
+    { $match: { minutes: { $gt: 0 } } },
+]);
+
+/** Average, longest and shortest service per department, slowest first. */
+const serviceTimesPipeline = (match, departmentIds) => ([
+    ...finishedTimers(match, departmentIds),
+    {
+        $group: {
+            _id: '$d.department_id',
+            department_name: { $first: '$d.department_name' },
+            avg: { $avg: '$minutes' },
+            max_minutes: { $max: '$minutes' },
+            min_minutes: { $min: '$minutes' },
+            total_cases: { $sum: 1 }
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            department_name: { $cond: [{ $eq: [{ $ifNull: ['$department_name', ''] }, ''] }, 'Unknown', '$department_name'] },
+            avg_minutes: roundExpr('$avg'),
+            max_minutes: 1,
+            min_minutes: 1,
+            total_cases: 1
+        }
+    },
+    {
+        $addFields: {
+            status: {
+                $switch: {
+                    branches: [
+                        { case: { $gt: ['$avg_minutes', 60] }, then: 'Critical' },
+                        { case: { $gt: ['$avg_minutes', 30] }, then: 'Moderate' }
+                    ],
+                    default: 'Normal'
+                }
+            }
+        }
+    },
+    { $sort: { avg_minutes: -1 } }
+]);
+
+const departmentsOf = (departmentIds, fields) => Department.find({ _id: { $in: departmentIds.filter((id) => OBJECT_ID.test(id)) } })
+    .select(fields)
+    .lean();
+
 /**
  * GET /department-manager/analytics/kpis?from=&to=
  * Departmental KPI dashboard data, scoped to the departments the authenticated
  * head of department manages. Parking data is intentionally excluded (it has no department).
+ * Visitor statuses are decided on the managed departments' own service
+ * entries; a transferred entry counts as finished (completed) for that department.
  */
 const getDepartmentKpis = async (req, res, next) => {
     try {
-        const departmentIds = await getDepartmentIdsForHead(req.user.userId);
-        if (departmentIds.length === 0) {
-            return res.status(403).json({
-                success: false,
-                type: 'error',
-                message: 'No departments found for this user'
-            });
-        }
+        const departmentIds = await visitScopeFor(req);
+        if (departmentIds.length === 0) return noDepartments(res);
 
         const { fromDate, toDate } = parseRange(req.query.from, req.query.to);
 
-        const deptFilter = {
-            departments_assigned: { $elemMatch: { department_id: { $in: departmentIds } } }
-        };
+        const deptFilter = assignedTo(departmentIds);
 
         const dateFilter = {};
         if (fromDate || toDate) {
@@ -49,14 +105,15 @@ const getDepartmentKpis = async (req, res, next) => {
         }
 
         const baseFilter = { ...deptFilter, ...dateFilter };
+        const countStatus = (status) => ServiceDelivery.countDocuments({ ...baseFilter, ...statusFilter(status, departmentIds) });
 
         // ---- Visitor counts by status (same status semantics as visitors_by_status) ----
         const [total, pending, active, transferred, completed] = await Promise.all([
             ServiceDelivery.countDocuments(baseFilter),
-            ServiceDelivery.countDocuments({ ...baseFilter, 'services_status.s_type': { $in: ['Not started'] }, is_still_inhouse: true }),
-            ServiceDelivery.countDocuments({ ...baseFilter, 'services_status.s_type': { $in: ['Inprogress'] }, is_being_served: true, is_still_inhouse: true }),
-            ServiceDelivery.countDocuments({ ...baseFilter, 'services_status.s_type': { $in: ['Transfered', 'Transferred'] }, is_still_inhouse: true }),
-            ServiceDelivery.countDocuments({ ...baseFilter, 'services_status.s_type': { $in: ['Completed'] } })
+            countStatus('pending'),
+            countStatus('active'),
+            countStatus('transferred'),
+            countStatus('completed')
         ]);
 
         // ---- Daily visitors over the selected range (default: last 30 days) ----
@@ -88,42 +145,7 @@ const getDepartmentKpis = async (req, res, next) => {
         }));
 
         // ---- Waiting/service time for the managed departments ----
-        const serviceRecords = await ServiceDelivery.find(baseFilter)
-            .select('departments_assigned durations entry_date');
-
-        const waitingByDept = {};
-        const idSet = new Set(departmentIds);
-
-        serviceRecords.forEach(record => {
-            (record.durations?.services_durations || []).forEach(duration => {
-                if (!idSet.has(duration.department_id)) return;
-                if (!duration.started_at || !duration.ended_at) return;
-
-                const minutes = Math.round((new Date(duration.ended_at) - new Date(duration.started_at)) / 60000);
-                if (minutes <= 0) return;
-
-                const key = duration.department_id;
-                if (!waitingByDept[key]) {
-                    waitingByDept[key] = { department_name: duration.department_name || 'Unknown', times: [] };
-                }
-                waitingByDept[key].times.push(minutes);
-            });
-        });
-
-        const service_times = Object.values(waitingByDept).map(dept => {
-            const avg = Math.round(dept.times.reduce((s, t) => s + t, 0) / dept.times.length);
-            let status = 'Normal';
-            if (avg > 60) status = 'Critical';
-            else if (avg > 30) status = 'Moderate';
-            return {
-                department_name: dept.department_name,
-                avg_minutes: avg,
-                max_minutes: Math.max(...dept.times),
-                min_minutes: Math.min(...dept.times),
-                total_cases: dept.times.length,
-                status
-            };
-        }).sort((a, b) => b.avg_minutes - a.avg_minutes);
+        const service_times = await ServiceDelivery.aggregate(serviceTimesPipeline(baseFilter, departmentIds));
 
         // ---- Feedback (scoped to the managed departments) ----
         const feedbackFilter = { department_id: { $in: departmentIds } };
@@ -152,8 +174,11 @@ const getDepartmentKpis = async (req, res, next) => {
         ]);
 
         // ---- Team & task summary ----
-        const members = await User.find({ department: { $in: departmentIds } }).select('_id is_active');
-        const memberIds = members.map(m => m._id);
+        const memberFilter = { department: { $in: departmentIds.filter((id) => OBJECT_ID.test(id)) } };
+        const [memberIds, activeMembers] = await Promise.all([
+            User.distinct('_id', memberFilter),
+            User.countDocuments({ ...memberFilter, is_active: true })
+        ]);
 
         const taskAgg = memberIds.length > 0 ? await Task.aggregate([
             { $match: { incharge: { $in: memberIds } } },
@@ -165,8 +190,7 @@ const getDepartmentKpis = async (req, res, next) => {
             tasks.total += t.count;
         });
 
-        const departments = await Department.find({ _id: { $in: departmentIds } })
-            .select('name department_response_time_in_minutes total_employees');
+        const departments = await departmentsOf(departmentIds, 'department_name department_response_time_in_minutes total_employees');
 
         return res.status(200).json({
             success: true,
@@ -175,7 +199,8 @@ const getDepartmentKpis = async (req, res, next) => {
             data: {
                 departments: departments.map(d => ({
                     _id: d._id,
-                    name: d.name,
+                    name: d.department_name,
+                    department_name: d.department_name,
                     response_time_target_minutes: d.department_response_time_in_minutes || 0
                 })),
                 visitors: { total, pending, active, transferred, completed },
@@ -189,21 +214,15 @@ const getDepartmentKpis = async (req, res, next) => {
                     rating_distribution: ratingDistribution.map(r => ({ rating: r._id, count: r.count }))
                 },
                 team: {
-                    total_members: members.length,
-                    active_members: members.filter(m => m.is_active).length,
+                    total_members: memberIds.length,
+                    active_members: activeMembers,
                     tasks
                 }
             }
         });
 
     } catch (error) {
-        console.error('Error in getDepartmentKpis:', error);
-        return res.status(500).json({
-            success: false,
-            type: 'error',
-            message: 'Something went wrong while retrieving department KPIs',
-            error: error.message
-        });
+        return sendError(res, error, 'Something went wrong while retrieving department KPIs');
     }
 };
 
@@ -213,44 +232,26 @@ const getDepartmentKpis = async (req, res, next) => {
  */
 const getResponseTimeAnalytics = async (req, res, next) => {
     try {
-        const departmentIds = await getDepartmentIdsForHead(req.user.userId);
-        if (departmentIds.length === 0) {
-            return res.status(403).json({
-                success: false,
-                type: 'error',
-                message: 'No departments found for this user'
-            });
-        }
+        const departmentIds = await visitScopeFor(req);
+        if (departmentIds.length === 0) return noDepartments(res);
 
         const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-        const idSet = new Set(departmentIds);
 
-        const records = await ServiceDelivery.find({
-            departments_assigned: { $elemMatch: { department_id: { $in: departmentIds } } },
-            entry_date: { $gte: since }
-        }).select('durations entry_date');
-
-        const byDay = {};
-        records.forEach(record => {
-            (record.durations?.services_durations || []).forEach(duration => {
-                if (!idSet.has(duration.department_id)) return;
-                if (!duration.started_at || !duration.ended_at) return;
-                const minutes = Math.round((new Date(duration.ended_at) - new Date(duration.started_at)) / 60000);
-                if (minutes <= 0) return;
-                const day = new Date(new Date(duration.started_at).getTime() + TZ_OFFSET_MS).toISOString().slice(0, 10);
-                if (!byDay[day]) byDay[day] = [];
-                byDay[day].push(minutes);
-            });
-        });
-
-        const series = Object.keys(byDay).sort().map(day => ({
-            date: day,
-            avg_minutes: Math.round(byDay[day].reduce((s, t) => s + t, 0) / byDay[day].length),
-            cases: byDay[day].length
-        }));
-
-        const departments = await Department.find({ _id: { $in: departmentIds } })
-            .select('name department_response_time_in_minutes');
+        const [series, departments] = await Promise.all([
+            ServiceDelivery.aggregate([
+                ...finishedTimers({ ...assignedTo(departmentIds), entry_date: { $gte: since } }, departmentIds),
+                {
+                    $group: {
+                        _id: { $dateToString: { format: '%Y-%m-%d', date: { $add: ['$d.started_at', TZ_OFFSET_MS] } } },
+                        avg: { $avg: '$minutes' },
+                        cases: { $sum: 1 }
+                    }
+                },
+                { $sort: { _id: 1 } },
+                { $project: { _id: 0, date: '$_id', avg_minutes: roundExpr('$avg'), cases: 1 } }
+            ]),
+            departmentsOf(departmentIds, 'department_name department_response_time_in_minutes')
+        ]);
 
         return res.status(200).json({
             success: true,
@@ -258,7 +259,7 @@ const getResponseTimeAnalytics = async (req, res, next) => {
             message: 'Response time analytics retrieved successfully',
             data: {
                 targets: departments.map(d => ({
-                    department_name: d.name,
+                    department_name: d.department_name,
                     target_minutes: d.department_response_time_in_minutes || 0
                 })),
                 series
@@ -266,13 +267,7 @@ const getResponseTimeAnalytics = async (req, res, next) => {
         });
 
     } catch (error) {
-        console.error('Error in getResponseTimeAnalytics:', error);
-        return res.status(500).json({
-            success: false,
-            type: 'error',
-            message: 'Something went wrong while retrieving response time analytics',
-            error: error.message
-        });
+        return sendError(res, error, 'Something went wrong while retrieving response time analytics');
     }
 };
 

@@ -6,6 +6,7 @@ import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import Table from '../../../core/components/Table';
 import EmployeeDetailsModal from '../components/EmployeeDetailsModal';
+import OverlayShell from '../../../core/components/overlay/OverlayShell';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { FiSearch, FiLock, FiUnlock, FiLoader, FiRefreshCw, FiUsers, FiMail, FiPhone, FiCheck, FiX, FiAlertCircle, FiUser, FiAlertTriangle, FiShield } from 'react-icons/fi';
 
@@ -215,8 +216,8 @@ const UserManagementPage: React.FC = () => {
                     <FiUser className="w-4 h-4 text-[#056daa]" />
                   </div>
                   <div className="ml-3 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 whitespace-nowrap truncate max-w-[200px]" title={u.full_name}>{u.full_name || 'N/A'}</div>
-                    <div className="text-xs text-gray-500 flex items-center gap-1 whitespace-nowrap truncate max-w-[220px]" title={u.email}>
+                    <div className="text-sm font-medium text-gray-900 whitespace-nowrap" title={u.full_name}>{u.full_name || 'N/A'}</div>
+                    <div className="text-xs text-gray-500 flex items-center gap-1 whitespace-nowrap" title={u.email}>
                       <FiMail className="w-3 h-3 shrink-0" />
                       {u.email || 'N/A'}
                     </div>
@@ -229,7 +230,7 @@ const UserManagementPage: React.FC = () => {
                   </div>
                 </div>
               );
-              case 'department': return <span className="text-sm text-gray-900 whitespace-nowrap truncate max-w-[180px] inline-block align-middle" title={u.department_name}>{u.department_name || (typeof u.department === 'object' ? (u.department as any)?.department_name : 'N/A')}</span>;
+              case 'department': return <span className="text-sm text-gray-900 whitespace-nowrap inline-block align-middle" title={u.department_name}>{u.department_name || (typeof u.department === 'object' ? (u.department as any)?.department_name : 'N/A')}</span>;
               case 'activation': return u.is_account_activated ? (
                 <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium whitespace-nowrap bg-[rgba(76,175,80,0.12)] text-[#388E3C]"><FiCheck className="w-3 h-3 mr-1" />Activated</span>
               ) : (
@@ -305,223 +306,150 @@ const UserManagementPage: React.FC = () => {
         )}
 
         {showLockModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div 
-              className="absolute inset-0 bg-black/50" 
-              onClick={() => { setShowLockModal(false); setSelectedUser(null); setLockReason(''); }} 
-            />
-            <div className="relative bg-white shadow-2xl w-full max-w-md mx-4">
-              <div className="flex items-center justify-between p-3 border-b">
-                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                  <FiLock className="w-4 h-4 text-[#E74C3C]" />
-                  Lock User Account
-                </h3>
-                <button 
-                  onClick={() => { setShowLockModal(false); setSelectedUser(null); setLockReason(''); }}
-                  disabled={actionLoading}
-                  className="p-1 hover:bg-gray-100 disabled:opacity-50"
-                >
-                  <FiX className="w-4 h-4 text-gray-500" />
-                </button>
-              </div>
-              <div className="p-4">
-                <div className="mx-auto w-12 h-12 bg-[rgba(231,76,60,0.12)] flex items-center justify-center mb-3">
-                  <FiAlertTriangle className="w-6 h-6 text-[#E74C3C]" />
-                </div>
-                <p className="text-sm text-gray-600 mb-3">
-                  Lock account for <span className="font-semibold text-gray-900">{selectedUser?.full_name || selectedUser?.email}</span>?
-                </p>
-                <div className="mb-4">
-                  <label className="text-xs font-medium text-gray-700 mb-1 block">
-                    Reason <span className="text-[#E74C3C]">*</span>
-                  </label>
-                  <textarea 
-                    value={lockReason} 
-                    onChange={e => setLockReason(e.target.value)} 
-                    placeholder="Enter reason..." 
-                    rows={2} 
-                    className="cok-auth-input w-full text-sm resize-none"
-                    style={{ paddingLeft: '12px', minHeight: '90px' }}
-                    disabled={actionLoading}
-                  />
-                  <p className="text-xs text-gray-500 mt-0.5">Visible to user on login</p>
-                </div>
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => { setShowLockModal(false); setSelectedUser(null); setLockReason(''); }}
-                    disabled={actionLoading}
-                    className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center gap-1"
-                  >
-                    <FiX className="w-3.5 h-3.5" />
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleLock} 
-                    disabled={actionLoading || !lockReason.trim()}
-                    className="flex-1 px-3 py-2 bg-[#E74C3C] hover:bg-[#C0392B] text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1 uppercase tracking-[1px]"
-                  >
-                    {actionLoading ? (
-                      <>
-                        <FiLoader className="w-3.5 h-3.5 text-white animate-spin" />
-                        Locking...
-                      </>
-                    ) : (
-                      <>
-                        <FiLock className="w-3.5 h-3.5" />
-                        Lock
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
+          <OverlayShell
+            title={<span className="inline-flex items-center gap-2"><FiLock className="w-4 h-4 text-[#E74C3C] shrink-0" />Lock User Account</span>}
+            onClose={() => { setShowLockModal(false); setSelectedUser(null); setLockReason(''); }}
+            busy={actionLoading}
+            width="sm"
+          >
+            <div className="mx-auto w-12 h-12 bg-[rgba(231,76,60,0.12)] flex items-center justify-center mb-3">
+              <FiAlertTriangle className="w-6 h-6 text-[#E74C3C]" />
             </div>
-          </div>
+            <p className="text-sm text-gray-600 mb-3">
+              Lock account for <span className="font-semibold text-gray-900">{selectedUser?.full_name || selectedUser?.email}</span>?
+            </p>
+            <div className="mb-4">
+              <label className="text-xs font-medium text-gray-700 mb-1 block cok-req">
+                Reason
+              </label>
+              <textarea
+                value={lockReason}
+                onChange={e => setLockReason(e.target.value)}
+                placeholder="Enter reason..."
+                rows={2}
+                className="cok-auth-input w-full text-sm resize-none"
+                style={{ paddingLeft: '12px', minHeight: '90px' }}
+                disabled={actionLoading}
+              />
+              <p className="text-xs text-gray-500 mt-0.5">Visible to user on login</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleLock}
+                disabled={actionLoading || !lockReason.trim()}
+                className="flex-1 px-3 py-2 bg-[#E74C3C] hover:bg-[#C0392B] text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1 uppercase tracking-[1px]"
+              >
+                {actionLoading ? (
+                  <>
+                    <FiLoader className="w-3.5 h-3.5 text-white animate-spin" />
+                    Locking...
+                  </>
+                ) : (
+                  <>
+                    <FiLock className="w-3.5 h-3.5" />
+                    Lock
+                  </>
+                )}
+              </button>
+            </div>
+          </OverlayShell>
         )}
 
-        <ConfirmModal 
-          isOpen={showUnlockModal} 
-          onCancel={() => { setShowUnlockModal(false); setSelectedUser(null); }} 
-          onConfirm={handleUnlock} 
-          title="Unlock User Account" 
-          message={`Unlock account for ${selectedUser?.full_name || selectedUser?.email}?`} 
-          confirmText={actionLoading ? 'Unlocking...' : 'Unlock Account'} 
-          cancelText="Cancel" 
-          type="info" 
-          isLoading={actionLoading} 
+        <ConfirmModal
+          isOpen={showUnlockModal}
+          onCancel={() => { setShowUnlockModal(false); setSelectedUser(null); }}
+          onConfirm={handleUnlock}
+          title="Unlock User Account"
+          message={`Unlock account for ${selectedUser?.full_name || selectedUser?.email}?`}
+          confirmText={actionLoading ? 'Unlocking...' : 'Unlock Account'}
+          type="info"
+          isLoading={actionLoading}
         />
 
         {show2FAModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div 
-              className="absolute inset-0 bg-black/50" 
-              onClick={() => { setShow2FAModal(false); setSelectedUser(null); }} 
-            />
-            <div className="relative bg-white shadow-2xl w-full max-w-md mx-4">
-              <div className="flex items-center justify-between p-3 border-b">
-                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                  <FiShield className="w-4 h-4 text-[#056daa]" />
-                  {selectedUser?.is_2FA_disabled ? 'Enable' : 'Disable'} Two-Factor Authentication
-                </h3>
-                <button 
-                  onClick={() => { setShow2FAModal(false); setSelectedUser(null); }}
-                  disabled={is2FAToggling}
-                  className="p-1 hover:bg-gray-100 disabled:opacity-50"
-                >
-                  <FiX className="w-4 h-4 text-gray-500" />
-                </button>
-              </div>
-              <div className="p-4">
-                <div className="mx-auto w-12 h-12 bg-[rgba(5,109,170,0.1)] flex items-center justify-center mb-3">
-                  <FiShield className="w-6 h-6 text-[#056daa]" />
-                </div>
-                <p className="text-sm text-gray-600 mb-3">
-                  {selectedUser?.is_2FA_disabled 
-                    ? `Enable 2FA for ${selectedUser?.full_name || selectedUser?.email}? The user will be required to enter a TOTP code on login.`
-                    : `Disable 2FA for ${selectedUser?.full_name || selectedUser?.email}? The user will be able to login with just email and password.`
-                  }
-                </p>
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => { setShow2FAModal(false); setSelectedUser(null); }}
-                    disabled={is2FAToggling}
-                    className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center gap-1"
-                  >
-                    <FiX className="w-3.5 h-3.5" />
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleToggle2FA}
-                    disabled={is2FAToggling}
-                    className={`flex-1 px-3 py-2 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1 uppercase tracking-[1px] ${
-                      selectedUser?.is_2FA_disabled
-                        ? 'bg-[#4CAF50] hover:bg-[#388E3C]'
-                        : 'bg-[#E74C3C] hover:bg-[#C0392B]'
-                    }`}
-                  >
-                    {is2FAToggling ? (
+          <OverlayShell
+            title={<span className="inline-flex items-center gap-2"><FiShield className="w-4 h-4 text-[#056daa] shrink-0" />{selectedUser?.is_2FA_disabled ? 'Enable' : 'Disable'} Two-Factor Authentication</span>}
+            onClose={() => { setShow2FAModal(false); setSelectedUser(null); }}
+            busy={is2FAToggling}
+            width="sm"
+          >
+            <div className="mx-auto w-12 h-12 bg-[rgba(5,109,170,0.1)] flex items-center justify-center mb-3">
+              <FiShield className="w-6 h-6 text-[#056daa]" />
+            </div>
+            <p className="text-sm text-gray-600 mb-3">
+              {selectedUser?.is_2FA_disabled
+                ? `Enable 2FA for ${selectedUser?.full_name || selectedUser?.email}? The user will be required to enter a TOTP code on login.`
+                : `Disable 2FA for ${selectedUser?.full_name || selectedUser?.email}? The user will be able to login with just email and password.`
+              }
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleToggle2FA}
+                disabled={is2FAToggling}
+                className={`flex-1 px-3 py-2 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1 uppercase tracking-[1px] ${
+                  selectedUser?.is_2FA_disabled
+                    ? 'bg-[#4CAF50] hover:bg-[#388E3C]'
+                    : 'bg-[#E74C3C] hover:bg-[#C0392B]'
+                }`}
+              >
+                {is2FAToggling ? (
+                  <>
+                    <FiLoader className="w-3.5 h-3.5 text-white animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    {selectedUser?.is_2FA_disabled ? (
                       <>
-                        <FiLoader className="w-3.5 h-3.5 text-white animate-spin" />
-                        Processing...
+                        <FiShield className="w-3.5 h-3.5" />
+                        Enable 2FA
                       </>
                     ) : (
                       <>
-                        {selectedUser?.is_2FA_disabled ? (
-                          <>
-                            <FiShield className="w-3.5 h-3.5" />
-                            Enable 2FA
-                          </>
-                        ) : (
-                          <>
-                            <FiShield className="w-3.5 h-3.5" />
-                            Disable 2FA
-                          </>
-                        )}
+                        <FiShield className="w-3.5 h-3.5" />
+                        Disable 2FA
                       </>
                     )}
-                  </button>
-                </div>
-              </div>
+                  </>
+                )}
+              </button>
             </div>
-          </div>
+          </OverlayShell>
         )}
 
         {showReset2FAModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div 
-              className="absolute inset-0 bg-black/50" 
-              onClick={() => { setShowReset2FAModal(false); setSelectedUser(null); }} 
-            />
-            <div className="relative bg-white shadow-2xl w-full max-w-md mx-4">
-              <div className="flex items-center justify-between p-3 border-b">
-                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                  <FiRefreshCw className="w-4 h-4 text-[#F39C12]" />
-                  Reset Two-Factor Authentication
-                </h3>
-                <button 
-                  onClick={() => { setShowReset2FAModal(false); setSelectedUser(null); }}
-                  disabled={isReset2FALoading}
-                  className="p-1 hover:bg-gray-100 disabled:opacity-50"
-                >
-                  <FiX className="w-4 h-4 text-gray-500" />
-                </button>
-              </div>
-              <div className="p-4">
-                <div className="mx-auto w-12 h-12 bg-[rgba(243,156,18,0.12)] flex items-center justify-center mb-3">
-                  <FiRefreshCw className="w-6 h-6 text-[#F39C12]" />
-                </div>
-                <p className="text-sm text-gray-600 mb-3">
-                  Reset 2FA for <span className="font-semibold text-gray-900">{selectedUser?.full_name || selectedUser?.email}</span>? The user will need to set up 2FA again on next login.
-                </p>
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => { setShowReset2FAModal(false); setSelectedUser(null); }}
-                    disabled={isReset2FALoading}
-                    className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center gap-1"
-                  >
-                    <FiX className="w-3.5 h-3.5" />
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleReset2FA}
-                    disabled={isReset2FALoading}
-                    className="flex-1 px-3 py-2 bg-[#F39C12] hover:bg-[#D68910] text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1 uppercase tracking-[1px]"
-                  >
-                    {isReset2FALoading ? (
-                      <>
-                        <FiLoader className="w-3.5 h-3.5 text-white animate-spin" />
-                        Resetting...
-                      </>
-                    ) : (
-                      <>
-                        <FiRefreshCw className="w-3.5 h-3.5" />
-                        Reset 2FA
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
+          <OverlayShell
+            title={<span className="inline-flex items-center gap-2"><FiRefreshCw className="w-4 h-4 text-[#F39C12] shrink-0" />Reset Two-Factor Authentication</span>}
+            onClose={() => { setShowReset2FAModal(false); setSelectedUser(null); }}
+            busy={isReset2FALoading}
+            width="sm"
+          >
+            <div className="mx-auto w-12 h-12 bg-[rgba(243,156,18,0.12)] flex items-center justify-center mb-3">
+              <FiRefreshCw className="w-6 h-6 text-[#F39C12]" />
             </div>
-          </div>
+            <p className="text-sm text-gray-600 mb-3">
+              Reset 2FA for <span className="font-semibold text-gray-900">{selectedUser?.full_name || selectedUser?.email}</span>? The user will need to set up 2FA again on next login.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleReset2FA}
+                disabled={isReset2FALoading}
+                className="flex-1 px-3 py-2 bg-[#F39C12] hover:bg-[#D68910] text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1 uppercase tracking-[1px]"
+              >
+                {isReset2FALoading ? (
+                  <>
+                    <FiLoader className="w-3.5 h-3.5 text-white animate-spin" />
+                    Resetting...
+                  </>
+                ) : (
+                  <>
+                    <FiRefreshCw className="w-3.5 h-3.5" />
+                    Reset 2FA
+                  </>
+                )}
+              </button>
+            </div>
+          </OverlayShell>
         )}
       </div>
     </MainLayout>

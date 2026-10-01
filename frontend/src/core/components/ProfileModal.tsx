@@ -1,12 +1,7 @@
-// ProfileModal - Profile modal opened from Header profile button
-// Design matches EmployeeVisitorsTab/ServiceHistoryTab style
-// Only allows password changes - no profile editing
-// All messages and errors shown via toast (error uses error.message)
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   FiUser, FiMail, FiPhone, FiCalendar, FiShield,   FiLock, FiEye, FiEyeOff,
-  FiX, FiBriefcase, FiBell, FiEdit3, FiUploadCloud, FiAlertTriangle
+  FiBriefcase, FiBell, FiEdit3, FiUploadCloud, FiAlertTriangle
 } from "react-icons/fi";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { useAuth } from "../../core/contexts/AuthContext";
@@ -17,6 +12,7 @@ import {
 } from "../../core/services/authService";
 import { getSubscriptionStatus, subscribeToPush, unsubscribeFromPush } from "../../core/services/webPushService";
 import SignaturePad from "./SignaturePad.jsx";
+import OverlayShell from "./overlay/OverlayShell";
 
 const PRIMARY = "#056daa";
 const NEUTRAL_LIGHT = "#F7F9FB";
@@ -26,22 +22,17 @@ const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
-// Backend cap for the stored signature PNG
 const MAX_SIGNATURE_IMAGE_BYTES = 200000;
 
-// Decoded size of a base64 data URL, used to apply the PNG cap to drawn signatures too
 const dataUrlByteSize = (dataUrl: string) => {
   const base64 = dataUrl.split(',')[1] || '';
   const padding = (base64.match(/=+$/) || [''])[0].length;
   return Math.floor((base64.length * 3) / 4) - padding;
 };
 
-// Default brightness (0-255) above which an uploaded pixel counts as paper and is made transparent
 const DEFAULT_BACKGROUND_THRESHOLD = 200;
-// Pixels this far below the threshold fade out gradually so ink edges stay smooth
 const BACKGROUND_FADE_BAND = 40;
 
-// Redraws an uploaded signature PNG with light background pixels made transparent
 const removeSignatureBackground = (dataUrl: string, threshold: number): Promise<string> =>
   new Promise((resolve, reject) => {
     const img = new Image();
@@ -69,8 +60,6 @@ const removeSignatureBackground = (dataUrl: string, threshold: number): Promise<
     img.onerror = () => reject(new Error('Could not decode the selected image'));
     img.src = dataUrl;
   });
-
-// Mirrors backend namesMatch: case, punctuation and word order are ignored
 
 interface UserProfile {
   _id: string;
@@ -143,14 +132,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [padKey, setPadKey] = useState(0);
   const [savingSignature, setSavingSignature] = useState(false);
   const [removingSignature, setRemovingSignature] = useState(false);
-  // Uploaded PNG awaiting confirmation, with its background-cleaned preview
   const [pendingUpload, setPendingUpload] = useState('');
   const [pendingPreview, setPendingPreview] = useState('');
   const [transparentBackground, setTransparentBackground] = useState(true);
   const [backgroundThreshold, setBackgroundThreshold] = useState(DEFAULT_BACKGROUND_THRESHOLD);
   const signatureInputRef = useRef<HTMLInputElement>(null);
 
-  // Role display name mapping
   const roleNames: { [key: string]: string } = {
     'system_admin': 'System Administrator',
     'department_admin': 'Department Admin',
@@ -301,7 +288,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // silent refreshes keep the cards on screen instead of flashing the spinner
   const loadSigningProfile = useCallback(async (silent = false) => {
     if (!silent) setSigningLoading(true);
     try {
@@ -333,7 +319,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     setPadKey((k) => k + 1);
   };
 
-  // Rebuild the preview whenever the upload, the toggle or the threshold changes
   useEffect(() => {
     if (!pendingUpload) return;
     if (!transparentBackground) {
@@ -351,7 +336,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     return () => { cancelled = true; };
   }, [pendingUpload, transparentBackground, backgroundThreshold, showError]);
 
-  // The password must not linger in state once the modal is closed
   useEffect(() => {
     if (!isOpen) resetSignatureEditors();
   }, [isOpen]);
@@ -404,7 +388,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       return;
     }
     const reader = new FileReader();
-    // Show the cleaned preview first; saving happens when the user confirms
     reader.onload = () => {
       setTransparentBackground(true);
       setBackgroundThreshold(DEFAULT_BACKGROUND_THRESHOLD);
@@ -500,33 +483,24 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const btnTypography: React.CSSProperties = { fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' };
+  const busy = isChangingPassword || savingSignature || removingSignature || accountNotifLoading || notificationLoading;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center cok-logout-overlay">
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl flex flex-col" style={{ borderRadius: 0 }}>
-        {/* Primary color header */}
-        <div className="sticky top-0 z-20 cok-bg-primary px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm bg-white/30" >
-              {getInitials(displayName)}
-            </div>
-            <h2 className="text-white font-bold text-lg sm:text-xl uppercase tracking-wide" style={{
-              fontFamily: fontHeading,
-              letterSpacing: '1px',
-            }}>
-              Profile
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="cok-btn-outlined-reverse"
-            style={{ padding: '0.4rem 0.8rem' }}
-          >
-            <FiX className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Tabs */}
+    <OverlayShell
+      title={
+        <span className="flex items-center gap-3">
+          <span className="w-8 h-8 rounded-full flex items-center justify-center text-gray-700 font-semibold text-sm bg-gray-100 flex-shrink-0">
+            {getInitials(displayName)}
+          </span>
+          <span>Profile</span>
+        </span>
+      }
+      onClose={onClose}
+      busy={busy}
+      width="lg"
+      zIndex={10000}
+      closeOnBackdrop={false}
+      headerExtra={
         <div className="border-b" style={{ borderColor: BORDER }}>
           <nav className="flex overflow-x-auto">
             <button
@@ -579,19 +553,16 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
              </button>
           </nav>
         </div>
-
-        {/* Content */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+      }
+    >
           {fetching ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-8 h-8 border-2 border-[#056daa] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
             <>
-              {/* Profile Tab - Read-only info cards */}
               {activeTab === 'profile' && (
                 <div className="space-y-4">
-                  {/* Header with avatar */}
                   <div className="flex items-center gap-6 pb-4 border-b" style={{ borderColor: BORDER }}>
                      <div className="relative">
                     <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold" style={{ backgroundColor: getAvatarColor(displayName), borderRadius: '9999px' }}>
@@ -607,7 +578,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     </div>
                   </div>
 
-                  {/* Info Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-4 cok-bg-primary" style={{ backgroundColor: 'rgba(5,109,170,0.04)', borderRadius: 0 }}>
                       <div className="flex items-center gap-3 mb-1">
@@ -660,12 +630,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                 </div>
               )}
 
-              {/* Security Tab */}
               {activeTab === 'security' && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Security Settings</h3>
 
-                  {/* Change Password Section */}
                   <div className="border" style={{ borderColor: BORDER, backgroundColor: 'rgba(5,109,170,0.02)', borderRadius: 0 }}>
                     <div
                       className="px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center cursor-pointer hover:bg-[rgba(5,109,170,0.04)]"
@@ -689,10 +657,9 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
 
                     {showPasswordForm && (
                       <div className="p-4 sm:p-6 border-t" style={{ borderColor: BORDER }}>
-                        {/* Current Password */}
                         <div className="mb-4">
-                          <label className="block text-xs font-semibold uppercase mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, letterSpacing: '0.5px' }}>
-                            Current Password *
+                          <label className="block text-xs font-semibold uppercase mb-1 cok-req" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, letterSpacing: '0.5px' }}>
+                            Current Password
                           </label>
                           <div className="relative">
                             <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -714,10 +681,9 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                           </div>
                         </div>
 
-                        {/* New Password */}
                         <div className="mb-4">
-                          <label className="block text-xs font-semibold uppercase mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, letterSpacing: '0.5px' }}>
-                            New Password *
+                          <label className="block text-xs font-semibold uppercase mb-1 cok-req" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, letterSpacing: '0.5px' }}>
+                            New Password
                           </label>
                           <div className="relative">
                             <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -746,7 +712,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                             </button>
                           </div>
 
-                          {/* Real-time validation feedback */}
                           {passwordData.newPassword && (
                             <div className="mt-2 space-y-1">
                               {[
@@ -767,10 +732,9 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                           )}
                         </div>
 
-                        {/* Confirm Password */}
                         <div className="mb-4">
-                          <label className="block text-xs font-semibold uppercase mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, letterSpacing: '0.5px' }}>
-                            Confirm New Password *
+                          <label className="block text-xs font-semibold uppercase mb-1 cok-req" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, letterSpacing: '0.5px' }}>
+                            Confirm New Password
                           </label>
                           <div className="relative">
                             <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -791,7 +755,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                             </button>
                           </div>
 
-                          {/* Password match indicator */}
                           {passwordData.confirmPassword && passwordData.newPassword && (
                             <div className="mt-1 flex items-center gap-2 text-xs">
                               <div className={`w-2 h-2 ${
@@ -807,18 +770,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                         </div>
 
                         <div className="flex gap-3 pt-2 border-t" style={{ borderColor: BORDER }}>
-                          <button
-                            onClick={() => {
-                              setShowPasswordForm(false);
-                              setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                              setPasswordVisibility({ current: false, new: false, confirm: false });
-                              setValidationErrors([]);
-                            }}
-                            className="flex-1 h-12 cok-btn-outlined-reverse"
-                            style={btnTypography}
-                          >
-                            Cancel
-                          </button>
                           <button
                             onClick={handleChangePassword}
                             disabled={isChangingPassword || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
@@ -845,12 +796,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                    </div>
                  )}
  
-                 {/* Notifications Tab */}
                  {activeTab === 'notifications' && (
                    <div className="space-y-4">
                      <h3 className="text-lg font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Notification Settings</h3>
 
-                     {/* Account-level switch: gates every notification sent to this account (approval requests included) */}
                      <div className="border" style={{ borderColor: BORDER, backgroundColor: 'rgba(5,109,170,0.02)', borderRadius: 0 }}>
                        <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center">
                          <div className="flex items-center gap-3">
@@ -963,7 +912,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                    </div>
                  )}
 
-                 {/* Signature Tab */}
                  {activeTab === 'signature' && (
                    <div className="space-y-4">
                      <h3 className="text-lg font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Signature Settings</h3>
@@ -974,7 +922,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                        </div>
                      ) : (
                        <>
-                         {/* Card 1: handwriting image placed on attendance sheets */}
                          <div className="border" style={{ borderColor: BORDER, backgroundColor: 'rgba(5,109,170,0.02)', borderRadius: 0 }}>
                            <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center gap-3">
                              <div className="flex items-center gap-3">
@@ -1025,7 +972,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                </div>
                              ) : pendingUpload ? (
                                <div className="space-y-3">
-                                 {/* Checkered backdrop so transparent areas are visible */}
                                  <div
                                    className="flex items-center justify-center p-3"
                                    style={{
@@ -1078,7 +1024,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                      className="flex-1 h-12 cok-btn-outlined disabled:opacity-60 disabled:cursor-not-allowed"
                                      style={btnTypography}
                                    >
-                                     Cancel
+                                     Back
                                    </button>
                                    <button
                                      type="button"
@@ -1108,7 +1054,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                      className="flex-1 h-12 cok-btn-outlined"
                                      style={btnTypography}
                                    >
-                                     Cancel
+                                     Back
                                    </button>
                                    <button
                                      type="button"
@@ -1153,7 +1099,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                        className="flex-1 h-12 cok-btn-outlined"
                                        style={btnTypography}
                                      >
-                                       Cancel
+                                       Back
                                      </button>
                                    )}
                                    <button
@@ -1178,9 +1124,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                  )}
                </>
              )}
-         </div>
-      </div>
-    </div>
+    </OverlayShell>
   );
 };
 

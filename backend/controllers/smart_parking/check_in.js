@@ -1,294 +1,85 @@
 const ParkingRecord = require('../../models/parking_record.js')
-const StaffCar = require('../../models/staff_car.js')
-const EmergencyCar = require('../../models/emergency_car.js')
-const ServiceDelivery = require('../../models/service_delivery.js')
-const ParkingSlot = require('../../models/parking_slots.js')
+const {
+    readVisitorInput, resolveVisitor, findOpenVisit, openVisit, attachVehicle, rollbackOpenedVisit, countVisit,
+    classifyPlate, startParkingSession, normalizePlate, parkingView, emitVisitorUpdated,
+    sendError, badRequest, conflict,
+} = require('../../utilities/visitors')
 
+/** The driver form: nested `driver`, or the flat driver_* fields older screens send. */
+function driverInput(body) {
+    if (body.driver && typeof body.driver === 'object') return readVisitorInput(body.driver)
+    return readVisitorInput({
+        full_name: body.driver_name,
+        telephone: body.driver_telephone,
+        email: body.driver_email,
+        gender: body.driver_gender,
+        identification: body.driver_identification,
+    })
+}
 
-const cleanPlateNumber = (plate) => plate?.replace(/\s/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || '';
-
-
-module.exports = async function car_check_in(req, res, next) {
+/**
+ * POST /smartparking/vehicle/checkin { plate_number, visitor_id?, driver: { full_name, telephone, email?, gender, identification } }
+ * The car keeps only a reference to the person who came with it. The server
+ * classifies the car (staff / reserved visitor / regular). Visitors' cars
+ * open their visit (or join the visit already open); staff cars only count
+ * as a visit for the driver.
+ */
+module.exports = async function car_check_in(req, res) {
     try {
-        let {
-            plate_number = null,
-            // optional fields
-            driver_identification = {},
-            driver_name = null,
-            driver_telephone = null,
-            driver_gender = null,
-            driver_type = 'regular',
-            driver_email = null,
-            badge_number = null
-
-        } = req.body || {}
-
-
-        if(driver_type) {
-            driver_type = driver_type.toString().trim().toLowerCase()
+        const body = req.body || {}
+        const plate = normalizePlate(body.plate_number)
+        if (!plate) throw badRequest('Plate number is required', { field: 'plate_number' })
+        if (await ParkingRecord.exists({ plate_number: plate, status: 'active' })) {
+            throw conflict(`Car with plate ${plate} is already checked in and currently active.`, { code: 'ALREADY_PARKED', field: 'plate_number' })
         }
 
-        if (badge_number) {
-            badge_number = badge_number.toString().trim().toUpperCase()
+        const classification = await classifyPlate(plate)
+        const { visitor } = await resolveVisitor({ visitorId: body.visitor_id || null, input: driverInput(body), user: req.user })
+
+        let visit = null
+        let opened = false
+        if (classification.driver_type !== 'staff') {
+            visit = await findOpenVisit(visitor._id)
+            if (!visit) ({ visit, opened } = await openVisit({ visitor, user: req.user, vehicle: { plate_number: plate } }))
         }
 
-        if (!plate_number) {
-            return res.status(400).json({
-                success: false,
-                type: 'warning',
-                message: "Plate number is required"
-            })
+        let record
+        try {
+            record = await startParkingSession({ plate, visitor, visit, user: req.user, classification })
+        } catch (error) {
+            if (opened) await rollbackOpenedVisit(visit)
+            throw error
         }
 
-        plate_number = cleanPlateNumber(plate_number);
-
-        // Check if this is a reserved vehicle (staff or emergency reservation)
-        // Normalize BEFORE the reservation lookups so stored plates always match
-        plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, '')
-
-        // Check if this is a reserved vehicle (staff or emergency reservation).
-        // A visitor reservation only counts INSIDE its window: arriving before the
-        // Start Date or after the End Date means the vehicle checks in as regular.
-        const now_ts = new Date();
-        // Staff reservations honor the same window when one is set (nulls = permanent)
-        const staff_car = await StaffCar.findOne({
-            plate_number,
-            is_active: true,
-            $and: [
-                { $or: [{ valid_from: null }, { valid_from: { $lte: now_ts } }] },
-                { $or: [{ valid_until: null }, { valid_until: { $gte: now_ts } }] }
-            ]
-        });
-        const emergency_reservation = await EmergencyCar.findOne({
-            is_active: true,
-            visitor_info: { $elemMatch: {
-                plate_number,
-                is_used: { $ne: true },
-                is_cancelled: { $ne: true },
-                // null sides are open-ended
-                $and: [
-                    { $or: [{ valid_from: null }, { valid_from: { $lte: now_ts } }] },
-                    { $or: [{ valid_until: null }, { valid_until: { $gte: now_ts } }] }
-                ]
-            } }
-        });
-
-        const is_reserved = (staff_car?.is_active) || !!emergency_reservation;
-
-        // Skip badge requirement for reserved vehicles
-       // const requires_badge = !is_reserved;
-
-        driver_type = driver_type.toLowerCase()
-
-
-        const allowed_driver_type = ['regular', 'visitor', 'staff']  //  Staff Vehicle fot the Reserved Vehicle 
-
-        if (!allowed_driver_type.includes(driver_type.toLowerCase())) {
-            return res.status(400).json({
-                success: false,
-                type: 'warning',
-                message: "Invalid driver type allowed types are Regular, Visitor, Staff"
-            })
-        }
-
-
-
-        // check in service delivery and in parking if no one with that badge number currently in house
-
-        if (badge_number) {
-            const existing_badge_in_service_delivery = await ServiceDelivery.findOne({ badge_number, is_still_inhouse: true })
-            const existing_badge_in_parking = await ParkingRecord.findOne({ badge_number, status: 'active' })
-            if (existing_badge_in_service_delivery || existing_badge_in_parking) {
-                return res.status(400).json({
-                    success: false,
-                    type: 'warning',
-                    message: "Someone with this badge number is already checked in."
-                })
+        if (visit) {
+            if (opened) {
+                visit.vehicle_storage.parking_record = record._id
+                await visit.save()
+            } else {
+                // Join the open visit unless it already has another car still parked
+                const linked = visit.vehicle_storage && visit.vehicle_storage.parking_record
+                const otherCarParked = linked && String(linked) !== String(record._id)
+                    ? await ParkingRecord.exists({ _id: linked, status: 'active' })
+                    : null
+                if (!otherCarParked) await attachVehicle(visit, { plate_number: plate, parking_record: record._id })
             }
+        } else {
+            await countVisit(visitor._id)
         }
 
+        global.WebsocketIO?.emit('car_checkedin', { show_notif: false, type: 'info', message: 'New car checked in: ' + plate })
+        if (opened) global.WebsocketIO?.emit('visitor_checkedin', { show_notif: false, type: 'info', message: 'A visitor checked in', visitor_id: String(visitor._id) })
+        emitVisitorUpdated(visitor._id)
 
-        // Prevent duplicate active sessions
-        const existing_active_car = await ParkingRecord.findOne({ plate_number, status: 'active' })
-        if (existing_active_car) {
-            return res.status(409).json({
-                success: false,
-                type: 'warning',
-                message: `Car with plate ${plate_number} is already checked in and currently active.`
-            })
-        }
-
-        let checked_in_by = req.user?.name || "Not specified"
-
-        let slot_number = null
-
-        // 1. StaffCar - reuse the already fetched staff_car
-        if ((!driver_telephone && !driver_name && staff_car) || staff_car) {
-            driver_name = staff_car.owner_name
-            driver_telephone = staff_car.telephone
-            driver_type = "staff"
-            driver_gender = staff_car.gender
-            driver_email = staff_car.email
-            driver_identification = {
-                id_type: staff_car.id_type,
-                number: staff_car.identification
-            }
-
-            slot_number = "#S"
-        }
-
-        // 2. EmergencyCar (check visitor_info array) - reuse the already fetched emergency_reservation.
-        // A matched reservation ALWAYS classifies the vehicle as a reserved visitor (so the visitor
-        // pool decrements), even when the gate registrar typed/edited the driver details.
-        let reserved_visitor = null
-        if (!staff_car && emergency_reservation) {
-            const visitor = emergency_reservation.visitor_info.find(v =>
-                v.plate_number === plate_number && !v.is_used && !v.is_cancelled &&
-                (!v.valid_from || v.valid_from <= now_ts) &&
-                (!v.valid_until || v.valid_until >= now_ts))
-            if (visitor) {
-                reserved_visitor = visitor
-                driver_type = "visitor"
-                driver_name = driver_name || visitor.driver_name
-                driver_telephone = driver_telephone || visitor.telephone_number
-                slot_number = visitor.slot_number || 'Not Specified'
-                driver_email = driver_email || visitor.email || null
-                driver_identification = (driver_identification && Object.keys(driver_identification).length > 0)
-                    ? driver_identification
-                    : (visitor.driver_identification || null)
-                driver_gender = driver_gender || visitor.gender || null
-            }
-        }
-
-        // 3. ServiceDelivery (if visitor already registered with vehicle)
-        if (!driver_name) {
-            const service_delivery = await ServiceDelivery.findOne({
-                "vehicle_storage.has_vehicle": true,
-                "vehicle_storage.vehicle_details.plate_number": plate_number
-            })
-            if (service_delivery) {
-                driver_name = service_delivery.full_name
-                driver_type = "regular"
-                driver_telephone = service_delivery.telephone
-                driver_gender = service_delivery.gender || null
-                driver_email = service_delivery.email || null
-                driver_identification = service_delivery.identification || null
-                slot_number = 'Not Specified'
-            }
-        }
-
-        const check_in_date = new Date()
-
-        // --- Create ParkingRecord ---
-        const new_parking = new ParkingRecord({
-            plate_number,
-            driver_identification,
-            driver_name,
-            driver_telephone,
-            driver_gender,
-            driver_type,
-            driver_email,
-            slot_number,
-            status: 'active',
-            check_in: check_in_date,
-            checked_in_by,
-            badge_number
-        })
-
-        await new_parking.save()
-
-        // The vehicle arrived: consume its reservation so it stops counting as reserved
-        if (reserved_visitor) {
-            reserved_visitor.is_used = true
-            reserved_visitor.used_at = check_in_date
-            await emergency_reservation.save()
-        }
-
-// Update slot counts based on driver type
-        // RegularAvailableSlots tracks actual vehicles inside (decrements on check-in)
-        // Staff/Visitor available slots track their pool, occupied tracks actual inside
-        const parkingSlotDoc = await ParkingSlot.findOne({ UnChangedId: "parking_slots" });
-        if (parkingSlotDoc) {
-            if (driver_type.toLowerCase() === 'visitor') {
-                parkingSlotDoc.visitorsAvailableSlots = Math.max(0, (parkingSlotDoc.visitorsAvailableSlots || 0) - 1);
-                parkingSlotDoc.visitorOccupiedCount = (parkingSlotDoc.visitorOccupiedCount || 0) + 1;
-                // A consumed reservation no longer counts as pending
-                if (reserved_visitor) {
-                    parkingSlotDoc.visitorReservationCount = Math.max(0, (parkingSlotDoc.visitorReservationCount || 0) - 1);
-                }
-            } else if (driver_type.toLowerCase() === 'staff') {
-                parkingSlotDoc.staffAvailableSlots = Math.max(0, (parkingSlotDoc.staffAvailableSlots || 0) - 1);
-                parkingSlotDoc.staffOccupiedCount = (parkingSlotDoc.staffOccupiedCount || 0) + 1;
-            } else if (driver_type.toLowerCase() === 'regular') {
-                parkingSlotDoc.RegularAvailableSlots = Math.max(0, (parkingSlotDoc.RegularAvailableSlots || 0) - 1);
-                parkingSlotDoc.regularOccupiedCount = (parkingSlotDoc.regularOccupiedCount || 0) + 1;
-            }
-            await parkingSlotDoc.save();
-        }
-
-        // search this car in all parking records and mark it as not flagged if it was flagged before
-
-        await ParkingRecord.updateMany({ plate_number, is_flagged: true }, { is_flagged: false })
-
-        // Create ServiceDelivery record for all checked-in visitors (with or without vehicle)
-        // This allows Service Delivery receptionist to see and assign them to departments
-
-        if (driver_name && (driver_type.toLowerCase() === 'regular' || driver_type.toLowerCase() === 'visitor' || driver_type.toLowerCase() === 'staff')) {
-            const hasVehicle = plate_number && plate_number !== 'N/A' && plate_number.toUpperCase() !== 'NOT SPECIFIED';
-            const service_delivery = new ServiceDelivery({
-                full_name: driver_name,
-                telephone: driver_telephone,
-                gender: driver_gender,
-                email: driver_email,
-                driver_identification: driver_identification,
-                identification: driver_identification, // Also save to identification field for compatibility
-                vehicle_storage: {
-                    has_vehicle: hasVehicle,
-                    vehicle_details: hasVehicle ? {
-                        plate_number,
-                        slot_number
-                    } : null
-                },
-                badge_number,
-                is_still_inhouse: true,
-                entry_date: check_in_date,
-                registered_by: checked_in_by
-            })
-            await service_delivery.save()
-        }
-
-        global.WebsocketIO?.emit('car_checkedin', {
-            show_notif: false,
-            type: 'info',
-            message: 'New car checked in: ' + plate_number
-        })
-
+        const populated = await ParkingRecord.findById(record._id).populate('visitor').lean()
         return res.status(201).json({
             success: true,
-            type: "success",
-            message: "Data saved successfully",
-            data: {
-                plate_number,
-                driver_name,
-                driver_telephone,
-                driver_gender,
-                driver_type,
-                driver_email,
-                slot_number,
-                status: 'active',
-                check_in: check_in_date,
-                checked_in_by,
-                badge_number
-            }
+            type: 'success',
+            message: 'Vehicle checked in',
+            visit_id: visit ? visit._id : null,
+            data: parkingView(populated),
         })
-
     } catch (error) {
-        console.error("Error in car_check_in:", error)
-        return res.status(500).json({
-            success: false,
-            type: "error",
-            message: "Something went wrong while checking in the car",
-            error: error.message
-        })
+        return sendError(res, error, 'Something went wrong while checking in the car')
     }
 }

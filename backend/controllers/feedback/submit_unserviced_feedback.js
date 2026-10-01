@@ -5,10 +5,11 @@
 
 const UnservicedFeedback = require('../../models/unservicedfeedback_db');
 const alertAdminsOfNegativeFeedback = require('../../services/negative_feedback_alert');
+const { clean, normalizePhone } = require('../../utilities/visitors');
 
 async function submitUnservicedFeedback(req, res) {
     try {
-        const { telephone, user_name, rate, textmessage } = req.body;
+        const { telephone, user_name, rate, textmessage } = req.body || {};
 
         // Validate required fields
         if (rate === undefined) {
@@ -19,7 +20,8 @@ async function submitUnservicedFeedback(req, res) {
         }
 
         // Validate rating (1-10)
-        if (rate < 1 || rate > 10) {
+        const rating = Number(rate);
+        if (!Number.isFinite(rating) || rating < 1 || rating > 10) {
             return res.status(400).json({
                 success: false,
                 error: 'Rating must be between 1 and 10'
@@ -27,38 +29,38 @@ async function submitUnservicedFeedback(req, res) {
         }
 
         // Validate textmessage max 500 characters
-        if (textmessage && textmessage.length > 500) {
+        const message = textmessage === undefined || textmessage === null ? '' : String(textmessage).trim();
+        if (message.length > 500) {
             return res.status(400).json({
                 success: false,
                 error: 'Your feedback message exceeded 500 characters'
             });
         }
 
-        // Create feedback record
-        const feedback = new UnservicedFeedback({
-            telephone: telephone || '',
-            user_name: user_name || '',
-            textmessage: textmessage || '',
-            rate: rate,
+        // Optional contact details, saved the way the visitor registry saves them
+        const name = clean(user_name) || '';
+        const feedback = await UnservicedFeedback.create({
+            telephone: normalizePhone(telephone) || '',
+            user_name: name,
+            textmessage: message,
+            rate: rating,
             rate_out_of: 10
         });
-
-        await feedback.save();
 
         global.WebsocketIO?.emit('feedback_submitted', {
             feedback_id: feedback._id,
             department_name: 'General Feedback',
-            rate: rate,
+            rate: rating,
         });
 
         // Alert all system admins (email + in-app notification) on negative rating,
         // without blocking the response
-        if (rate <= 5) {
+        if (rating <= 5) {
             alertAdminsOfNegativeFeedback({
-                rating: rate,
+                rating: rating,
                 department_name: 'General Feedback',
-                user_name: user_name || 'Anonymous',
-                textmessage: textmessage || '',
+                user_name: name || 'Anonymous',
+                textmessage: message,
                 created_date: feedback.created_date || new Date()
             });
         }
@@ -68,7 +70,7 @@ async function submitUnservicedFeedback(req, res) {
             message: 'Feedback submitted successfully',
             data: {
                 feedback_id: feedback._id,
-                rate: rate
+                rate: rating
             }
         });
 

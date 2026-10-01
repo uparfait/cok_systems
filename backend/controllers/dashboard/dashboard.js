@@ -1,6 +1,9 @@
 /**
  * Dashboard Controller
- * Handles analytics and dashboard data aggregation
+ * GET /dashboard/analytics?startDate&endDate (default: today, server time).
+ * Every figure is computed by MongoDB. Visits keep only a reference to the
+ * visitor and nothing here returns personal details, so visits of the old
+ * structure (no visitor reference) are counted the same way.
  */
 
 const ServiceDelivery = require('../../models/service_delivery.js');
@@ -10,54 +13,62 @@ const User = require('../../models/user.js');
 const Department = require('../../models/department.js');
 const Task = require('../../models/task.js');
 
-/**
- * Get comprehensive dashboard analytics
- */
+// roles.role_name of the people who serve visitors, and of all front-line staff
+const SERVICE_ROLES = ['Employee', 'Head of department'];
+const STAFF_ROLES = [...SERVICE_ROLES, 'Receptionist'];
+
+const minutesBetween = (later, earlier) => ({ $divide: [{ $subtract: [later, earlier] }, 60000] });
+const isDate = (expression) => ({ $eq: [{ $type: expression }, 'date'] });
+
+const waitStatus = (minutes) => (minutes > 45 ? 'Critical' : minutes > 20 ? 'Busy' : minutes > 10 ? 'Normal' : 'Good');
+const speedStatus = (minutes) => (minutes > 15 ? 'Slow' : minutes > 10 ? 'Moderate' : minutes > 5 ? 'Good' : 'Excellent');
+
+/** A date-only value (YYYY-MM-DD) is that local day: its start, or its end for endDate. */
+function parseDay(value, endOfDay) {
+    const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value));
+    if (!day) return new Date(value);
+    const [year, month, date] = [Number(day[1]), Number(day[2]) - 1, Number(day[3])];
+    return endOfDay ? new Date(year, month, date, 23, 59, 59, 999) : new Date(year, month, date);
+}
+
+/** Period from the query (default: today). Null when a date is invalid. */
+function readRange({ startDate, endDate } = {}) {
+    const now = new Date();
+    const start = startDate ? parseDay(startDate, false) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = endDate ? parseDay(endDate, true) : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+    return { start, end };
+}
+
+/** Get comprehensive dashboard analytics */
 const getDashboardAnalytics = async (req, res) => {
     try {
-        const { startDate, endDate } = req.query;
+        const range = readRange(req.query || {});
+        if (!range) {
+            return res.status(400).json({ success: false, type: 'warning', message: 'Invalid startDate or endDate' });
+        }
+        const { start, end } = range;
 
-        // Default to today if no dates provided
-        const now = new Date();
-        const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const end = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        // Shared by the overall figure and the per-department figures
+        const waits = calculateWaitTimes(start, end);
 
-        // Service Metrics
-        const serviceMetrics = await calculateServiceMetrics(start, end);
+        const [serviceMetrics, liveCenters, employeePerformance, officeRankings,
+            serviceDuration, citizenFeedback, taskSLA, systemStatus] = await Promise.all([
+            calculateServiceMetrics(start, end, waits),
+            calculateLiveCenters(waits),
+            calculateEmployeePerformance(start, end),
+            calculateOfficeRankings(),
+            calculateServiceDuration(start, end),
+            calculateCitizenFeedback(start, end),
+            calculateTaskSLA(start, end),
+            calculateSystemStatus()
+        ]);
 
-        // Live Service Centers
-        const liveCenters = await calculateLiveCenters(start, end);
-
-        // Employee Performance
-        const employeePerformance = await calculateEmployeePerformance(start, end);
-
-        // Office Rankings
-        const officeRankings = await calculateOfficeRankings();
-
-        // Analytics Data
-        const waitingAnalytics = await calculateWaitingAnalytics();
-        const serviceDuration = await calculateServiceDuration(start, end);
-
-        // SLA Monitoring
-        const slaMonitoring = await calculateSLAMonitoring(serviceMetrics, serviceDuration);
-
-        // Citizen Feedback
-        const citizenFeedback = await calculateCitizenFeedback(start, end);
-
-        // Service Flow
+        const waitingAnalytics = calculateWaitingAnalytics();
+        const slaMonitoring = calculateSLAMonitoring(serviceMetrics, serviceDuration);
         const serviceFlow = calculateServiceFlow(serviceMetrics);
-
-        // Task SLA
-        const taskSLA = await calculateTaskSLA(start, end);
-
-        // AI Insights
         const insights = generateInsights(liveCenters, serviceDuration, slaMonitoring);
-
-        // Real-time Alerts
         const alerts = generateAlerts(liveCenters, slaMonitoring);
-
-        // System Status
-        const systemStatus = await calculateSystemStatus();
 
         return res.status(200).json({
             success: true,
@@ -92,87 +103,94 @@ const getDashboardAnalytics = async (req, res) => {
 };
 
 /**
- * Calculate service metrics
+ * Waiting time, in minutes: from the moment a visit was sent to a department
+ * (departments_assigned.assigned_time) to the moment that department started
+ * serving it (durations.services_durations.started_at). Each service started
+ * in the period is paired with the latest assignment to the same department
+ * made before it, so a visitor sent to a department twice is measured twice.
+ * @returns {Promise<{ overall: number, byDepartment: Map<string, number> }>}
  */
-const calculateServiceMetrics = async (start, end) => {
-    // Citizens Served - count completed services
-    const citizensServed = await ServiceDelivery.countDocuments({
-        'services_status.s_type': 'Completed'
-    });
-
-    // Average Wait Time
-    const waitTimeResult = await ServiceTracking.aggregate([
-        {
-            $match: {
-                started_at: { $gte: start, $lte: end }
-            }
-        },
-        {
-            $lookup: {
-                from: 'servicedeliveries',
-                localField: 'provider_id',
-                foreignField: 'services_status.provider_id',
-                as: 'service'
-            }
-        },
-        {
-            $unwind: { path: '$service', preserveNullAndEmptyArrays: true }
-        },
-        {
-            $unwind: { path: '$service.services_status', preserveNullAndEmptyArrays: true }
-        },
-        {
-            $match: {
-                'service.services_status.provider_id': { $exists: true }
-            }
-        },
-        {
-            $project: {
-                waitTime: {
-                    $divide: [
-                        { $subtract: ['$started_at', '$service.services_status.assigned_time'] },
-                        60000 // Convert to minutes
-                    ]
-                }
-            }
-        },
-        {
-            $group: {
-                _id: null,
-                avgWaitTime: { $avg: '$waitTime' }
+const calculateWaitTimes = async (start, end) => {
+    const latestAssignment = {
+        $max: {
+            $map: {
+                input: {
+                    $filter: {
+                        input: '$assigned',
+                        as: 'a',
+                        cond: {
+                            $and: [
+                                { $eq: ['$$a.department_id', '$start.department_id'] },
+                                isDate('$$a.assigned_time'),
+                                { $lte: ['$$a.assigned_time', '$start.started_at'] }
+                            ]
+                        }
+                    }
+                },
+                as: 'a',
+                in: '$$a.assigned_time'
             }
         }
-    ]);
+    };
 
-    const avgWaitTime = waitTimeResult[0]?.avgWaitTime ?
-        Math.round(waitTimeResult[0].avgWaitTime) : 0;
-
-    // Average Service Time
-    const serviceTimeResult = await ServiceTracking.aggregate([
+    const [result] = await ServiceDelivery.aggregate([
+        { $match: { 'durations.services_durations.started_at': { $gte: start, $lte: end } } },
+        {
+            $project: {
+                _id: 0,
+                start: '$durations.services_durations',
+                assigned: { $ifNull: ['$departments_assigned', []] }
+            }
+        },
+        { $unwind: '$start' },
+        {
+            $project: {
+                department_id: '$start.department_id',
+                started_at: '$start.started_at',
+                assigned_at: latestAssignment
+            }
+        },
         {
             $match: {
                 started_at: { $gte: start, $lte: end },
-                ended_at: { $exists: true }
+                department_id: { $type: 'string', $ne: '' },
+                assigned_at: { $type: 'date' }
             }
         },
+        { $set: { wait: minutesBetween('$started_at', '$assigned_at') } },
         {
-            $project: {
-                serviceTime: {
-                    $divide: [
-                        { $subtract: ['$ended_at', '$started_at'] },
-                        60000
-                    ]
-                }
-            }
-        },
-        {
-            $group: {
-                _id: null,
-                avgServiceTime: { $avg: '$serviceTime' }
+            $facet: {
+                overall: [{ $group: { _id: null, avgWait: { $avg: '$wait' } } }],
+                by_department: [{ $group: { _id: '$department_id', avgWait: { $avg: '$wait' } } }]
             }
         }
     ]);
 
+    return {
+        overall: (result && result.overall[0] && result.overall[0].avgWait) || 0,
+        byDepartment: new Map(((result && result.by_department) || []).map((row) => [String(row._id), row.avgWait || 0]))
+    };
+};
+
+/** Calculate service metrics */
+const calculateServiceMetrics = async (start, end, waitsPromise) => {
+    const [citizensServed, waits, serviceTimeResult, feedbackResult] = await Promise.all([
+        // Citizens Served - visits with a completed service
+        ServiceDelivery.countDocuments({ 'services_status.s_type': 'Completed' }),
+        waitsPromise,
+        // Average Service Time
+        ServiceTracking.aggregate([
+            { $match: { started_at: { $gte: start, $lte: end }, ended_at: { $exists: true } } },
+            { $group: { _id: null, avgServiceTime: { $avg: minutesBetween('$ended_at', '$started_at') } } }
+        ]),
+        // Satisfaction Score
+        Feedback.aggregate([
+            { $match: { created_date: { $gte: start, $lte: end } } },
+            { $group: { _id: null, avgRating: { $avg: '$rate' } } }
+        ])
+    ]);
+
+    const avgWaitTime = waits.overall ? Math.round(waits.overall) : 0;
     const avgServiceTime = serviceTimeResult[0]?.avgServiceTime ?
         Math.round(serviceTimeResult[0].avgServiceTime) : 0;
 
@@ -180,21 +198,6 @@ const calculateServiceMetrics = async (start, end) => {
     const totalTime = avgWaitTime + avgServiceTime;
     const slaCompliance = totalTime <= 30 ? 100 :
         Math.max(0, Math.round((30 / totalTime) * 100));
-
-    // Satisfaction Score
-    const feedbackResult = await Feedback.aggregate([
-        {
-            $match: {
-                created_date: { $gte: start, $lte: end }
-            }
-        },
-        {
-            $group: {
-                _id: null,
-                avgRating: { $avg: '$rate' }
-            }
-        }
-    ]);
 
     const satisfactionScore = feedbackResult[0]?.avgRating ?
         parseFloat(feedbackResult[0].avgRating.toFixed(1)) : 0;
@@ -209,176 +212,99 @@ const calculateServiceMetrics = async (start, end) => {
 };
 
 /**
- * Calculate live service centers data
+ * Calculate live service centers data: per department, the in-house visits
+ * ever sent to it and its average waiting time in the period.
  */
-const calculateLiveCenters = async (start, end) => {
-    const departments = await Department.find();
+const calculateLiveCenters = async (waitsPromise) => {
+    const [departments, queues, waits] = await Promise.all([
+        Department.find().select('department_name').lean(),
+        ServiceDelivery.aggregate([
+            { $match: { is_still_inhouse: true, 'departments_assigned.0': { $exists: true } } },
+            { $project: { _id: 0, department_ids: { $setUnion: ['$departments_assigned.department_id', []] } } },
+            { $unwind: '$department_ids' },
+            { $group: { _id: '$department_ids', queue: { $sum: 1 } } }
+        ]),
+        waitsPromise
+    ]);
 
-    const centers = await Promise.all(departments.map(async (dept) => {
-        // Current active visitors
-        const currentQueue = await ServiceDelivery.countDocuments({
-            'departments_assigned.department_id': dept._id,
-            is_still_inhouse: true
-        });
+    const queueOf = new Map(queues.map((row) => [String(row._id), row.queue]));
 
-        // Average wait time
-        const waitTimeResult = await ServiceTracking.aggregate([
-            {
-                $match: {
-                    department_id: dept._id,
-                    started_at: { $gte: start, $lte: end }
-                }
-            },
-            {
-                $lookup: {
-                    from: 'servicedeliveries',
-                    localField: 'provider_id',
-                    foreignField: 'services_status.provider_id',
-                    as: 'service'
-                }
-            },
-            {
-                $unwind: { path: '$service', preserveNullAndEmptyArrays: true }
-            },
-            {
-                $unwind: { path: '$service.services_status', preserveNullAndEmptyArrays: true }
-            },
-            {
-                $match: {
-                    'service.services_status.provider_id': { $exists: true }
-                }
-            },
-            {
-                $project: {
-                    waitTime: {
-                        $divide: [
-                            { $subtract: ['$started_at', '$service.services_status.assigned_time'] },
-                            60000
-                        ]
-                    }
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    avgWait: { $avg: '$waitTime' }
-                }
-            }
-        ]);
-
-        const avgWait = waitTimeResult[0]?.avgWait || 0;
-        const status = avgWait > 45 ? 'Critical' :
-                      avgWait > 20 ? 'Busy' :
-                      avgWait > 10 ? 'Normal' : 'Good';
-
+    return departments.map((dept) => {
+        const id = String(dept._id);
+        const avgWait = waits.byDepartment.get(id) || 0;
         return {
-            name: dept.name,
-            queue: currentQueue,
+            name: dept.department_name,
+            queue: queueOf.get(id) || 0,
             avgWait: Math.round(avgWait),
-            status
+            status: waitStatus(avgWait)
         };
-    }));
-
-    return centers;
+    });
 };
 
 /**
- * Calculate employee performance data
+ * Calculate employee performance data: services finished in the period
+ * (ServiceTracking.provider_id holds the user id as a string) and the
+ * feedback left for them (feedback carries the provider name only).
  */
 const calculateEmployeePerformance = async (start, end) => {
-    const employees = await User.find({
-        role: { $in: ['Department Employee', 'Department Manager'] }
-    });
-
-    const performance = await Promise.all(employees.map(async (emp) => {
-        // Services completed
-        const served = await ServiceTracking.countDocuments({
-            provider_id: emp._id,
-            ended_at: { $gte: start, $lte: end }
-        });
-
-        // Average service time
-        const serviceTimeResult = await ServiceTracking.aggregate([
-            {
-                $match: {
-                    provider_id: emp._id,
-                    ended_at: { $gte: start, $lte: end },
-                    started_at: { $exists: true }
-                }
-            },
-            {
-                $project: {
-                    serviceTime: {
-                        $divide: [
-                            { $subtract: ['$ended_at', '$started_at'] },
-                            60000
-                        ]
-                    }
-                }
-            },
+    const [employees, services, ratings] = await Promise.all([
+        User.find({ 'roles.role_name': { $in: SERVICE_ROLES } }).select('full_name email').lean(),
+        ServiceTracking.aggregate([
+            { $match: { ended_at: { $gte: start, $lte: end }, provider_id: { $type: 'string', $ne: '' } } },
             {
                 $group: {
-                    _id: null,
-                    avgServiceTime: { $avg: '$serviceTime' }
+                    _id: '$provider_id',
+                    served: { $sum: 1 },
+                    avgServiceTime: { $avg: { $cond: [isDate('$started_at'), minutesBetween('$ended_at', '$started_at'), null] } }
                 }
             }
-        ]);
+        ]),
+        Feedback.aggregate([
+            { $match: { created_date: { $gte: start, $lte: end }, provider_name: { $type: 'string', $ne: '' } } },
+            { $group: { _id: '$provider_name', avgRating: { $avg: '$rate' } } }
+        ])
+    ]);
 
-        // Employee rating from feedback
-        const feedbackResult = await Feedback.aggregate([
-            {
-                $match: {
-                    provider_id: emp._id,
-                    created_date: { $gte: start, $lte: end }
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    avgRating: { $avg: '$rate' }
-                }
-            }
-        ]);
+    const serviceOf = new Map(services.map((row) => [String(row._id), row]));
+    const ratingOf = new Map(ratings.map((row) => [String(row._id), row.avgRating || 0]));
 
-        const avgTime = serviceTimeResult[0]?.avgServiceTime || 0;
-        const rating = feedbackResult[0]?.avgRating || 0;
-
-        const status = avgTime > 15 ? 'Slow' :
-                      avgTime > 10 ? 'Moderate' :
-                      avgTime > 5 ? 'Good' : 'Excellent';
-
+    return employees.map((emp) => {
+        const service = serviceOf.get(String(emp._id)) || {};
+        const avgTime = service.avgServiceTime || 0;
+        const rating = ratingOf.get(emp.full_name) || 0;
         return {
-            name: `${emp.personalInfo?.firstName || ''} ${emp.personalInfo?.lastName || ''}`.trim() || emp.email,
-            served,
+            name: emp.full_name || emp.email,
+            served: service.served || 0,
             avgTime: Math.round(avgTime),
             rating: parseFloat(rating.toFixed(1)),
-            status
+            status: speedStatus(avgTime)
         };
-    }));
-
-    return performance;
+    });
 };
 
-/**
- * Calculate office rankings
- */
+/** Current name of the department of a grouped row (_id = department id string); removed departments are left out. */
+const departmentNameStages = () => [
+    { $set: { department_oid: { $convert: { input: '$_id', to: 'objectId', onError: null, onNull: null } } } },
+    {
+        $lookup: {
+            from: Department.collection.name,
+            localField: 'department_oid',
+            foreignField: '_id',
+            pipeline: [{ $project: { department_name: 1 } }],
+            as: 'department'
+        }
+    },
+    { $unwind: '$department' },
+    { $set: { name: '$department.department_name' } }
+];
+
+/** Calculate office rankings: departments by services delivered (all time) */
 const calculateOfficeRankings = async () => {
-    const rankings = await Department.aggregate([
-        {
-            $lookup: {
-                from: 'servicetrackings',
-                localField: '_id',
-                foreignField: 'department_id',
-                as: 'services'
-            }
-        },
-        {
-            $project: {
-                name: 1,
-                serviceCount: { $size: '$services' }
-            }
-        },
-        { $sort: { serviceCount: -1 } },
+    const rankings = await ServiceTracking.aggregate([
+        { $match: { department_id: { $type: 'string', $ne: '' } } },
+        { $group: { _id: '$department_id', serviceCount: { $sum: 1 } } },
+        ...departmentNameStages(),
+        { $sort: { serviceCount: -1, name: 1 } },
         { $limit: 4 }
     ]);
 
@@ -388,10 +314,8 @@ const calculateOfficeRankings = async () => {
     }));
 };
 
-/**
- * Calculate waiting time analytics (simplified)
- */
-const calculateWaitingAnalytics = async () => {
+/** Calculate waiting time analytics (simplified) */
+const calculateWaitingAnalytics = () => {
     // This would need hourly data tracking - for now return structured data
     return [
         { time: '8AM-10AM', level: 'Critical', color: 'red' },
@@ -401,62 +325,26 @@ const calculateWaitingAnalytics = async () => {
     ];
 };
 
-/**
- * Calculate service duration by department
- */
+/** Calculate service duration by department (services started in the period) */
 const calculateServiceDuration = async (start, end) => {
-    const durations = await Department.aggregate([
-        {
-            $lookup: {
-                from: 'servicetrackings',
-                localField: '_id',
-                foreignField: 'department_id',
-                as: 'services'
-            }
-        },
-        {
-            $unwind: { path: '$services', preserveNullAndEmptyArrays: true }
-        },
+    return ServiceTracking.aggregate([
         {
             $match: {
-                'services.started_at': { $gte: start, $lte: end },
-                'services.ended_at': { $exists: true }
+                started_at: { $gte: start, $lte: end },
+                ended_at: { $type: 'date' },
+                department_id: { $type: 'string', $ne: '' }
             }
         },
-        {
-            $project: {
-                name: 1,
-                duration: {
-                    $divide: [
-                        { $subtract: ['$services.ended_at', '$services.started_at'] },
-                        60000
-                    ]
-                }
-            }
-        },
-        {
-            $group: {
-                _id: '$name',
-                avgDuration: { $avg: '$duration' }
-            }
-        },
-        {
-            $project: {
-                service: '$_id',
-                duration: { $round: ['$avgDuration', 0] }
-            }
-        },
-        { $sort: { duration: -1 } },
+        { $group: { _id: '$department_id', avgDuration: { $avg: minutesBetween('$ended_at', '$started_at') } } },
+        ...departmentNameStages(),
+        { $project: { _id: 0, service: '$name', duration: { $round: ['$avgDuration', 0] } } },
+        { $sort: { duration: -1, service: 1 } },
         { $limit: 4 }
     ]);
-
-    return durations;
 };
 
-/**
- * Calculate SLA monitoring data
- */
-const calculateSLAMonitoring = async (serviceMetrics, serviceDuration) => {
+/** Calculate SLA monitoring data */
+const calculateSLAMonitoring = (serviceMetrics, serviceDuration) => {
     return {
         withinSLA: serviceMetrics.slaCompliance,
         delayed: 100 - serviceMetrics.slaCompliance,
@@ -465,26 +353,16 @@ const calculateSLAMonitoring = async (serviceMetrics, serviceDuration) => {
     };
 };
 
-/**
- * Calculate citizen feedback data
- */
+/** Calculate citizen feedback data */
 const calculateCitizenFeedback = async (start, end) => {
     const feedbackResult = await Feedback.aggregate([
-        {
-            $match: {
-                created_date: { $gte: start, $lte: end }
-            }
-        },
+        { $match: { created_date: { $gte: start, $lte: end } } },
         {
             $group: {
                 _id: null,
                 totalFeedback: { $sum: 1 },
-                positiveFeedback: {
-                    $sum: { $cond: [{ $gte: ['$rate', 4] }, 1, 0] }
-                },
-                complaints: {
-                    $sum: { $cond: [{ $lte: ['$rate', 2] }, 1, 0] }
-                },
+                positiveFeedback: { $sum: { $cond: [{ $gte: ['$rate', 4] }, 1, 0] } },
+                complaints: { $sum: { $cond: [{ $lte: ['$rate', 2] }, 1, 0] } },
                 avgRating: { $avg: '$rate' }
             }
         }
@@ -500,9 +378,7 @@ const calculateCitizenFeedback = async (start, end) => {
     };
 };
 
-/**
- * Calculate service flow data
- */
+/** Calculate service flow data */
 const calculateServiceFlow = (serviceMetrics) => {
     return {
         avgQueueTime: serviceMetrics.avgWaitTime,
@@ -511,21 +387,23 @@ const calculateServiceFlow = (serviceMetrics) => {
     };
 };
 
-/**
- * Calculate task SLA
- */
+/** Calculate task SLA: share of the tasks created in the period that are completed */
 const calculateTaskSLA = async (start, end) => {
-    const tasks = await Task.find({
-        createdAt: { $gte: start, $lte: end }
-    });
+    const [result] = await Task.aggregate([
+        { $match: { createdAt: { $gte: start, $lte: end } } },
+        {
+            $group: {
+                _id: null,
+                total: { $sum: 1 },
+                completed: { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, 1, 0] } }
+            }
+        }
+    ]);
 
-    const completedTasks = tasks.filter(t => t.status === 'Completed').length;
-    return tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+    return result && result.total > 0 ? Math.round((result.completed / result.total) * 100) : 0;
 };
 
-/**
- * Generate AI insights based on data analysis
- */
+/** Generate AI insights based on data analysis */
 const generateInsights = (liveCenters, serviceDuration, slaMonitoring) => {
     const insights = [];
 
@@ -549,9 +427,7 @@ const generateInsights = (liveCenters, serviceDuration, slaMonitoring) => {
     return insights;
 };
 
-/**
- * Generate real-time alerts based on current data
- */
+/** Generate real-time alerts based on current data */
 const generateAlerts = (liveCenters, slaMonitoring) => {
     const alerts = [];
 
@@ -575,17 +451,12 @@ const generateAlerts = (liveCenters, slaMonitoring) => {
     return alerts;
 };
 
-/**
- * Calculate system status
- */
+/** Calculate system status */
 const calculateSystemStatus = async () => {
-    const activeEmployees = await User.countDocuments({
-        role: { $in: ['Department Employee', 'Department Manager', 'Receptionist'] }
-    });
-
-    const activeQueue = await ServiceDelivery.countDocuments({
-        is_still_inhouse: true
-    });
+    const [activeEmployees, activeQueue] = await Promise.all([
+        User.countDocuments({ 'roles.role_name': { $in: STAFF_ROLES } }),
+        ServiceDelivery.countDocuments({ is_still_inhouse: true })
+    ]);
 
     return {
         status: 'ONLINE',

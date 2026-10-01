@@ -90,16 +90,18 @@ const Table: React.FC<TableProps> = ({
     return baseClass;
   };
 
+  const headerHasBackground =
+    (headerClassName || '').includes('bg-') ||
+    Boolean(headerStyle && (headerStyle.background || headerStyle.backgroundColor || headerStyle.backgroundImage));
+
   return (
     <div className={`bg-white  border border-gray-200 overflow-hidden ${className}`}>
-      {/* Table Container with Scrolling */}
       <div
-        className="overflow-x-auto overflow-y-auto"
-        style={{ maxHeight }}
+        className="cok-table-scroll"
+        style={{ ['--cok-table-max-h' as string]: maxHeight } as React.CSSProperties}
       >
         <table className="w-full" style={{ minWidth }}>
-          {/* Header */}
-          <thead className={`${headerClassName || ''} text-white sticky top-0 z-10 shadow-sm`} style={headerStyle}>
+          <thead className={`${headerClassName || ''} ${headerHasBackground ? 'text-white' : 'text-gray-700'} sticky top-0 z-10 shadow-sm`} style={headerStyle}>
             <tr>
               {headers.map((header, index) => (
                 <th
@@ -112,7 +114,6 @@ const Table: React.FC<TableProps> = ({
             </tr>
           </thead>
 
-          {/* Body */}
           <tbody className="divide-y divide-gray-100 bg-white">
             {loading ? (
               <tr>
@@ -151,7 +152,6 @@ const Table: React.FC<TableProps> = ({
         </table>
       </div>
 
-      {/* Footer with Pagination */}
       {pagination && pagination.totalPages > 0 && (
         <div className="px-6 py-4   bg-white border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-2">
           <div className="text-sm  text-gray-600">

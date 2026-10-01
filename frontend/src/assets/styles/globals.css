@@ -5394,3 +5394,70 @@ background-color: #056daa;
   min-width: 0;
   max-width: 100%;
 }
+
+/* ---------------------------------------------------------------------------
+   Shared table, overlay and form markers (visitors restructure).
+   --------------------------------------------------------------------------- */
+
+/* Every table scrolls inside its own box: the body scrolls both ways, the
+   header row stays visible, and cells never wrap. */
+.cok-table-scroll {
+  overflow: auto;
+  max-height: var(--cok-table-max-h, 65vh);
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+.cok-table-scroll > table {
+  white-space: nowrap;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.cok-table-scroll > table th,
+.cok-table-scroll > table td {
+  white-space: nowrap;
+}
+.cok-table-scroll > table > thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.cok-table-scroll > table > thead:not([class*="bg-"]):not([style*="background"]) > tr:not([class*="bg-"]):not([style*="background"]) > th:not([class*="bg-"]):not([style*="background"]) {
+  background-color: #F7F9FB;
+}
+
+/* Red asterisk after the label of a required field */
+.cok-req::after {
+  content: " *";
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* Overlay close: a transparent circle that greys on hover */
+.cok-close-x {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.cok-close-x:hover:not(:disabled) {
+  background: rgba(17, 24, 39, 0.07);
+  color: #111827;
+}
+.cok-close-x:active:not(:disabled) {
+  transform: scale(0.92);
+}
+.cok-close-x:focus-visible {
+  outline: 2px solid #056daa;
+  outline-offset: 1px;
+}
+.cok-close-x:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

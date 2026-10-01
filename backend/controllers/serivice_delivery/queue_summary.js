@@ -1,28 +1,39 @@
 const ServiceDelivery = require('../../models/service_delivery.js');
 const Department = require('../../models/department.js');
+const { sendError } = require('../../utilities/visitors');
+const {
+    CLOSED_STATES, callerScope, pendingFor, servingFor, presenceFilter,
+} = require('./get_visitors_by_department_current.js');
+
+const OBJECT_ID = /^[0-9a-fA-F]{24}$/;
+
+/** Waiting and being-served visits of each unit (one row per unit that has any). */
+function countsPerUnit(presence, unitIds) {
+    return ServiceDelivery.aggregate([
+        { $match: { ...presence, ...pendingFor(unitIds) } },
+        { $project: { services_status: 1 } },
+        { $unwind: '$services_status' },
+        { $match: { 'services_status.department_id': { $in: unitIds }, 'services_status.s_type': { $nin: CLOSED_STATES } } },
+        {
+            $group: {
+                _id: { unit: '$services_status.department_id', visit: '$_id' },
+                serving: { $max: { $cond: [{ $eq: ['$services_status.s_type', 'Inprogress'] }, 1, 0] } },
+            },
+        },
+        { $group: { _id: '$_id.unit', total_assigned: { $sum: 1 }, currently_serving: { $sum: '$serving' } } },
+    ]);
+}
 
 /**
- * Queue summary based ONLY on the user's department (req.user.department):
- * - units = all departments whose parent_department is the user's department
- * - total_units = count of those units
- * - visitors_in_department / currently_serving = visitors whose assigned
- *   department_id is the user's department OR one of its units
+ * GET /servicedelivery/queue-summary?in_house=true
+ * The figures next to the department queue, for the caller's department
+ * scope (the same visits the queue lists): visitors waiting or being served,
+ * visitors being served right now, and those two figures for each unit
+ * under the caller's departments (new parent_department and legacy
+ * sub_department_mng units).
  */
-module.exports = async function queue_summary(req, res, next) {
-  try {
-    let { in_house = 'true' } = req.query || {};
-
-    const user_department_id = req.user?.department?._id?.toString() || null;
-
-    let inHouseFilter = {};
-    if (in_house === 'true' || in_house === true) {
-      inHouseFilter.is_still_inhouse = true;
-    } else if (in_house === 'false' || in_house === false) {
-      inHouseFilter.is_still_inhouse = false;
-    }
-
-    if (!user_department_id) {
-      return res.status(200).json({
+module.exports = async function queue_summary(req, res) {
+    const summary = {
         success: true,
         type: 'success',
         message: 'Queue summary results',
@@ -31,85 +42,44 @@ module.exports = async function queue_summary(req, res, next) {
         visitors_in_department: 0,
         currently_serving: 0,
         units: [],
-      });
-    }
-
-    const userDept = req.user.department;
-
-    const units = await Department.find({
-      $or: [
-        { parent_department: user_department_id },
-        { 'sub_department_mng.parent_department_id': String(user_department_id) },
-      ],
-    }).select('department_name department_id').lean();
-
-    const idsOf = (doc) => {
-      const ids = [String(doc._id)];
-      if (doc.department_id) ids.push(String(doc.department_id));
-      return ids;
     };
+    try {
+        const presence = presenceFilter(req.query || {});
+        const scope = await callerScope(req);
+        if (scope.length === 0) return res.status(200).json(summary);
 
-    const scopeIds = [
-      ...new Set([
-        user_department_id,
-        ...(userDept?.department_id ? [String(userDept.department_id)] : []),
-        ...units.flatMap(idsOf),
-      ]),
-    ];
+        const units = await Department.find({
+            $or: [
+                { parent_department: { $in: scope.filter((id) => OBJECT_ID.test(id)) } },
+                { 'sub_department_mng.parent_department_id': { $in: scope } },
+            ],
+        }).select('department_name').sort({ department_name: 1 }).lean();
+        const unitIds = units.map((unit) => String(unit._id));
 
-    const deptFilter = {
-      departments_assigned: {
-        $elemMatch: { department_id: { $in: scopeIds } },
-      },
-      ...inHouseFilter,
-    };
+        const [waiting, serving, perUnit] = await Promise.all([
+            ServiceDelivery.countDocuments({ ...presence, ...pendingFor(scope) }),
+            ServiceDelivery.countDocuments({ ...presence, ...servingFor(scope) }),
+            unitIds.length ? countsPerUnit(presence, unitIds) : Promise.resolve([]),
+        ]);
+        const byUnit = new Map(perUnit.map((row) => [String(row._id), row]));
 
-    const visitorsInDept = await ServiceDelivery.countDocuments(deptFilter);
-    const currentlyServing = await ServiceDelivery.countDocuments({
-      ...deptFilter,
-      is_being_served: true,
-    });
-
-    const unitBreakdown = [];
-    for (const unit of units) {
-      const unitFilter = {
-        departments_assigned: {
-          $elemMatch: { department_id: { $in: idsOf(unit) } },
-        },
-        ...inHouseFilter,
-      };
-
-      const totalAssigned = await ServiceDelivery.countDocuments(unitFilter);
-      const servingCount = await ServiceDelivery.countDocuments({
-        ...unitFilter,
-        is_being_served: true,
-      });
-
-      unitBreakdown.push({
-        unit_id: String(unit._id),
-        unit_name: unit.department_name || '',
-        total_assigned: totalAssigned,
-        currently_serving: servingCount,
-      });
+        return res.status(200).json({
+            ...summary,
+            is_parent_department: units.length > 0,
+            total_units: units.length,
+            visitors_in_department: waiting,
+            currently_serving: serving,
+            units: units.map((unit) => {
+                const counts = byUnit.get(String(unit._id));
+                return {
+                    unit_id: String(unit._id),
+                    unit_name: unit.department_name || '',
+                    total_assigned: counts ? counts.total_assigned : 0,
+                    currently_serving: counts ? counts.currently_serving : 0,
+                };
+            }),
+        });
+    } catch (error) {
+        return sendError(res, error, 'Something went wrong while retrieving queue summary');
     }
-
-    return res.status(200).json({
-      success: true,
-      type: 'success',
-      message: 'Queue summary results',
-      is_parent_department: units.length > 0,
-      total_units: units.length,
-      visitors_in_department: visitorsInDept,
-      currently_serving: currentlyServing,
-      units: unitBreakdown,
-    });
-  } catch (error) {
-    console.error('Error in queue_summary:', error);
-    return res.status(500).json({
-      success: false,
-      type: 'error',
-      message: 'Something went wrong while retrieving queue summary',
-      error: error.message,
-    });
-  }
 };

@@ -1,103 +1,92 @@
 const ServiceDelivery = require('../../models/service_delivery.js');
+const {
+    visitFromRef, visitView, emitVisitorUpdated, userIdOf, userName, minutesBetween, sendError, badRequest, notFound,
+} = require('../../utilities/visitors');
 
-module.exports = async function toggle_temporary_leave(req, res, next) {
+const LEAVE_OUTSIDE = 'Leave outside';
+
+/** Items carried out, as [{ item_name, quantity, description? }]; rows without a name are dropped. */
+function itemsFrom(list) {
+    if (!Array.isArray(list)) return [];
+    return list
+        .filter((item) => item && typeof item === 'object' && String(item.item_name || '').trim())
+        .map((item) => {
+            const quantity = Number(item.quantity);
+            const row = { item_name: String(item.item_name).trim(), quantity: Number.isFinite(quantity) ? quantity : 1 };
+            if (item.description && String(item.description).trim()) row.description = String(item.description).trim();
+            return row;
+        });
+}
+
+/**
+ * POST /servicedelivery/visitor/emergency/leave-return
+ * Body: { visitor_id (a visit id or a visitor id), action: 'leave' | 'return', items_exited_with?, message? }
+ * A visitor who came by car steps outside for a while and comes back.
+ * leave: opens a 'Leave outside' period and marks the visit as out (refused
+ * while a period is already open). return: closes the open period with its
+ * duration and marks the visit back in (refused when none is open). Only
+ * visits with a vehicle. The period and the note are recorded under the
+ * signed-in user.
+ */
+module.exports = async function toggle_temporary_leave(req, res) {
     try {
-        let {
-            visitor_id = null,
-            action = null, // 'leave' or 'return'
-            items_exited_with = [], // E.g. [{ item_name: "Laptop", quantity: 1 }]
-            provider_name = req.user?.name || 'Not Specified',
-            provider_id = null,
-            message = null
-        } = req.body || {};
+        const body = req.body || {};
+        const ref = body.visit_id || body.visitor_id || null;
+        const action = String(body.action || '').trim().toLowerCase();
+        if (!ref || !action) throw badRequest("Visitor ID and Action ('leave' or 'return') required");
+        if (action !== 'leave' && action !== 'return') throw badRequest("Invalid action. Use 'leave' or 'return'.");
 
-        if (!visitor_id || !action) {
-            return res.status(400).json({ success: false, type: 'warning', message: "Visitor ID and Action ('leave' or 'return') required" });
+        const visit = await visitFromRef(ref);
+        if (!visit || !visit.is_still_inhouse) throw notFound('Active visitor not found');
+        if (!visit.vehicle_storage || !visit.vehicle_storage.has_vehicle) {
+            throw badRequest('This action requires a visitor with a vehicle.');
         }
 
-        const visitor = await ServiceDelivery.findById(visitor_id);
-        if (!visitor || !visitor.is_still_inhouse) {
-            return res.status(404).json({ success: false, type: 'warning', message: "Active visitor not found" });
-        }
+        const now = new Date();
+        const by = { provider_name: userName(req.user), provider_id: userIdOf(req.user) || null };
+        const periods = visit.durations.emergency_durations;
+        const open = periods.find((p) => p.type_of_emergency === LEAVE_OUTSIDE && !p.ended_at);
+        const addNote = (fallback) => visit.notes.push({
+            writter_name: by.provider_name,
+            message: String(body.message || '').trim() || fallback,
+            timestamp: now,
+        });
 
-        // check if a vistor has a vehicle if not respond with this action require a visitor who have a vehicle
-
-        if (!visitor.vehicle_storage?.has_vehicle) {
-            return res.status(400).json({ success: false, type: 'warning', message: "This action requires a visitor with a vehicle." });
-        }
-
-        const current_time = new Date();
-
-        if (action.toLowerCase() === 'leave') {
-            // Check if they are already outside
-            const is_already_outside = visitor.durations.emergency_durations.some(e => e.type_of_emergency === 'Leave outside' && !e.ended_at);
-            if (is_already_outside) {
-                return res.status(400).json({ success: false, type: 'warning', message: "Visitor is already marked as outside." });
-            }
-
-            // Start the emergency duration clock
-            visitor.durations.emergency_durations.push({
-                type_of_emergency: 'Leave outside',
-                started_at: current_time,
-                provider_name,
-                provider_id
-            });
-
-            // Update items exited with
-            if (items_exited_with.length > 0) {
-                visitor.items_exited_with.push(...items_exited_with);
-            }
-
-            visitor.notes.push({
-                writter_name: provider_name,
-                message: message || 'Visitor stepped outside temporarily.',
-                timestamp: current_time
-            });
-            visitor.marked_as_out = true;
-
-        } else if (action.toLowerCase() === 'return') {
-            // Find the open 'Leave outside' record
-            const open_leave_index = visitor.durations.emergency_durations.findIndex(e => e.type_of_emergency === 'Leave outside' && !e.ended_at);
-            
-            if (open_leave_index === -1) {
-                return res.status(400).json({ success: false, type: 'warning', message: "No active 'Leave outside' record found to close." });
-            }
-
-            const active_leave = visitor.durations.emergency_durations[open_leave_index];
-            active_leave.ended_at = current_time;
-            
-            // Calculate minutes
-            const duration_minutes = Math.round((current_time - new Date(active_leave.started_at)) / 60000);
-            active_leave.duration = `${duration_minutes} mins`;
-
-            visitor.notes.push({
-                writter_name: provider_name,
-                message: message || `Visitor returned inside after ${duration_minutes} minutes.`,
-                timestamp: current_time
-            });
-            visitor.marked_as_out = false;
+        if (action === 'leave') {
+            if (open) throw badRequest('Visitor is already marked as outside.');
+            periods.push({ type_of_emergency: LEAVE_OUTSIDE, started_at: now, ...by });
+            const items = itemsFrom(body.items_exited_with);
+            if (items.length) visit.items_exited_with.push(...items);
+            addNote('Visitor stepped outside temporarily.');
+            visit.marked_as_out = true;
         } else {
-            return res.status(400).json({ success: false, type: 'warning', message: "Invalid action. Use 'leave' or 'return'." });
+            if (!open) throw badRequest("No active 'Leave outside' record found to close.");
+            const minutes = minutesBetween(open.started_at, now);
+            open.ended_at = now;
+            open.duration = `${minutes} mins`;
+            addNote(`Visitor returned inside after ${minutes} minutes.`);
+            visit.marked_as_out = false;
         }
+        await visit.save();
 
-        const updated_visitor = await visitor.save();
-
-
-                global.WebsocketIO?.emit('leave_return', { 
-                    show_notif: true,
-                    type: 'info',
-                    message: "Visitor " + visitor.full_name + " With plate number " + visitor.vehicle_storage?.vehicle_details?.plate_number + " has " + (action.toLowerCase() === 'leave' ? "stepped outside temporarily." : "returned inside.")
-                 })
+        const data = visitView(await ServiceDelivery.findById(visit._id).populate('visitor').lean());
+        const details = visit.vehicle_storage.vehicle_details || {};
+        global.WebsocketIO?.emit('leave_return', {
+            show_notif: true,
+            type: 'info',
+            visitor_id: data.visitor_id ? String(data.visitor_id) : null,
+            visit_id: String(visit._id),
+            message: `Visitor ${data.full_name || 'Unknown'} with plate number ${details.plate_number || 'not specified'} has ${action === 'leave' ? 'stepped outside temporarily.' : 'returned inside.'}`,
+        });
+        emitVisitorUpdated(visit.visitor);
 
         return res.status(200).json({
             success: true,
-            type: "success",
-            message: action === 'leave' ? "Visitor marked as temporarily outside." : "Visitor marked as returned.",
-            data: updated_visitor
+            type: 'success',
+            message: action === 'leave' ? 'Visitor marked as temporarily outside.' : 'Visitor marked as returned.',
+            data,
         });
-
     } catch (error) {
-        console.error("Error in toggle_temporary_leave:", error);
-        return res.status(500).json({ success: false, type: "error", message: "Failed to log temporary leave", error: error.message });
+        return sendError(res, error, 'Failed to log temporary leave');
     }
 };

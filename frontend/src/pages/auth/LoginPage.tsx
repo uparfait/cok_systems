@@ -327,7 +327,7 @@ const LoginPage = () => {
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               {/* Email field */}
               <div>
-                <label htmlFor="email" className="cok-auth-label">
+                <label htmlFor="email" className="cok-auth-label cok-req">
                   Email Address
                 </label>
                 <div className="relative">
@@ -362,7 +362,7 @@ const LoginPage = () => {
 
               {/* Password field */}
               <div>
-                <label htmlFor="password" className="cok-auth-label">
+                <label htmlFor="password" className="cok-auth-label cok-req">
                   Password
                 </label>
                 <div className="relative">
@@ -525,7 +525,7 @@ const LoginPage = () => {
               className="text-center text-xs mt-5 sm:mt-6"
               style={{ fontFamily: "'Merriweather', serif", color: '#9E9E9E' }}
             >
-              © {new Date().getFullYear()} City of Kigali. All rights reserved.
+              Copyright {new Date().getFullYear()} City of Kigali. All rights reserved.
             </p>
 
 

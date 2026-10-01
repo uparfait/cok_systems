@@ -156,7 +156,7 @@ const ResetPasswordPage = () => {
 
   const maskSecret = (secret: string) => {
     if (!secret || secret.length <= 8) return secret || '';
-    return secret.slice(0, 8) + '••••••••';
+    return secret.slice(0, 8) + '********';
   };
 
   const copyToClipboard = (text: string, label: string = 'Secret') => {
@@ -234,7 +234,7 @@ const ResetPasswordPage = () => {
               )}
 
               <div className="mb-4">
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 text-center">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 text-center cok-req">
                   Enter 6-digit code from your authenticator app
                 </label>
                 <div className="flex justify-center gap-1.5 sm:gap-2" onPaste={handleTOTPPaste}>
@@ -323,7 +323,7 @@ const ResetPasswordPage = () => {
 
               {step === 'verify' && (
                 <>
-                  <label htmlFor="otp" className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 text-center">VERIFICATION CODE</label>
+                  <label htmlFor="otp" className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 text-center cok-req">VERIFICATION CODE</label>
                   <div className="flex justify-center gap-1.5 sm:gap-2 mb-3">
                     {[0,1,2,3,4].map((i) => (
                       <input
@@ -361,7 +361,7 @@ const ResetPasswordPage = () => {
               {step === 'reset' && (
                 <form onSubmit={handleSubmit} className="space-y-3">
                   <div>
-                    <label htmlFor="new-password" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">NEW PASSWORD</label>
+                    <label htmlFor="new-password" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 cok-req">NEW PASSWORD</label>
                     <div className="relative">
                       <input
                         id="new-password"
@@ -407,22 +407,22 @@ const ResetPasswordPage = () => {
                     <div className="bg-gray-50 rounded-lg p-2.5 sm:p-3 text-xs space-y-1">
                       <p className="font-medium text-gray-700 mb-1.5">Password must have:</p>
                       <div className={`flex items-center ${passwordStrength.hasMinLength ? 'text-green-600' : 'text-gray-500'}`}>
-                        <span className="mr-1">{passwordStrength.hasMinLength ? '✓' : '○'}</span>At least 8 characters
+                        <span className={`mr-1.5 h-2 w-2 shrink-0 rounded-full border border-current ${passwordStrength.hasMinLength ? 'bg-current' : 'bg-transparent'}`} />At least 8 characters
                       </div>
                       <div className={`flex items-center ${passwordStrength.hasUppercase ? 'text-green-600' : 'text-gray-500'}`}>
-                        <span className="mr-1">{passwordStrength.hasUppercase ? '✓' : '○'}</span>One uppercase letter (A-Z)
+                        <span className={`mr-1.5 h-2 w-2 shrink-0 rounded-full border border-current ${passwordStrength.hasUppercase ? 'bg-current' : 'bg-transparent'}`} />One uppercase letter (A-Z)
                       </div>
                       <div className={`flex items-center ${passwordStrength.hasNumber ? 'text-green-600' : 'text-gray-500'}`}>
-                        <span className="mr-1">{passwordStrength.hasNumber ? '✓' : '○'}</span>One number (0-9)
+                        <span className={`mr-1.5 h-2 w-2 shrink-0 rounded-full border border-current ${passwordStrength.hasNumber ? 'bg-current' : 'bg-transparent'}`} />One number (0-9)
                       </div>
                       <div className={`flex items-center ${passwordStrength.hasSymbol ? 'text-green-600' : 'text-gray-500'}`}>
-                        <span className="mr-1">{passwordStrength.hasSymbol ? '✓' : '○'}</span>One special character
+                        <span className={`mr-1.5 h-2 w-2 shrink-0 rounded-full border border-current ${passwordStrength.hasSymbol ? 'bg-current' : 'bg-transparent'}`} />One special character
                       </div>
                     </div>
                   )}
 
                   <div>
-                    <label htmlFor="confirm-password" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">CONFIRM PASSWORD</label>
+                    <label htmlFor="confirm-password" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 cok-req">CONFIRM PASSWORD</label>
                     <input
                       id="confirm-password"
                       name="confirm-password"
@@ -463,7 +463,7 @@ const ResetPasswordPage = () => {
               </div>
 
               <p className="text-left text-xs text-gray-400 mt-4 sm:mt-5">
-                © {new Date().getFullYear()} City of Kigali. All rights reserved.
+                Copyright {new Date().getFullYear()} City of Kigali. All rights reserved.
               </p>
             </>
           )}

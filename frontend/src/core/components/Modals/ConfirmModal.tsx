@@ -1,13 +1,11 @@
 import React from 'react';
 import type { ReactNode } from 'react';
-import { FiAlertTriangle, FiCheck, FiX, FiLoader } from 'react-icons/fi';
+import { FiAlertTriangle, FiCheck, FiLoader } from 'react-icons/fi';
+import OverlayShell from '../overlay/OverlayShell';
 
-// CoK Design System Colors
 const PRIMARY = '#056daa';
 const WHITE = '#FFFFFF';
 const NEUTRAL_DARK = '#333333';
-const NEUTRAL_LIGHT = '#F7F9FB';
-const BORDER = '#E0E0E0';
 const DANGER = '#E74C3C';
 const WARNING = '#F39C12';
 const SUCCESS = '#4CAF50';
@@ -30,7 +28,6 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   title,
   message,
   confirmText = 'Confirm',
-  cancelText = 'Cancel',
   onConfirm,
   onCancel,
   type = 'danger',
@@ -55,23 +52,23 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       case 'danger':
         return {
           iconBg: DANGER,
-          iconElement: <FiAlertTriangle className="w-5 h-5" style={{ color: WHITE }} />,
+          iconElement: <FiAlertTriangle className="w-5 h-5" style={{ color: NEUTRAL_DARK }} />,
         };
       case 'warning':
         return {
           iconBg: WARNING,
-          iconElement: <FiAlertTriangle className="w-5 h-5" style={{ color: WHITE }} />,
+          iconElement: <FiAlertTriangle className="w-5 h-5" style={{ color: NEUTRAL_DARK }} />,
         };
       case 'success':
         return {
           iconBg: SUCCESS,
-          iconElement: <FiCheck className="w-5 h-5" style={{ color: WHITE }} />,
+          iconElement: <FiCheck className="w-5 h-5" style={{ color: NEUTRAL_DARK }} />,
         };
       case 'info':
       default:
         return {
           iconBg: PRIMARY,
-          iconElement: <FiAlertTriangle className="w-5 h-5" style={{ color: WHITE }} />,
+          iconElement: <FiAlertTriangle className="w-5 h-5" style={{ color: NEUTRAL_DARK }} />,
         };
     }
   };
@@ -125,144 +122,48 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   const styles = getTypeStyles();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onCancel}
-      />
-      
-      {/* Modal Content - CoK Design */}
-      <div className="relative bg-white w-full max-w-md flex flex-col" style={{ borderRadius: 0 }}>
-        {/* Header with primary color */}
-        <div 
-          className="px-6 py-4 flex items-center justify-between flex-shrink-0" 
-          style={{ 
-            backgroundColor: PRIMARY, 
-            borderRadius: 0 
-          }}
+    <OverlayShell
+      title={
+        <span className="flex items-center gap-3">
+          <span className="flex-shrink-0 flex items-center">{styles.iconElement}</span>
+          <span className="truncate">{title}</span>
+        </span>
+      }
+      onClose={onCancel}
+      busy={isLoading}
+      width="sm"
+      footer={
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={isLoading}
+          style={confirmButtonStyle}
+          onMouseEnter={() => setIsConfirmHovered(true)}
+          onMouseLeave={() => setIsConfirmHovered(false)}
+          className="flex items-center justify-center gap-2"
         >
-          <div className="flex items-center gap-3">
-            <div 
-              className="p-2 flex-shrink-0" 
-              style={{ 
-                backgroundColor: 'rgba(255,255,255,0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {styles.iconElement}
-            </div>
-            <h3 
-              className="text-lg font-semibold" 
-              style={{ 
-                color: WHITE, 
-                fontFamily: fontHeading,
-                margin: 0,
-              }}
-            >
-              {title}
-            </h3>
-          </div>
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isLoading}
-            style={{
-              padding: '0.4rem 0.8rem',
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.3)',
-              color: WHITE,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background-color 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            <FiX className="w-4 h-4" style={{ color: WHITE }} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="px-6 py-4">
-          <p 
-            className="text-sm leading-relaxed" 
-            style={{ 
-              color: NEUTRAL_DARK, 
-              fontFamily: fontHeading,
-              margin: 0,
-            }}
-          >
-            {message}
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div 
-          className="px-6 py-4 flex flex-col sm:flex-row gap-3" 
-          style={{ 
-            borderTop: `1px solid ${BORDER}`,
-            flexDirection: 'column',
-          }}
-        >
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isLoading}
-            style={confirmButtonStyle}
-            onMouseEnter={() => setIsConfirmHovered(true)}
-            onMouseLeave={() => setIsConfirmHovered(false)}
-            className="flex items-center justify-center gap-2"
-          >
-            {isLoading ? (
-              <>
-                <FiLoader className="w-4 h-4 animate-spin" style={{ color: WHITE }} />
-                {confirmText}
-              </>
-            ) : (
-              confirmText
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              padding: '0.6rem 1rem',
-              backgroundColor: 'transparent',
-              color: NEUTRAL_DARK,
-              border: `1px solid ${BORDER}`,
-              borderRadius: 0,
-              cursor: 'pointer',
-              fontFamily: fontHeading,
-              fontSize: '13px',
-              fontWeight: 600,
-              letterSpacing: '1px',
-              textTransform: 'uppercase',
-              transition: 'all 0.2s ease',
-              opacity: isLoading ? 0.5 : 1,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = NEUTRAL_LIGHT;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            {cancelText}
-          </button>
-        </div>
-      </div>
-    </div>
+          {isLoading ? (
+            <>
+              <FiLoader className="w-4 h-4 animate-spin" style={{ color: WHITE }} />
+              {confirmText}
+            </>
+          ) : (
+            confirmText
+          )}
+        </button>
+      }
+    >
+      <p
+        className="text-sm leading-relaxed"
+        style={{
+          color: NEUTRAL_DARK,
+          fontFamily: fontHeading,
+          margin: 0,
+        }}
+      >
+        {message}
+      </p>
+    </OverlayShell>
   );
 };
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiTrash2, FiAlertTriangle, FiMail, FiCheckCircle } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
+import OverlayShell from '@/core/components/overlay/OverlayShell';
 
 const DANGER = '#E74C3C';
 const NEUTRAL_LIGHT = '#F7F9FB';

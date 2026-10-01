@@ -1,7 +1,6 @@
-// ConfirmationModal - Reusable confirmation dialog component with CoK design
-
 import React from 'react'
-import { FiAlertTriangle, FiX } from 'react-icons/fi'
+import { FiAlertTriangle } from 'react-icons/fi'
+import OverlayShell from './overlay/OverlayShell'
 
 const PRIMARY = '#056daa'
 const WHITE = '#FFFFFF'
@@ -43,13 +42,10 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   title,
   message,
   confirmText = 'Delete',
-  cancelText = 'Cancel',
   type = 'danger',
   loading = false,
   fullScreen = false
 }) => {
-  if (!isOpen) return null
-
   const [isConfirmHovered, setIsConfirmHovered] = React.useState(false)
 
   const getIconColor = () => {
@@ -149,62 +145,38 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
-      <div className="bg-white w-full max-w-md flex flex-col" style={{ borderRadius: 0 }}>
-        {/* Header with cok-bg-primary */}
-        <div className="px-6 py-4 flex items-center justify-between flex-shrink-0 cok-bg-primary" style={{ borderRadius: 0 }}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
-              <FiAlertTriangle className="w-5 h-5" style={{ color: WHITE }} />
-            </div>
-            <h3 className="text-lg font-semibold" style={{ color: WHITE, fontFamily: fontHeading }}>
-              {title}
-            </h3>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="cok-btn-outlined-reverse"
-            style={{ padding: '0.4rem 0.8rem' }}
-          >
-            <FiX className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="px-6 py-4">
-          <p className="text-sm leading-relaxed" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-            {message}
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div className="px-6 py-4 flex flex-col sm:flex-row gap-3" style={{ borderTop: `1px solid ${BORDER}` }}>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={loading}
-            style={confirmButtonStyle}
-            onMouseEnter={() => setIsConfirmHovered(true)}
-            onMouseLeave={() => setIsConfirmHovered(false)}
-            className="flex items-center justify-center gap-2"
-          >
-            {loading && (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            )}
-            {loading ? 'Processing...' : confirmText}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="w-full sm:flex-1 cok-btn-outlined"
-          >
-            {cancelText}
-          </button>
-        </div>
-      </div>
-    </div>
+    <OverlayShell
+      open={isOpen}
+      title={
+        <span className="flex items-center gap-2 min-w-0">
+          <FiAlertTriangle className="w-5 h-5 flex-shrink-0 text-gray-500" />
+          <span className="truncate">{title}</span>
+        </span>
+      }
+      onClose={onClose}
+      busy={loading}
+      width="sm"
+      footer={
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={loading}
+          style={confirmButtonStyle}
+          onMouseEnter={() => setIsConfirmHovered(true)}
+          onMouseLeave={() => setIsConfirmHovered(false)}
+          className="flex items-center justify-center gap-2"
+        >
+          {loading && (
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          )}
+          {loading ? 'Processing...' : confirmText}
+        </button>
+      }
+    >
+      <p className="text-sm leading-relaxed" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+        {message}
+      </p>
+    </OverlayShell>
   )
 }
 

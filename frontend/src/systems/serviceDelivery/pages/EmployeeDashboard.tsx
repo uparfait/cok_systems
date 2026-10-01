@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FiClock, FiCheckCircle, FiRefreshCw, FiUsers, FiDownload } from 'react-icons/fi';
+import DepartmentQueueTab from '../components/employeeFlow/tabs/DepartmentQueueTab';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
 import { serviceDeliveryService } from '../../../core/services/adminService';
@@ -35,6 +37,8 @@ interface Visitor {
 const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
   const { socket, isConnected } = useSocket();
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'dashboard';
   const [loading, setLoading] = useState(true);
   const [firstLoad, setFirstLoad] = useState(true);
   const [stats, setStats] = useState({ pending: 0, transfered: 0, completed: 0 });
@@ -77,6 +81,16 @@ const EmployeeDashboard: React.FC = () => {
       socket.off('visitor_checkedout', h);
     };
   }, [socket, isConnected, fetchDashboardStats]);
+
+  if (activeTab === 'queue') {
+    return (
+      <div className="flex flex-col h-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+        <div className="flex-1 overflow-auto p-4">
+          <DepartmentQueueTab />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>

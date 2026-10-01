@@ -201,7 +201,6 @@ const IncomingCorrespondences: React.FC<{
         setOutgoingTotal(data.total || 0);
       }
     } catch (error) {
-      // keep existing counts on error
     }
   }, [appliedPeriod, appliedFrom, appliedTo]);
 
@@ -226,7 +225,6 @@ const IncomingCorrespondences: React.FC<{
         setRequestsTotal((res as any).total);
       }
     } catch (error) {
-      // keep existing data on error
     }
   }, [activeFilter, appliedPeriod, appliedFrom, appliedTo, page, limit, searchInput]);
 
@@ -277,7 +275,6 @@ const IncomingCorrespondences: React.FC<{
         setOutgoingTotal((res as any).total);
       }
     } catch (error) {
-      // keep existing data on error
     }
   }, [appliedPeriod, appliedFrom, appliedTo, page, limit, searchInput]);
 

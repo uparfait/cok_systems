@@ -1,42 +1,16 @@
-const mongoose = require('mongoose')
 const ServiceDelivery = require('../../models/service_delivery.js')
+const { visitFromRef, visitView, sendError, notFound } = require('../../utilities/visitors')
 
-module.exports = async function get_visitor_by_id(req, res, next) {
+/**
+ * GET /servicedelivery/visitor/:id  (a visit id, or a visitor id for their latest visit)
+ */
+module.exports = async function get_visitor_by_id(req, res) {
     try {
-        const { id } = req.params
-
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({
-                success: false,
-                type: "warning",
-                message: "Invalid Visitor ID format"
-            })
-        }
-
-        const visitor = await ServiceDelivery.findById(id)
-
-        if (!visitor) {
-            return res.status(404).json({
-                success: false,
-                type: "warning",
-                message: "Visitor not found"
-            })
-        }
-
-        return res.status(200).json({
-            success: true,
-            type: "success",
-            message: "Visitor details",
-            data: visitor
-        })
-
+        const visit = await visitFromRef(req.params.id, { open: false })
+        if (!visit) throw notFound('Visitor not found')
+        const populated = await ServiceDelivery.findById(visit._id).populate('visitor').lean()
+        return res.status(200).json({ success: true, type: 'success', message: 'Visitor found', data: visitView(populated) })
     } catch (error) {
-        console.error("Error in get_visitor_by_id:", error)
-        return res.status(500).json({
-            success: false,
-            type: "error",
-            message: "Something went wrong while retrieving visitor details",
-            error: error.message
-        })
+        return sendError(res, error, 'Failed to load the visitor')
     }
 }

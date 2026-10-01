@@ -4,6 +4,7 @@ import { get_field_text } from "../fields/fieldText.js";
 import { DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import OverlayCloseButton from "../../../core/components/overlay/OverlayCloseButton.tsx";
 
 /**
  * Shown after a template is picked from AddComponentPanel's "Templates"
@@ -46,7 +47,7 @@ export default function TemplateFieldPickerOverlay({ template, onClose, onConfir
     <div className="fixed inset-0 z-[10001] flex items-start justify-center pt-10 px-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white border-2 w-full flex flex-col" style={{ borderColor: "#E0E0E0", minWidth: "50vw", maxWidth: 900, maxHeight: "80vh" }}>
-        <div className="flex items-center justify-between px-3 py-3 border-b flex-shrink-0" style={{ borderColor: "#E0E0E0" }}>
+        <div className="flex items-center justify-between gap-3 px-3 py-3 border-b flex-shrink-0" style={{ borderColor: "#E0E0E0" }}>
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
               {template.name}
@@ -57,7 +58,7 @@ export default function TemplateFieldPickerOverlay({ template, onClose, onConfir
               </p>
             )}
           </div>
-          <DcsButtonOutline onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutline>
+          <OverlayCloseButton onClick={onClose} label={translate("DCS_BTN_CLOSE")} />
         </div>
 
         <div className="overflow-y-auto flex-1 px-3 py-2">

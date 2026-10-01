@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { FiX } from 'react-icons/fi';
 import requestService from '../../../core/services/requestService';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
+import OverlayShell from '../overlay/OverlayShell';
 
 const PERIOD_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -69,15 +69,28 @@ const ExportModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary" style={{ borderRadius: 0 }}>
-          <h3 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>Export Report</h3>
-          <button onClick={onClose} className="cok-btn-outlined-reverse" style={{ padding: '0.4rem 0.8rem' }}>
-            <FiX className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="p-4 sm:p-6 space-y-4">
+    <OverlayShell
+      title="Export Report"
+      onClose={onClose}
+      busy={downloading}
+      width="md"
+      footer={
+        <button onClick={handleDownload} disabled={fields.length === 0 || downloading} className="cok-btn-primary flex-1 flex items-center justify-center gap-2" style={{ padding: '0.7rem 1.2rem' }}>
+          {downloading ? (
+            <>
+              <SpiralLoader color="#FFFFFF" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              Download
+            </>
+          )}
+        </button>
+      }
+    >
+        <div className="space-y-4">
           <div>
             <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: '#555555', fontFamily: "'Montserrat', sans-serif" }}>Report Title</label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="cok-auth-input w-full py-2.5 px-3 text-sm" style={{ fontFamily: "'Montserrat', sans-serif" }} />
@@ -95,7 +108,7 @@ const ExportModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             )}
           </div>
           <div>
-            <label className="block text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: '#555555', fontFamily: "'Montserrat', sans-serif" }}>Columns to Include</label>
+            <label className="block text-xs font-semibold mb-2 uppercase tracking-wide cok-req" style={{ color: '#555555', fontFamily: "'Montserrat', sans-serif" }}>Columns to Include</label>
             <div className="flex flex-wrap gap-2">
               {ALL_FIELDS.map((field) => (
                 <label key={field.key} className="flex items-center gap-2 px-3 py-2 cursor-pointer border border-gray-200 hover:bg-gray-50 transition-colors" style={{ borderRadius: 0, backgroundColor: fields.includes(field.key) ? '#F7F9FB' : '#FFFFFF' }}>
@@ -105,25 +118,8 @@ const ExportModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               ))}
             </div>
           </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} disabled={downloading} className="cok-btn-outlined flex-1" style={{ padding: '0.7rem 1.2rem' }}>Cancel</button>
-            <button onClick={handleDownload} disabled={fields.length === 0 || downloading} className="cok-btn-primary flex-1 flex items-center justify-center gap-2" style={{ padding: '0.7rem 1.2rem' }}>
-              {downloading ? (
-                <>
-                  <SpiralLoader color="#FFFFFF" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                  Download
-                </>
-              )}
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
+    </OverlayShell>
   );
 };
 

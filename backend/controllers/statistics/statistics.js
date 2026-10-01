@@ -11,6 +11,39 @@ const Feedback = require('../../models/feedback_db.js');
 const UnservicedFeedback = require('../../models/unservicedfeedback_db.js');
 const Task = require('../../models/task.js');
 const ParkingSlot = require('../../models/parking_slots.js');
+const Visitor = require('../../models/visitor.js');
+
+/**
+ * Person-level figures. A visit (ServiceDelivery) only references its visitor;
+ * each person is stored once in the Visitor collection.
+ * registered_visitors: every registered person; visitors_in_house: people in
+ * house right now (Is_In_House); returning_visitors: people with more than one visit.
+ */
+const getVisitorFigures = async () => {
+    const [registered, inHouse, returning] = await Promise.all([
+        Visitor.estimatedDocumentCount(),
+        Visitor.countDocuments({ Is_In_House: true }),
+        Visitor.countDocuments({ N_visits: { $gt: 1 } }),
+    ]);
+    return {
+        registered_visitors: registered,
+        visitors_in_house: inHouse,
+        returning_visitors: returning,
+    };
+};
+
+/**
+ * Distinct visitors (people) among the visits matching `match`. Visits of the
+ * old structure have no visitor reference and are left out.
+ */
+const countUniqueVisitors = async (match = {}) => {
+    const [row] = await ServiceDelivery.aggregate([
+        { $match: { $and: [match, { visitor: { $type: 'objectId' } }] } },
+        { $group: { _id: '$visitor' } },
+        { $count: 'total' },
+    ]);
+    return row ? row.total : 0;
+};
 
 /**
  * Get all available roles along with their permissions
@@ -354,6 +387,9 @@ const getServiceDeliveryStats = async (req, res) => {
             }
         });
 
+        // total/inhouse/completed count visits; these count people
+        const visitorFigures = await getVisitorFigures();
+
         return res.status(200).json({
             success: true,
             type: 'success',
@@ -364,7 +400,8 @@ const getServiceDeliveryStats = async (req, res) => {
                 completed: totalCompleted,
                 by_status: statusCounts,
                 by_department: departmentCounts,
-                by_department_total: departmentCountsTotal
+                by_department_total: departmentCountsTotal,
+                ...visitorFigures
             }
         });
     } catch (error) {
@@ -687,19 +724,20 @@ const getHourlyServiceDeliveryStats = async (req, res) => {
         const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
         const tzOffset = -now.getTimezoneOffset() * 60 * 1000;
 
-        const checkInsByHour = await ServiceDelivery.aggregate([
-            {
-                $match: {
-                    entry_date: { $gte: startOfDay, $lte: endOfDay }
-                }
-            },
-            {
-                $group: {
-                    _id: { $hour: { $add: ['$entry_date', tzOffset] } },
-                    count: { $sum: 1 }
-                }
-            },
-            { $sort: { _id: 1 } }
+        const todayMatch = { entry_date: { $gte: startOfDay, $lte: endOfDay } };
+        const [checkInsByHour, uniqueVisitors, visitorFigures] = await Promise.all([
+            ServiceDelivery.aggregate([
+                { $match: todayMatch },
+                {
+                    $group: {
+                        _id: { $hour: { $add: ['$entry_date', tzOffset] } },
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { _id: 1 } }
+            ]),
+            countUniqueVisitors(todayMatch),
+            getVisitorFigures()
         ]);
 
         // Format into hourly array (0-23)
@@ -732,7 +770,10 @@ const getHourlyServiceDeliveryStats = async (req, res) => {
             data: {
                 date: now.toISOString().split('T')[0],
                 hourly: hourlyStats,
-                total_visitors: checkInsByHour.reduce((sum, item) => sum + item.count, 0)
+                total_visitors: checkInsByHour.reduce((sum, item) => sum + item.count, 0),
+                // total_visitors counts today's visits; unique_visitors the people behind them
+                unique_visitors: uniqueVisitors,
+                ...visitorFigures
             }
         });
     } catch (error) {
@@ -1242,128 +1283,246 @@ const getEmployeePerformanceByTasksDone = async (req, res) => {
     }
 };
 
+// Aggregation expression helpers for the served statistics
+const hasText = (expr) => ({ $ne: [{ $ifNull: [expr, ''] }, ''] });
+const textOr = (expr, fallback) => ({ $cond: [hasText(expr), expr, fallback] });
+
+/** Expression builder: is the date expression inside [fromDate, toDate] (true when no bound is set). */
+const dateWindow = (fromDate, toDate) => (expr) => {
+    if (!fromDate && !toDate) return true;
+    const checks = [{ $eq: [{ $type: expr }, 'date'] }];
+    if (fromDate) checks.push({ $gte: [expr, fromDate] });
+    if (toDate) checks.push({ $lte: [expr, toDate] });
+    return { $and: checks };
+};
+
+// One served record per service entry: department, provider key (id, else name) and provider label
+const servedRecord = (entry) => ({
+    department: `${entry}.department_name`,
+    key: textOr(`${entry}.provider_id`, `${entry}.provider_name`),
+    provider: textOr(`${entry}.provider_name`, 'Unknown provider'),
+});
+
 /**
- * Get served statistics for the mayor overview, aggregated server-side.
- * Query params: from, to (ISO dates, both optional; omitted = all records).
+ * Stages that turn each visit into its served records (durations first, then statuses):
+ *  - every services_durations entry whose started_at (else the entry date) is in range;
+ *  - every services_status entry with a provider and no services_durations entry of the
+ *    same department and provider, when the visit entry date is in range.
+ */
+const servedRecordStages = (dateQuery, inWindow) => [
+    { $match: dateQuery },
+    {
+        $project: {
+            visitor: 1,
+            full_name: 1,
+            records: {
+                $concatArrays: [
+                    {
+                        $map: {
+                            input: {
+                                $filter: {
+                                    input: { $ifNull: ['$durations.services_durations', []] },
+                                    as: 's',
+                                    cond: { $and: [hasText('$$s.department_name'), inWindow({ $ifNull: ['$$s.started_at', '$entry_date'] })] },
+                                },
+                            },
+                            as: 's',
+                            in: servedRecord('$$s'),
+                        },
+                    },
+                    {
+                        $map: {
+                            input: {
+                                $filter: {
+                                    input: { $ifNull: ['$services_status', []] },
+                                    as: 's',
+                                    cond: {
+                                        $and: [
+                                            hasText('$$s.department_name'),
+                                            { $or: [hasText('$$s.provider_id'), hasText('$$s.provider_name')] },
+                                            {
+                                                $not: [{
+                                                    $anyElementTrue: [{
+                                                        $map: {
+                                                            input: { $ifNull: ['$durations.services_durations', []] },
+                                                            as: 'd',
+                                                            in: {
+                                                                $and: [
+                                                                    { $eq: [{ $ifNull: ['$$d.department_id', ''] }, { $ifNull: ['$$s.department_id', ''] }] },
+                                                                    { $eq: [{ $ifNull: ['$$d.provider_id', ''] }, { $ifNull: ['$$s.provider_id', ''] }] },
+                                                                ],
+                                                            },
+                                                        },
+                                                    }],
+                                                }],
+                                            },
+                                            inWindow('$entry_date'),
+                                        ],
+                                    },
+                                },
+                            },
+                            as: 's',
+                            in: servedRecord('$$s'),
+                        },
+                    },
+                ],
+            },
+        },
+    },
+    { $match: { 'records.0': { $exists: true } } },
+];
+
+// Position of a record: its visit _id, then its index inside the visit ($min of it = first seen, wins ties)
+const unwindServedRecords = { $unwind: { path: '$records', includeArrayIndex: 'record_index' } };
+const sortByFirstSeen = { 'first.v': 1, 'first.i': 1 };
+
+/**
+ * Get served statistics for the mayor overview, aggregated in MongoDB.
+ * Query params: from, to (ISO dates, both optional; omitted = all records;
+ * a date-only "to" covers that whole day).
  * A service record's effective date is its started_at, falling back to the
- * visitor's entry_date - the same rule the dashboard previously applied client-side.
- * Returns: total_visitors, hourly check-ins, last check-in, served counts by
- * department (with the busiest employee) and by employee (with visitor names).
+ * visit's entry_date. Visitor names come from the Visitor collection; visits of
+ * the old structure fall back to their own full_name.
+ * Returns: total_visitors (visits) and unique_visitors (people) checked in,
+ * hourly check-ins, last check-in, served counts by department (with the
+ * busiest employee) and by employee (with the visitors they served).
  */
 const getServedStatistics = async (req, res) => {
     try {
         const { from, to } = req.query;
         const fromDate = from ? new Date(from) : null;
-        let toDate = to ? new Date(to) : null;
-        if (toDate && !isNaN(toDate.getTime()) && to.length <= 10) {
+        const toDate = to ? new Date(to) : null;
+        if ((fromDate && isNaN(fromDate.getTime())) || (toDate && isNaN(toDate.getTime()))) {
+            return res.status(400).json({ success: false, type: 'warning', message: 'Invalid from/to date' });
+        }
+        if (toDate && String(to).length <= 10) {
             // Date-only "to" means the whole day inclusive
             toDate.setHours(23, 59, 59, 999);
         }
-        const inRange = (d) => {
-            if (!d) return false;
-            const t = new Date(d);
-            if (isNaN(t.getTime())) return false;
-            if (fromDate && t < fromDate) return false;
-            if (toDate && t > toDate) return false;
-            return true;
-        };
         const noFilter = !fromDate && !toDate;
+        const range = {};
+        if (fromDate) range.$gte = fromDate;
+        if (toDate) range.$lte = toDate;
+        const inWindow = dateWindow(fromDate, toDate);
 
-        // Only pull docs that can contribute a record in the range
+        // Only visits that can contribute a record in the range
         const dateQuery = noFilter ? {} : {
             $or: [
-                { entry_date: { ...(fromDate && { $gte: fromDate }), ...(toDate && { $lte: toDate }) } },
-                { 'durations.services_durations.started_at': { ...(fromDate && { $gte: fromDate }), ...(toDate && { $lte: toDate }) } },
+                { entry_date: range },
+                { 'durations.services_durations.started_at': range },
             ],
         };
+        const entryQuery = noFilter ? { entry_date: { $type: 'date' } } : { entry_date: range };
+        const tzOffset = -new Date().getTimezoneOffset() * 60 * 1000;
+        const recordStages = servedRecordStages(dateQuery, inWindow);
 
-        const [visitorsDocs, users] = await Promise.all([
-            ServiceDelivery.find(dateQuery)
-                .select('full_name entry_date durations.services_durations services_status departments_assigned')
-                .lean(),
+        const [entryRows, assignedRows, departmentRows, providerRows, users, visitorFigures] = await Promise.all([
+            // Check-ins in range: visits, people, per local hour, latest
+            ServiceDelivery.aggregate([
+                { $match: entryQuery },
+                {
+                    $facet: {
+                        summary: [{ $group: { _id: null, total: { $sum: 1 }, last: { $max: '$entry_date' } } }],
+                        hourly: [
+                            { $group: { _id: { $hour: { $add: ['$entry_date', tzOffset] } }, count: { $sum: 1 } } },
+                            { $sort: { _id: 1 } },
+                        ],
+                        people: [
+                            { $match: { visitor: { $type: 'objectId' } } },
+                            { $group: { _id: '$visitor' } },
+                            { $count: 'total' },
+                        ],
+                    },
+                },
+            ]),
+            // Visitors assigned to each department (assigned_time, else the entry date, in range)
+            ServiceDelivery.aggregate([
+                { $match: dateQuery },
+                { $project: { entry_date: 1, 'departments_assigned.department_name': 1, 'departments_assigned.assigned_time': 1 } },
+                { $unwind: { path: '$departments_assigned', includeArrayIndex: 'assigned_index' } },
+                { $match: { 'departments_assigned.department_name': { $nin: [null, ''] } } },
+                ...(noFilter ? [] : [{ $match: { $expr: inWindow({ $ifNull: ['$departments_assigned.assigned_time', '$entry_date'] }) } }]),
+                {
+                    $group: {
+                        _id: '$departments_assigned.department_name',
+                        assigned: { $sum: 1 },
+                        first: { $min: { v: '$_id', i: '$assigned_index' } },
+                    },
+                },
+                { $sort: { assigned: -1, ...sortByFirstSeen } },
+            ]),
+            // Served per department with its busiest provider
+            ServiceDelivery.aggregate([
+                ...recordStages,
+                unwindServedRecords,
+                {
+                    $group: {
+                        _id: { department: '$records.department', provider: '$records.provider' },
+                        served: { $sum: 1 },
+                        first: { $min: { v: '$_id', i: '$record_index' } },
+                    },
+                },
+                { $sort: { served: -1, ...sortByFirstSeen } },
+                {
+                    $group: {
+                        _id: '$_id.department',
+                        served: { $sum: '$served' },
+                        top_name: { $first: '$_id.provider' },
+                        top_served: { $first: '$served' },
+                        first: { $min: '$first' },
+                    },
+                },
+                { $sort: sortByFirstSeen },
+            ]),
+            // Served per provider (id, else name) with the visitors they served, in visit order
+            ServiceDelivery.aggregate([
+                ...recordStages,
+                { $sort: { _id: 1 } },
+                { $lookup: { from: 'visitors', localField: 'visitor', foreignField: '_id', pipeline: [{ $project: { full_name: 1 } }], as: 'person' } },
+                { $addFields: { visitor_name: textOr({ $arrayElemAt: ['$person.full_name', 0] }, textOr('$full_name', 'Unknown visitor')) } },
+                unwindServedRecords,
+                { $match: { 'records.key': { $nin: [null, ''] } } },
+                {
+                    $group: {
+                        _id: '$records.key',
+                        first: { $min: { v: '$_id', i: '$record_index', name: '$records.provider', department: '$records.department' } },
+                        served: { $sum: 1 },
+                        visitors: {
+                            $push: {
+                                visitor: '$visitor_name',
+                                visitor_id: { $ifNull: ['$visitor', null] },
+                                department: '$records.department',
+                            },
+                        },
+                    },
+                },
+                { $sort: sortByFirstSeen },
+            ]),
             User.find({}).select('full_name department department_name').populate('department', 'department_name').lean(),
+            getVisitorFigures(),
         ]);
 
-        let totalVisitors = 0;
-        const hourlyCounts = {};
-        let lastCheckin = null;
+        const entries = entryRows[0] || { summary: [], hourly: [], people: [] };
+        const entrySummary = entries.summary[0] || null;
 
-        // department -> served count (visitors who actually received a service)
-        const servedByDept = {};
-        // department -> assigned count (visitors who were oriented/assigned to the dept)
-        const assignedByDept = {};
-        const perDeptProvider = {};
-        // provider key (id or name) -> { name, dept, count, visitors }
-        const providerCounts = {};
-
-        const addRecord = (department, providerId, providerName, visitorName) => {
-            servedByDept[department] = (servedByDept[department] || 0) + 1;
-            const provider = providerName || 'Unknown provider';
-            if (!perDeptProvider[department]) perDeptProvider[department] = {};
-            perDeptProvider[department][provider] = (perDeptProvider[department][provider] || 0) + 1;
-            const key = providerId || providerName;
-            if (!key) return;
-            if (!providerCounts[key]) providerCounts[key] = { name: providerName || 'Unknown provider', dept: department, count: 0, visitors: [] };
-            providerCounts[key].count += 1;
-            providerCounts[key].visitors.push({ visitor: visitorName, department });
-        };
-
-        const addAssigned = (department, visitorName) => {
-            assignedByDept[department] = (assignedByDept[department] || 0) + 1;
-        };
-
-        for (const v of visitorsDocs) {
-            const visitorName = v.full_name || 'Unknown visitor';
-            const entryInRange = noFilter || inRange(v.entry_date);
-
-            if (entryInRange && v.entry_date) {
-                totalVisitors += 1;
-                const t = new Date(v.entry_date);
-                if (!isNaN(t.getTime())) {
-                    hourlyCounts[t.getHours()] = (hourlyCounts[t.getHours()] || 0) + 1;
-                    if (!lastCheckin || t > lastCheckin) lastCheckin = t;
-                }
-            }
-
-            // Count visitors assigned to each department (from departments_assigned)
-            const assignments = v.departments_assigned || [];
-            for (const a of assignments) {
-                if (!a?.department_name) continue;
-                const effectiveDate = a.assigned_time || v.entry_date;
-                if (!noFilter && !inRange(effectiveDate)) continue;
-                addAssigned(a.department_name, visitorName);
-            }
-
-            const durations = v.durations?.services_durations || [];
-            for (const s of durations) {
-                if (!s?.department_name) continue;
-                const effectiveDate = s.started_at || v.entry_date;
-                if (!noFilter && !inRange(effectiveDate)) continue;
-                addRecord(s.department_name, s.provider_id, s.provider_name, visitorName);
-            }
-            for (const s of v.services_status || []) {
-                if (!s?.department_name || (!s.provider_id && !s.provider_name)) continue;
-                const already = durations.some(
-                    (d) => d.department_id === s.department_id && (d.provider_id || '') === (s.provider_id || '')
-                );
-                if (already) continue;
-                if (!noFilter && !inRange(v.entry_date)) continue;
-                addRecord(s.department_name, s.provider_id, s.provider_name, visitorName);
-            }
-        }
-
-        // Busiest provider per department
-        const topEmpByDept = {};
-        for (const [dept, providers] of Object.entries(perDeptProvider)) {
-            const [topName, topCount] = Object.entries(providers).sort((a, b) => b[1] - a[1])[0];
-            topEmpByDept[dept] = { name: topName, served: topCount };
-        }
-        const byDepartment = Object.entries(servedByDept)
-            .map(([name, served]) => ({ name, served, assigned: assignedByDept[name] || 0, not_served: Math.max(0, (assignedByDept[name] || 0) - served), top_employee: topEmpByDept[name] || null }))
+        // Departments with served records, busiest (most assigned) first
+        const assignedByName = new Map(assignedRows.map((row) => [row._id, row.assigned]));
+        const byDepartment = departmentRows
+            .map((row) => {
+                const assigned = assignedByName.get(row._id) || 0;
+                return {
+                    name: row._id,
+                    served: row.served,
+                    assigned,
+                    not_served: Math.max(0, assigned - row.served),
+                    top_employee: { name: row.top_name, served: row.top_served },
+                };
+            })
             .sort((a, b) => b.assigned - a.assigned);
 
         // Every employee gets a row (0 when they served no one), then any provider
         // from the records who has no matching account is appended
+        const providersByKey = new Map(providerRows.map((row) => [String(row._id), row]));
         const used = new Set();
         const byEmployee = users.map((u) => {
             const id = String(u._id);
@@ -1371,14 +1530,21 @@ const getServedStatistics = async (req, res) => {
             let served = 0;
             let servedDept;
             const visitors = [];
-            if (providerCounts[id]) { served += providerCounts[id].count; servedDept = providerCounts[id].dept; visitors.push(...providerCounts[id].visitors); used.add(id); }
-            if (providerCounts[name]) { served += providerCounts[name].count; servedDept = servedDept || providerCounts[name].dept; visitors.push(...providerCounts[name].visitors); used.add(name); }
+            [id, name].forEach((key) => {
+                const row = providersByKey.get(key);
+                if (!row) return;
+                served += row.served;
+                servedDept = servedDept || row.first.department;
+                visitors.push(...row.visitors);
+                used.add(key);
+            });
             const accountDept = u.department?.department_name || u.department?.name || u.department_name;
             return { id, name, department: accountDept || servedDept || null, served, visitors };
         });
-        for (const [key, p] of Object.entries(providerCounts)) {
-            if (!used.has(key)) byEmployee.push({ id: null, name: p.name, department: p.dept || null, served: p.count, visitors: p.visitors });
-        }
+        providerRows.forEach((row) => {
+            if (used.has(String(row._id))) return;
+            byEmployee.push({ id: null, name: row.first.name, department: row.first.department || null, served: row.served, visitors: row.visitors });
+        });
         byEmployee.sort((a, b) => b.served - a.served);
 
         return res.status(200).json({
@@ -1386,13 +1552,13 @@ const getServedStatistics = async (req, res) => {
             type: 'success',
             message: 'Served statistics retrieved successfully',
             data: {
-                total_visitors: totalVisitors,
-                hourly: Object.entries(hourlyCounts).map(([hour, count]) => ({ hour: Number(hour), count })).sort((a, b) => a.hour - b.hour),
-                last_checkin: lastCheckin ? lastCheckin.toISOString() : null,
+                total_visitors: entrySummary ? entrySummary.total : 0,
+                unique_visitors: entries.people[0] ? entries.people[0].total : 0,
+                ...visitorFigures,
+                hourly: entries.hourly.map((row) => ({ hour: row._id, count: row.count })),
+                last_checkin: entrySummary && entrySummary.last ? new Date(entrySummary.last).toISOString() : null,
                 by_department: byDepartment,
-                assigned_by_department: Object.entries(assignedByDept)
-                    .map(([name, assigned]) => ({ name, assigned }))
-                    .sort((a, b) => b.assigned - a.assigned),
+                assigned_by_department: assignedRows.map((row) => ({ name: row._id, assigned: row.assigned })),
                 by_employee: byEmployee,
             },
         });
@@ -1430,16 +1596,21 @@ const getVisitorsTimeline = async (req, res) => {
             month: '%Y-%m'
         };
         const format = FORMATS[granularity] || FORMATS.day;
+        const rangeMatch = { entry_date: { $gte: fromDate, $lte: toDate } };
 
-        const rows = await ServiceDelivery.aggregate([
-            { $match: { entry_date: { $gte: fromDate, $lte: toDate } } },
-            {
-                $group: {
-                    _id: { $dateToString: { format, date: { $add: ['$entry_date', tzOffset] } } },
-                    count: { $sum: 1 }
-                }
-            },
-            { $sort: { _id: 1 } }
+        const [rows, uniqueVisitors, visitorFigures] = await Promise.all([
+            ServiceDelivery.aggregate([
+                { $match: rangeMatch },
+                {
+                    $group: {
+                        _id: { $dateToString: { format, date: { $add: ['$entry_date', tzOffset] } } },
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { _id: 1 } }
+            ]),
+            countUniqueVisitors(rangeMatch),
+            getVisitorFigures()
         ]);
 
         return res.status(200).json({
@@ -1449,6 +1620,9 @@ const getVisitorsTimeline = async (req, res) => {
                 from: fromDate,
                 to: toDate,
                 total: rows.reduce((s, r) => s + r.count, 0),
+                // total counts visits in the range; unique_visitors the people behind them
+                unique_visitors: uniqueVisitors,
+                ...visitorFigures,
                 buckets: rows.map(r => ({ bucket: r._id, count: r.count }))
             }
         });
@@ -1593,10 +1767,13 @@ const getActivityTimeline = async (req, res) => {
 
         const dateFilter = bounds ? { $gte: bounds.start, $lte: bounds.end } : undefined;
 
-        const [parkingIn, parkingOut, serviceIn] = await Promise.all([
+        const [parkingIn, parkingOut, serviceIn, uniqueVisitors, visitorFigures] = await Promise.all([
             ParkingRecord.find(dateFilter ? { check_in: dateFilter } : {}).select('check_in').lean(),
             ParkingRecord.find(dateFilter ? { check_out: dateFilter } : { check_out: { $ne: null } }).select('check_out').lean(),
             ServiceDelivery.find(dateFilter ? { entry_date: dateFilter } : {}).select('entry_date').lean(),
+            // People behind the service check-ins of the period (no period = no buckets)
+            dateFilter ? countUniqueVisitors({ entry_date: dateFilter }) : 0,
+            getVisitorFigures(),
         ]);
 
         const stats = {};
@@ -1632,6 +1809,8 @@ const getActivityTimeline = async (req, res) => {
                 parking_check_in: data.reduce((s, d) => s + d.parking_check_in, 0),
                 parking_check_out: data.reduce((s, d) => s + d.parking_check_out, 0),
                 service_checked_in: data.reduce((s, d) => s + d.service_checked_in, 0),
+                unique_visitors: uniqueVisitors,
+                ...visitorFigures,
             },
         });
     } catch (error) {

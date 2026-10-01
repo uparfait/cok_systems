@@ -28,9 +28,8 @@ export default function RankingField({ field, language, mode, value, onChange, e
 
   return (
     <div className="w-full">
-      <label className="cok-auth-label" title={help_text || undefined}>
+      <label className={field.mandatory ? "cok-auth-label cok-req" : "cok-auth-label"} title={help_text || undefined}>
         {label}
-        {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
       <p className="text-xs mb-2" style={{ color: "#9E9E9E" }}>
         {translate("DCS_RENDERER_RANKING_INSTRUCTION")}

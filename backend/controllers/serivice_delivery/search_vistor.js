@@ -1,84 +1,119 @@
-const ServiceDelivery = require('../../models/service_delivery.js')
-const Department = require('../../models/department.js')
-const { getDepartmentIdsForHead } = require('../department_flow/visitors_by_status.js')
+const ServiceDelivery = require('../../models/service_delivery.js');
+const Visitor = require('../../models/visitor.js');
+const {
+    escapeRegex, normalizeIdNumber, normalizePlate, departmentScopeFor, visitView, sendError, forbidden,
+} = require('../../utilities/visitors');
+const { roleSlugOf } = require('../visitors/permissions.js');
 
-module.exports = async function search_visitors(req, res, next) {
+const SCOPED_ROLES = ['employee', 'department-manager'];
+
+const textOf = (value) => String((Array.isArray(value) ? value[0] : value) || '').trim();
+const contains = (text) => ({ $regex: escapeRegex(text), $options: 'i' });
+
+/**
+ * Visitors whose name, ID number or email contains the text, or whose
+ * telephone contains its digits (stored phones are in the 07XXXXXXXX form).
+ */
+function matchingVisitorIds(text) {
+    const or = [{ full_name: contains(text) }, { email: contains(text) }];
+    const idNumber = normalizeIdNumber(text);
+    if (idNumber) or.push({ 'identification.number': contains(idNumber) });
+    if (/^[+\d\s().-]+$/.test(text)) {
+        const digits = text.replace(/\D/g, '');
+        const local = digits.replace(/^250/, '').replace(/^0/, '') || digits;
+        if (local) or.push({ telephone: contains(local) });
+    }
+    return Visitor.distinct('_id', { $or: or });
+}
+
+/** Time inside for visitors in house (8 hour stay limit), the stored duration otherwise. */
+function withDuration(view, now = Date.now()) {
+    const entered = view.entry_date ? new Date(view.entry_date).getTime() : NaN;
+    if (view.is_still_inhouse && Number.isFinite(entered)) {
+        const total = Math.max(0, Math.floor((now - entered) / 60000));
+        const hours = Math.floor(total / 60);
+        const minutes = total % 60;
+        view.current_duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} mins`;
+        view.current_duration_hours = hours + minutes / 60;
+        view.is_near_limit = view.current_duration_hours >= 7;
+        view.is_over_limit = view.current_duration_hours >= 8;
+        return view;
+    }
+    const vehicle = view.vehicle_storage || {};
+    const stored = (vehicle.has_vehicle && vehicle.vehicle_details && vehicle.vehicle_details.duration)
+        || (view.durations && view.durations.entry_and_leave_duration)
+        || null;
+    view.current_duration = stored || 'N/A';
+    view.current_duration_hours = stored ? (parseFloat(stored) / 60 || 0) : 0;
+    return view;
+}
+
+/**
+ * GET /servicedelivery/visitor/search ?query &in_house=true|false|all (default true) &page &limit (<= 20)
+ * Searches the visitor (name, telephone, ID number, email), the plate of the
+ * car they came with and the providers of the visit. An empty query lists
+ * every visit. Scoped like the visitor list (employees and heads of
+ * department see their department scope only).
+ */
+module.exports = async function search_visitors(req, res) {
     try {
-        let { query = '', in_house = true, limit = 20, page = 1 } = req.query || {}
+        const { query, in_house = true, limit, page } = req.query || {};
+        const pageNo = Math.max(1, parseInt(page, 10) || 1);
+        const limitVal = Math.min(20, Math.max(1, parseInt(limit, 10) || 20));
 
-        let user_role_name = req.user?.role_name;
-        let user_department_id = req.user?.department?._id.toString() || null;
-        let user_department_unit_id = req.user?.department_unit?.toString() || null;
+        const filter = {};
+        if (in_house === true || in_house === 'true') filter.is_still_inhouse = true;
+        else if (in_house === false || in_house === 'false') filter.is_still_inhouse = false;
 
-        const limit_val = Math.min(parseInt(limit), 20)
-        const skip_val = (parseInt(page) - 1) * limit_val
-
-        const safe_query = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const regex = new RegExp(safe_query, 'i')
-
-        let search_criteria = {
-            $or: [
-                { full_name: regex },
-                { telephone: regex },
-                { 'identification.number': regex },
-                { plate_number: regex },
-                { badge_number: regex },
-                { 'departments_assigned.provider_name': regex },
-                { 'services_status.provider_name': regex }
-            ]
-        }
-
-        // If specifically requested true/false, add it to criteria
-        if (in_house === 'true' || in_house === true) search_criteria.is_still_inhouse = true
-        if (in_house === 'false' || in_house === false) search_criteria.is_still_inhouse = false
-
-        // Scope results the same way as list_visitors: employees see their
-        // department/unit, HODs see the department(s) they lead (+ sub-departments)
-        if (user_role_name === 'Employee') {
-            const departmentIds = []
-            if (user_department_id) departmentIds.push(user_department_id)
-            if (user_department_unit_id) departmentIds.push(user_department_unit_id)
-            if (!departmentIds.length) {
+        const slug = roleSlugOf(req);
+        if (SCOPED_ROLES.includes(slug)) {
+            const scope = await departmentScopeFor(req.user, slug);
+            if (scope.length === 0) {
+                if (slug === 'department-manager') {
+                    throw forbidden('You are not assigned as a leader of any department', { type: 'error' });
+                }
                 return res.status(200).json({
-                    success: true, type: 'success', message: 'Visitor search results',
-                    total: 0, page: parseInt(page), data: []
-                })
+                    success: true, type: 'success', message: 'Visitor search results', total: 0, page: pageNo, limit: limitVal, pages: 1, data: [],
+                });
             }
-            search_criteria['departments_assigned'] = { $elemMatch: { department_id: { $in: departmentIds } } }
-        } else if (user_role_name === 'Head of department') {
-            const departmentIds = await getDepartmentIdsForHead(req.user?.userId || req.user?.id)
-            if (!departmentIds.length) {
-                return res.status(403).json({
-                    success: false, type: 'error',
-                    message: 'You are not assigned as a leader of any department'
-                })
-            }
-            search_criteria['departments_assigned'] = { $elemMatch: { department_id: { $in: departmentIds } } }
+            filter.departments_assigned = { $elemMatch: { department_id: { $in: scope } } };
         }
 
-        const visitors = await ServiceDelivery.find(search_criteria)
-            .limit(limit_val)
-            .skip(skip_val)
-            .sort({ entry_date: -1 })
+        const text = textOf(query);
+        if (text) {
+            const ids = await matchingVisitorIds(text);
+            const or = [
+                { visitor: { $in: ids } },
+                { 'departments_assigned.provider_name': contains(text) },
+                { 'services_status.provider_name': contains(text) },
+            ];
+            const plate = normalizePlate(text);
+            if (plate) or.push({ 'vehicle_storage.vehicle_details.plate_number': contains(plate) });
+            filter.$or = or;
+        }
 
-        const total_count = await ServiceDelivery.countDocuments(search_criteria)
+        const [rows, total] = await Promise.all([
+            ServiceDelivery.find(filter)
+                .sort({ entry_date: -1, _id: -1 })
+                .skip((pageNo - 1) * limitVal)
+                .limit(limitVal)
+                .populate('visitor')
+                .lean(),
+            ServiceDelivery.countDocuments(filter),
+        ]);
 
+        const now = Date.now();
         return res.status(200).json({
             success: true,
-            type: "success",
-            message: "Visitor search results",
-            total: total_count,
-            page: parseInt(page),
-            data: visitors
-        })
-
+            type: 'success',
+            message: 'Visitor search results',
+            total,
+            page: pageNo,
+            limit: limitVal,
+            pages: Math.max(1, Math.ceil(total / limitVal)),
+            data: rows.map((row) => withDuration(visitView(row), now)),
+        });
     } catch (error) {
-        console.error("Error in search_visitors:", error)
-        return res.status(500).json({
-            success: false,
-            type: "error",
-            message: "Something went wrong while searching visitors",
-            error: error.message
-        })
+        return sendError(res, error, 'Something went wrong while searching visitors');
     }
-}
+};

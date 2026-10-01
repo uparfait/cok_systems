@@ -1,5 +1,6 @@
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
+import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -41,13 +42,17 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col border border-gray-200 bg-white",
         className
       )}
       {...props}
     >
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
       {children}
+      <DrawerPrimitive.Close className="cok-close-x absolute right-3 top-3">
+        <X className="h-[18px] w-[18px]" />
+        <span className="sr-only">Close</span>
+      </DrawerPrimitive.Close>
     </DrawerPrimitive.Content>
   </DrawerPortal>
 ))
@@ -58,7 +63,7 @@ const DrawerHeader = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn("grid gap-1.5 p-4 text-center sm:text-left", className)}
+    className={cn("grid gap-1.5 p-4 pr-12 text-center sm:text-left border-b border-gray-100", className)}
     {...props}
   />
 )
@@ -82,7 +87,7 @@ const DrawerTitle = React.forwardRef<
   <DrawerPrimitive.Title
     ref={ref}
     className={cn(
-      "text-lg font-semibold leading-none tracking-tight",
+      "text-lg font-semibold leading-none tracking-tight text-gray-900",
       className
     )}
     {...props}

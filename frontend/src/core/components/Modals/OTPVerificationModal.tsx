@@ -1,12 +1,10 @@
-// TOTPVerificationModal - TOTP verification modal for existing users
-// Uses auth context for TOTP verification
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { getDashboardRoute } from '../Layout/layoutUtils';
 import { saveNavigation } from '../../services/navigationService';
+import OverlayCloseButton from '../overlay/OverlayCloseButton';
 
 interface TOTPVerificationModalProps {
   isOpen: boolean;
@@ -24,7 +22,7 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
   const { verifyOTP, resendOTP, checkAuth } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
   const [email, setEmail] = useState(initialEmail);
-  const [otp, setOtp] = useState(['', '', '', '', '', '']); // 6 digits for TOTP
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timeLeft, setTimeLeft] = useState(300);
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
@@ -277,14 +275,9 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
             </div>
           ) : (
             <>
-              <button
-                onClick={onClose}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition duration-200"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="absolute top-4 right-4">
+                <OverlayCloseButton onClick={onClose} disabled={isLoading || isResending} />
+              </div>
 
               <div className="flex justify-center mb-4">
                 <img 
@@ -326,7 +319,7 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
               </div>
 
               <p className="text-center text-sm text-gray-500 mb-4">
-                • Code refreshes every 30 seconds
+                - Code refreshes every 30 seconds
               </p>
 
               {error && (
@@ -341,17 +334,8 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
                 {isLoading ? 'Verifying...' : 'Verify TOTP'}
               </button>
 
-              <div className="text-center mt-4">
-                <button 
-                  onClick={onClose}
-                  className="cok-btn-outlined w-full"
-                >
-                  Back to Login
-                </button>
-              </div>
-
               <p className="text-left text-xs text-gray-400 mt-8">
-                ©CITY OF KIGALI PORTAL
+                (c) CITY OF KIGALI PORTAL
               </p>
             </>
           )}

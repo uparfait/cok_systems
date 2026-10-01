@@ -3,7 +3,10 @@ const mongoose = require('mongoose');
 const EmergencyCar = require('../models/emergency_car');
 const ParkingSlot = require('../models/parking_slots');
 
-const { normalizePlate, parseTemplateDate } = require('../utilities/reservationUtils');
+const { parseTemplateDate } = require('../utilities/reservationUtils');
+// Plates are stored in the gate form (upper-case letters and digits only) so
+// verify/check-in (utilities/visitors/parking.js classifyPlate) find them
+const { normalizePlate } = require('../utilities/visitors/normalize.js');
 
 /**
  * OPTION A: Single Visitor Reservation
@@ -12,14 +15,15 @@ const { normalizePlate, parseTemplateDate } = require('../utilities/reservationU
 const registerSingleReservation = async (req, res) => {
     try {
         const { plate_number, driver_name, id_type, id_number, telephone_number, slot_number } = req.body;
+        const plate = normalizePlate(plate_number);
 
-        if (!plate_number || !driver_name) {
+        if (!plate || !driver_name) {
             return res.status(400).json({ success: false, message: 'Plate number and driver name are required.' });
         }
 
         // 1. Create the single visitor object
         const singleVisitor = {
-            plate_number: normalizePlate(plate_number),
+            plate_number: plate,
             driver_name,
             driver_type: 'visitor',
             driver_identification: {

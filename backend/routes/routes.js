@@ -40,6 +40,12 @@ Router.use('/servicedelivery', authenticate, authorize(GROUPS.SERVICE_DELIVERY),
 
 Router.use("/smartparking", authenticate, authorize(GROUPS.SMART_PARKING), smartparking)
 
+// The visitor registry behind the global visitor panel (every role that sees
+// visitors); per-action role rules live in controllers/visitors/permissions.js.
+Router.use('/visitors', authenticate, authorize(GROUPS.VISITORS), require('./visitors/routes.js'))
+
+Router.use('/legacy-data', authenticate, authorize(GROUPS.ADMIN_LEGACY_DATA), require('./legacy_data/routes.js'))
+
 Router.use('/audit', authenticate, authorize(GROUPS.ADMIN_AUDIT), audit)
 
 // Reads are open to every signed-in user (dropdowns, visitor assignment,

@@ -5,6 +5,8 @@ import GifPicker from 'gif-picker-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
+import OverlayShell from './overlay/OverlayShell';
+import OverlayCloseButton from './overlay/OverlayCloseButton';
 import {
   FiMessageSquare, FiX, FiSend, FiUsers, FiGlobe, FiEdit2,
   FiChevronDown, FiSearch, FiTrash2, FiCheck, FiChevronLeft,
@@ -58,9 +60,8 @@ const FileViewer: React.FC<{ msg: ChatMessage; onClose: () => void }> = ({ msg, 
   const isAudio = msg.mimeType?.startsWith('audio/');
   const fileUrl = msg.fileUrl;
   return (
-    <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center" onClick={onClose}>
-      <div className="relative max-w-[90vw] max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute -top-10 right-0 text-white hover:text-gray-300 z-10"><FiX className="w-6 h-6" /></button>
+    <OverlayShell title={msg.fileName || 'File'} onClose={onClose} width="xl" zIndex={100}>
+      <div className="flex items-center justify-center">
         {isImage && <img src={fileUrl} alt={msg.fileName || ''} className="max-w-full max-h-[85vh] object-contain rounded-lg" />}
         {isVideo && <video src={fileUrl} controls autoPlay className="max-w-full max-h-[85vh] rounded-lg" />}
         {isAudio && <div className="bg-gray-800 p-8 rounded-xl text-white"><audio src={fileUrl} controls autoPlay className="w-80" /><p className="mt-2 text-sm text-gray-400">{msg.fileName}</p></div>}

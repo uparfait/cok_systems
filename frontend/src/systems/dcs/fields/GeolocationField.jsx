@@ -304,9 +304,8 @@ export default function GeolocationField({ field, language, mode, value, onChang
 
   return (
     <div className="dcs-geo-section w-full" style={{ border: "1px solid #E0E0E0", borderRadius: 14, padding: "1rem" }}>
-      <p className="text-sm font-bold uppercase tracking-wide mb-3" style={{ color: "#056daa" }}>
+      <p className={field.mandatory ? "text-sm font-bold uppercase tracking-wide mb-3 cok-req" : "text-sm font-bold uppercase tracking-wide mb-3"} style={{ color: "#056daa" }}>
         {translate("DCS_GEO_SECTION_TITLE")}
-        {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </p>
       {help_text && (
         <p className="text-xs mb-2" style={{ color: "#9E9E9E" }}>

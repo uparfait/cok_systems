@@ -2,10 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { roleService, type Role, type RoleNavLink } from '../../../core/services/adminService';
 import { navigationCatalogService, type NavLink } from '../../../core/services/navigationService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
+import OverlayShell from '../../../core/components/overlay/OverlayShell';
 import { useToast } from '../../../core/contexts/ToastContext';
 import {
   FiSearch, FiRefreshCw, FiShield, FiLock, FiPlus, FiEdit2, FiTrash2,
-  FiChevronDown, FiChevronRight, FiX, FiCalendar, FiBarChart2, FiClipboard,
+  FiChevronDown, FiChevronRight, FiCalendar, FiBarChart2, FiClipboard,
   FiCheck, FiLayers, FiList, FiActivity, FiArrowRight, FiGrid, FiFile,
   FiLogIn, FiLogOut, FiTruck, FiUser, FiDatabase, FiHome, FiSettings,
   FiUsers, FiUserCheck, FiFileText, FiStar, FiMessageSquare, FiHardDrive,
@@ -456,123 +457,114 @@ const RolesManagementPage: React.FC = () => {
         )}
       </div>
 
-      {/* Create / edit role */}
       {formOpen && (
-        <div className="fixed inset-0 z-[999999] bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col" style={{ border: `1px solid ${BORDER}` }}>
-            <div className="px-4 py-3 flex items-center justify-between text-white shrink-0" style={{ backgroundColor: PRIMARY }}>
-              <span className="text-sm font-bold" style={{ fontFamily: fontHeading }}>
-                {editingRole ? `Edit Role - ${editingRole.role_name}` : 'Create New Role'}
-              </span>
-              <button type="button" onClick={() => setFormOpen(false)} className="p-1 cursor-pointer hover:opacity-80">
-                <FiX className="w-4 h-4" />
-              </button>
-            </div>
+        <OverlayShell
+          title={editingRole ? `Edit Role - ${editingRole.role_name}` : 'Create New Role'}
+          onClose={() => setFormOpen(false)}
+          busy={saving}
+          width="lg"
+          zIndex={999999}
+          closeOnBackdrop={false}
+          footer={
+            <button type="button" onClick={handleSave} disabled={saving} className="cok-btn-primary cursor-pointer disabled:opacity-60 inline-flex items-center gap-2" style={{ width: 'auto', padding: '0.5rem 1.4rem' }}>
+              {saving && <SpiralLoader color="#FFFFFF" padded={false} size={16} />}
+              {saving ? 'Saving...' : (editingRole ? 'Save Changes' : 'Create Role')}
+            </button>
+          }
+        >
+          <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5 text-gray-700 cok-req" style={{ fontFamily: fontHeading }}>
+            Role name
+          </label>
+          <input
+            type="text"
+            value={roleName}
+            onChange={(e) => setRoleName(e.target.value)}
+            placeholder="e.g. Auditor"
+            className="w-full cok-auth-input py-2 text-sm mb-4"
+            style={{ paddingLeft: '12px' }}
+          />
 
-            <div className="p-4 overflow-y-auto">
-              <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5 text-gray-700" style={{ fontFamily: fontHeading }}>
-                Role name
-              </label>
-              <input
-                type="text"
-                value={roleName}
-                onChange={(e) => setRoleName(e.target.value)}
-                placeholder="e.g. Auditor"
-                className="w-full cok-auth-input py-2 text-sm mb-4"
-                style={{ paddingLeft: '12px' }}
-              />
-
-              <p className="text-[11px] font-semibold uppercase tracking-wider mb-1 text-gray-700" style={{ fontFamily: fontHeading }}>
-                Links this role can see
-              </p>
-              <p className="text-xs text-gray-500 mb-2">
-                Only shared links are listed. Links tied to a specific default role (visitors, my employees, role dashboards and similar) cannot be assigned here.
-              </p>
-              <div className="mb-4" style={{ border: `1px solid ${BORDER}` }}>
-                {catalog.map((link, i) => {
-                  const s = selection[link.id];
-                  return (
-                    <div key={link.id} className="px-3 py-2" style={{ borderTop: i > 0 ? `1px solid ${BORDER}` : 'none' }}>
-                      <label className={`flex items-center gap-2 ${link.default_enabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
-                        <input
-                          type="checkbox"
-                          checked={!!s?.on}
-                          disabled={!!link.default_enabled}
-                          onChange={() => toggleLink(link.id)}
-                          className={link.default_enabled ? 'cursor-not-allowed' : 'cursor-pointer'}
-                        />
-                        <LinkIcon icon={link.icon} />
-                        <span className="text-sm font-medium text-gray-900">{link.label}</span>
-                        <span className="text-xs text-gray-400">{link.path}</span>
-                        {link.default_enabled && <Chip bg="rgba(5,109,170,0.1)" color={PRIMARY}>Required</Chip>}
-                      </label>
-                      {s?.on && (link.children || []).length > 0 && (
-                        <div className="ml-9 mt-1 flex flex-col gap-1">
-                          {(link.children || []).map((c) => (
-                            <label key={c.id} className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={!!s.children[c.id]}
-                                onChange={() => toggleChild(link.id, c.id)}
-                                className="cursor-pointer"
-                              />
-                              <LinkIcon icon={c.icon} size="sm" />
-                              <span className="text-xs text-gray-700">{c.label}</span>
-                              <span className="text-[11px] text-gray-400">{c.path}</span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
+          <p className="text-[11px] font-semibold uppercase tracking-wider mb-1 text-gray-700 cok-req" style={{ fontFamily: fontHeading }}>
+            Links this role can see
+          </p>
+          <p className="text-xs text-gray-500 mb-2">
+            Only shared links are listed. Links tied to a specific default role (visitors, my employees, role dashboards and similar) cannot be assigned here.
+          </p>
+          <div className="mb-4" style={{ border: `1px solid ${BORDER}` }}>
+            {catalog.map((link, i) => {
+              const s = selection[link.id];
+              return (
+                <div key={link.id} className="px-3 py-2" style={{ borderTop: i > 0 ? `1px solid ${BORDER}` : 'none' }}>
+                  <label className={`flex items-center gap-2 ${link.default_enabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                    <input
+                      type="checkbox"
+                      checked={!!s?.on}
+                      disabled={!!link.default_enabled}
+                      onChange={() => toggleLink(link.id)}
+                      className={link.default_enabled ? 'cursor-not-allowed' : 'cursor-pointer'}
+                    />
+                    <LinkIcon icon={link.icon} />
+                    <span className="text-sm font-medium text-gray-900">{link.label}</span>
+                    <span className="text-xs text-gray-400">{link.path}</span>
+                    {link.default_enabled && <Chip bg="rgba(5,109,170,0.1)" color={PRIMARY}>Required</Chip>}
+                  </label>
+                  {s?.on && (link.children || []).length > 0 && (
+                    <div className="ml-9 mt-1 flex flex-col gap-1">
+                      {(link.children || []).map((c) => (
+                        <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={!!s.children[c.id]}
+                            onChange={() => toggleChild(link.id, c.id)}
+                            className="cursor-pointer"
+                          />
+                          <LinkIcon icon={c.icon} size="sm" />
+                          <span className="text-xs text-gray-700">{c.label}</span>
+                          <span className="text-[11px] text-gray-400">{c.path}</span>
+                        </label>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-
-              <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5 text-gray-700" style={{ fontFamily: fontHeading }}>
-                Where users with this role land after login
-              </label>
-              <select
-                value={defaultRoute}
-                onChange={(e) => setDefaultRoute(e.target.value)}
-                className="w-full cok-auth-input py-2 text-sm cursor-pointer"
-                style={{ paddingLeft: '12px' }}
-              >
-                {routeOptions.map((o) => (
-                  <option key={o.path} value={o.path}>{o.label} ({o.path})</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="px-4 py-3 flex gap-3 justify-end shrink-0" style={{ borderTop: `1px solid ${BORDER}` }}>
-              <button type="button" onClick={() => setFormOpen(false)} disabled={saving} className="cok-btn-outlined cursor-pointer disabled:opacity-50" style={{ padding: '0.5rem 1.2rem' }}>
-                Cancel
-              </button>
-              <button type="button" onClick={handleSave} disabled={saving} className="cok-btn-primary cursor-pointer disabled:opacity-60 inline-flex items-center gap-2" style={{ width: 'auto', padding: '0.5rem 1.4rem' }}>
-                {saving && <SpiralLoader color="#FFFFFF" padded={false} size={16} />}
-                {saving ? 'Saving...' : (editingRole ? 'Save Changes' : 'Create Role')}
-              </button>
-            </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </div>
+
+          <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5 text-gray-700" style={{ fontFamily: fontHeading }}>
+            Where users with this role land after login
+          </label>
+          <select
+            value={defaultRoute}
+            onChange={(e) => setDefaultRoute(e.target.value)}
+            className="w-full cok-auth-input py-2 text-sm cursor-pointer"
+            style={{ paddingLeft: '12px' }}
+          >
+            {routeOptions.map((o) => (
+              <option key={o.path} value={o.path}>{o.label} ({o.path})</option>
+            ))}
+          </select>
+        </OverlayShell>
       )}
 
-      {/* Delete confirm */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-[999999] bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm p-5" style={{ border: `1px solid ${BORDER}` }}>
-            <h3 className="font-bold text-base mb-2 text-gray-900" style={{ fontFamily: fontHeading }}>Delete Role</h3>
-            <p className="text-sm mb-5 text-gray-600">
-              Delete the role <span className="font-semibold text-gray-900">"{deleteTarget.role_name}"</span>?
-              Users still holding this role will fall back to a calendar-only sidebar.
-            </p>
-            <div className="flex gap-3">
-              <button type="button" onClick={() => setDeleteTarget(null)} disabled={deleting} className="cok-btn-outlined flex-1 cursor-pointer disabled:opacity-50">Cancel</button>
-              <button type="button" onClick={handleDelete} disabled={deleting} className="cok-btn-outlined-danger flex-1 cursor-pointer disabled:opacity-60">
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
+        <OverlayShell
+          title="Delete Role"
+          onClose={() => setDeleteTarget(null)}
+          busy={deleting}
+          width="sm"
+          zIndex={999999}
+          closeOnBackdrop={false}
+        >
+          <p className="text-sm mb-5 text-gray-600">
+            Delete the role <span className="font-semibold text-gray-900">"{deleteTarget.role_name}"</span>?
+            Users still holding this role will fall back to a calendar-only sidebar.
+          </p>
+          <div className="flex gap-3">
+            <button type="button" onClick={handleDelete} disabled={deleting} className="cok-btn-outlined-danger flex-1 cursor-pointer disabled:opacity-60">
+              {deleting ? 'Deleting...' : 'Delete'}
+            </button>
           </div>
-        </div>
+        </OverlayShell>
       )}
     </MainLayout>
   );

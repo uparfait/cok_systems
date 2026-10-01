@@ -1,10 +1,8 @@
-// PasswordSetupModal - Password setup modal after OTP verification
-// For first-time users to set their password
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import OverlayCloseButton from '../overlay/OverlayCloseButton';
 
 interface PasswordSetupModalProps {
   isOpen: boolean;
@@ -36,11 +34,9 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
   
   const navigate = useNavigate();
 
-  // Background images
   const cityHallImage = '/cok_hall.jpg';
   const logoImage = '/LOGO_COK.png';
 
-  // Password requirements check
   const checkPasswordStrength = (password: string) => {
     const strength = {
       hasMinLength: password.length >= 8,
@@ -80,7 +76,6 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
 
   useEffect(() => {
     if (!isOpen) {
-      // Reset state when modal closes
       setTimeout(() => {
         setNewPassword('');
         setConfirmPassword('');
@@ -122,26 +117,20 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
     setIsLoading(true);
 
     try {
-      // Call the backend to activate account with signature verification
       const result = await activateAccount(userId, signature, newPassword, confirmPassword);
       
-      // Check if status is true AND there's no error message
       if (result.status && !result.error) {
         setIsSuccess(true);
         
-        // Call onSuccess callback if provided
         if (onSuccess) {
           onSuccess();
         }
         
-        // After 2 seconds, go back to login
         setTimeout(() => {
           onClose();
           navigate('/login');
         }, 2000);
       } else {
-        // Handle both cases: status false or status true with error message
-        // Use backend message with priority
         showError(result.message || result.error || 'Failed to activate account');
       }
     } catch (err: any) {
@@ -149,7 +138,6 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
         err?.message || err?.error || "unexpect error occurred try again later";
 
       showWarning(errorMessage);
-      // Error toast is already shown by apiClient interceptor
     } finally {
       setIsLoading(false);
     }
@@ -159,7 +147,6 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Background with City Hall image and gradient overlay */}
       <div 
         className="fixed inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${cityHallImage})` }}
@@ -167,10 +154,8 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
-      {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
          <div className="relative bg-white/95 backdrop-blur-sm shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
-          {/* Success State */}
           {isSuccess ? (
             <div className="text-center py-8">
               <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
@@ -185,17 +170,10 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
             </div>
           ) : (
             <>
-              {/* Close button */}
-              <button
-                onClick={onClose}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition duration-200"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="absolute top-4 right-4">
+                <OverlayCloseButton onClick={onClose} disabled={isLoading} />
+              </div>
 
-              {/* COK Logo */}
               <div className="flex justify-center mb-4">
                 <img 
                   src={logoImage} 
@@ -204,26 +182,21 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
                 />
               </div>
 
-              {/* Title */}
               <h1 className="text-2xl font-bold text-center text-[#056daa] mb-2">
                 Set Your Password
               </h1>
 
-              {/* Subtitle */}
               <p className="text-center text-gray-600 font-medium mb-4">
                 Create a secure password for your account
               </p>
 
-              {/* Email display */}
               <p className="text-center text-sm text-gray-500 mb-6">
                 Setting password for: <span className="font-semibold text-gray-700">{email}</span>
               </p>
 
-              {/* Password Setup Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* New Password */}
                 <div>
-                  <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1 cok-req">
                     New Password
                   </label>
                   <div className="relative">
@@ -253,7 +226,6 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
                     </button>
                   </div>
                   
-                  {/* Password Strength Indicator */}
                   {newPassword && (
                     <div className="mt-2">
                       <div className="flex gap-1 mb-1">
@@ -273,34 +245,32 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
                   )}
                 </div>
 
-                {/* Password Requirements */}
                 <div className="bg-gray-50 rounded-lg p-3 text-xs space-y-1">
                   <p className="font-medium text-gray-700 mb-2">Password must have:</p>
                   <div className={`flex items-center ${passwordStrength.hasMinLength ? 'text-green-600' : 'text-gray-500'}`}>
-                    <span className="mr-1">{passwordStrength.hasMinLength ? '✓' : '○'}</span>
+                    <span className="mr-1">{passwordStrength.hasMinLength ? '\u2713' : '\u25CB'}</span>
                     At least 8 characters
                   </div>
                   <div className={`flex items-center ${passwordStrength.hasUppercase ? 'text-green-600' : 'text-gray-500'}`}>
-                    <span className="mr-1">{passwordStrength.hasUppercase ? '✓' : '○'}</span>
+                    <span className="mr-1">{passwordStrength.hasUppercase ? '\u2713' : '\u25CB'}</span>
                     One uppercase letter (A-Z)
                   </div>
                   <div className={`flex items-center ${passwordStrength.hasLowercase ? 'text-green-600' : 'text-gray-500'}`}>
-                    <span className="mr-1">{passwordStrength.hasLowercase ? '✓' : '○'}</span>
+                    <span className="mr-1">{passwordStrength.hasLowercase ? '\u2713' : '\u25CB'}</span>
                     One lowercase letter (a-z)
                   </div>
                   <div className={`flex items-center ${passwordStrength.hasNumber ? 'text-green-600' : 'text-gray-500'}`}>
-                    <span className="mr-1">{passwordStrength.hasNumber ? '✓' : '○'}</span>
+                    <span className="mr-1">{passwordStrength.hasNumber ? '\u2713' : '\u25CB'}</span>
                     One number (0-9)
                   </div>
                   <div className={`flex items-center ${passwordStrength.hasSymbol ? 'text-green-600' : 'text-gray-500'}`}>
-                    <span className="mr-1">{passwordStrength.hasSymbol ? '✓' : '○'}</span>
+                    <span className="mr-1">{passwordStrength.hasSymbol ? '\u2713' : '\u25CB'}</span>
                     One special character (!@#$%^&*)
                   </div>
                 </div>
 
-                {/* Confirm Password */}
                 <div>
-                  <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1 cok-req">
                     Confirm Password
                   </label>
                   <input
@@ -316,12 +286,10 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
                   )}
                 </div>
 
-                {/* Error message */}
                 {error && (
                   <p className="text-center text-sm text-red-600">{error}</p>
                 )}
 
-                {/* Submit button */}
                 <button
                   type="submit"
                   disabled={isLoading || !newPassword || !confirmPassword || newPassword !== confirmPassword}
@@ -331,19 +299,8 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
                 </button>
               </form>
 
-              {/* Back to Login link */}
-              <div className="text-center mt-4">
-                <button 
-                  onClick={onClose}
-                  className="cok-btn-outlined w-full"
-                >
-                  Back to Login
-                </button>
-              </div>
-
-              {/* Secure portal footer - left aligned */}
               <p className="text-left text-xs text-gray-400 mt-8">
-                © SECURE OFFICIAL CITY OF KIGALI PORTAL
+                (c) SECURE OFFICIAL CITY OF KIGALI PORTAL
               </p>
             </>
           )}

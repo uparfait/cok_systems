@@ -192,9 +192,8 @@ function CascadingSelectControl({ label, helpText, mandatory, value, onChange, d
     return (
       <div className="w-full">
         <div className="flex items-center justify-between mb-1">
-          <label className="cok-auth-label" title={helpText || undefined}>
+          <label className={mandatory ? "cok-auth-label cok-req" : "cok-auth-label"} title={helpText || undefined}>
             {label}
-            {mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
           </label>
           <RetryButton onClick={onRetry} disabled={loading} />
         </div>
@@ -221,9 +220,8 @@ function CascadingSelectControl({ label, helpText, mandatory, value, onChange, d
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-1">
-        <label className="cok-auth-label" title={helpText || undefined}>
+        <label className={mandatory ? "cok-auth-label cok-req" : "cok-auth-label"} title={helpText || undefined}>
           {label}
-          {mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
         </label>
         {loading && <LoadingSpinner size="sm" />}
         {showRetry && !loading && (

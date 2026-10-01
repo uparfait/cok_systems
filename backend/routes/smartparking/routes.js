@@ -55,6 +55,85 @@ const upload = multer({
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     ParkingView:
+ *       type: object
+ *       description: "A parking session with the person who came with the car. driver_name, driver_telephone, driver_email, driver_gender, driver_identification and N_visits are copied from the visitor, so screens that read them keep working."
+ *       properties:
+ *         _id:
+ *           type: string
+ *           description: "Parking record id"
+ *           example: "66f1a2b3c4d5e6f7a8b9c0a7"
+ *         plate_number:
+ *           type: string
+ *           example: "RAD123B"
+ *         status:
+ *           type: string
+ *           enum: [active, completed]
+ *         driver_type:
+ *           type: string
+ *           enum: [staff, visitor, regular]
+ *           description: "Decided by the server from the staff car registry and the visitor reservations"
+ *         slot_number:
+ *           type: string
+ *         check_in:
+ *           type: string
+ *           format: date-time
+ *         check_out:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         duration:
+ *           type: string
+ *           example: "35 mins"
+ *         is_flagged:
+ *           type: boolean
+ *         flagged_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         flag_reason:
+ *           type: string
+ *           nullable: true
+ *         checked_in_by:
+ *           type: string
+ *         service_delivery:
+ *           type: string
+ *           nullable: true
+ *           description: "Id of the visit the car belongs to (null for staff cars)"
+ *         visitor:
+ *           $ref: '#/components/schemas/VisitorRecord'
+ *         visitor_id:
+ *           type: string
+ *           nullable: true
+ *           example: "66f1a2b3c4d5e6f7a8b9c0d1"
+ *         driver_name:
+ *           type: string
+ *           example: "Claude Driver"
+ *         driver_telephone:
+ *           type: string
+ *           example: "0722000111"
+ *         driver_email:
+ *           type: string
+ *         driver_gender:
+ *           type: string
+ *         driver_identification:
+ *           $ref: '#/components/schemas/VisitorIdentification'
+ *         N_visits:
+ *           type: integer
+ *         Is_In_House:
+ *           type: boolean
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
+/**
+ * @swagger
  * /smartparking/slots:
  *   get:
  *     summary: "Get parking slot configuration"
@@ -617,7 +696,7 @@ Router.get('/vehicle/:id', auditSuccess('READ', 'vehicles'), get_parking_record_
  * /smartparking/vehicle/verify:
  *   post:
  *     summary: "Verify a vehicle"
- *     description: "Verify a vehicle by plate number before check-in. Checks if vehicle is registered, flagged, or has any restrictions."
+ *     description: "Classifies a plate before check-in (staff car, reserved visitor or regular) and returns who to pre-fill as the driver: the person who came with this car last time (last_driver, editable), else the reservation driver or the staff car owner. success is false (still 200) when the plate is in no registry and never parked."
  *     tags: [Smart Parking]
  *     security:
  *       - BearerAuth: []
@@ -632,8 +711,8 @@ Router.get('/vehicle/:id', auditSuccess('READ', 'vehicles'), get_parking_record_
  *             properties:
  *               plate_number:
  *                 type: string
- *                 description: "Vehicle plate number to verify"
- *                 example: "RAA 123B"
+ *                 description: "Vehicle plate number to verify, in any spacing or case"
+ *                 example: "RAD 123 B"
  *     responses:
  *       200:
  *         description: Vehicle verification result
@@ -645,21 +724,85 @@ Router.get('/vehicle/:id', auditSuccess('READ', 'vehicles'), get_parking_record_
  *                 success:
  *                   type: boolean
  *                   example: true
+ *                 type:
+ *                   type: string
+ *                   enum: [success, warning]
+ *                 message:
+ *                   type: string
+ *                   example: "Vehicle verified successfully"
  *                 data:
  *                   type: object
  *                   properties:
- *                     is_registered:
- *                       type: boolean
- *                       example: true
- *                     is_flagged:
- *                       type: boolean
- *                       example: false
- *                     owner_name:
+ *                     plate_number:
  *                       type: string
- *                       example: "Jean Baptiste Uwimana"
+ *                       description: "The plate as saved (upper case, letters and digits only)"
+ *                       example: "RAD123B"
  *                     driver_type:
  *                       type: string
- *                       example: "staff"
+ *                       enum: [staff, visitor, regular]
+ *                     vehicle_category:
+ *                       type: string
+ *                       enum: [Staff, Visitor, Regular]
+ *                     is_reserved:
+ *                       type: boolean
+ *                       description: "Staff car or reserved visitor"
+ *                     is_currently_parked:
+ *                       type: boolean
+ *                     parking_details:
+ *                       description: "The active session when the car is parked, else null"
+ *                       nullable: true
+ *                       allOf:
+ *                         - $ref: '#/components/schemas/ParkingView'
+ *                     is_flagged:
+ *                       type: boolean
+ *                       description: "The active session is flagged"
+ *                     was_ever_flagged:
+ *                       type: boolean
+ *                     staff_details:
+ *                       type: object
+ *                       nullable: true
+ *                       description: "The staff car registry entry"
+ *                     emergency_reservation_details:
+ *                       type: object
+ *                       nullable: true
+ *                       description: "The visitor reservation of this plate"
+ *                     last_driver:
+ *                       description: "The person who came with this car last time, else null"
+ *                       nullable: true
+ *                       allOf:
+ *                         - $ref: '#/components/schemas/VisitorRecord'
+ *                     visitor_id:
+ *                       type: string
+ *                       nullable: true
+ *                       description: "Id of last_driver. Send it back on check-in when the same person drives"
+ *                     driver:
+ *                       description: "Pre-fill for the driver form: last_driver, else the reservation driver or the staff car owner (full_name, telephone, email, gender and identification only), else null"
+ *                       nullable: true
+ *                       allOf:
+ *                         - $ref: '#/components/schemas/VisitorRecord'
+ *                     driver_details:
+ *                       type: object
+ *                       description: "The same pre-fill in the older shape"
+ *                       properties:
+ *                         name:
+ *                           type: string
+ *                           nullable: true
+ *                         telephone:
+ *                           type: string
+ *                           nullable: true
+ *                         email:
+ *                           type: string
+ *                           nullable: true
+ *                         gender:
+ *                           type: string
+ *                           nullable: true
+ *                         identification:
+ *                           nullable: true
+ *                           allOf:
+ *                             - $ref: '#/components/schemas/VisitorIdentification'
+ *                         type:
+ *                           type: string
+ *                           enum: [Staff, Visitor, Regular]
  *       400:
  *         description: Plate number is required
  *       500:
@@ -672,7 +815,7 @@ Router.post('/vehicle/verify', auditSuccess('READ', 'vehicles'), verify_acar)
  * /smartparking/vehicle/checkin:
  *   post:
  *     summary: "Check in a vehicle"
- *     description: "Register a vehicle entering the parking lot. Creates a parking record and optionally links to a visitor record. Updates available slot counts."
+ *     description: "Starts a parking session for the car and links it to the person who came with it, who is registered or updated like on the visitor check-in. The server decides driver_type from the staff car registry and the visitor reservations; a driver_type sent by the client is ignored. A visitor or regular car opens the driver's visit, or joins the visit already open; a staff car opens no visit but counts as a visit for the driver. Slot counters are updated. Emits car_checkedin and visitor_updated, plus visitor_checkedin when a visit was opened."
  *     tags: [Smart Parking]
  *     security:
  *       - BearerAuth: []
@@ -687,36 +830,34 @@ Router.post('/vehicle/verify', auditSuccess('READ', 'vehicles'), verify_acar)
  *             properties:
  *               plate_number:
  *                 type: string
- *                 description: "Vehicle plate number"
- *                 example: "RAA 123B"
+ *                 description: "Vehicle plate number. Saved in upper case, letters and digits only"
+ *                 example: "RAD 123 B"
+ *               visitor_id:
+ *                 type: string
+ *                 description: "Optional. The registered visitor the driver form was filled from (verify last_driver or a lookup). Their details are updated with the submitted values."
+ *                 example: "66f1a2b3c4d5e6f7a8b9c0d1"
+ *               driver:
+ *                 $ref: '#/components/schemas/VisitorDetailsInput'
  *               driver_name:
  *                 type: string
- *                 description: "Driver's full name"
- *                 example: "Mukamana Alice"
+ *                 deprecated: true
+ *                 description: "Older screens. Read only when driver is not sent (same for the other driver_ fields)"
  *               driver_telephone:
  *                 type: string
- *                 description: "Driver's phone number"
- *                 example: "+250788123456"
- *               driver_type:
- *                 type: string
- *                 description: "Type of driver"
- *                 enum: [staff, visitor, regular]
- *                 example: "visitor"
+ *                 deprecated: true
  *               driver_email:
  *                 type: string
- *                 example: "alice@example.com"
+ *                 deprecated: true
+ *               driver_gender:
+ *                 type: string
+ *                 deprecated: true
  *               driver_identification:
- *                 type: object
- *                 properties:
- *                   id_type:
- *                     type: string
- *                     example: "National ID"
- *                   number:
- *                     type: string
- *                     example: "1199880077881122"
+ *                 deprecated: true
+ *                 allOf:
+ *                   - $ref: '#/components/schemas/VisitorIdentification'
  *     responses:
  *       201:
- *         description: Vehicle checked in successfully
+ *         description: Vehicle checked in
  *         content:
  *           application/json:
  *             schema:
@@ -725,15 +866,32 @@ Router.post('/vehicle/verify', auditSuccess('READ', 'vehicles'), verify_acar)
  *                 success:
  *                   type: boolean
  *                   example: true
+ *                 type:
+ *                   type: string
+ *                   example: "success"
  *                 message:
  *                   type: string
- *                   example: "Vehicle checked in successfully"
+ *                   example: "Vehicle checked in"
+ *                 visit_id:
+ *                   type: string
+ *                   nullable: true
+ *                   description: "The visit the car belongs to (null for staff cars)"
  *                 data:
- *                   type: object
+ *                   $ref: '#/components/schemas/ParkingView'
  *       400:
- *         description: Plate number is required
+ *         description: "Plate number is missing, or the driver details are missing or invalid (code VISITOR_INVALID, with field)"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/VisitorErrorResponse'
+ *       404:
+ *         description: "visitor_id does not match a registered visitor"
  *       409:
- *         description: Vehicle already checked in
+ *         description: "The car is already parked (code ALREADY_PARKED), or a driver value belongs to another visitor (code VISITOR_CONFLICT)"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/VisitorErrorResponse'
  *       500:
  *         description: Internal server error
  */
@@ -747,7 +905,7 @@ Router.post('/vehicle/checkin',
  * /smartparking/vehicle/checkout:
  *   post:
  *     summary: "Check out a vehicle"
- *     description: "Register a vehicle exiting the parking lot. Calculates parking duration and updates available slot counts. Auto-flags vehicles that overstay time limits."
+ *     description: "Ends the active parking session of the plate and updates the slot counters. A stay over the allowed time (staff 720 minutes, visitor and regular 120 minutes) is saved as a flagged vehicle with the visitor and the session. The visit the car belongs to is closed: exit time and durations are saved and a running service is stopped. Emits car_checkedout once and visitor_updated, plus visitor_checkedout when a visit was closed."
  *     tags: [Smart Parking]
  *     security:
  *       - BearerAuth: []
@@ -762,11 +920,11 @@ Router.post('/vehicle/checkin',
  *             properties:
  *               plate_number:
  *                 type: string
- *                 description: "Vehicle plate number to check out"
- *                 example: "RAA 123B"
+ *                 description: "Vehicle plate number to check out, in any spacing or case"
+ *                 example: "RAD 123 B"
  *     responses:
  *       200:
- *         description: Vehicle checked out successfully
+ *         description: "Vehicle checked out (type warning when it overstayed)"
  *         content:
  *           application/json:
  *             schema:
@@ -775,22 +933,53 @@ Router.post('/vehicle/checkin',
  *                 success:
  *                   type: boolean
  *                   example: true
+ *                 type:
+ *                   type: string
+ *                   enum: [success, warning]
  *                 message:
  *                   type: string
- *                   example: "Vehicle checked out successfully"
+ *                   example: "Vehicle checked out successfully."
  *                 data:
- *                   type: object
- *                   properties:
- *                     duration:
- *                       type: string
- *                       example: "2h 30m"
- *                     is_flagged:
- *                       type: boolean
- *                       example: false
+ *                   allOf:
+ *                     - $ref: '#/components/schemas/ParkingView'
+ *                     - type: object
+ *                       properties:
+ *                         check_in_time:
+ *                           type: string
+ *                           format: date-time
+ *                         check_out_time:
+ *                           type: string
+ *                           format: date-time
+ *                         total_duration:
+ *                           type: string
+ *                           example: "95 mins"
+ *                         is_flagged:
+ *                           type: boolean
+ *                           description: "True when the car overstayed"
+ *                           example: false
+ *                         violation_details:
+ *                           type: object
+ *                           nullable: true
+ *                           properties:
+ *                             allowed_minutes:
+ *                               type: integer
+ *                               example: 120
+ *                             total_minutes:
+ *                               type: integer
+ *                               example: 150
+ *                             overstayed_minutes:
+ *                               type: integer
+ *                               example: 30
  *       400:
  *         description: Plate number is required
  *       404:
  *         description: No active parking record found
+ *       409:
+ *         description: "Another gate checked the car out at the same moment (code ALREADY_CHECKED_OUT)"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/VisitorErrorResponse'
  *       500:
  *         description: Internal server error
  */

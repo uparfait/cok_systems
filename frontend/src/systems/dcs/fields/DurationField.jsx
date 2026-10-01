@@ -18,9 +18,8 @@ export default function DurationField({ field, language, mode, value, onChange, 
 
   return (
     <div className="w-full">
-      <label className="cok-auth-label" title={help_text || undefined}>
+      <label className={field.mandatory ? "cok-auth-label cok-req" : "cok-auth-label"} title={help_text || undefined}>
         {label}
-        {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
       <div className="flex gap-3">
         <input

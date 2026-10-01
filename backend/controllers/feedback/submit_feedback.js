@@ -4,18 +4,27 @@
  */
 
 const Feedback = require('../../models/feedback_db');
-const ServiceDelivery = require('../../models/service_delivery');
 const Department = require('../../models/department');
 const User = require('../../models/user');
 const { sendNegativeFeedbackAlert } = require('../../utilities/email');
 const alertAdminsOfNegativeFeedback = require('../../services/negative_feedback_alert');
+const { clean, isDuplicateKey } = require('../../utilities/visitors');
+const { phoneForms, visitorByPhone, latestAssignment, hasVisits } = require('./phone_visits');
+
+const ALREADY_SUBMITTED = {
+    success: false,
+    error: 'Feedback already submitted',
+    message: 'You have already submitted feedback for this department. You can only provide feedback once per department.'
+};
 
 async function submitFeedback(req, res) {
     try {
-        const { telephone, department_id, rate, textmessage } = req.body;
+        const { telephone, department_id, rate, textmessage } = req.body || {};
+        const typedPhone = clean(telephone);
+        const departmentId = clean(department_id);
 
         // Validate required fields
-     if (!telephone || !department_id || rate === undefined) {
+        if (!typedPhone || !departmentId || rate === undefined) {
             return res.status(400).json({
                 success: false,
                 error: 'Phone number, department ID, and rating are required'
@@ -23,37 +32,35 @@ async function submitFeedback(req, res) {
         }
 
         // Validate rating (1-10)
-        if (rate < 1 || rate > 10) {
+        const rating = Number(rate);
+        if (!Number.isFinite(rating) || rating < 1 || rating > 10) {
             return res.status(400).json({
                 success: false,
                 error: 'Rating must be between 1 and 10'
             });
         }
 
-        // Validate text message max 500 characters
-        if (textmessage && textmessage.length > 1000) {
+        // Validate text message max 1000 characters
+        const message = textmessage === undefined || textmessage === null ? '' : String(textmessage).trim();
+        if (message.length > 1000) {
             return res.status(400).json({
                 success: false,
                 error: 'Your feedback message exceeded 1000 characters'
             });
         }
 
-        // Find service record by phone number
-        const serviceRecord = await ServiceDelivery.findOne({ telephone });
+        // The visitor holding this phone number, and the latest time one of
+        // their visits was sent to this department
+        const visitor = await visitorByPhone(typedPhone);
+        const assignedDept = visitor ? await latestAssignment(visitor._id, departmentId) : null;
 
-        if (!serviceRecord) {
-            return res.status(404).json({
-                success: false,
-                error: 'No service record found for this phone number'
-            });
-        }
-
-        // Check if department is in assigned departments
-        const isAssigned = serviceRecord.departments_assigned.some(
-            dept => dept.department_id === department_id
-        );
-
-        if (!isAssigned) {
+        if (!assignedDept) {
+            if (!visitor || !(await hasVisits(visitor._id))) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'No service record found for this phone number'
+                });
+            }
             return res.status(403).json({
                 success: false,
                 error: 'You are not assigned to this department',
@@ -61,67 +68,57 @@ async function submitFeedback(req, res) {
             });
         }
 
-        // Check if feedback already exists for this phone number and department
-        // This ensures customers can only provide feedback ONCE per department
-        const existingFeedback = await Feedback.findOne({
-            telephone: telephone,
-            department_id: department_id
-        });
-
-        if (existingFeedback) {
-            return res.status(409).json({
-                success: false,
-                error: 'Feedback already submitted',
-                message: 'You have already submitted feedback for this department. You can only provide feedback once per department.'
-            });
+        // Customers can only provide feedback ONCE per department, whatever
+        // form the phone number was saved in
+        if (await Feedback.exists({ telephone: { $in: phoneForms(typedPhone) }, department_id: departmentId })) {
+            return res.status(409).json(ALREADY_SUBMITTED);
         }
 
-        // Get department name from assigned departments
-        const assignedDept = serviceRecord.departments_assigned.find(
-            dept => dept.department_id === department_id
-        );
-
-        // Create feedback record
-        const feedback = new Feedback({
-            user_name: serviceRecord.full_name,
-            telephone: telephone,
-            textmessage: textmessage || '',
-            rate: rate,
-            rate_out_of: 10,
-            department_id: department_id,
-            department_name: assignedDept.department_name,
-            provider_name: assignedDept.provider_name
-        });
-
-        await feedback.save();
+        let feedback;
+        try {
+            feedback = await Feedback.create({
+                user_name: visitor.full_name,
+                telephone: visitor.telephone,
+                textmessage: message,
+                rate: rating,
+                rate_out_of: 10,
+                department_id: departmentId,
+                department_name: assignedDept.department_name,
+                provider_name: assignedDept.provider_name
+            });
+        } catch (error) {
+            // A second submit of the same feedback arriving at the same time
+            if (isDuplicateKey(error)) return res.status(409).json(ALREADY_SUBMITTED);
+            throw error;
+        }
 
         global.WebsocketIO?.emit('feedback_submitted', {
             feedback_id: feedback._id,
-            department_id: department_id,
+            department_id: departmentId,
             department_name: assignedDept.department_name,
-            rate: rate,
+            rate: rating,
         });
 
         // Send email notification to department head if rating is 5 or below (negative feedback)
-        if (rate <= 5) {
+        if (rating <= 5) {
             try {
                 // Find the department to get the department leader
-                const department = await Department.findOne({ department_id: department_id });
-                
+                const department = await Department.findOne({ department_id: departmentId });
+
                 if (department && department.department_leader) {
                     // Get the department head's information
                     const departmentHead = await User.findById(department.department_leader);
-                    
+
                     if (departmentHead && departmentHead.email) {
                         // Send negative feedback alert email
                         await sendNegativeFeedbackAlert(
                             departmentHead.email,
                             departmentHead.full_name,
                             {
-                                rating: rate,
+                                rating: rating,
                                 department_name: assignedDept.department_name,
-                                user_name: serviceRecord.full_name,
-                                textmessage: textmessage || '',
+                                user_name: visitor.full_name,
+                                textmessage: message,
                                 created_date: feedback.created_date
                             }
                         );
@@ -135,10 +132,10 @@ async function submitFeedback(req, res) {
 
             // Alert all system admins (email + in-app notification), without blocking the response
             alertAdminsOfNegativeFeedback({
-                rating: rate,
+                rating: rating,
                 department_name: assignedDept.department_name,
-                user_name: serviceRecord.full_name,
-                textmessage: textmessage || '',
+                user_name: visitor.full_name,
+                textmessage: message,
                 created_date: feedback.created_date
             });
         }
@@ -149,7 +146,7 @@ async function submitFeedback(req, res) {
             data: {
                 feedback_id: feedback._id,
                 department_name: assignedDept.department_name,
-                rate: rate
+                rate: rating
             }
         });
 

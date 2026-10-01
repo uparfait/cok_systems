@@ -271,12 +271,16 @@ apiClient.interceptors.response.use(
       errorField = error.message;
     }
    
+    // response_data / http_status keep the full backend body (code, field,
+    // existing...) for screens that need more than the message.
     return Promise.reject({
       status: false,
       error: errorField,
       message: errorMessage,
       errors: errorData?.errors || [],
       type: errorData?.type || 'error',
+      response_data: errorData || null,
+      http_status: statusCode,
     });
   }
 );
@@ -336,6 +340,8 @@ export const apiRequest = async (
         message: error.message || error.error || 'An error occurred',
         errors: error.errors || [],
         type: error.type || 'error',
+        response_data: error.response_data || null,
+        http_status: error.http_status,
       };
     }
 

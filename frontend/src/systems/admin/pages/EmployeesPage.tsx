@@ -5,6 +5,7 @@ import { employeeService, departmentService, roleService } from '../../../core/s
 import { dispatchToast } from '../../../core/services/apiClient';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import ErrorModal from '../../../core/components/Modals/ErrorModal';
+import OverlayCloseButton from '../../../core/components/overlay/OverlayCloseButton';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import Table from '../../../core/components/Table';
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers, FiMail, FiPhone, FiAlertCircle, FiCheck } from 'react-icons/fi';
@@ -252,11 +253,11 @@ const EmployeesPage: React.FC = () => {
           onRowClick={(employee: any) => setViewingEmployee(employee)}
           renderCell={(header, employee: any) => {
             switch (header.key) {
-              case 'employee': return <div className="flex items-center gap-2"><div className="w-8 h-8 bg-[rgba(5,109,170,0.1)] flex items-center justify-center shrink-0"><span className="text-[#056daa] font-semibold text-xs">{(employee.full_name || 'E').charAt(0).toUpperCase()}</span></div><div className="min-w-0"><p className="text-sm font-medium text-[#333333] whitespace-nowrap truncate max-w-[200px]" title={employee.full_name}>{employee.full_name || '-'}</p><p className="text-xs text-[#555555] whitespace-nowrap truncate max-w-[200px]" title={employee.email}>{employee.email}</p></div></div>;
-              case 'contact': return <div className="text-xs text-[#555555]">{employee.telephone && <p className="flex items-center gap-1 whitespace-nowrap"><FiPhone className="w-3 h-3 shrink-0" />{employee.telephone}</p>}<p className="flex items-center gap-1 whitespace-nowrap truncate max-w-[220px]" title={employee.email}><FiMail className="w-3 h-3 shrink-0" />{employee.email}</p></div>;
-              case 'department': return <span className="text-sm text-[#333333] whitespace-nowrap truncate max-w-[180px] inline-block align-middle" title={employee.department_name}>{employee.department_name || (employee.department && typeof employee.department === 'object' && (employee.department as any)?.department_name) || '-'}</span>;
-              case 'unit': return <span className="text-sm text-[#333333] font-medium whitespace-nowrap truncate max-w-[160px] inline-block align-middle">{getUnitNameDisplay(employee)}</span>;
-              case 'position': return <span className="text-sm text-[#333333] whitespace-nowrap truncate max-w-[160px] inline-block align-middle">{employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '-'}</span>;
+              case 'employee': return <div className="flex items-center gap-2"><div className="w-8 h-8 bg-[rgba(5,109,170,0.1)] flex items-center justify-center shrink-0"><span className="text-[#056daa] font-semibold text-xs">{(employee.full_name || 'E').charAt(0).toUpperCase()}</span></div><div className="min-w-0"><p className="text-sm font-medium text-[#333333] whitespace-nowrap" title={employee.full_name}>{employee.full_name || '-'}</p><p className="text-xs text-[#555555] whitespace-nowrap" title={employee.email}>{employee.email}</p></div></div>;
+              case 'contact': return <div className="text-xs text-[#555555]">{employee.telephone && <p className="flex items-center gap-1 whitespace-nowrap"><FiPhone className="w-3 h-3 shrink-0" />{employee.telephone}</p>}<p className="flex items-center gap-1 whitespace-nowrap" title={employee.email}><FiMail className="w-3 h-3 shrink-0" />{employee.email}</p></div>;
+              case 'department': return <span className="text-sm text-[#333333] whitespace-nowrap inline-block align-middle" title={employee.department_name}>{employee.department_name || (employee.department && typeof employee.department === 'object' && (employee.department as any)?.department_name) || '-'}</span>;
+              case 'unit': return <span className="text-sm text-[#333333] font-medium whitespace-nowrap inline-block align-middle">{getUnitNameDisplay(employee)}</span>;
+              case 'position': return <span className="text-sm text-[#333333] whitespace-nowrap inline-block align-middle">{employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '-'}</span>;
               case 'actions': return <div className="flex items-center justify-end gap-1"><button onClick={(e) => { e.stopPropagation(); handleEdit(employee); }} className="p-1.5 text-[#056daa] hover:bg-[rgba(5,109,170,0.1)] cursor-pointer" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button><button onClick={(e) => { e.stopPropagation(); handleDeleteClick(employee._id || employee.employee_id || '', employee.full_name || 'this employee'); }} className="p-1.5 text-[#E74C3C] hover:bg-[rgba(231,76,60,0.12)] cursor-pointer" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button></div>;
               default: return <span>{employee[header.key] || '-'}</span>;
             }
@@ -272,7 +273,7 @@ const EmployeesPage: React.FC = () => {
           />
         )}
 
-        <EmployeeFormModal show={showModal} editing={!!editingEmployee} formData={formData as any} formError={formError} formSuccess={formSuccess} submitting={submitting} departments={departments} departmentUnits={departmentUnits} loadingUnits={loadingUnits} roles={roles} loadingRoles={loadingRoles} onClose={() => setShowModal(false)} onSubmit={handleSubmit} onChange={(data) => setFormData(data)} onDepartmentChange={(name, id) => { setFormData({ ...formData, department_name: name, department_id: id, department_unit: '' }); if (id) { setLoadingUnits(true); loadDepartmentUnits(id); } else setDepartmentUnits([]); }} onAddNewDepartment={handleAddNewDepartment} onAddNewUnit={handleAddNewUnit} onRefetchDepartments={loadDepartments} onRefetchUnits={() => { if (formData.department_id) return loadDepartmentUnits(formData.department_id); }} />
+        <EmployeeFormModal show={showModal} editing={!!editingEmployee} formData={formData as any} formError={formError} formSuccess={formSuccess} submitting={submitting} departments={departments} departmentUnits={departmentUnits} loadingUnits={loadingUnits} roles={roles} loadingRoles={loadingRoles} onClose={() => { if (!deptModal) setShowModal(false); }} onSubmit={handleSubmit} onChange={(data) => setFormData(data)} onDepartmentChange={(name, id) => { setFormData({ ...formData, department_name: name, department_id: id, department_unit: '' }); if (id) { setLoadingUnits(true); loadDepartmentUnits(id); } else setDepartmentUnits([]); }} onAddNewDepartment={handleAddNewDepartment} onAddNewUnit={handleAddNewUnit} onRefetchDepartments={loadDepartments} onRefetchUnits={() => { if (formData.department_id) return loadDepartmentUnits(formData.department_id); }} />
 
         <DepartmentFormModal
           show={!!deptModal}
@@ -288,16 +289,16 @@ const EmployeesPage: React.FC = () => {
         {showMultipleUploadModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl m-3 sm:m-6">
-              <div className="p-4 border-b bg-gray-50 sticky top-0 flex items-center justify-between z-10">
-                <div className="flex items-center gap-3"><div className="w-9 h-9 bg-[rgba(76,175,80,0.12)] flex items-center justify-center"><FiPlus className="w-4 h-4 text-[#388E3C]" /></div><div><h2 className="text-sm font-bold text-[#333333]">Add Multiple Employees</h2><p className="text-xs text-[#555555]">Upload Excel or CSV file</p></div></div>
-                <button onClick={() => setShowMultipleUploadModal(false)} className="p-1.5 hover:bg-gray-200">✕</button>
+              <div className="p-4 border-b border-gray-100 bg-white sticky top-0 flex items-center justify-between z-10">
+                <div className="flex items-center gap-3"><div className="w-9 h-9 bg-[rgba(76,175,80,0.12)] flex items-center justify-center"><FiPlus className="w-4 h-4 text-[#388E3C]" /></div><div><h2 className="text-sm font-bold text-gray-900">Add Multiple Employees</h2><p className="text-xs text-[#555555]">Upload Excel or CSV file</p></div></div>
+                <OverlayCloseButton onClick={() => setShowMultipleUploadModal(false)} disabled={uploading} />
               </div>
               <form onSubmit={(e) => { e.preventDefault(); handleMultipleUpload(); }} className="p-4 space-y-4">
                 {uploadSuccess && <div className="bg-[rgba(76,175,80,0.08)] border border-[#E0E0E0] text-[#388E3C] px-3 py-2 flex items-center gap-2 text-sm"><FiCheck className="w-4 h-4" />{uploadSuccess}</div>}
                 <div className="bg-[rgba(5,109,170,0.06)] p-3"><div className="flex items-center justify-between mb-2"><h4 className="text-xs font-semibold text-[#056daa]">File Format:</h4><button type="button" onClick={handleDownloadTemplate} disabled={downloadingTemplate} className="text-xs px-2 py-1 text-white disabled:opacity-50" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>{downloadingTemplate ? 'Downloading...' : 'Download Template'}</button></div>
-                  <ul className="text-xs text-[#056daa] space-y-0.5"><li>• Required: telephone, email, gender</li><li>• Optional: department, department_unit, role</li><li>• Max 5MB, .xlsx/.xls/.csv</li></ul>
+                  <ul className="text-xs text-[#056daa] space-y-0.5"><li>- Required: telephone, email, gender</li><li>- Optional: department, department_unit, role</li><li>- Max 5MB, .xlsx/.xls/.csv</li></ul>
                 </div>
-                <div><label className="text-xs font-medium text-[#333333] mb-1 block">Upload File <span className="text-[#E74C3C]">*</span></label>
+                <div><label className="text-xs font-medium text-[#333333] mb-1 block cok-req">Upload File</label>
                   <div className="border-2 border-dashed border-[#E0E0E0] p-4 text-center hover:border-[#4CAF50]">
                     <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} className="hidden" id="file-upload" />
                     <label htmlFor="file-upload" className="cursor-pointer"><div className="flex flex-col items-center gap-1"><span className="text-xs text-[#555555]">{uploadFile ? uploadFile.name : 'Click to select file'}</span><span className="text-xs text-[#555555]">Excel (.xlsx, .xls) or CSV</span></div></label>
@@ -305,7 +306,6 @@ const EmployeesPage: React.FC = () => {
                   {uploadFile && <p className="text-xs text-[#388E3C] mt-1 flex items-center gap-1"><FiCheck className="w-3 h-3" />{uploadFile.name}</p>}
                 </div>
                 <div className="flex gap-3 pt-1">
-                  <button type="button" onClick={() => setShowMultipleUploadModal(false)} className="flex-1 px-3 py-2 bg-white border border-[#056daa] text-[#056daa] text-sm font-medium hover:bg-[rgba(5,109,170,0.06)]">Cancel</button>
                   <button type="submit" disabled={uploading || !uploadFile || !!uploadSuccess} className={`flex-1 px-3 py-2 text-sm text-white ${uploading || !uploadFile ? 'opacity-50 cursor-not-allowed' : ''}`} style={{ backgroundColor: SUCCESS, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}>
                     {uploading ? 'Uploading...' : uploadSuccess ? 'Uploaded!' : 'Upload Employees'}
                   </button>
@@ -315,7 +315,7 @@ const EmployeesPage: React.FC = () => {
           </div>
         )}
 
-        <ConfirmModal isOpen={showDeleteConfirm} title="Delete Employee" message={`Are you sure you want to delete "${deletingName}"?`} confirmText="Delete" cancelText="Cancel" onConfirm={handleConfirmDelete} onCancel={handleCancelDelete} type="danger" isLoading={deleting} />
+        <ConfirmModal isOpen={showDeleteConfirm} title="Delete Employee" message={`Are you sure you want to delete "${deletingName}"?`} confirmText="Delete" onConfirm={handleConfirmDelete} onCancel={handleCancelDelete} type="danger" isLoading={deleting} />
         <ErrorModal isOpen={showErrorModal} title={errorModalTitle} message={errorModalMessage} errors={errorModalErrors} onClose={() => setShowErrorModal(false)} type="error" />
       </div>
     </MainLayout>

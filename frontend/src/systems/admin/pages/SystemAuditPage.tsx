@@ -4,6 +4,7 @@ import { useToast } from '../../../core/contexts/ToastContext';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { get, del } from '../../../core/services/apiClient';
 import AuditDetailsModal from '../components/AuditDetailsModal';
+import OverlayShell from '../../../core/components/overlay/OverlayShell';
 
 const PRIMARY = '#056daa';
 const DANGER = '#E74C3C';
@@ -296,43 +297,43 @@ const SystemAuditPage: React.FC = () => {
         {selectedLog && <AuditDetailsModal record={selectedLog} onClose={() => setSelectedLog(null)} />}
 
         {showLegacyConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white w-full max-w-sm shadow-2xl" style={{ borderTop: `4px solid ${DANGER}` }}>
-              <div className="p-4 border-b bg-gray-50">
-                <h2 className="text-sm font-bold text-gray-900" style={{ fontFamily: fontHeading }}>Clear old-format audit records</h2>
-                <p className="text-xs text-gray-500 mt-1">{legacyCount.toLocaleString()} records stored by the previous audit design will be deleted permanently. Records in the new format are kept.</p>
-              </div>
-              <div className="p-4 flex gap-3">
-                <button type="button" onClick={handleClearLegacy} disabled={clearingLegacy} className="flex-1 px-3 py-2 text-white text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: DANGER }}>{clearingLegacy ? 'Clearing...' : 'Yes, clear them'}</button>
-                <button type="button" onClick={() => setShowLegacyConfirm(false)} disabled={clearingLegacy} className="flex-1 px-3 py-2 cok-btn-outlined text-sm font-medium cursor-pointer">Cancel</button>
-              </div>
+          <OverlayShell
+            title="Clear old-format audit records"
+            subtitle={`${legacyCount.toLocaleString()} records stored by the previous audit design will be deleted permanently. Records in the new format are kept.`}
+            onClose={() => setShowLegacyConfirm(false)}
+            busy={clearingLegacy}
+            width="sm"
+            closeOnBackdrop={false}
+          >
+            <div className="flex gap-3">
+              <button type="button" onClick={handleClearLegacy} disabled={clearingLegacy} className="flex-1 px-3 py-2 text-white text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: DANGER }}>{clearingLegacy ? 'Clearing...' : 'Yes, clear them'}</button>
             </div>
-          </div>
+          </OverlayShell>
         )}
 
         {showExportModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white w-full max-w-sm shadow-2xl">
-              <div className="p-4 border-b bg-gray-50">
-                <h2 className="text-sm font-bold text-gray-900" style={{ fontFamily: fontHeading }}>Export Audit Logs</h2>
-                <p className="text-xs text-gray-500">Choose the date range to export as CSV. The current status, method and search filters are applied too.</p>
+          <OverlayShell
+            title="Export Audit Logs"
+            subtitle="Choose the date range to export as CSV. The current status, method and search filters are applied too."
+            onClose={() => setShowExportModal(false)}
+            busy={exporting}
+            width="sm"
+            closeOnBackdrop={false}
+          >
+            <form onSubmit={handleExportSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-700 mb-1 block cok-req">From</label>
+                <input type="date" required value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} className="cok-auth-input w-full text-sm" style={{ paddingLeft: '10px', minHeight: '36px' }} />
               </div>
-              <form onSubmit={handleExportSubmit} className="p-4 space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">From <span className="text-red-500">*</span></label>
-                  <input type="date" required value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} className="cok-auth-input w-full text-sm" style={{ paddingLeft: '10px', minHeight: '36px' }} />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">To <span className="text-red-500">*</span></label>
-                  <input type="date" required value={exportTo} onChange={(e) => setExportTo(e.target.value)} className="cok-auth-input w-full text-sm" style={{ paddingLeft: '10px', minHeight: '36px' }} />
-                </div>
-                <div className="flex gap-3 pt-1">
-                  <button type="submit" disabled={exporting} className="flex-1 px-3 py-2 cok-btn-primary text-white text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">{exporting ? 'Exporting...' : 'Export'}</button>
-                  <button type="button" onClick={() => setShowExportModal(false)} disabled={exporting} className="flex-1 px-3 py-2 cok-btn-outlined text-sm font-medium cursor-pointer">Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-700 mb-1 block cok-req">To</label>
+                <input type="date" required value={exportTo} onChange={(e) => setExportTo(e.target.value)} className="cok-auth-input w-full text-sm" style={{ paddingLeft: '10px', minHeight: '36px' }} />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="submit" disabled={exporting} className="flex-1 px-3 py-2 cok-btn-primary text-white text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">{exporting ? 'Exporting...' : 'Export'}</button>
+              </div>
+            </form>
+          </OverlayShell>
         )}
       </div>
     </MainLayout>

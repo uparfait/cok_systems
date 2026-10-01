@@ -1,212 +1,68 @@
 const ServiceDelivery = require('../../models/service_delivery.js')
 const ParkingRecord = require('../../models/parking_record.js')
+const {
+    readVisitorInput, identifyVisitor, resolveVisitor, findOpenVisit, openVisit, rollbackOpenedVisit, classifyPlate, startParkingSession,
+    normalizePlate, visitView, emitVisitorUpdated, sendError, badRequest, conflict,
+} = require('../../utilities/visitors')
 
-const isValidEmail = (email) => !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-const isValidPhone = (phone) => !phone || /^\+?[0-9\s\-()]{7,15}$/.test(phone)
-const isValidPlate = (plate) => !plate || /^[A-Za-z0-9\s\-]{3,10}$/.test(plate)
-const isValidBadge = (badge) => !badge || /^[A-Za-z0-9\-]+$/.test(badge)
+const truthy = (value) => value === true || value === 'true' || value === 1 || value === '1'
 
-
-module.exports = async function visitor_checkin(req, res, next) {
+/**
+ * POST /servicedelivery/visitor/checkin
+ * Body: { visitor_id?, full_name, telephone, email?, gender, identification: { id_type, number },
+ *         has_vehicle?, plate_number?, items_entered_with? }
+ * Registers (or updates) the visitor, opens the visit and - when the visitor
+ * came by car - starts the parking session linked to that visit.
+ */
+module.exports = async function visitor_checkin(req, res) {
     try {
-        let {
-            full_name = null,
-            telephone = null,
-            email = null,
-            identification = {}, // Optional
-            gender = 'Not specified',
-            vehicle_storage = {},
-            items_entered_with = [],
-            badge_number = null
-        } = req.body || {}
-
-        if (badge_number) {
-            badge_number = badge_number.toString().trim().toUpperCase()
+        const body = req.body || {}
+        const typedPlate = body.plate_number || (body.vehicle_storage && body.vehicle_storage.vehicle_details && body.vehicle_storage.vehicle_details.plate_number)
+        const hasVehicle = truthy(body.has_vehicle) || !!typedPlate
+        const plate = hasVehicle ? normalizePlate(typedPlate) : ''
+        if (hasVehicle && plate.length < 3) {
+            throw badRequest('Enter a valid plate number', { field: 'plate_number' })
+        }
+        if (hasVehicle && await ParkingRecord.exists({ plate_number: plate, status: 'active' })) {
+            throw conflict(`Car with plate ${plate} is already checked in and currently active.`, { code: 'ALREADY_PARKED', field: 'plate_number' })
         }
 
-        // Identification is no longer strictly required
-        if (!full_name || !telephone) {
-            return res.status(400).json({
-                success: false,
-                type: 'warning',
-                message: "Full name and telephone required for visitor registration"
-            })
+        const input = readVisitorInput(body)
+        // Refuse a visitor already in house before changing anything about them
+        const { targetId } = await identifyVisitor({ visitorId: body.visitor_id || null, input })
+        if (targetId && await findOpenVisit(targetId)) {
+            throw conflict(`${input.full_name} is already in house`, { code: 'ALREADY_IN_HOUSE', visitor_id: targetId })
         }
+        const { visitor, created } = await resolveVisitor({ visitorId: targetId || null, input, user: req.user })
 
-        if (!isValidEmail(email)) {
-            return res.status(400).json({
-                success: false,
-                type: 'warning',
-                message: "Invalid email format"
-            })
-        }
+        const items = Array.isArray(body.items_entered_with) ? body.items_entered_with : []
+        const { visit, opened } = await openVisit({ visitor, user: req.user, items, vehicle: hasVehicle ? { plate_number: plate } : null })
 
-        if (!isValidPhone(telephone)) {
-            return res.status(400).json({
-                success: false,
-                type: 'warning',
-                message: "Invalid telephone format"
-            })
-        }
-
-        if (!isValidBadge(badge_number)) {
-            return res.status(400).json({
-                success: false,
-                type: 'warning',
-                message: "Invalid badge number format"
-            })
-        }
-
-        if (vehicle_storage.has_vehicle && !isValidPlate(vehicle_storage.vehicle_details?.plate_number)) {
-            return res.status(400).json({
-                success: false,
-                type: 'warning',
-                message: "Invalid vehicle plate number format"
-            })
-        }
-
-        // check in service delivery and in parking if no one with that badge number currently in house
-
-        if (badge_number) {
-            
-            const existing_badge_in_service_delivery = await ServiceDelivery.findOne({ badge_number, is_still_inhouse: true })
-            const existing_badge_in_parking = await ParkingRecord.findOne({ badge_number, status: 'active' })
-            if (existing_badge_in_service_delivery || existing_badge_in_parking) {
-                return res.status(400).json({
-                    success: false,
-                    type: 'warning',
-                    message: "Someone with this badge number is already checked in."
-                })
+        if (hasVehicle) {
+            try {
+                const classification = await classifyPlate(plate)
+                const record = await startParkingSession({ plate, visitor, visit, user: req.user, classification })
+                visit.vehicle_storage.parking_record = record._id
+                await visit.save()
+            } catch (error) {
+                if (opened) await rollbackOpenedVisit(visit)
+                throw error
             }
+            global.WebsocketIO?.emit('car_checkedin', { show_notif: false, type: 'info', message: 'New car checked in: ' + plate })
         }
 
-        // check if vistor is already in 
+        global.WebsocketIO?.emit('visitor_checkedin', { show_notif: false, type: 'info', message: 'A visitor checked in', visitor_id: String(visitor._id) })
+        emitVisitorUpdated(visitor._id)
 
-        const is_already_registered = await ServiceDelivery.findOne({
-            full_name: full_name,
-            telephone: telephone,
-            is_still_inhouse: true
-        })
-
-        if (is_already_registered) {
-            return res.status(409).json({
-                success: false,
-                type: 'warning',
-                message: "Visitor with the same name and telephone is already checked in and currently inhouse."
-            })
-        }
-
-        // --- CAR  ---
-        if (vehicle_storage.has_vehicle && vehicle_storage.vehicle_details?.plate_number) {
-
-            // Clean plate number
-            let plate = vehicle_storage.vehicle_details.plate_number.toString().toUpperCase().replace(/\s+/g, '')
-            vehicle_storage.vehicle_details.plate_number = plate
-            const cleanPlateNumber = (plate) => plate?.replace(/\s/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || '';
-            plate = cleanPlateNumber(plate);
-
-            // Look for the car
-            const active_parking = await ParkingRecord.findOne({ plate_number: plate, status: 'active' })
-
-            if (active_parking) {
-                console.log('has vehicle')
-                // 1. Fill out the missing parking record fields with the visitor's data
-                if (!active_parking.driver_name) active_parking.driver_name = full_name
-                if (!active_parking.driver_telephone) active_parking.driver_telephone = telephone || 'Not specified'
-                // Must be lowercase: the ParkingRecord enum only accepts 'staff' | 'visitor' | 'regular'
-                if (!active_parking.driver_type) active_parking.driver_type = 'regular'
-                if (!active_parking.driver_email) active_parking.driver_email = email || 'Not specified'
-                if (!active_parking.driver_gender) active_parking.driver_gender = gender
-
-                // If the gate guard missed the ID but reception got it, update it here
-                if (identification && identification.id_type && (!active_parking.driver_identification || !active_parking.driver_identification.number)) {
-                    active_parking.driver_identification = identification
-                }
-
-                await active_parking.save()
-
-                // 2. Sync the visitor's 'entered_time' with the exact time the gate opened
-                vehicle_storage.vehicle_details.entered_time = active_parking.check_in
-            } else if (!active_parking) {
-                console.log('we are going to checkin a vehicle')
-
-                // save vehicle to parking record
-
-                const new_parking = new ParkingRecord({
-                    plate_number: plate,
-                    driver_name: full_name,
-                    driver_identification: identification || null,
-                    slot_number: 'Not specified',
-                    driver_telephone: telephone || 'Not specified',
-                    driver_email: email || 'Not specified',
-                    driver_gender: gender,
-                    // Must be lowercase: the ParkingRecord enum only accepts 'staff' | 'visitor' | 'regular'
-                    driver_type: 'regular',
-                    check_in: new Date(),
-                    status: 'active',
-                    checked_in_by: req.user?.name || "Not specified"
-                })
-
-                const save = await new_parking.save()
-
-                // A vehicle entered through the reception flow - notify dashboards the same way the gate does
-                global.WebsocketIO?.emit('car_checkedin', {
-                    show_notif: false,
-                    type: 'info',
-                    message: 'New car checked in: ' + plate
-                })
-
-
-                vehicle_storage.vehicle_details.entered_time = new_parking.check_in
-
-            }
-        } else {
-            console.log('not has a vehicle')
-
-            vehicle_storage = { has_vehicle: false }
-        }
-
-        let registered_by = req.user?.name || "Not specified"
-
-        const new_visitor = new ServiceDelivery({
-            full_name,
-            telephone,
-            email,
-            identification,
-            driver_identification: identification,
-            gender,
-            vehicle_storage,
-            items_entered_with,
-            departments_assigned: [],
-            services_status: [],
-            is_still_inhouse: true,
-            entry_date: new Date(),
-            registered_by,
-            badge_number
-        })
-
-        const saved_visitor = await new_visitor.save()
-
-        global.WebsocketIO?.emit('visitor_checkedin', {
-            show_notif: false,
-            type: 'info',
-            message: 'Visitor checked in: ' + full_name
-        })
-
+        const populated = await ServiceDelivery.findById(visit._id).populate('visitor').lean()
         return res.status(201).json({
             success: true,
-            type: "success",
-            message: "Visitor checked in successfully",
-            data: saved_visitor
+            type: 'success',
+            message: created ? 'Visitor registered and checked in' : 'Visitor checked in',
+            visitor_created: created,
+            data: visitView(populated),
         })
-
     } catch (error) {
-        console.error("Error in visitor_checkin:", error)
-        return res.status(500).json({
-            success: false,
-            type: "error",
-            message: "Something went wrong while checking in visitor",
-            error: error.message
-        })
+        return sendError(res, error, 'Failed to check in the visitor')
     }
 }

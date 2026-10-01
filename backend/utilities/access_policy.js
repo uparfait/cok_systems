@@ -103,6 +103,8 @@ const ADMIN_STORAGE = ['child:admin:storage-management', 'slug:system-admin'];
 // restarts the running servers, so only the link itself grants it - no
 // other admin child stands in for it.
 const ADMIN_DEPLOYMENT = ['child:admin:deployment-management', 'slug:system-admin'];
+// Deleting records of the old visitor structure is guarded by its own link.
+const ADMIN_LEGACY_DATA = ['child:admin:legacy-data', 'slug:system-admin'];
 
 const SERVICE_DELIVERY = [
     'link:visitors', 'link:assigned-visitors', 'link:history', 'link:queue', 'link:requests',
@@ -140,6 +142,10 @@ const FEEDBACK_READ = ['link:service-delivery', 'link:hod-feedback', 'link:feedb
 
 const ANALYTICS = Array.from(new Set([].concat(SERVICE_DELIVERY, SMART_PARKING, ['link:feedback-analysis', 'slug:mayor'])));
 
+// The visitor registry and the global visitor panel open for every role that
+// sees visitors anywhere; the controllers decide per action who may do what.
+const VISITORS = Array.from(new Set([].concat(SERVICE_DELIVERY, SMART_PARKING, DEPARTMENT_MANAGER, FEEDBACK_READ, ['link:feedback-analysis', 'slug:mayor'])));
+
 const TASKS = ['link:task-manager'];
 
 module.exports = {
@@ -158,6 +164,7 @@ module.exports = {
         ADMIN_AUDIT,
         ADMIN_STORAGE,
         ADMIN_DEPLOYMENT,
+        ADMIN_LEGACY_DATA,
         SERVICE_DELIVERY,
         SMART_PARKING,
         EVENTS,
@@ -167,6 +174,7 @@ module.exports = {
         REQUESTS_WRITE,
         FEEDBACK_READ,
         ANALYTICS,
+        VISITORS,
         TASKS,
     },
 };

@@ -46,9 +46,33 @@ const getPeriodBounds = (period, from, to) => {
 };
 
 /**
- * List feedbacks paginated (10 per page by default) with target + period filters.
- * target: 'all' (department + general merged), 'general' (unserviced only),
+ * The rows of one target, tagged with their source:
+ * 'all' (department + general merged), 'general' (unserviced only),
  * or a department/unit id (department feedback for that id).
+ */
+function targetPipeline(target, dateMatch) {
+  const general = [{ $match: dateMatch }, { $addFields: { source: 'general', department_name: 'General' } }];
+  if (target === 'general') return { model: UnservicedFeedback, stages: general };
+  if (target === 'all') {
+    return {
+      model: Feedback,
+      stages: [
+        { $match: dateMatch },
+        { $addFields: { source: 'department' } },
+        { $unionWith: { coll: UnservicedFeedback.collection.name, pipeline: general } },
+      ],
+    };
+  }
+  const department_id = Array.isArray(target) ? { $in: target.map(String) } : String(target);
+  return {
+    model: Feedback,
+    stages: [{ $match: { ...dateMatch, department_id } }, { $addFields: { source: 'department' } }],
+  };
+}
+
+/**
+ * List feedbacks paginated (10 per page by default) with target + period filters.
+ * Merging, sorting, paging and counting all happen in one MongoDB pipeline.
  */
 module.exports = async function list_feedbacks(req, res) {
   try {
@@ -59,27 +83,16 @@ module.exports = async function list_feedbacks(req, res) {
     const bounds = getPeriodBounds(period, from, to);
     const dateMatch = bounds ? { created_date: { $gte: bounds.start, $lte: bounds.end } } : {};
 
-    let items = [];
-    if (target === 'general') {
-      const rows = await UnservicedFeedback.find(dateMatch).sort({ created_date: -1 }).lean();
-      items = rows.map((r) => ({ ...r, source: 'general', department_name: 'General' }));
-    } else if (target === 'all') {
-      const [deptRows, generalRows] = await Promise.all([
-        Feedback.find(dateMatch).sort({ created_date: -1 }).lean(),
-        UnservicedFeedback.find(dateMatch).sort({ created_date: -1 }).lean(),
-      ]);
-      items = [
-        ...deptRows.map((r) => ({ ...r, source: 'department' })),
-        ...generalRows.map((r) => ({ ...r, source: 'general', department_name: 'General' })),
-      ].sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
-    } else {
-      const rows = await Feedback.find({ ...dateMatch, department_id: target }).sort({ created_date: -1 }).lean();
-      items = rows.map((r) => ({ ...r, source: 'department' }));
-    }
+    const { model, stages } = targetPipeline(target, dateMatch);
+    const [result] = await model.aggregate([
+      ...stages,
+      { $sort: { created_date: -1, _id: -1 } },
+      { $facet: { data: [{ $skip: (page - 1) * limit }, { $limit: limit }], total: [{ $count: 'n' }] } },
+    ]);
 
-    const total = items.length;
+    const total = (result && result.total[0] && result.total[0].n) || 0;
     const totalPages = Math.max(1, Math.ceil(total / limit));
-    const data = items.slice((page - 1) * limit, (page - 1) * limit + limit);
+    const data = (result && result.data) || [];
 
     return res.status(200).json({
       success: true,
