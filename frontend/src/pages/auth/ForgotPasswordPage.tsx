@@ -25,50 +25,38 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
     try {
       const result = await requestPasswordReset(email);
       
-      // Check if status is true AND there's no error message
       if (result.status && !result.error) {
-        // Store userId for next step
         if (result.data?.userId) {
           setUserId(result.data.userId);
           sessionStorage.setItem('resetUserId', result.data.userId);
           sessionStorage.setItem('resetEmail', email);
         }
-        // Show success message and OTP modal
         showSuccess('Reset code sent successfully! Please check your email.');
         setShowOTPModal(true);
       } else {
-        // Handle both cases: status false or status true with error message
-        // Use backend message with priority
         showError(result.message || result.error || 'Failed to send reset code');
       }
     } catch (err: any) {
-      // Use backend message with priority
       showError(err?.message || err?.error || 'An error occurred');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle OTP verification success
   const handleOTPSuccess = (verifiedUserId: string, tempToken: string) => {
     console.log(tempToken);
     setShowOTPModal(false);
-    // Navigate to reset password page with userId
     navigate(`/reset-password?userId=${verifiedUserId}`);
   };
 
-  // Handle continue to OTP verification
   const handleContinue = () => {
-    // If onVerified callback is provided, call it
     if (onVerified) {
       onVerified(userId);
     } else {
-      // Default behavior - navigate to reset password page
       navigate(`/reset-password?userId=${userId}`);
     }
   };
 
-  // Mask email for display
   const maskEmail = (emailStr: string) => {
     if (!emailStr) return '';
     const [localPart, domain] = emailStr.split('@');
@@ -83,7 +71,6 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
 
   return (
     <div className="min-h-screen relative">
-      {/* Full-page City Hall image with dark overlay */}
       <div
         className="fixed inset-0 bg-cover bg-center"
         style={{ backgroundImage: 'url(/cok_hall.jpg)' }}
@@ -91,11 +78,9 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
-      {/* Centered translucent card; fills the whole screen on mobile */}
       <div className="relative z-10 flex min-h-screen items-center justify-center p-0 sm:p-4">
         <div className="w-full max-w-none sm:max-w-md bg-white/95 backdrop-blur-sm shadow-2xl flex flex-col justify-center min-h-screen sm:min-h-0 px-4 py-6 sm:px-8 sm:py-6">
 
-          {/* City of Kigali Logo */}
           <div className="mb-6 flex justify-center">
             <img
               src="/LOGO_COK.png"
@@ -106,16 +91,14 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
 
           {!isSubmitted ? (
             <>
-              {/* Forgot Password Header */}
               <h2 className="text-xl lg:text-2xl font-bold text-[#056daa] mb-2">Forgot Password?</h2>
               <p className="text-sm text-gray-600 mb-6">
                Enter your registered email to receive a recovery link.
               </p>
 
-              {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label htmlFor="email" className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="email" className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 cok-req">
                     Email Address
                   </label>
                   <input
@@ -149,7 +132,6 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
                 </button>
               </form>
               <Link to="/login" >
-              {/* Return to Log In link */}
               <button className="mt-6 w-full cok-btn-outlined">
                   Return to LogIn
               </button>
@@ -157,7 +139,6 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
             </>
           ) : (
             <>
-              {/* Success state */}
               <div className="text-center">
                 <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
                   <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -191,7 +172,6 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
         </div>
       </div>
 
-      {/* Password Reset OTP Modal */}
       {showOTPModal && (
         <PasswordResetOTPModal
           isOpen={showOTPModal}

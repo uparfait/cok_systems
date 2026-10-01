@@ -192,6 +192,15 @@ db_connection()
       console.log("Parking slot document already exists.");
     }
 
+    // Reservations saved before the gate plate rule (dashes, spaces) are
+    // rewritten once at startup so those cars are recognised at check-in.
+    try {
+      const fixedPlates = await require("./controllers/reservationsController.js").normalizeStoredReservationPlates();
+      if (fixedPlates) console.log(`Reservation plates normalized: ${fixedPlates}`);
+    } catch (plateError) {
+      console.error("Reservation plate normalization failed:", plateError.message);
+    }
+
     // Start task notification scheduler
     try {
       taskNotificationScheduler.start();

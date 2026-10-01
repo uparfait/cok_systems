@@ -1,4 +1,3 @@
-// Overview.tsx - Fixed Y-axis to show whole numbers only
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
@@ -13,12 +12,16 @@ import { COK, CokBadge } from './mayorCok';
 import { FiFilter } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 import ParkingLotMap from '../../../core/components/ParkingLotMap';
+import OverlayShell from '../../../core/components/overlay/OverlayShell';
+import { useVisitorPanel, visitorIdOf } from '../../../core/components/visitor/VisitorPanelProvider';
 
-// ==================== TYPES ====================
 
-// Shape of /statistics/served - all served/workload aggregation happens server-side
 interface ServedStats {
   total_visitors: number;
+  unique_visitors?: number;
+  registered_visitors?: number;
+  visitors_in_house?: number;
+  returning_visitors?: number;
   hourly: Array<{ hour: number; count: number }>;
   last_checkin: string | null;
   by_department: Array<{ name: string; served: number; assigned: number; not_served: number; top_employee: { name: string; served: number } | null }>;
@@ -28,7 +31,7 @@ interface ServedStats {
 
 interface DashboardData {
   employeeStats: { total: number; active: number; inactive: number; locked: number; online: number; offline: number };
-  serviceStats: { total: number; completed: number; inhouse: number; by_department: Record<string, number> };
+  serviceStats: { total: number; completed: number; inhouse: number; registered: number; returning: number; by_department: Record<string, number> };
   flaggedVehicles: { 
     currently_flagged: { count: number; min_minutes: number; max_minutes: number }; 
     history: { count: number; min_minutes: number; max_minutes: number } 
@@ -40,11 +43,9 @@ interface DashboardData {
   departments: Array<{ name: string; leader: string; staff: number; rating: number; feedback: number }>;
 }
 
-// ==================== CONSTANTS ====================
 
 const SERVICE_HOURS = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19']; 
 
-// Helper function to format hour labels with AM/PM
 const formatHourLabel = (hour: number): string => {
   const hourNum = parseInt(hour.toString());
   if (hourNum === 0) return '12 AM';
@@ -53,7 +54,6 @@ const formatHourLabel = (hour: number): string => {
   return `${hourNum - 12} PM`;
 };
 
-// Sentiment classification, same thresholds as the mayor feedback-analysis page
 type Sentiment = 'positive' | 'neutral' | 'negative';
 
 const SENTIMENT_META: Record<Sentiment, { label: string; color: string }> = {
@@ -70,8 +70,6 @@ const classifySentiment = (rate?: number, rateOutOf?: number): Sentiment => {
   return 'negative';
 };
 
-// Tooltip for the Department Sentiment chart: avg rating, feedback count, and the
-// positive/neutral/negative breakdown when the row carries per-sentiment counts
 const SentimentChartTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
@@ -79,7 +77,7 @@ const SentimentChartTooltip = ({ active, payload }: any) => {
   return (
     <div style={{ backgroundColor: '#fff', border: `1px solid ${COK.border}`, fontSize: 12, padding: '8px 10px' }}>
       <div style={{ fontWeight: 600, marginBottom: 2 }}>{d.fullName || d.name}</div>
-      <div>{d.rating}/10 · <span style={{ color: sentiment.color, fontWeight: 600 }}>{sentiment.label}</span></div>
+      <div>{d.rating}/10 - <span style={{ color: sentiment.color, fontWeight: 600 }}>{sentiment.label}</span></div>
       <div>{d.count} feedback</div>
       {d.positive !== undefined && (
         <div style={{ marginTop: 4, paddingTop: 4, borderTop: `1px solid ${COK.border}` }}>
@@ -90,9 +88,7 @@ const SentimentChartTooltip = ({ active, payload }: any) => {
       )}
     </div>
   );
-};// Bar value label like the reference design: the count with its share of the row total
-// ("650" over "(32%)"), drawn just under the top of the bar. Bars too short to fit the
-// text get the label above them in gray instead. Static - no animation, no blinking.
+};
 const makeStatusBarLabel = (rows: Array<{ total?: number }>) => (props: any) => {
   const { x = 0, y = 0, width = 0, height = 0, index, value } = props;
   const num = Number(value);
@@ -111,23 +107,17 @@ const makeStatusBarLabel = (rows: Array<{ total?: number }>) => (props: any) => 
   );
 };
 
-// Helper to get chart config with dynamic Y-axis ticks
 const getChartConfig = (maxValue: number, minValue: number = 0) => {
-  // Calculate dynamic step size using "nice numbers" algorithm
   const range = maxValue - minValue;
-  const targetSteps = 5; // Aim for about 5-7 ticks on Y-axis 
+  const targetSteps = 5;
 
-  // Calculate rough step size 
   const roughStep = range / targetSteps;
 
-  // Find the magnitude (power of 10)
   const magnitude = Math.floor(Math.log10(roughStep));
   const magnitudePow = Math.pow(10, magnitude);
 
-  // Normalize to get first digit
   const normalizedStep = roughStep / magnitudePow;
 
-  // Choose nice step from {1, 2, 5, 10}
   let niceStep;
   if (normalizedStep < 1.5) {
     niceStep = 1;
@@ -139,10 +129,8 @@ const getChartConfig = (maxValue: number, minValue: number = 0) => {
     niceStep = 10;
   }
 
-  // Calculate final step size
   const stepSize = niceStep * magnitudePow;
 
-  // Calculate nice min/max values
   const niceMin = Math.floor(minValue / stepSize) * stepSize;
   const niceMax = Math.ceil(maxValue / stepSize) * stepSize;
   
@@ -169,7 +157,7 @@ const getChartConfig = (maxValue: number, minValue: number = 0) => {
         ticks: {
           stepSize: stepSize,
           callback: (value: any) => Math.round(Number(value)).toString(),
-          precision: 0  // Force no decimal places
+          precision: 0
         },
         title: {
           display: true,
@@ -186,8 +174,6 @@ const getChartConfig = (maxValue: number, minValue: number = 0) => {
   };
 };
 
-// Inline plugin: draws values on column caps. Set `valueLabels: 'all' | 'max'`
-// on a bar dataset to opt in ('max' labels only the peak column).
 const barValueLabels = {
   id: 'barValueLabels',
   afterDatasetsDraw(chart: any) {
@@ -221,9 +207,7 @@ const barValueLabels = {
   },
 };
 
-// ==================== MAIN COMPONENT ====================
 
-// Speedometer-style gauge - needle points at the hour of the LAST check-in (lastHour = hour of the newest entry_date)
 const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastHour?: number | null }> = ({ hours, lastHour }) => {
   if (!hours.length) return null;
   const n = hours.length;
@@ -237,7 +221,6 @@ const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastH
   const seg = 180 / n;
   const GAP = 1.6;
   const rad = (deg: number) => (Math.PI * deg) / 180;
-  // deg 0 = far left of the dial, deg 180 = far right
   const pt = (r: number, deg: number) => ({ x: cx - r * Math.cos(rad(deg)), y: cy - r * Math.sin(rad(deg)) });
   const segColor = (i: number) => (i < n * 0.3 ? '#F39C12' : i < n * 0.7 ? '#4CAF50' : '#E74C3C');
   const needleDeg = lastIdx * seg + seg / 2;
@@ -259,8 +242,7 @@ const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastH
           const label = pt((rOuter + rInner) / 2, (a1 + a2) / 2);
           return (
             <g key={h.hour} style={{ cursor: 'pointer' }}>
-              {/* Native SVG tooltip: hovering a segment shows the hour and how many check-ins it had */}
-              <title>{`${formatHourLabel(h.hour)} · ${h.count} check-in${h.count === 1 ? '' : 's'}`}</title>
+              <title>{`${formatHourLabel(h.hour)} - ${h.count} check-in${h.count === 1 ? '' : 's'}`}</title>
               <path
                 d={`M ${p1.x} ${p1.y} A ${rOuter} ${rOuter} 0 0 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${rInner} ${rInner} 0 0 0 ${p4.x} ${p4.y} Z`}
                 fill={segColor(i)}
@@ -271,25 +253,21 @@ const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastH
             </g>
           );
         })}
-        {/* Check-in count of the last-check-in hour, centered in the dial */}
         <text x={cx} y={cy - 28} textAnchor="middle" fontSize="24" fontWeight="800" fill="#333333">
           {last.count}
         </text>
-        {/* Needle pointing at the hour of the last check-in */}
         <polygon points={`${tip.x},${tip.y} ${b1.x},${b1.y} ${b2.x},${b2.y}`} fill="#333333" />
         <circle cx={cx} cy={cy} r="8" fill="#333333" stroke="#fff" strokeWidth="2" />
         <circle cx={cx} cy={cy} r="2.6" fill="#E74C3C" />
       </svg>
       <div className="text-xs text-gray-500 mt-1">
-        Last check-in: <span className="font-semibold text-gray-800">{formatHourLabel(last.hour)}</span> ·{' '}
+        Last check-in: <span className="font-semibold text-gray-800">{formatHourLabel(last.hour)}</span> -{' '}
         <span className="font-semibold text-gray-800">{last.count} check-ins</span> that hour
       </div>
     </div>
   );
 };
 
-// Circular occupancy chart - thick donut ring filled by the occupied share, percentage centered inside.
-// Occupancy % = parked vehicles ÷ total slots (e.g. 162 parked of 406 slots → 40%).
 const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; onViewMap?: () => void }> = ({ occupied, totalSlots, onViewMap }) => {
   const pct = totalSlots > 0 ? Math.min(100, Math.round((occupied / totalSlots) * 100)) : 0;
   const R = 70;
@@ -299,9 +277,7 @@ const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; on
     <div className="flex flex-col items-center py-2">
       <div className="flex flex-wrap items-center justify-center gap-3 w-full">
         <svg viewBox="0 0 200 200" style={{ width: '100%', maxWidth: 190 }}>
-          {/* Track ring */}
           <circle cx="100" cy="100" r={R} fill="none" stroke="#E0E0E0" strokeWidth={STROKE} />
-          {/* Progress arc starts at 12 o'clock */}
           <circle
             cx="100" cy="100" r={R} fill="none"
             stroke="#E74C3C" strokeWidth={STROKE} strokeLinecap="butt"
@@ -313,7 +289,6 @@ const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; on
             {pct}%
           </text>
         </svg>
-        {/* Smaller companion ring: same occupancy, shown as raw numbers (occupied/total) */}
         <svg viewBox="0 0 200 200" style={{ width: '100%', maxWidth: 120 }}>
           <circle cx="100" cy="100" r={R} fill="none" stroke="#E0E0E0" strokeWidth={STROKE} />
           <circle
@@ -343,12 +318,7 @@ const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; on
   );
 };
 
-// StatusPie3D moved to sub/EmployeeAccountStatusCard.tsx along with the employee account status card
 
-// Mirrored departments-vs-staff chart: amber bars (staff assigned) grow left
-// from the center divider, teal/red stacked bars (served vs not served) grow
-// right, both aligned to their number lines.
-// Used by the dashboard card (top rows) and the detail modal (all rows, scrollable).
 const DeptServicesMirror: React.FC<{
   rows: Array<{ name: string; assigned: number; served: number; notServed: number }>;
   cc: { amber: string; teal: string; red: string };
@@ -389,14 +359,13 @@ const DeptServicesMirror: React.FC<{
             <div
               key={row.name}
               className="flex items-center py-0.5 hover:bg-gray-50 transition-colors"
-              title={`${row.name}: ${row.assigned} assigned · ${row.served} served · ${notServed} not served`}
+              title={`${row.name}: ${row.assigned} assigned - ${row.served} served - ${notServed} not served`}
             >
               <div className="flex-1 flex items-center gap-2.5 min-w-0">
                 <span className="w-40 sm:w-48 flex-shrink-0 text-right text-[13px] font-medium text-gray-700 truncate">
                   {row.name}
                 </span>
                 <div className="flex-1 h-6 bg-gray-100/80 flex items-center justify-end overflow-hidden">
-                  {/* Counts that can't fit inside a narrow bar are printed just before it; zero stays blank */}
                   {row.assigned > 0 && (row.assigned / maxLeft) * 100 < 12 && (
                     <span className="text-[11px] font-bold pr-1 leading-none" style={{ color: cc.amber }}>{row.assigned}</span>
                   )}
@@ -450,7 +419,6 @@ const DeptServicesMirror: React.FC<{
                       )}
                     </div>
                   )}
-                  {/* Counts whose segments are too narrow appear right after the bars; zeros stay blank */}
                   {((notServed > 0 && (notServed / maxLeft) * 100 < 12) || (row.served > 0 && (row.served / maxLeft) * 100 < 12)) && (
                     <span className="text-[11px] font-bold pl-1 leading-none whitespace-nowrap">
                       {notServed > 0 && (notServed / maxLeft) * 100 < 12 && <span style={{ color: cc.red }}>{notServed}</span>}
@@ -465,7 +433,6 @@ const DeptServicesMirror: React.FC<{
         })}
       </div>
 
-      {/* Scale row aligned with bar areas */}
       <div className="flex items-start mt-2">
         <div className="flex-1 flex items-center gap-2.5 min-w-0">
           <span className="w-40 sm:w-48 flex-shrink-0"></span>
@@ -506,8 +473,8 @@ const Overview: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const navigate = useNavigate();
   const { showError, showSuccess } = useToast();
+  const { openVisitor } = useVisitorPanel();
 
-  // CHART COLORS: all charts read from CC - first palette = mayor, second = admin; change a hex to recolor everywhere
   const isMayor = (user?.role || '').toLowerCase().includes('mayor');
   const CC = useMemo(
     () =>
@@ -539,27 +506,18 @@ const Overview: React.FC = () => {
   const [firstTimeLoading, seTfirstTimeLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
 
-  // Parking card: lot-map data + which view is shown ('chart' occupancy donut is the default,
-  // 'map' is the slot map opened via View map, 'trends' is the old area chart)
   const [parkingView, setParkingView] = useState<'chart' | 'map' | 'trends'>('chart');
   const [parkingLot, setParkingLot] = useState<{ totalSlots: number; vehicles: any[]; reservations: any[] }>({ totalSlots: 0, vehicles: [], reservations: [] });
 
-  // Served aggregates come pre-computed from /statistics/served (same pattern as
-  // the receptionist dashboard); the employee list loads only when its modal opens
   const [servedStats, setServedStats] = useState<ServedStats | null>(null);
   const [period, setPeriod] = useState<'today' | 'week' | 'lastweek' | 'month' | 'lastmonth' | 'all' | 'range'>('month');
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
-  // Toolbar selections are drafts; they only hit the live filter when Apply is clicked
   const [draftPeriod, setDraftPeriod] = useState<typeof period>('month');
   const [draftRangeFrom, setDraftRangeFrom] = useState('');
   const [draftRangeTo, setDraftRangeTo] = useState('');
   const applyToolbarPeriod = () => { setPeriod(draftPeriod); setRangeFrom(draftRangeFrom); setRangeTo(draftRangeTo); };
 
-  // Period filter: today / this week / last week / this month / last month /
-  // all records / custom from→to range (inclusive). Weeks run Monday → Sunday.
-  // isDateInPeriod takes the period explicitly so the toolbar filter and the
-  // hourly modal's own filter can share the same logic.
   type PeriodChoice = 'today' | 'week' | 'lastweek' | 'month' | 'lastmonth' | 'all' | 'range';
   const isDateInPeriod = useCallback((dateStr: string | undefined, p: PeriodChoice) => {
     if (p === 'all') return true;
@@ -592,7 +550,6 @@ const Overview: React.FC = () => {
   }, [rangeFrom, rangeTo]);
   const isInPeriod = useCallback((dateStr?: string) => isDateInPeriod(dateStr, period), [isDateInPeriod, period]);
 
-  // Period → from/to ISO params for the served-stats endpoint (same semantics as isDateInPeriod)
   const periodToRange = useCallback((p: PeriodChoice): { from?: string; to?: string } => {
     const now = new Date();
     const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
@@ -618,25 +575,20 @@ const Overview: React.FC = () => {
     return r;
   }, [rangeFrom, rangeTo]);
 
-  // Backend-aggregated served stats, refetched when the toolbar period changes
   const fetchServedStats = useCallback(async (p: PeriodChoice) => {
     try {
       const { from, to } = periodToRange(p);
       const res: any = await statisticsService.getServedStats(from, to);
       if (res?.success) setServedStats(res.data);
-    } catch { /* keep the previous stats on a failed refresh */ }
+    } catch { }
   }, [periodToRange]);
 
   useEffect(() => { fetchServedStats(period); }, [fetchServedStats, period]);
 
-  // Socket refreshes call this ref so fetchData doesn't need period in its deps
   const servedRefreshRef = useRef<() => void>(() => {});
 
-  // Distinct visitors whose entry date falls in the selected period - shown beside the chart
-  const totalVisitorsInPeriod = servedStats?.total_visitors || 0;
+  const totalVisitorsInPeriod = servedStats?.unique_visitors ?? servedStats?.total_visitors ?? 0;
 
-  // Real request statistics from /requests/statistics: per-orientation (incoming)
-  // and per-assignee status counts, aggregated server-side for the toolbar period
   interface RequestStatRow { name: string; pending: number; inprogress: number; completed: number; overdue: number; archived: number; total: number }
   const [requestStats, setRequestStats] = useState<{ by_orientation: RequestStatRow[]; by_assignee: RequestStatRow[] } | null>(null);
   const fetchRequestStats = useCallback(async (p: PeriodChoice) => {
@@ -649,13 +601,11 @@ const Overview: React.FC = () => {
           by_assignee: res.data.by_assignee || [],
         });
       }
-    } catch { /* keep the previous stats on a failed refresh */ }
+    } catch { }
   }, [periodToRange]);
 
   useEffect(() => { fetchRequestStats(period); }, [fetchRequestStats, period]);
 
-  // Feedback sentiment (departments + general/unserviced) aggregated server-side
-  // for the toolbar period - drives the Department Sentiment chart
   interface SentimentStatRow { name: string; average_rating: number; count: number; positive: number; neutral: number; negative: number }
   const [feedbackSentiment, setFeedbackSentiment] = useState<{ departments: SentimentStatRow[]; general: Omit<SentimentStatRow, 'name'> } | null>(null);
   const fetchFeedbackSentiment = useCallback(async (p: PeriodChoice) => {
@@ -663,12 +613,11 @@ const Overview: React.FC = () => {
       const { from, to } = periodToRange(p);
       const res: any = await statisticsService.getFeedbackSentiment(from, to);
       if (res?.success && res.data) setFeedbackSentiment(res.data);
-    } catch { /* keep the previous stats on a failed refresh */ }
+    } catch { }
   }, [periodToRange]);
 
   useEffect(() => { fetchFeedbackSentiment(period); }, [fetchFeedbackSentiment, period]);
 
-  // Served + request + sentiment aggregates refresh together on socket-triggered refetches
   useEffect(() => {
     servedRefreshRef.current = () => { fetchServedStats(period); fetchRequestStats(period); fetchFeedbackSentiment(period); };
   }, [fetchServedStats, fetchRequestStats, fetchFeedbackSentiment, period]);
@@ -676,7 +625,7 @@ const Overview: React.FC = () => {
   const requestStatuses = useMemo(() => {
     const toRows = (rows: RequestStatRow[]) =>
       rows.slice(0, 8).map(r => ({
-        name: r.name.length > 14 ? r.name.slice(0, 13) + '…' : r.name,
+        name: r.name.length > 14 ? r.name.slice(0, 13) + '...' : r.name,
         fullName: r.name,
         pending: r.pending,
         inprogress: r.inprogress,
@@ -704,12 +653,9 @@ const Overview: React.FC = () => {
     : p === 'month' ? 'this month'
     : p === 'lastmonth' ? 'last month'
     : p === 'all' ? 'all time'
-    : `${rangeFrom || 'start'} → ${rangeTo || 'now'}`, [rangeFrom, rangeTo]);
+    : `${rangeFrom || 'start'} to ${rangeTo || 'now'}`, [rangeFrom, rangeTo]);
   const periodLabel = labelForPeriod(period);
 
-  // Every employee with the number of people they served in the selected period -
-  // aggregated server-side by /statistics/served (includes zero-served employees
-  // and providers on records that don't match an employee account)
   const employeeServed = useMemo(
     () =>
       (servedStats?.by_employee || []).map(e => ({
@@ -721,9 +667,6 @@ const Overview: React.FC = () => {
     [servedStats]
   );
 
-  // Departments vs services mirrored chart: visitors assigned to the department
-  // (left) against served vs not served (right), busiest departments first.
-  // EVERY department appears, including those with no visitors yet.
   const deptVsServices = useMemo(() => {
     if (!data) return [] as Array<{ name: string; assigned: number; served: number; notServed: number }>;
     const assignedByDept: Record<string, number> = {};
@@ -734,7 +677,6 @@ const Overview: React.FC = () => {
     (servedStats?.by_department || []).forEach(d => {
       servedByDept[d.name] = d.served;
     });
-    // Union of the registered department list and any name appearing in the stats
     const names = new Set<string>([
       ...data.departments.map(d => d.name),
       ...Object.keys(assignedByDept),
@@ -749,18 +691,12 @@ const Overview: React.FC = () => {
       .sort((a, b) => b.assigned - a.assigned);
   }, [data, servedStats]);
   const maxEmployeeServed = Math.max(...employeeServed.map(e => e.served), 1);
-  // Mean load among employees who served at least one person; anyone above
-  // 1.5× this is highlighted as overloaded in the workload chart
   const avgEmployeeLoad = useMemo(() => {
     const active = employeeServed.filter(e => e.served > 0);
     return active.length ? active.reduce((sum, e) => sum + e.served, 0) / active.length : 0;
   }, [employeeServed]);
-  // Expanded employee row (shows the visitors they served) in the employees detail modal
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
 
-  // Sentiment + period filters inside the ratings & sentiment analysis modal.
-  // The period select and its custom-range dates are drafts committed on Apply;
-  // the range dates are the modal's own, independent of the toolbar range.
   const [sentimentFilter, setSentimentFilter] = useState<'all' | Sentiment>('all');
   const [ratingPeriod, setRatingPeriod] = useState<PeriodChoice>('all');
   const [ratingRangeFrom, setRatingRangeFrom] = useState('');
@@ -775,13 +711,11 @@ const Overview: React.FC = () => {
     setDraftRatingPeriod('all'); setDraftRatingRangeFrom(''); setDraftRatingRangeTo('');
   };
 
-  // Average rating per department (out of 10) with feedback counts, best first -
-  // mirrors the departmentData memo on the feedback-analysis page
   const deptRatings = useMemo(() => {
     if (!data) return [] as Array<{ name: string; rating: number; count: number }>;
     return Object.entries(data.feedbackAvg.by_department)
       .map(([name, v]) => ({
-        name: name.length > 18 ? name.slice(0, 17) + '…' : name,
+        name: name.length > 18 ? name.slice(0, 17) + '...' : name,
         rating: Math.round(((v?.average_rating || 0)) * 10) / 10,
         count: Number(data.feedbackTotals.by_department[name]) || 0,
       }))
@@ -790,19 +724,13 @@ const Overview: React.FC = () => {
       .slice(0, 8);
   }, [data]);
 
-  // Departments sorted by average rating ascending - drives the sentiment chart.
-  // Each row carries the sentiment breakdown so the bar can be colored by
-  // negative / neutral / positive. General (unserviced) feedback is appended
-  // as its own row.
   interface SentimentTrendRow { name: string; rating: number; count: number; fullName?: string; positive?: number; neutral?: number; negative?: number; isGeneral?: boolean; barRating?: number; segNegative?: number; segNeutral?: number; segPositive?: number }
   const sentimentTrend = useMemo<SentimentTrendRow[]>(() => {
-    // Every row (departments AND general) becomes a stacked bar: total length = avg rating,
-    // split into negative/neutral/positive proportional to each sentiment's feedback count
     const toRow = (label: string, fullName: string, s: Omit<SentimentStatRow, 'name'>, isGeneral = false): SentimentTrendRow => {
       const rating = Math.round((s.average_rating || 0) * 10) / 10;
       const total = s.count || 1;
       return {
-        name: label.length > 18 ? label.slice(0, 17) + '…' : label,
+        name: label.length > 18 ? label.slice(0, 17) + '...' : label,
         fullName,
         rating,
         count: s.count,
@@ -817,7 +745,6 @@ const Overview: React.FC = () => {
       };
     };
     if (!feedbackSentiment) {
-      // Fallback without per-sentiment counts: the whole bar takes its own rating's color band
       return [...deptRatings].sort((a, b) => b.rating - a.rating).map(d => {
         const s = classifySentiment(d.rating, 10);
         return {
@@ -839,12 +766,8 @@ const Overview: React.FC = () => {
     return rows;
   }, [feedbackSentiment, deptRatings]);
 
-  // Empty-state flags so cards show a message instead of a blank chart
   const hasHourlyParking = !!data && data.hourlyParking.some(h => (h.check_in || 0) > 0 || (h.check_out || 0) > 0);
 
-  // Check-ins per local hour come pre-counted from /statistics/served for the
-  // selected period. The dial is dynamic: an 11-hour window that slides with the
-  // clock (8 hours back, 2 ahead), plus any hour in the period with activity.
   const buildDial = useCallback((hourly: Array<{ hour: number; count: number }>) => {
     const counts: Record<number, number> = {};
     hourly.forEach(h => { if (h.count > 0) counts[h.hour] = h.count; });
@@ -862,14 +785,12 @@ const Overview: React.FC = () => {
   }, []);
   const gaugeHours = useMemo(() => buildDial(servedStats?.hourly || []), [buildDial, servedStats]);
   const hasGaugeData = gaugeHours.some(g => g.count > 0);
-  // Hour of the chronologically newest check-in in the period - drives the gauge needle
   const lastCheckinHour = useMemo(() => {
     if (!servedStats?.last_checkin) return null;
     const t = new Date(servedStats.last_checkin);
     return isNaN(t.getTime()) ? null : t.getHours();
   }, [servedStats]);
 
-  // Parking gauge: today's VEHICLE check-ins per hour (same sliding dial window: 8h back, 2h ahead + active hours)
   const parkingGaugeHours = useMemo(() => {
     const counts: Record<number, number> = {};
     (data?.hourlyParking || []).forEach(h => { if ((h.check_in || 0) > 0) counts[h.hour] = h.check_in; });
@@ -884,17 +805,12 @@ const Overview: React.FC = () => {
     return Array.from(hours).sort((a, b) => a - b).map(hour => ({ hour, count: counts[hour] || 0 }));
   }, [data]);
   const hasParkingGauge = parkingGaugeHours.some(g => g.count > 0);
-  // Data is today-only, so the last non-empty hour IS the hour of the last vehicle check-in
   const lastParkingHour = useMemo(() => {
     const nonEmpty = parkingGaugeHours.filter(g => g.count > 0);
     return nonEmpty.length ? nonEmpty[nonEmpty.length - 1].hour : null;
   }, [parkingGaugeHours]);
 
-  // The hourly detail modal has its own period filter; null means it follows
-  // the toolbar filter (it resets to that each time the modal opens). A period
-  // different from the toolbar's triggers its own served-stats fetch.
   const [modalHourPeriod, setModalHourPeriod] = useState<PeriodChoice | null>(null);
-  // Draft for the hourly modal's period select - committed on Apply
   const [draftModalHourPeriod, setDraftModalHourPeriod] = useState<PeriodChoice | null>(null);
   const modalHourPeriodEff: PeriodChoice = modalHourPeriod ?? period;
   const [modalServedHourly, setModalServedHourly] = useState<Array<{ hour: number; count: number }> | null>(null);
@@ -906,7 +822,7 @@ const Overview: React.FC = () => {
         const { from, to } = periodToRange(modalHourPeriod);
         const res: any = await statisticsService.getServedStats(from, to);
         if (!ignore && res?.success) setModalServedHourly(res.data?.hourly || []);
-      } catch { /* the modal falls back to the toolbar-period hours */ }
+      } catch { }
     })();
     return () => { ignore = true; };
   }, [modalHourPeriod, period, periodToRange]);
@@ -919,7 +835,6 @@ const Overview: React.FC = () => {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
 
 
-  // Pagination states for modals
   const [modalData, setModalData] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalPagination, setModalPagination] = useState({
@@ -929,9 +844,6 @@ const Overview: React.FC = () => {
     limit: 10
   });
 
-  // Ratings-analysis rows narrowed to the modal's period first, then the selected
-  // sentiment; the sentiment chips count from the period-filtered set so their
-  // numbers follow the period dropdown. Custom range uses the modal's own dates.
   const periodRatings = useMemo(
     () => modalData.filter((f: any) => {
       if (ratingPeriod !== 'range') return isDateInPeriod(f?.created_date, ratingPeriod);
@@ -956,8 +868,6 @@ const Overview: React.FC = () => {
   const chartsRef = useRef<Map<string, Chart>>(new Map());
   const [isFetching, setIsFetching] = useState(true);
 
-   // Fetch real data; silent mode refreshes in the background (socket updates)
-  // without tearing the page down to the loading spinner
   const fetchData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
     try {
@@ -975,13 +885,12 @@ const Overview: React.FC = () => {
         statisticsService.getHourlyParkingStats(),
         statisticsService.getHourlyServiceDeliveryStats(),
         statisticsService.getDepartmentsWithLeaders(),
-        statisticsService.getParkingSlots().catch(() => null), // Slot totals for the parking lot map
-        parkingService.getAllPaginated(1, 200, 'active').catch(() => null), // Every parked vehicle (lot holds 200 slots) so map slot colors stay accurate
-        reservationService.getAll().catch(() => null), // Reservations (plates) for the map
+        statisticsService.getParkingSlots().catch(() => null),
+        parkingService.getAllPaginated(1, 200, 'active').catch(() => null),
+        reservationService.getAll().catch(() => null),
         seTfirstTimeLoading(false)
       ]);
 
-      // Served/workload aggregates refresh alongside the stats (period-aware)
       servedRefreshRef.current();
 
       const employees = (employeesRes as any)?.data || employeesRes;
@@ -993,7 +902,6 @@ const Overview: React.FC = () => {
       const hourlyServiceRaw = (hourlyServiceRes as any)?.data?.hourly || (hourlyServiceRes as any) || [];
       const departmentsRaw = (departmentsRes as any)?.data?.departments || (departmentsRes as any)?.departments || [];
 
-      // Parking lot map: slot totals + currently parked vehicles + active reservations
       const slotCfg = (slotConfigRes as any)?.data?.available_slots || slotConfigRes || {};
       
       const activeVehiclesRaw = (activeVehiclesRes as any)?.data || [];
@@ -1015,8 +923,6 @@ const Overview: React.FC = () => {
       setData({
         employeeStats: {
           total: employees?.total || 0,
-          // is_active only tracks who is online right now; account status
-          // comes from is_account_activated (activated / not_activated)
           active: employees?.activated || 0,
           inactive: employees?.not_activated || 0,
           locked: employees?.locked || 0,
@@ -1026,13 +932,13 @@ const Overview: React.FC = () => {
         serviceStats: {
           total: services?.total || 0,
           completed: services?.completed || 0,
-          inhouse: services?.inhouse || 0,
-          // Prefer the all-services breakdown; by_department only counts in-house visitors
+          inhouse: services?.visitors_in_house ?? services?.inhouse ?? 0,
+          registered: services?.registered_visitors || 0,
+          returning: services?.returning_visitors || 0,
           by_department: services?.by_department_total || services?.by_department || {},
         },
         flaggedVehicles: {
           currently_flagged: {
-            // The stats endpoint already counts flagged vehicles server-side
             count: flaggedStats?.currently_flagged?.count || 0,
             min_minutes: flaggedStats?.currently_flagged?.min_minutes || 0,
             max_minutes: flaggedStats?.currently_flagged?.max_minutes || 0
@@ -1063,19 +969,15 @@ const Overview: React.FC = () => {
     }
   }, [showError]);
   
-  // Create all charts with whole number Y-axis
   const createCharts = useCallback(() => {
     if (!data) return;
     
-    // Destroy existing charts
     chartsRef.current.forEach(chart => chart.destroy());
     chartsRef.current.clear();
     
-    // CHART 9 · "Employee account status" is now the StatusPie3D SVG component rendered directly in the JSX (search: StatusPie3D)
 
   }, [data, CC]);
   
-  // Initial fetch and chart creation
   useEffect(() => {
     if (isAuthenticated) fetchData();
   }, [isAuthenticated, fetchData]);
@@ -1087,32 +989,27 @@ const Overview: React.FC = () => {
     }
   }, [data, loading, createCharts]);
   
-  // Handle window resize
   useEffect(() => {
     const handleResize = () => chartsRef.current.forEach(chart => chart.resize());
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) navigate('/login');
   }, [isAuthenticated, authLoading, navigate]);
 
-  // Live updates: refetch silently (debounced) on every event the backend
-  // broadcasts that affects this dashboard's numbers
   const { socket, isConnected } = useSocket();
   useEffect(() => {
     if (!socket || !isConnected) return;
     const events = [
       'car_checkedin', 'car_checkedout', 'parking_alert',
       'visitor_checkedin', 'visitor_checkedout',
-      'new_visitor_assigned', 'leave_return',
+      'visitor_assigned', 'visitor_updated', 'leave_return',
       'service_status_updated', 'feedback_submitted',
     ];
     let timer: ReturnType<typeof setTimeout> | null = null;
     const handler = () => {
-      // Debounce: bursts of events (e.g. assign + status change) trigger one refetch
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => fetchData({ silent: true }), 800);
     };
@@ -1141,7 +1038,6 @@ useEffect(() => {
   return () => clearInterval(intervalId);
 }, [isFetching,fetchData]);
 
-  // Fetch paginated data for modals
   const fetchModalData = useCallback(async (cardType: string, page: number = 1, limit: number = 8) => {
     setModalLoading(true);
     try {
@@ -1150,7 +1046,6 @@ useEffect(() => {
 
       switch (cardType) {
         case 'employees':
-          // For employees, get detailed list with pagination
           response = await employeeService.getAll(page, limit);
           console.log('Employee response:', response);
           if (response && response.success && response.data) {
@@ -1168,7 +1063,6 @@ useEffect(() => {
           break;
 
         case 'parking':
-          // For parking modal, show only active records
           response = await parkingService.getAllPaginated(page, limit, 'active');
           console.log('Parking response:', response);
           if (response && response.success && response.data) {
@@ -1186,7 +1080,6 @@ useEffect(() => {
           break;
 
         case 'services':
-          // Show all visitors (not just in-house) to match KPI total
           response = await serviceDeliveryService.getAll(page, limit);
           console.log('Services response:', response);
           if (response && response.success && response.data) {
@@ -1221,11 +1114,9 @@ useEffect(() => {
           break;
 
         case 'services-detail':
-          // Services by department detailed view
           response = await statisticsService.getServiceDeliveryStats();
           console.log('Services detail response:', response);
           if (response && response.success && response.data) {
-            // Transform department data for display (all services, not just in-house)
             const deptData = Object.entries(response.data.by_department_total || response.data.by_department || {}).map(([dept, count]) => ({
               department: dept,
               count: count as number
@@ -1239,7 +1130,6 @@ useEffect(() => {
           break;
 
         case 'employees-detail':
-          // Employees by department detailed view
           response = await statisticsService.getDepartmentsWithLeaders();
           console.log('Employees detail response:', response);
           if (response && response.success && response.data && response.data.departments) {
@@ -1252,9 +1142,7 @@ useEffect(() => {
           break;
 
         case 'rating-analysis':
-          // Pull a large page of raw feedback so sentiment can be classified per item
           response = await feedbackService.getAll(1, 100);
-          //console.log('Rating analysis response:', response);
           if (response && (response as any).success && (response as any).data) {
             setModalData((response as any).data);
             setModalPagination({
@@ -1295,15 +1183,12 @@ useEffect(() => {
     }
   }, []);
 
-  // Handle card click to open modal with data
   const handleCardClick = useCallback((cardType: string) => {
     setSelectedCard(cardType);
     fetchModalData(cardType);
   }, [fetchModalData]);
 
-  // Handle modal close and cleanup charts
   const handleModalClose = useCallback(() => {
-    // Destroy modal-specific charts
     const chartsToDestroy = ['modal-service-hourly', 'modal-services-detail'];
     chartsToDestroy.forEach(chartId => {
       const chart = chartsRef.current.get(chartId);
@@ -1315,13 +1200,11 @@ useEffect(() => {
     setSelectedCard(null);
   }, []);
 
-  // POPUP CHARTS A & B (inside modals) - configured below; height on the container divs in modal JSX
   useEffect(() => {
     if (selectedCard === 'services-detail' && modalData.length > 0) {
       const createServicesChart = () => {
         const modalCanvas = document.getElementById('modal-services-detail-chart') as HTMLCanvasElement;
         if (modalCanvas) {
-          // Destroy existing chart
           const existingChart = chartsRef.current.get('modal-services-detail');
           if (existingChart) {
             existingChart.destroy();
@@ -1395,7 +1278,6 @@ useEffect(() => {
         }
       };
 
-      // Delay to ensure modal is fully rendered
       const timeoutId = setTimeout(createServicesChart, 300);
       return () => clearTimeout(timeoutId);
     }
@@ -1404,13 +1286,11 @@ useEffect(() => {
       const createModalChart = () => {
         const modalCanvas = document.getElementById('modal-service-hourly-chart') as HTMLCanvasElement;
         if (modalCanvas) {
-          // Destroy existing chart
           const existingChart = chartsRef.current.get('modal-service-hourly');
           if (existingChart) {
             existingChart.destroy();
           }
 
-          // Same hour-of-day data as the gauge card, filtered by the modal's own period
           const formattedServiceHourLabels = modalHours.map(g => formatHourLabel(g.hour));
           const visitorData = modalHours.map(g => g.count);
           const maxVisitor = Math.max(...visitorData, 1);
@@ -1482,11 +1362,9 @@ useEffect(() => {
         }
       };
 
-      // Delay to ensure modal is fully rendered
       const timeoutId = setTimeout(createModalChart, 300);
       return () => {
         clearTimeout(timeoutId);
-        // Clean up charts when component unmounts or selectedCard changes
         const chartsToDestroy = ['modal-service-hourly', 'modal-services-detail'];
         chartsToDestroy.forEach(chartId => {
           if (!selectedCard || !selectedCard.includes(chartId.split('-')[1])) {
@@ -1501,14 +1379,12 @@ useEffect(() => {
     }
   }, [selectedCard, modalData, modalHours]);
 
-  // Handle pagination change
   const handlePageChange = useCallback((newPage: number) => {
     if (selectedCard) {
       fetchModalData(selectedCard, newPage, modalPagination.limit);
     }
   }, [selectedCard, modalPagination.limit, fetchModalData]);
 
-  // Computed values (rounded, no decimals)
   const avgRating = data ? Math.round(data.feedbackAvg.overall_average.average_rating) : 0;
   
   if ((loading && firstTimeLoading) || !data) {
@@ -1523,27 +1399,8 @@ useEffect(() => {
 
   return (
     <MainLayout>
-      {/* Scopes the square-corner dashboard theme (CoK design rule: no border radius) to this page only (globals.css .cok-mayor-dash) */}
       <div className="cok-mayor-dash">
-      {/* CoK design-rule page header for the mayor account */}
-      {/* {isMayor && (
-        <div className="px-4 pt-3 pb-2">
-          <h1
-            style={{
-              fontFamily: "'Montserrat', sans-serif",
-              fontSize: 26,
-              fontWeight: 800,
-              letterSpacing: '-0.5px',
-              color: '#056daa', 
-              margin: 0,
-            }}
-          >
-            Dashboard
-          </h1>
-        </div>
-      )} */}
 
-      {/* Toolbar */}
       <div className="bg-white border-b border-gray-200 px-4 py-2 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 text-xs text-gray-600">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-gray-500"><path d="M1 3h10M3 6h6M5 9h2" stroke="currentColor" strokeWidth="1.2"/></svg>
@@ -1609,10 +1466,8 @@ useEffect(() => {
      
       </div>
       
-      {/* Main Content */}
       <div className="p-3 space-y-2.5">
         
-        {/* CHART 1 · "Departments vs services" - drawn by DeptServicesMirror (top of file); colors from CC */}
         <div className="bg-white border border-gray-200 p-4 sm:p-5 shadow-sm-disabled hover:shadow-md transition-all">
           <div className="mb-4">
             <div className="text-base font-bold text-gray-900">Department and services</div>
@@ -1630,12 +1485,11 @@ useEffect(() => {
           )}
         </div>
 
-        {/* CHARTS 2 & 3 · "Requests" histograms - height: h-56 divs, colors: fill= on each <Bar>, bar width: maxBarSize */}
         <div className="bg-white border border-gray-200 p-4 sm:p-5 shadow-sm-disabled">
           <div className="flex justify-between items-start mb-2">
             <div>
               <div className="text-base font-bold text-gray-900">Requests</div>
-              <div className="text-xs text-gray-500 mt-0.5">Requests by status · {periodLabel}</div>
+              <div className="text-xs text-gray-500 mt-0.5">Requests by status - {periodLabel}</div>
             </div>
             <div className="text-right flex-shrink-0">
               <div className="text-2xl font-bold leading-none" style={{ color: CC.purple }}>{requestStatuses.avgPerDept}</div>
@@ -1661,7 +1515,6 @@ useEffect(() => {
                   <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.amber }}>Orientation</span>
                   <span className="text-xs text-gray-500">(incoming requests)</span>
                 </div>
-                {/* Scrolls horizontally when many departments (110px each) - scrollbar hidden via no-scrollbar */}
                 <div className="h-56 overflow-x-auto no-scrollbar">
                   <div className="h-full" style={{ minWidth: `${requestStatuses.departments.length * 110}px` }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -1700,7 +1553,6 @@ useEffect(() => {
                   <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.blue }}>Assignees</span>
                   <span className="text-xs text-gray-500">(request progress)</span>
                 </div>
-                {/* Scrolls horizontally when many employees (110px each) - scrollbar hidden via no-scrollbar */}
                 <div className="h-56 overflow-x-auto no-scrollbar">
                   <div className="h-full" style={{ minWidth: `${requestStatuses.employees.length * 110}px` }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -1738,9 +1590,7 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Ratings row - department averages (left) next to the banded avg-feedback chart (right) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-          {/* CHART 4 · "Average Rating by Department" - height: h-64 div, color: fill= on <Bar>, thickness: barSize */}
           <div
             onClick={() => { resetRatingFilters(); handleCardClick('rating-analysis'); }}
             className="bg-white p-4 relative cursor-pointer hover:shadow-md transition-all"
@@ -1778,29 +1628,26 @@ useEffect(() => {
             )}
           </div>
 
-          {/* CHART 5 · "Department Sentiment" - height: h-64 div, bar colors: SENTIMENT_META, trend line: <Line> stroke */}
           <div className="bg-white p-4" style={{ border: `1px solid ${COK.border}` }}>
           <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
             Department Sentiment
           </h3>
-          <div className="text-[11px] uppercase tracking-wide text-gray-400 mt-0.5 mb-2">Average rating out of 10 · {periodLabel}</div>
+          <div className="text-[11px] uppercase tracking-wide text-gray-400 mt-0.5 mb-2">Average rating out of 10 - {periodLabel}</div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.negative.color }}></div>Negative (&lt;4)</div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.neutral.color }}></div>Neutral (4–6.9)</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.neutral.color }}></div>Neutral (4-6.9)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.positive.color }}></div>Positive (7+)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ background: '#2980B9' }}></div>General feedback </div>
           </div>
           {sentimentTrend.length === 0 ? (
             <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No feedback in this period yet.</p>
           ) : (
-            /* Rotated like "Average Rating by Department": horizontal bars, department names on the left */
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={sentimentTrend} layout="vertical" margin={{ top: 5, right: 32, left: 10, bottom: 5 }}>
                   <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
                   <YAxis type="category" dataKey="name" width={130} interval={0} tick={{ fontSize: 10, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
                   <RTooltip cursor={{ fill: COK.neutralLight }} content={<SentimentChartTooltip />} />
-                  {/* Stacked segments: bar length = avg rating, split by sentiment share; counts printed inside */}
                   <Bar dataKey="segNegative" name="Negative" stackId="rating" barSize={16} isAnimationActive={false} fill={SENTIMENT_META.negative.color}>
                     <LabelList dataKey="negative" position="center" fontSize={10} fill="#ffffff" fontWeight={700} formatter={(v: any) => (v ? v : '')} />
                   </Bar>
@@ -1817,7 +1664,6 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* CHART 6 · "Hourly parking check-ins" gauge - needle points at the last vehicle check-in hour; hover a segment for its count; click opens the check-ins graph */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
           <div
             onClick={() => handleCardClick('parking-hourly')}
@@ -1826,7 +1672,7 @@ useEffect(() => {
             <div className="flex justify-between items-start mb-3">
               <div>
                 <div className="text-sm font-semibold text-gray-900">Hourly parking check-ins</div>
-                <div className="text-xs text-gray-500">Vehicles · today</div>
+                <div className="text-xs text-gray-500">Vehicles - today</div>
               </div>
               <span className="text-xs text-gray-400">Click for details</span>
             </div>
@@ -1839,7 +1685,6 @@ useEffect(() => {
             )}
           </div>
 
-          {/* CHART 7 · Parking card - occupancy donut by default, View map opens the lot map, toggle to the old trends area chart */}
           <div className="bg-white border border-gray-200 p-3">
             <div className="flex justify-between items-start mb-3">
               <div>
@@ -1848,9 +1693,9 @@ useEffect(() => {
 
                 </div>
                 <div className="text-xs text-gray-500">
-                  {parkingView === 'chart' ? 'Occupied share of all parking slots · live'
-                  : parkingView === 'map' ? 'Slot occupancy · all currently active vehicles'
-                  : 'Check-ins vs check-outs · today'}
+                  {parkingView === 'chart' ? 'Occupied share of all parking slots - live'
+                  : parkingView === 'map' ? 'Slot occupancy - all currently active vehicles'
+                  : 'Check-ins vs check-outs - today'}
                 </div>
               </div>
               <div className="flex border border-[#E0E0E0] text-xs flex-shrink-0">
@@ -1888,26 +1733,15 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* "Department overview" removed per design decision;
-            "Employee account status" moved to the admin Service Delivery dashboard;
-            "Feedback by Department" lives on the mayor feedback-analysis page */}
 
       </div>
       
-      {/* Modal for Card Details */}
       {selectedCard && (
-          <div
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4"
-            onClick={handleModalClose}
-          >
-          <div
-            className={`bg-white w-full ${selectedCard === 'dept-served' || selectedCard === 'employee-served' ? 'max-w-6xl' : 'max-w-4xl'} mx-2 sm:mx-4 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto`}
-            // The mayor theme rounds modal panels; these views follow the square design rules
-            style={{ borderRadius: 0 }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900">
+        <OverlayShell
+          onClose={handleModalClose}
+          width={selectedCard === 'dept-served' || selectedCard === 'employee-served' ? 'full' : 'xl'}
+          title={
+            <>
                 {selectedCard === 'employees' && 'Employee Details'}
                 {selectedCard === 'parking' && 'Currently Parked Vehicles'}
                 {selectedCard === 'services' && 'Service Delivery Visitors'}
@@ -1919,15 +1753,10 @@ useEffect(() => {
                 {selectedCard === 'rating-analysis' && 'Ratings & Sentiment Analysis'}
                 {selectedCard === 'dept-served' && 'Visitors Assigned vs Served'}
                 {selectedCard === 'employee-served' && 'Employees & Who They Served'}
-              </h3>
-              <button
-                onClick={handleModalClose}
-                className="text-gray-400 hover:text-gray-600 text-xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-4">
+            </>
+          }
+        >
+            <div>
               {selectedCard === 'employees' && (
                 <div className="space-y-4">
 
@@ -1936,7 +1765,7 @@ useEffect(() => {
                     <div className="text-center py-8">Loading...</div>
                   ) : (
                     <>
-                      <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                      <div className="cok-table-scroll" style={{ ['--cok-table-max-h' as string]: '16rem' } as React.CSSProperties}>
                         <table className="w-full text-xs sm:text-sm border border-[#E0E0E0] min-w-[600px]">
                           <thead className="sticky top-0 z-10" style={{ backgroundColor: '#F0F6FA' }}>
                             <tr>
@@ -1951,7 +1780,7 @@ useEffect(() => {
                             {modalData.map((employee: any, idx: number) => (
                               <tr key={idx} className="border-b border-[#E0E0E0] hover:bg-[#F7F9FB]">
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{employee.full_name || '____'}</td>
-                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm break-all">{employee.email || '____'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{employee.email || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{employee.telephone || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{employee.department_name || employee.department?.department_name || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2">
@@ -1965,7 +1794,6 @@ useEffect(() => {
                         </table>
                       </div>
 
-                      {/* Pagination */}
                       <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-2">
                         <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                           Showing {modalData.length} of {modalPagination.totalItems} records (Total: {modalPagination.totalItems})
@@ -2000,12 +1828,18 @@ useEffect(() => {
                     <div className="text-center py-8">Loading...</div>
                   ) : (
                      <>
-                       <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                       <div className="cok-table-scroll" style={{ ['--cok-table-max-h' as string]: '16rem' } as React.CSSProperties}>
                          <table className="w-full text-xs sm:text-sm border border-[#E0E0E0] min-w-[700px]">
                            <thead className="sticky top-0 z-10" style={{ backgroundColor: '#F0F6FA' }}>
                              <tr>
                                <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Plate Number</th>
                                <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Driver Name</th>
+                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">ID Type</th>
+                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">ID Number</th>
+                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Telephone</th>
+                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Email</th>
+                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Gender</th>
+                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Visits</th>
                                <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Driver Type</th>
                                <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Entry Time</th>
                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Duration</th>
@@ -2014,9 +1848,15 @@ useEffect(() => {
                           </thead>
                           <tbody>
                             {modalData.map((record: any, idx: number) => (
-                              <tr key={idx} className="border-b border-[#E0E0E0] hover:bg-[#F7F9FB]">
+                              <tr key={idx} className="border-b border-[#E0E0E0] hover:bg-[#F7F9FB] cursor-pointer" onClick={() => openVisitor(visitorIdOf(record))}>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{record.plate_number || record.plate_no || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{record.driver_name || 'Unknown'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{record.driver_identification?.id_type || '____'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{record.driver_identification?.number || '____'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{record.driver_telephone || '____'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{record.driver_email || '____'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{record.driver_gender || '____'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{record.N_visits ?? 0}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{record.driver_type || 'Unknown'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{record.check_in ? new Date(record.check_in).toLocaleString() : '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{record.current_duration || '____'}</td>
@@ -2031,7 +1871,6 @@ useEffect(() => {
                         </table>
                       </div>
 
-                      {/* Pagination */}
                       <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-2">
                         <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                           Showing {modalData.length} of {modalPagination.totalItems} records (Total: {modalPagination.totalItems})
@@ -2065,12 +1904,17 @@ useEffect(() => {
                     <div className="text-center py-8">Loading...</div>
                   ) : (
                      <>
-                       <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                       <div className="cok-table-scroll" style={{ ['--cok-table-max-h' as string]: '16rem' } as React.CSSProperties}>
                          <table className="w-full text-xs sm:text-sm border border-[#E0E0E0] min-w-[700px]">
                            <thead className="sticky top-0 z-10" style={{ backgroundColor: '#F0F6FA' }}>
                              <tr>
                                <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Name</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">ID Type</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">ID Number</th>
                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Telephone</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Email</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Gender</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Visits</th>
                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Entry Date</th>
                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Duration</th>
                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Status</th>
@@ -2079,9 +1923,14 @@ useEffect(() => {
                           </thead>
                           <tbody>
                             {modalData.map((visitor: any, idx: number) => (
-                              <tr key={idx} className="border-b border-[#E0E0E0] hover:bg-[#F7F9FB]">
+                              <tr key={idx} className="border-b border-[#E0E0E0] hover:bg-[#F7F9FB] cursor-pointer" onClick={() => openVisitor(visitorIdOf(visitor))}>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{visitor.full_name || '____'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{visitor.identification?.id_type || '____'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{visitor.identification?.number || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{visitor.telephone || '____'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{visitor.email || '____'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{visitor.gender || '____'}</td>
+                                <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{visitor.N_visits ?? 0}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{visitor.entry_date ? new Date(visitor.entry_date).toLocaleDateString() : '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{visitor.current_duration || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2">
@@ -2091,7 +1940,7 @@ useEffect(() => {
                                 </td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">
                                   {visitor.departments_assigned && visitor.departments_assigned.length > 0
-                                    ? visitor.departments_assigned[visitor.departments_assigned.length - 1].department_name
+                                    ? visitor.departments_assigned[0].department_name
                                     : '____'}
                                 </td>
                               </tr>
@@ -2100,7 +1949,6 @@ useEffect(() => {
                         </table>
                       </div>
 
-                      {/* Pagination */}
                       <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-2">
                         <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                           Showing {modalData.length} of {modalPagination.totalItems} records (Total: {modalPagination.totalItems})
@@ -2134,12 +1982,18 @@ useEffect(() => {
                     <div className="text-center py-8">Loading...</div>
                   ) : (
                      <>
-                       <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                       <div className="cok-table-scroll" style={{ ['--cok-table-max-h' as string]: '16rem' } as React.CSSProperties}>
                          <table className="w-full text-sm border border-[#E0E0E0]">
                            <thead className="sticky top-0 z-10" style={{ backgroundColor: '#F0F6FA' }}>
                              <tr>
                                <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Plate Number</th>
                               <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Driver Name</th>
+                              <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">ID Type</th>
+                              <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">ID Number</th>
+                              <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Telephone</th>
+                              <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Email</th>
+                              <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Gender</th>
+                              <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Visits</th>
                               <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Entry Time</th>
                               <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Duration</th>
                               <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Status</th>
@@ -2147,9 +2001,15 @@ useEffect(() => {
                           </thead>
                           <tbody>
                             {modalData.map((vehicle: any, idx: number) => (
-                              <tr key={idx} className="border-b border-[#E0E0E0] hover:bg-[#F7F9FB]">
+                              <tr key={idx} className="border-b border-[#E0E0E0] hover:bg-[#F7F9FB] cursor-pointer" onClick={() => openVisitor(visitorIdOf(vehicle))}>
                                 <td className="px-4 py-2">{vehicle.plate_number || vehicle.plate_no || '____'}</td>
                                 <td className="px-4 py-2">{vehicle.driver_name || 'Unknown'}</td>
+                                <td className="px-4 py-2">{vehicle.driver_identification?.id_type || '____'}</td>
+                                <td className="px-4 py-2">{vehicle.driver_identification?.number || '____'}</td>
+                                <td className="px-4 py-2">{vehicle.driver_telephone || '____'}</td>
+                                <td className="px-4 py-2">{vehicle.driver_email || '____'}</td>
+                                <td className="px-4 py-2">{vehicle.driver_gender || '____'}</td>
+                                <td className="px-4 py-2">{vehicle.N_visits ?? 0}</td>
                                 <td className="px-4 py-2">{vehicle.check_in ? new Date(vehicle.check_in).toLocaleString() : '____'}</td>
                                 <td className="px-4 py-2">{vehicle.current_duration || '____'}</td>
                                 <td className="px-4 py-2">
@@ -2163,7 +2023,6 @@ useEffect(() => {
                         </table>
                       </div>
 
-                      {/* Pagination */}
                       <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-2">
                         <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                           Showing {modalData.length} of {modalPagination.totalItems} records (Total: {modalPagination.totalItems})
@@ -2192,7 +2051,6 @@ useEffect(() => {
 
               {selectedCard === 'dept-served' && (
                 <div className="space-y-4">
-                  {/* Headline stats - all obey the toolbar period filter */}
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-600">
                     <span>Period: <span className="font-semibold capitalize">{periodLabel}</span></span>
                     <span><span className="font-semibold" style={{ color: CC.amber }}>
@@ -2253,7 +2111,6 @@ useEffect(() => {
 
               {selectedCard === 'employee-served' && (
                 <div className="space-y-4">
-                  {/* Headline stats - all obey the toolbar period filter */}
                   <div className="flex flex-wrap justify-between items-center gap-2">
                     <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-600">
                       <span>Period: <span className="font-semibold capitalize">{periodLabel}</span></span>
@@ -2262,7 +2119,7 @@ useEffect(() => {
                     </div>
                     <div className="flex gap-4 text-[11px] text-gray-500">
                       <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 inline-block" style={{ backgroundColor: CC.blue }}></span>Normal load</span>
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 inline-block" style={{ backgroundColor: CC.red }}></span>Overloaded (above 1.5× average)</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 inline-block" style={{ backgroundColor: CC.red }}></span>Overloaded (above 1.5x average)</span>
                     </div>
                   </div>
                   {employeeServed.length === 0 ? (
@@ -2282,7 +2139,7 @@ useEffect(() => {
                               onClick={() => setExpandedEmployee(isOpen ? null : rowKey)}
                               className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 px-1 py-0.5"
                             >
-                              <span className="w-3 flex-shrink-0 text-gray-400">{isOpen ? '▾' : '▸'}</span>
+                              <span className="w-3 flex-shrink-0 text-gray-400">{isOpen ? '-' : '+'}</span>
                               <span className="w-36 sm:w-44 flex-shrink-0 truncate font-medium text-gray-800" title={e.name}>{e.name}</span>
                               <span className="w-28 sm:w-40 flex-shrink-0 truncate text-gray-400" title={e.department}>{e.department}</span>
                               <div className="flex-1 h-4 bg-gray-100 overflow-hidden">
@@ -2307,7 +2164,7 @@ useEffect(() => {
                                 ) : (
                                   e.visitors.map((v, i) => (
                                     <div key={i} className="text-[11px] text-gray-600">
-                                      {v.visitor} <span className="text-gray-400">· {v.department}</span>
+                                      {v.visitor} <span className="text-gray-400">- {v.department}</span>
                                     </div>
                                   ))
                                 )}
@@ -2334,12 +2191,10 @@ useEffect(() => {
                     </div>
                   ) : (
                     <>
-                      {/* Ratings table */}
                       <div>
                         <h4 style={{ fontFamily: COK.headingFont, fontSize: 14, fontWeight: 600, color: COK.neutralDark, margin: '0 0 10px 0' }}>
                           Ratings ({filteredRatings.length})
                         </h4>
-                        {/* Sentiment filter chips (counts follow the period dropdown) + modal-level period filter */}
                         <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
                           <div className="flex flex-wrap gap-2">
                             <button
@@ -2413,11 +2268,9 @@ useEffect(() => {
                             </button>
                           </div>
                         </div>
-                        {/* Same table design rules as the event-manager events table:
-                            bordered container, CoK-blue uppercase header, zebra rows, bordered cells */}
-                        <div className="overflow-auto max-h-[55vh] border-2 border-gray-300">
-                          <table className="w-full border-collapse table-fixed min-w-[720px]">
-                            <thead className="sticky top-0 z-10">
+                        <div className="cok-table-scroll border-2 border-gray-300" style={{ ['--cok-table-max-h' as string]: '55vh' } as React.CSSProperties}>
+                          <table className="w-full border-collapse table-auto min-w-[720px]">
+                            <thead className="sticky top-0 z-10" style={{ backgroundColor: COK.primary }}>
                               <tr>
                                 {([
                                   { label: 'Rating', width: 'w-24' },
@@ -2456,7 +2309,6 @@ useEffect(() => {
                                   >
                                     <td className={`${cell(0)} whitespace-nowrap`}>
                                       {(() => {
-                                        // Accent bar height is proportional to the rating (3/10 short, 10/10 full)
                                         const outOf = Number(f.rate_out_of) || 10;
                                         const pct = Math.max(0, Math.min(100, (Number(f.rate) / outOf) * 100));
                                         return (
@@ -2483,8 +2335,8 @@ useEffect(() => {
                                     <td className={cell(2)}>
                                       <span className="text-sm font-semibold text-gray-900">{f.department_name || 'Not specified'}</span>
                                     </td>
-                                    <td className={`${cell(3)} max-w-xs`}>
-                                      <p className="text-sm truncate" style={{ color: f.textmessage ? '#555555' : '#9E9E9E', fontStyle: f.textmessage ? 'normal' : 'italic', margin: 0 }} title={f.textmessage}>
+                                    <td className={cell(3)}>
+                                      <p className="text-sm" style={{ color: f.textmessage ? '#555555' : '#9E9E9E', fontStyle: f.textmessage ? 'normal' : 'italic', margin: 0 }} title={f.textmessage}>
                                         {f.textmessage || 'No written comment rating only.'}
                                       </p>
                                     </td>
@@ -2536,11 +2388,9 @@ useEffect(() => {
                       <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">No departments found</span>
                     </div>
                   ) : (
-                    /* Same table design rules as the event-manager events table:
-                       bordered container, CoK-blue uppercase header, zebra rows, bordered cells */
-                    <div className="overflow-auto max-h-[55vh] border-2 border-gray-300">
+                    <div className="cok-table-scroll border-2 border-gray-300" style={{ ['--cok-table-max-h' as string]: '55vh' } as React.CSSProperties}>
                       <table className="w-full border-collapse table-auto min-w-[500px]">
-                        <thead className="sticky top-0 z-10">
+                        <thead className="sticky top-0 z-10" style={{ backgroundColor: COK.primary }}>
                           <tr>
                             {['Department', 'Leader', 'Total Employees', 'Created Date'].map(label => (
                               <th
@@ -2592,9 +2442,8 @@ useEffect(() => {
                 <div className="space-y-4">
                   <div className="flex flex-wrap justify-between items-center gap-2">
                     <div className="text-sm text-gray-600">
-                      Visitor arrivals · <span className="capitalize">{labelForPeriod(modalHourPeriodEff)}</span>
+                      Visitor arrivals - <span className="capitalize">{labelForPeriod(modalHourPeriodEff)}</span>
                     </div>
-                    {/* Modal-level period filter; opens following the toolbar filter */}
                     <div className="flex items-center gap-1 text-xs text-gray-600">
                       <label className="font-medium">Period</label>
                       <select
@@ -2633,10 +2482,9 @@ useEffect(() => {
                 </div>
               )}
 
-              {/* Parking check-ins graph - opened by clicking the hourly parking gauge */}
               {selectedCard === 'parking-hourly' && (
                 <div className="space-y-4">
-                  <div className="text-sm text-gray-600">Vehicle check-ins per hour · today</div>
+                  <div className="text-sm text-gray-600">Vehicle check-ins per hour - today</div>
                   <div className="flex gap-3 text-xs mb-3">
                     <div className="flex items-center gap-1"><div className="w-2 h-2 bg-[#056daa]"></div>Vehicles checked in</div>
                   </div>
@@ -2660,8 +2508,7 @@ useEffect(() => {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+        </OverlayShell>
       )}
       </div>
     </MainLayout>

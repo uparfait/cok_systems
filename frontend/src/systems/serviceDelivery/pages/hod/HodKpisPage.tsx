@@ -119,7 +119,6 @@ const HodKpisPage: React.FC = () => {
         }
       />
 
-      {/* Period filter - one row above the charts */}
       <HodCard className="mb-4">
         <div className="flex flex-wrap items-center gap-3 px-4 py-3">
           <span className="text-xs font-semibold uppercase" style={{ color: COK.textMid, fontFamily: FONT }}>Period</span>
@@ -146,7 +145,6 @@ const HodKpisPage: React.FC = () => {
         <HodCard><HodEmpty message="No KPI data available." /></HodCard>
       ) : (
         <>
-          {/* Stat tiles */}
           <div className="flex flex-wrap gap-3 mb-4">
             <HodStatCard label="Visitors" value={data.visitors.total} hint="in selected period" />
             <HodStatCard label="Being Served" value={data.visitors.active} accent={COK.warning} />
@@ -162,7 +160,6 @@ const HodKpisPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-            {/* Daily visitors */}
             <HodCard className="p-4">
               <h3 className="text-sm font-bold uppercase mb-1" style={{ color: COK.textDark, fontFamily: FONT }}>Daily Visitors</h3>
               <p className="text-xs mb-3" style={{ color: COK.gray }}>Visitors assigned to your department per day</p>
@@ -179,9 +176,8 @@ const HodKpisPage: React.FC = () => {
               )}
             </HodCard>
 
-            {/* Hourly today */}
             <HodCard className="p-4">
-              <h3 className="text-sm font-bold uppercase mb-1" style={{ color: COK.textDark, fontFamily: FONT }}>Hourly Check-ins · Today</h3>
+              <h3 className="text-sm font-bold uppercase mb-1" style={{ color: COK.textDark, fontFamily: FONT }}>Hourly Check-ins - Today</h3>
               <p className="text-xs mb-3" style={{ color: COK.gray }}>When visitors arrive at your department today</p>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={hourlyChart} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
@@ -194,7 +190,6 @@ const HodKpisPage: React.FC = () => {
               </ResponsiveContainer>
             </HodCard>
 
-            {/* Visitors by status */}
             <HodCard className="p-4">
               <h3 className="text-sm font-bold uppercase mb-1" style={{ color: COK.textDark, fontFamily: FONT }}>Visitors by Status</h3>
               <p className="text-xs mb-3" style={{ color: COK.gray }}>Current pipeline in the selected period</p>
@@ -209,7 +204,6 @@ const HodKpisPage: React.FC = () => {
               </ResponsiveContainer>
             </HodCard>
 
-            {/* Feedback rating distribution */}
             <HodCard className="p-4">
               <h3 className="text-sm font-bold uppercase mb-1" style={{ color: COK.textDark, fontFamily: FONT }}>Feedback Ratings</h3>
               <p className="text-xs mb-3" style={{ color: COK.gray }}>Distribution of ratings sent to your department</p>
@@ -227,7 +221,6 @@ const HodKpisPage: React.FC = () => {
             </HodCard>
           </div>
 
-          {/* Service time table */}
           <HodCard>
             <div className="px-4 py-3 border-b" style={{ borderColor: COK.border }}>
               <h3 className="text-sm font-bold uppercase" style={{ color: COK.textDark, fontFamily: FONT }}>Service Time by Department</h3>
@@ -236,7 +229,7 @@ const HodKpisPage: React.FC = () => {
             {data.service_times.length === 0 ? (
               <HodEmpty message="No completed services with durations in this period." />
             ) : (
-              <div className="overflow-x-auto">
+              <div className="cok-table-scroll">
                 <table className="w-full min-w-[640px]">
                   <thead>
                     <tr>

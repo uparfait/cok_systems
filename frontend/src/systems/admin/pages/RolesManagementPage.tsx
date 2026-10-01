@@ -20,7 +20,6 @@ const LINK_ICONS: Record<string, React.ComponentType<{ className?: string; style
   FiHardDrive, FiShield,
 };
 
-// Small circular icon badge shown next to every link, like the role avatars
 const LinkIcon: React.FC<{ icon?: string; size?: 'sm' | 'md' }> = ({ icon, size = 'md' }) => {
   const Icon = (icon && LINK_ICONS[icon]) || FiGrid;
   const box = size === 'sm' ? 'w-5 h-5' : 'w-7 h-7';
@@ -44,8 +43,6 @@ interface DefaultRole {
   links: NavLink[];
 }
 
-// Selection state while creating/editing a custom role: which catalog links
-// (and which of their children) are toggled on
 type Selection = Record<string, { on: boolean; children: Record<string, boolean> }>;
 
 const backendMsg = (err: any, fallback: string) =>
@@ -63,7 +60,6 @@ function selectionFromCatalog(catalog: NavLink[], existing?: RoleNavLink[]): Sel
         : true;
     });
     sel[link.id] = {
-      // Required default links (Calender, Task Manager) are always on
       on: (existing ? !!found : false) || !!link.default_enabled,
       children,
     };
@@ -78,13 +74,12 @@ function selectionToNavLinks(catalog: NavLink[], sel: Selection): RoleNavLink[] 
     if (!s?.on) return;
     const allChildren = (link.children || []).map((c) => c.id);
     const chosen = allChildren.filter((cid) => s.children[cid]);
-    if (allChildren.length > 0 && chosen.length === 0) return; // group with nothing inside
+    if (allChildren.length > 0 && chosen.length === 0) return;
     links.push(allChildren.length > 0 ? { id: link.id, children: chosen } : { id: link.id });
   });
   return links;
 }
 
-// Read-only links tree used on both Default and Other role cards
 const LinksTree: React.FC<{ links: NavLink[] }> = ({ links }) => (
   <div className="flex flex-col gap-1.5">
     {links.map((link) => (
@@ -126,7 +121,6 @@ const RolesManagementPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  // Create / edit form state
   const [formOpen, setFormOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [roleName, setRoleName] = useState('');
@@ -134,7 +128,6 @@ const RolesManagementPage: React.FC = () => {
   const [defaultRoute, setDefaultRoute] = useState('/calendar');
   const [saving, setSaving] = useState(false);
 
-  // Delete confirm state
   const [deleteTarget, setDeleteTarget] = useState<Role | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -178,8 +171,6 @@ const RolesManagementPage: React.FC = () => {
     [defaultRoles, searchQuery],
   );
 
-  // Options for the "where does this role land after login" select:
-  // every toggled link and child, plus the calendar
   const routeOptions = useMemo(() => {
     const opts: Array<{ label: string; path: string }> = [];
     catalog.forEach((link) => {
@@ -216,7 +207,6 @@ const RolesManagementPage: React.FC = () => {
   };
 
   const toggleLink = (id: string) => {
-    // Required default links cannot be turned off
     if (catalog.find((l) => l.id === id)?.default_enabled) return;
     setSelection((prev) => ({ ...prev, [id]: { ...prev[id], on: !prev[id]?.on } }));
   };
@@ -274,7 +264,6 @@ const RolesManagementPage: React.FC = () => {
     }
   };
 
-  // Resolve a custom role's stored nav_links into displayable links
   const resolveRoleLinks = (role: Role): NavLink[] => {
     const byId = new Map(catalog.map((l) => [l.id, l]));
     const out: NavLink[] = [];

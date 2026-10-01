@@ -26,6 +26,8 @@ Status legend: [ ] to do, [x] done.
 11. The employee "Department Queue" link also did nothing (the employee dashboard ignored ?tab=). It will now open
     the department queue. The head of department "Service History" tab works and stays.
 12. The overlay close button becomes the circled transparent X icon you asked for (this is the only new icon).
+13. "All tables / all overlays / all forms" (sections 9, 10, 11) covers every system EXCEPT DCS and event management,
+    which are never touched (your instruction). Their files were restored to how they were before this work.
 
 ## 1. Data models (backend)
 
@@ -52,12 +54,12 @@ Status legend: [ ] to do, [x] done.
 
 ## 3. Vehicle check-in (/checkin-vehicle)
 
-- [ ] 3.1 Car checked in as usual, driver details stored only as a visitor reference
+- [x] 3.1 Car checked in as usual, driver details stored only as a visitor reference
 - [ ] 3.2 Plate entered: if the car parked before, the last visitor who came with it is filled in, editable
-- [ ] 3.3 Driver not in the system: added to Visitors first, then linked to the car
-- [ ] 3.4 Driver type decided by the server (staff registry / reservation / regular)
+- [x] 3.3 Driver not in the system: added to Visitors first, then linked to the car
+- [x] 3.4 Driver type decided by the server (staff registry / reservation / regular)
 - [ ] 3.5 Car lists everywhere show the person who came with the car (populated visitor)
-- [ ] 3.6 Car check-out closes the linked visit (exit time and durations recorded)
+- [x] 3.6 Car check-out closes the linked visit (exit time and durations recorded)
 
 ## 4. Global visitor panel (opens when a visitor is clicked, all roles, not on check-out pages)
 
@@ -122,11 +124,11 @@ Status legend: [ ] to do, [x] done.
 ## 12. Server and deployment
 
 - [x] 12.1 Upload size unlimited end to end (backend and nginx)
-- [ ] 12.2 New realtime events for visitor updates and attachments
+- [x] 12.2 New realtime events for visitor updates and attachments
 
 ## 13. Verification
 
-- [ ] 13.1 Backend tests against a real MongoDB engine (registration, conflicts, check-in/out, serving lock,
+- [x] 13.1 Backend tests against a real MongoDB engine (registration, conflicts, check-in/out, serving lock,
       attachments, legacy clean-up)
 - [ ] 13.2 Frontend type check and production build pass
 - [ ] 13.3 Independent review of all changes

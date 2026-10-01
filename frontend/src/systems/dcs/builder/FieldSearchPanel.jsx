@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
-import OverlayCloseButton from "../../../core/components/overlay/OverlayCloseButton.tsx";
 
 const PRIMARY = "#056daa";
 const MUTED = "#9E9E9E";
@@ -68,20 +67,13 @@ export default function FieldSearchPanel({ query, matchCount, onQueryChange, onC
 
   return createPortal(
     <div className="dcs-field-search" style={{ top: position.top, left: position.left, width: PANEL_WIDTH_PX }}>
-      <div
-        className="dcs-field-search-grip flex items-center justify-between gap-2 px-3 py-2 border-b"
-        style={{ backgroundColor: "#FFFFFF", borderColor: "#E0E0E0" }}
-        onMouseDown={start_drag}
-      >
-        <p className="text-xs font-bold uppercase tracking-wide text-gray-900" style={HEADING_FONT}>
+      <div className="dcs-field-search-grip flex items-center justify-between gap-2 px-3 py-2" onMouseDown={start_drag}>
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#FFFFFF", ...HEADING_FONT }}>
           {translate("DCS_SEARCH_FIELD_TITLE")}
         </p>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold" style={{ color: MUTED, ...HEADING_FONT }}>
-            {translate("DCS_SEARCH_FIELD_DRAG_HINT")}
-          </span>
-          <OverlayCloseButton onClick={onClose} label={translate("DCS_BTN_CLOSE")} small />
-        </div>
+        <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.85)", ...HEADING_FONT }}>
+          {translate("DCS_SEARCH_FIELD_DRAG_HINT")}
+        </span>
       </div>
 
       <div className="p-3">
@@ -104,9 +96,12 @@ export default function FieldSearchPanel({ query, matchCount, onQueryChange, onC
             : translate("DCS_SEARCH_FIELD_HINT")}
         </p>
 
-        <div className="grid grid-cols-1 gap-2 mt-3">
+        <div className="grid grid-cols-2 gap-2 mt-3">
           <DcsButtonOutline type="button" disabled={!has_query} onClick={() => onQueryChange("")}>
             {translate("DCS_BTN_CLEAR")}
+          </DcsButtonOutline>
+          <DcsButtonOutline type="button" onClick={onClose}>
+            {translate("DCS_BTN_CLOSE")}
           </DcsButtonOutline>
         </div>
       </div>

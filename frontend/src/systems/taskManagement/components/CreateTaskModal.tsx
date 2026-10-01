@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { FiX, FiCalendar, FiUpload, FiEye, FiFileText, FiType, FiList, FiTag, FiClock, FiPaperclip, FiCheckSquare, FiTrash2, FiPlus } from 'react-icons/fi'
 import AttachmentViewer from './AttachmentViewer'
+import OverlayCloseButton from '../../../core/components/overlay/OverlayCloseButton'
 import type { Attachment } from '../../../core/services/taskService'
 import { useAuth } from '../../../core/contexts/AuthContext'
 import { useToast } from '../../../core/contexts/ToastContext'
@@ -274,23 +275,16 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
-      <div className="bg-white w-[95vw] max-w-3xl max-h-[90vh] flex flex-col">
-        {/* Header with cok-bg-primary */}
-        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0 cok-bg-primary" style={{ borderRadius: 0 }}>
-          <h2 className="text-xl font-semibold" style={{ color: WHITE, fontFamily: fontHeading, letterSpacing: '0.5px' }}>
-            Create New Task
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="cok-btn-outlined-reverse"
-            style={{ padding: '0.4rem 0.8rem' }}
-          >
-            <FiX className="w-4 h-4" />
-          </button>
+      <div className="bg-white border border-gray-200 shadow-xl w-[95vw] max-w-3xl max-h-[90vh] flex flex-col" style={{ borderRadius: 0 }}>
+        <div className="flex items-start gap-3 px-4 sm:px-5 pt-4 pb-3 flex-shrink-0 border-b border-gray-100">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold text-gray-900 truncate" style={{ fontFamily: fontHeading }}>
+              Create New Task
+            </h2>
+          </div>
+          <OverlayCloseButton onClick={onClose} disabled={loading || uploadLoading} />
         </div>
 
-        {/* Belongs to note */}
         {belongs?.isBelongsTo && belongsToName && (
           <div className="px-6 py-3" style={{ backgroundColor: '#EAF6FC', borderBottom: '1px solid #056daa' }}>
             <div className="flex items-center gap-3">
@@ -312,12 +306,10 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-          {/* Title */}
           <div>
-            <label className="block mb-1 text-sm" style={labelStyle}>
-              Title <span style={{ color: DANGER }}>*</span>
+            <label className="block mb-1 text-sm cok-req" style={labelStyle}>
+              Title
             </label>
             <div className="relative">
               <FiType className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: GRAY_DISABLED }} />
@@ -332,7 +324,6 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
             </div>
           </div>
 
-          {/* Description */}
           <div>
             <label className="block mb-1 text-sm" style={labelStyle}>
               Description
@@ -350,9 +341,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
             </div>
           </div>
 
-          {/* Status and Priority - Row on desktop */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Status */}
             <div>
               <label className="block mb-1 text-sm" style={labelStyle}>
                 Status
@@ -371,7 +360,6 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
               </div>
             </div>
 
-            {/* Priority */}
             <div>
               <label className="block mb-1 text-sm" style={labelStyle}>
                 Priority
@@ -392,11 +380,10 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
             </div>
           </div>
 
-          {/* Date Fields Based on Status */}
           {formData.status === 'Under-review' && (
             <div>
-              <label className="block mb-1 text-sm" style={labelStyle}>
-                Start & End Dates <span style={{ color: DANGER }}>*</span>
+              <label className="block mb-1 text-sm cok-req" style={labelStyle}>
+                Start & End Dates
               </label>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
@@ -451,8 +438,8 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
 
           {formData.status === 'In-progress' && (
             <div>
-              <label className="block mb-1 text-sm" style={labelStyle}>
-                End Date <span style={{ color: DANGER }}>*</span>
+              <label className="block mb-1 text-sm cok-req" style={labelStyle}>
+                End Date
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <div className="relative">
@@ -482,8 +469,8 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
 
           {formData.status === 'Completed' && (
             <div>
-              <label className="block mb-1 text-sm" style={labelStyle}>
-                Start & End Dates <span style={{ color: DANGER }}>*</span>
+              <label className="block mb-1 text-sm cok-req" style={labelStyle}>
+                Start & End Dates
               </label>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
@@ -534,7 +521,6 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
             </div>
           )}
 
-          {/* Attachments */}
           <div>
             <label className="block mb-1 text-sm" style={labelStyle}>
               Attachments
@@ -581,7 +567,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
                             {file.name}
                           </p>
                           <p className="text-xs" style={{ color: GRAY_DISABLED }}>
-                            {(file.size / 1024).toFixed(1)} KB • {file.type || 'Unknown type'}
+                            {(file.size / 1024).toFixed(1)} KB - {file.type || 'Unknown type'}
                           </p>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
@@ -626,7 +612,6 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
             </div>
           </div>
 
-          {/* Checklists - New Design */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-sm" style={labelStyle}>
@@ -643,12 +628,11 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
               </button>
             </div>
 
-            {/* Checklist Form */}
             {showChecklistForm && (
               <div className="border p-4 mt-2 mb-4" style={{ borderRadius: 0, backgroundColor: NEUTRAL_LIGHT, borderColor: '#E0E0E0' }}>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm mb-1" style={labelStyle}>
+                    <label className="block text-sm mb-1 cok-req" style={labelStyle}>
                       Checklist Title
                     </label>
                     <input
@@ -661,7 +645,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
                   </div>
 
                   <div>
-                    <label className="block text-sm mb-2" style={labelStyle}>
+                    <label className="block text-sm mb-2 cok-req" style={labelStyle}>
                       Items
                     </label>
                     <div className="space-y-2">
@@ -731,7 +715,6 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
               </div>
             )}
 
-            {/* Checklists List */}
             {checklists.length > 0 && (
               <div className="space-y-3 mb-4">
                 {checklists.map((checklist, index) => (
@@ -803,7 +786,6 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
             )}
           </div>
 
-          {/* Actions */}
           <div className="flex flex-col gap-3 pt-4">
             <button
               type="submit"
@@ -814,14 +796,6 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               )}
               {loading ? 'Creating Task...' : 'Create Task'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full cok-btn-outlined"
-              disabled={loading}
-            >
-              Cancel
             </button>
           </div>
         </form>

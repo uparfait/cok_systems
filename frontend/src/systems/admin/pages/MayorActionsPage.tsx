@@ -48,11 +48,8 @@ type TabKey = 'all' | 'overdue' | 'assigned' | 'pending' | 'inProgress' | 'compl
 const initialsOf = (name?: string) =>
   (name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 
-// Soft tint background from a 6-digit hex color (for status chips)
 const tint = (hex: string) => `${hex}1F`;
 
-// Flat donut chart: colored ring segments with % labels on the slices, the total in
-// the center hole, and a legend row on top (reference-image style)
 const ActionsDonut: React.FC<{
   total: number;
   segments: Array<{ label: string; value: number; color: string }>;
@@ -79,7 +76,6 @@ const ActionsDonut: React.FC<{
 
   return (
     <div className="flex flex-col items-center">
-      {/* Legends */}
       <div className="flex flex-wrap justify-center gap-x-5 gap-y-1.5 mb-3">
         {segments.map(s => (
           <div key={s.label} className="flex items-center gap-1.5 text-xs" style={{ fontFamily: COK.headingFont, color: COK.neutralDark }}>
@@ -95,7 +91,6 @@ const ActionsDonut: React.FC<{
           {slices.map(s => <path key={s.label} d={s.path} fill={s.color} />)}
           {slices.map(s => {
             const lp = pt((rO + rI) / 2, s.mid);
-            // Very thin slices keep their % just outside the ring instead of on it
             const outside = s.pct < 6;
             const op = pt(rO + 12, s.mid);
             return (
@@ -342,7 +337,6 @@ export default function MayorActionsPage() {
           </div>
         </div>
 
-        {/* Actions overview donut - replaces the old stat cards, placed below the table */}
         <div className="bg-white p-4" style={{ border: `1px solid ${COK.border}` }}>
           <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: '0 0 12px 0' }}>
             Actions Overview

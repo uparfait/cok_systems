@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
-import { FiX, FiPhone, FiCheckCircle, FiAlertCircle, FiStar, FiMessageSquare, FiEye, FiUsers, FiUser } from 'react-icons/fi';
+import { FiPhone, FiCheckCircle, FiAlertCircle, FiStar, FiMessageSquare, FiEye, FiUsers, FiUser } from 'react-icons/fi';
 import { verifyPhone, submitFeedback, submitUnservicedFeedback, getFeedbackByPhone } from '../../services/feedbackService';
 import { useToast } from '../../contexts/ToastContext';
+import OverlayShell from '../overlay/OverlayShell';
 
-// City of Kigali (CoK) institutional design constants
 const PRIMARY = "#056daa";
 const PRIMARY_HOVER = "#045d94";
 const SUCCESS = "#4CAF50";
@@ -13,7 +12,6 @@ const NEUTRAL_DARK = "#333333";
 const TERTIARY = "#CDB896";
 const WHITE = "#FFFFFF";
 const fontHeading = "'Montserrat', sans-serif";
-const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
 const labelStyle: React.CSSProperties = {
   fontFamily: fontHeading,
@@ -73,14 +71,11 @@ type FeedbackType = 'serviced' | 'unserviced';
 const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
   const { showSuccess, showError } = useToast();
 
-  // Feedback type selection
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('serviced');
 
-  // Step state - always starts at the choice screen (Service Provided vs General Feedback)
   const [step, setStep] = useState<Step>('choice');
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Serviced form data
   const [phone, setPhone] = useState('');
   const [visitorName, setVisitorName] = useState('');
   const [departments, setDepartments] = useState<AssignedDepartment[]>([]);
@@ -89,17 +84,14 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
   const [message, setMessage] = useState('');
   const [existingFeedback, setExistingFeedback] = useState<Record<string, { rate: number; department_name: string; department_id: string }>>({});
 
-  // Unserviced form data
   const [unservedName, setUnservedName] = useState('');
   const [unservedPhone, setUnservedPhone] = useState('');
   const [unservedRating, setUnservedRating] = useState(5);
   const [unservedMessage, setUnservedMessage] = useState('');
 
-  // Loading states
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Error state
   const [errorMessage, setErrorMessage] = useState('');
 
   const resetForm = () => {
@@ -119,12 +111,14 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
     setUnservedMessage('');
   };
 
+  const busy = isVerifying || isSubmitting;
+
   const handleClose = () => {
+    if (busy) return;
     resetForm();
     onClose();
   };
 
-  // Reset to choice step whenever the modal opens
   useEffect(() => {
     if (isOpen && !isInitialized) {
       resetForm();
@@ -145,7 +139,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
     setStep('unserviced_rate');
   };
 
-  // Serviced flow handlers
   const handleVerifyPhone = async () => {
     if (!phone.trim()) {
       showError('Please enter your phone number');
@@ -182,7 +175,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
 
     try {
       await submitFeedback({
-        telephone: phone,
+        telephone: phone.trim(),
         department_id: selectedDepartment.department_id,
         rate: rating,
         textmessage: message.trim() || undefined
@@ -243,7 +236,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
     setStep('preview');
   };
 
-  // Unserviced flow handlers
   const handleUnservicedPreview = () => {
     setStep('unserviced_preview');
   };
@@ -271,32 +263,20 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999]  overflow-y-auto">
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity" onClick={handleClose} />
+    <OverlayShell
+      title={
+        <span className="flex items-center gap-2">
+          <FiMessageSquare className="w-5 h-5 shrink-0" style={{ color: PRIMARY }} />
+          {step === 'success' ? 'Feedback Submitted' : 'Submit Feedback'}
+        </span>
+      }
+      onClose={handleClose}
+      busy={busy}
+      width="sm"
+      zIndex={9999}
+    >
+          <div>
 
-      {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-md max-h-[85vh] flex flex-col transform bg-white transition-all" style={{ borderRadius: 0, border: `2px solid ${PRIMARY}`, boxShadow: CARD_SHADOW }}>
-
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-            <h2 className="text-lg font-bold flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
-              <FiMessageSquare className="w-5 h-5" style={{ color: PRIMARY }} />
-              {step === 'success' ? 'Feedback Submitted' : 'Submit Feedback'}
-            </h2>
-            <button
-              onClick={handleClose}
-              className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" style={{ borderRadius: 0 }}
-            >
-              <FiX className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="px-6 py-4 overflow-y-auto">
-
-            {/* Choice Step */}
             {step === 'choice' && (
               <div className="space-y-4">
                 <div className="text-center">
@@ -305,7 +285,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="space-y-3">
-                  {/* Service Provided Option */}
                   <button
                     onClick={handleSelectServiced}
                     className="w-full p-5 border-2 transition-all text-left group"
@@ -327,7 +306,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                     </div>
                   </button>
 
-                  {/* Custom Feedback Option */}
                   <button
                     onClick={handleSelectUnserviced}
                     className="w-full p-5 border-2 transition-all text-left group"
@@ -352,7 +330,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            {/* Step 1: Enter Phone (Serviced) */}
             {step === 'phone' && (
               <div className="space-y-4">
                 <div className="text-center mb-2">
@@ -364,7 +341,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div>
-                  <label className="block mb-1.5" style={labelStyle}>
+                  <label className="block mb-1.5 cok-req" style={labelStyle}>
                     Phone Number
                   </label>
                   <div className="relative">
@@ -404,12 +381,11 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   onClick={handleGoBack}
                   className="w-full py-2 text-sm text-gray-500 hover:text-gray-700"
                 >
-                  ← Back
+                  Back
                 </button>
               </div>
             )}
 
-            {/* Step 2: Select Department (Serviced) */}
             {step === 'department' && (
               <div className="space-y-4">
                 <div className="text-center mb-4">
@@ -454,12 +430,11 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   onClick={handleGoBack}
                   className="w-full py-2 text-sm text-gray-500 hover:text-gray-700"
                 >
-                  ← Back
+                  Back
                 </button>
               </div>
             )}
 
-            {/* Step 3: Rate & Message (Serviced) */}
             {step === 'rate' && selectedDepartment && (
               <div className="space-y-5">
                 <div className="text-center">
@@ -467,9 +442,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   <p className="text-xs text-gray-500">Rate your experience</p>
                 </div>
 
-                {/* Rating */}
                 <div>
-                  <label className="block mb-2 text-center" style={labelStyle}>
+                  <label className="block mb-2 text-center cok-req" style={labelStyle}>
                     Rating: {rating}/10
                   </label>
                   <div className="flex items-center justify-center gap-1">
@@ -499,7 +473,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
-                {/* Message */}
                 <div>
                   <label className="block mb-1.5" style={labelStyle}>
                     Your Feedback (Optional)
@@ -538,7 +511,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            {/* Step: Rate & Message (Unserviced) */}
             {step === 'unserviced_rate' && (
               <div className="space-y-2">
                 <div className="text-center">
@@ -546,7 +518,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   <p className="text-xs text-gray-500">No service required - tell us about your experience</p>
                 </div>
 
-                {/* Optional Name & Phone */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block mb-1" style={labelStyle}>
@@ -579,9 +550,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
-                {/* Rating */}
                 <div>
-                  <label className="block mb-1 text-center" style={labelStyle}>
+                  <label className="block mb-1 text-center cok-req" style={labelStyle}>
                     Rating: {unservedRating}/10
                   </label>
                   <div className="flex items-center justify-center gap-1">
@@ -611,7 +581,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
-                {/* Message */}
                 <div>
                   <label className="block mb-1" style={labelStyle}>
                     Your Feedback (Optional)
@@ -650,7 +619,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            {/* Step 4: Preview (Serviced) */}
             {step === 'preview' && selectedDepartment && (
               <div className="space-y-4">
                 <div className="text-center mb-4">
@@ -738,7 +706,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            {/* Step: Preview (Unserviced) */}
             {step === 'unserviced_preview' && (
               <div className="space-y-4">
                 <div className="text-center mb-4">
@@ -830,7 +797,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            {/* Success */}
             {step === 'success' && (
               <div className="text-center space-y-4 py-4">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
@@ -847,19 +813,9 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                     </p>
                   )}
                 </div>
-                <button
-                  onClick={handleClose}
-                  className="w-full py-2.5 px-4 transition-colors"
-                  style={{ ...buttonBaseStyle, backgroundColor: SUCCESS, color: WHITE, border: 'none' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#3d8b40'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
-                >
-                  Done
-                </button>
               </div>
             )}
 
-            {/* Error */}
             {step === 'error' && (
               <div className="text-center space-y-4 py-4">
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
@@ -884,9 +840,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
             )}
           </div>
 
-          {/* Step Indicator */}
           {!['success', 'error'].includes(step) && (
-            <div className="px-6 pb-4">
+            <div className="pt-4">
               <div className="flex items-center justify-center gap-1">
                 {(() => {
                   if (feedbackType === 'unserviced') {
@@ -939,9 +894,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
               </p>
             </div>
           )}
-        </div>
-      </div>
-    </div>
+    </OverlayShell>
   );
 };
 

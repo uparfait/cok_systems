@@ -5,7 +5,7 @@ import { employeeService, departmentService, roleService } from '../../../core/s
 import { dispatchToast } from '../../../core/services/apiClient';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import ErrorModal from '../../../core/components/Modals/ErrorModal';
-import OverlayCloseButton from '../../../core/components/overlay/OverlayCloseButton';
+import OverlayShell from '../../../core/components/overlay/OverlayShell';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import Table from '../../../core/components/Table';
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers, FiMail, FiPhone, FiAlertCircle, FiCheck } from 'react-icons/fi';
@@ -155,8 +155,6 @@ const EmployeesPage: React.FC = () => {
         if (r.success) { setFormSuccess(r.message || 'Employee created!'); setTimeout(() => { setShowModal(false); loadEmployees(currentPage, pageLimit); }, 1500); }
         else setFormError(r.error || r.message || 'Failed to create');
       }
-    // The modal stays open on failure so the error is actually visible;
-    // the success path closes it itself after showing the confirmation
     } catch (err: any) { setFormError(err.error || err.message || 'Failed to save'); } finally { setSubmitting(false); }
   };
 
@@ -287,13 +285,14 @@ const EmployeesPage: React.FC = () => {
         />
 
         {showMultipleUploadModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl m-3 sm:m-6">
-              <div className="p-4 border-b border-gray-100 bg-white sticky top-0 flex items-center justify-between z-10">
-                <div className="flex items-center gap-3"><div className="w-9 h-9 bg-[rgba(76,175,80,0.12)] flex items-center justify-center"><FiPlus className="w-4 h-4 text-[#388E3C]" /></div><div><h2 className="text-sm font-bold text-gray-900">Add Multiple Employees</h2><p className="text-xs text-[#555555]">Upload Excel or CSV file</p></div></div>
-                <OverlayCloseButton onClick={() => setShowMultipleUploadModal(false)} disabled={uploading} />
-              </div>
-              <form onSubmit={(e) => { e.preventDefault(); handleMultipleUpload(); }} className="p-4 space-y-4">
+          <OverlayShell
+            title={<span className="inline-flex items-center gap-2 max-w-full"><FiPlus className="w-4 h-4 shrink-0 text-[#388E3C]" /><span className="truncate">Add Multiple Employees</span></span>}
+            subtitle="Upload Excel or CSV file"
+            onClose={() => setShowMultipleUploadModal(false)}
+            busy={uploading}
+            closeOnBackdrop={false}
+          >
+              <form onSubmit={(e) => { e.preventDefault(); handleMultipleUpload(); }} className="space-y-4">
                 {uploadSuccess && <div className="bg-[rgba(76,175,80,0.08)] border border-[#E0E0E0] text-[#388E3C] px-3 py-2 flex items-center gap-2 text-sm"><FiCheck className="w-4 h-4" />{uploadSuccess}</div>}
                 <div className="bg-[rgba(5,109,170,0.06)] p-3"><div className="flex items-center justify-between mb-2"><h4 className="text-xs font-semibold text-[#056daa]">File Format:</h4><button type="button" onClick={handleDownloadTemplate} disabled={downloadingTemplate} className="text-xs px-2 py-1 text-white disabled:opacity-50" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>{downloadingTemplate ? 'Downloading...' : 'Download Template'}</button></div>
                   <ul className="text-xs text-[#056daa] space-y-0.5"><li>- Required: telephone, email, gender</li><li>- Optional: department, department_unit, role</li><li>- Max 5MB, .xlsx/.xls/.csv</li></ul>
@@ -311,8 +310,7 @@ const EmployeesPage: React.FC = () => {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
+          </OverlayShell>
         )}
 
         <ConfirmModal isOpen={showDeleteConfirm} title="Delete Employee" message={`Are you sure you want to delete "${deletingName}"?`} confirmText="Delete" onConfirm={handleConfirmDelete} onCancel={handleCancelDelete} type="danger" isLoading={deleting} />

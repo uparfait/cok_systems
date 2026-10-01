@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiDownload, FiX, FiSmartphone, FiMonitor, FiChrome } from 'react-icons/fi';
+import { FiDownload, FiSmartphone, FiMonitor, FiChrome } from 'react-icons/fi';
+import OverlayCloseButton from './overlay/OverlayCloseButton';
 
 interface PWAInstallPromptProps {
   onClose?: () => void;
@@ -82,7 +83,7 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({
       if (isIOS) {
         alert('To install this app on iOS: tap the share button and select "Add to Home Screen"');
       } else if (isAndroid) {
-        alert('To install this app: tap the menu button (⋮) and select "Add to Home screen" or "Install app"');
+        alert('To install this app: tap the menu button (three dots) and select "Add to Home screen" or "Install app"');
       } else {
         alert('To install this app on desktop: look for the install icon in your browser\'s address bar, or use the browser menu.');
       }
@@ -116,7 +117,7 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({
   return (
     <div className={`fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50 ${className}`}>
       <div className="bg-white/70 rounded-sm backdrop-blur-lg shadow-lg border border-gray-200 p-4">
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between gap-3 mb-3 pb-3 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
               <FiDownload className="w-4 h-4 text-blue-600" />
@@ -126,13 +127,7 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({
               <p className="text-xs text-gray-600">Add to your home screen</p>
             </div>
           </div>
-          <button
-            onClick={handleClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label="Close"
-          >
-            <FiX className="w-4 h-4 text-gray-400" />
-          </button>
+          <OverlayCloseButton onClick={handleClose} small />
         </div>
 
         <div className="mb-4">
@@ -144,7 +139,7 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({
             <div className="flex items-start gap-2 p-2 bg-blue-50/70 rounded-sm backdrop-blur-lg">
               <FiSmartphone className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
               <div className="text-xs text-blue-800">
-                <strong>On iOS:</strong> Tap the share button <span className="inline-block w-4 h-4 bg-gray-300 rounded mx-1">⬆</span>
+                <strong>On iOS:</strong> Tap the Share button
                 and select "Add to Home Screen"
               </div>
             </div>
@@ -154,7 +149,7 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({
             <div className="flex items-start gap-2 p-2 bg-green-50/70 rounded-sm backdrop-blur-lg">
               <FiChrome className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
               <div className="text-xs text-green-800">
-                <strong>On Android:</strong> Tap the menu button (⋮) and select "Add to Home screen" or "Install app"
+                <strong>On Android:</strong> Tap the menu button (three dots) and select "Add to Home screen" or "Install app"
               </div>
             </div>
           )}
@@ -176,12 +171,6 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({
           >
             <FiDownload className="w-4 h-4" />
             Install Now
-          </button>
-          <button
-            onClick={handleClose}
-            className="px-4 py-2 cursor-pointer text-gray-600 hover:text-gray-800 text-sm font-medium transition-colors bg-gray-200 hover:bg-gray-300 rounded-lg flex items-center justify-center gap-2"
-          >
-            Later
           </button>
         </div>
       </div>

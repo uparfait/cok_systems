@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { statisticsService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { useToast } from '../../../core/contexts/ToastContext';
+import { figuresOf } from './sdAdmin/sdVisits';
+import type { VisitorFigures } from './sdAdmin/sdVisits';
+import { VisitorFiguresRow } from './sdAdmin/SdVisitorParts';
 import {
   FiTrendingUp, FiRefreshCw, FiUsers,
   FiTruck, FiCheckCircle, FiPieChart
@@ -72,6 +75,7 @@ const Analytics: React.FC = () => {
   const [activityData, setActivityData] = useState<ActivityPoint[]>([]);
   const [employeeStats, setEmployeeStats] = useState<any>({});
   const [feedbackData, setFeedbackData] = useState<FeedbackData | null>(null);
+  const [figures, setFigures] = useState<VisitorFigures>({});
 
   const fetchAnalyticsData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -83,6 +87,7 @@ const Analytics: React.FC = () => {
       });
       const timeline = (timelineRes as any)?.data;
       setActivityData(Array.isArray(timeline) ? timeline : []);
+      setFigures(figuresOf((timelineRes as any)?.totals));
 
       const empStatsRes = await statisticsService.getEmployeeStats();
       setEmployeeStats((empStatsRes as any)?.data || empStatsRes || {});
@@ -104,11 +109,13 @@ const Analytics: React.FC = () => {
     }
   }, [authLoading, isAuthenticated, navigate]);
 
+  const fetchRef = useRef(fetchAnalyticsData);
+  fetchRef.current = fetchAnalyticsData;
+
   useEffect(() => {
     if (isAuthenticated && !authLoading && period !== 'range') {
-      fetchAnalyticsData();
+      fetchRef.current();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, authLoading, period]);
 
   const handleApply = () => {
@@ -159,14 +166,18 @@ const Analytics: React.FC = () => {
           </select>
           {period === 'range' && (
             <>
+              <label htmlFor="analytics-range-from" className="text-xs text-[#555555] cok-req">From</label>
               <input
+                id="analytics-range-from"
                 type="date"
                 value={rangeFrom}
                 onChange={(e) => setRangeFrom(e.target.value)}
                 className="cok-auth-input w-full sm:w-auto pr-2 py-2 text-sm"
                 style={{ paddingLeft: '10px', minHeight: '38px' }}
               />
+              <label htmlFor="analytics-range-to" className="text-xs text-[#555555]">To</label>
               <input
+                id="analytics-range-to"
                 type="date"
                 value={rangeTo}
                 onChange={(e) => setRangeTo(e.target.value)}
@@ -220,7 +231,7 @@ const Analytics: React.FC = () => {
           <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-[#555555]">Service Visitors</p>
+                <p className="text-xs text-[#555555]">Service Visits</p>
                 {(loading && firstLoad) ? (
                   <div className="h-8 w-16 bg-[#E0E0E0] animate-pulse mt-1"></div>
                 ) : (
@@ -276,6 +287,8 @@ const Analytics: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <VisitorFiguresRow figures={figures} loading={loading && firstLoad} uniqueHint={`People checked in - ${periodCaption}`} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>

@@ -1,4 +1,4 @@
-// One-time cleanup: normalize every stored plate number to UPPERCASE with no spaces
+// One-time cleanup: normalize every stored plate number to the gate rule (upper case letters and digits only)
 // so reservation lookups at verify/check-in always match.
 // Run from the backend folder:  node scripts/normalize_plate_numbers.js
 const connect_db = require('../db_connection/main');
@@ -7,7 +7,7 @@ const EmergencyCar = require('../models/emergency_car');
 const EmergencyCarHistory = require('../models/emergency_car_history');
 const ParkingRecord = require('../models/parking_record');
 
-const normalizePlate = (p) => String(p || '').toUpperCase().replace(/\s+/g, '');
+const { normalizePlate } = require('../utilities/visitors/normalize.js');
 
 (async () => {
     const conn = await connect_db();

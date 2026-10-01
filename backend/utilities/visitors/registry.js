@@ -51,7 +51,8 @@ async function findMatches(input, excludeId = null) {
         .filter((spec) => !!spec.value);
     if (checks.length === 0) return [];
 
-    const filter = { $or: checks.map((spec) => ({ [spec.path]: spec.value })) };
+    // $type matches the partial unique indexes' filter, so each branch uses its index
+    const filter = { $or: checks.map((spec) => ({ [spec.path]: { $eq: spec.value, $type: 'string' } })) };
     if (excludeId) filter._id = { $ne: excludeId };
 
     const found = await Visitor.find(filter)

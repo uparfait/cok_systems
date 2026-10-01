@@ -72,7 +72,7 @@ const FileViewer: React.FC<{ msg: ChatMessage; onClose: () => void }> = ({ msg, 
           </div>
         )}
       </div>
-    </div>
+    </OverlayShell>
   );
 };
 const FiPlusIcon: React.FC = () => (
@@ -141,14 +141,12 @@ const ChatWidget: React.FC = () => {
   const isAuthed = !!token && !!user;
   const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:2026');
 
-  // ── ALL HOOKS BEFORE EARLY RETURN ──
   useEffect(() => { tabRef.current = tab; }, [tab]);
   useEffect(() => { selUserRef.current = selectedUser; }, [selectedUser]);
   useEffect(() => { setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100); }, [messages.length]);
   useEffect(() => { if (showScrollBtn) { const btn = document.getElementById('scroll-btn'); if (btn) btn.style.display = 'flex'; } }, [showScrollBtn]);
   useEffect(() => { const handler = () => setContextMenu(null); if (contextMenu) { document.addEventListener('click', handler); return () => document.removeEventListener('click', handler); } }, [contextMenu]);
 
-  // Data fetching - fetchUsers
   useEffect(() => {
     fetchUsersRef.current = () => {
       if (!socket || !isConnected || !isAuthed || !user) return;
@@ -161,7 +159,6 @@ const ChatWidget: React.FC = () => {
     };
   }, [socket, isConnected, isAuthed, emit, user]);
 
-  // Data fetching - loadGlobal
   useEffect(() => {
     loadGlobalRef.current = (p = 0) => {
       if (!socket || !isConnected || !isAuthed) return;
@@ -178,7 +175,6 @@ const ChatWidget: React.FC = () => {
     };
   }, [socket, isConnected, isAuthed, emit]);
 
-  // Data fetching - loadConversation
   useEffect(() => {
     loadConvRef.current = (uid: string, p = 0) => {
       if (!socket || !isConnected || !isAuthed) return;
@@ -196,7 +192,6 @@ const ChatWidget: React.FC = () => {
     };
   }, [socket, isConnected, isAuthed, emit]);
 
-  // Socket listeners
   useEffect(() => {
     if (!socket || !isConnected || !isAuthed || !user) return;
     const onGlobalMsgs = (data: ChatMessage[] | SocketResponse<ChatMessage>) => {
@@ -241,21 +236,18 @@ const ChatWidget: React.FC = () => {
     };
   }, [socket, isConnected, isAuthed, user, on, off]);
 
-  // Tab switching - use ref to avoid direct setState in effect
   useEffect(() => {
     if (!isOpen || !isAuthed) return;
     if (tab === 'global') loadGlobalRef.current(0);
     else { setMessages([]); setSelectedUser(null); fetchUsersRef.current(); }
   }, [tab, isOpen, isAuthed]);
 
-  // ── Derived data (useMemo must be BEFORE early return) ──
   const conversationList: Conversation[] = useMemo(() => {
     return users.filter(u => !searchQuery || u.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase()))
       .map(u => { const msgs = cache.inbox[u.userId] || []; const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null; return { userId: u.userId, user: u, lastMessage: lastMsg, unreadCount: unreadByUser[u.userId] || 0 }; })
       .sort((a, b) => { const aOn = connectedUsers.includes(a.userId) ? 1 : 0; const bOn = connectedUsers.includes(b.userId) ? 1 : 0; if (aOn !== bOn) return bOn - aOn; if (a.lastMessage && b.lastMessage) return new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime(); if (a.lastMessage) return -1; if (b.lastMessage) return 1; return a.user.full_name.localeCompare(b.user.full_name); });
   }, [users, cache.inbox, unreadByUser, connectedUsers, searchQuery]);
 
-  // ── EARLY RETURN ──
   if (!isAuthed) return null;
 
   const myId = String(user?.userId || '');
@@ -361,15 +353,15 @@ const ChatWidget: React.FC = () => {
       </button>
       {isOpen && (
         <div className={`fixed ${isFullScreen ? 'inset-0 rounded-none' : 'bottom-24 right-6 w-[400px] h-[650px] rounded-2xl'} bg-white shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-200 animate-in`}>
-          <div className="flex items-center justify-between px-4 py-3 bg-[#075e54] text-white flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 bg-white text-gray-900 border-b border-gray-100 flex-shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center"><FiMessageSquare className="w-5 h-5" /></div>
-              <div><h3 className="font-semibold text-sm">WhatsApp Chat</h3><p className="text-[10px] text-white/70">{isConnected ? `${connectedUsers.length} online` : 'Connecting...'}</p></div>
+              <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center"><FiMessageSquare className="w-5 h-5" /></div>
+              <div><h3 className="font-semibold text-sm text-gray-900">WhatsApp Chat</h3><p className="text-[10px] text-gray-500">{isConnected ? `${connectedUsers.length} online` : 'Connecting...'}</p></div>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => setTab(tab === 'global' ? 'inbox' : 'global')} className="w-8 h-8 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors">{tab === 'global' ? <FiUsers className="w-4 h-4" /> : <FiGlobe className="w-4 h-4" />}</button>
-              <button onClick={() => setIsFullScreen(!isFullScreen)} className="w-8 h-8 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors">{isFullScreen ? <FiMinimize2 className="w-4 h-4" /> : <FiMaximize2 className="w-4 h-4" />}</button>
-              <button onClick={() => setIsOpen(false)} className="w-8 h-8 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors"><FiX className="w-4 h-4" /></button>
+              <button onClick={() => setTab(tab === 'global' ? 'inbox' : 'global')} className="w-8 h-8 rounded-lg text-gray-600 hover:bg-gray-100 flex items-center justify-center transition-colors">{tab === 'global' ? <FiUsers className="w-4 h-4" /> : <FiGlobe className="w-4 h-4" />}</button>
+              <button onClick={() => setIsFullScreen(!isFullScreen)} className="w-8 h-8 rounded-lg text-gray-600 hover:bg-gray-100 flex items-center justify-center transition-colors">{isFullScreen ? <FiMinimize2 className="w-4 h-4" /> : <FiMaximize2 className="w-4 h-4" />}</button>
+              <OverlayCloseButton onClick={() => setIsOpen(false)} />
             </div>
           </div>
           <div className="flex bg-[#f0f0f0] flex-shrink-0">
@@ -471,7 +463,18 @@ const ChatWidget: React.FC = () => {
           {showGifPicker && <div className="absolute bottom-16 right-4 z-50 shadow-2xl rounded-xl overflow-hidden"><button onClick={() => setShowGifPicker(false)} className="absolute top-2 right-2 z-10 bg-black/50 rounded-full p-1"><FiX className="w-4 h-4 text-white" /></button><GifPicker tenorApiKey={import.meta.env.VITE_TENOR_API_KEY || 'YOUR_TENOR_API_KEY'} onGifClick={onGifSelect} width={350} /></div>}
         </div>
       )}
-      {editModalOpen && <div className="fixed inset-0 z-[200] bg-black/50 flex items-center justify-center" onClick={() => setEditModalOpen(false)}><div className="bg-white rounded-2xl p-6 w-96 shadow-2xl" onClick={e => e.stopPropagation()}><h3 className="text-lg font-semibold mb-3">Edit Message</h3><textarea value={editTextVal} onChange={e => setEditTextVal(e.target.value)} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-[#075e54] text-sm resize-none" /><div className="flex gap-2 justify-end mt-3"><button onClick={() => setEditModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button><button onClick={submitEdit} className="px-4 py-2 text-sm bg-[#075e54] text-white rounded-lg hover:bg-[#064e45]">Save</button></div></div></div>}
+      {editModalOpen && (
+        <OverlayShell
+          title="Edit Message"
+          onClose={() => setEditModalOpen(false)}
+          width="sm"
+          zIndex={200}
+          footer={<button onClick={submitEdit} className="px-4 py-2 text-sm bg-[#075e54] text-white rounded-lg hover:bg-[#064e45]">Save</button>}
+        >
+          <label htmlFor="chat-edit-message" className="block text-sm font-medium text-gray-700 mb-1 cok-req">Message</label>
+          <textarea id="chat-edit-message" value={editTextVal} onChange={e => setEditTextVal(e.target.value)} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-[#075e54] text-sm resize-none" />
+        </OverlayShell>
+      )}
       {contextMenu && <div className="fixed z-[150] bg-white rounded-xl shadow-2xl border border-gray-200 py-1 min-w-[160px]" style={{ left: contextMenu.x, top: contextMenu.y }}>
         <button onClick={() => { setReplyToMsg(contextMenu.msg); inputRef.current?.focus(); setContextMenu(null); }} className="w-full px-4 py-2 text-sm text-left hover:bg-gray-100 flex items-center gap-2"><FiReplyIconMd />Reply</button>
         {contextMenu.msg.sender.userId === myId && <><button onClick={() => handleEdit(contextMenu.msg)} className="w-full px-4 py-2 text-sm text-left hover:bg-gray-100 flex items-center gap-2"><FiEdit2 className="w-4 h-4" />Edit</button><button onClick={() => handleDelete(contextMenu.msg, true)} className="w-full px-4 py-2 text-sm text-left hover:bg-gray-100 flex items-center gap-2 text-red-600"><FiTrash2 className="w-4 h-4" />Delete for everyone</button><button onClick={() => handleDelete(contextMenu.msg, false)} className="w-full px-4 py-2 text-sm text-left hover:bg-gray-100 flex items-center gap-2 text-red-600"><FiX className="w-4 h-4" />Delete for me</button></>}
@@ -479,7 +482,16 @@ const ChatWidget: React.FC = () => {
         <button onClick={() => { openFileUrl(contextMenu.msg.fileUrl); setContextMenu(null); }} className="w-full px-4 py-2 text-sm text-left hover:bg-gray-100 flex items-center gap-2"><FiDownload className="w-4 h-4" />Download</button>
       </div>}
       {viewerMsg && <FileViewer msg={viewerMsg} onClose={() => setViewerMsg(null)} />}
-      {viewOnceMsg && <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center" onClick={() => setViewOnceMsg(null)}><div className="relative" onClick={e => e.stopPropagation()}><button onClick={() => setViewOnceMsg(null)} className="absolute -top-10 right-0 text-white"><FiX className="w-6 h-6" /></button><p className="text-white text-center mb-4">View once media - will auto-delete</p>{viewOnceMsg.mimeType?.startsWith('image/') && <img src={viewOnceMsg.fileUrl} className="max-w-[80vw] max-h-[70vh] rounded-lg" />}{viewOnceMsg.mimeType?.startsWith('video/') && <video src={viewOnceMsg.fileUrl} controls autoPlay className="max-w-[80vw] max-h-[70vh] rounded-lg" />}{viewOnceMsg.mimeType?.startsWith('audio/') && <audio src={viewOnceMsg.fileUrl} controls autoPlay className="w-80" />}<p className="text-gray-400 text-xs text-center mt-4">This message has been viewed and will be deleted</p></div></div>}
+      {viewOnceMsg && (
+        <OverlayShell title="View once media - will auto-delete" onClose={() => setViewOnceMsg(null)} width="lg" zIndex={100}>
+          <div className="flex flex-col items-center">
+            {viewOnceMsg.mimeType?.startsWith('image/') && <img src={viewOnceMsg.fileUrl} className="max-w-full max-h-[70vh] rounded-lg" />}
+            {viewOnceMsg.mimeType?.startsWith('video/') && <video src={viewOnceMsg.fileUrl} controls autoPlay className="max-w-full max-h-[70vh] rounded-lg" />}
+            {viewOnceMsg.mimeType?.startsWith('audio/') && <audio src={viewOnceMsg.fileUrl} controls autoPlay className="w-80" />}
+            <p className="text-gray-500 text-xs text-center mt-4">This message has been viewed and will be deleted</p>
+          </div>
+        </OverlayShell>
+      )}
       <style>{`@keyframes slideIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}.animate-in{animation:slideIn .3s ease-out}.overflow-y-auto::-webkit-scrollbar{width:4px}.overflow-y-auto::-webkit-scrollbar-track{background:transparent}.overflow-y-auto::-webkit-scrollbar-thumb{background:#c1c1c1;border-radius:2px}.overflow-y-auto::-webkit-scrollbar-thumb:hover{background:#a1a1a1}`}</style>
     </>
   );

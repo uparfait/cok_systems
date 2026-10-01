@@ -1,7 +1,3 @@
-// Employee Modals Wrapper Component
-// This component combines all employee modals and manages their state
-
-import { useState, useEffect } from "react";
 import { ViewEmployeeModal, EditEmployeeModal, DeleteEmployeeModal, AddEmployeeModal } from "./EmployeeModals";
 
 interface DepartmentEmployee {
@@ -39,8 +35,10 @@ interface EmployeeModalsWrapperProps {
   setShowDeleteModal: (show: boolean) => void;
   setShowAddModal: (show: boolean) => void;
   onSave: (employee: Employee) => void;
-  onDelete: () => void;
+  onDelete: () => void | Promise<void>;
 }
+
+const initialsOf = (name?: string) => (name || '').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase();
 
 export const EmployeeModalsWrapper: React.FC<EmployeeModalsWrapperProps> = ({
   showViewModal,
@@ -55,39 +53,6 @@ export const EmployeeModalsWrapper: React.FC<EmployeeModalsWrapperProps> = ({
   onSave,
   onDelete,
 }) => {
-  // Local state for editing
-  const [editFormData, setEditFormData] = useState<Partial<Employee>>({});
-  const [addFormData, setAddFormData] = useState<Partial<Employee>>({});
-
-  // Initialize edit form when modal opens
-  useEffect(() => {
-    if (showEditModal && selectedEmployee) {
-      setEditFormData({
-        name: selectedEmployee.name,
-        email: selectedEmployee.email,
-        phone: selectedEmployee.phone,
-        role: selectedEmployee.role,
-        department: selectedEmployee.department,
-        status: selectedEmployee.status,
-      });
-    }
-  }, [showEditModal, selectedEmployee]);
-
-  // Initialize add form when modal opens
-  useEffect(() => {
-    if (showAddModal) {
-      setAddFormData({
-        name: '',
-        email: '',
-        phone: '',
-        role: 'Staff',
-        department: 'Service Delivery',
-        status: 'available',
-      });
-    }
-  }, [showAddModal]);
-
-  // Convert Employee to DepartmentEmployee for modal
   const convertToDepartmentEmployee = (emp: Employee | null): DepartmentEmployee | null => {
     if (!emp) return null;
     return {
@@ -97,7 +62,7 @@ export const EmployeeModalsWrapper: React.FC<EmployeeModalsWrapperProps> = ({
       email: emp.email,
       title: emp.role,
       status: emp.status === 'available' ? 'Active' : 'Away',
-      initials: emp.initials || emp.name.split(' ').map(n => n[0]).join('').toUpperCase(),
+      initials: emp.initials || initialsOf(emp.name),
       phone: emp.phone,
       department: emp.department,
     };
@@ -105,75 +70,60 @@ export const EmployeeModalsWrapper: React.FC<EmployeeModalsWrapperProps> = ({
 
   const departmentEmployee = convertToDepartmentEmployee(selectedEmployee);
 
-  // Handle edit save
-  const handleEditSave = () => {
-    if (selectedEmployee && editFormData) {
-      onSave({
-        ...selectedEmployee,
-        ...editFormData,
-        initials: editFormData.name?.split(' ').map(n => n[0]).join('').toUpperCase(),
-      } as Employee);
-      setShowEditModal(false);
-    }
+  const handleEditSave = (updated: DepartmentEmployee) => {
+    if (!selectedEmployee) return;
+    onSave({
+      ...selectedEmployee,
+      name: updated.name,
+      role: updated.title,
+      email: updated.email,
+      initials: initialsOf(updated.name) || selectedEmployee.initials,
+    });
   };
 
-  // Handle add save
-  const handleAddSave = () => {
-    if (addFormData.name && addFormData.email) {
-      const newEmployee: Employee = {
-        id: Date.now().toString(),
-        name: addFormData.name || '',
-        email: addFormData.email || '',
-        phone: addFormData.phone || '',
-        role: addFormData.role || 'Staff',
-        department: addFormData.department || 'Service Delivery',
-        status: addFormData.status || 'available',
-        initials: addFormData.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'NE',
-      };
-      onSave(newEmployee);
-      setShowAddModal(false);
-    }
+  const handleAdd = (added: { name: string; email: string; title: string; phone: string; gender: string; department: string }) => {
+    onSave({
+      id: Date.now().toString(),
+      name: added.name,
+      email: added.email,
+      phone: added.phone,
+      role: added.title || 'Staff',
+      department: added.department,
+      status: 'available',
+      initials: initialsOf(added.name) || 'NE',
+    });
+  };
+
+  const handleDelete = async () => {
+    await onDelete();
   };
 
   return (
     <>
-      {/* View Modal */}
       <ViewEmployeeModal
         isOpen={showViewModal}
         onClose={() => setShowViewModal(false)}
         employee={departmentEmployee}
       />
 
-      {/* Edit Modal */}
       <EditEmployeeModal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         employee={departmentEmployee}
-        onSave={(employee) => {
-          console.log('Save employee:', employee);
-          setShowEditModal(false);
-        }}
+        onSave={handleEditSave}
       />
 
-      {/* Delete Modal */}
       <DeleteEmployeeModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         employee={departmentEmployee}
-        onDelete={async () => {
-          console.log('Delete employee');
-          setShowDeleteModal(false);
-        }}
+        onDelete={handleDelete}
       />
 
-      {/* Add Modal */}
       <AddEmployeeModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onAdd={(employee) => {
-          console.log('Add employee:', employee);
-          setShowAddModal(false);
-        }}
+        onAdd={handleAdd}
       />
     </>
   );

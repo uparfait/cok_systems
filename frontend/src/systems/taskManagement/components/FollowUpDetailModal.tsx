@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FiTrash2, FiX } from 'react-icons/fi'
+import { FiTrash2 } from 'react-icons/fi'
 import AttachmentViewer from './AttachmentViewer'
-import ConfirmDialog from '../../event-managment/components/sub-components/ConfirmDialog'
+import ConfirmationModal from './ConfirmationModal'
+import OverlayCloseButton from '../../../core/components/overlay/OverlayCloseButton'
 import { useAuth } from '../../../core/contexts/AuthContext'
 import { useToast } from '../../../core/contexts/ToastContext'
 import { employeeService, type Employee } from '../../../core/services/employeeService'
@@ -255,39 +256,34 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
 
   const history = [...(followup.statusHistory || [])].reverse()
 
+  const busy = loading || savingEdit || savingStatus
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center z-50 px-3 md:px-4 pb-6 overflow-y-auto" style={{ paddingTop: '96px' }}>
-      <div className="w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0 }}>
-        <div className="px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0" style={{ backgroundColor: PRIMARY }}>
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-white truncate" style={{ fontFamily: fontHeading }}>
+      <div className="w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden shadow-xl" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0 }}>
+        <div className="flex items-start gap-3 px-4 sm:px-5 pt-4 pb-3 shrink-0 border-b border-gray-100">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold text-gray-900 truncate" style={{ fontFamily: fontHeading }}>
               {followup.title}
             </h2>
-            <p className="text-white/80 text-xs mt-0.5">Follow-up</p>
+            <p className="text-gray-500 text-xs mt-0.5">Follow-up</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0 ml-3">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setConfirmDeleteOpen(true)}
               disabled={loading}
               title="Delete follow-up"
-              className="cok-btn-outlined-reverse disabled:opacity-50"
+              className="cok-btn-outlined-danger disabled:opacity-50"
               style={{ padding: '0.4rem 0.8rem' }}
             >
               {loading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
               ) : (
                 <FiTrash2 className="w-4 h-4" />
               )}
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="cok-btn-outlined-reverse"
-              style={{ padding: '0.4rem 0.8rem' }}
-            >
-              <FiX className="w-4 h-4" />
-            </button>
+            <OverlayCloseButton onClick={onClose} disabled={busy} />
           </div>
         </div>
 
@@ -342,7 +338,7 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
                   </div>
                   <div className="p-4 space-y-3">
                     <div>
-                      <label style={labelStyle}>Title <span style={{ color: DANGER }}>*</span></label>
+                      <label className="cok-req" style={labelStyle}>Title</label>
                       <input
                         type="text" maxLength={200}
                         value={editForm.title}
@@ -351,7 +347,7 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
                       />
                     </div>
                     <div>
-                      <label style={labelStyle}>Description <span style={{ color: DANGER }}>*</span></label>
+                      <label className="cok-req" style={labelStyle}>Description</label>
                       <textarea
                         rows={3} maxLength={2000}
                         value={editForm.actionDescription}
@@ -410,7 +406,7 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label style={labelStyle}>Assigned Name <span style={{ color: DANGER }}>*</span></label>
+                        <label className="cok-req" style={labelStyle}>Assigned Name</label>
                         <input
                           type="text" maxLength={200}
                           value={editForm.assignedPerson.name}
@@ -419,7 +415,7 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
                         />
                       </div>
                       <div>
-                        <label style={labelStyle}>Assigned Email <span style={{ color: DANGER }}>*</span></label>
+                        <label className="cok-req" style={labelStyle}>Assigned Email</label>
                         <input
                           type="email" maxLength={300}
                           value={editForm.assignedPerson.email}
@@ -439,7 +435,7 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
                     </div>
 
                     <div>
-                      <label style={labelStyle}>Due Date <span style={{ color: DANGER }}>*</span></label>
+                      <label className="cok-req" style={labelStyle}>Due Date</label>
                       <input
                         type="datetime-local"
                         value={editForm.dueDate}
@@ -548,8 +544,8 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
                   )}
 
                   <div>
-                    <label style={labelStyle}>
-                      Status <span style={{ color: DANGER }}>*</span>
+                    <label className="cok-req" style={labelStyle}>
+                      Status
                     </label>
                     <select
                       value={chosenStatus}
@@ -567,8 +563,8 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
                   </div>
 
                   <div>
-                    <label style={labelStyle}>
-                      Description <span style={{ color: DANGER }}>*</span>
+                    <label className="cok-req" style={labelStyle}>
+                      Description
                     </label>
                     <textarea
                       rows={3}
@@ -721,13 +717,15 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
           />
         )}
 
-        <ConfirmDialog
-          open={confirmDeleteOpen}
+        <ConfirmationModal
+          isOpen={confirmDeleteOpen}
           title="Delete Follow-up"
           message={`You are about to delete "${followup.title}". This cannot be undone.`}
-          busy={loading}
+          confirmText="Delete"
+          type="danger"
+          loading={loading}
           onConfirm={handleDelete}
-          onCancel={() => setConfirmDeleteOpen(false)}
+          onClose={() => setConfirmDeleteOpen(false)}
         />
       </div>
     </div>

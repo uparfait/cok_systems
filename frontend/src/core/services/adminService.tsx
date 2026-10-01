@@ -357,8 +357,6 @@ export const serviceDeliveryService = {
   searchVisitors: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
   getVisitorById: (id: string) => get(`/servicedelivery/visitor/${id}`),
-  getVisitorByIdentification: (id_type: string, id_number: string) =>
-    get(`/servicedelivery/visitor/by/identification/gate?id_type=${encodeURIComponent(id_type)}&id_number=${encodeURIComponent(id_number)}`),
   checkIn: (data: any) => post('/servicedelivery/visitor/checkin', data),
   checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { visitor_id: id }),
   toggleStatus: (visitorId: string, departmentId: string, status: string, providerId?: string, providerName?: string) => post(`/servicedelivery/visitor/service/status`, { visitor_id: visitorId, department_id: departmentId, status, provider_id: providerId, provider_name: providerName }),
@@ -389,7 +387,6 @@ export const serviceDeliveryService = {
   emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return`, { visitor_id: id, ...data }),
   partialExit: (visitorId: string) => post('/servicedelivery/visitor/partial-exit', { visitor_id: visitorId }),
   returnVisitor: (visitorId: string) => post('/servicedelivery/visitor/return', { visitor_id: visitorId }),
-  returnWithBadge: (visitorId: string) => post('/servicedelivery/visitor/return', { visitor_id: visitorId }),
   update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
   updateServiceStatus: (data: any) => post(`/servicedelivery/visitor/service/status`, data),
   getActiveTasks: (page: number = 1, limit: number = 10, search?: string) => {
@@ -545,7 +542,7 @@ export const parkingService = {
           } else { hoursDiff = (now.getTime() - entryTime.getTime()) / (1000 * 60 * 60); }
           const hours = Math.floor(hoursDiff);
           const minutes = Math.floor((hoursDiff - hours) * 60);
-          return { plate_no: r.plate_number || r.plate_no || 'N/A', entry_time: r.check_in || r.entry_date || r.createdAt, check_out: r.check_out || null, duration: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`, duration_hours: hoursDiff, driver_name: r.driver_name || 'Unknown', driver_telephone: r.driver_telephone || '', driver_identification: r.driver_identification || null, driver_gender: r.driver_gender || '', N_visits: r.N_visits || 0, visitor_id: r.visitor_id || null, driver_type: r.driver_type || 'Unknown', is_flagged: r.is_flagged || false, status: r.status || 'active', _id: r._id };
+          return { plate_no: r.plate_number || r.plate_no || 'N/A', entry_time: r.check_in || r.entry_date || r.createdAt, check_out: r.check_out || null, duration: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`, duration_hours: hoursDiff, driver_name: r.driver_name || 'Unknown', driver_telephone: r.driver_telephone || '', driver_email: r.driver_email || '', driver_identification: r.driver_identification || null, driver_gender: r.driver_gender || '', N_visits: r.N_visits || 0, visitor_id: r.visitor_id || null, driver_type: r.driver_type || 'Unknown', is_flagged: r.is_flagged || false, status: r.status || 'active', _id: r._id };
         }).sort((a: any, b: any) => b.duration_hours - a.duration_hours);
         return { success: true, data: longDuration };
       }
@@ -568,7 +565,7 @@ export const parkingService = {
           const hoursDiff = Math.max(0, (endTime.getTime() - entryTime.getTime()) / (1000 * 60 * 60));
           const hours = Math.floor(hoursDiff);
           const minutes = Math.floor((hoursDiff - hours) * 60);
-          return { plate_no: r.plate_number || r.plate_no || 'N/A', entry_time: r.check_in || r.entry_date || r.createdAt, exit_time: r.check_out || null, duration: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`, driver_name: r.driver_name || 'Unknown', driver_telephone: r.driver_telephone || '', driver_identification: r.driver_identification || null, driver_gender: r.driver_gender || '', N_visits: r.N_visits || 0, visitor_id: r.visitor_id || null, driver_type: r.driver_type || 'Unknown', is_flagged: true, status: r.status || 'active', _id: r._id };
+          return { plate_no: r.plate_number || r.plate_no || 'N/A', entry_time: r.check_in || r.entry_date || r.createdAt, exit_time: r.check_out || null, duration: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`, driver_name: r.driver_name || 'Unknown', driver_telephone: r.driver_telephone || '', driver_email: r.driver_email || '', driver_identification: r.driver_identification || null, driver_gender: r.driver_gender || '', N_visits: r.N_visits || 0, visitor_id: r.visitor_id || null, driver_type: r.driver_type || 'Unknown', is_flagged: true, status: r.status || 'active', _id: r._id };
         });
         return { success: true, data: flaggedActive, total: response.total || 0 };
       }
@@ -591,7 +588,6 @@ export const parkingService = {
   getFlagHistory: (page: number = 1, limit: number = 20, query: string = '') => get(`/smartparking/vehicle/flag-history?page=${page}&limit=${limit}${query ? `&query=${encodeURIComponent(query)}` : ''}`),
   registerSingle: (data: any) => post('/smartparking/register-single', data),
   bulkUpload: (formData: FormData) => post('/smartparking/bulk-upload', formData),
-  flagVehicle: (plateNumber: string, reason: string) => post('/smartparking/vehicle/flag', { plate_number: plateNumber, reason }),
   updateSlotConfig: (config: { totalSlots: number; staffReservedSlots: number; visitorReservedSlots: number }) => put('/smartparking/slots', config),
 };
 

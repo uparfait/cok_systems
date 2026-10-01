@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { FiCheckCircle, FiUser, FiFilter, FiMove, FiTrash2, FiPlus, FiShield } from "react-icons/fi";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { options_under_presets } from "../fields/presetFields.js";
-import OverlayCloseButton from "../../../core/components/overlay/OverlayCloseButton.tsx";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -504,7 +503,6 @@ export function LocationTrailPicker({ field_key, api_level, value, onChange, lan
  * no scaling, the map at its natural size.
  */
 function HierarchyOverlay({ title, onClose, empty, emptyText, children }) {
-  const { translate } = useDcsLanguage();
   React.useEffect(() => {
     const handle_key = (event) => {
       if (event.key === "Escape") onClose();
@@ -518,11 +516,13 @@ function HierarchyOverlay({ title, onClose, empty, emptyText, children }) {
       className="fixed inset-0 flex flex-col"
       style={{ backgroundColor: WHITE, zIndex: 9999999, userSelect: "none", WebkitUserSelect: "none" }}
     >
-      <div className="flex items-center justify-between gap-2 px-4 py-3 shrink-0" style={{ backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}` }}>
-        <p className="text-sm font-extrabold uppercase text-gray-900" style={{ fontFamily: fontHeading, letterSpacing: "-0.3px" }}>
+      <div className="flex items-center justify-between gap-2 px-4 py-3 shrink-0" style={{ backgroundColor: PRIMARY }}>
+        <p className="text-sm font-extrabold uppercase" style={{ color: "rgba(255,255,255,0.88)", fontFamily: fontHeading, letterSpacing: "-0.3px" }}>
           {title}
         </p>
-        <OverlayCloseButton onClick={onClose} label={translate("DCS_BTN_CLOSE")} />
+        <button type="button" onClick={onClose} className="dcs-approval-hier-btn text-lg leading-none">
+          ×
+        </button>
       </div>
       <div className="flex-1" style={{ overflow: "auto", minHeight: 0 }}>
         {empty ? (
@@ -1265,7 +1265,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                 .map((part, i, parts) => (
                   <React.Fragment key={i}>
                     {part}
-                    {i < parts.length - 1 && <span className="cok-req" />}
+                    {i < parts.length - 1 && <span style={{ color: DANGER }}>*</span>}
                   </React.Fragment>
                 ))}
             </p>
@@ -1328,19 +1328,19 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                          <label className="cok-req" style={labelStyle}>{translate("DCS_APPROVAL_FIELD_NAME")}</label>
+                          <label style={labelStyle}>{translate("DCS_APPROVAL_FIELD_NAME")} <span style={{ color: DANGER }}>*</span></label>
                           <input type="text" value={approver.name}
                             onChange={(event) => handle_approver_change(index, "name", event.target.value)}
                             className={inputClassName} />
                         </div>
                         <div>
-                          <label className="cok-req" style={labelStyle}>{translate("DCS_APPROVAL_FIELD_ROLE")}</label>
+                          <label style={labelStyle}>{translate("DCS_APPROVAL_FIELD_ROLE")} <span style={{ color: DANGER }}>*</span></label>
                           <input type="text" value={approver.role}
                             onChange={(event) => handle_approver_change(index, "role", event.target.value)}
                             className={inputClassName} />
                         </div>
                         <div>
-                          <label className="cok-req" style={labelStyle}>{translate("DCS_APPROVAL_FIELD_EMAIL")}</label>
+                          <label style={labelStyle}>{translate("DCS_APPROVAL_FIELD_EMAIL")} <span style={{ color: DANGER }}>*</span></label>
                           <input type="email" value={approver.email}
                             onChange={(event) => handle_approver_change(index, "email", event.target.value)}
                             className={inputClassName}
@@ -1548,7 +1548,14 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                             <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
                               {popup_field ? field_label(popup_field, language) : ""}
                             </p>
-                            <OverlayCloseButton onClick={() => set_popup_group(null)} label={translate("DCS_BTN_CLOSE")} />
+                            <button
+                              type="button"
+                              onClick={() => set_popup_group(null)}
+                              className="p-1 text-lg leading-none"
+                              style={{ color: GRAY, cursor: "pointer" }}
+                            >
+                              ×
+                            </button>
                           </div>
                           {/* Only this list scrolls when there are many */}
                           <div className="space-y-1 px-4 py-3 overflow-y-auto" style={{ flex: "1 1 auto", minHeight: 0 }}>

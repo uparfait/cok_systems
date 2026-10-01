@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { FiX } from 'react-icons/fi';
 import outgoingService from '../../../core/services/outgoingService';
 import type { OutgoingDoc } from '../../../core/services/outgoingService';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 import { useToast } from '../../../core/contexts/ToastContext';
+import OverlayShell from '../overlay/OverlayShell';
 
 const OutgoingForm: React.FC<{
   onClose: () => void;
@@ -74,28 +74,32 @@ const OutgoingForm: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col"
-        style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
-      >
-        <div
-          className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary"
-          style={{ borderRadius: 0 }}
+    <OverlayShell
+      title={outgoing ? 'Edit Outgoing' : 'New Outgoing'}
+      onClose={onClose}
+      busy={loading}
+      width="lg"
+      closeOnBackdrop={false}
+      footer={
+        <button
+          type="submit"
+          onClick={handleSubmit}
+          disabled={loading}
+          className="cok-btn-primary flex max-h-[50px] flex-row items-center justify-center gap-2"
+          style={{ padding: '0.7rem 1.2rem', width: 'auto' }}
         >
-          <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-            {outgoing ? 'Edit Outgoing' : 'New Outgoing'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="cok-btn-outlined-reverse"
-            style={{ padding: '0.4rem 0.8rem' }}
-          >
-            <FiX className="w-4 h-4" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+          {loading ? (
+            <>
+              <SpiralLoader color="#FFFFFF" />
+              Saving...
+            </>
+          ) : (
+            'Save'
+          )}
+        </button>
+      }
+    >
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: '#555555', fontFamily: "'Montserrat', sans-serif" }}>
@@ -191,37 +195,7 @@ const OutgoingForm: React.FC<{
             />
           </div>
         </form>
-
-        <div className="p-4 sm:p-6 pt-2 flex flex-col gap-3 border-t" style={{ borderColor: '#E0E0E0' }}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-            <button
-              type="submit"
-              onClick={handleSubmit}
-              disabled={loading}
-              className="cok-btn-primary flex max-h-[50px] flex-row items-center justify-center gap-2"
-              style={{ padding: '0.7rem 1.2rem', width: 'auto' }}
-            >
-              {loading ? (
-                <>
-                  <SpiralLoader color="#FFFFFF" />
-                  Saving...
-                </>
-              ) : (
-                'Save'
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="cok-btn-outlined"
-              style={{ width: 'auto', padding: '0.7rem 1.2rem' }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    </OverlayShell>
   );
 };
 

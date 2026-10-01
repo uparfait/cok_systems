@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
-  FiX,
   FiUsers,
   FiLoader,
   FiClock,
@@ -16,8 +15,8 @@ import {
   FiBriefcase,
 } from 'react-icons/fi';
 import { COK, CokTh, CokTableEmpty } from '../mayorCok';
+import OverlayShell from '../../../../core/components/overlay/OverlayShell';
 
-// Employee-account design constants (same values as EmployeeDashboard / DepartmentQueueTab)
 const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';
 const fontHeading = COK.headingFont;
 
@@ -40,7 +39,6 @@ export interface MayorCalendarEvent {
   occurrenceDate?: string;
 }
 
-// Summary of the X.509 signature the attendance API returns; the pinned/matched flags are optional
 interface CertificateSignatureSummary {
   subjectCommonName?: string;
   subjectOrganization?: string;
@@ -69,15 +67,12 @@ interface AttendanceRecord {
   createdAt?: string;
 }
 
-// Drawn signatures live in attendeeSignature (base64); uploaded ones are stored
-// in digitalCertificate as a served file URL - display whichever exists
 function signatureImageSrc(a: AttendanceRecord): string | null {
   if (a.attendeeSignature) return a.attendeeSignature;
   if (a.digitalCertificate && /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(a.digitalCertificate)) return a.digitalCertificate;
   return null;
 }
 
-// Caption naming the certificate holder; the signature itself was checked before the row was stored
 function CertificateCaption({ cert }: { cert?: CertificateSignatureSummary }) {
   if (!cert?.subjectCommonName) return null;
   return (
@@ -109,9 +104,6 @@ function formatSubmittedAt(iso?: string): string {
     + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-// Detail card following the CoK design rules: white square card with soft shadow,
-// gray uppercase label, bold neutral-dark value, and a uniform primary-blue icon
-// in a tinted square at the top-right - no per-card accent colors
 function DetailCard({
   label,
   value,
@@ -149,7 +141,6 @@ export default function MayorEventDetailsOverlay({
   window: { start?: string; end?: string };
   onClose: () => void;
 }) {
-  // The calendar API splits multi-day events into one slice per day; use the merged window
   const start = mergedWindow.start || event.startTime;
   const end = mergedWindow.end || event.endTime;
   const now = Date.now();
@@ -169,7 +160,6 @@ export default function MayorEventDetailsOverlay({
             ? STATUS_BADGES.past
             : STATUS_BADGES[event.eventStatus || ''] || { label: 'Scheduled', color: COK.primary };
 
-  // Attendance can be viewed once the event has started
   const canViewAttendance =
     !event.isCancelled && event.eventStatus !== 'recurring' && !!event.eventSpecialId && !isNaN(startMs) && startMs <= now;
 
@@ -212,72 +202,46 @@ export default function MayorEventDetailsOverlay({
   ) : 'N/A';
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(51,51,51,0.5)' }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-4xl max-h-[92vh] overflow-y-auto"
-        style={{ backgroundColor: COK.neutralLight, boxShadow: CARD_SHADOW, borderRadius: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Event details"
-      >
-        {/* Header - solid CoK-blue bar with the meeting/event name, status chips, and actions */}
-        <div
-          className="flex items-start justify-between gap-3 p-5 sticky top-0 z-10"
-          style={{ backgroundColor: COK.primary }}
-        >
-          <div className="min-w-0">
-            <h3
-              className="truncate"
-              style={{ fontFamily: fontHeading, fontSize: 20, fontWeight: 800, letterSpacing: '-0.3px', color: '#FFFFFF', margin: 0 }}
-            >
-              {event.eventName || 'Untitled Event'}
-            </h3>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {[
-                badge.label,
-                event.eventMeetingType === 'meet' ? 'Meeting' : 'Event',
-                ...(event.eventType ? [event.eventType] : []),
-              ].map((label) => (
-                <span
-                  key={label}
-                  className="px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide"
-                  style={{ fontFamily: fontHeading, backgroundColor: 'rgba(255,255,255,0.15)', color: '#FFFFFF' }}
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {canViewAttendance && (
-              <button
-                type="button"
-                onClick={() => setShowAttendance((v) => !v)}
-                className="flex items-center gap-2 px-4 py-2.5 text-white text-xs font-semibold uppercase transition-colors hover:bg-[rgba(255,255,255,0.12)]"
-                style={{ backgroundColor: 'transparent', border: '1px solid #FFFFFF', fontFamily: fontHeading, letterSpacing: '1px', borderRadius: 0, cursor: 'pointer' }}
+    <OverlayShell
+      title={event.eventName || 'Untitled Event'}
+      onClose={onClose}
+      width="xl"
+      bodyClassName="space-y-4 bg-[#F7F9FB]"
+      headerExtra={
+        <div className="flex items-center justify-between gap-2 flex-wrap px-4 sm:px-5 py-2 border-b border-gray-100">
+          <div className="flex items-center gap-2 flex-wrap">
+            {[
+              badge.label,
+              event.eventMeetingType === 'meet' ? 'Meeting' : 'Event',
+              ...(event.eventType ? [event.eventType] : []),
+            ].map((label) => (
+              <span
+                key={label}
+                className="px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide"
+                style={{ fontFamily: fontHeading, backgroundColor: 'rgba(5,109,170,0.1)', color: COK.primary }}
               >
-                <FiUsers className="w-4 h-4" />
-                {showAttendance ? 'Hide Attendance' : 'View Attendance'}
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              className="w-9 h-9 flex items-center justify-center shrink-0 transition-colors hover:bg-[rgba(255,255,255,0.12)]"
-              style={{ border: '1px solid #FFFFFF', borderRadius: 0 }}
-            >
-              <FiX className="w-4 h-4" style={{ color: '#FFFFFF' }} />
-            </button>
+                {label}
+              </span>
+            ))}
           </div>
+          {canViewAttendance && (
+            <button
+              type="button"
+              onClick={() => setShowAttendance((v) => !v)}
+              className="cok-btn-outlined flex items-center gap-2 cursor-pointer"
+            >
+              <FiUsers className="w-4 h-4" />
+              {showAttendance ? 'Hide Attendance' : 'View Attendance'}
+            </button>
+          )}
         </div>
-
-        <div className="p-5 space-y-4">
-          {/* Detail cards - uniform CoK styling, primary icons only */}
+      }
+      footer={
+        <div className="w-full text-[11px]" style={{ color: '#9E9E9E', fontFamily: COK.bodyFont }}>
+          Event information managed by the Event Manager's office.
+        </div>
+      }
+    >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <DetailCard label="Type" value={event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'} icon={FiTag} />
             <DetailCard label="Mode" value={event.eventType || 'N/A'} icon={FiLayers} />
@@ -287,9 +251,7 @@ export default function MayorEventDetailsOverlay({
             <DetailCard label="Date & Time" value={timeValue} icon={FiClock} />
           </div>
 
-          {/* Organizer - white card with avatar circle, like the employee visitor rows */}
           <div className="bg-white p-5" style={{ boxShadow: CARD_SHADOW }}>
-            {/* Section header in the receptionist style: round tinted icon chip + small semibold title */}
             <div className="flex items-center gap-2 mb-3">
               <div className="p-1.5" style={{ backgroundColor: 'rgba(5,109,170,0.08)', borderRadius: 999 }}>
                 <FiUser className="w-4 h-4" style={{ color: COK.primary }} />
@@ -337,7 +299,6 @@ export default function MayorEventDetailsOverlay({
             )}
           </div>
 
-          {/* Description card */}
           {event.eventDescription && (
             <div className="bg-white p-5" style={{ boxShadow: CARD_SHADOW }}>
               <div className="flex items-center gap-2 mb-3">
@@ -354,7 +315,6 @@ export default function MayorEventDetailsOverlay({
             </div>
           )}
 
-          {/* Attendance report - blue summary header panel like the employee Queue Summary */}
           {canViewAttendance && showAttendance && (
             <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
               <div className="flex items-center justify-between p-4 text-white" style={{ backgroundColor: COK.primary }}>
@@ -366,7 +326,7 @@ export default function MayorEventDetailsOverlay({
                 </div>
                 <div className="bg-[rgba(255,255,255,0.15)] px-3 py-1">
                   <span style={{ fontFamily: fontHeading, fontSize: 16, fontWeight: 700 }}>
-                    {attendanceLoading ? '…' : attendees.length}
+                    {attendanceLoading ? '...' : attendees.length}
                   </span>
                   <span className="ml-1 text-xs opacity-80">
                     attendee{attendees.length === 1 ? '' : 's'}
@@ -377,7 +337,7 @@ export default function MayorEventDetailsOverlay({
               {attendanceLoading && (
                 <div className="flex items-center justify-center py-10">
                   <FiLoader className="w-5 h-5 animate-spin" style={{ color: COK.primary }} />
-                  <span className="ml-2 text-sm" style={{ fontFamily: fontHeading, color: '#888888' }}>Loading attendance…</span>
+                  <span className="ml-2 text-sm" style={{ fontFamily: fontHeading, color: '#888888' }}>Loading attendance...</span>
                 </div>
               )}
 
@@ -392,7 +352,7 @@ export default function MayorEventDetailsOverlay({
               )}
 
               {!attendanceLoading && !attendanceError && attendees.length > 0 && (
-                <div className="overflow-x-auto overflow-y-auto max-h-[36vh]">
+                <div className="cok-table-scroll" style={{ ['--cok-table-max-h' as string]: '36vh' } as React.CSSProperties}>
                   <table className="w-full text-sm">
                     <thead>
                       <tr>
@@ -432,12 +392,6 @@ export default function MayorEventDetailsOverlay({
               )}
             </div>
           )}
-        </div>
-
-        <div className="px-5 py-2 text-[11px]" style={{ color: '#9E9E9E', borderTop: `1px solid ${COK.border}`, backgroundColor: '#FFFFFF', fontFamily: COK.bodyFont }}>
-          Event information managed by the Event Manager's office.
-        </div>
-      </div>
-    </div>
+    </OverlayShell>
   );
 }

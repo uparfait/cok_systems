@@ -93,7 +93,6 @@ const RequestForm: React.FC<{
         setDepartments(list);
       }
     } catch {
-      // keep existing departments
     } finally {
       setDeptLoading(false);
     }
@@ -112,7 +111,6 @@ const RequestForm: React.FC<{
       }
       setUnits(list);
     } catch {
-      // keep existing units
     } finally {
       setUnitLoading(false);
     }
@@ -199,6 +197,7 @@ const RequestForm: React.FC<{
       onClose={onClose}
       busy={loading}
       width="lg"
+      closeOnBackdrop={false}
       footer={
         <button
           type="submit"

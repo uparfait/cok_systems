@@ -1,8 +1,7 @@
-// AttachmentViewer - Component to view attachments based on file type
-
 import React from 'react'
-import { FiX, FiFile, FiImage, FiFileText, FiDownload, FiVideo, FiMusic, FiPaperclip } from 'react-icons/fi'
+import { FiFile, FiImage, FiFileText, FiDownload, FiVideo, FiMusic, FiPaperclip } from 'react-icons/fi'
 import type { Attachment } from '../../../core/services/taskService'
+import OverlayShell from '../../../core/components/overlay/OverlayShell'
 
 const PRIMARY = "#056daa"
 const NEUTRAL_DARK = "#333333"
@@ -150,51 +149,30 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
-      <div className="bg-white w-[95vw] max-w-7xl max-h-[90vh] flex flex-col">
-        {/* Header with cok-bg-primary */}
-        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0 cok-bg-primary" style={{ borderRadius: 0 }}>
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="p-2 flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
-              {getFileIcon(fileType)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base sm:text-lg font-semibold truncate" style={{ color: WHITE, fontFamily: fontHeading }}>
-                {attachment.originalName}
-              </h2>
-              {attachment.description && (
-                <p className="text-xs truncate hidden sm:block" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                  {attachment.description}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-            <a
-              href={attachment.url}
-              download={attachment.originalName}
-              className="cok-btn-outlined-reverse"
-              style={{ padding: '0.4rem 0.8rem', textDecoration: 'none' }}
-            >
-              <FiDownload className="w-4 h-4" />
-            </a>
-            <button
-              type="button"
-              onClick={onClose}
-              className="cok-btn-outlined-reverse"
-              style={{ padding: '0.4rem 0.8rem' }}
-            >
-              <FiX className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-4">
-          {renderContent()}
-        </div>
-      </div>
-    </div>
+    <OverlayShell
+      title={
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="flex-shrink-0">{getFileIcon(fileType)}</span>
+          <span className="truncate">{attachment.originalName}</span>
+        </span>
+      }
+      subtitle={attachment.description ? <span className="block truncate">{attachment.description}</span> : undefined}
+      onClose={onClose}
+      width="full"
+      footer={
+        <a
+          href={attachment.url}
+          download={attachment.originalName}
+          className="cok-btn-outlined inline-flex items-center gap-2"
+          style={{ padding: '0.45rem 0.9rem', textDecoration: 'none' }}
+        >
+          <FiDownload className="w-4 h-4" />
+          Download
+        </a>
+      }
+    >
+      {renderContent()}
+    </OverlayShell>
   )
 }
 

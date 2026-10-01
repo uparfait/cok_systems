@@ -12,6 +12,9 @@ const WIDTHS: Record<OverlayWidth, string> = {
   full: 'max-w-[96vw]',
 };
 
+const openStack: object[] = [];
+let bodyOverflow = '';
+
 export interface OverlayShellProps {
   open?: boolean;
   title: React.ReactNode;
@@ -48,15 +51,22 @@ const OverlayShell: React.FC<OverlayShellProps> = ({
 
   useEffect(() => {
     if (!open) return undefined;
+    const token = {};
+    openStack.push(token);
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !busyRef.current) closeRef.current();
+      if (event.key !== 'Escape' || openStack[openStack.length - 1] !== token) return;
+      if (!busyRef.current) closeRef.current();
     };
     document.addEventListener('keydown', onKey);
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    if (openStack.length === 1) {
+      bodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+    }
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = previous;
+      const index = openStack.indexOf(token);
+      if (index >= 0) openStack.splice(index, 1);
+      if (openStack.length === 0) document.body.style.overflow = bodyOverflow;
     };
   }, [open]);
 
@@ -97,7 +107,7 @@ const OverlayShell: React.FC<OverlayShellProps> = ({
         ) : null}
       </div>
     </div>,
-
+   
   );
 };
 

@@ -150,7 +150,13 @@ async function runParkingCheck(now = new Date()) {
 
         try {
             if (gateRegistrarIds === null) gateRegistrarIds = await getGateRegistrarIds();
-            if (gateRegistrarIds.length > 0) await alertGates(gateRegistrarIds, record, reason, hours);
+            // Not awaited: a slow web push must not hold the pass (and the
+            // once-a-minute guard below) open; flagRecord already makes the
+            // flag and its alert happen once per session.
+            if (gateRegistrarIds.length > 0) {
+                alertGates(gateRegistrarIds, record, reason, hours)
+                    .catch((alertError) => console.error('Failed to alert gate registrars:', alertError.message));
+            }
         } catch (alertError) {
             console.error('Failed to alert gate registrars:', alertError.message);
         }

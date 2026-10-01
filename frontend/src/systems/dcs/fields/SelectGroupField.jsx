@@ -11,8 +11,9 @@ import { useLazyFieldOptions } from "./useLazyFieldOptions.js";
 function SelectGroupControl({ label, helpText, mandatory, value, onChange, disabled, options, loading, language, error, validMessage, translate }) {
   return (
     <div className="w-full">
-      <label className={mandatory ? "cok-auth-label cok-req" : "cok-auth-label"} title={helpText || undefined}>
+      <label className="cok-auth-label" title={helpText || undefined}>
         {label}
+        {mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
       <select
         className="cok-auth-input w-full py-3"

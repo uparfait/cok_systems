@@ -10,6 +10,7 @@ import { useSocket } from '../../../core/contexts/SocketContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { getStoredNavigation } from '../../../core/services/navigationService';
 import ExportVisitorsModal from '../../../core/components/requests/ExportVisitorsModal';
+import type { ExportPresence } from '../../../core/components/requests/ExportVisitorsModal';
 import RegisterVisitorOverlay from './visitors/RegisterVisitorOverlay';
 import { toListParams, visitorsColumns } from './visitors/visitorsColumns';
 
@@ -75,6 +76,9 @@ const VisitorsPage: React.FC = () => {
       if (liveTimer.current) window.clearTimeout(liveTimer.current);
     };
   }, [socket, load]);
+
+  const presenceValue = query.filters.presence ? query.filters.presence.value : 'in_house';
+  const exportPresence: ExportPresence = presenceValue === 'ALL' ? 'all' : presenceValue === 'not_in_house' ? 'not_in_house' : 'in_house';
 
   const applyRange = (nextFrom: string, nextTo: string) => {
     setFrom(nextFrom);
@@ -144,7 +148,15 @@ const VisitorsPage: React.FC = () => {
           }}
         />
       ) : null}
-      {exporting ? <ExportVisitorsModal onClose={() => setExporting(false)} /> : null}
+      {exporting ? (
+        <ExportVisitorsModal
+          onClose={() => setExporting(false)}
+          scope={mine ? 'mine' : undefined}
+          presence={exportPresence}
+          from={from || undefined}
+          to={to || undefined}
+        />
+      ) : null}
     </div>
   );
 };

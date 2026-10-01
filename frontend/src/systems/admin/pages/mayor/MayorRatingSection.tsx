@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, C
 import FeedbackFeed from '../components/FeedbackFeed';
 import type { AppliedFilter, DeptOption } from '../components/FeedbackFeed';
 import { periodToRange } from './MayorDeptServicesSection';
+import MayorBoardOverlay from './MayorBoardOverlay';
 
 const PRIMARY = '#056daa';
 const NEUTRAL_DARK = '#333333';
@@ -274,21 +275,15 @@ export const DepartmentSentimentPanel: React.FC<{ data: RatingData }> = ({ data 
       </div>
 
       {showAll && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4" onClick={() => setShowAll(false)}>
-          <div className="bg-white w-full max-w-3xl max-h-[90vh] shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="px-4 sm:px-5 py-4 flex items-center justify-between text-white shrink-0" style={{ backgroundColor: PRIMARY }}>
-              <div className="min-w-0">
-                <h2 className="text-sm font-bold truncate" style={{ fontFamily: fontHeading }}>Department Sentiment</h2>
-                <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.85)' }}>All {departmentsOnly.length} departments, average rating out of 10</p>
-              </div>
-              <button type="button" onClick={() => setShowAll(false)} className="border border-white text-white hover:bg-white hover:text-[#333333] transition-colors cursor-pointer shrink-0 text-xs font-semibold uppercase" style={{ padding: '0.4rem 1rem', letterSpacing: '1px', fontFamily: fontHeading, borderRadius: 0 }}>Close</button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-              <SentimentChart data={sentimentTrend} height={Math.max(260, sentimentTrend.length * 34 + 30)} />
-              <SentimentLegend />
-            </div>
-          </div>
-        </div>
+        <MayorBoardOverlay
+          title="Department Sentiment"
+          subtitle={`All ${departmentsOnly.length} departments, average rating out of 10`}
+          onClose={() => setShowAll(false)}
+          width="lg"
+        >
+          <SentimentChart data={sentimentTrend} height={Math.max(260, sentimentTrend.length * 34 + 30)} />
+          <SentimentLegend />
+        </MayorBoardOverlay>
       )}
     </>
   );
@@ -299,8 +294,9 @@ const MayorRatingSection: React.FC<{ applied: AppliedFilter; data: RatingData }>
   const [selectedDept, setSelectedDept] = useState<{ name: string; id: string } | null>(null);
   const chartHeight = Math.max(220, rows.length * 48 + 30);
 
-  const handleBarClick = (entry: any, e?: any) => {
-    if (e?.stopPropagation) e.stopPropagation();
+  const handleBarClick = (entry: any, ...rest: any[]) => {
+    const event = rest.find((arg) => arg && typeof arg.stopPropagation === 'function');
+    if (event) event.stopPropagation();
     const p = entry?.payload || entry;
     if (p?.id) setSelectedDept({ name: p.name, id: p.id });
   };
@@ -353,36 +349,18 @@ const MayorRatingSection: React.FC<{ applied: AppliedFilter; data: RatingData }>
       </div>
 
       {selectedDept && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-2 sm:px-4 pb-6 overflow-y-auto"
-          style={{ paddingTop: '90px' }}
-          onClick={() => setSelectedDept(null)}
+        <MayorBoardOverlay
+          title={`Feedbacks - ${selectedDept.name}`}
+          onClose={() => setSelectedDept(null)}
+          width="lg"
         >
-          <div
-            className="bg-white w-full max-w-2xl max-h-[80vh] overflow-y-auto"
-            style={{ border: `1px solid ${BORDER}` }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-3 px-4 py-2.5 sticky top-0 z-10" style={{ backgroundColor: PRIMARY }}>
-              <span className="text-xs font-bold text-white uppercase tracking-[1px] truncate" style={{ fontFamily: fontHeading }}>
-                Feedbacks - {selectedDept.name}
-              </span>
-              <button
-                onClick={() => setSelectedDept(null)}
-                className="cok-btn-outlined-reverse shrink-0"
-                style={{ padding: '0.3rem 0.7rem' }}
-              >
-                Close
-              </button>
-            </div>
-            <FeedbackFeed
-              applied={applied}
-              departments={departments}
-              units={units}
-              initialTarget={selectedDept.id}
-            />
-          </div>
-        </div>
+          <FeedbackFeed
+            applied={applied}
+            departments={departments}
+            units={units}
+            initialTarget={selectedDept.id}
+          />
+        </MayorBoardOverlay>
       )}
     </>
   );

@@ -52,6 +52,10 @@ const STAT_CARDS: { key: keyof StatCounts; label: string; subtitle: string }[] =
   { key: "notServed", label: "Not Served", subtitle: "Visitors sent to your department or units but not served" },
 ];
 
+const VALID_TABS = ["dashboard", "employees", "departments", "feedback", "by-department", "by-provider", "availability", "active-tasks", "completed-requests", "history", "queue"];
+
+const tabFrom = (value: string | null): string => (value && VALID_TABS.includes(value) ? value : "dashboard");
+
 const DepartmentManagerDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -59,7 +63,7 @@ const DepartmentManagerDashboard: React.FC = () => {
   const { showSuccess } = useToast();
   const departmentId = (user as any)?.departmentId || (user as any)?.department_id || "";
   const departmentName = (user as any)?.departmentName || (user as any)?.department_name || "";
-  const [activeTab, setActiveTab] = useState<string>("dashboard");
+  const [activeTab, setActiveTab] = useState<string>(() => tabFrom(searchParams.get("tab")));
   const [employees] = useState<Employee[]>([]);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
@@ -75,9 +79,7 @@ const DepartmentManagerDashboard: React.FC = () => {
   const range = useMemo(() => periodToRange(applied.period, applied.from, applied.to), [applied]);
 
   useEffect(() => {
-    const t = searchParams.get("tab");
-    const valid = ["dashboard", "employees", "departments", "feedback", "by-department", "by-provider", "availability", "active-tasks", "completed-requests", "history", "queue"];
-    setActiveTab(t && valid.includes(t) ? t : "dashboard");
+    setActiveTab(tabFrom(searchParams.get("tab")));
   }, [searchParams]);
 
   useEffect(() => {
@@ -166,7 +168,7 @@ const DepartmentManagerDashboard: React.FC = () => {
             hideControls
           />
 
-          {showExportModal && <ExportVisitorsModal onClose={() => setShowExportModal(false)} />}
+          {showExportModal && <ExportVisitorsModal scope="mine" onClose={() => setShowExportModal(false)} />}
         </div>
       )}
 
@@ -194,7 +196,8 @@ const DepartmentManagerDashboard: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className="bg-white overflow-x-auto" style={{ border: `1px solid ${BORDER}`, borderRadius: 0 }}>
+          <div className="bg-white" style={{ border: `1px solid ${BORDER}`, borderRadius: 0 }}>
+            <div className="cok-table-scroll">
             <table className="w-full min-w-[600px]">
               <thead style={{ backgroundColor: PRIMARY }}>
                 <tr>
@@ -238,6 +241,7 @@ const DepartmentManagerDashboard: React.FC = () => {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}

@@ -5425,6 +5425,17 @@ background-color: #056daa;
   background-color: #F7F9FB;
 }
 
+/* Separated borders never draw a row's own border (border-b, divide-y), so the
+   cells take it over; a cell's own border utilities still win. */
+@layer base {
+  .cok-table-scroll > table > thead > tr > th,
+  .cok-table-scroll > table > tbody > tr > td,
+  .cok-table-scroll > table > tbody > tr > th {
+    border-top: inherit;
+    border-bottom: inherit;
+  }
+}
+
 /* Red asterisk after the label of a required field */
 .cok-req::after {
   content: " *";

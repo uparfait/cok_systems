@@ -37,5 +37,6 @@ visitor_schema.index({ telephone: 1 }, { unique: true, partialFilterExpression: 
 visitor_schema.index({ email: 1 }, { unique: true, partialFilterExpression: STRING_ONLY('email') });
 visitor_schema.index({ Is_In_House: -1, updatedAt: -1 });
 visitor_schema.index({ full_name: 1 });
+visitor_schema.index({ N_visits: 1 });
 
 module.exports = mongoose.model('Visitor', visitor_schema);

@@ -158,7 +158,7 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
       {deleteStep === 'idle' && (
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2" style={{ fontFamily: fontHeading }}>
+            <label className="block text-xs font-medium text-gray-700 mb-2 cok-req" style={{ fontFamily: fontHeading }}>
               Select Collections to Delete
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-60 overflow-y-auto p-2 border border-[#E0E0E0]">
@@ -221,7 +221,7 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2" style={{ fontFamily: fontHeading }}>
+            <label className="block text-xs font-medium text-gray-700 mb-2 cok-req" style={{ fontFamily: fontHeading }}>
               Enter Confirmation Token
             </label>
             <div className="flex gap-2">
@@ -277,10 +277,10 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
           </div>
 
           {deleteResults.length > 0 && (
-            <div className="overflow-x-auto">
+            <div className="cok-table-scroll">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-[#E0E0E0]" style={{ backgroundColor: 'rgba(5,109,170,0.06)' }}>
+                  <tr className="border-b border-[#E0E0E0]" style={{ backgroundColor: '#F0F6FA' }}>
                     <th className="px-3 py-2 text-left font-semibold text-[#056daa] text-xs uppercase tracking-wider">Collection</th>
                     <th className="px-3 py-2 text-left font-semibold text-[#056daa] text-xs uppercase tracking-wider">Deleted Records</th>
                     <th className="px-3 py-2 text-left font-semibold text-[#056daa] text-xs uppercase tracking-wider">Freed Space</th>
@@ -369,29 +369,22 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
         : PERIOD_OPTIONS.find(o => o.value === deletePeriod)?.label ?? deletePeriod.replace('_', ' ');
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4"
-      onClick={onCancel}
+    <OverlayShell
+      title={<span className="inline-flex items-center gap-2 max-w-full"><FiAlertTriangle className="w-5 h-5 shrink-0 text-red-600" /><span className="truncate">Confirm Data Deletion</span></span>}
+      onClose={onCancel}
+      width="md"
+      bodyClassName="space-y-4"
+      footer={
+        <button
+          type="button"
+          onClick={handleConfirm}
+          className="px-4 py-2 bg-[#E74C3C] text-white text-sm font-semibold uppercase hover:bg-[#C0392B]"
+          style={{ letterSpacing: '1px' }}
+        >
+          I Understand, Proceed
+        </button>
+      }
     >
-      <div
-        className="bg-white w-full max-w-lg max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-3 sm:p-4 border-b bg-gray-50 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-            <FiAlertTriangle className="w-5 h-5 text-red-600" />
-            Confirm Data Deletion
-          </h3>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="p-1 hover:bg-gray-200"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <div className="bg-red-50 border border-red-200 p-4">
             <h4 className="text-sm font-semibold text-red-800 mb-2" style={{ fontFamily: fontHeading }}>
               Warning: This action cannot be undone
@@ -405,7 +398,6 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
             </ul>
           </div>
 
-          {/* Date filter — user picks the range right here before confirming */}
           <div className="border border-[#E0E0E0] p-3 space-y-2">
             <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide" style={{ fontFamily: fontHeading }}>
               Date Filter
@@ -424,7 +416,7 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
               {deletePeriod === 'range' && (
                 <div className="flex flex-col sm:flex-row gap-2">
                   <div className="flex-1">
-                    <label className="block text-xs text-gray-500 mb-1">From</label>
+                    <label className="block text-xs text-gray-500 mb-1 cok-req">From</label>
                     <input
                       type="date"
                       value={deleteFrom}
@@ -472,28 +464,7 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
               ))}
             </div>
           </div>
-        </div>
-
-        <div className="p-3 border-t flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 border border-[#056daa] bg-white text-[#056daa] text-sm font-semibold uppercase hover:bg-[#F7F9FB]"
-            style={{ letterSpacing: '1px' }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            className="px-4 py-2 bg-[#E74C3C] text-white text-sm font-semibold uppercase hover:bg-[#C0392B]"
-            style={{ letterSpacing: '1px' }}
-          >
-            I Understand, Proceed
-          </button>
-        </div>
-      </div>
-    </div>
+    </OverlayShell>
   );
 };
 

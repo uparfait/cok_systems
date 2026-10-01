@@ -4,7 +4,7 @@ import { DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
 import { get_templates, get_template } from "../services/templatesService.js";
 import { clone_selected_fields } from "../jsonlogic/resolveTemplates.js";
 import DcsFieldIcon from "../components/DcsFieldIcon.jsx";
-import OverlayCloseButton from "../../../core/components/overlay/OverlayCloseButton.tsx";
+import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import TemplateFieldPickerOverlay from "./TemplateFieldPickerOverlay.jsx";
 
 /**
@@ -65,12 +65,6 @@ export default function AddComponentPanel({ isOpen, onClose, onSelect, onInsertT
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, supports_templates]);
 
-  const is_busy = !!opening_template;
-
-  const request_close = () => {
-    if (!is_busy) onClose();
-  };
-
   const handle_select = (field_type) => {
     onClose();
     onSelect(field_type);
@@ -126,16 +120,16 @@ export default function AddComponentPanel({ isOpen, onClose, onSelect, onInsertT
     <>
       {isOpen && (
         <div className="fixed inset-0 z-[10000] flex items-start justify-center pt-10 px-4">
-          <div className="absolute inset-0 bg-black/40" onClick={request_close} />
+          <div className="absolute inset-0 bg-black/40" onClick={onClose} />
           <div
             className="relative bg-white border-2 w-full flex flex-col"
             style={{ borderColor: "#E0E0E0", minWidth: "50vw", maxWidth: 900, maxHeight: "80vh" }}
           >
-            <div className="flex items-center justify-between gap-3 px-3 py-3 border-b flex-shrink-0" style={{ borderColor: "#E0E0E0" }}>
+            <div className="flex items-center justify-between px-3 py-3 border-b flex-shrink-0" style={{ borderColor: "#E0E0E0" }}>
               <p className="text-sm font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
                 {translate("DCS_PICKER_TITLE")}
               </p>
-              <OverlayCloseButton onClick={request_close} disabled={is_busy} label={translate("DCS_BTN_CLOSE")} />
+              <DcsButtonOutline onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutline>
             </div>
 
             {onInsertTemplate && (

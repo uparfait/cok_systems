@@ -99,7 +99,7 @@ const MayorOccupancySection: React.FC<{ applied: AppliedFilter; refreshTick: num
           <h2 className="text-sm font-bold text-[#333333]" style={{ fontFamily: fontHeading }}>Parking Occupancy</h2>
           <p className="text-xs text-[#9E9E9E] mt-0.5">
             {applied.period === 'today'
-              ? 'Occupied share of all parking slots · live'
+              ? 'Occupied share of all parking slots - live'
               : 'Peak occupancy per period: the busiest hour of each day/month, as a share of all slots'}
           </p>
         </div>

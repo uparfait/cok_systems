@@ -1,0 +1,14 @@
+export const PRIMARY = '#056daa';
+export const PRIMARY_HOVER = '#045d94';
+export const SUCCESS = '#4CAF50';
+export const SUCCESS_HOVER = '#388E3C';
+export const WARNING = '#F39C12';
+export const DANGER = '#E74C3C';
+export const NEUTRAL_LIGHT = '#F7F9FB';
+export const NEUTRAL_DARK = '#333333';
+export const BORDER = '#E0E0E0';
+export const WHITE = '#FFFFFF';
+export const GRAY_DISABLED = '#9E9E9E';
+export const ACCENT_DARK_BLUE = '#2980B9';
+export const fontHeading = "'Montserrat', sans-serif";
+export const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';

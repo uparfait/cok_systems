@@ -4,17 +4,15 @@ import { FiUser, FiTruck, FiClock, FiPhone, FiLoader, FiCheck, FiDownload, FiUpl
 interface ReservationFormData { plate_number: string; driver_name: string; id_type: string; id_number: string; telephone_number: string; slot_number: string; arrival_time?: string; }
 interface StaffBookingData { staff_name: string; phone: string; plate_number: string; department_name?: string; owner_title?: string; id_type?: string; identification?: string; }
 
-// City of Kigali (CoK) institutional design constants
 const PRIMARY = '#056daa';
 const ACCENT_DARK_BLUE = '#2980B9';
 const NEUTRAL_LIGHT = '#F7F9FB';
 const fontHeading = "'Montserrat', sans-serif";
 
-// Login-style field: cok-auth-label above a cok-auth-input with the icon inside on the left
 const Field: React.FC<{ label: string; required?: boolean; icon: React.ReactNode; children: React.ReactNode }> = ({ label, required, icon, children }) => (
   <div>
-    <label className="cok-auth-label">
-      {label} {required && <span style={{ color: '#E74C3C' }}>&nbsp;*</span>}
+    <label className={required ? 'cok-auth-label cok-req' : 'cok-auth-label'}>
+      {label}
     </label>
     <div className="relative">
       <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[#9CA3AF] z-10">
@@ -33,7 +31,6 @@ interface VisitorFormProps {
 
 export const VisitorReservationForm: React.FC<VisitorFormProps> = ({ formData, loading, onChange, onSubmit, onDownloadTemplate, bulkFile, onFileSelect, onFileRemove, onBulkUpload, fileInputRef }) => (
   <div className="cok-auth-card overflow-hidden p-5 sm:p-7">
-    {/* Login-style centered heading */}
     <div className="text-center mb-5">
       <div className="mx-auto mb-2 w-11 h-11 flex items-center justify-center" style={{ backgroundColor: 'rgba(5,109,170,0.1)' }}>
         <FiUser className="w-5 h-5" style={{ color: PRIMARY }} />
@@ -52,7 +49,7 @@ export const VisitorReservationForm: React.FC<VisitorFormProps> = ({ formData, l
           <input type="text" name="driver_name" value={formData.driver_name} onChange={e => onChange({ ...formData, driver_name: e.target.value })} required placeholder="Enter full name" className="cok-auth-input pr-3 py-3 placeholder:text-gray-400" />
         </Field>
         <Field label="Plate Number" required icon={<FiTruck className="h-4 w-4" />}>
-          <input type="text" name="plate_number" value={formData.plate_number} onChange={e => onChange({ ...formData, plate_number: e.target.value })} required placeholder="e.g., RAD 302H" className="cok-auth-input pr-3 py-3 placeholder:text-gray-400" />
+          <input type="text" name="plate_number" value={formData.plate_number} onChange={e => onChange({ ...formData, plate_number: e.target.value })} required placeholder="e.g., RAD302H" className="cok-auth-input pr-3 py-3 placeholder:text-gray-400" />
         </Field>
         <Field label="Arrival Time" icon={<FiClock className="h-4 w-4" />}>
           <input type="datetime-local" name="arrival_time" value={formData.arrival_time} onChange={e => onChange({ ...formData, arrival_time: e.target.value })} className="cok-auth-input pr-3 py-3" />
@@ -72,7 +69,6 @@ export const VisitorReservationForm: React.FC<VisitorFormProps> = ({ formData, l
         </Field>
       </div>
 
-      {/* Primary action full-width like the login button, template link below it */}
       <button type="submit" disabled={loading} className={`cok-btn-primary flex items-center justify-center gap-2 ${loading ? 'cursor-wait animate-pulse' : 'disabled:opacity-50 disabled:cursor-not-allowed'}`}>
         {loading ? <FiLoader className="h-4 w-4 animate-spin" /> : <FiCheck className="h-4 w-4" />}
         <span>Reserve Slot</span>
@@ -83,7 +79,6 @@ export const VisitorReservationForm: React.FC<VisitorFormProps> = ({ formData, l
       </button>
     </form>
 
-    {/* Bulk upload section styled like the login "first time" box */}
     <div className="mt-5">
       <div className="px-3 sm:px-4 py-3 text-center" style={{ backgroundColor: NEUTRAL_LIGHT, border: '1px solid #E0E0E0' }}>
         <div className="flex items-center justify-between mb-2">
@@ -116,7 +111,6 @@ interface StaffFormProps {
 
 export const StaffBookingForm: React.FC<StaffFormProps> = ({ formData, loading, onChange, onSubmit, onDownloadTemplate, bulkFile, onFileSelect, onFileRemove, onBulkUpload, fileInputRef }) => (
   <div className="cok-auth-card overflow-hidden p-5 sm:p-7">
-    {/* Login-style centered heading (dark blue distinguishes staff from visitors) */}
     <div className="text-center mb-5">
       <div className="mx-auto mb-2 w-11 h-11 flex items-center justify-center" style={{ backgroundColor: 'rgba(41,128,185,0.1)' }}>
         <FiBriefcase className="w-5 h-5" style={{ color: ACCENT_DARK_BLUE }} />
@@ -135,7 +129,7 @@ export const StaffBookingForm: React.FC<StaffFormProps> = ({ formData, loading, 
           <input type="text" name="staff_name" value={formData.staff_name} onChange={e => onChange({ ...formData, staff_name: e.target.value })} required placeholder="e.g., Amos" className="cok-auth-input pr-3 py-3 placeholder:text-gray-400" />
         </Field>
         <Field label="Plate Number" required icon={<FiTruck className="h-4 w-4" />}>
-          <input type="text" name="plate_number" value={formData.plate_number} onChange={e => onChange({ ...formData, plate_number: e.target.value })} required placeholder="e.g., RAF 100S" className="cok-auth-input pr-3 py-3 placeholder:text-gray-400" />
+          <input type="text" name="plate_number" value={formData.plate_number} onChange={e => onChange({ ...formData, plate_number: e.target.value })} required placeholder="e.g., RAF100S" className="cok-auth-input pr-3 py-3 placeholder:text-gray-400" />
         </Field>
         <Field label="Phone" icon={<FiPhone className="h-4 w-4" />}>
           <input type="tel" name="phone" value={formData.phone} onChange={e => onChange({ ...formData, phone: e.target.value })} placeholder="+250 791 783 308" className="cok-auth-input pr-3 py-3 placeholder:text-gray-400" />

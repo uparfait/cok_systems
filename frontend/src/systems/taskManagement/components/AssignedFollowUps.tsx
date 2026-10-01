@@ -199,7 +199,7 @@ const AssignedFollowUps: React.FC = () => {
           <p className="font-medium text-sm" style={{ color: '#888888', fontFamily: fontHeading }}>Nothing to show</p>
         </div>
       ) : (
-        <div className="bg-white border overflow-x-auto" style={{ borderColor: BORDER, WebkitOverflowScrolling: 'touch' }}>
+        <div className="bg-white border cok-table-scroll" style={{ borderColor: BORDER }}>
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr style={{ backgroundColor: PRIMARY }}>

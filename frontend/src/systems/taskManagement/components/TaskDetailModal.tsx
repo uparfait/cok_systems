@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react'
-import { FiX, FiTrash2, FiPaperclip, FiMessageSquare, FiUpload, FiEye, FiCheckCircle, FiList, FiRefreshCcw } from 'react-icons/fi'
+import { FiTrash2, FiPaperclip, FiMessageSquare, FiUpload, FiEye, FiCheckCircle, FiList, FiRefreshCcw } from 'react-icons/fi'
 import AttachmentViewer from './AttachmentViewer'
+import OverlayCloseButton from '../../../core/components/overlay/OverlayCloseButton'
 import ConfirmationModal from './ConfirmationModal'
 import TaskDetails from './TaskDetails'
 import Checklists from './Checklists'
@@ -397,9 +398,10 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
   }
 
   const handleClose = () => {
-   // onUpdate(task)
     onClose()
   }
+
+  const busy = deleteConfirmLoading || Object.values(loadingStates).some(Boolean)
 
   const progress = task.status === 'Completed' && (!task.checklists || task.checklists.length === 0)
     ? 100
@@ -411,16 +413,15 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
-      <div className="bg-white w-[95vw] max-w-6xl max-h-[90vh] flex flex-col">
-        {/* Header with cok-bg-primary */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 flex-shrink-0 cok-bg-primary" style={{ borderRadius: 0 }}>
+      <div className="bg-white border border-gray-200 shadow-xl w-[95vw] max-w-6xl max-h-[90vh] flex flex-col" style={{ borderRadius: 0 }}>
+        <div className="flex items-start gap-3 px-4 sm:px-5 pt-4 pb-3 flex-shrink-0 border-b border-gray-100">
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm sm:text-base font-semibold truncate" style={{ color: WHITE, fontFamily: fontHeading }}>
+            <h2 className="text-base font-semibold text-gray-900 truncate" style={{ fontFamily: fontHeading }}>
               {task.title}
             </h2>
-            <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.8)', fontFamily: fontHeading }}>Task</p>
+            <p className="text-xs text-gray-500 mt-0.5" style={{ fontFamily: fontHeading }}>Task</p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -445,29 +446,21 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                   type: 'danger'
                 })
               }}
-              className="cok-btn-outlined-reverse"
+              className="cok-btn-outlined-danger disabled:opacity-50"
               style={{ padding: '0.4rem 0.8rem' }}
               title="Delete task"
               disabled={deleteConfirmLoading}
             >
               {deleteConfirmLoading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
               ) : (
                 <FiTrash2 className="w-4 h-4" />
               )}
             </button>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="cok-btn-outlined-reverse"
-              style={{ padding: '0.4rem 0.8rem' }}
-            >
-              <FiX className="w-4 h-4" />
-            </button>
+            <OverlayCloseButton onClick={handleClose} disabled={busy} />
           </div>
         </div>
 
-        {/* Progress */}
         <div className="px-4 sm:px-6 py-2" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
           <div className="flex items-center gap-2">
             <div className="flex-1 h-1.5 bg-gray-200 overflow-hidden" style={{ borderRadius: 0 }}>
@@ -480,7 +473,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
           </div>
         </div>
 
-        {/* Status Move Select */}
         <div className="px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: WHITE }}>
           <label className="text-xs uppercase" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Move to:</label>
           <select
@@ -499,13 +491,10 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
           )}
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-4 sm:p-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-              {/* Main Content - Left Column */}
               <div className="lg:col-span-2 space-y-4 sm:space-y-5">
-                {/* Task Details Section */}
                 <div className="border" style={{ borderColor: BORDER, backgroundColor: WHITE, borderRadius: 0 }}>
                   <div className="px-4 py-2 flex items-center gap-2" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
                     <FiList className="w-3.5 h-3.5" style={{ color: GRAY_DISABLED }} />
@@ -526,7 +515,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                   </div>
                 </div>
 
-                {/* Checklists Section */}
                 <div className="border" style={{ borderColor: BORDER, backgroundColor: WHITE, borderRadius: 0 }}>
                   <div className="px-4 py-2 flex items-center gap-2" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
                     <FiCheckCircle className="w-3.5 h-3.5" style={{ color: GRAY_DISABLED }} />
@@ -576,9 +564,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                 </div>
               </div>
 
-              {/* Sidebar - Right Column */}
               <div className="lg:col-span-1 space-y-4 sm:space-y-5">
-                {/* Belongs To Section */}
                 {task.belongs?.isBelongsTo && task.belongs.itBelongsTo && (
                   <div className="border" style={{ borderColor: BORDER, backgroundColor: WHITE, borderRadius: 0 }}>
                     <div className="px-4 py-2 flex items-center gap-2" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
@@ -605,7 +591,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                   </div>
                 )}
 
-                {/* Comments Section */}
                 <div className="border" style={{ borderColor: BORDER, backgroundColor: WHITE, borderRadius: 0 }}>
                   <div className="px-4 py-2 flex items-center gap-2" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
                     <FiMessageSquare className="w-3.5 h-3.5" style={{ color: GRAY_DISABLED }} />
@@ -643,7 +628,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                   </div>
                 </div>
 
-                {/* Attachments Section */}
                 <div className="border" style={{ borderColor: BORDER, backgroundColor: WHITE, borderRadius: 0 }}>
                   <div className="px-4 py-2 flex items-center justify-between" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
                     <div className="flex items-center gap-2">
@@ -653,7 +637,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                     </div>
                   </div>
 
-                  {/* Upload Area */}
                   <div className="p-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
                     <div className="border p-4 text-center" style={{ borderColor: BORDER, borderRadius: 0 }}>
                       <FiUpload className="w-6 h-6 mx-auto mb-2" style={{ color: GRAY_DISABLED }} />
@@ -703,7 +686,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                                   {file.name}
                                 </p>
                                 <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
-                                  {(file.size / 1024).toFixed(1)} KB • {file.type || 'Unknown type'}
+                                  {(file.size / 1024).toFixed(1)} KB - {file.type || 'Unknown type'}
                                 </p>
                               </div>
                               <div className="flex items-center gap-1 flex-shrink-0">

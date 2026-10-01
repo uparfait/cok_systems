@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { FiClock, FiCheckCircle, FiRefreshCw, FiUsers, FiDownload } from 'react-icons/fi';
-import DepartmentQueueTab from '../components/employeeFlow/tabs/DepartmentQueueTab';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { FiClock, FiCheckCircle, FiRefreshCw, FiDownload } from 'react-icons/fi';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
 import { serviceDeliveryService } from '../../../core/services/adminService';
@@ -16,86 +14,62 @@ const WARNING = "#F39C12";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const NEUTRAL_DARK = "#333333";
 const WHITE = "#FFFFFF";
-const GRAY_DISABLED = "#9E9E9E";
-const BORDER = "#E0E0E0";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
-interface Visitor {
-  _id?: string;
-  id?: string;
-  status?: string;
-  services_status?: Array<{
-    department_id: string;
-    department_name?: string;
-    s_type?: string;
-    provider_name?: string;
-    provider_id?: string;
-  }>;
+const LIVE_EVENTS = ['visitor_checkedin', 'visitor_checkedout', 'visitor_assigned', 'service_status_updated', 'visitor_updated'];
+
+interface ScopeStats {
+  pending: number;
+  transfered: number;
+  completed: number;
 }
 
 const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { socket, isConnected } = useSocket();
-  const [searchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'dashboard';
+  const { socket } = useSocket();
   const [loading, setLoading] = useState(true);
-  const [firstLoad, setFirstLoad] = useState(true);
-  const [stats, setStats] = useState({ pending: 0, transfered: 0, completed: 0 });
+  const [stats, setStats] = useState<ScopeStats>({ pending: 0, transfered: 0, completed: 0 });
   const [showExportModal, setShowExportModal] = useState(false);
+  const requestRef = useRef(0);
+  const liveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchDashboardStats = useCallback(async () => {
-    const currentUser = user as any;
-    const myUserId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
-    if (!myUserId || myUserId === 'undefined') { setLoading(false); setFirstLoad(false); return; }
+    if (!user) { setLoading(false); return; }
+    const request = ++requestRef.current;
     try {
-      setLoading(true); setFirstLoad(true);
-      const response = await serviceDeliveryService.getAll() as any;
-      if (response && (response.data || response.success || Array.isArray(response))) {
-        const allVisitors = Array.isArray(response.data)
-          ? response.data
-          : Array.isArray(response)
-            ? response
-            : [];
-        const records = allVisitors.map((visitor: any) => { const s = visitor.services_status?.find(() => true); return { status: (s?.s_type || visitor.status || '').toLowerCase() }; });
-        setStats({
-          pending: records.filter((r: any) => r.status === 'not started' || r.status === 'inprogress').length,
-          transfered: records.filter((r: any) => r.status === 'transfered' || r.status === 'transferred').length,
-          completed: records.filter((r: any) => r.status === 'completed').length
-        });
-      }
-    } catch (error) { console.error(error); }
-    finally { setLoading(false); setFirstLoad(false); }
+      const summary = await serviceDeliveryService.getQueueSummary(true);
+      if (request !== requestRef.current) return;
+      setStats({
+        pending: Number(summary?.visitors_in_department) || 0,
+        transfered: Number(summary?.transferred_in_department) || 0,
+        completed: Number(summary?.completed_in_department) || 0,
+      });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      if (request === requestRef.current) setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => { fetchDashboardStats(); }, [fetchDashboardStats]);
-  useEffect(() => {
-    if (!socket || !isConnected) return;
-    const h = () => fetchDashboardStats();
-    socket.on('new_visitor_assigned', h);
-    socket.on('visitor_checkedin', h);
-    socket.on('visitor_checkedout', h);
-    return () => {
-      socket.off('new_visitor_assigned', h);
-      socket.off('visitor_checkedin', h);
-      socket.off('visitor_checkedout', h);
-    };
-  }, [socket, isConnected, fetchDashboardStats]);
 
-  if (activeTab === 'queue') {
-    return (
-      <div className="flex flex-col h-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-        <div className="flex-1 overflow-auto p-4">
-          <DepartmentQueueTab />
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!socket) return undefined;
+    const refresh = () => {
+      if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
+      liveTimerRef.current = setTimeout(() => { fetchDashboardStats(); }, 300);
+    };
+    LIVE_EVENTS.forEach((name) => socket.on(name, refresh));
+    return () => {
+      LIVE_EVENTS.forEach((name) => socket.off(name, refresh));
+      if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
+    };
+  }, [socket, fetchDashboardStats]);
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>
       <div className="flex-1 overflow-auto p-4">
-        
         <div className="flex gap-3 mt-4 mb-4">
           {[
             { label: 'Pending Requests', value: stats.pending, icon: FiClock, color: WARNING, bar: 'rgba(243,156,18,0.35)' },
@@ -105,7 +79,7 @@ const EmployeeDashboard: React.FC = () => {
             <div key={i} className="p-4 flex-1 relative overflow-hidden" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
               <div className="absolute top-0 right-0 w-16 h-16"><div className="absolute top-0 right-0 w-32 h-32" style={{ backgroundColor: s.color, opacity: 0.1 }}></div></div>
               <div className="flex justify-between items-start relative z-10"><span className="text-xs" style={{ color: '#555555' }}>{s.label}</span><s.icon style={{ color: s.color }} className="w-4 h-4" /></div>
-              {loading && firstLoad ? <div className="h-8 w-14 bg-gray-200 animate-pulse mt-1"></div> : <div className="text-xl font-bold mt-1 relative z-10" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{s.value}</div>}
+              {loading ? <div className="h-8 w-14 bg-gray-200 animate-pulse mt-1"></div> : <div className="text-xl font-bold mt-1 relative z-10" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{s.value}</div>}
               <div className="w-8 h-1 mt-1" style={{ backgroundColor: s.bar }}></div>
             </div>
           ))}
@@ -118,21 +92,19 @@ const EmployeeDashboard: React.FC = () => {
 
         <div className="mb-4">
           <button
+            type="button"
             onClick={() => setShowExportModal(true)}
-            className="w-full px-6 py-3 text-white font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2 cursor-pointer"
-            style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, letterSpacing: '1px', textTransform: 'uppercase' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#045d94'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+            className="cok-btn-primary flex items-center justify-center gap-2"
           >
             <FiDownload className="w-5 h-5" />
-            EXPORT VISITORS DATA
+            Export visitors data
           </button>
         </div>
 
         <ServedVisitorsGenderChart />
 
         {showExportModal && (
-          <ExportVisitorsModal onClose={() => setShowExportModal(false)} />
+          <ExportVisitorsModal scope="mine" onClose={() => setShowExportModal(false)} />
         )}
       </div>
     </div>

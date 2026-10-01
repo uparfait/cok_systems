@@ -44,7 +44,7 @@ const labelForPeriod = (applied: AppliedFilter) =>
   : applied.period === 'month' ? 'this month'
   : applied.period === 'last_month' ? 'last month'
   : applied.period === 'year' ? 'this year'
-  : `${applied.from || 'start'} → ${applied.to || 'now'}`;
+  : `${applied.from || 'start'} to ${applied.to || 'now'}`;
 
 const makeStatusBarLabel = (rows: Array<{ total?: number }>) => (props: any) => {
   const { x = 0, y = 0, width = 0, height = 0, index, value } = props;
@@ -97,7 +97,7 @@ const MayorRequestsSection: React.FC<{ applied: AppliedFilter; refreshTick: numb
   const requestStatuses = useMemo(() => {
     const toRows = (rows: RequestStatRow[]) =>
       rows.slice(0, 8).map(r => ({
-        name: r.name.length > 14 ? r.name.slice(0, 13) + '…' : r.name,
+        name: r.name.length > 14 ? r.name.slice(0, 12) + '...' : r.name,
         fullName: r.name,
         pending: r.pending,
         inprogress: r.inprogress,
@@ -125,7 +125,7 @@ const MayorRequestsSection: React.FC<{ applied: AppliedFilter; refreshTick: numb
       <div className="flex justify-between items-start mb-2">
         <div>
           <div className="text-base font-bold text-gray-900">Requests</div>
-          <div className="text-xs text-gray-500 mt-0.5">Requests by status · {periodLabel}</div>
+          <div className="text-xs text-gray-500 mt-0.5">Requests by status - {periodLabel}</div>
         </div>
         <div className="text-right flex-shrink-0">
           <div className="text-2xl font-bold leading-none" style={{ color: CC.purple }}>{requestStatuses.avgPerDept}</div>

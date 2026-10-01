@@ -1,6 +1,5 @@
 import React from 'react';
 
-// City of Kigali institutional design constants
 const BORDER = "#E0E0E0";
 const WHITE = "#FFFFFF";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";

@@ -41,6 +41,8 @@ module.exports = async function queue_summary(req, res) {
         total_units: 0,
         visitors_in_department: 0,
         currently_serving: 0,
+        completed_in_department: 0,
+        transferred_in_department: 0,
         units: [],
     };
     try {
@@ -56,10 +58,14 @@ module.exports = async function queue_summary(req, res) {
         }).select('department_name').sort({ department_name: 1 }).lean();
         const unitIds = units.map((unit) => String(unit._id));
 
-        const [waiting, serving, perUnit] = await Promise.all([
+        // Visits whose service in the caller's departments ended one way or the other
+        const endedAs = (state) => ({ ...presence, services_status: { $elemMatch: { department_id: { $in: scope }, s_type: state } } });
+        const [waiting, serving, perUnit, completed, transferred] = await Promise.all([
             ServiceDelivery.countDocuments({ ...presence, ...pendingFor(scope) }),
             ServiceDelivery.countDocuments({ ...presence, ...servingFor(scope) }),
             unitIds.length ? countsPerUnit(presence, unitIds) : Promise.resolve([]),
+            ServiceDelivery.countDocuments(endedAs('Completed')),
+            ServiceDelivery.countDocuments(endedAs('Transfered')),
         ]);
         const byUnit = new Map(perUnit.map((row) => [String(row._id), row]));
 
@@ -69,6 +75,8 @@ module.exports = async function queue_summary(req, res) {
             total_units: units.length,
             visitors_in_department: waiting,
             currently_serving: serving,
+            completed_in_department: completed,
+            transferred_in_department: transferred,
             units: units.map((unit) => {
                 const counts = byUnit.get(String(unit._id));
                 return {

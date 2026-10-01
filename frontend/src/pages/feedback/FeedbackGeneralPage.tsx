@@ -94,7 +94,6 @@ const FeedbackGeneralPage: React.FC = () => {
     <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ backgroundColor: '#FFFFFF', paddingBottom: '80px' }}>
       <div className="w-full max-w-md mx-auto">
         <div className="bg-white p-6 sm:p-8" style={{ backgroundColor: WHITE, borderRadius: 0, border: '2px solid #056daa' }}>
-          {/* Step: Rate */}
           {step === 'rate' && (
             <div className="space-y-4">
               <div className="text-center mb-5">
@@ -135,7 +134,7 @@ const FeedbackGeneralPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="cok-auth-label">Rating{unservedRating > 0 ? `: ${unservedRating}/10` : ''}</label>
+                <label className="cok-auth-label cok-req">Rating{unservedRating > 0 ? `: ${unservedRating}/10` : ''}</label>
                 <StarRating rating={unservedRating} onChange={setUnservedRating} />
                 <div className="flex justify-between text-xs text-gray-400 mt-1 px-1">
                   <span>Poor</span><span>Excellent</span>
@@ -187,7 +186,6 @@ const FeedbackGeneralPage: React.FC = () => {
             </div>
           )}
 
-          {/* Step: Preview */}
           {step === 'preview' && (
             <div className="space-y-4">
               <div className="text-center mb-4">
@@ -261,7 +259,6 @@ const FeedbackGeneralPage: React.FC = () => {
             </div>
           )}
 
-          {/* Step: Success */}
           {step === 'success' && (
             <div className="text-center space-y-4 py-4">
               <div className="w-16 rounded-full h-16 flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}>
@@ -283,7 +280,6 @@ const FeedbackGeneralPage: React.FC = () => {
             </div>
           )}
 
-          {/* Step: Error */}
           {step === 'error' && (
             <div className="text-center space-y-4 py-4">
               <div className="w-16 rounded-full h-16 flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
