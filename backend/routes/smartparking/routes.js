@@ -982,9 +982,9 @@ Router.post('/vehicle/checkin',
  *       400:
  *         description: Plate number is required
  *       404:
- *         description: No active parking record found
+ *         description: "This plate was never parked here"
  *       409:
- *         description: "Another gate checked the car out at the same moment (code ALREADY_CHECKED_OUT)"
+ *         description: "The car is not parked: it was already checked out (the message says when), or another gate checked it out at the same moment (code ALREADY_CHECKED_OUT)"
  *         content:
  *           application/json:
  *             schema:

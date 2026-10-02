@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useToast } from '../../contexts/ToastContext';
 import VisitorSendForm from './VisitorSendForm';
 import { failureOf, formatDateTime, visitorApi } from './visitorApi';
@@ -19,6 +19,7 @@ const VisitorActions: React.FC<VisitorActionsProps> = ({ details, onChanged, set
   const [target, setTarget] = useState<DepartmentTarget | null>(null);
   const [notes, setNotes] = useState('');
   const [working, setWorking] = useState(false);
+  const running = useRef(false);
 
   if (!visit) return null;
 
@@ -27,6 +28,8 @@ const VisitorActions: React.FC<VisitorActionsProps> = ({ details, onChanged, set
   const servedByOther = !!visit.is_being_served && !permissions.can_complete;
 
   const run = async (label: string, request: () => Promise<{ data?: VisitorDetails; message?: string }>) => {
+    if (running.current) return;
+    running.current = true;
     setWorking(true);
     setBusy(true);
     try {
@@ -40,6 +43,7 @@ const VisitorActions: React.FC<VisitorActionsProps> = ({ details, onChanged, set
       showError(failureOf(error).message);
       onChanged();
     } finally {
+      running.current = false;
       setWorking(false);
       setBusy(false);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
@@ -93,6 +93,7 @@ const CheckInVehiclePage: React.FC = () => {
   const { pastFlag, loading: pastFlagLoading, load: loadPastFlag, reset: resetPastFlag } = usePastFlag();
 
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   const [verifying, setVerifying] = useState(false);
   const [plateNumber, setPlateNumber] = useState('');
   const [idError, setIdError] = useState<string | null>(null);
@@ -163,7 +164,7 @@ const CheckInVehiclePage: React.FC = () => {
   };
 
   const handleCheckIn = async () => {
-    if (loading) return;
+    if (loading || submitting.current) return;
     if (!form.plate_number || !form.driver_name.trim() || !form.driver_telephone.trim()) {
       showWarning('Please fill in required fields');
       return;
@@ -179,6 +180,7 @@ const CheckInVehiclePage: React.FC = () => {
       return;
     }
 
+    submitting.current = true;
     setLoading(true);
     try {
       const response = await smartParkingService.checkIn({
@@ -201,6 +203,7 @@ const CheckInVehiclePage: React.FC = () => {
     } catch (error) {
       showError(failureOf(error).message || 'Failed to check in vehicle');
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };

@@ -244,6 +244,13 @@ async function assignVisit(visit, user, target, { visitorName = '' } = {}) {
     const departmentName = target.department_name || department.department_name;
     const providerId = target.provider_id ? String(target.provider_id) : null;
     const providerName = providerId ? (target.provider_name || 'Not specified') : 'Not specified';
+    // Sending again where the visitor already waits would only duplicate the request
+    const waiting = (visit.services_status || []).find((s) => String(s.department_id) === String(target.department_id)
+        && (s.s_type === 'Not started' || s.s_type === 'Inprogress')
+        && (s.provider_id ? String(s.provider_id) : null) === providerId);
+    if (waiting) {
+        throw conflict(`This visitor is already waiting in ${departmentName}${providerId ? ` for ${providerName}` : ''}.`, { code: 'ALREADY_ASSIGNED' });
+    }
     visit.departments_assigned.unshift({
         department_id: String(target.department_id),
         department_name: departmentName,

@@ -23,13 +23,6 @@ const TONE: Record<GateAction, { bg: string; color: string }> = {
   return: { bg: 'rgba(76,175,80,0.1)', color: '#4CAF50' },
 };
 
-const explanationOf = (action: GateAction, plate: string): string => {
-  const car = plate || 'the car';
-  if (action === 'checkout') return 'The visit is closed and the visitor leaves the premises.';
-  if (action === 'leave') return `The visitor steps out while ${car} stays parked. The visit stays open until the car is checked out at the vehicle exit. The badge is taken back.`;
-  return 'The visitor came back inside and is marked as inside again. A badge given now is saved on the visit and on the parked car.';
-};
-
 const Detail: React.FC<{ label: string; value: React.ReactNode; wide?: boolean }> = ({ label, value, wide }) => (
   <div className={`min-w-0 ${wide ? 'col-span-2' : ''}`}>
     <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</span>
@@ -56,7 +49,14 @@ const GateActionOverlay: React.FC<GateActionOverlayProps> = ({ row, action, busy
 
   return (
     <OverlayShell
-      title={ACTION_TITLE[action]}
+      title={(
+        <span className="flex items-center gap-2">
+          <span className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: tone.bg }}>
+            <Icon className="w-4 h-4" style={{ color: tone.color }} />
+          </span>
+          {ACTION_TITLE[action]}
+        </span>
+      )}
       subtitle={row.full_name || undefined}
       onClose={onClose}
       busy={busy}
@@ -78,12 +78,9 @@ const GateActionOverlay: React.FC<GateActionOverlayProps> = ({ row, action, busy
       }
     >
       <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: tone.bg }}>
-            <Icon className="w-5 h-5" style={{ color: tone.color }} />
-          </div>
-          <p className="text-sm text-gray-700">{explanationOf(action, plate)}</p>
-        </div>
+        {action === 'checkout' ? (
+          <p className="text-sm text-gray-700">The visit is closed and the visitor leaves the premises.</p>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-3 p-3 bg-[#F7F9FB]">
           <Detail label="ID type" value={dash(row.identification?.id_type)} />

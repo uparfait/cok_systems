@@ -22,13 +22,15 @@ export interface Movement {
   to: string;
   from_day: string;
   to_day: string;
+  from_input: string;
+  to_input: string;
   chart_from: string;
   earliest_inside: { check_in: string; plate_number: string } | null;
   totals: { check_in: number; check_out: number; flagged: number };
   points: MovementPoint[];
 }
 
-export interface CustomDates {
+export interface CustomPeriod {
   from: string;
   to: string;
 }
@@ -42,11 +44,11 @@ interface MovementRequest {
 const RELOAD_MS = 60 * 1000;
 const LIVE_EVENTS = ['car_checkedin', 'car_checkedout', 'parking_checkin', 'parking_checkout', 'parking_update'];
 
-const dayOf = (value: string | Date): string => {
+const pad = (n: number) => String(n).padStart(2, '0');
+
+export const dayOf = (value: string | Date): string => {
   const date = new Date(value);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 
 export const todayString = (): string => dayOf(new Date());
@@ -101,24 +103,19 @@ export function useParkingMovement(enabled: boolean) {
   }, [enabled, isConnected, on, off, load]);
 
   const range: MovementRange = request.range === 'default' ? (data ? data.range : 'today') : request.range;
-  const custom: CustomDates = request.range === 'custom'
+
+  const custom: CustomPeriod | null = request.range === 'custom'
     ? { from: request.from || '', to: request.to || '' }
     : data && data.range === 'custom'
-      ? { from: data.from_day, to: data.to_day }
-      : { from: '', to: '' };
+      ? { from: data.from_input, to: data.to_input }
+      : null;
 
-  const setRange = useCallback((next: MovementRange) => {
-    if (next !== 'custom') {
-      setRequest({ range: next });
-      return;
-    }
-    const since = data?.earliest_inside?.check_in;
-    const from = custom.from || (since ? dayOf(since) : todayString());
-    setRequest({ range: 'custom', from, to: custom.to || todayString() });
-  }, [data, custom.from, custom.to]);
+  const setRange = useCallback((next: Exclude<MovementRange, 'custom'>) => {
+    setRequest({ range: next });
+  }, []);
 
-  const applyCustom = useCallback((dates: CustomDates) => {
-    setRequest({ range: 'custom', from: dates.from, to: dates.to });
+  const applyCustom = useCallback((period: CustomPeriod) => {
+    setRequest({ range: 'custom', from: period.from, to: period.to });
   }, []);
 
   return { range, custom, setRange, applyCustom, data, loading, error, reload: () => load() };

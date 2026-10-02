@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import type { CustomDates, MovementRange } from './useParkingMovement';
-import { todayString } from './useParkingMovement';
+import React from 'react';
+import type { MovementRange } from './useParkingMovement';
 
 const OPTIONS: { key: MovementRange; label: string }[] = [
   { key: 'today', label: 'Today' },
@@ -13,71 +12,43 @@ const OPTIONS: { key: MovementRange; label: string }[] = [
 
 interface MovementRangeBarProps {
   range: MovementRange;
-  custom: CustomDates;
-  busy: boolean;
-  onRange: (range: MovementRange) => void;
-  onApplyCustom: (dates: CustomDates) => void;
+  customLabel: string | null;
+  onRange: (range: Exclude<MovementRange, 'custom'>) => void;
+  onOpenCustom: () => void;
 }
 
-const LABEL = 'flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600';
-const INPUT = 'border border-gray-300 bg-white px-2 py-1.5 text-sm font-normal normal-case text-gray-900 cursor-pointer';
+const MovementRangeBar: React.FC<MovementRangeBarProps> = ({ range, customLabel, onRange, onOpenCustom }) => (
+  <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 mb-4">
+    <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600 w-full sm:w-auto">
+      <span>Period</span>
+      <select
+        value={range}
+        onChange={(e) => {
+          const next = e.target.value as MovementRange;
+          if (next === 'custom') onOpenCustom();
+          else onRange(next);
+        }}
+        className="w-full sm:w-48 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-normal normal-case text-gray-900 cursor-pointer focus:outline-none focus:border-[#056daa]"
+      >
+        {OPTIONS.map((option) => (
+          <option key={option.key} value={option.key}>{option.label}</option>
+        ))}
+      </select>
+    </label>
 
-const MovementRangeBar: React.FC<MovementRangeBarProps> = ({ range, custom, busy, onRange, onApplyCustom }) => {
-  const [draft, setDraft] = useState<CustomDates>(custom);
-
-  useEffect(() => {
-    setDraft({ from: custom.from, to: custom.to });
-  }, [custom.from, custom.to]);
-
-  const valid = !!draft.from && !!draft.to && draft.from <= draft.to;
-  const changed = draft.from !== custom.from || draft.to !== custom.to;
-
-  return (
-    <div className="flex flex-wrap items-end gap-2 mb-4">
-      <label className={LABEL}>
-        <span>Period</span>
-        <select value={range} onChange={(e) => onRange(e.target.value as MovementRange)} className={`${INPUT} min-w-40`}>
-          {OPTIONS.map((option) => (
-            <option key={option.key} value={option.key}>{option.label}</option>
-          ))}
-        </select>
-      </label>
-
-      {range === 'custom' ? (
-        <>
-          <label className={LABEL}>
-            <span className="cok-req">From</span>
-            <input
-              type="date"
-              value={draft.from}
-              max={draft.to || todayString()}
-              onChange={(e) => setDraft((prev) => ({ ...prev, from: e.target.value }))}
-              className={INPUT}
-            />
-          </label>
-          <label className={LABEL}>
-            <span className="cok-req">To</span>
-            <input
-              type="date"
-              value={draft.to}
-              min={draft.from || undefined}
-              max={todayString()}
-              onChange={(e) => setDraft((prev) => ({ ...prev, to: e.target.value }))}
-              className={INPUT}
-            />
-          </label>
-          <button
-            type="button"
-            disabled={!valid || busy || !changed}
-            onClick={() => onApplyCustom(draft)}
-            className="cok-btn-primary w-auto! px-4! py-1.5! text-xs! disabled:opacity-50"
-          >
-            Apply
-          </button>
-        </>
-      ) : null}
-    </div>
-  );
-};
+    {range === 'custom' && customLabel ? (
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="rounded-full bg-[#056daa]/10 px-3 py-1.5 text-xs font-medium text-[#056daa] truncate">{customLabel}</span>
+        <button
+          type="button"
+          onClick={onOpenCustom}
+          className="shrink-0 rounded-full border border-[#056daa] px-3 py-1 text-xs font-semibold text-[#056daa] hover:bg-[#056daa]/10 cursor-pointer"
+        >
+          Change
+        </button>
+      </div>
+    ) : null}
+  </div>
+);
 
 export default MovementRangeBar;

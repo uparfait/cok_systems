@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { FiMail, FiPhone, FiUser, FiCreditCard, FiSearch, FiAward } from 'react-icons/fi';
 import OverlayShell from '../../../../core/components/overlay/OverlayShell';
 import { failureOf } from '../../../../core/components/visitor/visitorApi';
@@ -46,6 +46,7 @@ const RegisterVisitorOverlay: React.FC<RegisterVisitorOverlayProps> = ({ onClose
   const [idError, setIdError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   const [searching, setSearching] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -87,7 +88,7 @@ const RegisterVisitorOverlay: React.FC<RegisterVisitorOverlayProps> = ({ onClose
   };
 
   const handleSave = async () => {
-    if (loading) return;
+    if (loading || submitting.current) return;
     if (!form.full_name.trim() || !form.telephone.trim()) {
       showError('Please fill in required fields');
       return;
@@ -108,6 +109,7 @@ const RegisterVisitorOverlay: React.FC<RegisterVisitorOverlayProps> = ({ onClose
       return;
     }
 
+    submitting.current = true;
     setLoading(true);
     try {
       const response = await serviceDeliveryService.checkIn({
@@ -132,6 +134,7 @@ const RegisterVisitorOverlay: React.FC<RegisterVisitorOverlayProps> = ({ onClose
       if (failure.code === 'ALREADY_IN_HOUSE') showWarning(failure.message);
       else showError(failure.message || 'Request failed');
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };

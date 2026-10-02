@@ -10,7 +10,29 @@ const ServiceDelivery = require('../../models/service_delivery.js');
 const ServiceTracking = require('../../models/service_tracking.js');
 const Visitor = require('../../models/visitor.js');
 const { notifyUsers } = require('../notify.js');
-const { isDuplicateKey } = require('./errors.js');
+const { isDuplicateKey, conflict } = require('./errors.js');
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/** DD/MM/YYYY HH:MM in Kigali time (UTC+2), for messages. */
+function whenText(date) {
+    if (!date) return '';
+    const t = new Date(new Date(date).getTime() + 2 * 60 * 60 * 1000);
+    return `${pad2(t.getUTCDate())}/${pad2(t.getUTCMonth() + 1)}/${t.getUTCFullYear()} ${pad2(t.getUTCHours())}:${pad2(t.getUTCMinutes())}`;
+}
+
+/** Refusal for an action on a visit that is already closed. */
+function alreadyCheckedOut(visit, name = '') {
+    const at = visit && visit.exist_date ? ` at ${whenText(visit.exist_date)}` : '';
+    return conflict(`${name || 'This visitor'} already checked out${at}.`, { code: 'ALREADY_CHECKED_OUT' });
+}
+
+/** The person's name on a visit (the visitor, or the old fields of a legacy visit). */
+async function visitorNameOf(visit) {
+    if (!visit) return '';
+    const named = await ServiceDelivery.findById(visit._id).populate('visitor', 'full_name').select('visitor full_name').lean();
+    return (named && named.visitor && named.visitor.full_name) || (named && named.full_name) || '';
+}
 
 const minutesBetween = (from, to) => Math.max(0, Math.round((new Date(to) - new Date(from)) / 60000));
 const userName = (user) => (user && (user.name || user.full_name || user.fullName)) || 'Not specified';
@@ -159,9 +181,13 @@ async function stopRunningServices(visit, { visitorName = '', now = new Date() }
 
 /**
  * Close a visit: stop running services, record the exit time and the visit
- * duration, and refresh the visitor presence.
+ * duration, and refresh the visitor presence. Returns null when the visit
+ * was already closed (nothing is done twice).
  */
 async function closeVisit(visit, { visitorName = '', now = new Date(), vehicleDuration = null } = {}) {
+    // Claim the open visit first: when two gates close it at once only one goes on
+    const claimed = await ServiceDelivery.updateOne({ _id: visit._id, is_still_inhouse: true }, { $set: { is_still_inhouse: false, exist_date: now } });
+    if (!claimed.modifiedCount) return null;
     await stopRunningServices(visit, { visitorName, now });
     visit.exist_date = now;
     visit.durations.entry_and_leave_duration = `${minutesBetween(visit.entry_date || now, now)} mins`;
@@ -177,6 +203,9 @@ async function closeVisit(visit, { visitorName = '', now = new Date(), vehicleDu
 }
 
 module.exports = {
+    whenText,
+    alreadyCheckedOut,
+    visitorNameOf,
     minutesBetween,
     userName,
     findOpenVisit,

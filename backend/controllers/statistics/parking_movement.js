@@ -88,30 +88,57 @@ const dayString = (ms) => {
     return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}`;
 };
 
-/** YYYY-MM-DD as the start of that Kigali day, or null. */
-function parseDay(value) {
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || '').trim());
+/**
+ * YYYY-MM-DD or YYYY-MM-DDTHH:MM in Kigali time, or null. A day alone is its
+ * start, or its end when `end` is set; T24:00 is the end of that day.
+ */
+function parseMoment(value, end = false) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/.exec(String(value || '').trim());
     if (!match) return null;
-    const ms = fromLocal(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    const [y, m, d] = [Number(match[1]), Number(match[2]) - 1, Number(match[3])];
+    if (match[4] === undefined) {
+        const day = fromLocal(y, m, d);
+        if (Number.isNaN(day)) return null;
+        return end ? day + DAY : day;
+    }
+    const h = Number(match[4]);
+    const min = Number(match[5]);
+    if (h > 24 || min > 59 || (h === 24 && min > 0)) return null;
+    const ms = fromLocal(y, m, d, h) + min * 60 * 1000;
     return Number.isNaN(ms) ? null : ms;
 }
 
-const customPeriod = (from, to, toDay, auto = false) => ({
-    key: 'custom', auto, label: `${dateLabel(from)} - ${dateLabel(toDay)}`, from, to, unit: unitForSpan(to - from),
-});
+/** YYYY-MM-DDTHH:MM for the date and hour fields; an end at midnight reads as 24:00 of the day before. */
+function inputValue(ms, end = false) {
+    const t = local(ms);
+    if (end && ms === startOf('day', ms)) return `${dayString(ms - DAY)}T24:00`;
+    return `${dayString(ms)}T${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}`;
+}
+
+const timeLabel = (ms) => {
+    const t = local(ms);
+    return `${dateLabel(ms)} ${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}`;
+};
+
+/** A custom period from `from` to `end` (exclusive), shown until now at most. */
+function customPeriod(from, end, now, auto = false) {
+    const wholeDays = from === startOf('day', from) && end === startOf('day', end);
+    const label = wholeDays ? `${dateLabel(from)} - ${dateLabel(end - DAY)}` : `${timeLabel(from)} - ${timeLabel(end)}`;
+    const to = Math.min(end, now);
+    return { key: 'custom', auto, label, from, to, end, unit: unitForSpan(to - from) };
+}
 
 /** The period to show: { key, label, from, to, unit, auto }, `to` exclusive. */
 function requestedPeriod(query, now, insideSince) {
     const today = startOf('day', now);
     const range = query.range;
     if (range === 'custom') {
-        const from = parseDay(query.from);
-        const toDay = parseDay(query.to);
-        if (from === null || toDay === null) return { error: 'Choose a valid From and To date (YYYY-MM-DD)' };
-        if (toDay < from) return { error: 'The To date must be on or after the From date' };
-        const to = Math.min(toDay + DAY, now);
-        if (to <= from) return { error: 'The period has not started yet' };
-        return customPeriod(from, to, toDay);
+        const from = parseMoment(query.from);
+        const end = parseMoment(query.to, true);
+        if (from === null || end === null) return { error: 'Choose a valid From and To (YYYY-MM-DD or YYYY-MM-DDTHH:MM)' };
+        if (end <= from) return { error: 'The To time must be after the From time' };
+        if (from >= now) return { error: 'The period has not started yet' };
+        return customPeriod(from, end, now);
     }
     if (range === 'today') return { key: 'today', ...RANGES.today, from: today, to: now };
     if (range === 'yesterday') return { key: 'yesterday', ...RANGES.yesterday, from: today - DAY, to: today };
@@ -119,7 +146,7 @@ function requestedPeriod(query, now, insideSince) {
     if (range === 'month') return { key: 'month', ...RANGES.month, from: startOf('month', now), to: now };
     if (range === 'year') return { key: 'year', ...RANGES.year, from: startOf('year', now), to: now };
     // Default: today, or from the day the oldest car still inside arrived
-    if (insideSince !== null && insideSince < today) return customPeriod(startOf('day', insideSince), now, today, true);
+    if (insideSince !== null && insideSince < today) return customPeriod(startOf('day', insideSince), today + DAY, now, true);
     return { key: 'today', ...RANGES.today, from: today, to: now, auto: true };
 }
 
@@ -178,6 +205,8 @@ async function getParkingMovement(req, res) {
                 to: new Date(period.to).toISOString(),
                 from_day: dayString(period.from),
                 to_day: dayString(period.to - 1),
+                from_input: inputValue(period.from),
+                to_input: inputValue(period.end || period.to, true),
                 chart_from: new Date(first).toISOString(),
                 earliest_inside: insideSince !== null ? { check_in: new Date(insideSince).toISOString(), plate_number: earliestInside.plate_number } : null,
                 totals: { check_in: totals[0], check_out: totals[1], flagged: totals[2] },

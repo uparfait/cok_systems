@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { FiCheckCircle, FiLogOut } from 'react-icons/fi';
 import OverlayShell from '../../../../core/components/overlay/OverlayShell';
 import { smartParkingService } from '../../../../core/services/adminService';
@@ -30,10 +30,12 @@ const Detail: React.FC<{ label: string; wide?: boolean; children: React.ReactNod
 const CheckoutConfirmBody: React.FC<CheckoutConfirmOverlayProps & { record: ParkingRow }> = ({ record, onClose, onCheckedOut, zIndex }) => {
   const { showSuccess, showWarning, showError } = useToast();
   const [busy, setBusy] = useState(false);
+  const running = useRef(false);
   const [result, setResult] = useState<CheckoutResult | null>(null);
 
   const confirm = async () => {
-    if (busy) return;
+    if (busy || running.current) return;
+    running.current = true;
     setBusy(true);
     try {
       const response = await smartParkingService.checkOutByPlate(record.plate_number);
@@ -52,8 +54,16 @@ const CheckoutConfirmBody: React.FC<CheckoutConfirmOverlayProps & { record: Park
         showError(response?.message || 'Failed to checkout vehicle');
       }
     } catch (error) {
-      showError(failureOf(error).message || 'Failed to checkout vehicle');
+      const failure = failureOf(error);
+      if (failure.code === 'ALREADY_CHECKED_OUT') {
+        showWarning(failure.message);
+        onCheckedOut(record);
+        onClose();
+      } else {
+        showError(failure.message || 'Failed to checkout vehicle');
+      }
     } finally {
+      running.current = false;
       setBusy(false);
     }
   };

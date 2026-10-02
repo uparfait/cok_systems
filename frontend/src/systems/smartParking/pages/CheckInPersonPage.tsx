@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
@@ -51,6 +51,7 @@ const CheckInPersonPage: React.FC = () => {
   const { socket, isConnected } = useSocket();
 
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [idError, setIdError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -125,7 +126,7 @@ const CheckInPersonPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading) return;
+    if (loading || submitting.current) return;
     if (!formData.full_name.trim() || !formData.telephone.trim()) {
       showError('Please fill in required fields');
       return;
@@ -141,6 +142,7 @@ const CheckInPersonPage: React.FC = () => {
       return;
     }
 
+    submitting.current = true;
     setLoading(true);
     try {
       const response = await serviceDeliveryService.checkIn({
@@ -162,6 +164,7 @@ const CheckInPersonPage: React.FC = () => {
       if (failure.code === 'ALREADY_IN_HOUSE') showWarning(failure.message);
       else showError(failure.message || 'Failed to check in the visitor');
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };

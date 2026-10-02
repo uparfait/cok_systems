@@ -1,7 +1,8 @@
 const ServiceDelivery = require("../../models/service_delivery.js");
+const ParkingRecord = require("../../models/parking_record.js");
 const {
-  normalizePlate, activeRecordForPlate, endParkingSession, closeVisit, parkingView, emitVisitorUpdated,
-  sendError, badRequest, notFound,
+  normalizePlate, activeRecordForPlate, endParkingSession, closeVisit, parkingView, emitVisitorUpdated, whenText,
+  sendError, badRequest, notFound, conflict,
 } = require("../../utilities/visitors");
 
 /** The visit this car belongs to: the stored link, else (old records) an open visit with this plate. */
@@ -26,7 +27,12 @@ module.exports = async function car_check_out(req, res) {
     const plate = normalizePlate((req.body || {}).plate_number);
     if (!plate) throw badRequest("Plate number required");
     const active = await activeRecordForPlate(plate);
-    if (!active) throw notFound("No active parking record found for this plate number.");
+    if (!active) {
+      // Not parked: say when it left instead of checking it out twice
+      const last = await ParkingRecord.findOne({ plate_number: plate, status: "completed" }).sort({ check_out: -1 }).select("check_out").lean();
+      if (last) throw conflict(`Car ${plate} is not parked. It was already checked out at ${whenText(last.check_out)}.`, { code: "ALREADY_CHECKED_OUT" });
+      throw notFound("No active parking record found for this plate number.");
+    }
 
     const { record, minutes, violation } = await endParkingSession(active, req.user);
 

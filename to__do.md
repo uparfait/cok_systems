@@ -40,9 +40,15 @@ Status legend: [ ] to do, [x] done.
     page loads and every few minutes, and right after a scan or a delete on the Legacy Data page).
 16. Gate dashboard "Hourly Parking Analytics": a Period select with Today / Yesterday / This Week / This Month /
     This Year / Custom. It opens on Today, or - when a car still parked arrived before today - on Custom from the
-    day that car arrived. Today and yesterday by hour, week and month by day, year by month; custom by hour, day,
-    week, month or year from its length. Grouped bars: check-ins blue, check-outs green, flagged red. Whole numbers
-    only, totals follow the period, a spinner shows while a new period loads.
+    day that car arrived. Custom opens a small overlay (From day + hour, To day + hour, 24h) and reloads only on
+    Apply. Today and yesterday by hour, week and month by day, year by month; custom by hour, day, week, month or
+    year from its length. Grouped bars (check-ins blue, check-outs green, flagged red), 2px apart, centred on their
+    label with empty bars left out and the number above each bar. Whole numbers only, totals follow the period, a
+    plain spinner shows while loading. Mobile first; small parts (icon, buttons, select, chips, tiles) rounded.
+17. Nothing is done twice: checking out someone already gone, a partial exit for someone already outside, a
+    return for someone already inside, checking out a car that already left and sending a visitor again to the
+    department where they already wait are all refused with a clear message (who and when). Closing a visit is
+    atomic, so two gates acting at the same moment cannot both succeed, and the buttons lock on the first click.
 
 ## 1. Data models (backend)
 
