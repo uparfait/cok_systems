@@ -19,36 +19,32 @@ interface MovementRangeBarProps {
   onApplyCustom: (dates: CustomDates) => void;
 }
 
-const LABEL = 'flex flex-col text-[11px] font-semibold uppercase tracking-wide text-gray-600';
-const INPUT = 'border border-gray-300 bg-white px-2 py-1.5 text-sm font-normal normal-case';
+const LABEL = 'flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600';
+const INPUT = 'border border-gray-300 bg-white px-2 py-1.5 text-sm font-normal normal-case text-gray-900 cursor-pointer';
 
 const MovementRangeBar: React.FC<MovementRangeBarProps> = ({ range, custom, busy, onRange, onApplyCustom }) => {
   const [draft, setDraft] = useState<CustomDates>(custom);
 
   useEffect(() => {
-    setDraft(custom);
-  }, [custom]);
+    setDraft({ from: custom.from, to: custom.to });
+  }, [custom.from, custom.to]);
 
   const valid = !!draft.from && !!draft.to && draft.from <= draft.to;
   const changed = draft.from !== custom.from || draft.to !== custom.to;
 
   return (
-    <div className="flex flex-col gap-3 mb-4">
-      <div className="flex flex-wrap gap-2">
-        {OPTIONS.map((option) => (
-          <button
-            key={option.key}
-            type="button"
-            onClick={() => onRange(option.key)}
-            className={`${range === option.key ? 'cok-btn-primary' : 'cok-btn-outlined'} w-auto! px-3! py-1.5! text-xs!`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+    <div className="flex flex-wrap items-end gap-2 mb-4">
+      <label className={LABEL}>
+        <span>Period</span>
+        <select value={range} onChange={(e) => onRange(e.target.value as MovementRange)} className={`${INPUT} min-w-40`}>
+          {OPTIONS.map((option) => (
+            <option key={option.key} value={option.key}>{option.label}</option>
+          ))}
+        </select>
+      </label>
 
       {range === 'custom' ? (
-        <div className="flex flex-wrap items-end gap-2">
+        <>
           <label className={LABEL}>
             <span className="cok-req">From</span>
             <input
@@ -78,7 +74,7 @@ const MovementRangeBar: React.FC<MovementRangeBarProps> = ({ range, custom, busy
           >
             Apply
           </button>
-        </div>
+        </>
       ) : null}
     </div>
   );

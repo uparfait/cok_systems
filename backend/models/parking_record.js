@@ -37,5 +37,6 @@ parking_record_schema.index({ plate_number: 1, check_in: -1 });
 parking_record_schema.index({ status: 1, check_in: -1 });
 parking_record_schema.index({ check_in: 1 });
 parking_record_schema.index({ check_out: 1 });
+parking_record_schema.index({ flagged_at: 1 });
 
 module.exports = mongoose.model('ParkingRecord', parking_record_schema);

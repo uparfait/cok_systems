@@ -38,10 +38,11 @@ Status legend: [ ] to do, [x] done.
     a car or person not in the system is simply saved during the check-in, nobody is asked to register first.
 15. The admin "Legacy Data" link shows in the sidebar only while old-structure records exist (checked when the
     page loads and every few minutes, and right after a scan or a delete on the Legacy Data page).
-16. Gate dashboard "Hourly Parking Analytics": Today / Yesterday / This Week / This Month / This Year (default) /
-    Custom. Today and yesterday by hour, week and month by day, year by month; custom by hour, day, week, month or
-    year from its length. Whole numbers only. The chart starts at the first movement of the period, or earlier at
-    the arrival of the oldest car still inside; the totals follow the chosen period.
+16. Gate dashboard "Hourly Parking Analytics": a Period select with Today / Yesterday / This Week / This Month /
+    This Year / Custom. It opens on Today, or - when a car still parked arrived before today - on Custom from the
+    day that car arrived. Today and yesterday by hour, week and month by day, year by month; custom by hour, day,
+    week, month or year from its length. Grouped bars: check-ins blue, check-outs green, flagged red. Whole numbers
+    only, totals follow the period, a spinner shows while a new period loads.
 
 ## 1. Data models (backend)
 

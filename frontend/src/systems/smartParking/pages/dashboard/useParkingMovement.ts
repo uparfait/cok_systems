@@ -10,23 +10,33 @@ export interface MovementPoint {
   label: string;
   check_in: number;
   check_out: number;
+  flagged: number;
 }
 
 export interface Movement {
   range: MovementRange;
+  auto: boolean;
   label: string;
   unit: 'hour' | 'day' | 'week' | 'month' | 'year';
   from: string;
   to: string;
+  from_day: string;
+  to_day: string;
   chart_from: string;
   earliest_inside: { check_in: string; plate_number: string } | null;
-  totals: { check_in: number; check_out: number };
+  totals: { check_in: number; check_out: number; flagged: number };
   points: MovementPoint[];
 }
 
 export interface CustomDates {
   from: string;
   to: string;
+}
+
+interface MovementRequest {
+  range: MovementRange | 'default';
+  from?: string;
+  to?: string;
 }
 
 const RELOAD_MS = 60 * 1000;
@@ -43,8 +53,7 @@ export const todayString = (): string => dayOf(new Date());
 
 export function useParkingMovement(enabled: boolean) {
   const { on, off, isConnected } = useSocket();
-  const [range, setRangeState] = useState<MovementRange>('year');
-  const [custom, setCustom] = useState<CustomDates>({ from: '', to: '' });
+  const [request, setRequest] = useState<MovementRequest>({ range: 'default' });
   const [data, setData] = useState<Movement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,11 +61,11 @@ export function useParkingMovement(enabled: boolean) {
   const liveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async (silent = false) => {
-    if (range === 'custom' && (!custom.from || !custom.to)) return;
     const current = ++sequence.current;
     if (!silent) setLoading(true);
     try {
-      const response = await statisticsService.getParkingMovement(range === 'custom' ? { range, ...custom } : { range });
+      const params = request.range === 'custom' ? { range: 'custom', from: request.from, to: request.to } : { range: request.range };
+      const response = await statisticsService.getParkingMovement(params);
       if (current !== sequence.current) return;
       if (response?.success && response.data) {
         setData(response.data as Movement);
@@ -69,7 +78,7 @@ export function useParkingMovement(enabled: boolean) {
     } finally {
       if (current === sequence.current) setLoading(false);
     }
-  }, [range, custom]);
+  }, [request]);
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -91,23 +100,28 @@ export function useParkingMovement(enabled: boolean) {
     };
   }, [enabled, isConnected, on, off, load]);
 
+  const range: MovementRange = request.range === 'default' ? (data ? data.range : 'today') : request.range;
+  const custom: CustomDates = request.range === 'custom'
+    ? { from: request.from || '', to: request.to || '' }
+    : data && data.range === 'custom'
+      ? { from: data.from_day, to: data.to_day }
+      : { from: '', to: '' };
+
   const setRange = useCallback((next: MovementRange) => {
-    if (next === 'custom') {
-      setCustom((prev) => {
-        if (prev.from && prev.to) return prev;
-        const since = data?.earliest_inside?.check_in;
-        return { from: since ? dayOf(since) : todayString(), to: todayString() };
-      });
+    if (next !== 'custom') {
+      setRequest({ range: next });
+      return;
     }
-    setRangeState(next);
-  }, [data]);
+    const since = data?.earliest_inside?.check_in;
+    const from = custom.from || (since ? dayOf(since) : todayString());
+    setRequest({ range: 'custom', from, to: custom.to || todayString() });
+  }, [data, custom.from, custom.to]);
 
   const applyCustom = useCallback((dates: CustomDates) => {
-    setCustom(dates);
-    setRangeState('custom');
+    setRequest({ range: 'custom', from: dates.from, to: dates.to });
   }, []);
 
-  return { range, setRange, custom, applyCustom, data, loading, error, reload: () => load() };
+  return { range, custom, setRange, applyCustom, data, loading, error, reload: () => load() };
 }
 
 export default useParkingMovement;

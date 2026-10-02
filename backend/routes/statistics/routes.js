@@ -227,8 +227,8 @@ Router.get('/hourly-parking', statisticsController.getHourlyParkingStats);
  * @swagger
  * /statistics/parking-movement:
  *   get:
- *     summary: "Vehicle check-ins and check-outs over a period"
- *     description: "For the gate dashboard chart. Kigali time. Today and yesterday are grouped by hour, this week and this month by day, this year by month; a custom period is grouped by hour, day, week, month or year depending on its length. The chart starts at the first movement of the period, or earlier at the arrival of the oldest car still inside (live periods only), and becomes coarser when that makes it too long. totals count the requested period only. Counts are whole numbers."
+ *     summary: "Vehicle check-ins, check-outs and flagged vehicles over a period"
+ *     description: "For the gate dashboard chart. Kigali time. Today and yesterday are grouped by hour, this week and this month by day, this year by month; a custom period is grouped by hour, day, week, month or year depending on its length. The default period (no range, or range=default) is today, or - when a car still inside arrived before today - from the day that car arrived until now (returned as a custom period with auto true). The chart starts at the first movement of the period. flagged counts vehicles by the time they were flagged for overstaying. Counts are whole numbers."
  *     tags: [Statistics]
  *     security:
  *       - BearerAuth: []
@@ -237,8 +237,8 @@ Router.get('/hourly-parking', statisticsController.getHourlyParkingStats);
  *         name: range
  *         schema:
  *           type: string
- *           enum: [today, yesterday, week, month, year, custom]
- *           default: year
+ *           enum: [default, today, yesterday, week, month, year, custom]
+ *           default: default
  *       - in: query
  *         name: from
  *         description: "Custom range start day, YYYY-MM-DD"
@@ -251,7 +251,7 @@ Router.get('/hourly-parking', statisticsController.getHourlyParkingStats);
  *           type: string
  *     responses:
  *       200:
- *         description: "data: { range, label, unit (hour|day|week|month|year), from, to, chart_from, earliest_inside, totals: { check_in, check_out }, points: [{ key, label, check_in, check_out }] }"
+ *         description: "data: { range, auto, label, unit (hour|day|week|month|year), from, to, from_day, to_day, chart_from, earliest_inside, totals: { check_in, check_out, flagged }, points: [{ key, label, check_in, check_out, flagged }] }"
  *       400:
  *         description: Invalid custom dates
  *       500:

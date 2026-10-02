@@ -1,9 +1,11 @@
 /**
- * Vehicle movement (check-ins and check-outs) for the gate dashboard chart,
- * over a chosen period, grouped by hour, day, week, month or year in Kigali
- * time. Counts are whole numbers of vehicles.
+ * Vehicle movement for the gate dashboard chart: check-ins, check-outs and
+ * vehicles flagged for overstaying, over a chosen period, grouped by hour,
+ * day, week, month or year in Kigali time. Counts are whole numbers.
  *
- * GET /statistics/parking-movement?range=today|yesterday|week|month|year|custom&from=YYYY-MM-DD&to=YYYY-MM-DD
+ * GET /statistics/parking-movement?range=default|today|yesterday|week|month|year|custom&from=YYYY-MM-DD&to=YYYY-MM-DD
+ * The default period is today, or - when a car still inside arrived before
+ * today - from the day that car arrived until now.
  */
 
 const ParkingRecord = require('../../models/parking_record.js');
@@ -12,7 +14,6 @@ const TIMEZONE = 'Africa/Kigali';
 const OFFSET_MS = 2 * 60 * 60 * 1000; // Rwanda is UTC+2 all year
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
-const UNITS = ['hour', 'day', 'week', 'month', 'year'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const RANGES = {
@@ -22,6 +23,11 @@ const RANGES = {
     month: { label: 'This Month', unit: 'day' },
     year: { label: 'This Year', unit: 'month' },
 };
+const SERIES = [
+    { key: 'check_in', field: 'check_in' },
+    { key: 'check_out', field: 'check_out' },
+    { key: 'flagged', field: 'flagged_at' },
+];
 
 /** Kigali wall-clock fields of an instant (read with getUTC*). */
 const local = (ms) => new Date(ms + OFFSET_MS);
@@ -59,7 +65,6 @@ function unitForSpan(ms) {
     return 'year';
 }
 
-const coarser = (a, b) => (UNITS.indexOf(a) >= UNITS.indexOf(b) ? a : b);
 const pad = (n) => String(n).padStart(2, '0');
 
 function bucketLabel(unit, ms, multiDay) {
@@ -77,6 +82,12 @@ const dateLabel = (ms) => {
     return `${t.getUTCDate()} ${MONTHS[t.getUTCMonth()]} ${t.getUTCFullYear()}`;
 };
 
+/** Kigali calendar day of an instant as YYYY-MM-DD. */
+const dayString = (ms) => {
+    const t = local(ms);
+    return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}`;
+};
+
 /** YYYY-MM-DD as the start of that Kigali day, or null. */
 function parseDay(value) {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || '').trim());
@@ -85,75 +96,73 @@ function parseDay(value) {
     return Number.isNaN(ms) ? null : ms;
 }
 
-/** The period asked for: { key, label, from, to, unit }, `to` exclusive. */
-function requestedPeriod(query, now) {
-    const key = (RANGES[query.range] || query.range === 'custom') ? query.range : 'year';
-    if (key === 'custom') {
+const customPeriod = (from, to, toDay, auto = false) => ({
+    key: 'custom', auto, label: `${dateLabel(from)} - ${dateLabel(toDay)}`, from, to, unit: unitForSpan(to - from),
+});
+
+/** The period to show: { key, label, from, to, unit, auto }, `to` exclusive. */
+function requestedPeriod(query, now, insideSince) {
+    const today = startOf('day', now);
+    const range = query.range;
+    if (range === 'custom') {
         const from = parseDay(query.from);
         const toDay = parseDay(query.to);
         if (from === null || toDay === null) return { error: 'Choose a valid From and To date (YYYY-MM-DD)' };
         if (toDay < from) return { error: 'The To date must be on or after the From date' };
         const to = Math.min(toDay + DAY, now);
         if (to <= from) return { error: 'The period has not started yet' };
-        return { key, label: `${dateLabel(from)} - ${dateLabel(toDay)}`, from, to, unit: unitForSpan(to - from) };
+        return customPeriod(from, to, toDay);
     }
-    const today = startOf('day', now);
-    if (key === 'today') return { key, ...RANGES.today, from: today, to: now };
-    if (key === 'yesterday') return { key, ...RANGES.yesterday, from: today - DAY, to: today };
-    if (key === 'week') return { key, ...RANGES.week, from: startOf('week', now), to: now };
-    if (key === 'month') return { key, ...RANGES.month, from: startOf('month', now), to: now };
-    return { key: 'year', ...RANGES.year, from: startOf('year', now), to: now };
+    if (range === 'today') return { key: 'today', ...RANGES.today, from: today, to: now };
+    if (range === 'yesterday') return { key: 'yesterday', ...RANGES.yesterday, from: today - DAY, to: today };
+    if (range === 'week') return { key: 'week', ...RANGES.week, from: startOf('week', now), to: now };
+    if (range === 'month') return { key: 'month', ...RANGES.month, from: startOf('month', now), to: now };
+    if (range === 'year') return { key: 'year', ...RANGES.year, from: startOf('year', now), to: now };
+    // Default: today, or from the day the oldest car still inside arrived
+    if (insideSince !== null && insideSince < today) return customPeriod(startOf('day', insideSince), now, today, true);
+    return { key: 'today', ...RANGES.today, from: today, to: now, auto: true };
 }
 
+const inPeriod = (from, to) => ({ $gte: new Date(from), $lt: new Date(to) });
+
 const countBy = (field, unit, from, to) => ParkingRecord.aggregate([
-    { $match: { [field]: { $gte: new Date(from), $lt: new Date(to) } } },
+    { $match: { [field]: inPeriod(from, to) } },
     { $group: { _id: { $dateTrunc: { date: `$${field}`, unit, timezone: TIMEZONE, ...(unit === 'week' ? { startOfWeek: 'monday' } : {}) } }, n: { $sum: 1 } } },
 ]);
 
-const firstOf = (field, from, to) => ParkingRecord.findOne({ [field]: { $gte: new Date(from), $lt: new Date(to) } })
+const firstOf = (field, from, to) => ParkingRecord.findOne({ [field]: inPeriod(from, to) })
     .sort({ [field]: 1 }).select(field).lean();
 
 async function getParkingMovement(req, res) {
     try {
         const now = Date.now();
-        const period = requestedPeriod(req.query || {}, now);
+        const earliestInside = await ParkingRecord.findOne({ status: 'active' }).sort({ check_in: 1 }).select('check_in plate_number').lean();
+        const insideSince = earliestInside && earliestInside.check_in ? new Date(earliestInside.check_in).getTime() : null;
+        const period = requestedPeriod(req.query || {}, now, insideSince);
         if (period.error) return res.status(400).json({ success: false, type: 'warning', message: period.error });
 
-        const live = period.to >= now - 60 * 1000;
-        const [earliestInside, firstIn, firstOut, totalIn, totalOut] = await Promise.all([
-            live ? ParkingRecord.findOne({ status: 'active' }).sort({ check_in: 1 }).select('check_in plate_number').lean() : null,
-            firstOf('check_in', period.from, period.to),
-            firstOf('check_out', period.from, period.to),
-            ParkingRecord.countDocuments({ check_in: { $gte: new Date(period.from), $lt: new Date(period.to) } }),
-            ParkingRecord.countDocuments({ check_out: { $gte: new Date(period.from), $lt: new Date(period.to) } }),
+        const [firsts, totals] = await Promise.all([
+            Promise.all(SERIES.map((s) => firstOf(s.field, period.from, period.to))),
+            Promise.all(SERIES.map((s) => ParkingRecord.countDocuments({ [s.field]: inPeriod(period.from, period.to) }))),
         ]);
 
-        // The chart starts at the first movement of the period, or earlier at
-        // the arrival of the oldest car still inside, so no car appears from nowhere
-        const starts = [firstIn && firstIn.check_in, firstOut && firstOut.check_out]
-            .filter(Boolean).map((d) => new Date(d).getTime());
-        const insideSince = earliestInside && earliestInside.check_in ? new Date(earliestInside.check_in).getTime() : null;
-        if (insideSince !== null && insideSince < period.from) starts.push(insideSince);
+        // Skip the empty start of the period: the chart begins at its first movement
+        const starts = firsts
+            .map((doc, i) => (doc && doc[SERIES[i].field] ? new Date(doc[SERIES[i].field]).getTime() : null))
+            .filter((ms) => ms !== null);
         const windowFrom = starts.length ? Math.min(...starts) : period.from;
-        const unit = coarser(period.unit, unitForSpan(period.to - windowFrom));
+        const unit = period.unit;
 
-        const [ins, outs] = await Promise.all([
-            countBy('check_in', unit, windowFrom, period.to),
-            countBy('check_out', unit, windowFrom, period.to),
-        ]);
-        const inMap = new Map(ins.map((row) => [new Date(row._id).getTime(), row.n]));
-        const outMap = new Map(outs.map((row) => [new Date(row._id).getTime(), row.n]));
+        const counted = await Promise.all(SERIES.map((s) => countBy(s.field, unit, windowFrom, period.to)));
+        const maps = counted.map((rows) => new Map(rows.map((row) => [new Date(row._id).getTime(), row.n])));
 
         const first = startOf(unit, windowFrom);
         const multiDay = unit === 'hour' && startOf('day', first) !== startOf('day', period.to - 1);
         const points = [];
         for (let at = first; at < period.to && points.length < 400; at = next(unit, at)) {
-            points.push({
-                key: new Date(at).toISOString(),
-                label: bucketLabel(unit, at, multiDay),
-                check_in: inMap.get(at) || 0,
-                check_out: outMap.get(at) || 0,
-            });
+            const point = { key: new Date(at).toISOString(), label: bucketLabel(unit, at, multiDay) };
+            SERIES.forEach((s, i) => { point[s.key] = maps[i].get(at) || 0; });
+            points.push(point);
         }
 
         return res.status(200).json({
@@ -162,13 +171,16 @@ async function getParkingMovement(req, res) {
             message: 'Vehicle movement retrieved',
             data: {
                 range: period.key,
+                auto: !!period.auto,
                 label: period.label,
                 unit,
                 from: new Date(period.from).toISOString(),
                 to: new Date(period.to).toISOString(),
+                from_day: dayString(period.from),
+                to_day: dayString(period.to - 1),
                 chart_from: new Date(first).toISOString(),
                 earliest_inside: insideSince !== null ? { check_in: new Date(insideSince).toISOString(), plate_number: earliestInside.plate_number } : null,
-                totals: { check_in: totalIn, check_out: totalOut },
+                totals: { check_in: totals[0], check_out: totals[1], flagged: totals[2] },
                 points,
             },
         });
