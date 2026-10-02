@@ -33,6 +33,7 @@ interface VisitorFormData {
   id_type: string;
   id_number: string;
   gender: string;
+  badge_number: string;
 }
 
 const EMPTY_FORM: VisitorFormData = {
@@ -42,6 +43,7 @@ const EMPTY_FORM: VisitorFormData = {
   id_type: 'National ID',
   id_number: '',
   gender: 'Not specified',
+  badge_number: '',
 };
 
 const CheckInPersonPage: React.FC = () => {
@@ -114,6 +116,7 @@ const CheckInPersonPage: React.FC = () => {
       id_type: visitor.identification?.id_type || formData.id_type,
       id_number: visitor.identification?.number || formData.id_number,
       gender: visitor.gender || 'Not specified',
+      badge_number: formData.badge_number,
     });
     setIdError(null);
     setEmailError(null);
@@ -146,6 +149,7 @@ const CheckInPersonPage: React.FC = () => {
         email: formData.email.trim() || null,
         identification: identificationPayload(formData.id_type, formData.id_number),
         gender: formData.gender,
+        badge_number: formData.badge_number.trim() || null,
       });
       if (response?.success) {
         showSuccess(response.message || 'Visitor checked in');
@@ -296,6 +300,20 @@ const CheckInPersonPage: React.FC = () => {
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block mb-1 text-sm sm:text-base" style={labelStyle}>
+                    Badge Number
+                  </label>
+                  <input
+                    type="text"
+                    name="badge_number"
+                    value={formData.badge_number}
+                    onChange={handleChange}
+                    className="w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
+                    placeholder="Badge number (optional)"
+                  />
                 </div>
               </div>
 

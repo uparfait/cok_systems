@@ -11,7 +11,7 @@ const GRAY_DISABLED = '#9E9E9E';
 const WHITE = '#FFFFFF';
 const fontHeading = "'Montserrat', sans-serif";
 
-const HEADERS = ['Action', 'Plate Number', 'Full name', 'ID type', 'ID number', 'Telephone', 'Email', 'Gender', 'Visits', 'Type', 'Check-in', 'Duration'];
+const HEADERS = ['Action', 'Plate Number', 'Badge', 'Full name', 'ID type', 'ID number', 'Telephone', 'Email', 'Gender', 'Visits', 'Type', 'Check-in', 'Duration'];
 
 interface ActiveParkingTableProps {
   rows: ParkingRow[];
@@ -79,6 +79,7 @@ const ActiveParkingTable: React.FC<ActiveParkingTableProps> = ({ rows, loading, 
                   {row.plate_number || '-'}
                 </span>
               </td>
+              <td className="px-3 py-3 text-sm font-medium" style={{ color: TEXT }}>{row.badge_number || '_____'}</td>
               <td className="px-3 py-3 text-sm" style={{ color: TEXT }}>{row.driver_name || '-'}</td>
               <td className="px-3 py-3 text-sm" style={{ color: TEXT }}>{idTypeOf(row)}</td>
               <td className="px-3 py-3 text-sm" style={{ color: TEXT }}>{idNumberOf(row)}</td>

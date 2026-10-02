@@ -26,8 +26,8 @@ const TONE: Record<GateAction, { bg: string; color: string }> = {
 const explanationOf = (action: GateAction, plate: string): string => {
   const car = plate || 'the car';
   if (action === 'checkout') return 'The visit is closed and the visitor leaves the premises.';
-  if (action === 'leave') return `The visitor steps out while ${car} stays parked. The visit stays open until the car is checked out at the vehicle exit.`;
-  return 'The visitor came back inside and is marked as inside again.';
+  if (action === 'leave') return `The visitor steps out while ${car} stays parked. The visit stays open until the car is checked out at the vehicle exit. The badge is taken back.`;
+  return 'The visitor came back inside and is marked as inside again. A badge given now is saved on the visit and on the parked car.';
 };
 
 const Detail: React.FC<{ label: string; value: React.ReactNode; wide?: boolean }> = ({ label, value, wide }) => (
@@ -42,11 +42,13 @@ interface GateActionOverlayProps {
   action: GateAction;
   busy: boolean;
   failure: string | null;
+  badge: string;
+  onBadgeChange: (value: string) => void;
   onConfirm: () => void;
   onClose: () => void;
 }
 
-const GateActionOverlay: React.FC<GateActionOverlayProps> = ({ row, action, busy, failure, onConfirm, onClose }) => {
+const GateActionOverlay: React.FC<GateActionOverlayProps> = ({ row, action, busy, failure, badge, onBadgeChange, onConfirm, onClose }) => {
   const plate = plateOf(row);
   const vehicle = hasVehicle(row);
   const tone = TONE[action];
@@ -89,6 +91,7 @@ const GateActionOverlay: React.FC<GateActionOverlayProps> = ({ row, action, busy
           <Detail label="Telephone" value={dash(row.telephone)} />
           <Detail label="Gender" value={dash(row.gender)} />
           <Detail label="Email" value={dash(row.email)} wide />
+          <Detail label="Badge" value={dash(row.badge_number)} />
           <Detail label="Visits" value={row.N_visits ?? 0} />
           <Detail label="Status" value={row.marked_as_out ? 'Stepped out' : 'Inside'} />
           <Detail label="Check-in" value={formatDateTime(row.entry_date)} />
@@ -99,6 +102,20 @@ const GateActionOverlay: React.FC<GateActionOverlayProps> = ({ row, action, busy
         {vehicle ? (
           <div className="px-3 py-2 text-xs font-medium border border-amber-300 bg-amber-50 text-amber-900">
             This visitor came with vehicle {plate || '-'}. The car is still parked.
+          </div>
+        ) : null}
+
+        {action === 'return' ? (
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Badge Number (optional)</label>
+            <input
+              type="text"
+              value={badge}
+              onChange={(e) => onBadgeChange(e.target.value)}
+              disabled={busy}
+              className="cok-auth-input pr-3 py-2 text-sm"
+              placeholder="Enter badge number"
+            />
           </div>
         ) : null}
 

@@ -58,7 +58,7 @@ const CheckOutVehiclePage: React.FC = () => {
                   value={parking.query}
                   onChange={(e) => parking.setQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') parking.searchNow(); }}
-                  placeholder="Search by plate, name, telephone, email or ID number..."
+                  placeholder="Search by plate, badge, name, telephone, email or ID number..."
                   className="w-full pl-9 pr-3 py-2 cok-auth-input"
                 />
               </div>

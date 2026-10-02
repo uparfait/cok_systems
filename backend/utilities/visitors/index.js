@@ -7,5 +7,6 @@ module.exports = {
     ...require('./visits.js'),
     ...require('./service.js'),
     ...require('./parking.js'),
+    ...require('./badge.js'),
     ...require('./realtime.js'),
 };

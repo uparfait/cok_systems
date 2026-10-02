@@ -19,6 +19,7 @@ const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';
 const COLUMNS = [
   'Action',
   'Full name',
+  'Badge',
   'ID type',
   'ID number',
   'Telephone',
@@ -117,6 +118,7 @@ const InHouseTable: React.FC<InHouseTableProps> = ({ rows, loading, searching, t
               <span className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>{dash(row.full_name)}</span>
             </div>
           </td>
+          <td className="px-3 py-2.5 text-sm font-medium" style={{ color: NEUTRAL_DARK }}>{row.badge_number || '_____'}</td>
           <td className="px-3 py-2.5 text-sm" style={{ color: TEXT }}>{dash(row.identification?.id_type)}</td>
           <td className="px-3 py-2.5 text-sm" style={{ color: TEXT }}>{dash(row.identification?.number)}</td>
           <td className="px-3 py-2.5 text-sm" style={{ color: TEXT }}>{dash(row.telephone)}</td>

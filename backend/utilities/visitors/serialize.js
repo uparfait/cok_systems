@@ -94,7 +94,6 @@ function visitView(visit, { withAttachments = false } = {}) {
         serving_by: servingOf(o),
         attachments_count: attachments.length,
     };
-    delete view.badge_number;
     delete view.driver_identification;
     if (!withAttachments) delete view.attachments;
     return view;
@@ -122,7 +121,6 @@ function parkingView(record) {
         N_visits: person.N_visits,
         Is_In_House: person.Is_In_House,
     };
-    delete view.badge_number;
     return view;
 }
 

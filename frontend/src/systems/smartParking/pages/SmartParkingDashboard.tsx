@@ -52,12 +52,7 @@ const SmartParkingDashboard: React.FC = () => {
           </button>
         </div>
 
-        <HourlyParkingChart
-          data={dashboard.hourly}
-          loading={dashboard.analyticsLoading}
-          firstLoad={dashboard.hourlyFirstLoad}
-          onRefresh={dashboard.fetchHourlyAnalytics}
-        />
+        <HourlyParkingChart enabled={!dashboard.authLoading} />
 
         <FlaggedVehiclesSection
           rows={dashboard.flagged}

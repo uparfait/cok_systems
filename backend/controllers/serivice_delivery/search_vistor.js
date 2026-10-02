@@ -89,6 +89,7 @@ module.exports = async function search_visitors(req, res) {
             ];
             const plate = normalizePlate(text);
             if (plate) or.push({ 'vehicle_storage.vehicle_details.plate_number': contains(plate) });
+            or.push({ badge_number: contains(text.replace(/\s+/g, '').toUpperCase()) });
             filter.$or = or;
         }
 

@@ -45,7 +45,7 @@ const CheckOutPersonPage: React.FC = () => {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') list.applySearch();
                 }}
-                placeholder="Search by name, ID number, phone, email or plate..."
+                placeholder="Search by name, badge, ID number, phone, email or plate..."
                 className="w-full pl-9 pr-3 py-2 cok-auth-input"
               />
             </div>
@@ -77,6 +77,8 @@ const CheckOutPersonPage: React.FC = () => {
             action={gate.action}
             busy={gate.busy}
             failure={gate.failure}
+            badge={gate.badge}
+            onBadgeChange={gate.setBadge}
             onConfirm={confirm}
             onClose={gate.close}
           />

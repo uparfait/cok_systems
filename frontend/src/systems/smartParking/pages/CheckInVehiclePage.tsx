@@ -56,6 +56,7 @@ interface VehicleForm {
   id_type: string;
   id_number: string;
   driver_type: string;
+  badge_number: string;
 }
 
 const emptyForm = (plate = ''): VehicleForm => ({
@@ -67,6 +68,7 @@ const emptyForm = (plate = ''): VehicleForm => ({
   id_type: 'National ID',
   id_number: '',
   driver_type: 'Regular',
+  badge_number: '',
 });
 
 const formFromVerify = (data: VerifyData, plate: string): VehicleForm => {
@@ -80,6 +82,7 @@ const formFromVerify = (data: VerifyData, plate: string): VehicleForm => {
     id_type: ID_TYPE_OPTIONS.includes(driver.identification.id_type) ? driver.identification.id_type : 'National ID',
     id_number: driver.identification.number,
     driver_type: data.vehicle_category || 'Regular',
+    badge_number: '',
   };
 };
 
@@ -186,6 +189,7 @@ const CheckInVehiclePage: React.FC = () => {
         driver_gender: form.driver_gender,
         driver_type: form.driver_type,
         driver_identification: identificationPayload(form.id_type, form.id_number),
+        badge_number: form.badge_number.trim() || null,
       });
       if (response?.success) {
         closeForm();
@@ -375,6 +379,11 @@ const CheckInVehiclePage: React.FC = () => {
                 style={{ borderColor: emailError ? DANGER : '' }}
               />
               {emailError && <p className="mt-1 text-xs" style={{ color: DANGER }}>{emailError}</p>}
+            </div>
+
+            <div>
+              <label className="block mb-1 text-sm" style={labelStyle}>Badge Number</label>
+              <input type="text" value={form.badge_number} onChange={(e) => handleInputChange('badge_number', e.target.value)} disabled={lockAll} placeholder="Enter badge number (optional)" className={inputClass} />
             </div>
 
             <div>

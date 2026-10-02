@@ -77,6 +77,11 @@ const upload = multer({
  *           description: "Decided by the server from the staff car registry and the visitor reservations"
  *         slot_number:
  *           type: string
+ *         badge_number:
+ *           type: string
+ *           nullable: true
+ *           description: "Optional badge of the person who came with the car, same value as their visit"
+ *           example: "B12"
  *         check_in:
  *           type: string
  *           format: date-time
@@ -815,7 +820,7 @@ Router.post('/vehicle/verify', auditSuccess('READ', 'vehicles'), verify_acar)
  * /smartparking/vehicle/checkin:
  *   post:
  *     summary: "Check in a vehicle"
- *     description: "Starts a parking session for the car and links it to the person who came with it, who is registered or updated like on the visitor check-in. The server decides driver_type from the staff car registry and the visitor reservations; a driver_type sent by the client is ignored. A visitor or regular car opens the driver's visit, or joins the visit already open; a staff car opens no visit but counts as a visit for the driver. Slot counters are updated. Emits car_checkedin and visitor_updated, plus visitor_checkedin when a visit was opened."
+ *     description: "Starts a parking session for the car and links it to the person who came with it, who is registered or updated like on the visitor check-in. The server decides driver_type from the staff car registry and the visitor reservations; a driver_type sent by the client is ignored. A visitor or regular car opens the driver's visit, or joins the visit already open; a staff car opens no visit but counts as a visit for the driver. An optional badge_number is kept on the car and on the driver's visit. Slot counters are updated. Emits car_checkedin and visitor_updated, plus visitor_checkedin when a visit was opened."
  *     tags: [Smart Parking]
  *     security:
  *       - BearerAuth: []
@@ -836,6 +841,10 @@ Router.post('/vehicle/verify', auditSuccess('READ', 'vehicles'), verify_acar)
  *                 type: string
  *                 description: "Optional. The registered visitor the driver form was filled from (verify last_driver or a lookup). Their details are updated with the submitted values."
  *                 example: "66f1a2b3c4d5e6f7a8b9c0d1"
+ *               badge_number:
+ *                 type: string
+ *                 description: "Optional badge given to the driver, saved in upper case (letters, digits and dashes). A badge held by someone inside is refused (400 BADGE_IN_USE)"
+ *                 example: "B12"
  *               driver:
  *                 $ref: '#/components/schemas/VisitorDetailsInput'
  *               driver_name:

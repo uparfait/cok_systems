@@ -16,6 +16,7 @@ import {
   type SidebarLink
 } from './layoutUtils';
 import { NAV_UPDATED_EVENT } from '../../services/navigationService';
+import { useLegacyDataLink } from './useLegacyDataLink';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -42,7 +43,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
   }, []);
 
   // Get navigation links (use custom if provided, otherwise use role-based)
-  const sidebarLinks: SidebarLink[] = useMemo(() => {
+  const allLinks: SidebarLink[] = useMemo(() => {
     if (customNavItems) {
       return customNavItems.map(item => ({
         id: item.id,
@@ -58,7 +59,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
     return toSidebarLinks(navigation);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, customNavItems, navVersion]);
-  
+  const sidebarLinks = useLegacyDataLink(allLinks);
+
   // Determine current system from URL path
   getCurrentSystemFromPath(location.pathname);
   

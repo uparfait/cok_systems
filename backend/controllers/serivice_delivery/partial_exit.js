@@ -1,4 +1,5 @@
 const ServiceDelivery = require('../../models/service_delivery.js')
+const ParkingRecord = require('../../models/parking_record.js')
 const {
     visitFromRef, closeVisit, activeParkingForVisit, visitView, emitVisitorUpdated, sendError, badRequest, notFound,
 } = require('../../utilities/visitors')
@@ -7,6 +8,7 @@ const {
  * POST /servicedelivery/visitor/partial-exit { visitor_id }  (a visit id or a visitor id)
  * The visitor walks out to their car: the visit stays open and is marked as
  * out until the car leaves. Without a parked car this is a full checkout.
+ * The badge is taken back: cleared on the visit and on the parked car.
  */
 module.exports = async function partial_exit(req, res) {
     try {
@@ -32,8 +34,10 @@ module.exports = async function partial_exit(req, res) {
         }
 
         visit.marked_as_out = true
+        visit.badge_number = null
         if (!visit.vehicle_storage.parking_record) visit.vehicle_storage.parking_record = car._id
         await visit.save()
+        await ParkingRecord.updateOne({ _id: car._id }, { $set: { badge_number: null } })
         emitVisitorUpdated(visit.visitor)
 
         const fresh = await ServiceDelivery.findById(visit._id).populate('visitor').lean()

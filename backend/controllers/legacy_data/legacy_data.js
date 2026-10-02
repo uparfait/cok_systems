@@ -68,6 +68,17 @@ async function scan_legacy_data(req, res) {
     }
 }
 
+/** GET /legacy-data/exists - is any old record left (the admin link only shows when there is) */
+async function legacy_data_exists(req, res) {
+    try {
+        const found = await Promise.all(COLLECTIONS.map((spec) => spec.model.exists(spec.filter)));
+        return res.status(200).json({ success: true, type: 'success', exists: found.some(Boolean) });
+    } catch (error) {
+        console.error('Legacy data check failed:', error);
+        return res.status(500).json({ success: false, type: 'error', message: 'Failed to check for old records', error: error.message });
+    }
+}
+
 /** Occupied counts from the active sessions, available pools from capacity. */
 async function recalculateParkingCounters() {
     const counts = await ParkingRecord.aggregate([
@@ -136,6 +147,7 @@ async function delete_legacy_data(req, res) {
 module.exports = {
     COLLECTIONS,
     scan_legacy_data,
+    legacy_data_exists,
     delete_legacy_data,
     recalculateParkingCounters,
     recalculatePresence,

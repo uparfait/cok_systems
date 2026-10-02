@@ -109,7 +109,7 @@ async function activeParkingForVisit(visit) {
  * Start a session. Refuses (409) when the plate is already parked.
  * @returns {Promise<ParkingRecord>}
  */
-async function startParkingSession({ plate, visitor, visit = null, user, classification }) {
+async function startParkingSession({ plate, visitor, visit = null, user, classification, badge = null }) {
     const alreadyParked = await ParkingRecord.exists({ plate_number: plate, status: 'active' });
     if (alreadyParked) throw conflict(`Car with plate ${plate} is already checked in and currently active.`, { code: 'ALREADY_PARKED' });
 
@@ -125,6 +125,7 @@ async function startParkingSession({ plate, visitor, visit = null, user, classif
             status: 'active',
             check_in: now,
             checked_in_by: userName(user),
+            badge_number: badge || null,
         });
     } catch (error) {
         if (isDuplicateKey(error)) throw conflict(`Car with plate ${plate} is already checked in and currently active.`, { code: 'ALREADY_PARKED' });

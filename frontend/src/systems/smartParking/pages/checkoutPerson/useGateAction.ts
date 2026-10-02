@@ -11,10 +11,10 @@ interface ActionResponse {
   checked_out?: boolean;
 }
 
-const runAction = (action: GateAction, visitId: string): Promise<ActionResponse> => {
+const runAction = (action: GateAction, visitId: string, badge: string): Promise<ActionResponse> => {
   if (action === 'checkout') return serviceDeliveryService.checkOut(visitId);
   if (action === 'leave') return serviceDeliveryService.partialExit(visitId);
-  return serviceDeliveryService.returnVisitor(visitId);
+  return serviceDeliveryService.returnVisitor(visitId, badge.trim() || null);
 };
 
 export const useGateAction = () => {
@@ -23,11 +23,13 @@ export const useGateAction = () => {
   const [action, setAction] = useState<GateAction | null>(null);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const [badge, setBadge] = useState('');
 
   const open = useCallback((row: InHouseVisit) => {
     setSelected(row);
     setAction(actionFor(row));
     setFailure(null);
+    setBadge('');
   }, []);
 
   const close = useCallback(() => {
@@ -43,7 +45,7 @@ export const useGateAction = () => {
     setBusy(true);
     setFailure(null);
     try {
-      const response = await runAction(action, id);
+      const response = await runAction(action, id, badge);
       if (response?.success === false) {
         const message = response.message || 'The action could not be completed';
         setFailure(message);
@@ -66,9 +68,9 @@ export const useGateAction = () => {
     } finally {
       setBusy(false);
     }
-  }, [selected, action, busy, showSuccess, showError, showWarning, showInfo]);
+  }, [selected, action, busy, badge, showSuccess, showError, showWarning, showInfo]);
 
-  return { selected, action, busy, failure, open, close, confirm };
+  return { selected, action, busy, failure, badge, setBadge, open, close, confirm };
 };
 
 export default useGateAction;

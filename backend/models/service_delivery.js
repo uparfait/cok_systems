@@ -117,6 +117,8 @@ const service_delivery_schema = new mongoose.Schema({
     attachments: [attachment_schema],
     is_still_inhouse: { type: Boolean, default: true },
     marked_as_out: { type: Boolean, default: false },
+    // Optional visitor badge: cleared on a partial exit, given again on return
+    badge_number: { type: String, trim: true, default: null },
     notes: [{
         writter_name: String,
         message: String,

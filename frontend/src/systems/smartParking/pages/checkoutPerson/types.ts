@@ -17,6 +17,7 @@ export interface InHouseVisit {
   marked_as_out?: boolean;
   current_duration?: string;
   is_over_limit?: boolean;
+  badge_number?: string | null;
 }
 
 export type GateAction = 'checkout' | 'leave' | 'return';

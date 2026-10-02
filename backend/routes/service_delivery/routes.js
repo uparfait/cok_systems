@@ -190,6 +190,11 @@ Router.use((error, req, res, next) => {
  *         marked_as_out:
  *           type: boolean
  *           description: "True while the visitor is outside and the visit is still open (partial exit)"
+ *         badge_number:
+ *           type: string
+ *           nullable: true
+ *           description: "Optional visitor badge. Cleared on a partial exit, given again on return"
+ *           example: "B12"
  *         is_being_served:
  *           type: boolean
  *         current_server:
@@ -1049,7 +1054,7 @@ Router.put('/visitor/:id',
  * /servicedelivery/visitor/checkin:
  *   post:
  *     summary: "Check in a visitor"
- *     description: "Registers the person, or updates the registered visitor, and opens their visit. The visitor is found by visitor_id when one is sent, else by the ID number; a telephone or email that belongs to another visitor is refused. When the visitor came by car (has_vehicle or a plate_number), the parking session is started and linked to the visit in the same request, so reception does not call the Smart Parking check-in. Emits visitor_checkedin and visitor_updated, plus car_checkedin when a car was registered."
+ *     description: "Registers the person, or updates the registered visitor, and opens their visit. The visitor is found by visitor_id when one is sent, else by the ID number; a telephone or email that belongs to another visitor is refused. When the visitor came by car (has_vehicle or a plate_number), the parking session is started and linked to the visit in the same request, so reception does not call the Smart Parking check-in. An optional badge_number is kept on the visit and on that car. Emits visitor_checkedin and visitor_updated, plus car_checkedin when a car was registered."
  *     tags: [Service Delivery]
  *     security:
  *       - BearerAuth: []
@@ -1066,6 +1071,10 @@ Router.put('/visitor/:id',
  *                     type: string
  *                     description: "Optional. The registered visitor the form was filled from (a lookup result). Their details are updated with the submitted values."
  *                     example: "66f1a2b3c4d5e6f7a8b9c0d1"
+ *                   badge_number:
+ *                     type: string
+ *                     description: "Optional visitor badge, saved in upper case (letters, digits and dashes). A badge held by someone inside is refused (400 BADGE_IN_USE)"
+ *                     example: "B12"
  *                   has_vehicle:
  *                     type: boolean
  *                     description: "True when the visitor came by car. A plate_number alone also means a car."
@@ -1228,7 +1237,7 @@ Router.post('/visitor/checkout',
  * /servicedelivery/visitor/partial-exit:
  *   post:
  *     summary: "Partial exit - the visitor walks out to their car"
- *     description: "When the car the visitor came with is still parked, the visit stays open and is marked as out (marked_as_out true) until the car leaves through the vehicle exit. Without a parked car this is a full checkout (checked_out true, emits visitor_checkedout). Emits visitor_updated."
+ *     description: "When the car the visitor came with is still parked, the visit stays open and is marked as out (marked_as_out true) until the car leaves through the vehicle exit. Without a parked car this is a full checkout (checked_out true, emits visitor_checkedout). The badge is taken back: badge_number is cleared on the visit and on the parked car. Emits visitor_updated."
  *     tags: [Service Delivery]
  *     security:
  *       - BearerAuth: []
@@ -1274,7 +1283,23 @@ Router.post('/visitor/partial-exit',
  *     security:
  *       - BearerAuth: []
  *     requestBody:
- *       $ref: '#/components/requestBodies/VisitReferenceBody'
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               visitor_id:
+ *                 type: string
+ *                 description: "The visit id (the _id of a visit row) or the visitor id. A visitor id selects that visitor's open visit."
+ *                 example: "66f1a2b3c4d5e6f7a8b9c0e2"
+ *               visit_id:
+ *                 type: string
+ *                 description: "Optional. A visit id, used instead of visitor_id when both are sent"
+ *               badge_number:
+ *                 type: string
+ *                 description: "Optional. The badge handed to the visitor again, saved in upper case on the visit and on the car that is still parked. Empty means no badge. A badge held by someone inside is refused (400 BADGE_IN_USE)"
+ *                 example: "B12"
  *     responses:
  *       200:
  *         description: Visitor marked as returned
@@ -1283,7 +1308,7 @@ Router.post('/visitor/partial-exit',
  *             schema:
  *               $ref: '#/components/schemas/VisitResponse'
  *       400:
- *         description: "visitor_id is missing"
+ *         description: "visitor_id is missing, or the badge is not valid or already in use"
  *       404:
  *         description: Visitor not found or already checked out
  *       500:
@@ -1299,12 +1324,28 @@ Router.post('/visitor/return-with-badge',
  * /servicedelivery/visitor/return:
  *   post:
  *     summary: "Visitor came back inside"
- *     description: "A visitor who was marked as out (partial exit) is back in house: marked_as_out becomes false and the visit continues. Emits visitor_updated."
+ *     description: "A visitor who was marked as out (partial exit) is back in house: marked_as_out becomes false, the visit continues and the optional badge_number is given to the visit and to the parked car. Emits visitor_updated."
  *     tags: [Service Delivery]
  *     security:
  *       - BearerAuth: []
  *     requestBody:
- *       $ref: '#/components/requestBodies/VisitReferenceBody'
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               visitor_id:
+ *                 type: string
+ *                 description: "The visit id (the _id of a visit row) or the visitor id. A visitor id selects that visitor's open visit."
+ *                 example: "66f1a2b3c4d5e6f7a8b9c0e2"
+ *               visit_id:
+ *                 type: string
+ *                 description: "Optional. A visit id, used instead of visitor_id when both are sent"
+ *               badge_number:
+ *                 type: string
+ *                 description: "Optional. The badge handed to the visitor again, saved in upper case on the visit and on the car that is still parked. Empty means no badge. A badge held by someone inside is refused (400 BADGE_IN_USE)"
+ *                 example: "B12"
  *     responses:
  *       200:
  *         description: Visitor marked as returned
@@ -1313,7 +1354,7 @@ Router.post('/visitor/return-with-badge',
  *             schema:
  *               $ref: '#/components/schemas/VisitResponse'
  *       400:
- *         description: "visitor_id is missing"
+ *         description: "visitor_id is missing, or the badge is not valid or already in use"
  *       404:
  *         description: Visitor not found or already checked out
  *       500:

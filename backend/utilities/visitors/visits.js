@@ -63,7 +63,7 @@ function countVisit(visitorId) {
  * @param {object} options.vehicle  { plate_number, parking_record } when the visitor came by car
  * @returns {Promise<{ visit, opened: boolean }>}
  */
-async function openVisit({ visitor, user, vehicle = null, items = [] }) {
+async function openVisit({ visitor, user, vehicle = null, items = [], badge = null }) {
     const visitorId = visitor._id || visitor;
     const existing = await findOpenVisit(visitorId);
     if (existing) return { visit: existing, opened: false };
@@ -83,6 +83,7 @@ async function openVisit({ visitor, user, vehicle = null, items = [] }) {
                 }
                 : { has_vehicle: false },
             items_entered_with: Array.isArray(items) ? items : [],
+            badge_number: badge || null,
         });
         await Visitor.updateOne({ _id: visitorId }, { $set: { Is_In_House: true }, $inc: { N_visits: 1 } });
         return { visit, opened: true };

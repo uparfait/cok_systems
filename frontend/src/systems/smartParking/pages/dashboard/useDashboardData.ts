@@ -19,12 +19,6 @@ export interface DashboardStats {
   staffAvailableSlots: number;
 }
 
-export interface HourlyPoint {
-  hour: number;
-  check_in: number;
-  check_out: number;
-}
-
 const EMPTY_STATS: DashboardStats = {
   totalInside: 0,
   totalSlots: 0,
@@ -72,9 +66,6 @@ export const useDashboardData = () => {
   const [flagged, setFlagged] = useState<ParkingRow[]>([]);
   const [flaggedTotal, setFlaggedTotal] = useState(0);
   const [flaggedLoading, setFlaggedLoading] = useState(true);
-  const [hourly, setHourly] = useState<HourlyPoint[]>([]);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [hourlyFirstLoad, setHourlyFirstLoad] = useState(true);
   const [refreshToken, setRefreshToken] = useState(0);
 
   const applyFlagged = useCallback((page: { rows: ParkingRow[]; total: number } | null) => {
@@ -102,31 +93,16 @@ export const useDashboardData = () => {
     }
   }, [applyFlagged]);
 
-  const fetchHourlyAnalytics = useCallback(async () => {
-    setAnalyticsLoading(true);
-    try {
-      const response = await statisticsService.getHourlyParkingStats();
-      if (response?.success && response?.data) setHourly(response.data.hourly || []);
-    } catch (error) {
-      console.error('Error fetching hourly analytics:', error);
-    } finally {
-      setAnalyticsLoading(false);
-      setHourlyFirstLoad(false);
-    }
-  }, []);
-
   const silentRefresh = useCallback(async () => {
     try {
-      const [parked, slots, hourlyResponse, flaggedPage] = await Promise.all([
+      const [parked, slots, flaggedPage] = await Promise.all([
         statisticsService.getCurrentlyParkedStats().catch(() => null),
         statisticsService.getParkingSlots().catch(() => null),
-        statisticsService.getHourlyParkingStats().catch(() => null),
         fetchFlaggedVehicles(1).catch(() => null),
       ]);
       const next = statsFrom(parked, slots);
       if (next) setStats(next);
       applyFlagged(flaggedPage);
-      if (hourlyResponse?.success && hourlyResponse?.data) setHourly(hourlyResponse.data.hourly || []);
     } catch (error) {
       console.error('Silent refresh error:', error);
     } finally {
@@ -141,12 +117,11 @@ export const useDashboardData = () => {
       return undefined;
     }
     loadInitial();
-    fetchHourlyAnalytics();
     const timer = setInterval(() => {
       silentRefresh();
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [authLoading, isAuthenticated, navigate, loadInitial, fetchHourlyAnalytics, silentRefresh]);
+  }, [authLoading, isAuthenticated, navigate, loadInitial, silentRefresh]);
 
   useEffect(() => {
     if (!socket || !isConnected) return undefined;
@@ -199,10 +174,6 @@ export const useDashboardData = () => {
     flagged,
     flaggedTotal,
     flaggedLoading,
-    hourly,
-    analyticsLoading,
-    hourlyFirstLoad,
-    fetchHourlyAnalytics,
     silentRefresh,
     refreshToken,
   };

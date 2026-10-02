@@ -6,9 +6,10 @@
 
 const Router = require('express').Router();
 const { auditSuccess, auditError } = require('../../middlewares/audit');
-const { scan_legacy_data, delete_legacy_data } = require('../../controllers/legacy_data/legacy_data.js');
+const { scan_legacy_data, legacy_data_exists, delete_legacy_data } = require('../../controllers/legacy_data/legacy_data.js');
 
 Router.get('/scan', scan_legacy_data);
+Router.get('/exists', legacy_data_exists);
 Router.post('/delete', auditSuccess('DELETE', 'legacy_data', 'Old records deleted'), delete_legacy_data);
 
 Router.use(auditError('legacy_data'));

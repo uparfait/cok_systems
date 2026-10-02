@@ -2,15 +2,15 @@ const ServiceDelivery = require('../../models/service_delivery.js')
 const ParkingRecord = require('../../models/parking_record.js')
 const {
     readVisitorInput, identifyVisitor, resolveVisitor, findOpenVisit, openVisit, rollbackOpenedVisit, classifyPlate, startParkingSession,
-    normalizePlate, visitView, emitVisitorUpdated, sendError, badRequest, conflict,
+    normalizePlate, visitView, emitVisitorUpdated, sendError, badRequest, conflict, readBadge, assertBadgeFree,
 } = require('../../utilities/visitors')
 
 const truthy = (value) => value === true || value === 'true' || value === 1 || value === '1'
 
 /**
  * POST /servicedelivery/visitor/checkin
- * Body: { visitor_id?, full_name, telephone, email?, gender, identification: { id_type, number },
- *         has_vehicle?, plate_number?, items_entered_with? }
+ * Body: { visitor_id?, full_name, telephone, email?, gender?, identification?: { id_type, number },
+ *         badge_number?, has_vehicle?, plate_number?, items_entered_with? }
  * Registers (or updates) the visitor, opens the visit and - when the visitor
  * came by car - starts the parking session linked to that visit.
  */
@@ -27,6 +27,9 @@ module.exports = async function visitor_checkin(req, res) {
             throw conflict(`Car with plate ${plate} is already checked in and currently active.`, { code: 'ALREADY_PARKED', field: 'plate_number' })
         }
 
+        const badge = readBadge(body.badge_number)
+        await assertBadgeFree(badge)
+
         const input = readVisitorInput(body)
         // Refuse a visitor already in house before changing anything about them
         const { targetId } = await identifyVisitor({ visitorId: body.visitor_id || null, input })
@@ -36,12 +39,12 @@ module.exports = async function visitor_checkin(req, res) {
         const { visitor, created } = await resolveVisitor({ visitorId: targetId || null, input, user: req.user, keepMissing: true })
 
         const items = Array.isArray(body.items_entered_with) ? body.items_entered_with : []
-        const { visit, opened } = await openVisit({ visitor, user: req.user, items, vehicle: hasVehicle ? { plate_number: plate } : null })
+        const { visit, opened } = await openVisit({ visitor, user: req.user, items, badge, vehicle: hasVehicle ? { plate_number: plate } : null })
 
         if (hasVehicle) {
             try {
                 const classification = await classifyPlate(plate)
-                const record = await startParkingSession({ plate, visitor, visit, user: req.user, classification })
+                const record = await startParkingSession({ plate, visitor, visit, user: req.user, classification, badge })
                 visit.vehicle_storage.parking_record = record._id
                 await visit.save()
             } catch (error) {

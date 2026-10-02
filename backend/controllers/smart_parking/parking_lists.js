@@ -52,6 +52,7 @@ async function recordSearchFilter(value) {
     if (!text) return null
     const plates = [...new Set([normalizePlate(text), text.replace(/\s+/g, '')].filter(Boolean))]
     const or = plates.map((plate) => ({ plate_number: contains(plate) }))
+    or.push({ badge_number: contains(text.replace(/\s+/g, '').toUpperCase()) })
     const visitorIds = await visitorIdsMatching(text)
     if (visitorIds.length) or.push({ visitor: { $in: visitorIds } })
     return { $or: or }

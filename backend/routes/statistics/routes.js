@@ -7,6 +7,7 @@ const Router = require('express').Router();
 const multer = require('multer')
 const upload = multer()
 const statisticsController = require('../../controllers/statistics/statistics.js');
+const { getParkingMovement } = require('../../controllers/statistics/parking_movement.js');
 
 Router.use(upload.any())
 
@@ -221,6 +222,42 @@ Router.get('/feedback-sentiment', statisticsController.getFeedbackSentiment);
  *         description: Internal server error
  */
 Router.get('/hourly-parking', statisticsController.getHourlyParkingStats);
+
+/**
+ * @swagger
+ * /statistics/parking-movement:
+ *   get:
+ *     summary: "Vehicle check-ins and check-outs over a period"
+ *     description: "For the gate dashboard chart. Kigali time. Today and yesterday are grouped by hour, this week and this month by day, this year by month; a custom period is grouped by hour, day, week, month or year depending on its length. The chart starts at the first movement of the period, or earlier at the arrival of the oldest car still inside (live periods only), and becomes coarser when that makes it too long. totals count the requested period only. Counts are whole numbers."
+ *     tags: [Statistics]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: range
+ *         schema:
+ *           type: string
+ *           enum: [today, yesterday, week, month, year, custom]
+ *           default: year
+ *       - in: query
+ *         name: from
+ *         description: "Custom range start day, YYYY-MM-DD"
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: to
+ *         description: "Custom range end day (included), YYYY-MM-DD"
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: "data: { range, label, unit (hour|day|week|month|year), from, to, chart_from, earliest_inside, totals: { check_in, check_out }, points: [{ key, label, check_in, check_out }] }"
+ *       400:
+ *         description: Invalid custom dates
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/parking-movement', getParkingMovement);
 
 /**
  * @swagger

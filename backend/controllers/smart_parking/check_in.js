@@ -1,7 +1,7 @@
 const ParkingRecord = require('../../models/parking_record.js')
 const {
-    readVisitorInput, resolveVisitor, findOpenVisit, openVisit, attachVehicle, rollbackOpenedVisit, countVisit,
-    classifyPlate, startParkingSession, normalizePlate, parkingView, emitVisitorUpdated,
+    readVisitorInput, identifyVisitor, resolveVisitor, findOpenVisit, openVisit, attachVehicle, rollbackOpenedVisit, countVisit,
+    classifyPlate, startParkingSession, normalizePlate, parkingView, emitVisitorUpdated, readBadge, assertBadgeFree,
     sendError, badRequest, conflict,
 } = require('../../utilities/visitors')
 
@@ -18,11 +18,12 @@ function driverInput(body) {
 }
 
 /**
- * POST /smartparking/vehicle/checkin { plate_number, visitor_id?, driver: { full_name, telephone, email?, gender, identification } }
+ * POST /smartparking/vehicle/checkin { plate_number, visitor_id?, badge_number?, driver: { full_name, telephone, email?, gender?, identification? } }
  * The car keeps only a reference to the person who came with it. The server
  * classifies the car (staff / reserved visitor / regular). Visitors' cars
  * open their visit (or join the visit already open); staff cars only count
- * as a visit for the driver.
+ * as a visit for the driver. An optional badge is kept on the car and on the
+ * driver's visit.
  */
 module.exports = async function car_check_in(req, res) {
     try {
@@ -33,19 +34,26 @@ module.exports = async function car_check_in(req, res) {
             throw conflict(`Car with plate ${plate} is already checked in and currently active.`, { code: 'ALREADY_PARKED', field: 'plate_number' })
         }
 
+        const input = driverInput(body)
+        const badge = readBadge(body.badge_number)
+        const { targetId } = await identifyVisitor({ visitorId: body.visitor_id || null, input })
+        const openBefore = targetId ? await findOpenVisit(targetId) : null
+        await assertBadgeFree(badge, { visitId: openBefore ? openBefore._id : null })
+
         const classification = await classifyPlate(plate)
-        const { visitor } = await resolveVisitor({ visitorId: body.visitor_id || null, input: driverInput(body), user: req.user, keepMissing: true })
+        const { visitor } = await resolveVisitor({ visitorId: targetId || null, input, user: req.user, keepMissing: true })
 
         let visit = null
         let opened = false
         if (classification.driver_type !== 'staff') {
             visit = await findOpenVisit(visitor._id)
-            if (!visit) ({ visit, opened } = await openVisit({ visitor, user: req.user, vehicle: { plate_number: plate } }))
+            if (!visit) ({ visit, opened } = await openVisit({ visitor, user: req.user, badge, vehicle: { plate_number: plate } }))
+            else if (badge) visit.badge_number = badge
         }
 
         let record
         try {
-            record = await startParkingSession({ plate, visitor, visit, user: req.user, classification })
+            record = await startParkingSession({ plate, visitor, visit, user: req.user, classification, badge })
         } catch (error) {
             if (opened) await rollbackOpenedVisit(visit)
             throw error
@@ -62,6 +70,7 @@ module.exports = async function car_check_in(req, res) {
                     ? await ParkingRecord.exists({ _id: linked, status: 'active' })
                     : null
                 if (!otherCarParked) await attachVehicle(visit, { plate_number: plate, parking_record: record._id })
+                else if (badge) await visit.save()
             }
         } else {
             await countVisit(visitor._id)

@@ -386,7 +386,8 @@ export const serviceDeliveryService = {
   },
   emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return`, { visitor_id: id, ...data }),
   partialExit: (visitorId: string) => post('/servicedelivery/visitor/partial-exit', { visitor_id: visitorId }),
-  returnVisitor: (visitorId: string) => post('/servicedelivery/visitor/return', { visitor_id: visitorId }),
+  returnVisitor: (visitorId: string, badgeNumber?: string | null) =>
+    post('/servicedelivery/visitor/return', { visitor_id: visitorId, badge_number: badgeNumber || null }),
   update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
   updateServiceStatus: (data: any) => post(`/servicedelivery/visitor/service/status`, data),
   getActiveTasks: (page: number = 1, limit: number = 10, search?: string) => {
@@ -643,6 +644,12 @@ export const statisticsService = {
   getServiceDeliveryStats: () => get('/statistics/service-delivery'),
   getHourlyServiceDeliveryStats: () => get('/statistics/hourly-service-delivery'),
   getHourlyParkingStats: () => get('/statistics/hourly-parking'),
+  getParkingMovement: (params: { range: string; from?: string; to?: string }) => {
+    const query = new URLSearchParams({ range: params.range });
+    if (params.from) query.append('from', params.from);
+    if (params.to) query.append('to', params.to);
+    return get(`/statistics/parking-movement?${query.toString()}`);
+  },
   getActivityTimeline: (params?: { period?: string; from?: string; to?: string }) => {
     const query = new URLSearchParams();
     if (params?.period) query.append('period', params.period);

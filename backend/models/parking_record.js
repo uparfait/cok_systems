@@ -9,6 +9,8 @@ const parking_record_schema = new mongoose.Schema({
     status: { type: String, enum: ['active', 'completed'], default: 'active' },
     driver_type: { type: String, enum: ['staff', 'visitor', 'regular'] },
     slot_number: { type: String, default: "Not Specified" },
+    // Optional badge of the person who came with the car, same value as their visit
+    badge_number: { type: String, trim: true, default: null },
     check_in: { type: Date, default: Date.now },
     check_out: { type: Date },
     duration: { type: String, default: '0 mins' },
@@ -33,5 +35,7 @@ parking_record_schema.index(
 parking_record_schema.index({ visitor: 1, check_in: -1 });
 parking_record_schema.index({ plate_number: 1, check_in: -1 });
 parking_record_schema.index({ status: 1, check_in: -1 });
+parking_record_schema.index({ check_in: 1 });
+parking_record_schema.index({ check_out: 1 });
 
 module.exports = mongoose.model('ParkingRecord', parking_record_schema);

@@ -3,6 +3,7 @@ import { FiTrash2 } from 'react-icons/fi';
 import apiClient from '../../../core/services/apiClient';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { failureOf, formatDateTime } from '../../../core/components/visitor/visitorApi';
+import { rememberLegacyData } from '../../../core/components/Layout/useLegacyDataLink';
 
 interface LegacyCollection {
   key: string;
@@ -33,6 +34,7 @@ const LegacyDataPage: React.FC = () => {
       const response = await apiClient.get('/legacy-data/scan');
       const data = (response.data?.data || []) as LegacyCollection[];
       setItems(data);
+      rememberLegacyData(data.some((d) => d.count > 0));
       setSelected(new Set(data.filter((d) => d.count > 0).map((d) => d.key)));
     } catch (error) {
       showError(failureOf(error).message);

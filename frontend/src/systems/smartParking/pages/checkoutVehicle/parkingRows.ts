@@ -19,6 +19,7 @@ export interface ParkingRow {
   driver_name?: string;
   driver_telephone?: string;
   driver_email?: string;
+  badge_number?: string | null;
   driver_gender?: string;
   driver_identification?: ParkingIdentification | string | null;
   N_visits?: number;

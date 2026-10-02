@@ -90,6 +90,7 @@ export interface Visit {
   exist_date: string | null;
   is_still_inhouse: boolean;
   marked_as_out: boolean;
+  badge_number?: string | null;
   is_being_served: boolean;
   serving_by: ServingBy | null;
   registered_by?: string;

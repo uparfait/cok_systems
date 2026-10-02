@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiMail, FiPhone, FiUser, FiCreditCard, FiSearch } from 'react-icons/fi';
+import { FiMail, FiPhone, FiUser, FiCreditCard, FiSearch, FiAward } from 'react-icons/fi';
 import OverlayShell from '../../../../core/components/overlay/OverlayShell';
 import { failureOf } from '../../../../core/components/visitor/visitorApi';
 import { ID_TYPE_OPTIONS, findVisitorByIdNumber, identificationPayload, validateEmail, validateIdNumber } from '../../../../core/components/visitor/checkinRules';
@@ -19,6 +19,7 @@ interface NewVisitorForm {
   id_type: string;
   identification_number: string;
   gender: string;
+  badge_number: string;
   has_vehicle: boolean;
   plate_number: string;
 }
@@ -30,6 +31,7 @@ const EMPTY_FORM: NewVisitorForm = {
   id_type: 'National ID',
   identification_number: '',
   gender: '',
+  badge_number: '',
   has_vehicle: false,
   plate_number: '',
 };
@@ -114,6 +116,7 @@ const RegisterVisitorOverlay: React.FC<RegisterVisitorOverlayProps> = ({ onClose
         email: form.email.trim() || null,
         identification: identificationPayload(form.id_type, form.identification_number),
         gender: form.gender || 'Not specified',
+        badge_number: form.badge_number.trim() || null,
         has_vehicle: form.has_vehicle && !!plate,
         plate_number: form.has_vehicle ? plate : undefined,
       });
@@ -180,12 +183,11 @@ const RegisterVisitorOverlay: React.FC<RegisterVisitorOverlayProps> = ({ onClose
           </div>
 
           <div>
-            <label className="cok-auth-label">Gender</label>
-            <select name="gender" value={form.gender} onChange={handleChange} disabled={loading} className="cok-auth-input pr-3 py-3">
-              <option value="">Not specified</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
+            <label className="cok-auth-label">Badge Number</label>
+            <div className="relative">
+              <FiAward className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5" style={ICON_STYLE} />
+              <input name="badge_number" value={form.badge_number} onChange={handleChange} disabled={loading} className="cok-auth-input pr-3 py-3" style={ICON_INPUT_STYLE} placeholder="Badge number (optional)" />
+            </div>
           </div>
 
           <div>
@@ -226,6 +228,15 @@ const RegisterVisitorOverlay: React.FC<RegisterVisitorOverlayProps> = ({ onClose
               </button>
             </div>
             {idError && <p className="mt-1 text-xs" style={ERROR_STYLE}>{idError}</p>}
+          </div>
+
+          <div>
+            <label className="cok-auth-label">Gender</label>
+            <select name="gender" value={form.gender} onChange={handleChange} disabled={loading} className="cok-auth-input pr-3 py-3">
+              <option value="">Not specified</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
           </div>
         </div>
 

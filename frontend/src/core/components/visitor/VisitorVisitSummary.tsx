@@ -32,6 +32,7 @@ const VisitorVisitSummary: React.FC<{ visit: Visit; title: string }> = ({ visit,
         <Row label="Entered" value={formatDateTime(visit.entry_date)} />
         <Row label="Left" value={visit.is_still_inhouse ? 'Still in house' : formatDateTime(visit.exist_date)} />
         <Row label="Vehicle" value={vehicle ? vehicle.plate_number : 'On foot'} />
+        <Row label="Badge" value={visit.badge_number || '-'} />
         <Row label="Registered by" value={visit.registered_by} />
         {visit.marked_as_out ? <Row label="Status" value="Stepped out to the car" /> : null}
         {visit.durations?.entry_and_leave_duration ? <Row label="Time in house" value={visit.durations.entry_and_leave_duration} /> : null}

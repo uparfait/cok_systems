@@ -18,7 +18,10 @@ Status legend: [ ] to do, [x] done.
    opened for staff, so staff do not appear as in-house visitors at reception.
 6. Is_In_House = the visitor has an open visit. N_visits goes up by one each time a visit opens (walk-in or car),
    and for each staff car check-in. A car check-in for someone already in house does not count twice.
-7. Badge numbers are removed everywhere. "Partial exit" and "Returned" at the gate stay, without badges.
+7. Badges are back as before (your instruction): an optional Badge Number on the car check-in, the visitor check-in
+   and the reception New Visitor form, kept on the visit and on the car. A badge held by someone inside is refused.
+   Partial exit takes the badge back (cleared on the visit and the car); Returned asks for a badge again (optional)
+   and saves it on both. Badge shows in the gate lists and the visitor panel and can be searched.
 8. Attachments belong to visits (service delivery). They are added to the open visit, or to the latest visit when
    the visitor is not in house. Unlimited files and size; downloads require login.
 9. Panel actions by role: employee = Serve, Transfer (and Complete when they are the one serving); every other role
@@ -33,6 +36,12 @@ Status legend: [ ] to do, [x] done.
 14. Car and visitor check-in keep the forms and flow the system always had (your instruction): verify the plate and
     the check-in form opens straight away (pre-filled when the car is known); the visitor forms search by ID number;
     a car or person not in the system is simply saved during the check-in, nobody is asked to register first.
+15. The admin "Legacy Data" link shows in the sidebar only while old-structure records exist (checked when the
+    page loads and every few minutes, and right after a scan or a delete on the Legacy Data page).
+16. Gate dashboard "Hourly Parking Analytics": Today / Yesterday / This Week / This Month / This Year (default) /
+    Custom. Today and yesterday by hour, week and month by day, year by month; custom by hour, day, week, month or
+    year from its length. Whole numbers only. The chart starts at the first movement of the period, or earlier at
+    the arrival of the oldest car still inside; the totals follow the chosen period.
 
 ## 1. Data models (backend)
 
@@ -55,7 +64,7 @@ Status legend: [ ] to do, [x] done.
 - [x] 2.3 Receptionist "register visitor" applies the same checks
 - [x] 2.4 Visitor checking in with a car: the car and the visit are both recorded (no more forced logout for receptionists)
 - [x] 2.5 N_visits counted on every check-in, with or without a vehicle
-- [x] 2.6 Badge number removed from every form, table, model and API
+- [x] 2.6 Badge number optional on check-in forms, cleared on partial exit, asked again on return (decision 7)
 
 ## 3. Vehicle check-in (/checkin-vehicle)
 
