@@ -75,9 +75,14 @@ async function lookupVisitor(input, excludeId = null) {
     };
 }
 
-function applyInput(visitor, input, user) {
+/**
+ * Copy the form onto the visitor. `keepMissing` (check-ins) only fills in and
+ * corrects values: a field left empty keeps what the visitor already has.
+ */
+function applyInput(visitor, input, user, keepMissing = false) {
     let changed = false;
     const set = (path, value) => {
+        if (keepMissing && !value) return;
         const current = readPath(visitor, path);
         if ((current || undefined) !== (value || undefined)) {
             visitor.set(path, value === undefined ? undefined : value);
@@ -113,8 +118,9 @@ async function saveOrConflict(visitor, input) {
  *  - visitorId given (a visitor chosen/pre-filled on the form): that visitor,
  *    as long as no OTHER visitor holds the submitted values;
  *  - no visitorId: the ID number decides who the person is. A known ID
- *    number is that visitor; a new ID number with a telephone or email that
- *    already belongs to someone is a conflict.
+ *    number is that visitor; a new ID number with a telephone or email of
+ *    someone who has another ID number is a conflict. Without an ID number
+ *    the telephone (then the email) decides.
  * @returns {Promise<{ targetId: ObjectId|null }>}
  */
 async function identifyVisitor({ visitorId = null, input }) {
@@ -135,22 +141,25 @@ async function identifyVisitor({ visitorId = null, input }) {
     const matches = await findMatches(input, null);
     if (matches.length === 0) return { targetId: null };
     const byId = matches.find((m) => m.field === 'identification');
-    if (!byId) throw conflictError(matches[0]);
-    const clash = matches.find((m) => String(m.visitor._id) !== String(byId.visitor._id));
+    const owner = byId ? byId.visitor : matches[0].visitor;
+    // A new ID number only joins someone who has no ID number on record yet
+    if (!byId && input.identification.number && readPath(owner, 'identification.number')) throw conflictError(matches[0]);
+    const clash = matches.find((m) => String(m.visitor._id) !== String(owner._id));
     if (clash) throw conflictError(clash);
-    return { targetId: byId.visitor._id };
+    return { targetId: owner._id };
 }
 
 /**
- * Create or update the visitor a form describes.
+ * Create or update the visitor a form describes. `keepMissing` is for
+ * check-ins: empty fields keep the values the visitor already has.
  * @returns {Promise<{ visitor, created: boolean, changed: boolean }>}
  */
-async function resolveVisitor({ visitorId = null, input, user = null }) {
+async function resolveVisitor({ visitorId = null, input, user = null, keepMissing = false }) {
     const { targetId } = await identifyVisitor({ visitorId, input });
 
     if (targetId) {
         const target = await Visitor.findById(targetId);
-        const changed = applyInput(target, input, user);
+        const changed = applyInput(target, input, user, keepMissing);
         if (changed) await saveOrConflict(target, input);
         return { visitor: target, created: false, changed };
     }

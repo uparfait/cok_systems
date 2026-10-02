@@ -34,7 +34,7 @@ module.exports = async function car_check_in(req, res) {
         }
 
         const classification = await classifyPlate(plate)
-        const { visitor } = await resolveVisitor({ visitorId: body.visitor_id || null, input: driverInput(body), user: req.user })
+        const { visitor } = await resolveVisitor({ visitorId: body.visitor_id || null, input: driverInput(body), user: req.user, keepMissing: true })
 
         let visit = null
         let opened = false

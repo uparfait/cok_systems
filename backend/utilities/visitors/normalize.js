@@ -90,37 +90,33 @@ function escapeRegex(text) {
 function readVisitorInput(source = {}) {
     const src = source || {};
     const ident = src.identification && typeof src.identification === 'object' ? src.identification : {};
-    const rawGender = clean(src.gender);
+    const number = normalizeIdNumber(ident.number || src.id_number);
     return {
         full_name: clean(src.full_name || src.name),
         telephone: normalizePhone(src.telephone || src.phone),
         email: normalizeEmail(src.email),
-        gender: normalizeGender(rawGender),
-        raw_gender: rawGender,
+        // "Not specified" and other values are simply no gender
+        gender: normalizeGender(src.gender),
         identification: {
-            id_type: normalizeIdType(ident.id_type || src.id_type),
-            number: normalizeIdNumber(ident.number || src.id_number),
+            id_type: number ? (normalizeIdType(ident.id_type || src.id_type) || 'National ID') : undefined,
+            number,
         },
     };
 }
 
 /**
- * Required: ID type, ID number, full name, telephone, gender. Email is
- * optional but must be valid when given. Returns [{ field, message }].
+ * Required, as on the check-in forms: full name and telephone. ID number,
+ * email and gender are optional; an email must be valid when given.
+ * Returns [{ field, message }].
  */
 function validateVisitorInput(input) {
     const errors = [];
-    if (!input.identification || !input.identification.id_type) errors.push({ field: 'id_type', message: 'ID type is required' });
-    if (!input.identification || !input.identification.number) errors.push({ field: 'id_number', message: 'ID number is required' });
     if (!input.full_name) errors.push({ field: 'full_name', message: 'Full name is required' });
     if (!input.telephone) {
         errors.push({ field: 'telephone', message: 'Telephone is required' });
     } else {
         const digits = input.telephone.replace(/\D/g, '');
         if (digits.length < 7 || digits.length > 15) errors.push({ field: 'telephone', message: 'Telephone number is not valid' });
-    }
-    if (!input.gender) {
-        errors.push({ field: 'gender', message: input.raw_gender ? 'Gender must be Male or Female' : 'Gender is required' });
     }
     if (input.email && !EMAIL_PATTERN.test(input.email)) errors.push({ field: 'email', message: 'Email is not valid' });
     return errors;

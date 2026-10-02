@@ -148,7 +148,6 @@ export interface Employee {
     id_type?: string;
     number?: string;
   };
-  badge_number?: string;
   gender?: string;
   title?: string;
   department?: string | { _id?: string; department_id?: string; department_name?: string };
@@ -268,7 +267,6 @@ export interface Visitor {
   email?: string;
   identification?: VisitorIdentification;
   gender?: string;
-  badge_number?: string;
   vehicle_storage?: VisitorVehicleStorage;
   items_entered_with?: string[];
   items_exited_with?: string[];
@@ -357,6 +355,8 @@ export const serviceDeliveryService = {
   searchVisitors: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
   getVisitorById: (id: string) => get(`/servicedelivery/visitor/${id}`),
+  getVisitorByIdentification: (id_type: string, id_number: string) =>
+    get(`/servicedelivery/visitor/by/identification/gate?id_type=${encodeURIComponent(id_type)}&id_number=${encodeURIComponent(id_number)}`),
   checkIn: (data: any) => post('/servicedelivery/visitor/checkin', data),
   checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { visitor_id: id }),
   toggleStatus: (visitorId: string, departmentId: string, status: string, providerId?: string, providerName?: string) => post(`/servicedelivery/visitor/service/status`, { visitor_id: visitorId, department_id: departmentId, status, provider_id: providerId, provider_name: providerName }),

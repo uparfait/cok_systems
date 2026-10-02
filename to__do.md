@@ -9,7 +9,9 @@ Status legend: [ ] to do, [x] done.
 2. Unique fields: identification number, telephone, email (email stays optional). Values are normalised before the
    check (ID number upper case without spaces, Rwandan phones in the 07XXXXXXXX form, email lower case), so
    "0788 123 456" and "+250788123456" are the same telephone.
-3. Required when registering a visitor: ID type, ID number, full name, telephone, gender.
+3. Required, as on the check-in forms before: full name and telephone. ID number, email and gender are optional
+   (an ID number is checked against its type, an email must be valid). Without an ID number the telephone
+   identifies the visitor. A check-in never erases what is already saved: empty fields keep the old values.
 4. A visitor can have only one open (in house) visit at a time. A car check-in for a visitor opens the visit, or
    links the car to the visit that is already open.
 5. Staff cars: the driver is stored in Visitors (the car keeps only the reference) but no service-delivery visit is
@@ -28,6 +30,9 @@ Status legend: [ ] to do, [x] done.
 12. The overlay close button becomes the circled transparent X icon you asked for (this is the only new icon).
 13. "All tables / all overlays / all forms" (sections 9, 10, 11) covers every system EXCEPT DCS and event management,
     which are never touched (your instruction). Their files were restored to how they were before this work.
+14. Car and visitor check-in keep the forms and flow the system always had (your instruction): verify the plate and
+    the check-in form opens straight away (pre-filled when the car is known); the visitor forms search by ID number;
+    a car or person not in the system is simply saved during the check-in, nobody is asked to register first.
 
 ## 1. Data models (backend)
 
@@ -45,20 +50,20 @@ Status legend: [ ] to do, [x] done.
 
 - [x] 2.1 Unique check on identification, telephone and email: "Someone with this <field> is already registered (Name)";
       same visitor (same _id) = update instead of error
-- [ ] 2.2 Visitor check-in (reception and gate person check-in): look up Visitors, fill the form when found, every
+- [x] 2.2 Visitor check-in (reception and gate person check-in): look up Visitors, fill the form when found, every
       field editable, changes update that visitor
 - [x] 2.3 Receptionist "register visitor" applies the same checks
 - [x] 2.4 Visitor checking in with a car: the car and the visit are both recorded (no more forced logout for receptionists)
 - [x] 2.5 N_visits counted on every check-in, with or without a vehicle
-- [ ] 2.6 Badge number removed from every form, table, model and API
+- [x] 2.6 Badge number removed from every form, table, model and API
 
 ## 3. Vehicle check-in (/checkin-vehicle)
 
 - [x] 3.1 Car checked in as usual, driver details stored only as a visitor reference
-- [ ] 3.2 Plate entered: if the car parked before, the last visitor who came with it is filled in, editable
+- [x] 3.2 Plate entered: if the car parked before, the last visitor who came with it is filled in, editable
 - [x] 3.3 Driver not in the system: added to Visitors first, then linked to the car
 - [x] 3.4 Driver type decided by the server (staff registry / reservation / regular)
-- [ ] 3.5 Car lists everywhere show the person who came with the car (populated visitor)
+- [x] 3.5 Car lists everywhere show the person who came with the car (populated visitor)
 - [x] 3.6 Car check-out closes the linked visit (exit time and durations recorded)
 
 ## 4. Global visitor panel (opens when a visitor is clicked, all roles, not on check-out pages)
@@ -72,7 +77,7 @@ Status legend: [ ] to do, [x] done.
 - [x] 4.7 Attachments: list with description and who added it (name, email, telephone, department, time),
       current visit first
 - [x] 4.8 Attachment can be updated only by the person who added it
-- [ ] 4.9 Every visitor row and name in SD and SP screens opens the panel (except check-out pages)
+- [x] 4.9 Every visitor row and name in SD and SP screens opens the panel (except check-out pages)
 
 ## 5. Visitors page (one page for every role that has the Visitors link)
 
@@ -100,26 +105,26 @@ Status legend: [ ] to do, [x] done.
 
 ## 8. Downloads and statistics
 
-- [ ] 8.1 Visitors download built from service delivery visits, each populated with its visitor
-- [ ] 8.2 Parking download built from parking records, each populated with its visitor
-- [ ] 8.3 All statistics updated to the new structure (gender, visitor counts, in house, queues, dashboards,
+- [x] 8.1 Visitors download built from service delivery visits, each populated with its visitor
+- [x] 8.2 Parking download built from parking records, each populated with its visitor
+- [x] 8.3 All statistics updated to the new structure (gender, visitor counts, in house, queues, dashboards,
       KPIs, performance, mayor and admin views)
 
 ## 9. All tables across the system
 
-- [ ] 9.1 Body scrolls horizontally and vertically, header stays fixed, cells do not wrap
-- [ ] 9.2 Visitor and parking tables show all visitor details and N visits
+- [x] 9.1 Body scrolls horizontally and vertically, header stays fixed, cells do not wrap
+- [x] 9.2 Visitor and parking tables show all visitor details and N visits
 
 ## 10. All forms
 
-- [ ] 10.1 Every required field label carries a red *
+- [x] 10.1 Every required field label carries a red *
 
 ## 11. All overlays across the system
 
-- [ ] 11.1 Remove the blue header bar
-- [ ] 11.2 Close in the header as a circled transparent icon
-- [ ] 11.3 Remove Cancel buttons (Close does it)
-- [ ] 11.4 Closing is blocked while a process is running
+- [x] 11.1 Remove the blue header bar
+- [x] 11.2 Close in the header as a circled transparent icon
+- [x] 11.3 Remove Cancel buttons (Close does it)
+- [x] 11.4 Closing is blocked while a process is running
 
 ## 12. Server and deployment
 
@@ -130,5 +135,5 @@ Status legend: [ ] to do, [x] done.
 
 - [x] 13.1 Backend tests against a real MongoDB engine (registration, conflicts, check-in/out, serving lock,
       attachments, legacy clean-up)
-- [ ] 13.2 Frontend type check and production build pass
+- [x] 13.2 Frontend type check and production build pass
 - [ ] 13.3 Independent review of all changes

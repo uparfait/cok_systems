@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useVisitorLookup } from './useVisitorLookup';
 import type { UniqueField, Visitor, VisitorInput } from './visitorTypes';
 import { GENDERS, ID_TYPES, emptyVisitorInput, visitorToInput } from './visitorTypes';
+import { validateEmail, validateIdNumber } from './checkinRules';
 
 export type VisitorFormErrors = Partial<Record<'id_type' | 'id_number' | 'full_name' | 'telephone' | 'email' | 'gender' | 'identification', string>>;
 
@@ -25,14 +26,14 @@ const LABEL = 'block text-[11px] font-semibold uppercase tracking-wide text-gray
 
 export const validateVisitorForm = (input: VisitorInput): VisitorFormErrors => {
   const errors: VisitorFormErrors = {};
-  if (!input.identification.id_type) errors.id_type = 'ID type is required';
-  if (!input.identification.number.trim()) errors.id_number = 'ID number is required';
   if (!input.full_name.trim()) errors.full_name = 'Full name is required';
   const digits = input.telephone.replace(/\D/g, '');
   if (!input.telephone.trim()) errors.telephone = 'Telephone is required';
   else if (digits.length < 7 || digits.length > 15) errors.telephone = 'Telephone number is not valid';
-  if (!input.gender) errors.gender = 'Gender is required';
-  if (input.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) errors.email = 'Email is not valid';
+  const idError = validateIdNumber(input.identification.id_type || 'National ID', input.identification.number);
+  if (idError) errors.id_number = idError;
+  const emailError = validateEmail(input.email);
+  if (emailError) errors.email = emailError;
   return errors;
 };
 
@@ -100,7 +101,7 @@ const VisitorForm: React.FC<VisitorFormProps> = ({ value, onChange, errors = {},
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className={`${LABEL} cok-req`}>ID type</label>
+          <label className={LABEL}>ID type</label>
           <select className={INPUT} disabled={disabled} value={value.identification.id_type} onChange={(e) => setId({ id_type: e.target.value })}>
             <option value="">Choose ID type</option>
             {ID_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -108,7 +109,7 @@ const VisitorForm: React.FC<VisitorFormProps> = ({ value, onChange, errors = {},
           {fieldError('id_type')}
         </div>
         <div>
-          <label className={`${LABEL} cok-req`}>ID number</label>
+          <label className={LABEL}>ID number</label>
           <input className={INPUT} disabled={disabled} value={value.identification.number} onChange={(e) => setId({ number: e.target.value })} placeholder="ID number" />
           {fieldError('id_number')}
         </div>
@@ -128,9 +129,9 @@ const VisitorForm: React.FC<VisitorFormProps> = ({ value, onChange, errors = {},
           {fieldError('email')}
         </div>
         <div>
-          <label className={`${LABEL} cok-req`}>Gender</label>
+          <label className={LABEL}>Gender</label>
           <select className={INPUT} disabled={disabled} value={value.gender} onChange={(e) => set({ gender: e.target.value })}>
-            <option value="">Choose gender</option>
+            <option value="">Not specified</option>
             {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
           {fieldError('gender')}

@@ -95,7 +95,7 @@ const VisitorsPage: React.FC = () => {
         </label>
       ) : null}
       <button type="button" className="cok-btn-outlined" onClick={() => setExporting(true)}>Export</button>
-      <button type="button" className="cok-btn-primary w-auto! px-5! py-2!" onClick={() => setRegistering(true)}>Register visitor</button>
+      <button type="button" className="cok-btn-primary w-auto! px-5! py-2!" onClick={() => setRegistering(true)}>New Visitor</button>
     </>
   );
 

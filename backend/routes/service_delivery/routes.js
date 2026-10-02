@@ -58,8 +58,8 @@ Router.use((error, req, res, next) => {
  *   schemas:
  *     VisitorIdentification:
  *       type: object
+ *       description: "Optional. Without an ID number the telephone identifies the visitor. id_type defaults to National ID"
  *       required:
- *         - id_type
  *         - number
  *       properties:
  *         id_type:
@@ -77,8 +77,6 @@ Router.use((error, req, res, next) => {
  *       required:
  *         - full_name
  *         - telephone
- *         - gender
- *         - identification
  *       properties:
  *         full_name:
  *           type: string
@@ -95,6 +93,7 @@ Router.use((error, req, res, next) => {
  *         gender:
  *           type: string
  *           enum: [Male, Female]
+ *           description: "Optional. Any other value (Not specified) is saved as no gender"
  *           example: "Female"
  *         identification:
  *           $ref: '#/components/schemas/VisitorIdentification'
@@ -732,6 +731,9 @@ Router.get('/visitors/export', auditSuccess('READ', 'visitors'), export_visitors
  *                 success:
  *                   type: boolean
  *                   example: true
+ *                 type:
+ *                   type: string
+ *                   example: "success"
  *                 message:
  *                   type: string
  *                   example: "Visitor search results"
@@ -1257,7 +1259,7 @@ Router.post('/visitor/checkout',
  *         description: Internal server error
  */
 Router.post('/visitor/partial-exit',
-  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Visitor ${req.body.visitor_id || 'unknown'} partial exit`),
+  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Visitor ${req.body.visitor_id || req.body.visit_id || 'unknown'} partial exit`),
   partial_exit
 )
 

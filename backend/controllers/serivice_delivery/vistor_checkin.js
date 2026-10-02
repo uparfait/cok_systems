@@ -33,7 +33,7 @@ module.exports = async function visitor_checkin(req, res) {
         if (targetId && await findOpenVisit(targetId)) {
             throw conflict(`${input.full_name} is already in house`, { code: 'ALREADY_IN_HOUSE', visitor_id: targetId })
         }
-        const { visitor, created } = await resolveVisitor({ visitorId: targetId || null, input, user: req.user })
+        const { visitor, created } = await resolveVisitor({ visitorId: targetId || null, input, user: req.user, keepMissing: true })
 
         const items = Array.isArray(body.items_entered_with) ? body.items_entered_with : []
         const { visit, opened } = await openVisit({ visitor, user: req.user, items, vehicle: hasVehicle ? { plate_number: plate } : null })
