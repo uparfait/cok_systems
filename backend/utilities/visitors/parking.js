@@ -173,9 +173,12 @@ async function endParkingSession(record, user) {
             flagged_duration_minutes: minutes - allowed,
         });
         if (!closed.flagged_at) {
+            // Only the flag fields are written: a save() could also store defaults
+            // (a missing check_in would become "now") and move the car to today
+            const flagReason = `Exceeded allowed ${allowed} minutes by ${minutes - allowed} minutes`;
+            await ParkingRecord.updateOne({ _id: closed._id }, { $set: { flagged_at: flaggedAt, flag_reason: flagReason } });
             closed.flagged_at = flaggedAt;
-            closed.flag_reason = `Exceeded allowed ${allowed} minutes by ${minutes - allowed} minutes`;
-            await closed.save();
+            closed.flag_reason = flagReason;
         }
         violation = { allowed_minutes: allowed, total_minutes: minutes, overstayed_minutes: minutes - allowed };
     }

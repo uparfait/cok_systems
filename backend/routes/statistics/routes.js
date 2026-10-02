@@ -228,7 +228,7 @@ Router.get('/hourly-parking', statisticsController.getHourlyParkingStats);
  * /statistics/parking-movement:
  *   get:
  *     summary: "Vehicle check-ins, check-outs and flagged vehicles over a period"
- *     description: "For the gate dashboard chart. Kigali time. Today and yesterday are grouped by hour, this week and this month by day, this year by month; a custom period is grouped by hour, day, week, month or year depending on its length. The default period (no range, or range=default) is today, or - when a car still inside arrived before today - from the day that car arrived until now (returned as a custom period with auto true). Every hour, day, week or month of the period up to now is returned, empty ones included. flagged counts vehicles by the time they were flagged for overstaying. Counts are whole numbers."
+ *     description: "For the gate dashboard chart. Kigali time. Today and yesterday are grouped by hour, this week and this month by day, this year by month; a custom period is grouped by hour, day, week, month or year depending on its length. Only smart parking records (cars) are counted: a check-in counts on the day it happened and a check-out on its own day. The default period (no range, or range=default) is today, or - when a car still inside, or a car that left today, arrived before today - from the day that car arrived until now (returned as a custom period with auto true and started_by). Every hour, day, week or month of the period up to now is returned, empty ones included. flagged counts vehicles by the time they were flagged for overstaying. entered_left counts, of the cars that entered in a point, how many have already left (whenever they left). Counts are whole numbers."
  *     tags: [Statistics]
  *     security:
  *       - BearerAuth: []
@@ -251,7 +251,7 @@ Router.get('/hourly-parking', statisticsController.getHourlyParkingStats);
  *           type: string
  *     responses:
  *       200:
- *         description: "data: { range, auto, label, unit (hour|day|week|month|year), from, to, from_day, to_day, chart_from, earliest_inside, totals: { check_in, check_out, flagged }, points: [{ key, label, check_in, check_out, flagged }] }"
+ *         description: "data: { range, auto, label, unit (hour|day|week|month|year), from, to, from_day, to_day, chart_from, earliest_inside, started_by: { check_in, plate_number, still_inside }, totals: { check_in, check_out, flagged }, points: [{ key, label, check_in, check_out, flagged, entered_left }] }"
  *       400:
  *         description: Invalid custom dates
  *       500:

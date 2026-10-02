@@ -39,12 +39,16 @@ Status legend: [ ] to do, [x] done.
 15. The admin "Legacy Data" link shows in the sidebar only while old-structure records exist (checked when the
     page loads and every few minutes, and right after a scan or a delete on the Legacy Data page).
 16. Gate dashboard "Hourly Parking Analytics": a Period select with Today / Yesterday / This Week / This Month /
-    This Year / Custom. It opens on Today, or - when a car still parked arrived before today - on Custom from the
-    day that car arrived. Custom opens a small overlay (From day + hour, To day + hour, 24h) and reloads only on
+    This Year / Custom. It opens on Today, or - when a car still parked, or a car that left today, arrived before
+    today - on Custom from the day that car arrived, so its check-in shows on its own day and its check-out on
+    today. Only smart parking records (cars) are counted, never visitor visits. Custom opens a small overlay (From day + hour, To day + hour, 24h) and reloads only on
     Apply. Today and yesterday by hour, week and month by day, year by month; custom by hour, day, week, month or
     year from its length. Grouped bars (check-ins blue, check-outs green, flagged red), 2px apart, centred on their
     label with empty bars left out and the number above each bar. Whole numbers only, totals follow the period, a
     plain spinner shows while loading. Mobile first; small parts (icon, buttons, select, chips, tiles) rounded.
+    Every period shows all its hours / days / months up to now, empty ones included. Inside each blue check-in bar
+    a see-through green part, from the top down, shows how many of the cars that entered then have already left
+    (whenever they left); its number shows only on hover.
 17. Nothing is done twice: checking out someone already gone, a partial exit for someone already outside, a
     return for someone already inside, checking out a car that already left and sending a visitor again to the
     department where they already wait are all refused with a clear message (who and when). Closing a visit is

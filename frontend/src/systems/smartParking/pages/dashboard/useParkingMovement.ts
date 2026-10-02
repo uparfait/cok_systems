@@ -11,6 +11,7 @@ export interface MovementPoint {
   check_in: number;
   check_out: number;
   flagged: number;
+  entered_left: number;
 }
 
 export interface Movement {
@@ -26,6 +27,7 @@ export interface Movement {
   to_input: string;
   chart_from: string;
   earliest_inside: { check_in: string; plate_number: string } | null;
+  started_by: { check_in: string; plate_number: string; still_inside: boolean } | null;
   totals: { check_in: number; check_out: number; flagged: number };
   points: MovementPoint[];
 }

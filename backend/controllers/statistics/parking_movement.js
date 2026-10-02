@@ -2,10 +2,14 @@
  * Vehicle movement for the gate dashboard chart: check-ins, check-outs and
  * vehicles flagged for overstaying, over a chosen period, grouped by hour,
  * day, week, month or year in Kigali time. Counts are whole numbers.
+ * Each point also says how many of the cars that entered in it have already
+ * left (entered_left), whenever they left.
  *
  * GET /statistics/parking-movement?range=default|today|yesterday|week|month|year|custom&from=YYYY-MM-DD&to=YYYY-MM-DD
- * The default period is today, or - when a car still inside arrived before
- * today - from the day that car arrived until now.
+ * The default period is today, or - when a car still inside, or a car that
+ * left today, arrived before today - from the day that car arrived until now.
+ * Check-ins always count on the day they happened and check-outs on theirs.
+ * Only smart parking records (cars) are counted, never visitor visits.
  */
 
 const ParkingRecord = require('../../models/parking_record.js');
@@ -128,8 +132,13 @@ function customPeriod(from, end, now, auto = false) {
     return { key: 'custom', auto, label, from, to, end, unit: unitForSpan(to - from) };
 }
 
-/** The period to show: { key, label, from, to, unit, auto }, `to` exclusive. */
-function requestedPeriod(query, now, insideSince) {
+/**
+ * The period to show: { key, label, from, to, unit, auto }, `to` exclusive.
+ * `carriedSince` is the earliest arrival of a car still inside or that left
+ * today: the default period starts that day, so its check-in shows on the day
+ * it happened and its check-out on today.
+ */
+function requestedPeriod(query, now, carriedSince) {
     const today = startOf('day', now);
     const range = query.range;
     if (range === 'custom') {
@@ -145,33 +154,53 @@ function requestedPeriod(query, now, insideSince) {
     if (range === 'week') return { key: 'week', ...RANGES.week, from: startOf('week', now), to: now };
     if (range === 'month') return { key: 'month', ...RANGES.month, from: startOf('month', now), to: now };
     if (range === 'year') return { key: 'year', ...RANGES.year, from: startOf('year', now), to: now };
-    // Default: today, or from the day the oldest car still inside arrived
-    if (insideSince !== null && insideSince < today) return customPeriod(startOf('day', insideSince), today + DAY, now, true);
+    // Default: today, or from the day the oldest car still inside (or that left today) arrived
+    if (carriedSince !== null && carriedSince < today) return customPeriod(startOf('day', carriedSince), today + DAY, now, true);
     return { key: 'today', ...RANGES.today, from: today, to: now, auto: true };
 }
 
 const inPeriod = (from, to) => ({ $gte: new Date(from), $lt: new Date(to) });
 
+const bucketOf = (field, unit) => ({ $dateTrunc: { date: `$${field}`, unit, timezone: TIMEZONE, ...(unit === 'week' ? { startOfWeek: 'monday' } : {}) } });
+
 const countBy = (field, unit, from, to) => ParkingRecord.aggregate([
     { $match: { [field]: inPeriod(from, to) } },
-    { $group: { _id: { $dateTrunc: { date: `$${field}`, unit, timezone: TIMEZONE, ...(unit === 'week' ? { startOfWeek: 'monday' } : {}) } }, n: { $sum: 1 } } },
+    { $group: { _id: bucketOf(field, unit), n: { $sum: 1 } } },
+]);
+
+/** Of the cars that entered in each bucket, how many have already left (whenever they left). */
+const leftBy = (unit, from, to) => ParkingRecord.aggregate([
+    { $match: { check_in: inPeriod(from, to), check_out: { $ne: null } } },
+    { $group: { _id: bucketOf('check_in', unit), n: { $sum: 1 } } },
 ]);
 
 async function getParkingMovement(req, res) {
     try {
         const now = Date.now();
-        const earliestInside = await ParkingRecord.findOne({ status: 'active' }).sort({ check_in: 1 }).select('check_in plate_number').lean();
+        const today = startOf('day', now);
+        const [earliestInside, earliestLeftToday] = await Promise.all([
+            ParkingRecord.findOne({ status: 'active' }).sort({ check_in: 1 }).select('check_in plate_number').lean(),
+            ParkingRecord.findOne({ check_out: { $gte: new Date(today) }, check_in: { $lt: new Date(today) } }).sort({ check_in: 1 }).select('check_in check_out plate_number').lean(),
+        ]);
         const insideSince = earliestInside && earliestInside.check_in ? new Date(earliestInside.check_in).getTime() : null;
-        const period = requestedPeriod(req.query || {}, now, insideSince);
+        const leftSince = earliestLeftToday && earliestLeftToday.check_in ? new Date(earliestLeftToday.check_in).getTime() : null;
+        // The car the default period starts with: still inside, or came earlier and left today
+        const carried = [
+            insideSince !== null ? { at: insideSince, plate_number: earliestInside.plate_number, still_inside: true } : null,
+            leftSince !== null ? { at: leftSince, plate_number: earliestLeftToday.plate_number, still_inside: false } : null,
+        ].filter(Boolean).sort((a, b) => a.at - b.at)[0] || null;
+        const period = requestedPeriod(req.query || {}, now, carried ? carried.at : null);
         if (period.error) return res.status(400).json({ success: false, type: 'warning', message: period.error });
         const unit = period.unit;
 
         // The whole period is shown, every hour / day / month up to now, empty ones included
-        const [totals, counted] = await Promise.all([
+        const [totals, counted, left] = await Promise.all([
             Promise.all(SERIES.map((s) => ParkingRecord.countDocuments({ [s.field]: inPeriod(period.from, period.to) }))),
             Promise.all(SERIES.map((s) => countBy(s.field, unit, period.from, period.to))),
+            leftBy(unit, period.from, period.to),
         ]);
         const maps = counted.map((rows) => new Map(rows.map((row) => [new Date(row._id).getTime(), row.n])));
+        const leftMap = new Map(left.map((row) => [new Date(row._id).getTime(), row.n]));
 
         const first = startOf(unit, period.from);
         const multiDay = unit === 'hour' && startOf('day', first) !== startOf('day', period.to - 1);
@@ -179,6 +208,8 @@ async function getParkingMovement(req, res) {
         for (let at = first; at < period.to && points.length < 400; at = next(unit, at)) {
             const point = { key: new Date(at).toISOString(), label: bucketLabel(unit, at, multiDay) };
             SERIES.forEach((s, i) => { point[s.key] = maps[i].get(at) || 0; });
+            // Cars that entered in this bucket and already left (shown inside the check-in bar)
+            point.entered_left = leftMap.get(at) || 0;
             points.push(point);
         }
 
@@ -199,6 +230,9 @@ async function getParkingMovement(req, res) {
                 to_input: inputValue(period.end || period.to, true),
                 chart_from: new Date(first).toISOString(),
                 earliest_inside: insideSince !== null ? { check_in: new Date(insideSince).toISOString(), plate_number: earliestInside.plate_number } : null,
+                started_by: period.auto && period.key === 'custom' && carried
+                    ? { check_in: new Date(carried.at).toISOString(), plate_number: carried.plate_number, still_inside: carried.still_inside }
+                    : null,
                 totals: { check_in: totals[0], check_out: totals[1], flagged: totals[2] },
                 points,
             },

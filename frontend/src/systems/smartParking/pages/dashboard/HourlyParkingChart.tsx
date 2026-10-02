@@ -23,11 +23,17 @@ const UNIT_TEXT: Record<Movement['unit'], string> = {
 const periodName = (movement: Movement): string => (movement.range === 'custom' ? `(${movement.label})` : movement.label);
 
 const startNote = (movement: Movement): string | null => {
+  const by = movement.started_by;
+  if (movement.auto && by) {
+    const since = formatDateTime(by.check_in);
+    return by.still_inside
+      ? `${by.plate_number} has been parked since ${since}, so the chart starts that day.`
+      : `${by.plate_number} came in on ${since} and left today, so the chart starts that day.`;
+  }
   const inside = movement.earliest_inside;
-  if (!inside) return null;
-  const since = formatDateTime(inside.check_in);
-  if (movement.auto && movement.range === 'custom') return `${inside.plate_number} has been parked since ${since}, so the chart starts that day.`;
-  if (new Date(inside.check_in).getTime() < new Date(movement.from).getTime()) return `${inside.plate_number} has been parked since ${since}, before this period.`;
+  if (inside && new Date(inside.check_in).getTime() < new Date(movement.from).getTime()) {
+    return `${inside.plate_number} has been parked since ${formatDateTime(inside.check_in)}, before this period.`;
+  }
   return null;
 };
 
