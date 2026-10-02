@@ -157,9 +157,6 @@ const countBy = (field, unit, from, to) => ParkingRecord.aggregate([
     { $group: { _id: { $dateTrunc: { date: `$${field}`, unit, timezone: TIMEZONE, ...(unit === 'week' ? { startOfWeek: 'monday' } : {}) } }, n: { $sum: 1 } } },
 ]);
 
-const firstOf = (field, from, to) => ParkingRecord.findOne({ [field]: inPeriod(from, to) })
-    .sort({ [field]: 1 }).select(field).lean();
-
 async function getParkingMovement(req, res) {
     try {
         const now = Date.now();
@@ -167,23 +164,16 @@ async function getParkingMovement(req, res) {
         const insideSince = earliestInside && earliestInside.check_in ? new Date(earliestInside.check_in).getTime() : null;
         const period = requestedPeriod(req.query || {}, now, insideSince);
         if (period.error) return res.status(400).json({ success: false, type: 'warning', message: period.error });
-
-        const [firsts, totals] = await Promise.all([
-            Promise.all(SERIES.map((s) => firstOf(s.field, period.from, period.to))),
-            Promise.all(SERIES.map((s) => ParkingRecord.countDocuments({ [s.field]: inPeriod(period.from, period.to) }))),
-        ]);
-
-        // Skip the empty start of the period: the chart begins at its first movement
-        const starts = firsts
-            .map((doc, i) => (doc && doc[SERIES[i].field] ? new Date(doc[SERIES[i].field]).getTime() : null))
-            .filter((ms) => ms !== null);
-        const windowFrom = starts.length ? Math.min(...starts) : period.from;
         const unit = period.unit;
 
-        const counted = await Promise.all(SERIES.map((s) => countBy(s.field, unit, windowFrom, period.to)));
+        // The whole period is shown, every hour / day / month up to now, empty ones included
+        const [totals, counted] = await Promise.all([
+            Promise.all(SERIES.map((s) => ParkingRecord.countDocuments({ [s.field]: inPeriod(period.from, period.to) }))),
+            Promise.all(SERIES.map((s) => countBy(s.field, unit, period.from, period.to))),
+        ]);
         const maps = counted.map((rows) => new Map(rows.map((row) => [new Date(row._id).getTime(), row.n])));
 
-        const first = startOf(unit, windowFrom);
+        const first = startOf(unit, period.from);
         const multiDay = unit === 'hour' && startOf('day', first) !== startOf('day', period.to - 1);
         const points = [];
         for (let at = first; at < period.to && points.length < 400; at = next(unit, at)) {

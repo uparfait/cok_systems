@@ -14,7 +14,28 @@ type ChartPoint = MovementPoint & { peak: number };
 
 const GAP = 2;
 const MAX_BAR = 18;
-const GROUP_WIDTH: Record<Movement['unit'], number> = { hour: 72, day: 84, week: 104, month: 84, year: 72 };
+const MIN_BAR = 8;
+const GROUP_WIDTH: Record<Movement['unit'], number> = { hour: 46, day: 46, week: 64, month: 52, year: 48 };
+
+/** Two short lines per label: the hour, weekday or month on top, the date or year under it. */
+const splitLabel = (label: string): [string, string] => {
+  const hour = /^(\d{1,2} [A-Z][a-z]{2}) (\d{2}:00)$/.exec(label);
+  if (hour) return [hour[2], hour[1]];
+  const day = /^([A-Z][a-z]{2}) (\d{1,2} [A-Z][a-z]{2})$/.exec(label);
+  if (day) return [day[1], day[2]];
+  const week = /^Week of (.+)$/.exec(label);
+  if (week) return ['Week of', week[1]];
+  const month = /^([A-Z][a-z]{2}) (\d{4})$/.exec(label);
+  if (month) return [month[1], month[2]];
+  return [label, ''];
+};
+
+interface TickProps {
+  x?: number;
+  y?: number;
+  index?: number;
+  payload?: { value?: string | number };
+}
 
 interface GroupShapeProps {
   x?: number;
@@ -27,7 +48,7 @@ interface GroupShapeProps {
 const GroupShape: React.FC<GroupShapeProps> = ({ x = 0, y = 0, width = 0, height = 0, payload }) => {
   if (!payload || !payload.peak || height <= 0) return <g />;
   const bars = SERIES.filter((s) => payload[s.key as SeriesKey] > 0);
-  const size = Math.max(4, Math.min(MAX_BAR, (width - GAP * (bars.length - 1)) / bars.length));
+  const size = Math.max(MIN_BAR, Math.min(MAX_BAR, (width - GAP * (bars.length - 1)) / bars.length));
   const total = bars.length * size + (bars.length - 1) * GAP;
   const left = x + (width - total) / 2;
   const base = y + height;
@@ -84,6 +105,18 @@ export const MovementLegend: React.FC = () => (
 const MovementBars: React.FC<{ movement: Movement }> = ({ movement }) => {
   const points: ChartPoint[] = movement.points.map((p) => ({ ...p, peak: Math.max(p.check_in, p.check_out, p.flagged) }));
   const minWidth = Math.max(280, points.length * GROUP_WIDTH[movement.unit]);
+  const lines = points.map((p) => splitLabel(p.label));
+
+  const renderTick = ({ x = 0, y = 0, index = 0 }: TickProps) => {
+    const [top, bottom] = lines[index] || ['', ''];
+    const showBottom = !!bottom && (index === 0 || (lines[index - 1] || ['', ''])[1] !== bottom);
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={0} dy={11} textAnchor="middle" fontSize={10} fill="#4B5563">{top}</text>
+        {showBottom ? <text x={0} y={0} dy={24} textAnchor="middle" fontSize={9} fill="#9CA3AF">{bottom}</text> : null}
+      </g>
+    );
+  };
 
   return (
     <div className="-mx-1 overflow-x-auto px-1">
@@ -94,17 +127,17 @@ const MovementBars: React.FC<{ movement: Movement }> = ({ movement }) => {
             <XAxis
               dataKey="label"
               stroke={GRAY_DISABLED}
-              tick={{ fontSize: 10, fill: GRAY_DISABLED }}
+              tick={(props: unknown) => renderTick(props as TickProps)}
               axisLine={false}
               tickLine={false}
               interval={0}
-              height={28}
+              height={36}
             />
             <YAxis
               allowDecimals={false}
               domain={[0, (max: number) => Math.max(1, Math.ceil(max * 1.2))]}
               stroke={GRAY_DISABLED}
-              tick={{ fontSize: 10, fill: GRAY_DISABLED }}
+              tick={{ fontSize: 10, fill: '#4B5563' }}
               axisLine={false}
               tickLine={false}
               width={36}

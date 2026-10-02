@@ -228,7 +228,7 @@ Router.get('/hourly-parking', statisticsController.getHourlyParkingStats);
  * /statistics/parking-movement:
  *   get:
  *     summary: "Vehicle check-ins, check-outs and flagged vehicles over a period"
- *     description: "For the gate dashboard chart. Kigali time. Today and yesterday are grouped by hour, this week and this month by day, this year by month; a custom period is grouped by hour, day, week, month or year depending on its length. The default period (no range, or range=default) is today, or - when a car still inside arrived before today - from the day that car arrived until now (returned as a custom period with auto true). The chart starts at the first movement of the period. flagged counts vehicles by the time they were flagged for overstaying. Counts are whole numbers."
+ *     description: "For the gate dashboard chart. Kigali time. Today and yesterday are grouped by hour, this week and this month by day, this year by month; a custom period is grouped by hour, day, week, month or year depending on its length. The default period (no range, or range=default) is today, or - when a car still inside arrived before today - from the day that car arrived until now (returned as a custom period with auto true). Every hour, day, week or month of the period up to now is returned, empty ones included. flagged counts vehicles by the time they were flagged for overstaying. Counts are whole numbers."
  *     tags: [Statistics]
  *     security:
  *       - BearerAuth: []
