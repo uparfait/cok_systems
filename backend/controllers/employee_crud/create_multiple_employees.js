@@ -520,10 +520,7 @@ module.exports = async function create_multiple_employees(req, res, next) {
             });
             
         } catch (dbError) {
-            // Rollback transaction on error
-            if (session) {
-                await session.abortTransaction();
-            }
+            
             throw dbError;
         }
         
@@ -532,7 +529,7 @@ module.exports = async function create_multiple_employees(req, res, next) {
         
         if (session) {
             await session.abortTransaction();
-            session.endSession();
+           
         }
         
         return res.status(500).json({
