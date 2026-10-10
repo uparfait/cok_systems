@@ -74,4 +74,9 @@ Router.get('/signing-profile', signingProfile.getSigningProfile);
 Router.put('/signature-image', signingProfile.updateSignatureImage);
 Router.delete('/signature-image', signingProfile.removeSignatureImage);
 
+// Digital certificate (.p12/.pfx) kept on the profile once its password has been verified; signing still asks for that password
+Router.put('/signing-certificate', signingProfile.updateSigningCertificate);
+Router.get('/signing-certificate/file', signingProfile.getSigningCertificateFile);
+Router.delete('/signing-certificate', signingProfile.removeSigningCertificate);
+
 module.exports = Router;

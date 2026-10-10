@@ -10,6 +10,8 @@ import { canonicalPayloadBytes } from '../../utils/canonicalAttendancePayload';
 import { openCertificate, signCanonicalBytes, renderAppearanceImage } from '../../utils/certificateSigning';
 
 const BASE_URL = '/cok/api/v1';
+// The main backend keeps the staff member's saved certificate; only its owner can fetch it
+const PROFILE_CERTIFICATE_URL = '/cok/api/profile/signing-certificate/file';
 
 const PRIMARY = '#056daa';
 const DANGER = '#E74C3C';
@@ -247,7 +249,25 @@ export default function AttendanceForm() {
   const [padKey, setPadKey] = useState(0);
   const [staffMode, setStaffMode] = useState(false);
   const [staffProfile, setStaffProfile] = useState(null);
+  // Staff with a certificate on their profile sign with it by default; they can still pick a file instead
+  const [useSavedCertificate, setUseSavedCertificate] = useState(true);
   const certInputRef = useRef(null);
+
+  const savedCertificate = staffMode && staffProfile?.hasSigningCertificate ? staffProfile.signingCertificate : null;
+  const usingSavedCertificate = !!savedCertificate && useSavedCertificate;
+
+  // Pulls the stored .p12 down as bytes; it is still locked with the holder's password, which never leaves this browser
+  const loadSavedCertificateBlob = async () => {
+    const token = readSessionToken();
+    if (!token) throw new Error('Your session has expired. Sign in again to use your saved certificate.');
+    const res = await axios.get(PROFILE_CERTIFICATE_URL, { headers: { Authorization: `Bearer ${token}` } });
+    const pfx = res.data?.data?.pfx;
+    if (!pfx) throw new Error('Your saved certificate could not be loaded.');
+    const binary = window.atob(pfx);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes]);
+  };
 
   // A signed-in CoK Systems user signs as their account; anyone else gets the anonymous flow untouched
   useEffect(() => {
@@ -368,7 +388,8 @@ export default function AttendanceForm() {
     setSigning(true);
     setCertError('');
     try {
-      const unlocked = await openCertificate(certificateFile, certificatePassword);
+      const source = usingSavedCertificate ? await loadSavedCertificateBlob() : certificateFile;
+      const unlocked = await openCertificate(source, certificatePassword);
       if (staffMode && !namesMatch(unlocked.subjectCommonName, staffProfile?.fullName)) {
         return { error: `This certificate belongs to ${unlocked.subjectCommonName}, not to your account.` };
       }
@@ -412,7 +433,7 @@ export default function AttendanceForm() {
 
     // Auto-sign with certificate before submitting when the user hasn't signed yet
     if (signatureMethod === 'certificate' && !certSig) {
-      if (!certificateFile) {
+      if (!certificateFile && !usingSavedCertificate) {
         setCertError('Choose your certificate file first.');
         setLoading(false);
         return;
@@ -611,7 +632,9 @@ export default function AttendanceForm() {
             >
               <FiLock className="w-4 h-4 shrink-0 mt-0.5" style={{ color: PRIMARY }} />
               <span>
-                {`You are signing as ${staffProfile?.fullName}. Draw your signature or sign with your digital certificate.`}
+                {savedCertificate
+                  ? `You are signing as ${staffProfile?.fullName}. Draw your signature or sign with the digital certificate saved on your profile.`
+                  : `You are signing as ${staffProfile?.fullName}. Draw your signature or sign with your digital certificate.`}
               </span>
             </div>
           )}
@@ -835,7 +858,31 @@ export default function AttendanceForm() {
                 }}
               />
 
-              {!certificateFile ? (
+              {usingSavedCertificate ? (
+                <div className="flex items-center gap-3 px-3 py-2.5" style={{ border: `1px solid ${BORDER}`, backgroundColor: '#F7F9FB' }}>
+                  <div className="p-2 shrink-0 bg-white" style={{ border: `1px solid ${BORDER}` }}>
+                    <FiFileText className="w-4 h-4" style={{ color: PRIMARY }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                      {savedCertificate.subjectCommonName || 'Saved certificate'}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: GRAY_DISABLED }}>
+                      Saved on your profile{savedCertificate.issuerCommonName ? `, issued by ${savedCertificate.issuerCommonName}` : ''}
+                    </p>
+                  </div>
+                  {!certificateSignature && (
+                    <button
+                      type="button"
+                      onClick={() => { setUseSavedCertificate(false); setCertificatePassword(''); setCertError(''); }}
+                      className="text-xs shrink-0 underline cursor-pointer"
+                      style={{ color: PRIMARY, fontFamily: fontHeading }}
+                    >
+                      Use a file instead
+                    </button>
+                  )}
+                </div>
+              ) : !certificateFile ? (
                 <div
                   onClick={() => certInputRef.current?.click()}
                   className="cursor-pointer flex flex-col items-center justify-center gap-1.5 py-6 px-4 text-center transition-colors"
@@ -879,8 +926,19 @@ export default function AttendanceForm() {
                 </div>
               )}
 
+              {savedCertificate && !usingSavedCertificate && !certificateSignature && (
+                <button
+                  type="button"
+                  onClick={() => { setUseSavedCertificate(true); setCertificateFile(null); setCertificatePassword(''); setCertError(''); setErrors((p) => ({ ...p, signature: null })); }}
+                  className="text-xs mt-2 underline cursor-pointer"
+                  style={{ color: PRIMARY, fontFamily: fontHeading }}
+                >
+                  Use the certificate saved on your profile instead
+                </button>
+              )}
+
               {/* Password unlocks the key in this browser only; it is never sent anywhere */}
-              {certificateFile && !certificateSignature && (
+              {(certificateFile || usingSavedCertificate) && !certificateSignature && (
                 <div className="mt-3">
                   <label style={labelStyle}>Certificate password</label>
                   <div className="flex items-center gap-2">
@@ -896,7 +954,9 @@ export default function AttendanceForm() {
                     />
                   </div>
                   <p className="text-xs mt-1.5" style={{ color: GRAY_DISABLED }}>
-                    Your certificate and password stay on this device. Only the signature is sent.
+                    {usingSavedCertificate
+                      ? 'Your password unlocks the saved certificate in this browser only. Only the signature is sent.'
+                      : 'Your certificate and password stay on this device. Only the signature is sent.'}
                   </p>
                 </div>
               )}
