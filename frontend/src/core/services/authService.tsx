@@ -37,6 +37,12 @@
 
  export const deleteSignatureImage = () => del('/profile/signature-image');
 
+// Digital certificate (.p12/.pfx) kept on the profile; the server opens it with the password once and refuses it on a mismatch
+export const uploadSigningCertificate = (certificateBase64: string, password: string, fileName: string) =>
+  put('/profile/signing-certificate', { certificate: certificateBase64, password, file_name: fileName });
+
+export const deleteSigningCertificate = () => del('/profile/signing-certificate');
+
  // ==================== LOGIN APIs ====================
  
  export const login = (email: string, password: string) => post('/auth/login', { email, password });

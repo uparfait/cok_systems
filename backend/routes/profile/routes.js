@@ -74,4 +74,9 @@ Router.get('/signing-profile', signingProfile.getSigningProfile);
 Router.put('/signature-image', signingProfile.updateSignatureImage);
 Router.delete('/signature-image', signingProfile.removeSignatureImage);
 
+// Digital certificate (.p12/.pfx) kept on the profile once its password has been verified; em_backend signs with it
+// when the holder types that password on the attendance form, so the container is never served back out
+Router.put('/signing-certificate', signingProfile.updateSigningCertificate);
+Router.delete('/signing-certificate', signingProfile.removeSigningCertificate);
+
 module.exports = Router;

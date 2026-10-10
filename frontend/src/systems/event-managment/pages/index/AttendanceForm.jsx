@@ -247,6 +247,8 @@ export default function AttendanceForm() {
   const [padKey, setPadKey] = useState(0);
   const [staffMode, setStaffMode] = useState(false);
   const [staffProfile, setStaffProfile] = useState(null);
+  // Someone with a certificate saved on their account signs with it by default; they can still pick a file instead
+  const [useSavedCertificate, setUseSavedCertificate] = useState(true);
   const certInputRef = useRef(null);
 
   // A signed-in CoK Systems user signs as their account; anyone else gets the anonymous flow untouched
@@ -273,23 +275,40 @@ export default function AttendanceForm() {
 
   // The phone stays editable when the account has none, or the staff member could never submit
   const lockedPhone = staffMode && !!staffProfile?.telephone;
-  // The typed email is looked up so a saved profile signature can appear next to a certificate signature
+  // The typed email and name are looked up so a saved signature image or saved certificate on that account can be offered
   const [emailLookup, setEmailLookup] = useState(null);
   useEffect(() => {
     const email = formData.attendeeEmail.trim().toLowerCase();
+    const fullName = formData.attendeeFullName.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setEmailLookup(null);
       return undefined;
     }
     let cancelled = false;
     const timer = setTimeout(() => {
-      axios.post(`${BASE_URL}/attendance/signing-options`, { email })
+      axios.post(`${BASE_URL}/attendance/signing-options`, { email, fullName })
         .then((res) => { if (!cancelled) setEmailLookup(res.data?.success ? res.data.data : null); })
         .catch(() => { if (!cancelled) setEmailLookup(null); });
     }, 500);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [formData.attendeeEmail]);
+  }, [formData.attendeeEmail, formData.attendeeFullName]);
   const hasSavedSignature = !!emailLookup?.hasSignatureImage;
+  // Offered when the typed name and email match a certificate saved on an account, or the signed-in staff member has one
+  const hasSavedCertificate = staffMode ? !!staffProfile?.hasSigningCertificate : !!emailLookup?.hasSigningCertificate;
+  const usingSavedCertificate = hasSavedCertificate && useSavedCertificate;
+
+  // em_backend opens the saved container with this password and signs; the password is checked once and not stored
+  const signWithSavedCertificate = async (fields) => {
+    const token = readSessionToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    try {
+      const res = await axios.post(`${BASE_URL}/attendance/sign-with-saved-certificate`, { ...fields, password: certificatePassword }, { headers });
+      if (!res.data?.success || !res.data.data) throw new Error(res.data?.message || 'Could not sign with your saved certificate.');
+      return res.data.data;
+    } catch (error) {
+      throw new Error(error?.response?.data?.message || error?.message || 'Could not sign with your saved certificate.');
+    }
+  };
 
   const validate = ({ skipSignature = false } = {}) => {
     const newErrors = {};
@@ -368,6 +387,27 @@ export default function AttendanceForm() {
     setSigning(true);
     setCertError('');
     try {
+      if (usingSavedCertificate) {
+        // The server signs the exact field values it is given and picks the signing time itself
+        const signed = await signWithSavedCertificate(buildSignedFields(undefined));
+        const appearanceImage = await renderAppearanceImage({
+          signerName: signed.signerName,
+          issuerName: signed.issuerName,
+          serialNumber: signed.serialNumber,
+          signedAt: signed.signedAt,
+          handwritingDataUrl: null,
+        });
+        return {
+          data: {
+            signatureValue: signed.signatureValue,
+            certificate: signed.certificate,
+            signedAt: signed.signedAt,
+            appearanceImage,
+            signerName: signed.signerName,
+            issuerName: signed.issuerName,
+          },
+        };
+      }
       const unlocked = await openCertificate(certificateFile, certificatePassword);
       if (staffMode && !namesMatch(unlocked.subjectCommonName, staffProfile?.fullName)) {
         return { error: `This certificate belongs to ${unlocked.subjectCommonName}, not to your account.` };
@@ -412,7 +452,7 @@ export default function AttendanceForm() {
 
     // Auto-sign with certificate before submitting when the user hasn't signed yet
     if (signatureMethod === 'certificate' && !certSig) {
-      if (!certificateFile) {
+      if (!certificateFile && !usingSavedCertificate) {
         setCertError('Choose your certificate file first.');
         setLoading(false);
         return;
@@ -611,7 +651,9 @@ export default function AttendanceForm() {
             >
               <FiLock className="w-4 h-4 shrink-0 mt-0.5" style={{ color: PRIMARY }} />
               <span>
-                {`You are signing as ${staffProfile?.fullName}. Draw your signature or sign with your digital certificate.`}
+                {hasSavedCertificate
+                  ? `You are signing as ${staffProfile?.fullName}. Draw your signature or sign with the digital certificate saved on your profile.`
+                  : `You are signing as ${staffProfile?.fullName}. Draw your signature or sign with your digital certificate.`}
               </span>
             </div>
           )}
@@ -835,7 +877,22 @@ export default function AttendanceForm() {
                 }}
               />
 
-              {!certificateFile ? (
+              {usingSavedCertificate ? (
+                <div className="flex items-center gap-2 p-3 text-sm" style={{ border: `1px solid ${SUCCESS}`, backgroundColor: '#F1F8F2', color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                  <FiCheckCircle className="w-4 h-4 shrink-0" style={{ color: SUCCESS }} />
+                  <span className="flex-1">You have saved certificate! Enter its password to sign.</span>
+                  {!certificateSignature && (
+                    <button
+                      type="button"
+                      onClick={() => { setUseSavedCertificate(false); setCertificatePassword(''); setCertError(''); }}
+                      className="text-xs shrink-0 underline cursor-pointer"
+                      style={{ color: PRIMARY, fontFamily: fontHeading }}
+                    >
+                      Use a file instead
+                    </button>
+                  )}
+                </div>
+              ) : !certificateFile ? (
                 <div
                   onClick={() => certInputRef.current?.click()}
                   className="cursor-pointer flex flex-col items-center justify-center gap-1.5 py-6 px-4 text-center transition-colors"
@@ -879,8 +936,19 @@ export default function AttendanceForm() {
                 </div>
               )}
 
+              {hasSavedCertificate && !usingSavedCertificate && !certificateSignature && (
+                <button
+                  type="button"
+                  onClick={() => { setUseSavedCertificate(true); setCertificateFile(null); setCertificatePassword(''); setCertError(''); setErrors((p) => ({ ...p, signature: null })); }}
+                  className="text-xs mt-2 underline cursor-pointer"
+                  style={{ color: PRIMARY, fontFamily: fontHeading }}
+                >
+                  Use your saved certificate instead
+                </button>
+              )}
+
               {/* Password unlocks the key in this browser only; it is never sent anywhere */}
-              {certificateFile && !certificateSignature && (
+              {(certificateFile || usingSavedCertificate) && !certificateSignature && (
                 <div className="mt-3">
                   <label style={labelStyle}>Certificate password</label>
                   <div className="flex items-center gap-2">
@@ -896,7 +964,9 @@ export default function AttendanceForm() {
                     />
                   </div>
                   <p className="text-xs mt-1.5" style={{ color: GRAY_DISABLED }}>
-                    Your certificate and password stay on this device. Only the signature is sent.
+                    {usingSavedCertificate
+                      ? 'The password is checked against your saved certificate and then discarded. It is never stored.'
+                      : 'Your certificate and password stay on this device. Only the signature is sent.'}
                   </p>
                 </div>
               )}

@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   FiUser, FiMail, FiPhone, FiCalendar, FiShield,   FiLock, FiEye, FiEyeOff,
-  FiBriefcase, FiBell, FiEdit3, FiUploadCloud, FiAlertTriangle
+  FiX, FiBriefcase, FiBell, FiEdit3, FiUploadCloud, FiAlertTriangle
 } from "react-icons/fi";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { useAuth } from "../../core/contexts/AuthContext";
 import { useToast } from "../../core/contexts/ToastContext";
 import {
   getUserProfile, changePassword, getNotificationSettings, updateNotificationSettings,
-  getSigningProfile, uploadSignatureImage, deleteSignatureImage
+  getSigningProfile, uploadSignatureImage, deleteSignatureImage,
+  uploadSigningCertificate, deleteSigningCertificate
 } from "../../core/services/authService";
 import { getSubscriptionStatus, subscribeToPush, unsubscribeFromPush } from "../../core/services/webPushService";
 import SignaturePad from "./SignaturePad.jsx";
@@ -23,6 +24,23 @@ const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 const MAX_SIGNATURE_IMAGE_BYTES = 200000;
+// Backend cap for the stored .p12/.pfx container
+const MAX_CERTIFICATE_BYTES = 65536;
+
+const formatCertificateDate = (value: string | null | undefined) => {
+  if (!value) return 'unknown';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'unknown' : date.toLocaleDateString();
+};
+
+// Raw base64 of the file, without the data URL prefix
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+    reader.onerror = () => reject(new Error('Could not read the selected file'));
+    reader.readAsDataURL(file);
+  });
 
 const dataUrlByteSize = (dataUrl: string) => {
   const base64 = dataUrl.split(',')[1] || '';
@@ -89,9 +107,22 @@ interface PasswordFormData {
   confirmPassword: string;
 }
 
+interface SigningCertificateSummary {
+  file_name: string;
+  subject_common_name: string;
+  subject_email: string;
+  issuer_common_name: string;
+  serial_number: string;
+  valid_from: string | null;
+  valid_to: string | null;
+  uploaded_at: string | null;
+}
+
 interface SigningProfile {
   has_signature_image: boolean;
   signature_image: string | null;
+  has_signing_certificate?: boolean;
+  signing_certificate?: SigningCertificateSummary | null;
 }
 
 interface ProfileModalProps {
@@ -137,6 +168,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [transparentBackground, setTransparentBackground] = useState(true);
   const [backgroundThreshold, setBackgroundThreshold] = useState(DEFAULT_BACKGROUND_THRESHOLD);
   const signatureInputRef = useRef<HTMLInputElement>(null);
+  // Certificate awaiting its password check; the password lives here only until the server answers
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [certificatePassword, setCertificatePassword] = useState('');
+  const [showCertificatePassword, setShowCertificatePassword] = useState(false);
+  const [savingCertificate, setSavingCertificate] = useState(false);
+  const [removingCertificate, setRemovingCertificate] = useState(false);
+  const certificateInputRef = useRef<HTMLInputElement>(null);
 
   const roleNames: { [key: string]: string } = {
     'system_admin': 'System Administrator',
@@ -317,6 +355,9 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     setTransparentBackground(true);
     setBackgroundThreshold(DEFAULT_BACKGROUND_THRESHOLD);
     setPadKey((k) => k + 1);
+    setCertificateFile(null);
+    setCertificatePassword('');
+    setShowCertificatePassword(false);
   };
 
   useEffect(() => {
@@ -355,6 +396,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       if (response && (response.success || response.status)) {
         showSuccess(response.message || 'Signature image saved');
         setSigningProfile((prev) => ({
+          ...(prev || {}),
           has_signature_image: true,
           signature_image: dataUrl,
         }));
@@ -402,6 +444,87 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     setPendingPreview('');
   };
 
+  const handleCertificateFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    // Phone file pickers report unreliable MIME types, so check the extension
+    if (!/\.(p12|pfx)$/i.test(file.name)) {
+      showError('Choose a certificate file ending in .p12 or .pfx');
+      return;
+    }
+    if (file.size > MAX_CERTIFICATE_BYTES) {
+      showError('The certificate file must be 64 KB or smaller');
+      return;
+    }
+    setCertificateFile(file);
+    setCertificatePassword('');
+    setShowCertificatePassword(false);
+  };
+
+  const cancelPendingCertificate = () => {
+    setCertificateFile(null);
+    setCertificatePassword('');
+    setShowCertificatePassword(false);
+  };
+
+  // The server opens the file with this password; a wrong password means nothing is stored
+  const saveSigningCertificate = async () => {
+    if (!certificateFile) {
+      showError('Choose your certificate file first');
+      return;
+    }
+    if (!certificatePassword) {
+      showError('Enter the password for this certificate');
+      return;
+    }
+    setSavingCertificate(true);
+    try {
+      const base64 = await fileToBase64(certificateFile);
+      const response = await uploadSigningCertificate(base64, certificatePassword, certificateFile.name);
+      if (response && (response.success || response.status)) {
+        showSuccess(response.message || 'Digital certificate verified and saved');
+        setSigningProfile((prev) => ({
+          ...(prev || { has_signature_image: false, signature_image: null }),
+          has_signing_certificate: true,
+          signing_certificate: response.data?.signing_certificate || null,
+        }));
+        setCertificateFile(null);
+        loadSigningProfile(true);
+      } else {
+        showError(response?.message || response?.error || 'The certificate was not saved');
+      }
+    } catch (error: any) {
+      showError(error?.message || error?.error || 'The certificate was not saved');
+    } finally {
+      // Only needed for the check, so it must not linger
+      setCertificatePassword('');
+      setShowCertificatePassword(false);
+      setSavingCertificate(false);
+    }
+  };
+
+  const handleRemoveSigningCertificate = async () => {
+    setRemovingCertificate(true);
+    try {
+      const response = await deleteSigningCertificate();
+      if (response && (response.success || response.status)) {
+        showSuccess(response.message || 'Digital certificate removed');
+        setSigningProfile((prev) => ({
+          ...(prev || { has_signature_image: false, signature_image: null }),
+          has_signing_certificate: false,
+          signing_certificate: null,
+        }));
+      } else {
+        showError(response?.message || response?.error || 'Failed to remove the certificate');
+      }
+    } catch (error: any) {
+      showError(error?.message || error?.error || 'Failed to remove the certificate');
+    } finally {
+      setRemovingCertificate(false);
+    }
+  };
+
   const handleRemoveSignatureImage = async () => {
     setRemovingSignature(true);
     try {
@@ -409,6 +532,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       if (response && (response.success || response.status)) {
         showSuccess(response.message || 'Signature image removed');
         setSigningProfile((prev) => ({
+          ...(prev || {}),
           has_signature_image: false,
           signature_image: null,
         }));
@@ -921,23 +1045,23 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                          <div className="w-8 h-8 border-2 border-[#056daa] border-t-transparent rounded-full animate-spin" />
                        </div>
                      ) : (
-                       <>
-                         <div className="border" style={{ borderColor: BORDER, backgroundColor: 'rgba(5,109,170,0.02)', borderRadius: 0 }}>
-                           <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center gap-3">
-                             <div className="flex items-center gap-3">
-                               <div className="p-2" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
-                                 <FiEdit3 className="w-5 h-5" style={{ color: PRIMARY }} />
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+                         <div className="border flex flex-col" style={{ borderColor: BORDER, backgroundColor: 'rgba(5,109,170,0.02)', borderRadius: 0 }}>
+                           <div className="px-3 py-2.5 min-h-[60px] flex justify-between items-center gap-2">
+                             <div className="flex items-center gap-2.5 min-w-0">
+                               <div className="p-1.5 shrink-0" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
+                                 <FiEdit3 className="w-4 h-4" style={{ color: PRIMARY }} />
                                </div>
                                <div>
-                                 <p className="font-medium" style={{ color: NEUTRAL_DARK }}>Signature image</p>
-                                 <p className="text-xs" style={{ color: GRAY_DISABLED }}>This image appears on the attendance sheets you sign.</p>
+                                 <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>Signature image</p>
+                                 <p className="text-xs" style={{ color: GRAY_DISABLED }}>Placed on the attendance sheets you sign.</p>
                                </div>
                              </div>
                              <span className="text-xs font-semibold uppercase whitespace-nowrap" style={{ color: PRIMARY, fontFamily: fontHeading, letterSpacing: '1px' }}>
                                {signingProfile?.has_signature_image ? 'Saved' : 'Not set'}
                              </span>
                            </div>
-                           <div className="p-4 sm:p-6 border-t" style={{ borderColor: BORDER }}>
+                           <div className="p-3 border-t flex-1 flex flex-col" style={{ borderColor: BORDER }}>
                              <input
                                ref={signatureInputRef}
                                type="file"
@@ -946,11 +1070,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                onChange={handleSignatureFileChange}
                              />
                              {signingProfile?.has_signature_image && signingProfile.signature_image && !imageReplaceMode ? (
-                               <div className="space-y-3">
-                                 <div className="bg-white flex items-center justify-center p-3" style={{ border: `1px solid ${BORDER}` }}>
-                                   <img src={signingProfile.signature_image} alt="Your signature" className="max-h-24 max-w-full object-contain" />
+                               <div className="flex-1 flex flex-col gap-3">
+                                 <div className="bg-white h-28 flex items-center justify-center p-3" style={{ border: `1px solid ${BORDER}` }}>
+                                   <img src={signingProfile.signature_image} alt="Your signature" className="max-h-full max-w-full object-contain" />
                                  </div>
-                                 <div className="flex gap-3">
+                                 <p className="text-xs" style={{ color: GRAY_DISABLED }}>Shown next to your name on the sheets you sign.</p>
+                                 <div className="flex gap-3 mt-auto">
                                    <button
                                      type="button"
                                      onClick={() => setImageReplaceMode(true)}
@@ -971,9 +1096,9 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                  </div>
                                </div>
                              ) : pendingUpload ? (
-                               <div className="space-y-3">
+                               <div className="flex-1 flex flex-col gap-3">
                                  <div
-                                   className="flex items-center justify-center p-3"
+                                   className="h-28 flex items-center justify-center p-3"
                                    style={{
                                      border: `1px solid ${BORDER}`,
                                      backgroundColor: WHITE,
@@ -983,7 +1108,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                    }}
                                  >
                                    {pendingPreview ? (
-                                     <img src={pendingPreview} alt="Signature preview" className="max-h-24 max-w-full object-contain" />
+                                     <img src={pendingPreview} alt="Signature preview" className="max-h-full max-w-full object-contain" />
                                    ) : (
                                      <div className="w-6 h-6 border-2 border-[#056daa] border-t-transparent rounded-full animate-spin" />
                                    )}
@@ -1016,7 +1141,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                      />
                                    </div>
                                  )}
-                                 <div className="flex gap-3">
+                                 <div className="flex gap-3 mt-auto">
                                    <button
                                      type="button"
                                      onClick={cancelPendingUpload}
@@ -1045,9 +1170,9 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                  </div>
                                </div>
                              ) : drawingSignature ? (
-                               <div className="space-y-3">
+                               <div className="flex-1 flex flex-col gap-3">
                                  <SignaturePad key={`profile-pad-${padKey}`} onChange={(value: string) => setDrawnSignature(value)} />
-                                 <div className="flex gap-3">
+                                 <div className="flex gap-3 mt-auto">
                                    <button
                                      type="button"
                                      onClick={() => { setDrawingSignature(false); setDrawnSignature(''); setPadKey((k) => k + 1); }}
@@ -1075,23 +1200,23 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                  </div>
                                </div>
                              ) : (
-                               <div className="space-y-3">
+                               <div className="flex-1 flex flex-col gap-3">
                                  <div
                                    onClick={() => !savingSignature && signatureInputRef.current?.click()}
-                                   className="cursor-pointer flex flex-col items-center justify-center gap-1.5 py-6 px-4 text-center transition-colors hover:bg-[#E3F2FD]"
+                                   className="cursor-pointer h-12 flex items-center justify-center gap-2 px-3 transition-colors hover:bg-[#E3F2FD]"
                                    style={{ border: '2px dashed #9CC7E4', backgroundColor: NEUTRAL_LIGHT }}
                                  >
                                    {savingSignature ? (
-                                     <div className="w-6 h-6 border-2 border-[#056daa] border-t-transparent rounded-full animate-spin" />
+                                     <div className="w-4 h-4 border-2 border-[#056daa] border-t-transparent rounded-full animate-spin" />
                                    ) : (
-                                     <FiUploadCloud className="w-7 h-7" style={{ color: PRIMARY }} />
+                                     <FiUploadCloud className="w-4 h-4 shrink-0" style={{ color: PRIMARY }} />
                                    )}
-                                   <p className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                                     {savingSignature ? 'Saving...' : 'Upload a PNG of your signature'}
-                                   </p>
-                                   <p className="text-xs" style={{ color: GRAY_DISABLED }}>PNG only, up to 200 KB. A white or light background is removed automatically before saving.</p>
+                                   <span className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                                     {savingSignature ? 'Saving...' : 'Upload PNG signature'}
+                                   </span>
                                  </div>
-                                 <div className="flex gap-3">
+                                 <p className="text-xs" style={{ color: GRAY_DISABLED }}>PNG, up to 200 KB. A light background is removed before saving.</p>
+                                 <div className="flex gap-3 mt-auto">
                                    {imageReplaceMode && (
                                      <button
                                        type="button"
@@ -1118,7 +1243,169 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                            </div>
                          </div>
 
-                       </>
+                         {/* Card 2: digital certificate kept on the profile so attendance can be signed without picking the file again */}
+                         <div className="border flex flex-col" style={{ borderColor: BORDER, backgroundColor: 'rgba(5,109,170,0.02)', borderRadius: 0 }}>
+                           <div className="px-3 py-2.5 min-h-[60px] flex justify-between items-center gap-2">
+                             <div className="flex items-center gap-2.5 min-w-0">
+                               <div className="p-1.5 shrink-0" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
+                                 <FiShield className="w-4 h-4" style={{ color: PRIMARY }} />
+                               </div>
+                               <div>
+                                 <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>Digital certificate</p>
+                                 <p className="text-xs" style={{ color: GRAY_DISABLED }}>Sign attendance without re-uploading the file.</p>
+                               </div>
+                             </div>
+                             <span className="text-xs font-semibold uppercase whitespace-nowrap" style={{ color: PRIMARY, fontFamily: fontHeading, letterSpacing: '1px' }}>
+                               {signingProfile?.has_signing_certificate ? 'Saved' : 'Not set'}
+                             </span>
+                           </div>
+                           <div className="p-3 border-t flex-1 flex flex-col" style={{ borderColor: BORDER }}>
+                             <input
+                               ref={certificateInputRef}
+                               type="file"
+                               accept=".p12,.pfx"
+                               className="hidden"
+                               onChange={handleCertificateFileChange}
+                             />
+                             {signingProfile?.has_signing_certificate && signingProfile.signing_certificate && !certificateFile ? (
+                               <div className="flex-1 flex flex-col gap-3">
+                                 <div className="bg-white h-28 p-3 flex flex-col justify-center gap-0.5" style={{ border: `1px solid ${BORDER}` }}>
+                                   <p className="text-sm font-semibold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                                     {signingProfile.signing_certificate.subject_common_name || 'Unknown signer'}
+                                   </p>
+                                   <p className="text-xs" style={{ color: GRAY_DISABLED }}>
+                                     Issued by {signingProfile.signing_certificate.issuer_common_name || 'an unknown issuer'}
+                                   </p>
+                                   <p className="text-xs" style={{ color: GRAY_DISABLED }}>
+                                     Valid until {formatCertificateDate(signingProfile.signing_certificate.valid_to)}
+                                   </p>
+                                   {signingProfile.signing_certificate.file_name && (
+                                     <p className="text-xs truncate" style={{ color: GRAY_DISABLED }}>File: {signingProfile.signing_certificate.file_name}</p>
+                                   )}
+                                 </div>
+                                 <p className="text-xs" style={{ color: GRAY_DISABLED }}>
+                                   The password is not stored. You type it each time you sign.
+                                 </p>
+                                 <div className="flex gap-3 mt-auto">
+                                   <button
+                                     type="button"
+                                     onClick={() => !savingCertificate && certificateInputRef.current?.click()}
+                                     disabled={savingCertificate || removingCertificate}
+                                     className="flex-1 h-12 cok-btn-outlined disabled:opacity-60 disabled:cursor-not-allowed"
+                                     style={btnTypography}
+                                   >
+                                     Replace
+                                   </button>
+                                   <button
+                                     type="button"
+                                     onClick={handleRemoveSigningCertificate}
+                                     disabled={removingCertificate}
+                                     className="flex-1 h-12 cok-btn-outlined-danger disabled:opacity-60 disabled:cursor-not-allowed"
+                                     style={btnTypography}
+                                   >
+                                     {removingCertificate ? 'Removing...' : 'Remove'}
+                                   </button>
+                                 </div>
+                               </div>
+                             ) : certificateFile ? (
+                               <div className="flex-1 flex flex-col gap-3">
+                                 <div className="flex items-center gap-3 px-3 py-2.5 bg-white" style={{ border: `1px solid ${BORDER}` }}>
+                                   <div className="p-2 shrink-0" style={{ backgroundColor: 'rgba(5,109,170,0.08)' }}>
+                                     <FiShield className="w-4 h-4" style={{ color: PRIMARY }} />
+                                   </div>
+                                   <div className="min-w-0 flex-1">
+                                     <p className="text-sm font-semibold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{certificateFile.name}</p>
+                                     <p className="text-xs" style={{ color: GRAY_DISABLED }}>{(certificateFile.size / 1024).toFixed(1)} KB</p>
+                                   </div>
+                                   <button
+                                     type="button"
+                                     title="Remove file"
+                                     onClick={cancelPendingCertificate}
+                                     disabled={savingCertificate}
+                                     className="p-1.5 shrink-0 cursor-pointer transition-colors hover:bg-[#FDECEA] disabled:opacity-60"
+                                     style={{ color: '#E74C3C' }}
+                                   >
+                                     <FiX className="w-4 h-4" />
+                                   </button>
+                                 </div>
+                                 <div>
+                                   <label className="block text-xs font-semibold uppercase mb-1.5" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading, letterSpacing: '0.5px' }}>
+                                     Certificate password
+                                   </label>
+                                   <div className="relative">
+                                     <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: GRAY_DISABLED }} />
+                                     <input
+                                       type={showCertificatePassword ? 'text' : 'password'}
+                                       value={certificatePassword}
+                                       autoComplete="off"
+                                       placeholder="Password for this certificate"
+                                       onChange={(e) => setCertificatePassword(e.target.value)}
+                                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveSigningCertificate(); } }}
+                                       disabled={savingCertificate}
+                                       className="w-full cok-auth-input py-2 text-sm"
+                                       style={{ paddingLeft: '36px', paddingRight: '40px' }}
+                                     />
+                                     <button
+                                       type="button"
+                                       onClick={() => setShowCertificatePassword((v) => !v)}
+                                       className="absolute right-3 top-1/2 -translate-y-1/2"
+                                       style={{ color: GRAY_DISABLED }}
+                                       tabIndex={-1}
+                                     >
+                                       {showCertificatePassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                                     </button>
+                                   </div>
+                                   <p className="text-xs mt-1.5" style={{ color: GRAY_DISABLED }}>
+                                     Checked once to open the file. If wrong, nothing is saved. It is never stored.
+                                   </p>
+                                 </div>
+                                 <div className="flex gap-3 mt-auto">
+                                   <button
+                                     type="button"
+                                     onClick={cancelPendingCertificate}
+                                     disabled={savingCertificate}
+                                     className="flex-1 h-12 cok-btn-outlined disabled:opacity-60 disabled:cursor-not-allowed"
+                                     style={btnTypography}
+                                   >
+                                     Cancel
+                                   </button>
+                                   <button
+                                     type="button"
+                                     onClick={saveSigningCertificate}
+                                     disabled={savingCertificate || !certificatePassword}
+                                     className="flex-1 h-12 cok-btn-primary flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                     style={btnTypography}
+                                   >
+                                     {savingCertificate ? (
+                                       <>
+                                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                         <span>Verifying...</span>
+                                       </>
+                                     ) : (
+                                       <span>Verify and save</span>
+                                     )}
+                                   </button>
+                                 </div>
+                               </div>
+                             ) : (
+                               <div className="flex-1 flex flex-col gap-3">
+                                 <div
+                                   onClick={() => !savingCertificate && certificateInputRef.current?.click()}
+                                   className="cursor-pointer h-12 flex items-center justify-center gap-2 px-3 transition-colors hover:bg-[#E3F2FD]"
+                                   style={{ border: '2px dashed #9CC7E4', backgroundColor: NEUTRAL_LIGHT }}
+                                 >
+                                   <FiUploadCloud className="w-4 h-4 shrink-0" style={{ color: PRIMARY }} />
+                                   <span className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                                     Upload .p12 / .pfx certificate
+                                   </span>
+                                 </div>
+                                 <p className="text-xs" style={{ color: GRAY_DISABLED }}>Up to 64 KB. Its password is checked once before saving and is never stored.</p>
+                               </div>
+                             )}
+                           </div>
+                         </div>
+
+                       </div>
                      )}
                    </div>
                  )}
