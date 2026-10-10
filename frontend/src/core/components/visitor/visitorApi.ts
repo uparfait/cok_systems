@@ -2,7 +2,7 @@ import type { AxiosRequestConfig } from 'axios';
 import apiClient from '../../services/apiClient';
 import type {
   DepartmentTarget,
-  VisitorAttachment,
+  VisitorAttachmentPage,
   VisitorDetails,
   VisitorInput,
   VisitorListParams,
@@ -71,13 +71,12 @@ export const visitorApi = {
   complete: (id: string, notes: string) => send<Envelope<VisitorDetails>>({ method: 'POST', url: `/visitors/${id}/complete`, data: { notes } }),
   transfer: (id: string, target: DepartmentTarget & { notes?: string }) =>
     send<Envelope<VisitorDetails>>({ method: 'POST', url: `/visitors/${id}/transfer`, data: target }),
-  attachments: (id: string) => send<{ success: boolean; data: VisitorAttachment[]; total: number }>({ method: 'GET', url: `/visitors/${id}/attachments` }),
-  addAttachments: (id: string, items: { file: File; description: string }[], onProgress?: (percent: number) => void) => {
+  attachments: (id: string, page = 1, limit = 10) =>
+    send<VisitorAttachmentPage>({ method: 'GET', url: `/visitors/${id}/attachments?page=${page}&limit=${limit}` }),
+  addAttachments: (id: string, description: string, files: File[], onProgress?: (percent: number) => void) => {
     const form = new FormData();
-    items.forEach((item) => {
-      form.append('files', item.file, item.file.name);
-      form.append('descriptions', item.description);
-    });
+    form.append('description', description);
+    files.forEach((file) => form.append('files', file, file.name));
     return send<{ success: boolean; message: string; total: number }>({
       method: 'POST',
       url: `/visitors/${id}/attachments`,

@@ -34,6 +34,14 @@ const extractDataFromResponse = (response: any): any[] => {
   return [];
 };
 
+const extractTotalFromResponse = (response: any): number => {
+    if(!response) return 0;
+    if(typeof response.total === 'number') return response.total;
+    if(typeof response.data?.total === 'number') return response.data.total;
+    if(typeof response.data?.data?.total === 'number') return response.data.data.total;
+    return 0;
+}
+
 const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { socket, isConnected } = useSocket();
@@ -73,7 +81,7 @@ const AdminDashboard: React.FC = () => {
       if (deptRes.status === 'fulfilled') { departmentsData = extractDataFromResponse(deptRes.value); departmentsCount = departmentsData.length; unitsCount = departmentsData.reduce((sum: number, d: any) => sum + (Array.isArray(d.sub_departments) ? d.sub_departments.length : 0), 0); setDepartments(departmentsData); }
       setLoadingStates(prev => ({ ...prev, departments: false }));
       let employeesCount = 0;
-      if (empRes.status === 'fulfilled') { employeesCount = extractDataFromResponse(empRes.value).length; }
+      if (empRes.status === 'fulfilled') { employeesCount = extractTotalFromResponse(empRes.value); }
       setLoadingStates(prev => ({ ...prev, stats: false }));
       let parkingData: any[] = [], parkingCount = 0, flaggedCount = 0;
       if (parkingRes.status === 'fulfilled') {

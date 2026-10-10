@@ -23,7 +23,10 @@ Status legend: [ ] to do, [x] done.
    Partial exit takes the badge back (cleared on the visit and the car); Returned asks for a badge again (optional)
    and saves it on both. Badge shows in the gate lists and the visitor panel and can be searched.
 8. Attachments belong to visits (service delivery). They are added to the open visit, or to the latest visit when
-   the visitor is not in house. Unlimited files and size; downloads require login.
+   the visitor is not in house. Unlimited files and size; downloads require login. Files saved together share one
+   description (a batch); the Attachments tab lists batches (description, who added it, then the files with open /
+   download / edit icons), 10 per page, loading more when scrolled to the bottom. Editing a description changes it
+   for every file of the batch; replacing a file changes only that file.
 9. Panel actions by role: employee = Serve, Transfer (and Complete when they are the one serving); every other role
    (receptionist, head of department, gate officer, admin, mayor) = Send to department; everyone = add attachments
    and edit their own attachments; visitor details can be edited only while the visitor is in house.

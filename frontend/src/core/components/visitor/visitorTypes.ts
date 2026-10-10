@@ -125,12 +125,16 @@ export interface VisitorDetails {
   permissions: VisitorPermissions;
 }
 
-export interface VisitorAttachment {
+export interface VisitorAttachmentFile {
   _id: string;
-  description: string;
   file_name: string;
   mime_type: string;
   size: number;
+}
+
+export interface VisitorAttachmentGroup {
+  batch: string;
+  description: string;
   uploaded_by: {
     user_id?: string;
     name?: string;
@@ -143,6 +147,16 @@ export interface VisitorAttachment {
   updated_at: string | null;
   can_edit: boolean;
   visit: { _id: string; entry_date: string; is_still_inhouse: boolean } | null;
+  files: VisitorAttachmentFile[];
+}
+
+export interface VisitorAttachmentPage {
+  success: boolean;
+  data: VisitorAttachmentGroup[];
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
 }
 
 export interface VisitorInput {

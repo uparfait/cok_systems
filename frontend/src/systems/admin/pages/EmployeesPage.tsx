@@ -247,7 +247,7 @@ const EmployeesPage: React.FC = () => {
 
         {error && <div className="bg-[rgba(231,76,60,0.08)] border border-[#E0E0E0] text-[#E74C3C] px-3 py-2 flex items-center gap-2 text-sm"><FiAlertCircle className="w-4 h-4 flex-shrink-0" />{error}</div>}
 
-        <Table headers={[{ key: 'employee', label: 'Employee' }, { key: 'contact', label: 'Contact' }, { key: 'department', label: 'Department' }, { key: 'unit', label: 'Unit' }, { key: 'position', label: 'Position' }, { key: 'actions', label: 'Actions' }]} data={employees} loading={loading && firstLoad} emptyMessage="No employees found" maxHeight="none" minWidth="700px" headerStyle={{ backgroundColor: PRIMARY }}
+        <Table headers={[{ key: 'employee', label: 'Employee' }, { key: 'contact', label: 'Contact' }, { key: 'department', label: 'Department' }, { key: 'unit', label: 'Unit' }, { key: 'role', label: 'Role' }, { key: 'actions', label: 'Actions' }]} data={employees} loading={loading && firstLoad} emptyMessage="No employees found" maxHeight="none" minWidth="700px" headerStyle={{ backgroundColor: PRIMARY }}
           onRowClick={(employee: any) => setViewingEmployee(employee)}
           renderCell={(header, employee: any) => {
             switch (header.key) {
@@ -255,7 +255,7 @@ const EmployeesPage: React.FC = () => {
               case 'contact': return <div className="text-xs text-[#555555]">{employee.telephone && <p className="flex items-center gap-1 whitespace-nowrap"><FiPhone className="w-3 h-3 shrink-0" />{employee.telephone}</p>}<p className="flex items-center gap-1 whitespace-nowrap" title={employee.email}><FiMail className="w-3 h-3 shrink-0" />{employee.email}</p></div>;
               case 'department': return <span className="text-sm text-[#333333] whitespace-nowrap inline-block align-middle" title={employee.department_name}>{employee.department_name || (employee.department && typeof employee.department === 'object' && (employee.department as any)?.department_name) || '-'}</span>;
               case 'unit': return <span className="text-sm text-[#333333] font-medium whitespace-nowrap inline-block align-middle">{getUnitNameDisplay(employee)}</span>;
-              case 'position': return <span className="text-sm text-[#333333] whitespace-nowrap inline-block align-middle">{employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '-'}</span>;
+              case 'role': return <span className="text-sm text-[#333333] whitespace-nowrap inline-block align-middle">{employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '-'}</span>;
               case 'actions': return <div className="flex items-center justify-end gap-1"><button onClick={(e) => { e.stopPropagation(); handleEdit(employee); }} className="p-1.5 text-[#056daa] hover:bg-[rgba(5,109,170,0.1)] cursor-pointer" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button><button onClick={(e) => { e.stopPropagation(); handleDeleteClick(employee._id || employee.employee_id || '', employee.full_name || 'this employee'); }} className="p-1.5 text-[#E74C3C] hover:bg-[rgba(231,76,60,0.12)] cursor-pointer" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button></div>;
               default: return <span>{employee[header.key] || '-'}</span>;
             }

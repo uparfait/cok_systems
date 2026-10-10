@@ -89,7 +89,7 @@ export default function UpcomingEvents() {
         <div className="w-full flex flex-col items-center gap-3">
 
           {
-            isEmpty ? < ShowEventNotFound /> : UpcomingEventsData.length >= 1 ? UpcomingEventsData.map((Event)=> <ShowUpcoming event={Event} />) : Array.from({ length: 5 }).map((_, i) => <ShowEventSkeleton key={i} />)
+            isEmpty ? < ShowEventNotFound /> : UpcomingEventsData.length >= 1 ? UpcomingEventsData.map((Event)=> <ShowUpcoming event={Event} />) : Array.from({ length: 2 }).map((_, i) => <ShowEventSkeleton key={i} />)
           }
           
         </div>

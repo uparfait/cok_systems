@@ -1,5 +1,4 @@
 import React from 'react';
-import { useVisitorPanel, visitorIdOf } from '../../../../core/components/visitor/VisitorPanelProvider';
 import DriverTypeBadge from '../checkoutVehicle/DriverTypeBadge';
 import type { ParkingRow } from '../checkoutVehicle/parkingRows';
 import { formatParkingDate, idNumberOf, idTypeOf } from '../checkoutVehicle/parkingRows';
@@ -21,7 +20,6 @@ interface FlaggedVehiclesTableProps {
 }
 
 const FlaggedVehiclesTable: React.FC<FlaggedVehiclesTableProps> = ({ rows, onCheckout, maxHeight }) => {
-  const { openVisitor } = useVisitorPanel();
   const scrollStyle = maxHeight ? ({ ['--cok-table-max-h' as string]: maxHeight } as React.CSSProperties) : undefined;
 
   return (
@@ -44,7 +42,7 @@ const FlaggedVehiclesTable: React.FC<FlaggedVehiclesTableProps> = ({ rows, onChe
             <tr
               key={row._id || `${row.plate_number}-${index}`}
               className="hover:bg-[#F7F9FB] cursor-pointer transition-colors *:border-b *:border-[#E0E0E0]"
-              onClick={() => openVisitor(visitorIdOf(row))}
+              onClick={() => onCheckout(row)}
             >
               <td className="py-3 px-4 font-mono font-bold text-[#E74C3C] text-sm">{row.plate_number || '-'}</td>
               <td className="py-3 px-4 text-[#333333] text-sm">{row.driver_name || '-'}</td>

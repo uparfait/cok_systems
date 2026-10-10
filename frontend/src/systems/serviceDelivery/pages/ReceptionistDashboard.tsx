@@ -27,8 +27,6 @@ import { useAuth } from "../../../core/contexts/AuthContext";
 import { useSocket } from "../../../core/contexts/SocketContext";
 import { useToast } from "../../../core/contexts/ToastContext";
 import { SkeletonCard } from "./sub/ReceptionistSkeleton";
-import ReceptionistWaitingVisitors from "./sub/ReceptionistWaitingVisitors";
-import type { WaitingVisit } from "./sub/ReceptionistWaitingVisitors";
 import RequestStats from "../../../core/components/requests/RequestStatistics";
 import OrientationStats from "../../../core/components/requests/OrientationStats";
 import AssignedVisitorsGenderChart from "../components/departmentFlow/AssignedVisitorsGenderChart";
@@ -54,7 +52,6 @@ const ReceptionistDashboard: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { socket, isConnected } = useSocket();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
-  const [waiting, setWaiting] = useState<WaitingVisit[]>([]);
   const [waitingTotal, setWaitingTotal] = useState(0);
   const [inHouseTotal, setInHouseTotal] = useState(0);
   const [totalDepartments, setTotalDepartments] = useState(0);
@@ -75,12 +72,11 @@ const ReceptionistDashboard: React.FC = () => {
     try {
       const visitorRes = await serviceDeliveryService.getDashboardVisitors(1, 20, undefined, true);
       if (visitorRes.status || visitorRes.success) {
-        setWaiting(Array.isArray(visitorRes.data) ? visitorRes.data : []);
         waitingCount = visitorRes.total || 0;
         setWaitingTotal(waitingCount);
       }
     } catch (error) {
-      setWaiting([]);
+      waitingCount = 0;
     }
     try {
       const inHouse = await visitorApi.list({ presence: "in_house", page: 1, limit: 1 });
@@ -149,7 +145,6 @@ const ReceptionistDashboard: React.FC = () => {
   }, [socket, isConnected, loadVisitors, loadHourly, showSuccess, showError, showWarning, showInfo]);
 
   const assignedCount = Math.max(0, inHouseTotal - waitingTotal);
-  const openVisitorsPage = () => navigate(`/${roleSlug}/visitors`);
 
   return (
     <div className="space-y-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
@@ -220,13 +215,6 @@ const ReceptionistDashboard: React.FC = () => {
             ))
           )}
         </div>
-
-        <ReceptionistWaitingVisitors
-          rows={waiting}
-          total={waitingTotal}
-          loading={firstLoad}
-          onOpenVisitorsPage={openVisitorsPage}
-        />
 
         <div
           className="p-4"

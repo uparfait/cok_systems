@@ -104,7 +104,6 @@ const VisitorsPage: React.FC = () => {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold text-gray-900" style={{ fontFamily: "'Montserrat', sans-serif" }}>Visitors</h1>
-          <p className="text-xs text-gray-500">In-house visitors come first. Click a visitor to see details, send them to a department, serve them or add attachments.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="flex flex-col text-[11px] font-semibold uppercase tracking-wide text-gray-600">

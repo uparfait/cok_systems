@@ -95,7 +95,8 @@ const VisitorPanel: React.FC<VisitorPanelProps> = ({ visitorId, onClose }) => {
       subtitle={visitor ? `${visitor.identification?.id_type || 'ID'} ${visitor.identification?.number || '-'} - ${visitor.telephone || '-'}` : undefined}
       onClose={onClose}
       busy={busy}
-      width="lg"
+      width="panel"
+      tall
       headerExtra={tabBar}
       zIndex={1200}
     >

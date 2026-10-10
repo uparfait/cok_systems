@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 // One document per visit. Who the visitor is lives in the Visitor model;
 // this document only keeps the reference and what happened during the visit.
 const attachment_schema = new mongoose.Schema({
+    // Files added together share one batch and one description
+    batch: { type: mongoose.Schema.Types.ObjectId, default: null },
     description: { type: String, required: true, trim: true },
     file_name: { type: String, required: true },
     stored_name: { type: String, required: true },

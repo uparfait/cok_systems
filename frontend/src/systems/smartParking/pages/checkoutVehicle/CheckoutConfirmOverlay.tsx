@@ -20,6 +20,15 @@ interface CheckoutResult {
   violation: CheckoutViolation;
 }
 
+const ALLOWED_MINUTES: Record<string, number> = { staff: 720, visitor: 120, regular: 120 };
+
+const overstayOf = (record: ParkingRow): { allowed: number; parked: number; over: number } | null => {
+  if (!record.is_flagged && !record.is_over_limit) return null;
+  const allowed = ALLOWED_MINUTES[String(record.driver_type || 'regular').toLowerCase()] || ALLOWED_MINUTES.regular;
+  const parked = Math.round((Number(record.current_duration_hours) || 0) * 60);
+  return { allowed, parked, over: Math.max(0, parked - allowed) };
+};
+
 const Detail: React.FC<{ label: string; wide?: boolean; children: React.ReactNode }> = ({ label, wide, children }) => (
   <div className={wide ? 'col-span-2' : ''}>
     <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
@@ -68,12 +77,14 @@ const CheckoutConfirmBody: React.FC<CheckoutConfirmOverlayProps & { record: Park
     }
   };
 
+  const inside = record.status === 'active';
+  const overstay = inside ? overstayOf(record) : null;
   const title = result ? (
     'Vehicle checked out'
   ) : (
     <span className="inline-flex items-center gap-2">
       <FiLogOut className="w-4 h-4" style={{ color: '#E74C3C' }} />
-      Confirm checkout
+      {overstay ? 'Flagged vehicle' : inside ? 'Confirm checkout' : 'Vehicle details'}
     </span>
   );
 
@@ -86,7 +97,7 @@ const CheckoutConfirmBody: React.FC<CheckoutConfirmOverlayProps & { record: Park
       width="sm"
       zIndex={zIndex}
       footer={
-        result ? null : (
+        result || !inside ? null : (
           <button
             type="button"
             onClick={confirm}
@@ -119,17 +130,34 @@ const CheckoutConfirmBody: React.FC<CheckoutConfirmOverlayProps & { record: Park
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-gray-700">Check out this vehicle and close the visit of its driver?</p>
-          <div className="grid grid-cols-2 gap-3 p-3" style={{ backgroundColor: '#F7F9FB' }}>
+          {overstay ? (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3">
+              <p className="text-sm font-semibold text-red-700 mb-2">Flagged: this vehicle is over its allowed parking time</p>
+              <div className="grid grid-cols-3 gap-3">
+                <Detail label="Allowed time">{minutesText(overstay.allowed)}</Detail>
+                <Detail label="Time parked">{record.current_duration || minutesText(overstay.parked)}</Detail>
+                <Detail label="Overstayed by"><span className="text-red-700">{minutesText(overstay.over)}</span></Detail>
+              </div>
+            </div>
+          ) : null}
+          {inside ? (
+            <p className="text-sm text-gray-700">Check out this vehicle and close the visit of its driver?</p>
+          ) : (
+            <p className="text-sm text-gray-700">This vehicle already left{record.check_out ? ` on ${formatParkingDate(record.check_out, true)}` : ''}.</p>
+          )}
+          <div className="grid grid-cols-2 gap-3 rounded-md p-3" style={{ backgroundColor: '#F7F9FB' }}>
             <Detail label="Plate number">{record.plate_number || '-'}</Detail>
             <Detail label="Type">
               <DriverTypeBadge type={record.driver_type} />
             </Detail>
             <Detail label="Full name" wide>{record.driver_name || '-'}</Detail>
-            <Detail label="Telephone">{record.driver_telephone || '-'}</Detail>
-            <Detail label="Visits">{record.N_visits ?? 0}</Detail>
             <Detail label="ID type">{idTypeOf(record)}</Detail>
             <Detail label="ID number">{idNumberOf(record)}</Detail>
+            <Detail label="Telephone">{record.driver_telephone || '-'}</Detail>
+            <Detail label="Email">{record.driver_email || '-'}</Detail>
+            <Detail label="Gender">{record.driver_gender || '-'}</Detail>
+            <Detail label="Visits">{record.N_visits ?? 0}</Detail>
+            <Detail label="Badge">{record.badge_number || '-'}</Detail>
             <Detail label="Check-in">{formatParkingDate(record.check_in, true)}</Detail>
             <Detail label="Time parked">{record.current_duration || '-'}</Detail>
           </div>

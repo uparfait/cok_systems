@@ -3,10 +3,9 @@ import { FiTrash2 } from 'react-icons/fi';
 import { useToast } from '../../contexts/ToastContext';
 import { failureOf, formatSize, visitorApi } from './visitorApi';
 
-interface Row {
+interface Slot {
   key: number;
   file: File | null;
-  description: string;
 }
 
 interface VisitorAddAttachmentTabProps {
@@ -16,106 +15,110 @@ interface VisitorAddAttachmentTabProps {
   setBusy: (busy: boolean) => void;
 }
 
+const LABEL = 'block text-[11px] font-semibold uppercase tracking-wide text-gray-600 mb-1';
+const FILE_INPUT = 'w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#056daa]/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#056daa] file:cursor-pointer cursor-pointer';
+
 const VisitorAddAttachmentTab: React.FC<VisitorAddAttachmentTabProps> = ({ visitorId, canAdd, onUploaded, setBusy }) => {
   const { showSuccess, showError } = useToast();
   const counter = useRef(1);
-  const [rows, setRows] = useState<Row[]>([{ key: 0, file: null, description: '' }]);
+  const [description, setDescription] = useState('');
+  const [slots, setSlots] = useState<Slot[]>([{ key: 0, file: null }]);
   const [progress, setProgress] = useState<number | null>(null);
-  const [errors, setErrors] = useState<Record<number, string>>({});
+  const [error, setError] = useState('');
 
   if (!canAdd) {
     return <p className="text-sm text-gray-500">This person has no visit yet, so there is nothing to attach files to.</p>;
   }
 
-  const uploading = progress !== null;
-  const update = (key: number, patch: Partial<Row>) => setRows((list) => list.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  const addRow = () => setRows((list) => [...list, { key: counter.current++, file: null, description: '' }]);
-  const removeRow = (key: number) => setRows((list) => (list.length === 1 ? list : list.filter((r) => r.key !== key)));
+  const saving = progress !== null;
+  const chosen = slots.filter((s) => s.file).map((s) => s.file as File);
+  const totalSize = chosen.reduce((sum, f) => sum + f.size, 0);
 
-  const addFiles = (key: number, files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const [first, ...rest] = Array.from(files);
-    setRows((list) => {
-      const next = list.map((r) => (r.key === key ? { ...r, file: first } : r));
-      return [...next, ...rest.map((file) => ({ key: counter.current++, file, description: '' }))];
-    });
-  };
+  const setFile = (key: number, file: File | null) => setSlots((list) => list.map((s) => (s.key === key ? { ...s, file } : s)));
+  const addSlot = () => setSlots((list) => [...list, { key: counter.current++, file: null }]);
+  const removeSlot = (key: number) => setSlots((list) => (list.length === 1 ? [{ key: counter.current++, file: null }] : list.filter((s) => s.key !== key)));
 
-  const submit = async () => {
-    const found: Record<number, string> = {};
-    rows.forEach((r) => {
-      if (!r.file) found[r.key] = 'Choose a file';
-      else if (!r.description.trim()) found[r.key] = 'Add a description';
-    });
-    setErrors(found);
-    if (Object.keys(found).length) return;
+  const save = async () => {
+    if (saving) return;
+    if (!description.trim()) {
+      setError('Add a description');
+      return;
+    }
+    if (chosen.length === 0) {
+      setError('Choose at least one file');
+      return;
+    }
+    setError('');
     setProgress(0);
     setBusy(true);
     try {
-      const response = await visitorApi.addAttachments(
-        visitorId,
-        rows.map((r) => ({ file: r.file as File, description: r.description.trim() })),
-        (percent) => setProgress(percent),
-      );
-      showSuccess(response?.message || 'Attachments added');
-      setRows([{ key: counter.current++, file: null, description: '' }]);
+      const response = await visitorApi.addAttachments(visitorId, description.trim(), chosen, setProgress);
+      showSuccess(response?.message || 'Files saved');
+      setDescription('');
+      setSlots([{ key: counter.current++, file: null }]);
       onUploaded();
-    } catch (error) {
-      showError(failureOf(error).message);
+    } catch (failure) {
+      showError(failureOf(failure).message);
     } finally {
       setProgress(null);
       setBusy(false);
     }
   };
 
-  const total = rows.reduce((sum, r) => sum + (r.file ? r.file.size : 0), 0);
+  const status = !saving ? 'Save' : progress < 100 ? `Uploading ${chosen.length} ${chosen.length === 1 ? 'file' : 'files'}, ${progress}%` : 'Saving...';
 
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-xs text-gray-500">Add any number of files of any type and size. Every file needs a description.</p>
-      {rows.map((row, index) => (
-        <div key={row.key} className="border border-gray-200 p-3 flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">File {index + 1}</span>
-            {rows.length > 1 ? (
-              <button type="button" aria-label="Remove this file" title="Remove this file" disabled={uploading} onClick={() => removeRow(row.key)} className="text-red-600 hover:text-red-700 disabled:opacity-40 cursor-pointer">
-                <FiTrash2 className="w-4 h-4" />
-              </button>
-            ) : null}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-600 mb-1 cok-req">File</label>
-              <input type="file" multiple disabled={uploading} onChange={(e) => addFiles(row.key, e.target.files)} className="w-full text-sm border border-gray-300 px-2 py-1.5 bg-white" />
-              {row.file ? <p className="text-xs text-gray-500 mt-1 truncate">{row.file.name} ({formatSize(row.file.size)})</p> : null}
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-600 mb-1 cok-req">Description</label>
-              <textarea
-                rows={2}
-                disabled={uploading}
-                value={row.description}
-                onChange={(e) => update(row.key, { description: e.target.value })}
-                placeholder="What is this file?"
-                className="w-full border border-gray-300 bg-white px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-          {errors[row.key] ? <p className="text-xs text-red-600">{errors[row.key]}</p> : null}
-        </div>
-      ))}
+    <div className="flex flex-col gap-4 max-w-2xl">
+      <div>
+        <label className={`${LABEL} cok-req`}>Description</label>
+        <input
+          type="text"
+          value={description}
+          disabled={saving}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="What are these files about?"
+          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-[#056daa] disabled:bg-gray-100"
+        />
+      </div>
 
-      {uploading ? (
-        <div className="flex flex-col gap-1">
-          <div className="h-2 bg-gray-100 overflow-hidden"><div className="h-full bg-[#056daa] transition-all" style={{ width: `${progress}%` }} /></div>
-          <span className="text-xs text-gray-600">Uploading {progress}% of {formatSize(total)}. Please keep this window open.</span>
+      <div className="flex flex-col gap-2">
+        <label className={`${LABEL} cok-req`}>Files</label>
+        {slots.map((slot) => (
+          <div key={slot.key} className="flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+            <div className="min-w-0 flex-1">
+              <input type="file" disabled={saving} onChange={(e) => setFile(slot.key, e.target.files && e.target.files[0] ? e.target.files[0] : null)} className={FILE_INPUT} />
+              {slot.file ? <p className="mt-1 truncate text-xs text-gray-500">{formatSize(slot.file.size)}</p> : null}
+            </div>
+            <button
+              type="button"
+              aria-label="Remove"
+              title="Remove"
+              disabled={saving}
+              onClick={() => removeSlot(slot.key)}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-50 disabled:opacity-40 cursor-pointer"
+            >
+              <FiTrash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+        <div>
+          <button type="button" className="cok-btn-outlined w-auto! px-4! py-1.5! text-xs! rounded-md!" disabled={saving} onClick={addSlot}>Add</button>
+        </div>
+      </div>
+
+      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+
+      {saving ? (
+        <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+          <div className="h-full rounded-full bg-[#056daa] transition-all" style={{ width: `${progress}%` }} />
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <button type="button" className="cok-btn-outlined" disabled={uploading} onClick={addRow}>+ Add another file</button>
-        <button type="button" className="cok-btn-primary w-auto! px-6!" disabled={uploading} onClick={submit}>
-          {uploading ? 'Uploading...' : `Upload ${rows.length} ${rows.length === 1 ? 'file' : 'files'}`}
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs text-gray-500">{chosen.length ? `${chosen.length} ${chosen.length === 1 ? 'file' : 'files'}, ${formatSize(totalSize)}` : ''}</span>
+        <button type="button" className="cok-btn-primary w-auto! px-6! rounded-md! inline-flex items-center gap-2 disabled:opacity-60" disabled={saving} onClick={save}>
+          {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : null}
+          {status}
         </button>
       </div>
     </div>

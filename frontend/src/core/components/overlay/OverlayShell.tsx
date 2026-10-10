@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import OverlayCloseButton from './OverlayCloseButton';
 
-export type OverlayWidth = 'sm' | 'md' | 'lg' | 'xl' | 'full';
+export type OverlayWidth = 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'panel';
 
 const WIDTHS: Record<OverlayWidth, string> = {
   sm: 'max-w-md',
@@ -10,6 +10,7 @@ const WIDTHS: Record<OverlayWidth, string> = {
   lg: 'max-w-3xl',
   xl: 'max-w-5xl',
   full: 'max-w-[96vw]',
+  panel: 'sm:max-w-[80vw]',
 };
 
 const openStack: object[] = [];
@@ -28,6 +29,7 @@ export interface OverlayShellProps {
   closeOnBackdrop?: boolean;
   zIndex?: number;
   bodyClassName?: string;
+  tall?: boolean;
 }
 
 const OverlayShell: React.FC<OverlayShellProps> = ({
@@ -43,6 +45,7 @@ const OverlayShell: React.FC<OverlayShellProps> = ({
   closeOnBackdrop = true,
   zIndex = 1000,
   bodyClassName = '',
+  tall = false,
 }) => {
   const busyRef = useRef(busy);
   const closeRef = useRef(onClose);
@@ -78,7 +81,7 @@ const OverlayShell: React.FC<OverlayShellProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 flex items-center justify-center p-3 sm:p-4"
+      className={`fixed inset-0 flex items-center justify-center ${tall ? 'p-0 sm:p-4' : 'p-3 sm:p-4'}`}
       style={{ zIndex, backgroundColor: 'rgba(17, 24, 39, 0.38)', backdropFilter: 'blur(2px)' }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && closeOnBackdrop) requestClose();
@@ -88,8 +91,8 @@ const OverlayShell: React.FC<OverlayShellProps> = ({
         role="dialog"
         aria-modal="true"
         aria-busy={busy}
-        className={`bg-white border border-gray-200 w-full ${WIDTHS[width]} flex flex-col shadow-xl`}
-        style={{ maxHeight: 'calc(100vh - 24px)', borderRadius: 0 }}
+        className={`bg-white border border-gray-200 w-full ${WIDTHS[width]} flex flex-col shadow-xl ${tall ? 'h-full sm:h-[90vh]' : ''}`}
+        style={{ maxHeight: tall ? '100vh' : 'calc(100vh - 24px)', borderRadius: 0 }}
       >
         <div className="flex items-start gap-3 px-4 sm:px-5 pt-4 pb-3 border-b border-gray-100">
           <div className="min-w-0 flex-1">

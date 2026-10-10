@@ -55,11 +55,12 @@ function removeUploaded(files) {
     return Promise.all((files || []).map((file) => fs.promises.unlink(file.path).catch(() => {})));
 }
 
-/** Descriptions arrive as one string or an array, in the same order as the files. */
+/** One description for every file, or one per file in the same order as the files. */
 function descriptionsFrom(body, count) {
     const raw = body ? (body.descriptions ?? body['descriptions[]'] ?? body.description) : undefined;
     const list = Array.isArray(raw) ? raw : (raw === undefined ? [] : [raw]);
-    return Array.from({ length: count }, (_, i) => String(list[i] ?? '').trim());
+    const shared = list.length === 1 ? String(list[0]).trim() : null;
+    return Array.from({ length: count }, (_, i) => (shared !== null ? shared : String(list[i] ?? '').trim()));
 }
 
 function uploaderOf(user) {
