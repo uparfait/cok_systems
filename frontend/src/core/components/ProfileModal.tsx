@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   FiUser, FiMail, FiPhone, FiCalendar, FiShield,   FiLock, FiEye, FiEyeOff,
-  FiBriefcase, FiBell, FiEdit3, FiUploadCloud, FiAlertTriangle
+  FiX, FiBriefcase, FiBell, FiEdit3, FiUploadCloud, FiAlertTriangle
 } from "react-icons/fi";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { useAuth } from "../../core/contexts/AuthContext";

@@ -43,9 +43,6 @@ export const uploadSigningCertificate = (certificateBase64: string, password: st
 
 export const deleteSigningCertificate = () => del('/profile/signing-certificate');
 
-// The stored container as base64, so the attendance form can sign without a fresh upload
-export const getSigningCertificateFile = () => get('/profile/signing-certificate/file');
-
  // ==================== LOGIN APIs ====================
  
  export const login = (email: string, password: string) => post('/auth/login', { email, password });

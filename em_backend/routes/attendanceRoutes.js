@@ -3,6 +3,7 @@ const SubmitAttendanceController = require('../controllers/SubmitAttendanceContr
 const GetAttendanceController = require('../controllers/GetAttendanceController');
 const AttendanceMeController = require('../controllers/AttendanceMeController');
 const SigningOptionsController = require('../controllers/SigningOptionsController');
+const SignWithSavedCertificateController = require('../controllers/SignWithSavedCertificateController');
 const upload = require('../utilities/upload');
 
 /**
@@ -35,6 +36,8 @@ Router.post('/', upload.single('digitalCertificate'), (req, res, next) => {
 Router.get('/me', AttendanceMeController.handle);
 // Whether the typed email has an account with a saved signature to show next to a certificate signature
 Router.post('/signing-options', SigningOptionsController.handle);
+// Signs the typed fields with the certificate saved on the matching account; the password is checked, never stored
+Router.post('/sign-with-saved-certificate', SignWithSavedCertificateController.handle);
 Router.get('/', GetAttendanceController.handle);
 
 module.exports = Router;

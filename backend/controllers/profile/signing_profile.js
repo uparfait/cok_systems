@@ -208,27 +208,6 @@ const updateSigningCertificate = async (req, res) => {
     }
 }
 
-// The stored container, for the owner only; it still needs the holder's password to open, so signing happens in their browser
-const getSigningCertificateFile = async (req, res) => {
-    try {
-        const profile = await UserSigningProfile.findOne({ user_id: req.user.id }).lean()
-        const pfx = toBuffer(profile && profile.signing_certificate && profile.signing_certificate.pfx)
-        if (!pfx || pfx.length === 0) {
-            return res.status(StatusCodes.NOT_FOUND).json({ status: false, message: 'No digital certificate is saved on your profile' })
-        }
-        return res.status(StatusCodes.OK).json({
-            status: true,
-            data: {
-                pfx: pfx.toString('base64'),
-                file_name: profile.signing_certificate.file_name || 'certificate.p12',
-                signing_certificate: toCertificateSummary(profile.signing_certificate)
-            }
-        })
-    } catch (error) {
-        return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ status: false, message: error.message })
-    }
-}
-
 const removeSigningCertificate = async (req, res) => {
     try {
         await UserSigningProfile.updateOne(
@@ -246,6 +225,5 @@ module.exports = {
     updateSignatureImage,
     removeSignatureImage,
     updateSigningCertificate,
-    getSigningCertificateFile,
     removeSigningCertificate
 }
