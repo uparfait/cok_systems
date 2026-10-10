@@ -206,6 +206,7 @@ const AssignedVisitorsGenderChart: React.FC = () => {
               <Line
                 type="monotone"
                 dataKey="Other"
+                name="Not specified"
                 stroke={YELLOW}
                 strokeWidth={3}
                 dot={false}

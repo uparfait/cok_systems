@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 import { statisticsService } from '../../../../core/services/adminService';
 import type { AppliedFilter } from '../components/FeedbackFeed';
+import MayorBoardOverlay from './MayorBoardOverlay';
 
 const CC = {
   blue: '#34A8DB',
@@ -15,8 +16,19 @@ const BORDER = '#E0E0E0';
 const fontHeading = "'Montserrat', sans-serif";
 
 export interface DeptServiceRow { name: string; assigned: number; served: number; notServed: number }
-export interface DeptServiceTotals { visitors: number; served: number; notServed: number }
+export interface VisitorFigures { visitors: number; visits: number; registered: number; inHouse: number; returning: number }
+export interface DeptServiceTotals extends VisitorFigures { assigned: number; served: number; notServed: number }
 export interface DeptServicesData { rows: DeptServiceRow[]; totals: DeptServiceTotals; loading: boolean }
+
+const EMPTY_FIGURES: VisitorFigures = { visitors: 0, visits: 0, registered: 0, inHouse: 0, returning: 0 };
+
+const readVisitorFigures = (data: any): VisitorFigures => ({
+  visitors: Number(data?.unique_visitors) || 0,
+  visits: Number(data?.total_visitors) || 0,
+  registered: Number(data?.registered_visitors) || 0,
+  inHouse: Number(data?.visitors_in_house) || 0,
+  returning: Number(data?.returning_visitors) || 0,
+});
 
 export const periodToRange = (applied: AppliedFilter): { from?: string; to?: string } => {
   const now = new Date();
@@ -43,6 +55,7 @@ export const periodToRange = (applied: AppliedFilter): { from?: string; to?: str
 
 export const useDeptServices = (applied: AppliedFilter, refreshTick: number): DeptServicesData => {
   const [rows, setRows] = useState<DeptServiceRow[]>([]);
+  const [figures, setFigures] = useState<VisitorFigures>(EMPTY_FIGURES);
   const [loading, setLoading] = useState(true);
   const appliedKey = JSON.stringify(applied);
   const lastKeyRef = useRef('');
@@ -61,6 +74,7 @@ export const useDeptServices = (applied: AppliedFilter, refreshTick: number): De
         ]);
         if (cancelled) return;
         const served: any = (servedRes as any)?.data || {};
+        setFigures(readVisitorFigures(served));
         const departmentsRaw = (deptRes as any)?.data?.departments || (deptRes as any)?.departments || [];
         const assignedByDept: Record<string, number> = {};
         (served.assigned_by_department || []).forEach((d: any) => { assignedByDept[d.name] = d.assigned; });
@@ -87,11 +101,11 @@ export const useDeptServices = (applied: AppliedFilter, refreshTick: number): De
     return () => { cancelled = true; };
   }, [appliedKey, refreshTick]);
 
-  const totals = useMemo(() => {
-    const visitors = rows.reduce((s, r) => s + (r.assigned || 0), 0);
+  const totals = useMemo<DeptServiceTotals>(() => {
+    const assigned = rows.reduce((s, r) => s + (r.assigned || 0), 0);
     const served = rows.reduce((s, r) => s + (r.served || 0), 0);
-    return { visitors, served, notServed: Math.max(0, visitors - served) };
-  }, [rows]);
+    return { ...figures, assigned, served, notServed: Math.max(0, assigned - served) };
+  }, [rows, figures]);
 
   return { rows, totals, loading };
 };
@@ -208,18 +222,22 @@ const DeptServicesMirror: React.FC<{ rows: DeptServiceRow[]; compact?: boolean }
 };
 
 export const DeptServicesTotals: React.FC<{ totals: DeptServiceTotals; loading: boolean }> = ({ totals, loading }) => {
-  const cards = [
-    { label: 'Total Visitors', value: totals.visitors, hint: 'Visitors who visited the City of Kigali in this period', color: '#333333', accent: CC.amber },
-    { label: 'Total Served', value: totals.served, hint: 'Visitors whose services were completed', color: CC.teal, accent: CC.teal },
-    { label: 'Total Not Served', value: totals.notServed, hint: 'Visitors who were not served yet', color: CC.red, accent: CC.red },
+  const cards: Array<{ label: string; value: number; hint: string; meta?: string; color: string; accent: string }> = [
+    { label: 'Total Visitors', value: totals.visitors, hint: 'People who visited the City of Kigali in this period', meta: `${totals.visits.toLocaleString()} visit(s)`, color: '#333333', accent: CC.amber },
+    { label: 'In House Now', value: totals.inHouse, hint: 'Visitors in the building right now', color: PRIMARY, accent: PRIMARY },
+    { label: 'Returning Visitors', value: totals.returning, hint: 'People with more than one visit', meta: 'All time', color: CC.purple, accent: CC.purple },
+    { label: 'Registered Visitors', value: totals.registered, hint: 'Every person registered so far', meta: 'All time', color: '#333333', accent: CC.blue },
+    { label: 'Total Served', value: totals.served, hint: 'Services delivered to visitors in this period', color: CC.teal, accent: CC.teal },
+    { label: 'Total Not Served', value: totals.notServed, hint: 'Department assignments not served yet', meta: `Of ${totals.assigned.toLocaleString()} assignment(s)`, color: CC.red, accent: CC.red },
   ];
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
       {cards.map((card) => (
-        <div key={card.label} className="bg-white p-4" style={{ border: `1px solid ${BORDER}`, borderLeft: `4px solid ${card.accent}` }}>
+        <div key={card.label} className="bg-white p-4 min-w-0" style={{ border: `1px solid ${BORDER}`, borderLeft: `4px solid ${card.accent}` }}>
           <div className="text-[11px] uppercase tracking-wide text-gray-500" style={{ fontFamily: fontHeading }}>{card.label}</div>
           <div className="text-3xl font-bold mt-1 leading-none" style={{ color: card.color, fontFamily: fontHeading }}>{loading ? '-' : card.value.toLocaleString()}</div>
           <div className="text-xs text-gray-500 mt-1.5">{card.hint}</div>
+          {card.meta && !loading ? <div className="text-[11px] font-semibold text-gray-400 mt-0.5">{card.meta}</div> : null}
         </div>
       ))}
     </div>
@@ -261,20 +279,14 @@ const MayorDeptServicesSection: React.FC<{ data: DeptServicesData }> = ({ data }
       </div>
 
       {showAll && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4" onClick={() => setShowAll(false)}>
-          <div className="bg-white w-full max-w-4xl max-h-[90vh] shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="px-4 sm:px-5 py-4 flex items-center justify-between text-white shrink-0" style={{ backgroundColor: PRIMARY }}>
-              <div className="min-w-0">
-                <h2 className="text-sm font-bold truncate" style={{ fontFamily: fontHeading }}>Department and services</h2>
-                <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.85)' }}>All {rows.length} departments for the selected period</p>
-              </div>
-              <button type="button" onClick={() => setShowAll(false)} className="border border-white text-white hover:bg-white hover:text-[#333333] transition-colors cursor-pointer shrink-0 text-xs font-semibold uppercase" style={{ padding: '0.4rem 1rem', letterSpacing: '1px', fontFamily: fontHeading, borderRadius: 0 }}>Close</button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-              <DeptServicesMirror rows={rows} />
-            </div>
-          </div>
-        </div>
+        <MayorBoardOverlay
+          title="Department and services"
+          subtitle={`All ${rows.length} departments for the selected period`}
+          onClose={() => setShowAll(false)}
+          width="xl"
+        >
+          <DeptServicesMirror rows={rows} />
+        </MayorBoardOverlay>
       )}
     </>
   );

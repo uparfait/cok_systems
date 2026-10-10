@@ -7,7 +7,6 @@ import {
   HodPageHeader, HodCard, HodTabBar, HodModal, HodEmpty, HodTh, HodAvatar, HodChip,
 } from './hodShared';
 
-// Event actions live in the event-management backend (separate service, /cok/api/v1)
 const EM_BASE = '/cok/api/v1';
 
 interface EventAction {
@@ -53,14 +52,12 @@ const HodApprovalsPage: React.FC = () => {
     setUnavailable(false);
     try {
       const statusParam = tab === 'all' ? '' : `&status=${encodeURIComponent(tab)}`;
-      // Only approval requests addressed to this head of department
       const resp = await fetch(
         `${EM_BASE}/event-actions?page=${page}&limit=${LIMIT}&assignedEmail=${encodeURIComponent(myEmail)}${statusParam}`
       );
       if (!resp.ok) throw new Error('bad status');
       const json = await resp.json();
       if (json?.success) {
-        // Safety net in case the event service is an older build that ignores assignedEmail
         const mine = (json.data || []).filter(
           (a: EventAction) => (a.assignedPerson?.email || '').toLowerCase() === myEmail
         );
@@ -143,7 +140,7 @@ const HodApprovalsPage: React.FC = () => {
         ) : actions.length === 0 ? (
           <HodEmpty message="No approval requests addressed to you in this status." />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="cok-table-scroll">
             <table className="w-full min-w-[860px]">
               <thead>
                 <tr>
@@ -219,28 +216,35 @@ const HodApprovalsPage: React.FC = () => {
       </HodCard>
 
       {decision && (
-        <HodModal title={decision.approve ? 'Approve Request' : 'Reject Request'} onClose={() => setDecision(null)} maxWidth="max-w-md">
-          <p className="text-sm mb-3" style={{ color: COK.textMid }}>
-            {decision.approve ? 'Approve' : 'Reject'} “{decision.action.title}”?
-          </p>
-          <textarea
-            className="cok-auth-input w-full py-2.5 px-3 text-sm"
-            rows={3}
-            placeholder={decision.approve ? 'Optional note...' : 'Reason for rejection (required)...'}
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-          />
-          <div className="flex justify-end gap-2 pt-4">
-            <button className="cok-btn-outlined px-4 py-2 text-xs" style={{ borderRadius: 0 }} onClick={() => setDecision(null)}>Cancel</button>
+        <HodModal
+          title={decision.approve ? 'Approve Request' : 'Reject Request'}
+          onClose={() => setDecision(null)}
+          width="sm"
+          busy={saving}
+          footer={
             <button
-              className="px-4 py-2 text-xs font-semibold uppercase text-white"
+              className="px-4 py-2 text-xs font-semibold uppercase text-white disabled:opacity-50"
               style={{ backgroundColor: decision.approve ? COK.success : COK.danger, borderRadius: 0, fontFamily: FONT, letterSpacing: '1px' }}
               disabled={saving}
               onClick={submitDecision}
             >
               {saving ? 'Saving...' : decision.approve ? 'Approve' : 'Reject'}
             </button>
-          </div>
+          }
+        >
+          <p className="text-sm mb-3" style={{ color: COK.textMid }}>
+            {decision.approve ? 'Approve' : 'Reject'} {`"${decision.action.title}"`}?
+          </p>
+          <label className={`block text-xs font-semibold mb-1.5 uppercase tracking-wide${decision.approve ? '' : ' cok-req'}`} style={{ color: COK.textMid, fontFamily: FONT }}>
+            {decision.approve ? 'Note' : 'Reason for rejection'}
+          </label>
+          <textarea
+            className="cok-auth-input w-full py-2.5 px-3 text-sm"
+            rows={3}
+            placeholder={decision.approve ? 'Optional note...' : 'Reason for rejection...'}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+          />
         </HodModal>
       )}
     </div>

@@ -3,7 +3,6 @@ import { FiBarChart2, FiLoader, FiFilter } from 'react-icons/fi';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, CartesianGrid } from 'recharts';
 import { statisticsService } from '../../../../core/services/adminService';
 
-// City of Kigali (CoK) institutional design constants
 const PRIMARY = '#056daa';
 const NEUTRAL_DARK = '#333333';
 const BORDER = '#E0E0E0';
@@ -29,7 +28,6 @@ const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const pad = (n: number) => String(n).padStart(2, '0');
 const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-// ISO week key matching MongoDB's '%G-W%V' $dateToString format (e.g. "2026-W32")
 function isoWeekKey(d: Date): string {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = date.getUTCDay() || 7;
@@ -39,7 +37,6 @@ function isoWeekKey(d: Date): string {
   return `${date.getUTCFullYear()}-W${pad(weekNo)}`;
 }
 
-// Monday of the week containing d
 function mondayOf(d: Date): Date {
   const day = (d.getDay() + 6) % 7;
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
@@ -47,14 +44,15 @@ function mondayOf(d: Date): Date {
 
 interface BucketDef { key: string; label: string; tooltip: string }
 
-// The selected period decides both the date range and the x-axis unit:
-// year -> months, month -> weeks, week -> days, day -> hours
+interface VisitorFigures { people: number; inHouse: number; returning: number; registered: number }
+
+const EMPTY_FIGURES: VisitorFigures = { people: 0, inHouse: 0, returning: 0, registered: 0 };
+
 function rangeFor(period: PeriodKey): { from: Date; to: Date; granularity: Granularity; buckets: BucketDef[] } {
   const now = new Date();
   const buckets: BucketDef[] = [];
 
   if (period === 'all') {
-    // All time: wide date range, monthly buckets built from the response (see chartData)
     const from = new Date(2000, 0, 1);
     const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     return { from, to, granularity: 'month', buckets };
@@ -95,7 +93,6 @@ function rangeFor(period: PeriodKey): { from: Date; to: Date; granularity: Granu
       : new Date(now.getFullYear(), now.getMonth(), 1);
     const from = base;
     const to = new Date(base.getFullYear(), base.getMonth() + 1, 0, 23, 59, 59, 999);
-    // One bucket per ISO week touching the month, labelled Week 1..N of the month
     let cursor = mondayOf(from);
     let index = 1;
     while (cursor <= to) {
@@ -111,7 +108,6 @@ function rangeFor(period: PeriodKey): { from: Date; to: Date; granularity: Granu
     return { from, to, granularity: 'week', buckets };
   }
 
-  // thisyear
   const from = new Date(now.getFullYear(), 0, 1);
   const to = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
   for (let m = 0; m < 12; m++) {
@@ -124,15 +120,11 @@ function rangeFor(period: PeriodKey): { from: Date; to: Date; granularity: Granu
   return { from, to, granularity: 'month', buckets };
 }
 
-/**
- * Mayor's service delivery view: a single filterable visitors chart.
- * Vertical bars, counts on top, x-axis unit adapts to the chosen period,
- * and the whole chart scrolls horizontally as one connected timeline.
- */
 const MayorVisitorsTimeline: React.FC = () => {
   const [period, setPeriod] = useState<PeriodKey>('thisweek');
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [total, setTotal] = useState(0);
+  const [figures, setFigures] = useState<VisitorFigures>(EMPTY_FIGURES);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -155,11 +147,16 @@ const MayorVisitorsTimeline: React.FC = () => {
           (data.buckets || []).forEach((b: { bucket: string; count: number }) => { map[b.bucket] = b.count; });
           setCounts(map);
           setTotal(data.total || 0);
+          setFigures({
+            people: Number(data.unique_visitors) || 0,
+            inHouse: Number(data.visitors_in_house) || 0,
+            returning: Number(data.returning_visitors) || 0,
+            registered: Number(data.registered_visitors) || 0,
+          });
         } else if (!ignore) {
           setError('Failed to load visitor statistics');
         }
       } catch (e: any) {
-        // A 404 means the backend is running old code without /statistics/visitors-timeline
         if (!ignore) setError(e?.response?.status === 404
           ? 'Statistics endpoint not found - restart the backend server to load it'
           : 'Failed to load visitor statistics');
@@ -170,8 +167,6 @@ const MayorVisitorsTimeline: React.FC = () => {
     return () => { ignore = true; };
   }, [range]);
 
-  // Every bucket of the period appears, zeros included, so the timeline stays connected.
-  // "All" has no fixed buckets: months run from the first recorded visit to the current month.
   const chartData = useMemo(() => {
     if (period === 'all') {
       const keys = Object.keys(counts).sort();
@@ -200,12 +195,28 @@ const MayorVisitorsTimeline: React.FC = () => {
           Service Delivery Visitors
         </h1>
         <p className="text-xs mt-0.5 text-[#555555]">
-          Visitor check-ins over time · {PERIODS.find(p => p.key === period)?.label} · {total} visitor(s)
+          Visitor check-ins over time - {PERIODS.find(p => p.key === period)?.label} - {total} visit(s)
         </p>
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        {[
+          { label: 'Visitors', value: figures.people, hint: 'People who checked in in this period' },
+          { label: 'In House Now', value: figures.inHouse, hint: 'Visitors in the building right now' },
+          { label: 'Returning Visitors', value: figures.returning, hint: 'People with more than one visit' },
+          { label: 'Registered Visitors', value: figures.registered, hint: 'Every person registered so far' },
+        ].map((card) => (
+          <div key={card.label} className="bg-white p-3 min-w-0" style={{ border: `1px solid ${BORDER}`, borderLeft: `4px solid ${PRIMARY}` }}>
+            <div className="text-[11px] uppercase tracking-wide text-gray-500" style={{ fontFamily: fontHeading }}>{card.label}</div>
+            <div className="text-2xl font-bold mt-1 leading-none" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+              {loading || error ? '-' : card.value.toLocaleString()}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">{card.hint}</div>
+          </div>
+        ))}
+      </div>
+
       <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
-        {/* Period filter - same dropdown pattern as the mayor overview toolbar */}
         <div className="px-6 pt-5 pb-3 flex items-center justify-end gap-2" style={{ borderBottom: `1px solid ${BORDER}` }}>
           <FiFilter className="w-3.5 h-3.5" style={{ color: '#555555' }} />
           <label className="text-xs font-medium" style={{ fontFamily: fontHeading, color: '#555555' }} htmlFor="mayor-visitors-period">
@@ -233,7 +244,6 @@ const MayorVisitorsTimeline: React.FC = () => {
             {error}
           </div>
         ) : (
-          /* One connected chart that scrolls to the right when the period has many buckets */
           <div className="overflow-x-auto px-6 py-4">
             <div style={{ minWidth: Math.max(chartData.length * 72, 640), height: 380 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -255,11 +265,10 @@ const MayorVisitorsTimeline: React.FC = () => {
                   <Tooltip
                     cursor={{ fill: 'rgba(5,109,170,0.06)' }}
                     contentStyle={{ border: `1px solid ${BORDER}`, borderRadius: 0, fontSize: 12, fontFamily: fontHeading }}
-                    formatter={(value: any) => [`${value} visitor(s)`, 'Checked in']}
+                    formatter={(value: any) => [`${value} visit(s)`, 'Checked in']}
                     labelFormatter={(_label: any, payload: any) => payload?.[0]?.payload?.tooltip || _label}
                   />
                   <Bar dataKey="count" fill={PRIMARY} barSize={36} radius={[0, 0, 0, 0]}>
-                    {/* Count printed on top of each bar */}
                     <LabelList dataKey="count" position="top" style={{ fill: NEUTRAL_DARK, fontWeight: 700, fontSize: 12, fontFamily: fontHeading }} />
                   </Bar>
                 </BarChart>

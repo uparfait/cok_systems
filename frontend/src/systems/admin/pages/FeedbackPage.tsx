@@ -13,6 +13,7 @@ const PRIMARY = "#056daa";
 const PRIMARY_HOVER = "#045d94";
 const NEUTRAL_DARK = "#333333";
 const WHITE = "#FFFFFF";
+const HEADER_BG = "#F0F6FA";
 const fontHeading = "'Montserrat', sans-serif";
 
 const buttonBaseStyle: React.CSSProperties = {
@@ -165,8 +166,8 @@ const FeedbackPage: React.FC = () => {
             <div className="p-4 border-b border-[#E0E0E0]"><div className="flex items-center justify-between"><h2 className="text-sm font-bold flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}><FiMessageSquare className="w-4 h-4 text-[#056daa]" />Feedback - {selectedDept.name}</h2><button onClick={() => { setFeedbackList([]); setSelectedDept(null); }} className="p-1 hover:bg-[#F7F9FB]"><FiX className="w-4 h-4" /></button></div></div>
             <div className="p-4">
               {feedbackLoading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-2 border-[#056daa] border-t-transparent" /><span className="ml-2 text-sm text-[#9E9E9E]">Loading...</span></div>
-                : feedbackList.length > 0 ? <div className="overflow-x-auto"><table className="w-full"><thead style={{ backgroundColor: 'rgba(5,109,170,0.06)' }}><tr>{['Visitor', 'Rating', 'Comment', 'Date'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide" style={{ fontFamily: fontHeading, color: PRIMARY }}>{h}</th>)}</tr></thead>
-                    <tbody className="divide-y divide-[#E0E0E0]">{feedbackList.map((fb, i) => <tr key={fb._id || i} className="hover:bg-[#F7F9FB]"><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="w-7 h-7 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><FiMessageSquare className="w-3.5 h-3.5 text-[#056daa]" /></div><span className="text-sm font-medium text-[#333333]">{fb.user_name || 'Anonymous'}</span></div></td><td className="px-3 py-2.5"><span className="text-sm font-bold text-[#333333]">{fb.rate || 0}/{fb.rate_out_of || 10}</span></td><td className="px-3 py-2.5 max-w-xs text-xs text-[#555555]">{fb.textmessage ? (fb.textmessage.length > 100 ? fb.textmessage.substring(0, 100) + '...' : fb.textmessage) : <span className="text-[#9E9E9E] italic">No message</span>}</td><td className="px-3 py-2.5 text-xs text-[#555555]">{fb.created_date ? new Date(fb.created_date).toLocaleDateString() : 'N/A'}</td></tr>)}</tbody></table></div>
+                : feedbackList.length > 0 ? <div className="cok-table-scroll"><table className="w-full"><thead style={{ backgroundColor: HEADER_BG }}><tr>{['Visitor', 'Rating', 'Comment', 'Date'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide" style={{ fontFamily: fontHeading, color: PRIMARY }}>{h}</th>)}</tr></thead>
+                    <tbody className="divide-y divide-[#E0E0E0]">{feedbackList.map((fb, i) => <tr key={fb._id || i} className="hover:bg-[#F7F9FB]"><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="w-7 h-7 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><FiMessageSquare className="w-3.5 h-3.5 text-[#056daa]" /></div><span className="text-sm font-medium text-[#333333]">{fb.user_name || 'Anonymous'}</span></div></td><td className="px-3 py-2.5"><span className="text-sm font-bold text-[#333333]">{fb.rate || 0}/{fb.rate_out_of || 10}</span></td><td className="px-3 py-2.5 text-xs text-[#555555]" title={fb.textmessage || undefined}>{fb.textmessage ? (fb.textmessage.length > 100 ? fb.textmessage.substring(0, 100) + '...' : fb.textmessage) : <span className="text-[#9E9E9E] italic">No message</span>}</td><td className="px-3 py-2.5 text-xs text-[#555555]">{fb.created_date ? new Date(fb.created_date).toLocaleDateString() : 'N/A'}</td></tr>)}</tbody></table></div>
                   : <div className="text-center py-8"><FiMessageSquare className="w-10 h-10 text-[#E0E0E0] mx-auto mb-2" /><p className="text-sm text-[#9E9E9E]">No feedback messages for {selectedDept.name}</p></div>}
             </div>
           </div>
@@ -176,8 +177,8 @@ const FeedbackPage: React.FC = () => {
           <div className="lg:col-span-2">
             <div className="bg-white border border-[#E0E0E0]">
               <div className="p-4 border-b border-[#E0E0E0]"><h2 className="text-sm font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Department Rankings</h2><p className="text-xs text-[#555555] mt-0.5">Sorted by average rating</p></div>
-              <div className="overflow-x-auto">
-                <table className="w-full"><thead className="sticky top-0 z-10" style={{ backgroundColor: 'rgba(5,109,170,0.06)' }}><tr>{['Rank', 'Department', 'Rating', 'Feedback', 'Performance'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ fontFamily: fontHeading, color: PRIMARY }}>{h}</th>)}</tr></thead>
+              <div className="cok-table-scroll">
+                <table className="w-full"><thead className="sticky top-0 z-10" style={{ backgroundColor: HEADER_BG }}><tr>{['Rank', 'Department', 'Rating', 'Feedback', 'Performance'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ fontFamily: fontHeading, color: PRIMARY }}>{h}</th>)}</tr></thead>
                   <tbody className="divide-y divide-[#E0E0E0]">
                     {loading ? <tr><td colSpan={5} className="px-4 py-8 text-center"><div className="animate-spin rounded-full h-6 w-6 border-2 border-[#056daa] border-t-transparent mx-auto" /></td></tr>
                       : deptRatings.length > 0 ? deptRatings.map((d, i) => (

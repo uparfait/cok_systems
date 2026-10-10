@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiActivity, FiX } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiActivity } from 'react-icons/fi';
+import OverlayShell from '../../../../core/components/overlay/OverlayShell';
 
 interface ActivityFeedProps {
   auditLogs: any[];
@@ -94,26 +95,20 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ auditLogs }) => {
       </div>
 
       {selected && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4" onClick={() => setSelected(null)}>
-          <div className="bg-white w-full max-w-lg max-h-[80vh] overflow-y-auto" style={{ border: '1px solid #E0E0E0' }} onClick={(e) => e.stopPropagation()}>
-            <div className="px-4 py-3 flex items-center justify-between sticky top-0" style={{ backgroundColor: '#056daa' }}>
-              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Activity Details</h3>
-              <button type="button" onClick={() => setSelected(null)} className="cok-btn-outlined-reverse" style={{ padding: '0.35rem 0.7rem' }}>
-                <FiX className="w-4 h-4" />
-              </button>
-            </div>
+        <OverlayShell title="Activity Details" onClose={() => setSelected(null)} width="md" bodyClassName="px-0! py-0!">
+          <div className="cok-table-scroll">
             <table className="w-full border-collapse">
               <tbody>
                 {detailRows.map(([label, value], idx) => (
                   <tr key={String(label)} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                     <td className="px-4 py-2.5 w-32 border-b border-r border-[#E0E0E0] text-xs font-bold uppercase tracking-wider text-gray-600 align-top">{label}</td>
-                    <td className="px-4 py-2.5 border-b border-[#E0E0E0] text-sm text-[#333333] break-words">{String(value)}</td>
+                    <td className="px-4 py-2.5 border-b border-[#E0E0E0] text-sm text-[#333333]">{String(value)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </OverlayShell>
       )}
     </div>
   );

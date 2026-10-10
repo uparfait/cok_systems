@@ -39,6 +39,21 @@ $(ssl_block)
 
     client_max_body_size 100m;
 
+    # Visitor attachments: any number of files of any size, streamed through
+    location ~ ^/cok/api/visitors/[^/]+/attachments {
+        client_max_body_size 0;
+        proxy_request_buffering off;
+        proxy_pass http://${IP[$service]}:${PORT[$service]};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_http_version 1.1;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 3600s;
+        proxy_read_timeout 3600s;
+    }
+
     location / {
         proxy_pass http://${IP[$service]}:${PORT[$service]};
         proxy_set_header Host \$host;

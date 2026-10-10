@@ -1,7 +1,7 @@
 // Shared helpers for parking reservations (visitor + staff uploads)
 
-// Plates are stored normalized (UPPERCASE, no spaces) so check-in/verify lookups always match
-const normalizePlate = (p) => String(p || '').toUpperCase().replace(/\s+/g, '');
+// Plates use the one gate rule (upper case letters and digits only) so reservations always match at check-in
+const { normalizePlate } = require('./visitors/normalize.js');
 
 // Template date columns → reservation window. Start dates resolve to the START of that
 // day, end dates to the END of that day. Template format is day/month/year (e.g.

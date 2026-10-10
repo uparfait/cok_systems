@@ -1,10 +1,7 @@
-// AssignmentNotificationBadge Component - Assignment notification badge
-// Shows notification for new visitor assignments
-
 import React, { useState, useEffect } from 'react';
-import { FiBell, FiX, FiUsers, FiArrowRight } from 'react-icons/fi';
+import { FiBell, FiUsers, FiArrowRight } from 'react-icons/fi';
+import { useVisitorPanel } from '../../../../core/components/visitor/VisitorPanelProvider';
 
-// City of Kigali institutional design constants
 const PRIMARY = "#056daa";
 const PRIMARY_HOVER = "#045d94";
 const DANGER = "#E74C3C";
@@ -28,131 +25,94 @@ interface AssignmentNotificationBadgeProps {
   notifications?: AssignmentNotification[];
   onNotificationClick?: (notification: AssignmentNotification) => void;
   onMarkAllRead?: () => void;
+  onViewAll?: () => void;
   maxDisplay?: number;
 }
+
+const formatTime = (dateStr: string) => {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
+  const diff = Date.now() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
+};
 
 const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = ({
   notifications: propNotifications,
   onNotificationClick,
   onMarkAllRead,
+  onViewAll,
   maxDisplay = 5,
 }) => {
-  // State
+  const { openVisitor } = useVisitorPanel();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<AssignmentNotification[]>(propNotifications || []);
-  const [localNotifications, setLocalNotifications] = useState<AssignmentNotification[]>([]);
 
-  // Load notifications from props or use local ones
   useEffect(() => {
     if (propNotifications) {
       setNotifications(propNotifications);
     }
   }, [propNotifications]);
 
-  // Calculate unread count
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const displayNotifications = notifications.slice(0, maxDisplay);
 
-  // Format time
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
-
-  // Handle notification click
   const handleNotificationClick = (notification: AssignmentNotification) => {
-    // Mark as read
-    const updated = notifications.map(n =>
+    setNotifications(prev => prev.map(n =>
       n._id === notification._id ? { ...n, isRead: true } : n
-    );
-    setNotifications(updated);
-
+    ));
+    setIsOpen(false);
     if (onNotificationClick) {
       onNotificationClick(notification);
     }
+    openVisitor(notification.visitorId);
   };
 
-  // Handle mark all as read
   const handleMarkAllRead = () => {
-    const updated = notifications.map(n => ({ ...n, isRead: true }));
-    setNotifications(updated);
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     if (onMarkAllRead) {
       onMarkAllRead();
     }
   };
 
-  // Demo notifications for display
-  const demoNotifications: AssignmentNotification[] = [
-    {
-      _id: '1',
-      visitorName: 'John Mugisha',
-      visitorId: 'v1',
-      departmentName: 'Operations',
-      assignedAt: new Date(Date.now() - 5 * 60000).toISOString(),
-      isRead: false,
-    },
-    {
-      _id: '2',
-      visitorName: 'Sarah Kemiremare',
-      visitorId: 'v2',
-      departmentName: 'Finance',
-      assignedAt: new Date(Date.now() - 30 * 60000).toISOString(),
-      isRead: false,
-    },
-    {
-      _id: '3',
-      visitorName: 'Patrick Nyagah',
-      visitorId: 'v3',
-      departmentName: 'Legal',
-      assignedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
-      isRead: true,
-    },
-  ];
-
-  const display = notifications.length > 0 ? displayNotifications : demoNotifications;
-  const currentUnreadCount = notifications.length > 0 ? unreadCount : demoNotifications.filter(n => !n.isRead).length;
+  const handleViewAll = () => {
+    setIsOpen(false);
+    if (onViewAll) onViewAll();
+  };
 
   return (
     <div className="relative">
-      {/* Badge Trigger */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-600 hover:text-[#056daa] hover:bg-[rgba(5,109,170,0.08)] transition-colors"
       >
         <FiBell className="text-xl" />
-        {currentUnreadCount > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 w-5 h-5 text-white text-xs rounded-full flex items-center justify-center font-medium" style={{ backgroundColor: DANGER }}>
-            {currentUnreadCount > 9 ? '9+' : currentUnreadCount}
+            {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
-      {/* Dropdown */}
       {isOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Dropdown Content */}
           <div className="absolute right-0 top-full mt-2 w-80 z-20 overflow-hidden" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, border: `1px solid ${BORDER}`, borderRadius: 0 }}>
-            {/* Header */}
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
               <h3 className="flex items-center gap-2" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>
                 <FiBell /> Assignments
               </h3>
-              {currentUnreadCount > 0 && (
+              {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
                   className="text-xs transition-colors"
@@ -165,15 +125,14 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
               )}
             </div>
 
-            {/* Notifications List */}
             <div className="max-h-96 overflow-y-auto">
-              {display.length === 0 ? (
+              {displayNotifications.length === 0 ? (
                 <div className="px-4 py-8 text-center text-gray-500">
                   <FiUsers className="text-4xl mx-auto mb-2 opacity-50" />
                   <p>No new assignments</p>
                 </div>
               ) : (
-                display.map((notification) => (
+                displayNotifications.map((notification) => (
                   <div
                     key={notification._id}
                     onClick={() => handleNotificationClick(notification)}
@@ -182,14 +141,12 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      {/* Icon */}
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                         !notification.isRead ? 'bg-[rgba(5,109,170,0.12)] text-[#056daa]' : 'bg-gray-100 text-gray-500'
                       }`}>
                         <FiUsers />
                       </div>
 
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm ${!notification.isRead ? 'font-medium' : ''}`} style={{ color: NEUTRAL_DARK }}>
                           {notification.visitorName}
@@ -202,7 +159,6 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
                         </p>
                       </div>
 
-                      {/* Unread indicator */}
                       {!notification.isRead && (
                         <div className="w-2 h-2 rounded-full flex-shrink-0 mt-2" style={{ backgroundColor: PRIMARY }} />
                       )}
@@ -212,10 +168,10 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
               )}
             </div>
 
-            {/* Footer */}
-            {notifications.length > maxDisplay && (
+            {onViewAll && notifications.length > maxDisplay && (
               <div className="px-4 py-3" style={{ borderTop: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
                 <button
+                  onClick={handleViewAll}
                   className="w-full text-sm flex items-center justify-center gap-1 transition-colors"
                   style={{ color: PRIMARY }}
                   onMouseEnter={(e) => { e.currentTarget.style.color = PRIMARY_HOVER; }}
@@ -232,7 +188,6 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
   );
 };
 
-// Compact version for inline use
 export const CompactNotificationBadge: React.FC<{ count?: number }> = ({ count = 0 }) => {
   if (count === 0) return null;
 

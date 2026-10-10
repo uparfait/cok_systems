@@ -1,5 +1,3 @@
-// Checklists - Component for checklists management with CoK design
-
 import React, { useState } from 'react'
 import { FiEdit, FiTrash2, FiPlus, FiX, FiCheck } from 'react-icons/fi'
 
@@ -272,12 +270,11 @@ const Checklists: React.FC<ChecklistsProps> = ({
         )}
       </div>
 
-      {/* Add Checklist Form */}
       {showAddChecklistForm && (
         <div className="border p-4 mt-4" style={{ borderColor: BORDER, backgroundColor: NEUTRAL_LIGHT, borderRadius: 0 }}>
           <div className="space-y-3">
             <div>
-              <label className="block text-xs mb-1" style={labelStyle}>
+              <label className="block text-xs mb-1 cok-req" style={labelStyle}>
                 Checklist Title
               </label>
               <input
@@ -290,7 +287,7 @@ const Checklists: React.FC<ChecklistsProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs mb-2" style={labelStyle}>
+              <label className="block text-xs mb-2 cok-req" style={labelStyle}>
                 Items
               </label>
               <div className="space-y-2">

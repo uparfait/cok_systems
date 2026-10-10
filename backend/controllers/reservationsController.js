@@ -4,7 +4,85 @@ const EmergencyCarHistory = require('../models/emergency_car_history');
 const StaffCar = require('../models/staff_car');
 const ParkingSlot = require('../models/parking_slots');
 const ParkingRecord = require('../models/parking_record');
-const { normalizePlate, parseTemplateDate } = require('../utilities/reservationUtils');
+const { parseTemplateDate } = require('../utilities/reservationUtils');
+const { normalizePlate, escapeRegex } = require('../utilities/visitors/normalize.js');
+
+/**
+ * Plates are stored the way the gate reads them (utilities/visitors/parking.js
+ * classifyPlate): upper-case letters and digits only. Reservations saved before
+ * that rule kept dashes, dots and other separators ("RAC-123B"); the helpers
+ * below still match those spellings, and normalizeStoredPlates rewrites them
+ * so the gate finds them too.
+ */
+const NOT_GATE_FORM = /[^A-Z0-9]/;
+const SEPARATORS = '[^A-Za-z0-9]*';
+
+/** Aggregation expression: the plate at `path` in the gate form (kept as is when it has no letter or digit). */
+const gateFormExpression = (path) => ({
+    $cond: [
+        { $eq: [{ $type: path }, 'string'] },
+        {
+            $let: {
+                vars: {
+                    clean: {
+                        $reduce: {
+                            input: { $regexFindAll: { input: { $toUpper: path }, regex: '[A-Z0-9]' } },
+                            initialValue: '',
+                            in: { $concat: ['$$value', '$$this.match'] }
+                        }
+                    }
+                },
+                in: { $cond: [{ $gt: [{ $strLenCP: '$$clean' }, 0] }, '$$clean', path] }
+            }
+        },
+        path
+    ]
+});
+
+/** Rewrites reservation plates saved before the gate rule. Returns how many documents changed. */
+const normalizeStoredPlates = async () => {
+    const [visitorDocs, staffCars] = await Promise.all([
+        EmergencyCar.updateMany(
+            { 'visitor_info.plate_number': NOT_GATE_FORM },
+            [{
+                $set: {
+                    visitor_info: {
+                        $map: {
+                            input: '$visitor_info',
+                            as: 'v',
+                            in: { $cond: [{ $eq: [{ $type: '$$v' }, 'object'] }, { $mergeObjects: ['$$v', { plate_number: gateFormExpression('$$v.plate_number') }] }, '$$v'] }
+                        }
+                    }
+                }
+            }],
+            { updatePipeline: true }
+        ),
+        StaffCar.updateMany(
+            { plate_number: NOT_GATE_FORM },
+            [{ $set: { plate_number: gateFormExpression('$plate_number') } }],
+            { updatePipeline: true }
+        )
+    ]);
+    return (visitorDocs.modifiedCount || 0) + (staffCars.modifiedCount || 0);
+};
+
+/** Matches every stored spelling of a plate that the gate reads as the same car. */
+const plateMatcher = (value) => {
+    const plate = normalizePlate(value);
+    return plate ? new RegExp(`^${SEPARATORS}${plate.split('').map(escapeRegex).join(SEPARATORS)}${SEPARATORS}$`, 'i') : null;
+};
+
+const samePlate = (a, b) => {
+    const plate = normalizePlate(a);
+    return !!plate && plate === normalizePlate(b);
+};
+
+/** True while a car with this plate is checked in (parking records hold the gate form). */
+const isParked = async (plate) => {
+    const forms = [...new Set([normalizePlate(plate), String(plate || '').trim()])].filter(Boolean);
+    if (forms.length === 0) return false;
+    return !!(await ParkingRecord.exists({ plate_number: { $in: forms }, status: 'active' }));
+};
 
 /**
  * Auto-cancel reservations (visitor entries AND staff cars) whose End Date has passed.
@@ -48,13 +126,18 @@ const autoCancelExpiredReservations = async () => {
     return expiredCount + expiredStaff.length;
 };
 
+/** Runs before every listing: old plate spellings are rewritten, then expired reservations are cancelled. */
+const maintainReservations = async () => {
+    try { await normalizeStoredPlates(); } catch (e) { console.error('Plate normalization failed:', e); }
+    try { await autoCancelExpiredReservations(); } catch (e) { console.error('Auto-cancel sweep failed:', e); }
+};
+
 /**
  * Get all reservations (both visitor and staff)
  */
 const getAllReservations = async (req, res) => {
     try {
-        // Expired reservations (per-row Date column) are cancelled automatically before listing
-        try { await autoCancelExpiredReservations(); } catch (e) { console.error('Auto-cancel sweep failed:', e); }
+        await maintainReservations();
 
         // Get ALL visitor reservations from EmergencyCar (including cancelled)
         const visitorReservations = await EmergencyCar.find({})
@@ -72,9 +155,10 @@ const getAllReservations = async (req, res) => {
             .lean();
 
         // Plates currently inside the parking - a reservation whose vehicle is checked in
-        // reports status 'checked_in' so maps/cards count it as occupied, not reserved
-        const activeRecords = await ParkingRecord.find({ status: 'active' }).select('plate_number').lean();
-        const insidePlates = new Set(activeRecords.map(r => normalizePlate(r.plate_number)));
+        // reports status 'checked_in' so maps/cards count it as occupied, not reserved.
+        // Both sides are compared in the gate form, so old spellings still match.
+        const parkedPlates = await ParkingRecord.distinct('plate_number', { status: 'active' });
+        const insidePlates = new Set(parkedPlates.map(normalizePlate).filter(Boolean));
 
         // Transform visitor reservations (from EmergencyCar)
         const visitors = [];
@@ -193,8 +277,9 @@ const getAllReservations = async (req, res) => {
 const createStaffBooking = async (req, res) => {
     try {
         const { staff_name, phone, plate_number, shift_start, slot_number, department_name, owner_title, id_type, identification } = req.body;
+        const plate = normalizePlate(plate_number);
 
-        if (!staff_name || !plate_number) {
+        if (!staff_name || !plate) {
             return res.status(400).json({
                 success: false,
                 message: 'Staff name and plate number are required'
@@ -205,7 +290,7 @@ const createStaffBooking = async (req, res) => {
         const newStaffBooking = new StaffCar({
             owner_name: staff_name,
             telephone: phone || '',
-            plate_number: normalizePlate(plate_number),
+            plate_number: plate,
             department_name: department_name || '',
             owner_title: owner_title || '',
             id_type: id_type || 'NID',
@@ -270,19 +355,15 @@ const cancelReservation = async (req, res) => {
             }
 
             // Only restore the slot if not already checked in
-            const ParkingRecord = require('../models/parking_record');
-            const activeCheckIn = await ParkingRecord.findOne({ 
-                plate_number: staffReservation.plate_number, 
-                status: 'active' 
-            });
-            
-if (!activeCheckIn) {
-                 const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
-                 if (parkingSlot) {
-                     parkingSlot.staffReservationCount = Math.max(0, (parkingSlot.staffReservationCount || 0) - 1);
-                     await parkingSlot.save();
-                 }
-             }
+            const activeCheckIn = await isParked(staffReservation.plate_number);
+
+            if (!activeCheckIn) {
+                const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+                if (parkingSlot) {
+                    parkingSlot.staffReservationCount = Math.max(0, (parkingSlot.staffReservationCount || 0) - 1);
+                    await parkingSlot.save();
+                }
+            }
 
             staffReservation.is_active = false;
             await staffReservation.save();
@@ -298,12 +379,13 @@ if (!activeCheckIn) {
             // (or a plate number for legacy rows). Bulk uploads share one document, so
             // cancellation is per visitor - never the whole batch.
             const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+            const matcher = plateMatcher(id);
             let reservation = null;
             if (isObjectId) {
                 reservation = await EmergencyCar.findOne({ is_active: true, 'visitor_info._id': id });
             }
-            if (!reservation) {
-                reservation = await EmergencyCar.findOne({ is_active: true, 'visitor_info.plate_number': id });
+            if (!reservation && matcher) {
+                reservation = await EmergencyCar.findOne({ is_active: true, visitor_info: { $elemMatch: { plate_number: matcher, is_cancelled: { $ne: true } } } });
             }
 
             if (!reservation) {
@@ -314,7 +396,7 @@ if (!activeCheckIn) {
             }
 
             const visitorEntry = (isObjectId && reservation.visitor_info.id(id))
-                || reservation.visitor_info.find(v => v.plate_number === id && !v.is_cancelled);
+                || reservation.visitor_info.find(v => samePlate(v.plate_number, id) && !v.is_cancelled);
             if (!visitorEntry || visitorEntry.is_cancelled) {
                 return res.status(404).json({
                     success: false,
@@ -392,12 +474,8 @@ const reactivateReservation = async (req, res) => {
         }
 
         // Check if currently checked in (occupied)
-        const ParkingRecord = require('../models/parking_record');
-        const activeCheckIn = await ParkingRecord.findOne({ 
-            plate_number: staffReservation.plate_number, 
-            status: 'active' 
-        });
-        
+        const activeCheckIn = await isParked(staffReservation.plate_number);
+
         if (activeCheckIn) {
             return res.status(400).json({
                 success: false,
@@ -469,12 +547,12 @@ const bulkUploadStaff = async (req, res) => {
         const staffBookings = [];
         for (const row of data) {
             const staff_name = row['Staff Name'] || row['staff_name'] || row['Name'] || row['name'];
-            const plate_number = row['Plate Number'] || row['plate_number'] || row['Plate'] || row['plate'];
+            const plate_number = normalizePlate(row['Plate Number'] || row['plate_number'] || row['Plate'] || row['plate']);
 
             if (staff_name && plate_number) {
                 staffBookings.push({
                     owner_name: staff_name,
-                    plate_number: normalizePlate(plate_number),
+                    plate_number,
                     telephone: String(row['Phone'] || row['phone'] || row['Telephone'] || ''),
                     department_name: String(row['Department'] || row['department'] || ''),
                     owner_title: String(row['Title'] || row['title'] || ''),
@@ -549,7 +627,7 @@ const processReservationItem = async (item, mode, counters) => {
 
         // Restore the pending count only when the reservation was active and its car is not inside
         if (staffReservation.is_active) {
-            const activeCheckIn = await ParkingRecord.findOne({ plate_number: staffReservation.plate_number, status: 'active' });
+            const activeCheckIn = await isParked(staffReservation.plate_number);
             if (!activeCheckIn) counters.staff++;
         }
 
@@ -565,13 +643,14 @@ const processReservationItem = async (item, mode, counters) => {
 
     // Visitor entry: located by its subdocument _id (plate number as legacy fallback)
     const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    const matcher = plateMatcher(id);
     let reservation = null;
     if (isObjectId) reservation = await EmergencyCar.findOne({ 'visitor_info._id': id });
-    if (!reservation) reservation = await EmergencyCar.findOne({ 'visitor_info.plate_number': id });
+    if (!reservation && matcher) reservation = await EmergencyCar.findOne({ 'visitor_info.plate_number': matcher });
     if (!reservation) return false;
 
     const entry = (isObjectId && reservation.visitor_info.id(id))
-        || reservation.visitor_info.find(v => v.plate_number === id);
+        || reservation.visitor_info.find(v => samePlate(v.plate_number, id));
     if (!entry) return false;
 
     const wasPending = reservation.is_active && !entry.is_used && !entry.is_cancelled;
@@ -651,7 +730,7 @@ const bulkDeleteReservations = bulkReservationAction('delete');
  */
 const getReservationBatches = async (req, res) => {
     try {
-        try { await autoCancelExpiredReservations(); } catch (e) { console.error('Auto-cancel sweep failed:', e); }
+        await maintainReservations();
 
         const batches = [];
 
@@ -735,7 +814,7 @@ const cancelReservationBatch = async (req, res) => {
             const cars = await StaffCar.find({ batch_name: id, is_active: true });
             if (cars.length === 0) return res.status(404).json({ success: false, message: 'No active reservations found in this batch' });
             for (const car of cars) {
-                const inside = await ParkingRecord.findOne({ plate_number: car.plate_number, status: 'active' });
+                const inside = await isParked(car.plate_number);
                 car.is_active = false;
                 await car.save();
                 if (!inside) cancelledPending++;
@@ -854,7 +933,7 @@ const deleteReservationBatch = async (req, res) => {
             if (cars.length === 0) return res.status(404).json({ success: false, message: 'Batch not found' });
             for (const car of cars) {
                 if (car.is_active) {
-                    const inside = await ParkingRecord.findOne({ plate_number: car.plate_number, status: 'active' });
+                    const inside = await isParked(car.plate_number);
                     if (!inside) releasedPending++;
                 }
                 await StaffCar.deleteOne({ _id: car._id });
@@ -914,13 +993,14 @@ const rescheduleReservation = async (req, res) => {
         } else {
             // Visitor entry id is its own subdocument ObjectId (plate number as legacy fallback)
             const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+            const matcher = plateMatcher(id);
             let doc = null;
             if (isObjectId) doc = await EmergencyCar.findOne({ 'visitor_info._id': id });
-            if (!doc) doc = await EmergencyCar.findOne({ 'visitor_info.plate_number': id });
+            if (!doc && matcher) doc = await EmergencyCar.findOne({ 'visitor_info.plate_number': matcher });
             if (!doc) return res.status(404).json({ success: false, message: 'Reservation not found' });
 
             const entry = (isObjectId && doc.visitor_info.id(id))
-                || doc.visitor_info.find(v => v.plate_number === id);
+                || doc.visitor_info.find(v => samePlate(v.plate_number, id));
             if (!entry) return res.status(404).json({ success: false, message: 'Reservation not found' });
             if (entry.is_used) return res.status(400).json({ success: false, message: 'The vehicle already arrived - nothing to reschedule' });
 
@@ -959,5 +1039,6 @@ module.exports = {
     getReservationBatches,
     cancelReservationBatch,
     rescheduleReservationBatch,
-    deleteReservationBatch
+    deleteReservationBatch,
+    normalizeStoredReservationPlates: normalizeStoredPlates
 };

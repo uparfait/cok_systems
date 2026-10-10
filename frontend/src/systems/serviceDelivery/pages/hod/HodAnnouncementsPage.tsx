@@ -47,6 +47,7 @@ const HodAnnouncementsPage: React.FC = () => {
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [form, setForm] = useState({ title: '', message: '', a_type: 'Announcement', department_id: ALL_DEPARTMENTS });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const myId = user?.userId || '';
 
@@ -69,8 +70,6 @@ const HodAnnouncementsPage: React.FC = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  // Real-time: when someone publishes an announcement addressed to this HOD,
-  // the backend pushes 'new_announcement' into their private room - refresh the list live
   useEffect(() => {
     if (!socket) return;
     const onNewAnnouncement = (payload: any) => {
@@ -86,7 +85,6 @@ const HodAnnouncementsPage: React.FC = () => {
     setShowCreate(true);
     if (departments.length === 0) {
       try {
-        // Every department in the city is a valid destination
         const res = await departmentService.getAll();
         if (res?.success) {
           const mains = normalizeDepartments(res.data);
@@ -99,7 +97,9 @@ const HodAnnouncementsPage: React.FC = () => {
           });
           setDepartments(flat);
         }
-      } catch { /* dropdown keeps only the "All Departments" option */ }
+      } catch {
+        setDepartments([]);
+      }
     }
   };
 
@@ -115,7 +115,6 @@ const HodAnnouncementsPage: React.FC = () => {
         department_id: form.department_id,
       });
       if (res?.success) {
-        // Backend reports how many department heads were notified (and any skipped)
         showSuccess(res.message || 'Published successfully');
         setShowCreate(false);
         setForm(f => ({ ...f, title: '', message: '', a_type: 'Announcement' }));
@@ -125,7 +124,6 @@ const HodAnnouncementsPage: React.FC = () => {
         showError(res?.message || 'Failed to publish');
       }
     } catch (err: any) {
-      // apiClient throws {status:false, message} carrying the backend's actual reason
       showError(err?.message || 'Failed to publish');
     } finally {
       setSaving(false);
@@ -133,7 +131,8 @@ const HodAnnouncementsPage: React.FC = () => {
   };
 
   const doDelete = async () => {
-    if (!confirmDelete) return;
+    if (!confirmDelete || deleting) return;
+    setDeleting(true);
     try {
       const res = await departmentManagerService.deleteAnnouncement(confirmDelete._id);
       if (res?.success) {
@@ -145,6 +144,8 @@ const HodAnnouncementsPage: React.FC = () => {
       }
     } catch (err: any) {
       showError(err?.message || 'Failed to retract');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -161,7 +162,7 @@ const HodAnnouncementsPage: React.FC = () => {
     <div className="p-4">
       <HodPageHeader
         title="Announcements & Directives"
-        subtitle="Publish to any department (or all)  announcements addressed to your department appear here too"
+        subtitle="Publish to any department (or all) - announcements addressed to your department appear here too"
         actions={
           <button className="cok-btn-primary px-4 py-2 text-xs flex items-center gap-1" style={{ borderRadius: 0 }} onClick={openCreate}>
             <FiPlus /> New Publication
@@ -195,7 +196,7 @@ const HodAnnouncementsPage: React.FC = () => {
                       </div>
                       <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: COK.textMid }}>{item.message}</p>
                       <p className="text-xs mt-1.5" style={{ color: COK.gray }}>
-                        by {item.created_by?.name || '-'}{item.created_by?.title ? ` (${item.created_by.title})` : ''} · {formatDateTime(item.created_at)}
+                        by {item.created_by?.name || '-'}{item.created_by?.title ? ` (${item.created_by.title})` : ''} - {formatDateTime(item.created_at)}
                       </p>
                     </div>
                     {mine && (
@@ -219,11 +220,20 @@ const HodAnnouncementsPage: React.FC = () => {
       </HodCard>
 
       {showCreate && (
-        <HodModal title="Publish Announcement" onClose={() => setShowCreate(false)}>
+        <HodModal
+          title="Publish Announcement"
+          onClose={() => setShowCreate(false)}
+          busy={saving}
+          footer={
+            <button className="cok-btn-primary px-4 py-2 text-xs" style={{ borderRadius: 0 }} disabled={saving} onClick={submit}>
+              {saving ? 'Publishing...' : 'Publish'}
+            </button>
+          }
+        >
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <HodLabel>Type *</HodLabel>
+                <HodLabel required>Type</HodLabel>
                 <select className="cok-auth-input w-full py-2.5 px-3 text-sm" value={form.a_type}
                   onChange={e => setForm(f => ({ ...f, a_type: e.target.value }))}>
                   <option value="Announcement">Announcement</option>
@@ -232,7 +242,7 @@ const HodAnnouncementsPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <HodLabel>Send To *</HodLabel>
+                <HodLabel required>Send To</HodLabel>
                 <select className="cok-auth-input w-full py-2.5 px-3 text-sm" value={form.department_id}
                   onChange={e => setForm(f => ({ ...f, department_id: e.target.value }))}>
                   <option value={ALL_DEPARTMENTS}>All Departments</option>
@@ -241,45 +251,44 @@ const HodAnnouncementsPage: React.FC = () => {
               </div>
             </div>
             <div>
-              <HodLabel>Title *</HodLabel>
+              <HodLabel required>Title</HodLabel>
               <input className="cok-auth-input w-full py-2.5 px-3 text-sm" value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Monthly coordination meeting" />
             </div>
             <div>
-              <HodLabel>Message *</HodLabel>
+              <HodLabel required>Message</HodLabel>
               <textarea className="cok-auth-input w-full py-2.5 px-3 text-sm" rows={5} value={form.message}
                 onChange={e => setForm(f => ({ ...f, message: e.target.value }))} placeholder="Write the full announcement, notice or directive..." />
             </div>
             <p className="text-xs" style={{ color: COK.gray }}>
               {form.department_id === ALL_DEPARTMENTS
                 ? 'The system will find every department head and notify them. Departments without an assigned head are skipped and reported back to you.'
-                : 'The system will find the selected department’s head and notify them. If that department has no head assigned, nothing is sent and you will be told.'}
+                : "The system will find the selected department's head and notify them. If that department has no head assigned, nothing is sent and you will be told."}
             </p>
-            <div className="flex justify-end gap-2 pt-3 border-t" style={{ borderColor: COK.border }}>
-              <button className="cok-btn-outlined px-4 py-2 text-xs" style={{ borderRadius: 0 }} onClick={() => setShowCreate(false)}>Cancel</button>
-              <button className="cok-btn-primary px-4 py-2 text-xs" style={{ borderRadius: 0 }} disabled={saving} onClick={submit}>
-                {saving ? 'Publishing...' : 'Publish'}
-              </button>
-            </div>
           </div>
         </HodModal>
       )}
 
       {confirmDelete && (
-        <HodModal title="Retract Publication" onClose={() => setConfirmDelete(null)} maxWidth="max-w-md">
-          <p className="text-sm" style={{ color: COK.textMid }}>
-            Retract “{confirmDelete.title}”? Recipients will no longer see it in their announcements.
-          </p>
-          <div className="flex justify-end gap-2 pt-4">
-            <button className="cok-btn-outlined px-4 py-2 text-xs" style={{ borderRadius: 0 }} onClick={() => setConfirmDelete(null)}>Cancel</button>
+        <HodModal
+          title="Retract Publication"
+          onClose={() => setConfirmDelete(null)}
+          width="sm"
+          busy={deleting}
+          footer={
             <button
-              className="px-4 py-2 text-xs font-semibold uppercase text-white"
+              className="px-4 py-2 text-xs font-semibold uppercase text-white disabled:opacity-50"
               style={{ backgroundColor: COK.danger, borderRadius: 0, fontFamily: FONT, letterSpacing: '1px' }}
+              disabled={deleting}
               onClick={doDelete}
             >
-              Retract
+              {deleting ? 'Retracting...' : 'Retract'}
             </button>
-          </div>
+          }
+        >
+          <p className="text-sm" style={{ color: COK.textMid }}>
+            Retract {`"${confirmDelete.title}"`}? Recipients will no longer see it in their announcements.
+          </p>
         </HodModal>
       )}
     </div>

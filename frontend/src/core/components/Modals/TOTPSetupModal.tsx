@@ -1,12 +1,10 @@
-// TOTPSetupModal - TOTP setup modal for old accounts without 2FA
-// Shows QR code and verifies TOTP, then completes login
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { getDashboardRoute } from '../Layout/layoutUtils';
 import { saveNavigation } from '../../services/navigationService';
+import OverlayCloseButton from '../overlay/OverlayCloseButton';
 
 interface TOTPSetupModalProps {
   isOpen: boolean;
@@ -243,14 +241,9 @@ const TOTPSetupModal: React.FC<TOTPSetupModalProps> = ({
             </div>
           ) : (
             <>
-              <button
-                onClick={onClose}
-                className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-400 hover:text-gray-600 transition duration-200"
-              >
-                <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
+                <OverlayCloseButton onClick={onClose} disabled={isLoading} />
+              </div>
 
               <div className="flex justify-center mb-3">
                 <img 
@@ -327,7 +320,7 @@ const TOTPSetupModal: React.FC<TOTPSetupModalProps> = ({
               </div>
 
               <p className="text-center text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
-                • Code refreshes every 30 seconds
+                - Code refreshes every 30 seconds
               </p>
 
               {error && (
@@ -342,17 +335,8 @@ const TOTPSetupModal: React.FC<TOTPSetupModalProps> = ({
                 {isLoading ? 'Verifying...' : 'Verify & Enable 2FA'}
               </button>
 
-              <div className="text-center mt-4">
-                <button 
-                  onClick={onClose}
-                  className="cok-btn-outlined w-full text-xs sm:text-sm py-2 sm:py-2.5"
-                >
-                  Cancel
-                </button>
-              </div>
-
               <p className="text-left text-xs text-gray-400 mt-4 sm:mt-5">
-                ©CITY OF KIGALI PORTAL
+                (c) CITY OF KIGALI PORTAL
               </p>
             </>
           )}

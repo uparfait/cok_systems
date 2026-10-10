@@ -1,114 +1,43 @@
-const mongoose = require('mongoose');
-const ServiceDelivery = require('../../models/service_delivery.js');
-const ParkingRecord = require('../../models/parking_record.js');
+const ServiceDelivery = require('../../models/service_delivery.js')
+const ParkingRecord = require('../../models/parking_record.js')
+const {
+    visitFromRef, activeParkingForVisit, readBadge, assertBadgeFree, visitView, emitVisitorUpdated, visitorNameOf, alreadyCheckedOut,
+    sendError, badRequest, notFound, conflict,
+} = require('../../utilities/visitors')
 
-module.exports = async function return_visitor(req, res, next) {
+const alreadyInside = (name) => conflict(`${name || 'This visitor'} is already inside.`, { code: 'ALREADY_INSIDE' })
+
+/**
+ * POST /servicedelivery/visitor/return (alias /visitor/return-with-badge) { visitor_id, badge_number? }
+ * A visitor marked as out came back inside. The optional badge is given to
+ * the visit and to the car that is still parked. A visitor who is already
+ * inside, or already gone, is refused: nothing is done twice.
+ */
+module.exports = async function return_visitor(req, res) {
     try {
-        const { visitor_id, badge_number } = req.body || {};
+        const ref = (req.body && (req.body.visit_id || req.body.visitor_id)) || null
+        if (!ref) throw badRequest('Visitor ID is required')
+        const visit = await visitFromRef(ref, { open: false })
+        if (!visit) throw notFound('Visitor not found')
+        const name = await visitorNameOf(visit)
+        if (!visit.is_still_inhouse) throw alreadyCheckedOut(visit, name)
+        if (!visit.marked_as_out) throw alreadyInside(name)
 
-        if (!visitor_id) {
-            return res.status(400).json({
-                success: false,
-                type: 'warning',
-                message: 'Visitor ID is required'
-            });
-        }
+        const badge = readBadge(req.body.badge_number)
+        const car = await activeParkingForVisit(visit)
+        await assertBadgeFree(badge, { visitId: visit._id, recordId: car ? car._id : null })
 
-        if (!mongoose.Types.ObjectId.isValid(visitor_id)) {
-            return res.status(400).json({
-                success: false,
-                type: 'warning',
-                message: 'Invalid Visitor ID format'
-            });
-        }
+        const back = await ServiceDelivery.updateOne(
+            { _id: visit._id, is_still_inhouse: true, marked_as_out: true },
+            { $set: { marked_as_out: false, badge_number: badge } },
+        )
+        if (!back.modifiedCount) throw alreadyInside(name)
+        if (car) await ParkingRecord.updateOne({ _id: car._id }, { $set: { badge_number: badge } })
+        emitVisitorUpdated(visit.visitor)
 
-        const visitor = await ServiceDelivery.findById(visitor_id);
-
-        if (!visitor) {
-            return res.status(404).json({
-                success: false,
-                type: 'warning',
-                message: 'Visitor not found'
-            });
-        }
-
-        if (badge_number) {
-            const trimmedBadge = badge_number.toString().trim().toUpperCase();
-
-            const existingBadgeInServiceDelivery = await ServiceDelivery.findOne({
-                badge_number: trimmedBadge,
-                is_still_inhouse: true
-            });
-
-            const existingBadgeInParking = await ParkingRecord.findOne({
-                badge_number: trimmedBadge,
-                status: 'active'
-            });
-
-            if (existingBadgeInServiceDelivery || existingBadgeInParking) {
-                return res.status(400).json({
-                    success: false,
-                    type: 'warning',
-                    message: 'Someone with this badge number is already checked in.'
-                });
-            }
-
-            visitor.badge_number = trimmedBadge;
-        } else {
-            visitor.badge_number = null;
-        }
-
-        visitor.marked_as_out = false;
-
-        await visitor.save();
-
-        let parkingRecordsUpdated = [];
-
-        if (visitor.identification?.number) {
-            const parkingRecords = await ParkingRecord.find({
-                'driver_identification.number': visitor.identification.number,
-                status: 'active'
-            });
-
-            for (const parkingRecord of parkingRecords) {
-                parkingRecord.badge_number = visitor.badge_number;
-                await parkingRecord.save();
-                parkingRecordsUpdated.push(parkingRecord);
-            }
-        }
-
-        if (visitor.vehicle_storage?.has_vehicle && visitor.vehicle_storage?.vehicle_details?.plate_number) {
-            const plateRecords = await ParkingRecord.find({
-                plate_number: visitor.vehicle_storage.vehicle_details.plate_number,
-                status: 'active'
-            });
-
-            for (const plateRecord of plateRecords) {
-                if (!parkingRecordsUpdated.includes(plateRecord)) {
-                    plateRecord.badge_number = visitor.badge_number;
-                    await plateRecord.save();
-                    parkingRecordsUpdated.push(plateRecord);
-                }
-            }
-        }
-
-        return res.status(200).json({
-            success: true,
-            type: 'success',
-            message: visitor.badge_number
-                ? `Visitor returned with badge ${visitor.badge_number}`
-                : 'Visitor returned. Badge cleared.',
-            data: visitor,
-            parking_records_updated: parkingRecordsUpdated.length
-        });
-
+        const fresh = await ServiceDelivery.findById(visit._id).populate('visitor').lean()
+        return res.status(200).json({ success: true, type: 'success', message: badge ? `Visitor returned with badge ${badge}` : 'Visitor marked as returned', data: visitView(fresh) })
     } catch (error) {
-        console.error('Error in return_visitor:', error);
-        return res.status(500).json({
-            success: false,
-            type: 'error',
-            message: 'Failed to process return',
-            error: error.message
-        });
+        return sendError(res, error, 'Failed to mark the visitor as returned')
     }
-};
+}

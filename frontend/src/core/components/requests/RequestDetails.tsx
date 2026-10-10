@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiX, FiSend } from 'react-icons/fi';
+import { FiSend } from 'react-icons/fi';
 import requestService, { type RequestDoc } from '../../../core/services/requestService';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
+import OverlayShell from '../overlay/OverlayShell';
+import OverlayCloseButton from '../overlay/OverlayCloseButton';
 
 type FormState = {
   redaction_date: string;
@@ -229,12 +231,13 @@ const RequestDetails: React.FC<{
 
   const hasChanges = Object.keys(buildUpdatePayload()).length > 0;
   const inputDisabled = isEdit && !isEditing;
+  const busy = loading || statusLoading || completedPromptLoading || Boolean(outgoingLoading);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-        <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary" style={{ borderRadius: 0 }}>
-          <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>Request Details</h2>
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 bg-white border-b border-gray-100" style={{ borderRadius: 0 }}>
+          <h2 className="text-lg font-bold text-gray-900" style={{ fontFamily: "'Montserrat', sans-serif" }}>Request Details</h2>
           <div className="flex items-center gap-3">
             {request.status === 'Completed' && onOutgoingClick && (
               <button
@@ -262,21 +265,19 @@ const RequestDetails: React.FC<{
                   aria-pressed={isEditing}
                 >
                   <span className="inline-block z-5 h-5 w-5 cok-primary-bg transition-transform duration-200" style={{ transform: isEditing ? 'translateX(20px)' : 'translateX(2px)', borderRadius: 990 }} />
-                  <span className="absolute inset-0 transition-colors duration-200" style={{ borderRadius: 200, backgroundColor: '#FFFFFF' }} />
+                  <span className="absolute inset-0 transition-colors duration-200" style={{ borderRadius: 200, backgroundColor: '#E5E7EB' }} />
                 </button>
-                <div className="text-white text-xs font-semibold uppercase mr-1" style={{ fontFamily: "var(--cok-font-heading)", minWidth: '54px', textAlign: 'center' }}>
+                <div className="text-gray-700 text-xs font-semibold uppercase mr-1" style={{ fontFamily: "var(--cok-font-heading)", minWidth: '54px', textAlign: 'center' }}>
                   {isEditing ? 'EDIT ON' : 'EDIT OFF'}
                 </div>
               </>
             )}
-            <button onClick={onClose} className="cok-btn-outlined-reverse" style={{ padding: '0.4rem 0.8rem' }}>
-              <FiX className="w-4 h-4" />
-            </button>
+            <OverlayCloseButton onClick={onClose} disabled={busy} />
           </div>
         </div>
 
         <div className="p-4 sm:p-6">
-          <div className="overflow-x-auto">
+          <div className="cok-table-scroll">
             <table className="w-full text-sm" style={{ borderRadius: 0 }}>
               <thead>
                 <tr style={{ backgroundColor: '#F7F9FB' }}>
@@ -284,7 +285,7 @@ const RequestDetails: React.FC<{
                   <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Value</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="[&>tr:not(:last-child)>td]:border-b [&>tr:not(:last-child)>td]:border-gray-100">
                 {rows.map((row, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase" style={{ fontFamily: "'Montserrat', sans-serif" }}>{row.label}</td>
@@ -355,57 +356,58 @@ const RequestDetails: React.FC<{
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 pt-2 flex flex-col gap-3 border-t" style={{ borderColor: '#E0E0E0' }}>
-          {isEdit && isEditing && (
+        {isEdit && isEditing && (
+          <div className="p-4 sm:p-6 pt-2 flex flex-col gap-3 border-t" style={{ borderColor: '#E0E0E0' }}>
             <button type="button" onClick={handleSave} disabled={loading} className="cok-btn-primary flex max-h-[50px] flex-row items-center justify-center gap-2" style={{ width: 'auto', padding: '0.7rem 1.2rem' }}>
               {loading && <SpiralLoader color='#FFFFFF'/>}
               Save
             </button>
-          )}
-          <button type="button" onClick={onClose} className="w-full cok-btn-outlined" style={{ padding: '0.9rem 1.2rem' }}>
-            Close
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {showArchiveModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white w-full max-w-md p-6" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-            <h3 className="text-lg font-bold mb-4" style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333' }}>Archive Request</h3>
-            <p className="text-sm text-gray-600 mb-4">Please provide a reason for archiving this request.</p>
-            <textarea value={archiveReason} onChange={(e) => setArchiveReason(e.target.value)} placeholder="Enter archive reason" rows={4} className="cok-auth-input w-full mb-4" style={{ fontFamily: "'Montserrat', sans-serif" }} />
-            <div className="flex gap-2">
-              <button onClick={() => setShowArchiveModal(false)} className="cok-btn-outlined flex-1" style={{ padding: '0.7rem 1.2rem' }}>Cancel</button>
-              <button onClick={handleArchive} disabled={loading || !archiveReason.trim()} className="cok-btn-primary flex-1 disabled:opacity-50" style={{ padding: '0.7rem 1.2rem', backgroundColor: '#E53935' }}>
-                {loading ? 'Archiving...' : 'Archive'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <OverlayShell
+          title="Archive Request"
+          onClose={() => setShowArchiveModal(false)}
+          busy={loading}
+          width="sm"
+          footer={
+            <button onClick={handleArchive} disabled={loading || !archiveReason.trim()} className="cok-btn-primary flex-1 disabled:opacity-50" style={{ padding: '0.7rem 1.2rem', backgroundColor: '#E53935' }}>
+              {loading ? 'Archiving...' : 'Archive'}
+            </button>
+          }
+        >
+          <p className="text-sm text-gray-600 mb-4 cok-req">Please provide a reason for archiving this request.</p>
+          <textarea value={archiveReason} onChange={(e) => setArchiveReason(e.target.value)} placeholder="Enter archive reason" rows={4} className="cok-auth-input w-full" style={{ fontFamily: "'Montserrat', sans-serif" }} />
+        </OverlayShell>
       )}
 
       {showProgressModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white w-full max-w-md p-6" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-            <h3 className="text-lg font-bold mb-4" style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333' }}>Mark as In Progress</h3>
-            <p className="text-sm text-gray-600 mb-4">Please provide a reason for marking this request as in progress.</p>
-            <textarea value={progressReason} onChange={(e) => setProgressReason(e.target.value)} placeholder="Enter reason" rows={4} className="cok-auth-input w-full mb-4" style={{ fontFamily: "'Montserrat', sans-serif" }} />
-            <div className="flex gap-2">
-              <button onClick={() => setShowProgressModal(false)} className="cok-btn-outlined flex-1" style={{ padding: '0.7rem 1.2rem' }}>Cancel</button>
-              <button onClick={handleProgress} disabled={loading || !progressReason.trim()} className="cok-btn-primary flex-1 disabled:opacity-50" style={{ padding: '0.7rem 1.2rem', backgroundColor: '#F39C12' }}>
-                {loading ? 'Saving...' : 'Mark In Progress'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <OverlayShell
+          title="Mark as In Progress"
+          onClose={() => setShowProgressModal(false)}
+          busy={loading}
+          width="sm"
+          footer={
+            <button onClick={handleProgress} disabled={loading || !progressReason.trim()} className="cok-btn-primary flex-1 disabled:opacity-50" style={{ padding: '0.7rem 1.2rem', backgroundColor: '#F39C12' }}>
+              {loading ? 'Saving...' : 'Mark In Progress'}
+            </button>
+          }
+        >
+          <p className="text-sm text-gray-600 mb-4 cok-req">Please provide a reason for marking this request as in progress.</p>
+          <textarea value={progressReason} onChange={(e) => setProgressReason(e.target.value)} placeholder="Enter reason" rows={4} className="cok-auth-input w-full" style={{ fontFamily: "'Montserrat', sans-serif" }} />
+        </OverlayShell>
       )}
 
       {showCompletedPrompt && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white w-full max-w-md p-6" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-            <h3 className="text-lg font-bold mb-4" style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333' }}>Mark as Completed</h3>
-            <p className="text-sm text-gray-600 mb-4">Do you want to create an outgoing correspondence for this request?</p>
-            <div className="flex gap-2">
+        <OverlayShell
+          title="Mark as Completed"
+          onClose={() => setShowCompletedPrompt(false)}
+          busy={completedPromptLoading}
+          width="sm"
+          footer={
+            <>
               <button onClick={() => { setShowCompletedPrompt(false); onCreateOutgoingFromCompleted?.(request); }} className="cok-btn-outlined flex-1" style={{ padding: '0.7rem 1.2rem' }} disabled={completedPromptLoading}>
                 Create Outgoing
               </button>
@@ -421,9 +423,11 @@ const RequestDetails: React.FC<{
               }} className="cok-btn-primary flex-1" style={{ padding: '0.7rem 1.2rem' }} disabled={completedPromptLoading}>
                 {completedPromptLoading ? 'Updating...' : 'Just Move to Completed'}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <p className="text-sm text-gray-600">Do you want to create an outgoing correspondence for this request?</p>
+        </OverlayShell>
       )}
     </div>
   );

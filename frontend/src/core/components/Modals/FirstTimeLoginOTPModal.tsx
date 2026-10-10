@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
+import OverlayCloseButton from "../overlay/OverlayCloseButton";
 
 interface FirstTimeLoginOTPModalProps {
   isOpen: boolean;
@@ -100,13 +101,11 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
         return;
       }
 
-      // Check if 2FA is disabled for this user
       if (checkResult.data?.is2FADisabled) {
         setCurrentUserId(checkResult.data.userId);
         setIs2FADisabled(true);
         setIsLoading(false);
         showSuccess("Email verified. Please set your password to continue.");
-        // Use PasswordSetupModal for 2FA-disabled users with signature from backend
         if (onSuccess) {
           onSuccess(email, checkResult.data.userId, checkResult.data.signature || "");
         }
@@ -289,24 +288,9 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
             </div>
           ) : (
             <>
-              <button
-                onClick={onClose}
-                className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-400 hover:text-gray-600 transition duration-200"
-              >
-                <svg
-                  className="h-5 w-5 sm:h-6 sm:w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
+              <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
+                <OverlayCloseButton onClick={onClose} disabled={isLoading || isResending} />
+              </div>
 
               <div className="flex justify-center mb-3">
                 <img
@@ -329,7 +313,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                   <div className="mb-4 sm:mb-6">
                     <label
                       htmlFor="firsttime-email"
-                      className="block text-xs sm:text-sm font-medium text-gray-700 mb-1"
+                      className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 cok-req"
                     >
                       Email Address
                     </label>
@@ -457,7 +441,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                   </div>
 
                   <p className="text-center text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
-                    • Code refreshes every 30 seconds
+                    - Code refreshes every 30 seconds
                   </p>
 
                   {error && (
@@ -476,17 +460,8 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                 </>
               )}
 
-              <div className="text-center mt-4 sm:mt-6">
-                <button
-                  onClick={onClose}
-                  className="cok-btn-outlined w-full text-xs sm:text-sm py-2 sm:py-2.5"
-                >
-                  Back to Login
-                </button>
-              </div>
-
               <p className="text-left text-xs text-gray-400 mt-4 sm:mt-5">
-                © CITY OF KIGALI PORTAL
+                (c) CITY OF KIGALI PORTAL
               </p>
             </>
           )}

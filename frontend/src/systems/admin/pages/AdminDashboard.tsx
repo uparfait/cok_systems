@@ -11,6 +11,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import StatCard from './sub/AdminDashboardStats';
 import ActivityFeed from './sub/AdminDashboardActivity';
 import LoadingInline from './sub/LoadingSpinner';
+import { useVisitorPanel, visitorIdOf } from '../../../core/components/visitor/VisitorPanelProvider';
 
 
 const PRIMARY = "#056daa";
@@ -23,7 +24,7 @@ const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
 const NOTIFICATION_DURATION = 5000, RELOAD_DEBOUNCE_DELAY = 2000, LOADING_TIMEOUT = 15000, SILENT_REFRESH_INTERVAL = 10000, DEFAULT_PARKING_CAPACITY = 200;
 
-interface DashboardStats { departments: number; units: number; employees: number; parkingRecords: number; visitors: number; flaggedVehicles: number; activeVisitors: number; parkingCapacity: number; }
+interface DashboardStats { departments: number; units: number; employees: number; parkingRecords: number; visitors: number; flaggedVehicles: number; activeVisitors: number; registeredVisitors: number; returningVisitors: number; parkingCapacity: number; }
 
 const extractDataFromResponse = (response: any): any[] => {
   if (!response) return [];
@@ -37,6 +38,7 @@ const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { socket, isConnected } = useSocket();
   const navigate = useNavigate();
+  const { openVisitor } = useVisitorPanel();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const notificationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -48,7 +50,7 @@ const AdminDashboard: React.FC = () => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [realtimeNotification, setRealtimeNotification] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [stats, setStats] = useState<DashboardStats>({ departments: 0, units: 0, employees: 0, parkingRecords: 0, visitors: 0, flaggedVehicles: 0, activeVisitors: 0, parkingCapacity: DEFAULT_PARKING_CAPACITY });
+  const [stats, setStats] = useState<DashboardStats>({ departments: 0, units: 0, employees: 0, parkingRecords: 0, visitors: 0, flaggedVehicles: 0, activeVisitors: 0, registeredVisitors: 0, returningVisitors: 0, parkingCapacity: DEFAULT_PARKING_CAPACITY });
   const [recentParking, setRecentParking] = useState<any[]>([]);
   const [recentVisitors, setRecentVisitors] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -85,9 +87,14 @@ const AdminDashboard: React.FC = () => {
       if (visitorRes.status === 'fulfilled') {
         visitorData = extractDataFromResponse(visitorRes.value);
         visitorCount = visitorRes.value?.total !== undefined ? visitorRes.value.total : (visitorRes.value?.data?.total !== undefined ? visitorRes.value.data.total : visitorData.length);
-        activeVisitorCount = serviceStatsRes.status === 'fulfilled' && serviceStatsRes.value?.data?.inhouse ? serviceStatsRes.value.data.inhouse : visitorData.filter((v: any) => v.is_still_inhouse || v.status === 'Inside').length;
+        activeVisitorCount = visitorData.filter((v: any) => v.is_still_inhouse || v.status === 'Inside').length;
         setRecentVisitors([...visitorData].sort((a: any, b: any) => new Date(b.entry_date || b.check_in || 0).getTime() - new Date(a.entry_date || a.check_in || 0).getTime()).slice(0, 5));
       }
+      const serviceData = serviceStatsRes.status === 'fulfilled' ? serviceStatsRes.value?.data : null;
+      if (typeof serviceData?.visitors_in_house === 'number') activeVisitorCount = serviceData.visitors_in_house;
+      else if (typeof serviceData?.inhouse === 'number') activeVisitorCount = serviceData.inhouse;
+      const registeredVisitorCount = Number(serviceData?.registered_visitors) || 0;
+      const returningVisitorCount = Number(serviceData?.returning_visitors) || 0;
       setLoadingStates(prev => ({ ...prev, visitors: false }));
       try {
         const auditResp = await fetch('/cok/api/audit/logs?page=1&limit=40', { headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` } });
@@ -96,7 +103,7 @@ const AdminDashboard: React.FC = () => {
           setAuditLogs(Array.isArray(auditData?.data) ? auditData.data : []);
         }
       } catch { }
-      setStats({ departments: departmentsCount, units: unitsCount, employees: employeesCount, parkingRecords: parkingCount, visitors: visitorCount, flaggedVehicles: flaggedCount, activeVisitors: activeVisitorCount, parkingCapacity: DEFAULT_PARKING_CAPACITY });
+      setStats({ departments: departmentsCount, units: unitsCount, employees: employeesCount, parkingRecords: parkingCount, visitors: visitorCount, flaggedVehicles: flaggedCount, activeVisitors: activeVisitorCount, registeredVisitors: registeredVisitorCount, returningVisitors: returningVisitorCount, parkingCapacity: DEFAULT_PARKING_CAPACITY });
       setLastUpdated(new Date());
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
@@ -122,8 +129,6 @@ const AdminDashboard: React.FC = () => {
   const handleRefresh = useCallback(() => { loadData(); fetchHourlyAnalytics(); }, [loadData, fetchHourlyAnalytics]);
 
   const colorClasses = useMemo(() => ({ blue: { bg: 'cok-bg-primary', text: 'text-[#056daa]', light: 'bg-[rgba(5,109,170,0.1)]' }, green: { bg: 'bg-[#4CAF50]', text: 'text-[#388E3C]', light: 'bg-[rgba(76,175,80,0.12)]' }, purple: { bg: 'bg-[#2980B9]', text: 'text-[#2980B9]', light: 'bg-[rgba(41,128,185,0.1)]' }, orange: { bg: 'bg-[#F39C12]', text: 'text-[#F39C12]', light: 'bg-[rgba(243,156,18,0.12)]' }, red: { bg: 'bg-[#E74C3C]', text: 'text-[#E74C3C]', light: 'bg-[rgba(231,76,60,0.12)]' }, indigo: { bg: 'bg-[#2980B9]', text: 'text-[#2980B9]', light: 'bg-[rgba(41,128,185,0.1)]' } }), []);
-  // The dashboard is mounted under /:roleSlug, so internal links keep
-  // whatever slug the user is browsing under
   const base = `/${window.location.pathname.split('/')[1] || 'system-admin'}`;
   const quickActions = useMemo(() => [
     { title: 'Manage Departments', description: 'Add, edit, or remove departments', icon: HiOutlineOfficeBuilding, color: 'blue', path: `${base}/departments` },
@@ -134,14 +139,29 @@ const AdminDashboard: React.FC = () => {
   const statCards = useMemo(() => [
     { label: 'Total Departments', value: stats.departments, icon: HiOutlineOfficeBuilding, color: 'blue', subtext: stats.departments > 0 ? `${stats.units} total units` : 'No departments', trend: stats.departments > 0 ? `${stats.departments} departments, ${stats.units} units` : 'No data', path: `${base}/departments` },
     { label: 'Total Employees', value: stats.employees, icon: FiUsers, color: 'green', subtext: stats.employees > 0 ? 'Registered staff' : 'No employees', trend: stats.employees > 0 ? `${stats.employees} registered` : 'No data', path: `${base}/employees` },
-    { label: 'Active Visitors', value: stats.activeVisitors, icon: FiActivity, color: 'orange', subtext: stats.activeVisitors > 0 ? 'Currently inside' : 'No active visitors', trend: stats.flaggedVehicles > 0 ? `${stats.flaggedVehicles} flagged` : 'All clear', path: '' },
+    { label: 'Visitors In House', value: stats.activeVisitors, icon: FiActivity, color: 'orange', subtext: `${stats.registeredVisitors} registered visitors`, trend: `${stats.returningVisitors} returning visitors`, path: '' },
     { label: "Today's Check-ins", value: stats.parkingRecords, icon: FiTruck, color: 'purple', subtext: stats.parkingRecords > 0 ? 'Check-ins recorded' : 'No records', trend: stats.activeVisitors > 0 ? `${stats.activeVisitors} inside` : 'No data', path: `${base}/smart-parking` },
   ], [stats, base]);
 
   useEffect(() => { const handleOnline = () => { setIsOffline(false); loadData(); }; const handleOffline = () => setIsOffline(true); window.addEventListener('online', handleOnline); window.addEventListener('offline', handleOffline); return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); }; }, [loadData]);
   useEffect(() => { if (!authLoading) { if (!isAuthenticated) navigate('/login'); else { loadData(); fetchHourlyAnalytics(); } } return () => { if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); }; }, [isAuthenticated, authLoading, navigate, loadData, fetchHourlyAnalytics]);
   useEffect(() => { if (!isAuthenticated || authLoading) return; const interval = setInterval(() => loadData(true), SILENT_REFRESH_INTERVAL); return () => clearInterval(interval); }, [isAuthenticated, authLoading, loadData]);
-  useEffect(() => { setSocketConnected(isConnected); if (socket && isConnected) { const events = ['car_checkedin', 'car_checkedout', 'visitor_checkedin', 'visitor_checkedout', 'notifications']; events.forEach(event => { socket.on(event, (data: any) => { showNotification(data.message || `${event.replace('_', ' ')} detected`); scheduleReload(); }); }); } return () => { if (socket) { ['car_checkedin', 'car_checkedout', 'visitor_checkedin', 'visitor_checkedout', 'notifications'].forEach(event => socket.off(event)); } if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current); }; }, [socket, isConnected, showNotification, scheduleReload]);
+  useEffect(() => {
+    setSocketConnected(isConnected);
+    const events = ['car_checkedin', 'car_checkedout', 'visitor_checkedin', 'visitor_checkedout', 'visitor_updated', 'notifications'];
+    const handlers = socket && isConnected
+      ? events.map((event) => {
+          const handler = (data: any) => { showNotification(data?.message || `${event.replace('_', ' ')} detected`); scheduleReload(); };
+          socket.on(event, handler);
+          return { event, handler };
+        })
+      : [];
+    return () => {
+      if (socket) handlers.forEach(({ event, handler }) => socket.off(event, handler));
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current);
+    };
+  }, [socket, isConnected, showNotification, scheduleReload]);
 
   if (authLoading) return <div className="flex items-center justify-center min-h-[600px]"><LoadingSpinner message="Loading..." /></div>;
 
@@ -165,18 +185,25 @@ const AdminDashboard: React.FC = () => {
                 <div className="px-4 py-3 border-b border-[#E0E0E0] bg-[#F7F9FB]">
                   <div className="flex items-center gap-2"><FiTruck className="w-4 h-4 text-[#2980B9]" /><h2 className="text-sm font-semibold text-[#333333]">Recent Parking</h2></div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="cok-table-scroll">
                   <table className="w-full">
-                    <thead className="cok-bg-primary text-white"><tr><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Vehicle</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Time</th></tr></thead>
+                    <thead className="cok-bg-primary text-white"><tr><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Vehicle</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Driver</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">ID Type</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">ID Number</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Telephone</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Email</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Gender</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Visits</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Time</th></tr></thead>
                     <tbody className="divide-y divide-[#E0E0E0]">
                       {(loadingStates.parking && firstLoad) ? <LoadingInline message="Loading parking..." />
                         : recentParking.length > 0 ? recentParking.slice(0, 5).map((r: any) => (
-                            <tr key={r._id} className="hover:bg-[#F7F9FB] transition-colors cursor-pointer" onClick={() => navigate('/smart_parking/dashboard')}>
+                            <tr key={r._id} className="hover:bg-[#F7F9FB] transition-colors cursor-pointer" onClick={() => openVisitor(visitorIdOf(r))}>
                               <td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="w-7 h-7 bg-[rgba(41,128,185,0.1)] flex items-center justify-center"><FiTruck className="w-3.5 h-3.5 text-[#2980B9]" /></div><span className="text-sm font-medium text-[#333333]">{r.vehicle || r.plateNumber || r.plate_number || r.driver_name || '___'}</span></div></td>
+                              <td className="px-3 py-2.5 text-xs text-[#333333]">{r.driver_name || '___'}</td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{r.driver_identification?.id_type || '___'}</td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{r.driver_identification?.number || '___'}</td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{r.driver_telephone || '___'}</td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{r.driver_email || '___'}</td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{r.driver_gender || '___'}</td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{r.N_visits ?? 0}</td>
                               <td className="px-3 py-2.5"><span className={`text-xs font-semibold px-2 py-0.5 ${r.status === 'active' || r.status === 'Parked' ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{r.status === 'active' ? 'Parked' : r.status === 'completed' ? 'Completed' : r.status || 'Unknown'}</span></td>
                               <td className="px-3 py-2.5 text-xs text-[#555555]">{r.checkInTime || r.check_in ? new Date(r.checkInTime || r.check_in as string).toLocaleTimeString() : '___'}</td>
                             </tr>
-                          )) : <tr><td colSpan={3} className="px-3 py-6 text-center text-xs text-[#555555]"><FiTruck className="w-6 h-6 mx-auto mb-1 text-[#9E9E9E]" /><p>No parking records</p></td></tr>}
+                          )) : <tr><td colSpan={10} className="px-3 py-6 text-center text-xs text-[#555555]"><FiTruck className="w-6 h-6 mx-auto mb-1 text-[#9E9E9E]" /><p>No parking records</p></td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -186,18 +213,24 @@ const AdminDashboard: React.FC = () => {
                 <div className="px-4 py-3 border-b border-[#E0E0E0] bg-[#F7F9FB]">
                   <div className="flex items-center gap-2"><FiUsers className="w-4 h-4 text-[#388E3C]" /><h2 className="text-sm font-semibold text-[#333333]">Recent Visitors</h2></div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="cok-table-scroll">
                   <table className="w-full">
-                    <thead className="cok-bg-primary text-white"><tr><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Name</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Department</th></tr></thead>
+                    <thead className="cok-bg-primary text-white"><tr><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Name</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">ID Type</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">ID Number</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Telephone</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Email</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Gender</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Visits</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Department</th></tr></thead>
                     <tbody className="divide-y divide-[#E0E0E0]">
                       {(loadingStates.visitors && firstLoad) ? <LoadingInline message="Loading visitors..." />
                         : recentVisitors.length > 0 ? recentVisitors.slice(0, 5).map((v: any) => (
-                            <tr key={v._id} className="hover:bg-[#F7F9FB] transition-colors" onClick={() => navigate('/service_delivery/dashboard')}>
+                            <tr key={v._id} className="hover:bg-[#F7F9FB] transition-colors cursor-pointer" onClick={() => openVisitor(visitorIdOf(v))}>
                               <td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="w-7 h-7 bg-[rgba(76,175,80,0.12)] flex items-center justify-center"><FiUsers className="w-3.5 h-3.5 text-[#388E3C]" /></div><span className="text-sm font-medium text-[#333333]">{v.full_name || v.name || v.visitorName || '___'}</span></div></td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{v.identification?.id_type || '___'}</td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{v.identification?.number || '___'}</td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{v.telephone || '___'}</td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{v.email || '___'}</td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{v.gender || '___'}</td>
+                              <td className="px-3 py-2.5 text-xs text-[#555555]">{v.N_visits ?? 0}</td>
                               <td className="px-3 py-2.5"><span className={`text-xs font-semibold px-2 py-0.5 ${v.is_still_inhouse ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{v.is_still_inhouse ? 'Inside' : 'Left'}</span></td>
                               <td className="px-3 py-2.5 text-xs text-[#555555]">{v.department_name || (v.departments_assigned?.[0]?.department_name) || '___'}</td>
                             </tr>
-                          )) : <tr><td colSpan={3} className="px-3 py-6 text-center text-xs text-[#555555]"><FiUsers className="w-6 h-6 mx-auto mb-1 text-[#9E9E9E]" /><p>No visitors</p></td></tr>}
+                          )) : <tr><td colSpan={9} className="px-3 py-6 text-center text-xs text-[#555555]"><FiUsers className="w-6 h-6 mx-auto mb-1 text-[#9E9E9E]" /><p>No visitors</p></td></tr>}
                     </tbody>
                   </table>
                 </div>

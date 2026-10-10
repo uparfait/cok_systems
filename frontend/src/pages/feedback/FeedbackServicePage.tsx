@@ -118,7 +118,7 @@ const FeedbackServicePage: React.FC = () => {
     setIsSubmitting(true);
     try {
       await submitFeedback({
-        telephone: phone,
+        telephone: phone.trim(),
         department_id: selectedDepartment.department_id,
         rate: rating,
         textmessage: message.trim() || undefined,
@@ -159,7 +159,6 @@ const FeedbackServicePage: React.FC = () => {
     <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ backgroundColor: '#FFFFFF', paddingBottom: '80px' }}>
       <div className="w-full max-w-md mx-auto">
         <div className="bg-white p-6 sm:p-8" style={{ backgroundColor: WHITE, borderRadius: 0, border: '2px solid #056daa' }}>
-          {/* Step: Phone */}
           {step === 'phone' && (
             <div className="space-y-4">
               <div className="text-center mb-2">
@@ -170,7 +169,7 @@ const FeedbackServicePage: React.FC = () => {
                 <p className="text-xs text-gray-500">Use the phone number from your service visit</p>
               </div>
               <div>
-                <label className="cok-auth-label">Phone Number</label>
+                <label className="cok-auth-label cok-req">Phone Number</label>
                 <div className="relative">
                   <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3" style={{ color: '#9E9E9E' }}>
                     <FiPhone className="w-5 h-5" />
@@ -219,7 +218,6 @@ const FeedbackServicePage: React.FC = () => {
             </div>
           )}
 
-          {/* Step: Department */}
           {step === 'department' && (
             <div className="space-y-4">
               <div className="text-center mb-4">
@@ -275,7 +273,6 @@ const FeedbackServicePage: React.FC = () => {
             </div>
           )}
 
-          {/* Step: Rate */}
           {step === 'rate' && selectedDepartment && (
             <div className="space-y-5">
               <div className="text-center">
@@ -283,7 +280,7 @@ const FeedbackServicePage: React.FC = () => {
                 <p className="text-xs text-gray-500">Rate your experience</p>
               </div>
               <div>
-                <label className="cok-auth-label">Rating{rating > 0 ? `: ${rating}/10` : ''}</label>
+                <label className="cok-auth-label cok-req">Rating{rating > 0 ? `: ${rating}/10` : ''}</label>
                 <StarRating rating={rating} onChange={setRating} />
                 <div className="flex justify-between text-xs text-gray-400 mt-1 px-1">
                   <span>Poor</span><span>Excellent</span>
@@ -336,7 +333,6 @@ const FeedbackServicePage: React.FC = () => {
             </div>
           )}
 
-          {/* Step: Preview */}
           {step === 'preview' && selectedDepartment && (
             <div className="space-y-4">
               <div className="text-center mb-4">
@@ -411,7 +407,6 @@ const FeedbackServicePage: React.FC = () => {
             </div>
           )}
 
-          {/* Step: Success */}
           {(step === 'success') && (
             <div className="text-center space-y-4 py-4">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}>
@@ -433,7 +428,6 @@ const FeedbackServicePage: React.FC = () => {
             </div>
           )}
 
-          {/* Step: Error */}
           {step === 'error' && (
             <div className="text-center space-y-4 py-4">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>

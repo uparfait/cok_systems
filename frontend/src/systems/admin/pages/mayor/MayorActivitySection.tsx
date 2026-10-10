@@ -45,6 +45,7 @@ const StaticLegend: React.FC<{ items: Array<{ color: string; label: string }> }>
 
 const MayorActivitySection: React.FC<{ applied: AppliedFilter; refreshTick: number }> = ({ applied, refreshTick }) => {
   const [activityData, setActivityData] = useState<ActivityPoint[]>([]);
+  const [peopleCount, setPeopleCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const appliedKey = JSON.stringify(applied);
   const lastKeyRef = useRef('');
@@ -64,6 +65,8 @@ const MayorActivitySection: React.FC<{ applied: AppliedFilter; refreshTick: numb
         if (cancelled) return;
         const timeline = res?.data;
         setActivityData(Array.isArray(timeline) ? timeline : []);
+        const totals = res?.totals;
+        setPeopleCount(totals ? Number(totals.unique_visitors) || 0 : null);
       } catch {
       } finally {
         if (!cancelled) setLoading(false);
@@ -119,7 +122,14 @@ const MayorActivitySection: React.FC<{ applied: AppliedFilter; refreshTick: numb
         </div>
 
         <div className="bg-white border border-[#E0E0E0] p-4">
-          <h2 className="text-sm font-bold text-[#333333] mb-3" style={{ fontFamily: fontHeading }}>Service Delivery Activity</h2>
+          <div className="flex items-start justify-between gap-2 flex-wrap mb-3">
+            <h2 className="text-sm font-bold text-[#333333]" style={{ fontFamily: fontHeading }}>Service Delivery Activity</h2>
+            {!loading && peopleCount !== null && (
+              <span className="text-xs text-[#555555]" style={{ fontFamily: fontHeading }}>
+                {peopleCount.toLocaleString()} visitor(s) in this period
+              </span>
+            )}
+          </div>
           {loading ? spinner : activityData.length === 0 ? empty : (
             <div className="overflow-x-auto">
               <div className="h-72" style={{ minWidth: `${activityMinWidth}px` }}>

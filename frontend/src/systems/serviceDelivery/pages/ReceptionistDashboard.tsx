@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   FiUsers,
   FiClock,
@@ -21,10 +21,14 @@ import {
   departmentService,
   statisticsService,
 } from "../../../core/services/adminService";
+import { visitorApi } from "../../../core/components/visitor/visitorApi";
+import { getStoredNavigation } from "../../../core/services/navigationService";
 import { useAuth } from "../../../core/contexts/AuthContext";
 import { useSocket } from "../../../core/contexts/SocketContext";
 import { useToast } from "../../../core/contexts/ToastContext";
 import { SkeletonCard } from "./sub/ReceptionistSkeleton";
+import ReceptionistWaitingVisitors from "./sub/ReceptionistWaitingVisitors";
+import type { WaitingVisit } from "./sub/ReceptionistWaitingVisitors";
 import RequestStats from "../../../core/components/requests/RequestStatistics";
 import OrientationStats from "../../../core/components/requests/OrientationStats";
 import AssignedVisitorsGenderChart from "../components/departmentFlow/AssignedVisitorsGenderChart";
@@ -32,7 +36,6 @@ import ExportVisitorsModal from "../../../core/components/requests/ExportVisitor
 
 const PRIMARY = "#056daa";
 const SUCCESS = "#4CAF50";
-const WARNING = "#F39C12";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const NEUTRAL_DARK = "#333333";
 const BORDER = "#E0E0E0";
@@ -41,122 +44,92 @@ const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
-interface Visitor {
-  _id?: string;
-  id?: string;
-  name?: string;
-  full_name?: string;
-  visitorName?: string;
-  badge_number?: string;
-  badge?: string;
-  identification?: string | { number?: string };
-  telephone?: string;
-  email?: string;
-  status: string;
-  checkInTime?: string;
-  check_in_time?: string;
-  entry_date?: string;
-  department?: string;
-  departmentName?: string;
-  departments_assigned?: Array<{
-    department_id: string;
-    department_name?: string;
-    status: string;
-    provider_name?: string;
-    provider_id?: string;
-  }>;
-  services_status?: Array<{
-    department_id: string;
-    department_name?: string;
-    s_type?: string;
-    provider_name?: string;
-    provider_id?: string;
-  }>;
-}
+const TOAST_EVENTS = ["visitor_checkedin", "visitor_checkedout", "car_checkedin", "car_checkedout"];
+const QUIET_EVENTS = ["visitor_updated", "visitor_assigned", "service_status_updated"];
 
 const ReceptionistDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { roleSlug: routeSlug } = useParams<{ roleSlug: string }>();
+  const roleSlug = routeSlug || getStoredNavigation()?.role_slug || "receptionist";
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { socket, isConnected } = useSocket();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
-  const [visitors, setVisitors] = useState<Visitor[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [subDepartmentIds, setSubDepartmentIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [isLoading, setIsLoading] = useState(true);
+  const [waiting, setWaiting] = useState<WaitingVisit[]>([]);
+  const [waitingTotal, setWaitingTotal] = useState(0);
+  const [inHouseTotal, setInHouseTotal] = useState(0);
+  const [totalDepartments, setTotalDepartments] = useState(0);
   const [firstLoad, setFirstLoad] = useState(true);
   const [hourlyData, setHourlyData] = useState<
     { hour: number; visitors_checked_in: number }[]
   >([]);
   const [hourlyDataLoading, setHourlyDataLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
+  const liveTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) navigate("/login");
   }, [isAuthenticated, authLoading, navigate]);
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadVisitors = useCallback(async () => {
+    let waitingCount = 0;
     try {
-      let visitorRes = await serviceDeliveryService.getDashboardVisitors(1, 20, null,true);
+      const visitorRes = await serviceDeliveryService.getDashboardVisitors(1, 20, undefined, true);
       if (visitorRes.status || visitorRes.success) {
-        const allVisitors = Array.isArray(visitorRes.data)
-          ? visitorRes.data
-          : [];
-        allVisitors.sort(
-          (a: any, b: any) =>
-            new Date(
-              a.checkInTime || a.check_in_time || a.entry_date,
-            ).getTime() -
-            new Date(
-              b.checkInTime || b.check_in_time || b.entry_date,
-            ).getTime(),
-        );
-        setVisitors(allVisitors);
-        setTotalCount(visitorRes.total || 0);
+        setWaiting(Array.isArray(visitorRes.data) ? visitorRes.data : []);
+        waitingCount = visitorRes.total || 0;
+        setWaitingTotal(waitingCount);
       }
+    } catch (error) {
+      setWaiting([]);
+    }
+    try {
+      const inHouse = await visitorApi.list({ presence: "in_house", page: 1, limit: 1 });
+      setInHouseTotal(Math.max(inHouse.pagination?.total || 0, waitingCount));
+    } catch (error) {
+      setInHouseTotal(waitingCount);
+    }
+  }, []);
+
+  const loadHourly = useCallback(async () => {
+    try {
+      const hR = await statisticsService.getHourlyServiceDeliveryStats();
+      if (hR.success) setHourlyData(hR.data?.hourly || hR.data || []);
+    } catch (error) {}
+  }, []);
+
+  const loadDepartments = useCallback(async () => {
+    try {
       const deptR = await departmentService.getAll();
       if (deptR.status || deptR.success) {
-        const deptData = Array.isArray(deptR.data) ? deptR.data : [];
-        setDepartments(deptData);
-        const ids = new Set<string>();
-        deptData.forEach((d: any) => {
-          if (
-            d.sub_department_mng?.is_sub_department === true ||
-            d.sub_department_mng?.is_sub_department === "true"
-          )
-            ids.add(String(d._id || d.department_id));
-          if (d.sub_departments)
-            d.sub_departments.forEach((s: any) => {
-              const id = s._id || s.department_id;
-              if (id) ids.add(String(id));
-            });
-        });
-        setSubDepartmentIds(ids);
+        setTotalDepartments(Array.isArray(deptR.data) ? deptR.data.length : 0);
       }
-      setHourlyDataLoading(true);
-      try {
-        const hR = await statisticsService.getHourlyServiceDeliveryStats();
-        if (hR.success) setHourlyData(hR.data?.hourly || hR.data || []);
-      } catch (error) {}
-    } catch (error) {
-    } finally {
-      setFirstLoad(false);
-      setIsLoading(false);
-      setHourlyDataLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
+    } catch (error) {}
   }, []);
 
   useEffect(() => {
-    if (!socket || !isConnected) return;
-    const h = (data: any) => {
-      if (data.show_notif === false) {
+    let active = true;
+    (async () => {
+      await Promise.all([loadVisitors(), loadDepartments(), loadHourly()]);
+      if (!active) return;
+      setFirstLoad(false);
+      setHourlyDataLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [loadVisitors, loadDepartments, loadHourly]);
+
+  useEffect(() => {
+    if (!socket || !isConnected) return undefined;
+    const refresh = () => {
+      if (liveTimer.current) window.clearTimeout(liveTimer.current);
+      liveTimer.current = window.setTimeout(() => {
+        loadVisitors();
+        loadHourly();
+      }, 400);
+    };
+    const withToast = (data: any) => {
+      if (data && data.show_notif === false && data.message) {
         const m = data.message;
         const t = data.type || "info";
         if (t === "success") showSuccess(m);
@@ -164,37 +137,19 @@ const ReceptionistDashboard: React.FC = () => {
         else if (t === "warning") showWarning(m);
         else showInfo(m);
       }
-      loadData();
+      refresh();
     };
-    socket.on("visitor_checkedin", h);
-    socket.on("visitor_checkedout", h);
-    socket.on("car_checkedin", h);
-    socket.on("car_checkedout", h);
+    TOAST_EVENTS.forEach((name) => socket.on(name, withToast));
+    QUIET_EVENTS.forEach((name) => socket.on(name, refresh));
     return () => {
-      socket.off("visitor_checkedin", h);
-      socket.off("visitor_checkedout", h);
-      socket.off("car_checkedin", h);
-      socket.off("car_checkedout", h);
+      TOAST_EVENTS.forEach((name) => socket.off(name, withToast));
+      QUIET_EVENTS.forEach((name) => socket.off(name, refresh));
+      if (liveTimer.current) window.clearTimeout(liveTimer.current);
     };
-  }, [socket, isConnected]);
+  }, [socket, isConnected, loadVisitors, loadHourly, showSuccess, showError, showWarning, showInfo]);
 
-  const getVisitorName = (v: Visitor) =>
-    v.full_name || v.name || v.visitorName || "Unknown";
-  const getCheckInTime = (v: Visitor) =>
-    new Date(
-      v.checkInTime || v.check_in_time || v.entry_date || "",
-    ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) ||
-    "Just now";
-  const getIdentification = (v: Visitor) =>
-    !v.identification
-      ? "---"
-      : typeof v.identification === "string"
-        ? v.identification
-        : v.identification.number || "---";
-  const assignedCount = visitors.filter(
-    (v) => v.departments_assigned && v.departments_assigned.length > 0,
-  ).length;
-  const totalDepartments = departments.length;
+  const assignedCount = Math.max(0, inHouseTotal - waitingTotal);
+  const openVisitorsPage = () => navigate(`/${roleSlug}/visitors`);
 
   return (
     <div className="space-y-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
@@ -210,7 +165,7 @@ const ReceptionistDashboard: React.FC = () => {
             [
               {
                 label: "Total Current Visitors",
-                value: totalCount,
+                value: inHouseTotal,
                 icon: FiUsers,
                 color: PRIMARY,
               },
@@ -265,6 +220,13 @@ const ReceptionistDashboard: React.FC = () => {
             ))
           )}
         </div>
+
+        <ReceptionistWaitingVisitors
+          rows={waiting}
+          total={waitingTotal}
+          loading={firstLoad}
+          onOpenVisitorsPage={openVisitorsPage}
+        />
 
         <div
           className="p-4"

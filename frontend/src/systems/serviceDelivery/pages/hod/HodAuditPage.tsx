@@ -157,7 +157,7 @@ const HodAuditPage: React.FC = () => {
         ) : logs.length === 0 ? (
           <HodEmpty message="No audit records found for your department members yet. Records appear here when a request by a member is refused or fails." />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="cok-table-scroll">
             <table className="w-full min-w-[960px]">
               <thead>
                 <tr>

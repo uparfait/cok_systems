@@ -10,7 +10,11 @@
       "targeted": true,
       "sent_to": "The specific employee when a provider is chosen; otherwise the users of the target unit; otherwise all users of the target department and its units",
       "why": "Tells staff a visitor was assigned to them. Carries assigned_total, waiting_total, and the live queue of the department.",
-      "emitted_from": ["controllers/serivice_delivery/assign_vistor_to_department.js"],
+      "emitted_from": [
+        "utilities/visitors/service.js",
+        "controllers/serivice_delivery/assign_vistor_to_department.js",
+        "controllers/visitors/visitor_actions.js"
+      ],
       "shown_in_notification_panel": true
     },
     "you_forgot_to_stop_service": {
@@ -18,6 +22,7 @@
       "sent_to": "The provider who was serving the visitor",
       "why": "Warns a provider that their service was stopped automatically because the visitor left.",
       "emitted_from": [
+        "utilities/visitors/visits.js",
         "controllers/smart_parking/check_out.js",
         "controllers/serivice_delivery/partial_exit.js",
         "controllers/serivice_delivery/vistor_checkout.js"
@@ -56,7 +61,10 @@
       "targeted": false,
       "sent_to": "Everyone connected (reception and dashboards react to it)",
       "why": "A visitor checked in. Pages refresh their visitor lists and show a toast.",
-      "emitted_from": ["controllers/serivice_delivery/vistor_checkin.js"],
+      "emitted_from": [
+        "controllers/serivice_delivery/vistor_checkin.js",
+        "controllers/smart_parking/check_in.js"
+      ],
       "shown_in_notification_panel": true
     },
     "visitor_checkedout": {
@@ -65,7 +73,8 @@
       "why": "A visitor checked out. Pages refresh their visitor lists and show a toast.",
       "emitted_from": [
         "controllers/serivice_delivery/vistor_checkout.js",
-        "controllers/serivice_delivery/partial_exit.js"
+        "controllers/serivice_delivery/partial_exit.js",
+        "controllers/smart_parking/check_out.js"
       ],
       "shown_in_notification_panel": true
     },
@@ -90,7 +99,11 @@
       "targeted": false,
       "sent_to": "Everyone connected",
       "why": "A visitor service started or ended. Dashboards refresh their queues.",
-      "emitted_from": ["controllers/serivice_delivery/toggle_service_status.js"],
+      "emitted_from": [
+        "utilities/visitors/service.js",
+        "controllers/serivice_delivery/toggle_service_status.js",
+        "controllers/visitors/visitor_actions.js"
+      ],
       "shown_in_notification_panel": false
     },
     "leave_return": {
@@ -98,6 +111,20 @@
       "sent_to": "Everyone connected",
       "why": "A visitor stepped outside or returned. Dashboards refresh their lists.",
       "emitted_from": ["controllers/serivice_delivery/toggle_leave_out_side_and_return.js"],
+      "shown_in_notification_panel": false
+    },
+    "visitor_updated": {
+      "targeted": false,
+      "sent_to": "Everyone connected (open visitor screens react to it)",
+      "why": "A visitor or their visit changed (check-in, check-out, details, service, assignment, leave or return). Screens showing that visitor reload it. The payload carries ids only (visitor_id) and show_notif false, never personal details. Not a user notification.",
+      "emitted_from": ["utilities/visitors/realtime.js"],
+      "shown_in_notification_panel": false
+    },
+    "visitor_attachments_updated": {
+      "targeted": false,
+      "sent_to": "Everyone connected (open visitor screens react to it)",
+      "why": "Files were added to a visit of a visitor, or one of its attachments was changed. The visitor panel reloads the attachments. The payload carries ids only (visitor_id, visit_id) and show_notif false, never personal details. Not a user notification.",
+      "emitted_from": ["utilities/visitors/realtime.js"],
       "shown_in_notification_panel": false
     },
     "feedback_submitted": {

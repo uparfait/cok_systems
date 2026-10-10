@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiX, FiEdit3 } from 'react-icons/fi';
+import { FiEdit3 } from 'react-icons/fi';
 import outgoingService from '../../../core/services/outgoingService';
 import type { OutgoingDoc } from '../../../core/services/outgoingService';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 import { useToast } from '../../../core/contexts/ToastContext';
+import OverlayShell from '../overlay/OverlayShell';
+import OverlayCloseButton from '../overlay/OverlayCloseButton';
 
 type OutgoingFormState = {
   reference_number: string;
@@ -166,27 +168,61 @@ const OutgoingDetails: React.FC<{
 
   if (showCreateForm) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div
-          className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col"
-          style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
-        >
-          <div
-            className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary"
-            style={{ borderRadius: 0 }}
+      <OverlayShell
+        title="New Outgoing"
+        onClose={() => { setShowCreateForm(false); onClose(); }}
+        busy={loading}
+        width="lg"
+        closeOnBackdrop={false}
+        footer={
+          <button
+            type="button"
+            onClick={async () => {
+              setLoading(true);
+              try {
+                const payload: any = {
+                  reference_number: form.reference_number,
+                  department_number: form.department_number,
+                  date_of_reception: form.date_of_reception || null,
+                  date_of_recording: form.date_of_recording || null,
+                  destination: form.destination,
+                  subject: form.subject,
+                  sign_by: form.sign_by,
+                };
+                if (requestId) {
+                  payload.request_id = requestId;
+                }
+                 await outgoingService.create(payload);
+                 showSuccess('Outgoing created successfully');
+                 onUpdate();
+                 setShowCreateForm(false);
+                 onClose();
+                 if (requestId) {
+                   loadOutgoingByRequest(requestId);
+                 }
+              } catch (error) {
+                console.error('Failed to create outgoing:', error);
+                showError('Failed to create outgoing');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+            className="cok-btn-primary flex max-h-[50px] flex-row items-center justify-center gap-2"
+            style={{ padding: '0.7rem 1.2rem', width: 'auto' }}
           >
-            <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-              New Outgoing
-            </h2>
-            <button
-              onClick={() => { setShowCreateForm(false); onClose(); }}
-              className="cok-btn-outlined-reverse"
-              style={{ padding: '0.4rem 0.8rem' }}
-            >
-              <FiX className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="p-4 sm:p-6 space-y-4">
+            {loading ? (
+              <>
+                <SpiralLoader color="#FFFFFF" />
+                Saving...
+              </>
+            ) : (
+              'Save'
+            )}
+          </button>
+        }
+      >
+          <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: '#555555', fontFamily: "'Montserrat', sans-serif" }}>
@@ -282,79 +318,17 @@ const OutgoingDetails: React.FC<{
               />
             </div>
           </div>
-
-          <div className="p-4 sm:p-6 pt-2 flex flex-col gap-3 border-t" style={{ borderColor: '#E0E0E0' }}>
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-              <button
-                type="button"
-                onClick={async () => {
-                  setLoading(true);
-                  try {
-                    const payload: any = {
-                      reference_number: form.reference_number,
-                      department_number: form.department_number,
-                      date_of_reception: form.date_of_reception || null,
-                      date_of_recording: form.date_of_recording || null,
-                      destination: form.destination,
-                      subject: form.subject,
-                      sign_by: form.sign_by,
-                    };
-                    if (requestId) {
-                      payload.request_id = requestId;
-                    }
-                     await outgoingService.create(payload);
-                     showSuccess('Outgoing created successfully');
-                     onUpdate();
-                     setShowCreateForm(false);
-                     onClose();
-                     if (requestId) {
-                       loadOutgoingByRequest(requestId);
-                     }
-                  } catch (error) {
-                    console.error('Failed to create outgoing:', error);
-                    showError('Failed to create outgoing');
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                disabled={loading}
-                className="cok-btn-primary flex max-h-[50px] flex-row items-center justify-center gap-2"
-                style={{ padding: '0.7rem 1.2rem', width: 'auto' }}
-              >
-                {loading ? (
-                  <>
-                    <SpiralLoader color="#FFFFFF" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save'
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowCreateForm(false); onClose(); }}
-                className="cok-btn-outlined"
-                style={{ width: 'auto', padding: '0.7rem 1.2rem' }}
-              >
-                Cancel
-              </button>
-            </div>
-            <button type="button" onClick={() => { setShowCreateForm(false); onClose(); }} className="w-full cok-btn-outlined" style={{ padding: '0.9rem 1.2rem' }}>
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
+      </OverlayShell>
     );
   }
 
   if (loading && !currentOutgoing) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="bg-white w-full max-w-2xl p-8" style={{ borderRadius: 0 }}>
+      <OverlayShell title="Outgoing Details" onClose={onClose} width="lg">
+        <div className="flex items-center justify-center p-8">
           <SpiralLoader />
         </div>
-      </div>
+      </OverlayShell>
     );
   }
 
@@ -364,40 +338,33 @@ const OutgoingDetails: React.FC<{
 
   if (!currentOutgoing && requestId) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-          <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary" style={{ borderRadius: 0 }}>
-            <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>Outgoing Details</h2>
-            <button onClick={onClose} className="cok-btn-outlined-reverse" style={{ padding: '0.4rem 0.8rem' }}>
-              <FiX className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="p-4 sm:p-6 text-center py-12 text-sm text-gray-400">
+      <OverlayShell
+        title="Outgoing Details"
+        onClose={onClose}
+        width="lg"
+        footer={
+          <button
+            type="button"
+            onClick={() => setShowCreateForm(true)}
+            className="cok-btn-primary"
+            style={{ padding: '0.7rem 1.2rem' }}
+          >
+            Create Outgoing
+          </button>
+        }
+      >
+          <div className="text-center py-12 text-sm text-gray-400">
             No outgoing recorded for this request yet
           </div>
-          <div className="p-4 sm:p-6 pt-2 flex flex-col gap-3 border-t" style={{ borderColor: '#E0E0E0' }}>
-            <button
-              type="button"
-              onClick={() => setShowCreateForm(true)}
-              className="cok-btn-primary"
-              style={{ padding: '0.7rem 1.2rem' }}
-            >
-              Create Outgoing
-            </button>
-            <button type="button" onClick={onClose} className="w-full cok-btn-outlined" style={{ padding: '0.9rem 1.2rem' }}>
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
+      </OverlayShell>
     );
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-         <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary" style={{ borderRadius: 0 }}>
-          <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>Outgoing Details</h2>
+         <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 bg-white border-b border-gray-100" style={{ borderRadius: 0 }}>
+          <h2 className="text-lg font-bold text-gray-900" style={{ fontFamily: "'Montserrat', sans-serif" }}>Outgoing Details</h2>
           <div className="flex items-center gap-3">
             {isEdit && currentOutgoing && (
               <>
@@ -409,21 +376,19 @@ const OutgoingDetails: React.FC<{
                   aria-pressed={isEditing}
                 >
                   <span className="inline-block z-5 h-5 w-5 cok-primary-bg transition-transform duration-200" style={{ transform: isEditing ? 'translateX(20px)' : 'translateX(2px)', borderRadius: 990 }} />
-                  <span className="absolute inset-0 transition-colors duration-200" style={{ borderRadius: 200, backgroundColor: '#FFFFFF' }} />
+                  <span className="absolute inset-0 transition-colors duration-200" style={{ borderRadius: 200, backgroundColor: '#E5E7EB' }} />
                 </button>
-                <div className="text-white text-xs font-semibold uppercase mr-1" style={{ fontFamily: "var(--cok-font-heading)", minWidth: '54px', textAlign: 'center' }}>
+                <div className="text-gray-700 text-xs font-semibold uppercase mr-1" style={{ fontFamily: "var(--cok-font-heading)", minWidth: '54px', textAlign: 'center' }}>
                   {isEditing ? 'EDIT ON' : 'EDIT OFF'}
                 </div>
               </>
             )}
-            <button onClick={onClose} className="cok-btn-outlined-reverse" style={{ padding: '0.4rem 0.8rem' }}>
-              <FiX className="w-4 h-4" />
-            </button>
+            <OverlayCloseButton onClick={onClose} disabled={loading} />
           </div>
         </div>
 
         <div className="p-4 sm:p-6">
-          <div className="overflow-x-auto">
+          <div className="cok-table-scroll">
             <table className="w-full text-sm" style={{ borderRadius: 0 }}>
               <thead>
                 <tr style={{ backgroundColor: '#F7F9FB' }}>
@@ -431,7 +396,7 @@ const OutgoingDetails: React.FC<{
                   <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Value</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="[&>tr:not(:last-child)>td]:border-b [&>tr:not(:last-child)>td]:border-gray-100">
                 {rows.map((row, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase" style={{ fontFamily: "'Montserrat', sans-serif" }}>{row.label}</td>
@@ -445,17 +410,14 @@ const OutgoingDetails: React.FC<{
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 pt-2 flex flex-col gap-3 border-t" style={{ borderColor: '#E0E0E0' }}>
-          {isEdit && isEditing && (
+        {isEdit && isEditing && (
+          <div className="p-4 sm:p-6 pt-2 flex flex-col gap-3 border-t" style={{ borderColor: '#E0E0E0' }}>
             <button type="button" onClick={handleSave} disabled={loading} className="cok-btn-primary flex max-h-[50px] flex-row items-center justify-center gap-2" style={{ width: 'auto', padding: '0.7rem 1.2rem' }}>
               {loading && <SpiralLoader color='#FFFFFF' />}
               Save
             </button>
-          )}
-          <button type="button" onClick={onClose} className="w-full cok-btn-outlined" style={{ padding: '0.9rem 1.2rem' }}>
-            Close
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

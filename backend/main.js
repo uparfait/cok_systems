@@ -83,6 +83,9 @@ const allRoutes = require("./routes/main.js");
 const app = express();
 const PORT = process.env.PORT || 2026;
 const server = http.createServer(app);
+// Visitor attachments have no size limit, so a slow upload must not be cut
+// off by Node's default 5 minute request timeout.
+server.requestTimeout = 0;
 const web_socket_service = new WebSocketService(server);
 
 /**
@@ -187,6 +190,15 @@ db_connection()
       console.log("Default parking slot document created.");
     } else {
       console.log("Parking slot document already exists.");
+    }
+
+    // Reservations saved before the gate plate rule (dashes, spaces) are
+    // rewritten once at startup so those cars are recognised at check-in.
+    try {
+      const fixedPlates = await require("./controllers/reservationsController.js").normalizeStoredReservationPlates();
+      if (fixedPlates) console.log(`Reservation plates normalized: ${fixedPlates}`);
+    } catch (plateError) {
+      console.error("Reservation plate normalization failed:", plateError.message);
     }
 
     // Start task notification scheduler

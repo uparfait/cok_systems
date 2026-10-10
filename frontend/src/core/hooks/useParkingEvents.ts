@@ -10,69 +10,43 @@ export const useParkingEvents = ({ refetch }: UseParkingEventsProps) => {
   const { socket, isConnected } = useSocket();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
 
-  const handleCarCheckin = useCallback((data: any) => {
-    console.log('🔔 useParkingEvents: car_checkedin:', data);
-    if (data.show_notif === false ) {
-      const type = data.type || 'info';
-      const message = data.message || 'Vehicle checked in';
-      switch (type) {
-        case 'success': showSuccess(message); break;
-        case 'error': showError(message); break;
-        case 'warning': showWarning(message); break;
-        default: showInfo(message);
-      }
+  const notify = useCallback((data: any, fallback: string) => {
+    if (data?.show_notif !== false) return;
+    const message = data.message || fallback;
+    switch (data.type || 'info') {
+      case 'success': showSuccess(message); break;
+      case 'error': showError(message); break;
+      case 'warning': showWarning(message); break;
+      default: showInfo(message);
     }
+  }, [showSuccess, showError, showWarning, showInfo]);
+
+  const handleCarCheckin = useCallback((data: any) => {
+    notify(data, 'Vehicle checked in');
     refetch?.();
-  }, [refetch, showSuccess, showError, showWarning, showInfo]);
+  }, [notify, refetch]);
 
   const handleCarCheckout = useCallback((data: any) => {
-    console.log('🔔 useParkingEvents: car_checkedout:', data);
-    if (data.show_notif === false ) {
-      const type = data.type || 'info';
-      const message = data.message || 'Vehicle checked out';
-      switch (type) {
-        case 'success': showSuccess(message); break;
-        case 'error': showError(message); break;
-        case 'warning': showWarning(message); break;
-        default: showInfo(message);
-      }
-    }
+    notify(data, 'Vehicle checked out');
     refetch?.();
-  }, [refetch, showSuccess, showError, showWarning, showInfo]);
+  }, [notify, refetch]);
 
   const handleVisitorCheckin = useCallback((data: any) => {
-    console.log('🔔 useParkingEvents: visitor_checkedin:', data);
-    if (data.show_notif === false ) {
-      const type = data.type || 'info';
-      const message = data.message || 'Visitor checked in';
-      switch (type) {
-        case 'success': showSuccess(message); break;
-        case 'error': showError(message); break;
-        case 'warning': showWarning(message); break;
-        default: showInfo(message);
-      }
-    }
+    notify(data, 'Visitor checked in');
     refetch?.();
-  }, [refetch, showSuccess, showError, showWarning, showInfo]);
+  }, [notify, refetch]);
 
   const handleVisitorCheckout = useCallback((data: any) => {
-    console.log('🔔 useParkingEvents: visitor_checkedout:', data);
-    if (data.show_notif === false ) {
-      const type = data.type || 'info';
-      const message = data.message || 'Visitor checked out';
-      switch (type) {
-        case 'success': showSuccess(message); break;
-        case 'error': showError(message); break;
-        case 'warning': showWarning(message); break;
-        default: showInfo(message);
-      }
-    }
+    notify(data, 'Visitor checked out');
     refetch?.();
-  }, [refetch, showSuccess, showError, showWarning, showInfo]);
+  }, [notify, refetch]);
+
+  const handleVisitorUpdated = useCallback(() => {
+    refetch?.();
+  }, [refetch]);
 
   const handleParkingAlert = useCallback((data: any) => {
-    console.log('🔔 useParkingEvents: parking_alert:', data);
-    showWarning(data.message || 'Parking alert');
+    showWarning(data?.message || 'Parking alert');
     refetch?.();
   }, [refetch, showWarning]);
 
@@ -83,6 +57,7 @@ export const useParkingEvents = ({ refetch }: UseParkingEventsProps) => {
     socket.on('car_checkedout', handleCarCheckout);
     socket.on('visitor_checkedin', handleVisitorCheckin);
     socket.on('visitor_checkedout', handleVisitorCheckout);
+    socket.on('visitor_updated', handleVisitorUpdated);
     socket.on('parking_alert', handleParkingAlert);
 
     return () => {
@@ -90,9 +65,10 @@ export const useParkingEvents = ({ refetch }: UseParkingEventsProps) => {
       socket.off('car_checkedout', handleCarCheckout);
       socket.off('visitor_checkedin', handleVisitorCheckin);
       socket.off('visitor_checkedout', handleVisitorCheckout);
+      socket.off('visitor_updated', handleVisitorUpdated);
       socket.off('parking_alert', handleParkingAlert);
     };
-  }, [socket, isConnected, handleCarCheckin, handleCarCheckout, handleVisitorCheckin, handleVisitorCheckout, handleParkingAlert]);
+  }, [socket, isConnected, handleCarCheckin, handleCarCheckout, handleVisitorCheckin, handleVisitorCheckout, handleVisitorUpdated, handleParkingAlert]);
 
   return { isConnected };
 };

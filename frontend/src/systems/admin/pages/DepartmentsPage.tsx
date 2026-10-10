@@ -5,6 +5,7 @@ import { useToast } from '../../../core/contexts/ToastContext';
 import { departmentService, employeeService, normalizeDepartments, type Department, type Employee } from '../../../core/services/adminService';
 import DepartmentManagementTable from '../components/DepartmentManagementTable';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
+import OverlayShell from '../../../core/components/overlay/OverlayShell';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { FiPlus, FiSearch, FiRefreshCw, FiCheck, FiAlertCircle } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding } from 'react-icons/hi';
@@ -147,29 +148,30 @@ const DepartmentsPage: React.FC = () => {
         </div>
 
         {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white w-full max-w-lg shadow-2xl overflow-hidden">
-              <div className="p-4 border-b bg-gray-50"><div className="flex items-center gap-3"><div className="w-9 h-9 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><HiOutlineOfficeBuilding className="w-4 h-4 cok-primary-color" /></div><div><h2 className="text-sm font-bold text-gray-900">{editingDepartment ? `Edit ${entityLabel}` : `Add ${entityLabel}`}</h2><p className="text-xs text-gray-500">{editingDepartment ? `Update ${entityLabel.toLowerCase()} details` : formData?.is_unit ? 'Create a new department unit under the selected department' : 'Create a new department'}</p></div></div></div>
-              <form onSubmit={handleSubmit} className="p-4 space-y-4">
-                {formError && <div className="bg-[rgba(231,76,60,0.08)] border border-[#E74C3C] text-[#E74C3C] px-3 py-2 text-sm flex items-start gap-2"><FiAlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{formError}</span></div>}
-                {formSuccess && <div className="bg-[rgba(76,175,80,0.08)] border border-[#388E3C] text-[#388E3C] px-3 py-2 text-sm flex items-start gap-2"><FiCheck className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{formSuccess}</span></div>}
-                <div><span className={`inline-block text-xs px-2 py-0.5 font-semibold ${formData?.is_unit ? 'bg-[rgba(41,128,185,0.08)] text-[#2980B9]' : 'bg-[rgba(5,109,170,0.1)] text-[#056daa]'}`}>{formData?.is_unit ? 'Department Unit' : 'Department'}</span></div>
-                <div><label className="text-xs font-semibold text-gray-700 mb-1 block">{entityLabel} Name <span className="text-red-500">*</span></label><input type="text" required value={formData?.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder={`${entityLabel} name`} /></div>
-                <div><label className="text-xs font-semibold text-gray-700 mb-1 block">{entityLabel} Code (optional)</label><input type="text" value={formData?.dpt_id || ''} onChange={e => setFormData({ ...formData, dpt_id: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="e.g., DEP-001" /></div>
-                <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Room Number</label><input type="text" value={formData?.room_number || ''} onChange={e => setFormData({ ...formData, room_number: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="e.g., 101" /></div>
-                <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Description</label><textarea value={formData?.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm resize-none" rows={2} placeholder="Description" /></div>
-                <div><label className="text-xs font-semibold text-gray-700 mb-1 block">{entityLabel} Leader</label><select value={typeof formData?.leader === 'string' ? formData?.leader : ''} onChange={e => setFormData({ ...formData, leader: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm"><option value="">No leader</option>{employees.map(emp => <option key={emp._id || emp.employee_id} value={emp._id || emp.employee_id || ''}>{emp.full_name} ({emp.email})</option>)}</select></div>
-                <div className="flex gap-3 pt-1">
-                  <button type="submit" disabled={submitting} className="flex-1 px-3 py-2 cok-btn-primary text-white text-sm font-medium disabled:opacity-50">{submitting ? 'Saving...' : editingDepartment ? 'Update' : 'Create'}</button>
-                                    
-                                    <button type="button" onClick={() => setShowModal(false)} disabled={submitting} className="flex-1 px-3 py-2 cok-btn-outlined text-sm font-medium ">Cancel</button>
-                  </div>
-              </form>
-            </div>
-          </div>
+          <OverlayShell
+            title={<span className="inline-flex items-center gap-2 max-w-full"><HiOutlineOfficeBuilding className="w-4 h-4 shrink-0 cok-primary-color" /><span className="truncate">{editingDepartment ? `Edit ${entityLabel}` : `Add ${entityLabel}`}</span></span>}
+            subtitle={editingDepartment ? `Update ${entityLabel.toLowerCase()} details` : formData?.is_unit ? 'Create a new department unit under the selected department' : 'Create a new department'}
+            onClose={() => setShowModal(false)}
+            busy={submitting}
+            closeOnBackdrop={false}
+          >
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {formError && <div className="bg-[rgba(231,76,60,0.08)] border border-[#E74C3C] text-[#E74C3C] px-3 py-2 text-sm flex items-start gap-2"><FiAlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{formError}</span></div>}
+              {formSuccess && <div className="bg-[rgba(76,175,80,0.08)] border border-[#388E3C] text-[#388E3C] px-3 py-2 text-sm flex items-start gap-2"><FiCheck className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{formSuccess}</span></div>}
+              <div><span className={`inline-block text-xs px-2 py-0.5 font-semibold ${formData?.is_unit ? 'bg-[rgba(41,128,185,0.08)] text-[#2980B9]' : 'bg-[rgba(5,109,170,0.1)] text-[#056daa]'}`}>{formData?.is_unit ? 'Department Unit' : 'Department'}</span></div>
+              <div><label className="text-xs font-semibold text-gray-700 mb-1 block cok-req">{entityLabel} Name</label><input type="text" required value={formData?.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder={`${entityLabel} name`} /></div>
+              <div><label className="text-xs font-semibold text-gray-700 mb-1 block">{entityLabel} Code (optional)</label><input type="text" value={formData?.dpt_id || ''} onChange={e => setFormData({ ...formData, dpt_id: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="e.g., DEP-001" /></div>
+              <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Room Number</label><input type="text" value={formData?.room_number || ''} onChange={e => setFormData({ ...formData, room_number: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="e.g., 101" /></div>
+              <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Description</label><textarea value={formData?.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm resize-none" rows={2} placeholder="Description" /></div>
+              <div><label className="text-xs font-semibold text-gray-700 mb-1 block">{entityLabel} Leader</label><select value={typeof formData?.leader === 'string' ? formData?.leader : ''} onChange={e => setFormData({ ...formData, leader: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm"><option value="">No leader</option>{employees.map(emp => <option key={emp._id || emp.employee_id} value={emp._id || emp.employee_id || ''}>{emp.full_name} ({emp.email})</option>)}</select></div>
+              <div className="flex gap-3 pt-1">
+                <button type="submit" disabled={submitting} className="flex-1 px-3 py-2 cok-btn-primary text-white text-sm font-medium disabled:opacity-50">{submitting ? 'Saving...' : editingDepartment ? 'Update' : 'Create'}</button>
+              </div>
+            </form>
+          </OverlayShell>
         )}
 
-        <ConfirmModal isOpen={showDeleteConfirm} title="Delete Department" message={`Delete "${deletingName}"? This cannot be undone.`} confirmText="Delete" cancelText="Cancel" onConfirm={handleConfirmDelete} onCancel={() => setShowDeleteConfirm(false)} type="danger" isLoading={deleting} />
+        <ConfirmModal isOpen={showDeleteConfirm} title="Delete Department" message={`Delete "${deletingName}"? This cannot be undone.`} confirmText="Delete" onConfirm={handleConfirmDelete} onCancel={() => setShowDeleteConfirm(false)} type="danger" isLoading={deleting} />
       </div>
     </MainLayout>
   );

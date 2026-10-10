@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FiX } from 'react-icons/fi';
 import { departmentManagerService } from '@/core/services/adminService';
+import OverlayShell from '@/core/components/overlay/OverlayShell';
 import { useToast } from '@/core/contexts/ToastContext';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
@@ -144,7 +144,7 @@ const HodEmployeesPage: React.FC = () => {
             <p className="text-sm" style={{ color: GRAY }}>No employees found in your department.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="cok-table-scroll">
             <table className="w-full min-w-[820px]">
               <thead style={{ backgroundColor: PRIMARY }}>
                 <tr>
@@ -214,44 +214,32 @@ const HodEmployeesPage: React.FC = () => {
       </div>
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setSelected(null)}>
-          <div
-            className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-            style={{ borderRadius: 0, border: `1px solid ${BORDER}` }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4" style={{ backgroundColor: PRIMARY }}>
-              <h2 className="text-white font-bold text-sm uppercase tracking-wide" style={{ fontFamily: FONT }}>Employee Details</h2>
-              <button onClick={() => setSelected(null)} className="cok-btn-outlined-reverse p-1.5" style={{ borderRadius: 0 }} aria-label="Close">
-                <FiX size={16} />
-              </button>
-            </div>
-            <div className="p-4 sm:p-6">
-              <table className="w-full">
-                <tbody className="divide-y divide-[#E0E0E0]">
-                  {[
-                    ['Full Name', selected.full_name],
-                    ['Title', selected.title],
-                    ['Email', selected.email],
-                    ['Telephone', selected.telephone],
-                    ['Gender', selected.gender],
-                    ['Role', selected.roles?.role_name],
-                    ['Department', selected.department?.department_name || selected.department?.name || '-'],
-                    ['Unit', selected.department_unit_name || '-'],
-                    ['Account Active', selected.is_active ? 'Yes' : 'No'],
-                    ['Account Activated', selected.is_account_activated ? 'Yes' : 'No'],
-                    ['Joined', formatDate(selected.created_date)],
-                  ].map(([label, value]) => (
-                    <tr key={label as string} className="hover:bg-[#F7F9FB]">
-                      <td className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide w-1/3" style={{ color: GRAY_MID, fontFamily: FONT }}>{label}</td>
-                      <td className="px-3 py-2.5 text-sm" style={{ color: NEUTRAL_DARK }}>{(value as string) || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        <OverlayShell title="Employee Details" onClose={() => setSelected(null)} width="lg">
+          <div className="cok-table-scroll">
+            <table className="w-full">
+              <tbody className="divide-y divide-[#E0E0E0]">
+                {[
+                  ['Full Name', selected.full_name],
+                  ['Title', selected.title],
+                  ['Email', selected.email],
+                  ['Telephone', selected.telephone],
+                  ['Gender', selected.gender],
+                  ['Role', selected.roles?.role_name],
+                  ['Department', selected.department?.department_name || selected.department?.name || '-'],
+                  ['Unit', selected.department_unit_name || '-'],
+                  ['Account Active', selected.is_active ? 'Yes' : 'No'],
+                  ['Account Activated', selected.is_account_activated ? 'Yes' : 'No'],
+                  ['Joined', formatDate(selected.created_date)],
+                ].map(([label, value]) => (
+                  <tr key={label as string} className="hover:bg-[#F7F9FB]">
+                    <td className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide w-1/3" style={{ color: GRAY_MID, fontFamily: FONT }}>{label}</td>
+                    <td className="px-3 py-2.5 text-sm" style={{ color: NEUTRAL_DARK }}>{(value as string) || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        </OverlayShell>
       )}
     </div>
   );

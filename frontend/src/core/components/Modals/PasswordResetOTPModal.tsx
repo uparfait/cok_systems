@@ -1,10 +1,8 @@
-// PasswordResetOTPModal - Password reset OTP verification modal
-// Used when user requests password reset via forgot password
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { verifyPasswordResetOTP } from '../../services/authService';
 import { useToast } from '../../contexts/ToastContext';
+import OverlayCloseButton from '../overlay/OverlayCloseButton';
 
 interface PasswordResetOTPModalProps {
   isOpen: boolean;
@@ -15,8 +13,8 @@ interface PasswordResetOTPModalProps {
 
 const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, onClose, email: initialEmail = '', onVerified }) => {
   const [email, setEmail] = useState(initialEmail);
-  const [otp, setOtp] = useState(['', '', '', '', '']); // 5 digits
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
+  const [otp, setOtp] = useState(['', '', '', '', '']);
+  const [timeLeft, setTimeLeft] = useState(300);
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,13 +27,11 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
   
   const navigate = useNavigate();
 
-  // Background images
   const cityHallImage = '/cok_hall.jpg';
   const logoImage = '/LOGO_COK.png';
 
   useEffect(() => {
     if (!isOpen) {
-      // Reset state when modal closes
       setTimeout(() => {
         setEmail(initialEmail);
         setOtp(['', '', '', '', '']);
@@ -48,7 +44,6 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
     }
   }, [isOpen]);
 
-  // Timer effect - 5 minutes
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isOpen && timeLeft > 0 && !isSuccess) {
@@ -73,7 +68,6 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
     setOtp(newOtp);
     setError('');
 
-    // Auto-focus next input
     if (value && index < 4) {
       const nextInput = document.getElementById(`otp-reset-${index + 1}`);
       if (nextInput) nextInput.focus();
@@ -81,7 +75,6 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    // Handle backspace
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
       const prevInput = document.getElementById(`otp-reset-${index - 1}`);
       if (prevInput) prevInput.focus();
@@ -109,7 +102,6 @@ const handleVerify = async () => {
     setError('');
 
     try {
-      // Get userId from sessionStorage
       const storedUserId = sessionStorage.getItem('resetUserId');
       if (!storedUserId) {
         showError('Session expired. Please start the process again.');
@@ -117,17 +109,14 @@ const handleVerify = async () => {
         return;
       }
 
-      // Call backend API to verify OTP
       const result = await verifyPasswordResetOTP(storedUserId, otpString);
       
       if (result.status && result.data?.signature) {
         setIsSuccess(true);
         showSuccess('OTP verified successfully! Proceeding to reset password...');
         
-        // Store signature in sessionStorage for use in reset password page
         sessionStorage.setItem('resetTempToken', result.data.signature);
         
-        // After success, call onVerified callback or navigate to reset password
         if (onVerified) {
           onVerified(storedUserId, result.data.signature);
         } else {
@@ -141,7 +130,6 @@ const handleVerify = async () => {
       }
     } catch (err: any) {
     
-      // Error toast is already shown by apiClient interceptor, no need to show again
       showWarning(err.error || err.message || "Try again later!" )
     } finally {
       setIsLoading(false);
@@ -153,7 +141,6 @@ const handleVerify = async () => {
     setError('');
 
     try {
-      // Get userId and email from sessionStorage
       const storedUserId = sessionStorage.getItem('resetUserId');
       const storedEmail = sessionStorage.getItem('resetEmail');
       
@@ -163,11 +150,8 @@ const handleVerify = async () => {
         return;
       }
 
-      // Call resend API (you may need to add this function to authService)
-      // For now, we'll just simulate success
-      setTimeLeft(300); // Reset to 5 minutes
+      setTimeLeft(300);
     } catch (err: any) {
-      // Error toast is already shown by apiClient interceptor
     } finally {
       setIsResending(false);
     }
@@ -179,7 +163,6 @@ const handleVerify = async () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Mask email for display
   const maskEmail = (emailStr: string) => {
     if (!emailStr) return '';
     const [localPart, domain] = emailStr.split('@');
@@ -196,7 +179,6 @@ const handleVerify = async () => {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Background with City Hall image and gradient overlay */}
       <div 
         className="fixed inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${cityHallImage})` }}
@@ -204,10 +186,8 @@ const handleVerify = async () => {
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
-      {/* Modal */}
        <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
          <div className="relative bg-white/95 backdrop-blur-sm shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
-          {/* Success State */}
           {isSuccess ? (
             <div className="text-center py-8">
               <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
@@ -222,17 +202,10 @@ const handleVerify = async () => {
             </div>
           ) : (
             <>
-              {/* Close button */}
-              <button
-                onClick={onClose}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition duration-200"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="absolute top-4 right-4">
+                <OverlayCloseButton onClick={onClose} disabled={isLoading || isResending} />
+              </div>
 
-              {/* COK Logo */}
               <div className="flex justify-center mb-4">
                 <img 
                   src={logoImage} 
@@ -241,20 +214,17 @@ const handleVerify = async () => {
                 />
               </div>
 
-              {/* Title */}
               <h1 className="text-2xl font-bold text-center text-[#056daa] mb-2">
                 Reset Your Password
               </h1>
 
             
 
-              {/* Description with masked email */}
               <p className="text-center text-gray-500 mb-6">
                 We've sent a 5-digit verification code to<br />
                 <span className="font-semibold text-gray-700">{maskEmail(email)}</span>
               </p>
 
-              {/* OTP Input Fields */}
               <div className="flex justify-center gap-2 mb-4" onPaste={handlePaste}>
                 {otp.map((digit, index) => (
                     <input
@@ -273,17 +243,14 @@ const handleVerify = async () => {
                 ))}
               </div>
 
-              {/* Timer display with bullet */}
               <p className="text-center text-sm text-gray-500 mb-4">
-                • OTP expires in {formatTime(timeLeft)}
+                - OTP expires in {formatTime(timeLeft)}
               </p>
 
-              {/* Error message */}
               {error && (
                 <p className="text-center text-sm text-red-600 mb-4">{error}</p>
               )}
 
-              {/* Verify button */}
               <button
                 onClick={handleVerify}
                 disabled={otp.join('').length !== 5 || isLoading}
@@ -292,7 +259,6 @@ const handleVerify = async () => {
                 {isLoading ? 'Verifying...' : 'Verify Your OTP'}
               </button>
 
-              {/* Resend link with timer */}
               <div className="text-center">
                 <button
                   onClick={handleResend}
@@ -303,19 +269,8 @@ const handleVerify = async () => {
                 </button>
               </div>
 
-              {/* Back to Login link */}
-              <div className="text-center mt-4">
-                <button 
-                  onClick={onClose}
-                  className="cok-btn-outlined w-full"
-                >
-                  Back to Login
-                </button>
-              </div>
-
-              {/* Secure portal footer - left aligned */}
               <p className="text-left text-xs text-gray-400 mt-8">
-                © CITY OF KIGALI PORTAL
+                (c) CITY OF KIGALI PORTAL
               </p>
             </>
           )}

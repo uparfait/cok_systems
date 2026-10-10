@@ -139,7 +139,6 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'calender', label: 'Calendar', path: `/calendar`, icon: 'FiCalendar' },
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiHome' },
       { id: 'visitors', label: 'Visitors', path: `/${slug}/visitors`, icon: 'FiUsers' },
-      { id: 'assigned-visitors', label: 'Assigned Visitors', path: `/${slug}/assigned`, icon: 'FiUserCheck' },
       { id: 'requests', label: 'Requests', path: `/${slug}/requests`, icon: 'FiFile' },
       {
         id: 'task-manager',
@@ -160,7 +159,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     return [
       { id: 'calender', label: 'Calendar', path: `/calendar`, icon: 'FiCalendar' },
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiGrid' },
-      { id: 'visitors', label: 'Visitors', path: `/${slug}/all-visitors`, icon: 'FiUsers' },
+      { id: 'visitors', label: 'Visitors', path: `/${slug}/visitors`, icon: 'FiUsers' },
       {
         id: 'task-manager',
         label: 'Task Manager',
@@ -171,13 +170,12 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
           { id: 'follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
         ]
       },
-      { id: 'history', label: 'Service History', path: `/${slug}/dashboard?tab=history`, icon: 'FiFileText' },
       { id: 'queue', label: 'Department Queue', path: `/${slug}/dashboard?tab=queue`, icon: 'FiList' },
       { id: 'dcs', label: 'DC&MS', path: `/dcs-system`, icon: 'FiDatabase' },
     ];
   }
 
-  // EVENT MANAGER INTERCEPTOR
+  //EVENT MANAGER INTERCEPTOR
   if (userRole.includes('event manager') || userRole.includes('event-manager')) {
     return [
       { id: 'calender', label: 'Calendar', path: `/calendar`, icon: 'FiCalendar' },
@@ -371,6 +369,8 @@ const hasAdminAccess = hasPermission(user, 'admin') || hasPermission(user, 'depa
       adminChildren.push({ id: 'storage-management', label: 'Storage Management', path: `/${slug}/storage-management`, icon: 'FiHardDrive' });
     if (hasPermission(user, 'admin') || isAdmin)
       adminChildren.push({ id: 'deployment-management', label: 'Deployment Management', path: `/${slug}/deployment-management`, icon: 'FiUploadCloud' });
+    if (hasPermission(user, 'admin') || isAdmin)
+      adminChildren.push({ id: 'legacy-data', label: 'Legacy Data', path: `/${slug}/legacy-data`, icon: 'FiDatabase' });
     if (adminChildren.length > 0) {
       navigation.push({ id: 'admin', label: 'Admin', path: `/${slug}/dashboard`, icon: 'FiSettings', children: adminChildren });
     }
@@ -430,15 +430,14 @@ const getRoleSelectionNavigation = (_role: string): NavItem[] => {
       id: 'receptionist', label: 'Receptionist', path: '/receptionist/dashboard', icon: 'FiHome',
       children: [
         { id: 'receptionist-dashboard', label: 'Dashboard', path: '/receptionist/dashboard', icon: 'FiHome' },
-        { id: 'receptionist-assigned-visitors', label: 'Assigned Visitors', path: '/receptionist/dashboard?tab=visitors', icon: 'FiUsers' },
+        { id: 'receptionist-visitors', label: 'Visitors', path: '/receptionist/visitors', icon: 'FiUsers' },
       ]
     },
     {
       id: 'employee', label: 'Employee', path: '/employee/dashboard', icon: 'FiUsers',
       children: [
         { id: 'employee-dashboard', label: 'Dashboard', path: '/employee/dashboard', icon: 'FiGrid' },
-        { id: 'employee-visitors', label: 'Visitors', path: '/employee/all-visitors', icon: 'FiUsers' },
-        { id: 'employee-history', label: 'Service History', path: '/employee/dashboard?tab=history', icon: 'FiFileText' },
+        { id: 'employee-visitors', label: 'Visitors', path: '/employee/visitors', icon: 'FiUsers' },
         { id: 'employee-queue', label: 'Department Queue', path: '/employee/dashboard?tab=queue', icon: 'FiList' },
       ]
     },

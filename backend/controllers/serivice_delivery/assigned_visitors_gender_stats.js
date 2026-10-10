@@ -1,41 +1,62 @@
 const ServiceDelivery = require("../../models/service_delivery.js");
+const { userIdOf, sendError } = require("../../utilities/visitors");
+
+/**
+ * Visits by gender over time, for the gender charts (this endpoint and
+ * served_visitors_gender_stats.js, which reuses genderSeries). The period
+ * gives the x-axis (hours, week days, days, months or years, in server-local
+ * time like the period bounds); MongoDB counts the visits of every slot and
+ * the gender is the one of the visitor each visit references (visits of the
+ * old structure keep their own gender field). Male and Female are counted
+ * as such, anything else as "Not specified" (also returned as Other, the key
+ * the charts read).
+ */
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const FIRST_HOUR = 8;
+const LAST_HOUR = 18;
+const NOT_SPECIFIED = "Not specified";
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const MALE_VALUES = ["male", "m"];
+const FEMALE_VALUES = ["female", "f"];
 
 const getPeriodBounds = (period, from, to) => {
   const now = new Date();
-  const startOfDay = (d) => { const r = new Date(d); r.setHours(0,0,0,0); return r; };
-  const endOfDay = (d) => { const r = new Date(d); r.setHours(23,59,59,999); return r; };
+  const startOfDay = (d) => { const r = new Date(d); r.setHours(0, 0, 0, 0); return r; };
+  const endOfDay = (d) => { const r = new Date(d); r.setHours(23, 59, 59, 999); return r; };
 
-  if (period === 'today') {
+  if (period === "today") {
     return { start: startOfDay(now), end: endOfDay(now) };
   }
-  if (period === 'week') {
+  if (period === "week") {
     const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-    monday.setHours(0,0,0,0);
+    monday.setHours(0, 0, 0, 0);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    sunday.setHours(23,59,59,999);
+    sunday.setHours(23, 59, 59, 999);
     return { start: monday, end: sunday };
   }
-  if (period === 'month') {
+  if (period === "month") {
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
     const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    end.setHours(23,59,59,999);
+    end.setHours(23, 59, 59, 999);
     return { start, end };
   }
-  if (period === 'last_month') {
+  if (period === "last_month") {
     const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const end = new Date(now.getFullYear(), now.getMonth(), 0);
-    end.setHours(23,59,59,999);
+    end.setHours(23, 59, 59, 999);
     return { start, end };
   }
-  if (period === 'year') {
+  if (period === "year") {
     const start = new Date(now.getFullYear(), 0, 1);
     const end = new Date(now.getFullYear(), 11, 31);
-    end.setHours(23,59,59,999);
+    end.setHours(23, 59, 59, 999);
     return { start, end };
   }
-  if (period === 'range' && from) {
+  if (period === "range" && from) {
     const start = startOfDay(from);
     const end = to ? endOfDay(to) : endOfDay(now);
     return { start, end };
@@ -43,165 +64,159 @@ const getPeriodBounds = (period, from, to) => {
   return null;
 };
 
-const getDayName = (date) => {
-  return date.toLocaleDateString('en-US', { weekday: 'long' });
-};
-
-const getMonthName = (date) => {
-  return date.toLocaleDateString('en-US', { month: 'long' });
-};
+const isValidDate = (date) => date instanceof Date && !Number.isNaN(date.getTime());
 
 const getHourLabel = (hour) => {
-  const suffix = hour >= 12 ? 'PM' : 'AM';
+  const suffix = hour >= 12 ? "PM" : "AM";
   const displayHour = hour % 12 || 12;
   return `${displayHour}:00 ${suffix}`;
 };
 
-const generateTimeSlots = (period, bounds) => {
-  const slots = [];
-  if (!bounds) return slots;
+const HOUR_LABELS = Array.from({ length: 24 }, (_, hour) => getHourLabel(hour));
 
-  if (period === 'today') {
-    for (let hour = 8; hour <= 18; hour++) {
-      slots.push(getHourLabel(hour));
-    }
-  } else if (period === 'week') {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const current = new Date(bounds.start);
-    while (current <= bounds.end) {
-      slots.push(days[current.getDay() === 0 ? 6 : current.getDay() - 1]);
-      current.setDate(current.getDate() + 1);
-    }
-  } else if (period === 'month' || period === 'last_month') {
-    const current = new Date(bounds.start);
-    while (current <= bounds.end) {
-      slots.push(getMonthName(current) + ' ' + current.getDate());
-      current.setDate(current.getDate() + 1);
-    }
-  } else if (period === 'year') {
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    for (let m = 0; m < 12; m++) {
-      slots.push(months[m]);
-    }
-  } else if (period === 'range') {
-    const diffDays = Math.ceil((bounds.end - bounds.start) / (1000 * 60 * 60 * 24));
-    if (diffDays <= 1) {
-      for (let hour = 8; hour <= 18; hour++) {
-        slots.push(getHourLabel(hour));
-      }
-    } else if (diffDays <= 31) {
-      const current = new Date(bounds.start);
-      while (current <= bounds.end) {
-        slots.push(getMonthName(current) + ' ' + current.getDate());
-        current.setDate(current.getDate() + 1);
-      }
-    } else if (diffDays <= 365) {
-      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      for (let m = 0; m < 12; m++) {
-        slots.push(months[m]);
-      }
-    } else {
-      const currentYear = bounds.start.getFullYear();
-      const endYear = bounds.end.getFullYear();
-      for (let y = currentYear; y <= endYear; y++) {
-        slots.push(String(y));
-      }
-    }
+/** Slot size of a period: hour, weekday, day, month or year. */
+function slotUnit(period, bounds) {
+  if (!bounds) return null;
+  if (period === "today") return "hour";
+  if (period === "week") return "weekday";
+  if (period === "month" || period === "last_month") return "day";
+  if (period === "year") return "month";
+  if (period === "range") {
+    const diffDays = Math.ceil((bounds.end - bounds.start) / DAY_MS);
+    if (diffDays <= 1) return "hour";
+    if (diffDays <= 31) return "day";
+    if (diffDays <= 365) return "month";
+    return "year";
+  }
+  return null;
+}
+
+/** The zero-filled x-axis of the chart. */
+function timeSlots(unit, bounds) {
+  if (unit === "hour") return HOUR_LABELS.slice(FIRST_HOUR, LAST_HOUR + 1);
+  if (unit === "month") return [...MONTH_NAMES];
+  if (unit === "year") {
+    const years = [];
+    for (let year = bounds.start.getFullYear(); year <= bounds.end.getFullYear(); year += 1) years.push(String(year));
+    return years;
+  }
+  const slots = [];
+  const current = new Date(bounds.start);
+  while (current <= bounds.end) {
+    slots.push(unit === "weekday"
+      ? DAY_NAMES[(current.getDay() + 6) % 7]
+      : `${MONTH_NAMES[current.getMonth()]} ${current.getDate()}`);
+    current.setDate(current.getDate() + 1);
   }
   return slots;
+}
+
+/** The server UTC offset in the form MongoDB date operators take ("+02:00"). */
+function serverTimezone(date = new Date()) {
+  const minutes = -date.getTimezoneOffset();
+  const abs = Math.abs(minutes);
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${minutes < 0 ? "-" : "+"}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+}
+
+/** MongoDB expression giving the slot label of a visit, from its entry_date. */
+function slotLabelExpression(unit, timezone) {
+  const part = (operator) => ({ [operator]: { date: "$entry_date", timezone } });
+  const monthName = { $arrayElemAt: [MONTH_NAMES, { $subtract: [part("$month"), 1] }] };
+  if (unit === "hour") return { $arrayElemAt: [HOUR_LABELS, part("$hour")] };
+  if (unit === "weekday") return { $arrayElemAt: [DAY_NAMES, { $subtract: [part("$isoDayOfWeek"), 1] }] };
+  if (unit === "day") return { $concat: [monthName, " ", { $toString: part("$dayOfMonth") }] };
+  if (unit === "month") return monthName;
+  return { $toString: part("$year") };
+}
+
+const countGender = (values) => ({ $sum: { $cond: [{ $in: ["$gender", values] }, 1, 0] } });
+
+const genderCounts = (groupId) => [
+  { $group: { _id: groupId, Male: countGender(MALE_VALUES), Female: countGender(FEMALE_VALUES), total: { $sum: 1 } } },
+  { $set: { not_specified: { $subtract: ["$total", { $add: ["$Male", "$Female"] }] } } },
+];
+
+const countsOf = (row) => {
+  const notSpecified = row ? row.not_specified : 0;
+  return { Male: row ? row.Male : 0, Female: row ? row.Female : 0, Other: notSpecified, [NOT_SPECIFIED]: notSpecified };
 };
 
-module.exports = async function assigned_visitors_gender_stats(req, res, next) {
+/**
+ * Gender counts per time slot of a period.
+ * @param {object|null} options.match  the visits to count (null = none)
+ * @returns {Promise<{ bounds, data: [{ label, Male, Female, Other, 'Not specified' }], totals }>}
+ */
+async function genderSeries({ match, period, from, to }) {
+  const found = getPeriodBounds(period, from, to);
+  const bounds = found && isValidDate(found.start) && isValidDate(found.end) ? found : null;
+  const unit = slotUnit(period, bounds);
+  const slots = unit ? timeSlots(unit, bounds) : [];
+
+  let result = { series: [], totals: [] };
+  if (match && slots.length) {
+    [result] = await ServiceDelivery.aggregate([
+      { $match: { ...match, entry_date: { $gte: bounds.start, $lte: bounds.end } } },
+      {
+        $lookup: {
+          from: "visitors",
+          localField: "visitor",
+          foreignField: "_id",
+          pipeline: [{ $project: { _id: 0, gender: 1 } }],
+          as: "person",
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          label: slotLabelExpression(unit, serverTimezone()),
+          gender: { $toLower: { $ifNull: [{ $arrayElemAt: ["$person.gender", 0] }, { $ifNull: ["$gender", ""] }] } },
+        },
+      },
+      { $match: { label: { $in: slots } } },
+      { $facet: { series: genderCounts("$label"), totals: genderCounts(null) } },
+    ]);
+  }
+
+  const bySlot = new Map(result.series.map((row) => [row._id, row]));
+  const totals = result.totals[0] || null;
+  return {
+    bounds,
+    data: slots.map((label) => ({ label, ...countsOf(bySlot.get(label)) })),
+    totals: { ...countsOf(totals), total: totals ? totals.total : 0 },
+  };
+}
+
+const boundsView = (bounds) => (bounds ? { start: bounds.start.toISOString(), end: bounds.end.toISOString() } : null);
+
+/**
+ * GET /servicedelivery/assigned-visitors/gender-stats ?period&from&to
+ * Visits the caller sent to a department, by gender.
+ */
+async function assigned_visitors_gender_stats(req, res) {
   try {
-    let { period = 'month', from, to } = req.query || {};
-    const bounds = getPeriodBounds(period, from, to);
-
-    const userId = String(req.user?.id || req.user?._id || '');
-
-    let match = {
-      "departments_assigned.assigned_by.user_id": userId,
-      
-    };
-
-    if (bounds) {
-      match.entry_date = { $gte: bounds.start, $lte: bounds.end };
-    }
-
-    const visitors = await ServiceDelivery.find(match).lean();
-
-    const stats = {};
-
-    visitors.forEach((v) => {
-      const entryDate = v.entry_date ? new Date(v.entry_date) : null;
-      if (!entryDate || isNaN(entryDate.getTime())) return;
-
-      let label;
-      if (period === 'today') {
-        const hour = entryDate.getHours();
-        if (hour < 8 || hour > 18) return;
-        label = getHourLabel(hour);
-      } else if (period === 'week') {
-        label = getDayName(entryDate);
-      } else if (period === 'month' || period === 'last_month') {
-        label = getMonthName(entryDate) + ' ' + entryDate.getDate();
-      } else if (period === 'year') {
-        label = getMonthName(entryDate);
-      } else if (period === 'range') {
-        const diffDays = bounds ? Math.ceil((bounds.end - bounds.start) / (1000 * 60 * 60 * 24)) : 0;
-        if (diffDays <= 1) {
-          const hour = entryDate.getHours();
-          if (hour < 8 || hour > 18) return;
-          label = getHourLabel(hour);
-        } else if (diffDays <= 31) {
-          label = getMonthName(entryDate) + ' ' + entryDate.getDate();
-        } else if (diffDays <= 365) {
-          label = getMonthName(entryDate);
-        } else {
-          label = String(entryDate.getFullYear());
-        }
-      } else {
-        label = entryDate.toLocaleDateString();
-      }
-
-      if (!label) return;
-
-      if (!stats[label]) stats[label] = { male: 0, female: 0, other: 0 };
-
-      const gender = (v.gender || '').toLowerCase();
-      if (gender === 'male' || gender === 'm') {
-        stats[label].male += 1;
-      } else if (gender === 'female' || gender === 'f') {
-        stats[label].female += 1;
-      } else {
-        stats[label].other += 1;
-      }
+    const { period = "month", from, to } = req.query || {};
+    const { bounds, data, totals } = await genderSeries({
+      match: { "departments_assigned.assigned_by.user_id": userIdOf(req.user) },
+      period,
+      from,
+      to,
     });
-
-    const timeSlots = generateTimeSlots(period, bounds);
-
-    const data = timeSlots.map((label) => ({
-      label,
-      Male: stats[label] ? stats[label].male : 0,
-      Female: stats[label] ? stats[label].female : 0,
-      Other: stats[label] ? stats[label].other : 0,
-    }));
 
     return res.status(200).json({
       success: true,
       type: "success",
       message: "Gender stats fetched successfully",
       data,
+      totals,
       period,
-      bounds: bounds ? { start: bounds.start.toISOString(), end: bounds.end.toISOString() } : null,
+      bounds: boundsView(bounds),
     });
-
   } catch (error) {
-    console.error("Error in assigned_visitors_gender_stats:", error);
-    return res.status(500).json({
-      success: false,
-      type: "error",
-      message: "Something went wrong while fetching gender stats",
-      error: error.message,
-    });
+    return sendError(res, error, "Something went wrong while fetching gender stats");
   }
-};
+}
+
+module.exports = assigned_visitors_gender_stats;
+module.exports.genderSeries = genderSeries;
+module.exports.boundsView = boundsView;

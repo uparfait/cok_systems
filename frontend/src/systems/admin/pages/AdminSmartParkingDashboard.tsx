@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
@@ -7,14 +7,17 @@ import { smartParkingService, statisticsService } from '../../../core/services/a
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Table from '../../../core/components/Table';
+import type { TableHeader } from '../../../core/components/Table';
+import OverlayShell from '../../../core/components/overlay/OverlayShell';
+import { useVisitorPanel, visitorIdOf } from '../../../core/components/visitor/VisitorPanelProvider';
 import { FiTruck, FiRefreshCw, FiFlag, FiCheckCircle, FiMapPin, FiEdit, FiClock, FiArrowLeft } from 'react-icons/fi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ParkingSlotConfigModal from './sub/ParkingSlotConfigModal';
+import { VISITOR_COLUMNS, visitorCell } from './sub/parkingVisitorColumns';
+import type { ParkingVisitorRow } from './sub/parkingVisitorColumns';
 
 const PRIMARY = "#056daa";
 const PRIMARY_HOVER = "#045d94";
-const SUCCESS = "#4CAF50";
-const SUCCESS_HOVER = "#388E3C";
 const DANGER = "#E74C3C";
 const NEUTRAL_DARK = "#333333";
 const BORDER = "#E0E0E0";
@@ -22,22 +25,29 @@ const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+const TABLE_HEIGHT = '56vh';
+const PARKING_EVENTS = ['car_checkedin', 'car_checkedout', 'visitor_checkedin', 'visitor_checkedout'];
 
-interface ParkingRecord { _id: string; plate_number?: string; driver_name?: string; driver_telephone?: string; driver_type?: string; status?: string; check_in?: string; check_out?: string; slot_number?: string; is_flagged?: boolean; }
+interface ParkingRecord extends ParkingVisitorRow { _id: string; plate_number?: string; driver_type?: string; status?: string; check_in?: string; check_out?: string; slot_number?: string; is_flagged?: boolean; }
 interface HourlyData { hour: number; check_in: number; check_out: number; }
 interface ParkingStats { todayVehicles: number; currentlyParked: number; availableSlots: number; flaggedInside: number; flaggedTotal: number; totalCapacity: number; }
-interface FlaggedVehicle { _id: string; plate_no: string; driver_name: string; driver_type: string; entry_time: string; exit_time: string | null; duration: string; status: string; }
+interface FlaggedVehicle extends ParkingVisitorRow { _id: string; plate_no: string; driver_type: string; entry_time: string; exit_time: string | null; duration: string; status: string; }
 type FlaggedScope = 'active' | 'completed' | 'all';
-// Permanent flag record from /vehicle/flag-history, kept even after the plate checks in again
-interface FlagHistoryEntry { _id: string; plate_number: string; driver_name?: string; driver_telephone?: string; driver_type?: string; status: 'active' | 'completed'; check_in: string | null; check_out: string | null; flagged_at: string | null; flagged_at_estimated: boolean; flag_reason: string; is_flagged: boolean; total_duration_minutes: number | null; overstay_minutes: number | null; }
+interface FlagHistoryEntry extends ParkingVisitorRow { _id: string; plate_number: string; driver_type?: string; status: 'active' | 'completed'; check_in: string | null; check_out: string | null; flagged_at: string | null; flagged_at_estimated: boolean; flag_reason: string; is_flagged: boolean; total_duration_minutes: number | null; overstay_minutes: number | null; }
+
+const RECORD_HEADERS: TableHeader[] = [{ key: 'plate', label: 'Plate' }, ...VISITOR_COLUMNS, { key: 'type', label: 'Type' }, { key: 'status', label: 'Status' }, { key: 'checkin', label: 'Check-in' }, { key: 'checkout', label: 'Check-out' }];
+const FLAGGED_HEADERS: TableHeader[] = [{ key: 'plate', label: 'Plate' }, ...VISITOR_COLUMNS, { key: 'type', label: 'Type' }, { key: 'entry', label: 'Entry Time' }, { key: 'exit', label: 'Check-out' }, { key: 'duration', label: 'Time Parked' }, { key: 'status', label: 'Status' }];
+const HISTORY_HEADERS: TableHeader[] = [{ key: 'plate', label: 'Plate' }, ...VISITOR_COLUMNS, { key: 'type', label: 'Type' }, { key: 'flagged_at', label: 'Flagged At' }, { key: 'entry', label: 'Entry Time' }, { key: 'exit', label: 'Check-out' }, { key: 'total', label: 'Total Stay' }, { key: 'overstay', label: 'Overstay' }, { key: 'status', label: 'Status' }, { key: 'reason', label: 'Reason' }];
 
 const formatMinutes = (mins: number | null | undefined) => { if (mins === null || mins === undefined) return '-'; const h = Math.floor(mins / 60); const m = mins % 60; return h > 0 ? `${h}h ${m}m` : `${m}m`; };
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 const AdminSmartParkingDashboard: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
   const { socket, isConnected } = useSocket();
+  const { openVisitor } = useVisitorPanel();
 
   const [loading, setLoading] = useState(true);
   const [firstLoad, setfirstLoad] = useState(true);
@@ -45,14 +55,12 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [allRecords, setAllRecords] = useState<ParkingRecord[]>([]);
-  // Flagged vehicles list, opened from the flag card
   const [showFlaggedModal, setShowFlaggedModal] = useState(false);
   const [flaggedRecords, setFlaggedRecords] = useState<FlaggedVehicle[]>([]);
   const [flaggedLoading, setFlaggedLoading] = useState(false);
   const [flaggedPage, setFlaggedPage] = useState(1);
   const [flaggedTotal, setFlaggedTotal] = useState(0);
   const [flaggedScope, setFlaggedScope] = useState<FlaggedScope>('active');
-  // Flag history view inside the flagged modal
   const [showFlagHistory, setShowFlagHistory] = useState(false);
   const [flagHistory, setFlagHistory] = useState<FlagHistoryEntry[]>([]);
   const [flagHistoryLoading, setFlagHistoryLoading] = useState(false);
@@ -73,7 +81,6 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const PAGE_SIZE = 20;
-
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -127,7 +134,6 @@ const AdminSmartParkingDashboard: React.FC = () => {
     } catch (error) { setFlaggedRecords([]); } finally { setFlaggedLoading(false); }
   }, [flaggedScope]);
 
-  // Open on "inside now"; if nothing is inside, show the full history so the admin is not met by an empty table
   const openFlagged = (scope: FlaggedScope = stats.flaggedInside > 0 ? 'active' : 'all') => { setFlaggedScope(scope); setShowFlaggedModal(true); fetchFlagged(1, scope); };
   const changeFlaggedScope = (scope: FlaggedScope) => { setFlaggedScope(scope); fetchFlagged(1, scope); };
 
@@ -141,22 +147,48 @@ const AdminSmartParkingDashboard: React.FC = () => {
 
   const openFlagHistory = () => { setShowFlagHistory(true); fetchFlagHistory(1); };
   const closeFlaggedModal = () => { setShowFlaggedModal(false); setShowFlagHistory(false); };
+  const openRowVisitor = (row: unknown) => openVisitor(visitorIdOf(row));
+
+  const recordsOpenRef = useRef(false);
+  recordsOpenRef.current = showRecordsModal;
+  const refreshOpenListsRef = useRef<() => void>(() => undefined);
+  refreshOpenListsRef.current = () => {
+    if (showRecordsModal) fetchAllRecords(currentPage);
+    if (showFlaggedModal && showFlagHistory) fetchFlagHistory(flagHistoryPage);
+    else if (showFlaggedModal) fetchFlagged(flaggedPage);
+  };
 
   useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); }, [authLoading, isAuthenticated, navigate]);
   useEffect(() => { if (isAuthenticated && !authLoading) fetchData(); }, [isAuthenticated, authLoading, fetchData]);
 
   useEffect(() => {
-    if (!socket || !isConnected) return;
-    const events = ['car_checkedin', 'car_checkedout', 'visitor_checkedin', 'visitor_checkedout'];
-    events.forEach(ev => socket.on(ev, (data: any) => { setRealtimeUpdate(data?.message || `${ev} detected`); if (!showRecordsModal) fetchData(); }));
-    return () => { events.forEach(ev => socket.off(ev)); };
-  }, [socket, isConnected, fetchData, showRecordsModal]);
+    if (!socket || !isConnected) return undefined;
+    const handlers = PARKING_EVENTS.map((ev) => {
+      const handler = (data: any) => { setRealtimeUpdate(data?.message || `${ev} detected`); if (!recordsOpenRef.current) fetchData(); };
+      socket.on(ev, handler);
+      return { ev, handler };
+    });
+    const onVisitorUpdated = () => refreshOpenListsRef.current();
+    socket.on('visitor_updated', onVisitorUpdated);
+    return () => {
+      handlers.forEach(({ ev, handler }) => socket.off(ev, handler));
+      socket.off('visitor_updated', onVisitorUpdated);
+    };
+  }, [socket, isConnected, fetchData]);
 
   useEffect(() => { if (realtimeUpdate) { const t = setTimeout(() => setRealtimeUpdate(null), 3000); return () => clearTimeout(t); } }, [realtimeUpdate]);
 
-
-
   if (authLoading) return <div className="flex items-center justify-center min-h-[600px]"><LoadingSpinner message="Loading dashboard..." /></div>;
+
+  const flaggedTitle = (
+    <span className="flex items-center gap-2">
+      <span className="w-7 h-7 bg-[rgba(243,156,18,0.12)] flex items-center justify-center shrink-0">{showFlagHistory ? <FiClock className="w-4 h-4 text-[#F39C12]" /> : <FiFlag className="w-4 h-4 text-[#F39C12]" />}</span>
+      <span>{showFlagHistory ? 'Flag History' : 'Flagged Vehicles'}</span>
+    </span>
+  );
+  const flaggedSubtitle = showFlagHistory
+    ? `${plural(flagHistoryTotal, 'flag')} recorded. Entries stay here even after the vehicle checks in again.`
+    : `${plural(flaggedTotal, 'vehicle')} ${flaggedScope === 'active' ? 'flagged and still parked' : flaggedScope === 'completed' ? 'flagged and already checked out' : 'flagged in total'}`;
 
   return (
     <MainLayout>
@@ -201,155 +233,143 @@ const AdminSmartParkingDashboard: React.FC = () => {
 
         <ParkingSlotConfigModal show={showSlotConfig} slotConfig={slotConfig} saving={savingSlot} onClose={() => setShowSlotConfig(false)} onChange={(e) => { const { name, value } = e.target; setSlotConfig(p => ({ ...p, [name]: value === '' ? 0 : parseInt(value) || 0 })); }} onSave={async () => { setSavingSlot(true); try { const r = await smartParkingService.updateSlotConfig(slotConfig); if (r.success) { showSuccess('Slot config updated'); setShowSlotConfig(false); fetchData(); } else showError(r.message || 'Failed'); } catch (err: any) { showError(err?.message || 'Failed'); } finally { setSavingSlot(false); } }} />
 
-        {showFlaggedModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4" onClick={closeFlaggedModal}>
-            <div className={`bg-white w-full ${showFlagHistory ? 'max-w-6xl' : 'max-w-4xl'} max-h-[92vh] overflow-hidden shadow-2xl flex flex-col`} onClick={e => e.stopPropagation()}>
-              <div className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-gray-50">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-[rgba(243,156,18,0.12)] flex items-center justify-center">{showFlagHistory ? <FiClock className="w-4 h-4 text-[#F39C12]" /> : <FiFlag className="w-4 h-4 text-[#F39C12]" />}</div>
-                  <div>
-                    <h3 className="text-sm font-bold text-[#333333]">{showFlagHistory ? 'Flag History' : 'Flagged Vehicles'}</h3>
-                    {showFlagHistory
-                      ? <p className="text-xs text-[#9E9E9E]">{flagHistoryTotal} flag{flagHistoryTotal === 1 ? '' : 's'} recorded. Entries stay here even after the vehicle checks in again.</p>
-                      : <p className="text-xs text-[#9E9E9E]">{flaggedTotal} vehicle{flaggedTotal === 1 ? '' : 's'} {flaggedScope === 'active' ? 'flagged and still parked' : flaggedScope === 'completed' ? 'flagged and already checked out' : 'flagged in total'}</p>}
-                  </div>
-                </div>
-                {showFlagHistory ? (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button onClick={() => setShowFlagHistory(false)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer"><FiArrowLeft className="w-3.5 h-3.5" />Back</button>
-                    <input type="text" placeholder="Plate, driver or phone" value={flagHistoryQuery} onChange={e => setFlagHistoryQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') fetchFlagHistory(1); }} className="cok-auth-input text-xs w-44" style={{ paddingLeft: '10px', minHeight: '32px' }} />
-                    <button onClick={() => fetchFlagHistory(1)} className="px-3 py-1.5 text-white text-xs font-medium cursor-pointer" style={{ backgroundColor: PRIMARY, minHeight: '32px' }}>Search</button>
-                    {flagHistoryQuery && <button onClick={() => { setFlagHistoryQuery(''); fetchFlagHistory(1, ''); }} className="text-xs text-[#555555] hover:underline cursor-pointer">Clear</button>}
-                    <button onClick={() => fetchFlagHistory(flagHistoryPage)} disabled={flagHistoryLoading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer disabled:opacity-50"><FiRefreshCw className={`w-3.5 h-3.5 ${flagHistoryLoading ? 'animate-spin' : ''}`} />Refresh</button>
-                    <button onClick={closeFlaggedModal} className="p-1.5 hover:bg-gray-200 cursor-pointer shrink-0">X</button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <select value={flaggedScope} onChange={e => changeFlaggedScope(e.target.value as FlaggedScope)} className="cok-auth-input text-xs w-40 cursor-pointer" style={{ paddingLeft: '10px', minHeight: '32px' }}>
-                      <option value="active">Inside now</option>
-                      <option value="completed">Checked out</option>
-                      <option value="all">All flagged</option>
-                    </select>
-                    <button onClick={openFlagHistory} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#F39C12] text-[#B9770E] text-xs font-medium hover:bg-[rgba(243,156,18,0.08)] cursor-pointer"><FiClock className="w-3.5 h-3.5" />Flag History</button>
-                    <button onClick={() => fetchFlagged(flaggedPage)} disabled={flaggedLoading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer disabled:opacity-50"><FiRefreshCw className={`w-3.5 h-3.5 ${flaggedLoading ? 'animate-spin' : ''}`} />Refresh</button>
-                    <button onClick={closeFlaggedModal} className="p-1.5 hover:bg-gray-200 cursor-pointer shrink-0">X</button>
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 overflow-y-auto p-3">
-                {showFlagHistory ? (
-                <Table
-                  headers={[{ key: 'plate', label: 'Plate' }, { key: 'driver', label: 'Driver' }, { key: 'type', label: 'Type' }, { key: 'flagged_at', label: 'Flagged At' }, { key: 'entry', label: 'Entry Time' }, { key: 'exit', label: 'Check-out' }, { key: 'total', label: 'Total Stay' }, { key: 'overstay', label: 'Overstay' }, { key: 'status', label: 'Status' }, { key: 'reason', label: 'Reason' }]}
-                  data={flagHistory}
-                  loading={flagHistoryLoading}
-                  emptyMessage={flagHistoryQuery ? 'No flagged vehicles match your search.' : 'No vehicle has been flagged yet.'}
-                  maxHeight="none"
-                  minWidth="1100px"
-                  headerStyle={{ backgroundColor: '#F39C12' }}
-                  renderCell={(header, r: any) => {
-                    switch (header.key) {
-                      case 'plate': return <span className="text-sm font-mono font-bold text-[#E74C3C] whitespace-nowrap">{r.plate_number || '-'}</span>;
-                      case 'driver': return <span className="text-sm text-[#333333] whitespace-nowrap truncate max-w-[160px] inline-block align-middle" title={r.driver_telephone}>{r.driver_name || '-'}</span>;
-                      case 'type': return <span className="text-xs px-2 py-0.5 bg-[rgba(51,51,51,0.08)] text-[#333333] whitespace-nowrap">{r.driver_type || '-'}</span>;
-                      case 'flagged_at': return <span className="text-xs text-[#333333] font-medium whitespace-nowrap">{r.flagged_at ? new Date(r.flagged_at).toLocaleString() : '-'}{r.flagged_at_estimated && <em className="block text-[10px] text-[#9E9E9E] font-normal">estimated</em>}</span>;
-                      case 'entry': return <span className="text-xs text-[#555555] whitespace-nowrap">{r.check_in ? new Date(r.check_in).toLocaleString() : '-'}</span>;
-                      case 'exit': return <span className="text-xs text-[#555555] whitespace-nowrap">{r.check_out ? new Date(r.check_out).toLocaleString() : <em className="text-[#388E3C]">still inside</em>}</span>;
-                      case 'total': return <span className="text-xs px-2 py-0.5 bg-[rgba(51,51,51,0.08)] text-[#555555] whitespace-nowrap">{formatMinutes(r.total_duration_minutes)}</span>;
-                      case 'overstay': return <span className="text-xs px-2 py-0.5 bg-[rgba(231,76,60,0.12)] text-[#E74C3C] whitespace-nowrap">{formatMinutes(r.overstay_minutes)}</span>;
-                      case 'status': return <span className="whitespace-nowrap"><span className={`text-xs px-2 py-0.5 ${r.status === 'active' ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{r.status === 'active' ? 'inside' : 'checked out'}</span>{!r.is_flagged && <em className="block text-[10px] text-[#9E9E9E] mt-0.5">flag cleared</em>}</span>;
-                      case 'reason': return <span className="text-xs text-[#555555] inline-block min-w-[180px]">{r.flag_reason || '-'}</span>;
-                      default: return <span className="text-sm">{r[header.key] || '-'}</span>;
-                    }
-                  }}
-                  pagination={flagHistoryTotal > PAGE_SIZE ? { currentPage: flagHistoryPage, totalPages: Math.max(1, Math.ceil(flagHistoryTotal / PAGE_SIZE)), totalCount: flagHistoryTotal, itemsPerPage: PAGE_SIZE, onPageChange: (page) => fetchFlagHistory(page), loading: flagHistoryLoading } : undefined}
-                />
-                ) : (
-                <Table
-                  headers={[{ key: 'plate', label: 'Plate' }, { key: 'driver', label: 'Driver' }, { key: 'type', label: 'Type' }, { key: 'entry', label: 'Entry Time' }, { key: 'exit', label: 'Check-out' }, { key: 'duration', label: 'Time Parked' }, { key: 'status', label: 'Status' }]}
-                  data={flaggedRecords}
-                  loading={flaggedLoading}
-                  emptyMessage={flaggedScope === 'active' ? 'No flagged vehicles are inside the parking right now. Switch to "All flagged" to see the history.' : 'No flagged vehicles found.'}
-                  maxHeight="none"
-                  minWidth="820px"
-                  headerStyle={{ backgroundColor: '#F39C12' }}
-                  renderCell={(header, r: any) => {
-                    switch (header.key) {
-                      case 'plate': return <span className="text-sm font-mono font-bold text-[#E74C3C] whitespace-nowrap">{r.plate_no || '-'}</span>;
-                      case 'driver': return <span className="text-sm text-[#333333] whitespace-nowrap truncate max-w-[160px] inline-block align-middle" title={r.driver_name}>{r.driver_name || '-'}</span>;
-                      case 'type': return <span className="text-xs px-2 py-0.5 bg-[rgba(51,51,51,0.08)] text-[#333333] whitespace-nowrap">{r.driver_type || '-'}</span>;
-                      case 'entry': return <span className="text-xs text-[#555555] whitespace-nowrap">{r.entry_time ? new Date(r.entry_time).toLocaleString() : '-'}</span>;
-                      case 'exit': return <span className="text-xs text-[#555555] whitespace-nowrap">{r.exit_time ? new Date(r.exit_time).toLocaleString() : <em className="text-[#388E3C]">still inside</em>}</span>;
-                      case 'duration': return <span className="text-xs px-2 py-0.5 bg-[rgba(243,156,18,0.12)] text-[#B9770E] whitespace-nowrap">{r.duration || '-'}</span>;
-                      case 'status': return <span className={`text-xs px-2 py-0.5 whitespace-nowrap ${r.status === 'active' ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{r.status === 'active' ? 'inside' : r.status === 'completed' ? 'checked out' : r.status || '-'}</span>;
-                      default: return <span className="text-sm">{r[header.key] || '-'}</span>;
-                    }
-                  }}
-                  pagination={flaggedTotal > PAGE_SIZE ? { currentPage: flaggedPage, totalPages: Math.max(1, Math.ceil(flaggedTotal / PAGE_SIZE)), totalCount: flaggedTotal, itemsPerPage: PAGE_SIZE, onPageChange: (page) => fetchFlagged(page), loading: flaggedLoading } : undefined}
-                />
-                )}
-              </div>
+        <OverlayShell
+          open={showFlaggedModal}
+          title={flaggedTitle}
+          subtitle={flaggedSubtitle}
+          onClose={closeFlaggedModal}
+          width="full"
+          headerExtra={showFlagHistory ? (
+            <div className="flex items-center gap-2 flex-wrap px-4 sm:px-5 py-2.5 border-b border-gray-100">
+              <button onClick={() => setShowFlagHistory(false)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer"><FiArrowLeft className="w-3.5 h-3.5" />Back</button>
+              <input type="text" placeholder="Plate, name, phone, ID or email" value={flagHistoryQuery} onChange={e => setFlagHistoryQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') fetchFlagHistory(1); }} className="cok-auth-input text-xs w-56" style={{ paddingLeft: '10px', minHeight: '32px' }} />
+              <button onClick={() => fetchFlagHistory(1)} className="px-3 py-1.5 text-white text-xs font-medium cursor-pointer" style={{ backgroundColor: PRIMARY, minHeight: '32px' }}>Search</button>
+              {flagHistoryQuery && <button onClick={() => { setFlagHistoryQuery(''); fetchFlagHistory(1, ''); }} className="text-xs text-[#555555] hover:underline cursor-pointer">Clear</button>}
+              <button onClick={() => fetchFlagHistory(flagHistoryPage)} disabled={flagHistoryLoading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer disabled:opacity-50"><FiRefreshCw className={`w-3.5 h-3.5 ${flagHistoryLoading ? 'animate-spin' : ''}`} />Refresh</button>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center gap-2 flex-wrap px-4 sm:px-5 py-2.5 border-b border-gray-100">
+              <select value={flaggedScope} onChange={e => changeFlaggedScope(e.target.value as FlaggedScope)} className="cok-auth-input text-xs w-40 cursor-pointer" style={{ paddingLeft: '10px', minHeight: '32px' }}>
+                <option value="active">Inside now</option>
+                <option value="completed">Checked out</option>
+                <option value="all">All flagged</option>
+              </select>
+              <button onClick={openFlagHistory} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#F39C12] text-[#B9770E] text-xs font-medium hover:bg-[rgba(243,156,18,0.08)] cursor-pointer"><FiClock className="w-3.5 h-3.5" />Flag History</button>
+              <button onClick={() => fetchFlagged(flaggedPage)} disabled={flaggedLoading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)] cursor-pointer disabled:opacity-50"><FiRefreshCw className={`w-3.5 h-3.5 ${flaggedLoading ? 'animate-spin' : ''}`} />Refresh</button>
+            </div>
+          )}
+        >
+          {showFlagHistory ? (
+            <Table
+              headers={HISTORY_HEADERS}
+              data={flagHistory}
+              loading={flagHistoryLoading}
+              emptyMessage={flagHistoryQuery ? 'No flagged vehicles match your search.' : 'No vehicle has been flagged yet.'}
+              maxHeight={TABLE_HEIGHT}
+              minWidth="1900px"
+              headerStyle={{ backgroundColor: '#F39C12' }}
+              onRowClick={openRowVisitor}
+              renderCell={(header, r: any) => {
+                const visitor = visitorCell(header.key, r);
+                if (visitor !== undefined) return visitor;
+                switch (header.key) {
+                  case 'plate': return <span className="text-sm font-mono font-bold text-[#E74C3C]">{r.plate_number || '-'}</span>;
+                  case 'type': return <span className="text-xs px-2 py-0.5 bg-[rgba(51,51,51,0.08)] text-[#333333]">{r.driver_type || '-'}</span>;
+                  case 'flagged_at': return <span className="text-xs text-[#333333] font-medium">{r.flagged_at ? new Date(r.flagged_at).toLocaleString() : '-'}{r.flagged_at_estimated && <em className="block text-[10px] text-[#9E9E9E] font-normal">estimated</em>}</span>;
+                  case 'entry': return <span className="text-xs text-[#555555]">{r.check_in ? new Date(r.check_in).toLocaleString() : '-'}</span>;
+                  case 'exit': return <span className="text-xs text-[#555555]">{r.check_out ? new Date(r.check_out).toLocaleString() : <em className="text-[#388E3C]">still inside</em>}</span>;
+                  case 'total': return <span className="text-xs px-2 py-0.5 bg-[rgba(51,51,51,0.08)] text-[#555555]">{formatMinutes(r.total_duration_minutes)}</span>;
+                  case 'overstay': return <span className="text-xs px-2 py-0.5 bg-[rgba(231,76,60,0.12)] text-[#E74C3C]">{formatMinutes(r.overstay_minutes)}</span>;
+                  case 'status': return <span><span className={`text-xs px-2 py-0.5 ${r.status === 'active' ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{r.status === 'active' ? 'inside' : 'checked out'}</span>{!r.is_flagged && <em className="block text-[10px] text-[#9E9E9E] mt-0.5">flag cleared</em>}</span>;
+                  case 'reason': return <span className="text-xs text-[#555555] inline-block min-w-[180px]">{r.flag_reason || '-'}</span>;
+                  default: return <span className="text-sm">{r[header.key] || '-'}</span>;
+                }
+              }}
+              pagination={flagHistoryTotal > PAGE_SIZE ? { currentPage: flagHistoryPage, totalPages: Math.max(1, Math.ceil(flagHistoryTotal / PAGE_SIZE)), totalCount: flagHistoryTotal, itemsPerPage: PAGE_SIZE, onPageChange: (page) => fetchFlagHistory(page), loading: flagHistoryLoading } : undefined}
+            />
+          ) : (
+            <Table
+              headers={FLAGGED_HEADERS}
+              data={flaggedRecords}
+              loading={flaggedLoading}
+              emptyMessage={flaggedScope === 'active' ? 'No flagged vehicles are inside the parking right now. Switch to "All flagged" to see the history.' : 'No flagged vehicles found.'}
+              maxHeight={TABLE_HEIGHT}
+              minWidth="1600px"
+              headerStyle={{ backgroundColor: '#F39C12' }}
+              onRowClick={openRowVisitor}
+              renderCell={(header, r: any) => {
+                const visitor = visitorCell(header.key, r);
+                if (visitor !== undefined) return visitor;
+                switch (header.key) {
+                  case 'plate': return <span className="text-sm font-mono font-bold text-[#E74C3C]">{r.plate_no || '-'}</span>;
+                  case 'type': return <span className="text-xs px-2 py-0.5 bg-[rgba(51,51,51,0.08)] text-[#333333]">{r.driver_type || '-'}</span>;
+                  case 'entry': return <span className="text-xs text-[#555555]">{r.entry_time ? new Date(r.entry_time).toLocaleString() : '-'}</span>;
+                  case 'exit': return <span className="text-xs text-[#555555]">{r.exit_time ? new Date(r.exit_time).toLocaleString() : <em className="text-[#388E3C]">still inside</em>}</span>;
+                  case 'duration': return <span className="text-xs px-2 py-0.5 bg-[rgba(243,156,18,0.12)] text-[#B9770E]">{r.duration || '-'}</span>;
+                  case 'status': return <span className={`text-xs px-2 py-0.5 ${r.status === 'active' ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{r.status === 'active' ? 'inside' : r.status === 'completed' ? 'checked out' : r.status || '-'}</span>;
+                  default: return <span className="text-sm">{r[header.key] || '-'}</span>;
+                }
+              }}
+              pagination={flaggedTotal > PAGE_SIZE ? { currentPage: flaggedPage, totalPages: Math.max(1, Math.ceil(flaggedTotal / PAGE_SIZE)), totalCount: flaggedTotal, itemsPerPage: PAGE_SIZE, onPageChange: (page) => fetchFlagged(page), loading: flaggedLoading } : undefined}
+            />
+          )}
+        </OverlayShell>
 
-        {showRecordsModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4" onClick={() => setShowRecordsModal(false)}>
-            <div className="bg-white w-full max-w-5xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="p-3 sm:p-4 flex flex-col gap-3 bg-gray-50">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold text-[#333333]">All Parking Records</h3>
-                  <button onClick={() => setShowRecordsModal(false)} className="p-1.5 hover:bg-gray-200 cursor-pointer shrink-0">X</button>
-                </div>
-                <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-                  <input type="text" placeholder="Search plate, driver, phone, badge..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') fetchAllRecords(1); }} className="cok-auth-input pr-3 py-2 text-sm w-full sm:w-56" style={{ paddingLeft: '12px', minHeight: '36px' }} />
-                  <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="cok-auth-input text-sm w-full sm:w-36 cursor-pointer" style={{ paddingLeft: '10px', minHeight: '36px' }}>
-                    <option value="all">All Statuses</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                  <select value={rangePreset} onChange={e => setRangePreset(e.target.value as any)} className="cok-auth-input text-sm w-full sm:w-36 cursor-pointer" style={{ paddingLeft: '10px', minHeight: '36px' }}>
-                    <option value="all">All Time</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                    <option value="custom">Custom Range</option>
-                  </select>
-                  {rangePreset === 'custom' && (
-                    <>
-                      <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="cok-auth-input text-sm w-full sm:w-40" style={{ paddingLeft: '10px', minHeight: '36px' }} />
-                      <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="cok-auth-input text-sm w-full sm:w-40" style={{ paddingLeft: '10px', minHeight: '36px' }} />
-                    </>
-                  )}
-                  <button onClick={() => fetchAllRecords(1)} className="px-4 py-1.5 text-white text-xs font-medium cursor-pointer w-full sm:w-auto" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', minHeight: '36px' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>Apply</button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-3">
-                <Table
-                  headers={[{ key: 'plate', label: 'Plate' }, { key: 'driver', label: 'Driver' }, { key: 'phone', label: 'Phone' }, { key: 'type', label: 'Type' }, { key: 'status', label: 'Status' }, { key: 'checkin', label: 'Check-in' }, { key: 'checkout', label: 'Check-out' }]}
-                  data={allRecords}
-                  loading={modalLoading}
-                  emptyMessage="No parking records found for the selected filters."
-                  maxHeight="none"
-                  minWidth="800px"
-                  headerStyle={{ backgroundColor: PRIMARY }}
-                  renderCell={(header, r: any) => {
-                    switch (header.key) {
-                      case 'plate': return <span className="text-sm font-medium text-[#333333] whitespace-nowrap">{r.plate_number || '-'}</span>;
-                      case 'driver': return <span className="text-sm text-[#333333] whitespace-nowrap truncate max-w-[160px] inline-block align-middle" title={r.driver_name}>{r.driver_name || '-'}</span>;
-                      case 'phone': return <span className="text-sm text-[#555555] whitespace-nowrap">{r.driver_telephone || '-'}</span>;
-                      case 'type': return <span className="text-sm text-[#555555] whitespace-nowrap">{r.driver_type || '-'}</span>;
-                      case 'status': return <span className={`text-xs px-2 py-0.5 whitespace-nowrap ${r.status === 'active' ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{r.status || '-'}</span>;
-                      case 'checkin': return <span className="text-xs text-[#555555] whitespace-nowrap">{r.check_in ? new Date(r.check_in).toLocaleString() : '-'}</span>;
-                      case 'checkout': return <span className="text-xs text-[#555555] whitespace-nowrap">{r.check_out ? new Date(r.check_out).toLocaleString() : '-'}</span>;
-                      default: return <span className="text-sm">{r[header.key] || '-'}</span>;
-                    }
-                  }}
-                  pagination={totalPages > 1 ? { currentPage, totalPages, totalCount: totalRecords, itemsPerPage: PAGE_SIZE, onPageChange: (page) => fetchAllRecords(page), loading: modalLoading } : undefined}
-                />
-              </div>
+        <OverlayShell
+          open={showRecordsModal}
+          title="All Parking Records"
+          subtitle={`${plural(totalRecords, 'record')} - click a row to open the visitor`}
+          onClose={() => setShowRecordsModal(false)}
+          width="full"
+          headerExtra={
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 px-4 sm:px-5 py-2.5 border-b border-gray-100">
+              <input type="text" placeholder="Search plate, name, phone, ID or email" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') fetchAllRecords(1); }} className="cok-auth-input pr-3 py-2 text-sm w-full sm:w-64" style={{ paddingLeft: '12px', minHeight: '36px' }} />
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="cok-auth-input text-sm w-full sm:w-36 cursor-pointer" style={{ paddingLeft: '10px', minHeight: '36px' }}>
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+              <select value={rangePreset} onChange={e => setRangePreset(e.target.value as any)} className="cok-auth-input text-sm w-full sm:w-36 cursor-pointer" style={{ paddingLeft: '10px', minHeight: '36px' }}>
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="custom">Custom Range</option>
+              </select>
+              {rangePreset === 'custom' && (
+                <>
+                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="cok-auth-input text-sm w-full sm:w-40" style={{ paddingLeft: '10px', minHeight: '36px' }} />
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="cok-auth-input text-sm w-full sm:w-40" style={{ paddingLeft: '10px', minHeight: '36px' }} />
+                </>
+              )}
+              <button onClick={() => fetchAllRecords(1)} className="px-4 py-1.5 text-white text-xs font-medium cursor-pointer w-full sm:w-auto" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', minHeight: '36px' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>Apply</button>
             </div>
-          </div>
-        )}
+          }
+        >
+          <Table
+            headers={RECORD_HEADERS}
+            data={allRecords}
+            loading={modalLoading}
+            emptyMessage="No parking records found for the selected filters."
+            maxHeight={TABLE_HEIGHT}
+            minWidth="1600px"
+            headerStyle={{ backgroundColor: PRIMARY }}
+            onRowClick={openRowVisitor}
+            renderCell={(header, r: any) => {
+              const visitor = visitorCell(header.key, r);
+              if (visitor !== undefined) return visitor;
+              switch (header.key) {
+                case 'plate': return <span className="text-sm font-medium text-[#333333]">{r.plate_number || '-'}</span>;
+                case 'type': return <span className="text-sm text-[#555555]">{r.driver_type || '-'}</span>;
+                case 'status': return <span className={`text-xs px-2 py-0.5 ${r.status === 'active' ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{r.status || '-'}</span>;
+                case 'checkin': return <span className="text-xs text-[#555555]">{r.check_in ? new Date(r.check_in).toLocaleString() : '-'}</span>;
+                case 'checkout': return <span className="text-xs text-[#555555]">{r.check_out ? new Date(r.check_out).toLocaleString() : '-'}</span>;
+                default: return <span className="text-sm">{r[header.key] || '-'}</span>;
+              }
+            }}
+            pagination={totalPages > 1 ? { currentPage, totalPages, totalCount: totalRecords, itemsPerPage: PAGE_SIZE, onPageChange: (page) => fetchAllRecords(page), loading: modalLoading } : undefined}
+          />
+        </OverlayShell>
       </div>
     </MainLayout>
   );

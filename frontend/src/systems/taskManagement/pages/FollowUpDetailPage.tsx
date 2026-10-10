@@ -191,10 +191,9 @@ const FollowUpDetailPage: React.FC = () => {
       </div>
 
       <div className="space-y-4">
-        {/* Title Section */}
         <div className="bg-white border border-gray-200 rounded-sm p-4">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500" style={{ fontFamily: fontHeading }}>Title</h3>
+            <h3 className={`text-xs font-semibold uppercase tracking-wide text-gray-500${editingTitle ? " cok-req" : ""}`} style={{ fontFamily: fontHeading }}>Title</h3>
             {!editingTitle && followup.currentStatus?.status !== 'Completed' && followup.currentStatus?.status !== 'Cancelled' && (
               <button onClick={() => setEditingTitle(true)} className="text-gray-400 hover:text-gray-600">
                 <FiEdit className="w-4 h-4" />
@@ -223,7 +222,6 @@ const FollowUpDetailPage: React.FC = () => {
           )}
         </div>
 
-        {/* Description Section */}
         <div className="bg-white border border-gray-200 rounded-sm p-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500" style={{ fontFamily: fontHeading }}>Description</h3>
@@ -258,7 +256,6 @@ const FollowUpDetailPage: React.FC = () => {
           )}
         </div>
 
-        {/* Status Section */}
         <div className="bg-white border border-gray-200 rounded-sm p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3" style={{ fontFamily: fontHeading }}>Change Status</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

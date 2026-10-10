@@ -4,6 +4,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useNotification } from "../../contexts/NotificationContext";
 import { useToast } from "../../contexts/ToastContext";
 import ProfileModal from "../ProfileModal";
+import OverlayShell from "../overlay/OverlayShell";
 import {
   FiMenu,
   FiBell,
@@ -12,7 +13,6 @@ import {
   FiHelpCircle,
   FiCheck,
   FiUser,
-  FiX,
 } from "react-icons/fi";
 
 interface SidebarLink {
@@ -30,12 +30,6 @@ interface HeaderProps {
   links: SidebarLink[];
   currentPath: string;
   onNavigate: (path: string) => void;
-  // MainLayout's own sidebar auto-pins open at the lg breakpoint, so the
-  // toggle button only needs to exist below it (lg:hidden). A consumer
-  // whose sidebar never auto-pins (it's always an overlay, at any screen
-  // size) needs the button reachable at every width instead - true here
-  // keeps it visible past lg: too, without changing anything for MainLayout
-  // and every other existing caller, which never pass this prop.
   alwaysShowMenuButton?: boolean;
 }
 
@@ -85,8 +79,6 @@ const Header: React.FC<HeaderProps> = ({
     setShowLogoutOverlay(true);
     try {
       await logout();
-      // No hard redirect: clearing the auth state makes MainLayout/ProtectedRoute
-      // client-side navigate to "/" without refreshing the page.
     } catch (error) {
       console.error("Logout error:", error);
       setShowLogoutOverlay(false);
@@ -304,92 +296,81 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </header>
 
-      {showNotifications && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div
-            className="bg-white w-full h-full sm:h-auto sm:max-h-[85vh] sm:max-w-2xl flex flex-col"
-            style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
-          >
-            <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-4 cok-bg-primary" style={{ borderRadius: 0 }}>
-              <h2 className="text-base sm:text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                Notifications{unreadCount > 0 ? ` (${unreadCount} unread)` : ''}
-              </h2>
-              <div className="flex items-center gap-2">
-                {unreadCount > 0 && (
-                  <button
-                    onClick={markAllAsRead}
-                    className="cok-btn-outlined-reverse text-xs flex items-center gap-1 cursor-pointer"
-                    style={{ padding: '0.4rem 0.8rem' }}
-                  >
-                    <FiCheck className="w-3 h-3" /> Mark all read
-                  </button>
-                )}
-                <button onClick={() => setShowNotifications(false)} className="cok-btn-outlined-reverse cursor-pointer" style={{ padding: '0.4rem 0.8rem' }}>
-                  <FiX className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3 sm:p-6">
-              {notifications.length === 0 ? (
-                <div className="py-12 text-center text-gray-500">
-                  You have no notifications
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      onClick={() => markAsRead(notification.id)}
-                      className={`p-3 sm:p-4 border cursor-pointer transition-colors ${
-                        !notification.read ? "border-blue-200 bg-blue-50" : "border-gray-200 bg-white"
-                      }`}
-                      style={{ borderRadius: 0 }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`w-2.5 h-2.5 mt-1.5 rounded-full flex-shrink-0 ${getNotificationColor(notification.type)}`}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-1">
-                            <p className="text-sm font-semibold text-gray-900 break-words">
-                              {notification.title || 'Notification'}
-                            </p>
-                            {!notification.read && (
-                              <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white cok-primary-bg">
-                                New
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-700 break-words whitespace-pre-wrap">
-                            {notification.message}
-                          </p>
-                          {renderNotificationDetails(notification.data)}
-                          <p className="text-xs text-gray-400 mt-2">
-                            {formatTimestamp(notification.timestamp)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="shrink-0 p-3 sm:p-6 pt-2 border-t" style={{ borderColor: '#E0E0E0' }}>
+      <OverlayShell
+        open={showNotifications}
+        title={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+        onClose={() => setShowNotifications(false)}
+        width="lg"
+        zIndex={60}
+        headerExtra={
+          unreadCount > 0 ? (
+            <div className="flex justify-end px-4 sm:px-5 py-2 border-b border-gray-100">
               <button
-                type="button"
-                onClick={clearNotifications}
-                disabled={notifications.length === 0}
-                className="w-full cok-btn-outlined disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ padding: '0.9rem 1.2rem' }}
+                onClick={markAllAsRead}
+                className="cok-btn-outlined-reverse text-xs flex items-center gap-1 cursor-pointer"
+                style={{ padding: '0.4rem 0.8rem' }}
               >
-                Clear All
+                <FiCheck className="w-3 h-3" /> Mark all read
               </button>
             </div>
+          ) : null
+        }
+        footer={
+          <button
+            type="button"
+            onClick={clearNotifications}
+            disabled={notifications.length === 0}
+            className="w-full cok-btn-outlined disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ padding: '0.9rem 1.2rem' }}
+          >
+            Clear All
+          </button>
+        }
+      >
+        {notifications.length === 0 ? (
+          <div className="py-12 text-center text-gray-500">
+            You have no notifications
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="space-y-3">
+            {notifications.map((notification) => (
+              <div
+                key={notification.id}
+                onClick={() => markAsRead(notification.id)}
+                className={`p-3 sm:p-4 border cursor-pointer transition-colors ${
+                  !notification.read ? "border-blue-200 bg-blue-50" : "border-gray-200 bg-white"
+                }`}
+                style={{ borderRadius: 0 }}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`w-2.5 h-2.5 mt-1.5 rounded-full flex-shrink-0 ${getNotificationColor(notification.type)}`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-1">
+                      <p className="text-sm font-semibold text-gray-900 break-words">
+                        {notification.title || 'Notification'}
+                      </p>
+                      {!notification.read && (
+                        <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white cok-primary-bg">
+                          New
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-700 break-words whitespace-pre-wrap">
+                      {notification.message}
+                    </p>
+                    {renderNotificationDetails(notification.data)}
+                    <p className="text-xs text-gray-400 mt-2">
+                      {formatTimestamp(notification.timestamp)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </OverlayShell>
 
       {showLogoutOverlay && (
         <div className="cok-logout-overlay backdrop-blur-[12px] select-none">

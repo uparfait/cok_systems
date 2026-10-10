@@ -12,18 +12,10 @@ const WHITE = '#FFFFFF';
 const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';
 const fontHeading = "'Montserrat', sans-serif";
 
-// How often the console asks for whatever has been written since. The log
-// is read by byte offset, so this is a cheap call that usually answers with
-// an empty chunk.
 const POLL_MS = 800;
 
 type RunStatus = 'queued' | 'running' | 'succeeded' | 'failed';
 
-/**
- * update-deploy.sh writes plain text, and both TERM and NO_COLOR are set
- * for it, but anything it calls may still colour its own output. Escape
- * codes are stripped rather than rendered as mojibake.
- */
 const ANSI = /\u001B\[[0-9;?]*[ -/]*[@-~]/g;
 const strip_ansi = (text: string) => text.replace(ANSI, '');
 
@@ -40,14 +32,6 @@ const message_of = (error: unknown, fallback: string) => {
   return (value && (value.message || value.error)) || fallback;
 };
 
-/**
- * Deployment Management: the two deployments update-deploy.sh knows how to
- * do, each behind one button, with the script's own console output read
- * back as it is written.
- *
- * The page never sends a command - it sends a target NAME, and the server
- * holds the only table that turns a name into an argument.
- */
 const DeploymentManagement: React.FC = () => {
   const { showSuccess, showError } = useToast();
 
@@ -62,14 +46,9 @@ const DeploymentManagement: React.FC = () => {
   const [run_error, setRunError] = useState<string | null>(null);
   const [page_error, setPageError] = useState<string | null>(null);
   const [starting, setStarting] = useState<string | null>(null);
-  // The target whose password is being asked for. Clicking a button opens
-  // this; nothing runs until the password is submitted and the SERVER
-  // accepts it.
   const [asking, setAsking] = useState<string | null>(null);
   const [password, setPassword] = useState('');
 
-  // The byte the console has read up to. A ref, not state: the poll reads
-  // it on every tick and must never work from a stale render.
   const offset_ref = useRef(0);
   const run_id_ref = useRef<string | null>(null);
   const stopped_ref = useRef(false);
@@ -82,7 +61,6 @@ const DeploymentManagement: React.FC = () => {
     setRunError(null);
   }, []);
 
-  /** One read of whatever the run has written since the last byte seen. */
   const poll_once = useCallback(async () => {
     const id = run_id_ref.current;
     if (!id) return;
@@ -101,15 +79,10 @@ const DeploymentManagement: React.FC = () => {
       setRunError(page.error || null);
       setPageError(null);
     } catch (error) {
-      // While the deploy restarts this very backend the request fails for
-      // a while. That is expected, not a failure of the deploy, so it is
-      // said plainly and the next tick simply tries again.
       setPageError(message_of(error, 'Lost contact with the server. Retrying...'));
     }
   }, []);
 
-  // One timer for the whole page. It keeps polling while a run is going on,
-  // and takes one last read after it finishes so the closing lines land.
   useEffect(() => {
     stopped_ref.current = false;
     const tick = async () => {
@@ -123,7 +96,6 @@ const DeploymentManagement: React.FC = () => {
     };
   }, [poll_once]);
 
-  /** What the server knows on arrival - including a deploy already going. */
   const load_targets = useCallback(async () => {
     setLoadingTargets(true);
     try {
@@ -132,8 +104,6 @@ const DeploymentManagement: React.FC = () => {
       setTargets(data?.targets || []);
       setBlockedReason(data?.blocked_reason || null);
       setPageError(null);
-      // Opening the page in the middle of a deployment, or after one, picks
-      // it up where it is rather than showing an empty console.
       const resume = data?.current || data?.latest;
       if (resume?.run_id && run_id_ref.current !== resume.run_id) {
         adopt_run(resume.run_id);
@@ -161,8 +131,6 @@ const DeploymentManagement: React.FC = () => {
       const response = await deploymentManagementService.run(target.key, password);
       const next_run_id = response?.data?.run_id;
       if (!next_run_id) throw new Error('The server did not say which run was started.');
-      // Only cleared once the server has accepted it, so a wrong password
-      // can be corrected without typing the whole thing again.
       setAsking(null);
       setPassword('');
       adopt_run(next_run_id);
@@ -174,8 +142,6 @@ const DeploymentManagement: React.FC = () => {
       const text = message_of(error, 'Could not start the deployment.');
       setPageError(text);
       showError(text);
-      // A refusal because one is already running still hands back its id,
-      // so the console follows the run that IS going on.
       const existing = (error as { data?: { run_id?: string } } | null)?.data?.run_id;
       if (existing) {
         adopt_run(existing);
@@ -186,8 +152,6 @@ const DeploymentManagement: React.FC = () => {
     }
   };
 
-  // Queued counts as running for everything the page does: the agent has
-  // it, the buttons stay off, and the console keeps reading.
   const is_running = status === 'running' || status === 'queued';
   const look = status_look(status);
   const StatusIcon = look.Icon;
@@ -233,10 +197,6 @@ const DeploymentManagement: React.FC = () => {
             ) : (
               targets.map((target) => {
                 const is_asking = asking === target.key;
-                // Once anything is running, every button on the page is
-                // dead. A deployment cannot be called back, so offering a
-                // second one - or a Cancel that could not do anything -
-                // would only invite a click that does harm or nothing.
                 const disabled = busy || Boolean(blocked_reason);
                 if (is_asking && !busy) {
                   return (
@@ -248,8 +208,8 @@ const DeploymentManagement: React.FC = () => {
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}
                     >
-                      <span style={{ fontFamily: fontHeading, fontSize: 13, color: '#333333' }}>
-                        Password to deploy {target.label}:
+                      <span className="cok-req" style={{ fontFamily: fontHeading, fontSize: 13, color: '#333333' }}>
+                        Password to deploy {target.label}
                       </span>
                       <input
                         type="password"

@@ -1,86 +1,31 @@
 const ServiceDelivery = require('../../models/service_delivery.js')
-const ParkingRecord = require('../../models/parking_record.js')
+const {
+    visitFromRef, readVisitorInput, resolveVisitor, visitView, emitVisitorUpdated, sendError, notFound, conflict,
+} = require('../../utilities/visitors')
 
-module.exports = async function visitor_update(req, res, next) {
+/**
+ * PUT /servicedelivery/visitor/:id  (a visit id or a visitor id)
+ * Updates the VISITOR behind the visit (details live in the Visitor model).
+ * Only while the visitor is in house; values owned by someone else are refused.
+ */
+module.exports = async function update_visitor_data(req, res) {
     try {
-        const { id } = req.params
-        const updates = req.body || {}
+        const visit = await visitFromRef(req.params.id, { open: false })
+        if (!visit || !visit.visitor) throw notFound('Visitor not found')
+        if (!visit.is_still_inhouse) throw conflict('Visitor details can only be changed while the visitor is in house')
 
-        // 1. Find existing visitor first (Prevent Blind Write)
-        const existing_visitor = await ServiceDelivery.findById(id)
+        const input = readVisitorInput(req.body || {})
+        const { changed } = await resolveVisitor({ visitorId: visit.visitor, input, user: req.user })
+        if (changed) emitVisitorUpdated(visit.visitor)
 
-        if (!existing_visitor) {
-            return res.status(404).json({
-                success: false,
-                type: 'warning',
-                message: "Visitor record not found"
-            })
-        }
-
-        // 2. Build the update object (Only include fields present in req.body)
-        // This prevents overwriting existing data with 'null' if missing in request
-        let updateData = {}
-        const allowedFields = [
-            'full_name',
-            'telephone',
-            'email',
-            'identification', // Optional
-            'gender',
-            'vehicle_storage',
-            'badge_number'
-        ]
-
-        allowedFields.forEach(field => {
-            if (updates[field] !== undefined) {
-                updateData[field] = updates[field]
-            }
-        })
-
-        // 3. Handle Vehicle Logic if vehicle details are being updated
-        if (updates.vehicle_storage?.vehicle_details?.plate_number) {
-            let plate = updates.vehicle_storage.vehicle_details.plate_number
-                .toString().toUpperCase().replace(/\s+/g, '')
-
-            const cleanPlateNumber = (plate) => plate?.replace(/\s/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || '';
-            plate = cleanPlateNumber(plate);
-            
-            // Update plate in the local update object
-            updateData['vehicle_storage.vehicle_details.plate_number'] = plate
-            updateData['vehicle_storage.has_vehicle'] = true
-
-            // Sync with ParkingRecord if active
-            const active_parking = await ParkingRecord.findOne({ plate_number: plate, status: 'active' })
-            if (active_parking) {
-                // Update parking record with new visitor info if it changed
-                active_parking.driver_name = updates.full_name || existing_visitor.full_name
-                active_parking.driver_telephone = updates.telephone || existing_visitor.telephone
-                await active_parking.save()
-                
-                updateData['vehicle_storage.vehicle_details.entered_time'] = active_parking.check_in
-            }
-        }
-
-        // 4. Execute Update using $set to only touch specified fields
-        const updated_visitor = await ServiceDelivery.findByIdAndUpdate(
-            id,
-            { $set: updateData },
-            { new: true, runValidators: true } // Returns the modified document
-        )
-
+        const fresh = await ServiceDelivery.findById(visit._id).populate('visitor').lean()
         return res.status(200).json({
             success: true,
-            type: "success",
-            message: "Visitor information updated successfully",
-            data: updated_visitor
+            type: 'success',
+            message: changed ? 'Visitor details updated' : 'Nothing changed',
+            data: visitView(fresh),
         })
-
     } catch (error) {
-        console.error("Error in visitor_update:", error)
-        return res.status(500).json({
-            success: false,
-            type: "error",
-            message: "Something went wrong while updating visitor",
-            error: error.message
-        })
+        return sendError(res, error, 'Failed to update the visitor')
     }
 }

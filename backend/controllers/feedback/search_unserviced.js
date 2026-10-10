@@ -9,8 +9,9 @@ module.exports = async function searchUnserviced(req, res, next) {
     try {
         let { limit = 50, page = 1 } = req.query;
 
-        const limit_val = Math.min(parseInt(limit) || 50, 100); // Max 100
-        const skip_val = ((parseInt(page) || 1) - 1) * limit_val;
+        const limit_val = Math.min(Math.max(1, parseInt(limit) || 50), 100); // 1..100
+        const page_val = Math.max(1, parseInt(page) || 1);
+        const skip_val = (page_val - 1) * limit_val;
 
         const feedback = await UnservicedFeedback.find({})
             .sort({ created_date: -1 })
@@ -24,7 +25,7 @@ module.exports = async function searchUnserviced(req, res, next) {
             type: "success",
             message: "All general (unserviced) feedback results",
             total: total_count,
-            page: parseInt(page) || 1,
+            page: page_val,
             data: feedback
         });
 

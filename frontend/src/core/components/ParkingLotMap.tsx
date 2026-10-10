@@ -1,22 +1,17 @@
-// Parking lot map - one cell per slot: red = occupied (hover shows plate), yellow = reserved, green = available
-// Shared by the mayor overview dashboard and the gate registrar (smart parking) dashboard
 import React, { useMemo, useState } from 'react';
 
 const SLOT_COLORS = { occupied: 'rgb(246, 59, 59)', reserved: '#F5C542', available: '#4CAF50' } as const;
 type SlotState = { id: string; status: keyof typeof SLOT_COLORS; plate?: string; who?: string };
 
-// compact renders smaller slot cells inside a capped, scrollable area so the map fits in a stat-card grid cell
 const ParkingLotMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: any[]; compact?: boolean }> = ({ totalSlots, vehicles, reservations, compact }) => {
   const slots = useMemo<SlotState[]>(() => {
     const n = Math.max(totalSlots, vehicles.length + reservations.length, 1);
-    // Slots numbered COK1, COK2, ... shown in bays of 20
     const list: SlotState[] = Array.from({ length: n }, (_, i) => ({
       id: `COK${i + 1}`,
       status: 'available',
     }));
     const byId = new Map(list.map(s => [s.id, s]));
     const unplaced: any[] = [];
-    // Vehicles whose recorded slot matches a COK number (e.g. "COK12" or "12") land exactly; the rest fill from the front
     vehicles.forEach(v => {
       const raw = String(v?.slot_number || '').replace(/\s+/g, '').toUpperCase();
       const target = byId.get(/^\d+$/.test(raw) ? `COK${raw}` : raw);
@@ -28,7 +23,6 @@ const ParkingLotMap: React.FC<{ totalSlots: number; vehicles: any[]; reservation
       while (head < list.length && list[head].status !== 'available') head++;
       if (head < list.length) Object.assign(list[head], { status: 'occupied', plate: v.plate_number, who: v.driver_name });
     });
-    // Reservations fill from the back so they cluster away from parked cars
     let tail = list.length - 1;
     reservations.forEach(r => {
       while (tail >= 0 && list[tail].status !== 'available') tail--;
@@ -38,9 +32,9 @@ const ParkingLotMap: React.FC<{ totalSlots: number; vehicles: any[]; reservation
   }, [totalSlots, vehicles, reservations]);
 
   const hoverText = (s: SlotState) =>
-    s.status === 'occupied' ? `${s.id} · Occupied ${s.plate || 'plate not recorded'}`
-    : s.status === 'reserved' ? `${s.id} · Reserved${s.plate ? ` ${s.plate}` : ''}`
-    : `${s.id} · Available`;
+    s.status === 'occupied' ? `${s.id} - Occupied ${s.plate || 'plate not recorded'}`
+    : s.status === 'reserved' ? `${s.id} - Reserved${s.plate ? ` ${s.plate}` : ''}`
+    : `${s.id} - Available`;
 
   const sections: SlotState[][] = [];
   for (let i = 0; i < slots.length; i += 20) sections.push(slots.slice(i, i + 20));
@@ -50,8 +44,6 @@ const ParkingLotMap: React.FC<{ totalSlots: number; vehicles: any[]; reservation
     available: slots.filter(s => s.status === 'available').length,
   };
 
-  // The lot renders paginated: full size shows the bays in two halves; compact shows
-  // 2 bays (40 slots) per page so the card keeps the same height as its neighbors
   const [page, setPage] = useState(0);
   const baysPerPage = compact ? 2 : Math.ceil(sections.length / 2);
   const pageCount = Math.max(1, Math.ceil(sections.length / baysPerPage));
@@ -85,7 +77,7 @@ const ParkingLotMap: React.FC<{ totalSlots: number; vehicles: any[]; reservation
       {hasPages && (
         <div className={`flex items-center justify-between gap-1 ${compact ? 'mt-1.5' : 'mt-2'}`}>
           <span className={`text-gray-500 ${compact ? 'text-[10px]' : 'text-xs'}`}>
-            {compact ? `COK${firstSlot}–${lastSlot} · ${safePage + 1}/${pageCount}` : `Section ${safePage + 1} of ${pageCount} · slots COK${firstSlot}–COK${lastSlot}`}
+            {compact ? `COK${firstSlot}-${lastSlot} - ${safePage + 1}/${pageCount}` : `Section ${safePage + 1} of ${pageCount} - slots COK${firstSlot}-COK${lastSlot}`}
           </span>
           <div className={`flex ${compact ? 'gap-1' : 'gap-2'}`}>
             <button

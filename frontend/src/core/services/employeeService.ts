@@ -12,7 +12,6 @@ export interface Employee {
   telephone?: string
   email: string
   identification?: { id_type?: string; number?: string }
-  badge_number?: string
   gender?: string
   title?: string
   department?: string | { _id?: string; department_id?: string; department_name?: string }

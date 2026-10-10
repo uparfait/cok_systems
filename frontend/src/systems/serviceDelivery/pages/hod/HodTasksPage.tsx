@@ -47,7 +47,6 @@ const HodTasksPage: React.FC = () => {
   const [showAssign, setShowAssign] = useState(false);
   const [selected, setSelected] = useState<TeamTask | null>(null);
 
-  // Assign form state
   const [members, setMembers] = useState<TeamMemberOption[]>([]);
   const [form, setForm] = useState({ title: '', description: '', incharge: '', priority: 'Medium', dueDate: '' });
   const [saving, setSaving] = useState(false);
@@ -65,7 +64,6 @@ const HodTasksPage: React.FC = () => {
         showError(res?.message || 'Failed to load team tasks');
       }
     } catch (err: any) {
-      // apiClient throws {status:false, message} carrying the backend's actual reason
       showError(err?.message || 'Failed to load team tasks');
     } finally {
       setLoading(false);
@@ -80,7 +78,9 @@ const HodTasksPage: React.FC = () => {
       try {
         const res = await departmentManagerService.getTeamMembers(1, 100);
         if (res?.success) setMembers(res.data || []);
-      } catch { /* member list failure surfaces as empty select */ }
+      } catch {
+        setMembers([]);
+      }
     }
   };
 
@@ -104,8 +104,8 @@ const HodTasksPage: React.FC = () => {
       } else {
         showError(res?.message || 'Failed to assign task');
       }
-    } catch {
-      showError('Failed to assign task');
+    } catch (err: any) {
+      showError(err?.message || 'Failed to assign task');
     } finally {
       setSaving(false);
     }
@@ -151,9 +151,9 @@ const HodTasksPage: React.FC = () => {
         {loading ? (
           <HodEmpty message="Loading tasks..." />
         ) : tasks.length === 0 ? (
-          <HodEmpty message="No tasks found. Use “Assign Task” to create one for a team member." />
+          <HodEmpty message={'No tasks found. Use "Assign Task" to create one for a team member.'} />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="cok-table-scroll">
             <table className="w-full min-w-[820px]">
               <thead>
                 <tr>
@@ -195,10 +195,19 @@ const HodTasksPage: React.FC = () => {
       </HodCard>
 
       {showAssign && (
-        <HodModal title="Assign Task to Team Member" onClose={() => setShowAssign(false)}>
+        <HodModal
+          title="Assign Task to Team Member"
+          onClose={() => setShowAssign(false)}
+          busy={saving}
+          footer={
+            <button className="cok-btn-primary px-4 py-2 text-xs" style={{ borderRadius: 0 }} disabled={saving} onClick={submitAssign}>
+              {saving ? 'Assigning...' : 'Assign Task'}
+            </button>
+          }
+        >
           <div className="space-y-4">
             <div>
-              <HodLabel>Task Title *</HodLabel>
+              <HodLabel required>Task Title</HodLabel>
               <input className="cok-auth-input w-full py-2.5 px-3 text-sm" value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Prepare weekly service report" />
             </div>
@@ -209,7 +218,7 @@ const HodTasksPage: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <HodLabel>Assign To *</HodLabel>
+                <HodLabel required>Assign To</HodLabel>
                 <select className="cok-auth-input w-full py-2.5 px-3 text-sm" value={form.incharge}
                   onChange={e => setForm(f => ({ ...f, incharge: e.target.value }))}>
                   <option value="">Select team member...</option>
@@ -231,37 +240,33 @@ const HodTasksPage: React.FC = () => {
               <input type="date" className="cok-auth-input w-full py-2.5 px-3 text-sm" value={form.dueDate}
                 onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t" style={{ borderColor: COK.border }}>
-              <button className="cok-btn-outlined px-4 py-2 text-xs" style={{ borderRadius: 0 }} onClick={() => setShowAssign(false)}>Cancel</button>
-              <button className="cok-btn-primary px-4 py-2 text-xs" style={{ borderRadius: 0 }} disabled={saving} onClick={submitAssign}>
-                {saving ? 'Assigning...' : 'Assign Task'}
-              </button>
-            </div>
           </div>
         </HodModal>
       )}
 
       {selected && (
         <HodModal title="Task Details" onClose={() => setSelected(null)}>
-          <table className="w-full">
-            <tbody className="divide-y divide-gray-100">
-              {[
-                ['Title', selected.title],
-                ['Description', selected.description || '-'],
-                ['Assignee', selected.incharge?.full_name || '-'],
-                ['Assigned By', selected.createdBy?.full_name || '-'],
-                ['Priority', selected.priority || 'Medium'],
-                ['Status', selected.status],
-                ['Due Date', formatDate(selected.dueDate)],
-                ['Completed At', formatDate(selected.completedAt)],
-              ].map(([label, value]) => (
-                <tr key={label as string} className="hover:bg-gray-50">
-                  <td className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide w-1/3" style={{ color: COK.textMid, fontFamily: FONT }}>{label}</td>
-                  <td className="px-3 py-2.5 text-sm" style={{ color: COK.textDark }}>{value as string}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="cok-table-scroll">
+            <table className="w-full">
+              <tbody className="divide-y divide-gray-100">
+                {[
+                  ['Title', selected.title],
+                  ['Description', selected.description || '-'],
+                  ['Assignee', selected.incharge?.full_name || '-'],
+                  ['Assigned By', selected.createdBy?.full_name || '-'],
+                  ['Priority', selected.priority || 'Medium'],
+                  ['Status', selected.status],
+                  ['Due Date', formatDate(selected.dueDate)],
+                  ['Completed At', formatDate(selected.completedAt)],
+                ].map(([label, value]) => (
+                  <tr key={label as string} className="hover:bg-gray-50">
+                    <td className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide w-1/3" style={{ color: COK.textMid, fontFamily: FONT }}>{label}</td>
+                    <td className="px-3 py-2.5 text-sm" style={{ color: COK.textDark }}>{value as string}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </HodModal>
       )}
     </div>

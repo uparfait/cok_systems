@@ -2,8 +2,9 @@ const mongoose = require('mongoose');
 const xlsx = require('xlsx');
 const StaffCar = require('../../models/staff_car');
 
-// Plates are stored normalized (UPPERCASE, no spaces) so check-in/verify lookups always match
-const normalizePlate = (p) => String(p || '').toUpperCase().replace(/\s+/g, '');
+// Plates are stored in the gate form (upper-case letters and digits only) so
+// verify/check-in (utilities/visitors/parking.js classifyPlate) always match
+const { normalizePlate } = require('../../utilities/visitors/normalize.js');
 
 /**
  * OPTION A: Single Staff Registration
@@ -12,13 +13,14 @@ const registerSingleStaffCar = async (req, res) => {
     try {
         // Grab id_type from the request body
         const { plate_number, id_type, identification, owner_name, department_name, owner_title, owner_picture } = req.body;
+        const plate = normalizePlate(plate_number);
 
-        if (!plate_number) {
+        if (!plate) {
             return res.status(400).json({ success: false, message: 'Plate number is required.' });
         }
 
         const newStaffCar = new StaffCar({
-            plate_number: normalizePlate(plate_number),
+            plate_number: plate,
             id_type: id_type || 'NID', // Saves 'NID' if they leave it blank
             identification: identification || '',
             owner_name: owner_name || '',
@@ -27,19 +29,19 @@ const registerSingleStaffCar = async (req, res) => {
             owner_picture: owner_picture || '',
             is_active: true,
             is_flagged: false,
-            registered_by: 'Super_Admin' 
+            registered_by: 'Super_Admin'
         });
 
         await newStaffCar.save();
 
         res.status(201).json({
             success: true,
-            message: `Successfully registered staff vehicle for ${owner_name || plate_number}.`,
+            message: `Successfully registered staff vehicle for ${owner_name || plate}.`,
             data: newStaffCar
         });
 
     } catch (error) {
-        console.error('❌ Error in single staff registration:', error);
+        console.error('Error in single staff registration:', error);
         res.status(500).json({ success: false, message: 'Server error during staff registration.' });
     }
 };
@@ -66,7 +68,7 @@ const bulkUploadStaffCars = async (req, res) => {
 
         for (let file of uploadedFiles) {
             const workbook = xlsx.read(file.buffer, { type: 'buffer' });
-            const sheetName = workbook.SheetNames[0]; 
+            const sheetName = workbook.SheetNames[0];
             const sheet = workbook.Sheets[sheetName];
             const fileData = xlsx.utils.sheet_to_json(sheet);
             allStaffData = allStaffData.concat(fileData);
@@ -76,7 +78,7 @@ const bulkUploadStaffCars = async (req, res) => {
             return res.status(400).json({ success: false, message: 'The uploaded Excel file(s) are empty.' });
         }
 
-        // Map the Excel columns to include ID Type
+        // Map the Excel columns to include ID Type (rows without a plate are skipped)
         const mappedStaff = allStaffData.map(row => ({
             plate_number: normalizePlate(row['Plate Number'] || row['plate number'] || ''),
             owner_name: row['Name'] || row['Owner Name'] || row['name'] || '',
@@ -84,11 +86,15 @@ const bulkUploadStaffCars = async (req, res) => {
             identification: String(row['Identification'] || row['ID'] || ''),
             department_name: row['Department'] || row['department'] || '',
             owner_title: row['Title'] || row['title'] || '',
-            owner_picture: '', 
+            owner_picture: '',
             is_active: true,
             is_flagged: false,
             registered_by: 'Super_Admin_Bulk_Upload'
-        }));
+        })).filter(car => car.plate_number);
+
+        if (mappedStaff.length === 0) {
+            return res.status(400).json({ success: false, message: 'No rows with a plate number found in the uploaded file(s).' });
+        }
 
         const session = await mongoose.startSession();
         session.startTransaction();
@@ -107,12 +113,12 @@ const bulkUploadStaffCars = async (req, res) => {
         } catch (dbError) {
             await session.abortTransaction();
             session.endSession();
-            console.error('❌ Database Transaction Failed & Rolled Back:', dbError);
+            console.error('Database Transaction Failed & Rolled Back:', dbError);
             return res.status(500).json({ success: false, message: 'Database error during save. All changes rolled back.' });
         }
 
     } catch (error) {
-        console.error('❌ Error in staff bulk upload parsing:', error);
+        console.error('Error in staff bulk upload parsing:', error);
         res.status(500).json({ success: false, message: 'Server error while processing the Excel file.' });
     }
 };

@@ -1,13 +1,15 @@
 
 //   Verify Phone Controller
-//   Verifies if phone number exists in service delivery and returns assigned departments
- 
+//   Finds the registered visitor holding this phone number and returns the
+//   departments of their visits (latest visit first) for feedback.
 
-const ServiceDelivery = require('../../models/service_delivery');
+
+const { clean } = require('../../utilities/visitors');
+const { visitorByPhone, visitDepartments, hasVisits } = require('./phone_visits');
 
 async function verifyPhone(req, res) {
     try {
-        const { telephone } = req.body;
+        const telephone = clean((req.body || {}).telephone);
 
         if (!telephone) {
             return res.status(400).json({
@@ -16,10 +18,11 @@ async function verifyPhone(req, res) {
             });
         }
 
-        // Find service record by phone number
-        const serviceRecord = await ServiceDelivery.findOne({ telephone });
+        const visitor = await visitorByPhone(telephone);
+        const assignedDepartments = visitor ? await visitDepartments(visitor._id) : [];
 
-        if (!serviceRecord) {
+        // A visitor without any visit (a staff driver, for example) has nothing to rate
+        if (!visitor || (assignedDepartments.length === 0 && !(await hasVisits(visitor._id)))) {
             return res.status(404).json({
                 success: false,
                 error: 'Phone number not found',
@@ -27,21 +30,12 @@ async function verifyPhone(req, res) {
             });
         }
 
-        // Get assigned departments
-        const assignedDepartments = serviceRecord.departments_assigned.map(dept => ({
-            department_id: dept.department_id,
-            department_name: dept.department_name,
-            assigned_time: dept.assigned_time,
-            reached_in: dept.reached_in,
-            provider_name: dept.provider_name
-        }));
-
         return res.status(200).json({
             success: true,
             message: 'Phone verified successfully',
             data: {
-                visitor_name: serviceRecord.full_name,
-                telephone: serviceRecord.telephone,
+                visitor_name: visitor.full_name,
+                telephone: visitor.telephone,
                 assigned_departments: assignedDepartments
             }
         });

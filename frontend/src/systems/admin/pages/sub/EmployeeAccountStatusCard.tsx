@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { statisticsService, employeeService } from '../../../../core/services/adminService';
+import OverlayShell from '../../../../core/components/overlay/OverlayShell';
 
-// Chart colors - the admin variant of the overview page's CC palette
 const CC = { blue: '#056daa', teal: '#2980B9', amber: '#F39C12', red: '#E74C3C' };
 
 interface EmployeeStats { total: number; active: number; inactive: number; locked: number; online: number; offline: number }
 
-// 3D-style exploded pie (SVG) - separated slices with extruded depth, % labels on slices, callout lines to names
 const StatusPie3D: React.FC<{ slices: Array<{ label: string; value: number; color: string }> }> = ({ slices }) => {
   const data = slices.filter(s => s.value > 0);
   const total = data.reduce((sum, d) => sum + d.value, 0);
   if (!total) return <div className="h-40 flex items-center justify-center text-xs text-gray-400">No employee accounts yet</div>;
 
-  // Geometry: squashed ellipse pie with per-slice explode offset and a darker extruded side wall
   const cx = 280, cy = 112, rx = 104, squash = 0.55, ry = rx * squash, depth = 24, explode = 13;
   const shade = (hex: string, f: number) => {
     const n = parseInt(hex.replace('#', ''), 16);
@@ -37,7 +35,6 @@ const StatusPie3D: React.FC<{ slices: Array<{ label: string; value: number; colo
     return `M ${cx + ox} ${cy + oy} L ${s.x} ${s.y} A ${rx} ${ry} 0 ${large} 1 ${e.x} ${e.y} Z`;
   };
 
-  // Side wall only for the front-facing rim (angles between 0 and PI in screen space)
   const wallPath = (p: typeof parts[0]) => {
     const lo = Math.max(p.a0, 0), hi = Math.min(p.a1, Math.PI);
     if (lo >= hi) return null;
@@ -81,16 +78,11 @@ const StatusPie3D: React.FC<{ slices: Array<{ label: string; value: number; colo
   );
 };
 
-/**
- * "Employee account status" card (activation / lock / online) with its
- * click-to-view employees modal. Moved here from the mayor overview page.
- */
 const EmployeeAccountStatusCard: React.FC = () => {
   const [stats, setStats] = useState<EmployeeStats>({ total: 0, active: 0, inactive: 0, locked: 0, online: 0, offline: 0 });
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive' | 'locked' | 'online' | 'offline'>('all');
 
-  // The employee list is only needed by the modal's table - fetched 50 per page while it is open
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -102,8 +94,6 @@ const EmployeeAccountStatusCard: React.FC = () => {
       try {
         const res: any = await statisticsService.getEmployeeStats();
         const s = res?.data || res || {};
-        // is_active only tracks who is online right now; account status
-        // comes from is_account_activated (activated / not_activated)
         if (!ignore) setStats({
           total: s.total || 0,
           active: s.activated || 0,
@@ -112,7 +102,9 @@ const EmployeeAccountStatusCard: React.FC = () => {
           online: s.active || 0,
           offline: s.inactive || 0,
         });
-      } catch { /* the card keeps its zero counts */ }
+      } catch {
+        return;
+      }
     })();
     return () => { ignore = true; };
   }, []);
@@ -127,7 +119,9 @@ const EmployeeAccountStatusCard: React.FC = () => {
           setEmployees(Array.isArray(res.data) ? res.data : []);
           setTotal(res.total || 0);
         }
-      } catch { /* the modal shows its empty state */ }
+      } catch {
+        return;
+      }
     })();
     return () => { ignore = true; };
   }, [open, page]);
@@ -176,14 +170,7 @@ const EmployeeAccountStatusCard: React.FC = () => {
       </div>
 
       {open && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4" onClick={() => setOpen(false)}>
-          <div className="bg-white w-full max-w-4xl mx-2 sm:mx-4 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto" style={{ borderRadius: 0 }} onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900">Employee Account Status</h3>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
-            </div>
-            <div className="p-4 space-y-4">
-              {/* Status filter chips with counts from the backend stats endpoint, same source as the pie */}
+        <OverlayShell title="Employee Account Status" onClose={() => setOpen(false)} width="xl" bodyClassName="space-y-4">
               <div className="flex flex-wrap gap-2">
                 {([
                   { key: 'all', label: 'All', count: stats.total, chip: 'bg-gray-100 text-gray-700 border-gray-300' },
@@ -207,7 +194,7 @@ const EmployeeAccountStatusCard: React.FC = () => {
                   <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">No employees in this status</span>
                 </div>
               ) : (
-                <div className="overflow-auto max-h-80 border-2 border-gray-300">
+                <div className="cok-table-scroll border-2 border-gray-300" style={{ ['--cok-table-max-h' as string]: '20rem' } as React.CSSProperties}>
                   <table className="w-full border-collapse table-auto min-w-[560px]">
                     <thead className="sticky top-0 z-10">
                       <tr>
@@ -257,13 +244,12 @@ const EmployeeAccountStatusCard: React.FC = () => {
                   </table>
                 </div>
               )}
-              {/* Server-side pagination, 50 employees per page */}
               {total > PAGE_SIZE && (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-600">
                   <span>
                     Page <span className="font-semibold">{page}</span> of{' '}
                     <span className="font-semibold">{Math.max(1, Math.ceil(total / PAGE_SIZE))}</span>
-                    {' '}· {total} employees
+                    {' '}- {total} employees
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button
@@ -285,9 +271,7 @@ const EmployeeAccountStatusCard: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
+        </OverlayShell>
       )}
     </>
   );

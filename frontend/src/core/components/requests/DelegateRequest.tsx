@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FiX } from 'react-icons/fi';
+import OverlayCloseButton from '../overlay/OverlayCloseButton';
 import IncomingCorrespondences from './IncomingCorrespondences';
 import RequestStatistics from './RequestStatistics';
 import OrientationStats from './OrientationStats';
@@ -48,23 +48,14 @@ const DelegateRequest: React.FC<{
   return (
     <div className="fixed inset-0 z-40 bg-white">
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-        <div
-          className="flex items-center justify-between px-4 sm:px-6 py-4"
-          style={{ backgroundColor: '#056daa' }}
-        >
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4">
           <div>
-            <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+            <h2 className="text-lg font-bold text-gray-900" style={{ fontFamily: "'Montserrat', sans-serif" }}>
               Incoming Correspondences
             </h2>
-            <p className="text-xs text-white/80">Manage and track incoming correspondence requests</p>
+            <p className="text-xs text-gray-500">Manage and track incoming correspondence requests</p>
           </div>
-           <button
-             onClick={onClose}
-             className="cok-btn-outlined-reverse"
-             style={{ padding: '0.4rem 0.8rem' }}
-           >
-             <FiX className="w-5 h-5 sm:w-6 sm:h-6" />
-           </button>
+          <OverlayCloseButton onClick={onClose} />
         </div>
       </div>
 

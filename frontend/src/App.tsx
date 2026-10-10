@@ -56,15 +56,13 @@ import {
 } from "./systems/smartParking";
 
 import {
-  ServiceDashboard,
   ReceptionistDashboard,
-  ReceptionistVisitors,
   DepartmentManagerDashboard,
   EmployeeDashboard,
-  EmployeeVisitorsTab,
-  VisitorDetailsPage,
 } from "./systems/serviceDelivery";
-import AssignedVisitorsList from "./systems/serviceDelivery/components/departmentFlow/AssignedVisitorsList";
+import VisitorsPage from "./systems/serviceDelivery/pages/VisitorsPage";
+import LegacyDataPage from "./systems/admin/pages/LegacyDataPage";
+import { VisitorPanelProvider } from "./core/components/visitor/VisitorPanelProvider";
 
 import RequestsPage from "./pages/dashboard/RequestsPage";
 import TaskManager from "./systems/taskManagement/TaskManager";
@@ -201,6 +199,11 @@ const RoleDashboardPage: React.FC = () => {
   return <Navigate to={target} replace />;
 };
 
+const RedirectToVisitors: React.FC = () => {
+  const { roleSlug } = useParams();
+  return <Navigate to={`/${roleSlug}/visitors`} replace />;
+};
+
 // Only the mayor slug renders the mayor-specific pages
 const MayorOnly: React.FC<{ page: React.ReactElement }> = ({ page }) => {
   const { roleSlug } = useParams();
@@ -256,6 +259,7 @@ const AuthenticatedRoutes: React.FC = () => {
     <AuthProvider>
       <SocketProvider>
         <NotificationProvider>
+          <VisitorPanelProvider>
           <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -390,6 +394,16 @@ const AuthenticatedRoutes: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <SystemAuditPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:roleSlug/legacy-data"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <LegacyDataPage />
+                  </MainLayout>
                 </ProtectedRoute>
               }
             />
@@ -547,7 +561,9 @@ const AuthenticatedRoutes: React.FC = () => {
               path="/:roleSlug/visitors/:visitorId"
               element={
                 <ProtectedRoute>
-                  <VisitorDetailsPage />
+                  <MainLayout>
+                    <VisitorsPage />
+                  </MainLayout>
                 </ProtectedRoute>
               }
             />
@@ -563,16 +579,7 @@ const AuthenticatedRoutes: React.FC = () => {
               }
             />
 
-            <Route
-              path="/:roleSlug/all-visitors"
-              element={
-                <ProtectedRoute>
-                  <MainLayout>
-                    <EmployeeVisitorsTab />
-                  </MainLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/:roleSlug/all-visitors" element={<RedirectToVisitors />} />
 
             <Route
               path="/:roleSlug/hod/employees"
@@ -643,21 +650,12 @@ const AuthenticatedRoutes: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <MainLayout>
-                    <ReceptionistVisitors />
+                    <VisitorsPage />
                   </MainLayout>
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/:roleSlug/assigned"
-              element={
-                <ProtectedRoute>
-                  <MainLayout>
-                    <AssignedVisitorsList />
-                  </MainLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/:roleSlug/assigned" element={<RedirectToVisitors />} />
             <Route
               path="/service-delivery/department-manager"
               element={<Navigate to="/department-manager/dashboard" replace />}
@@ -730,6 +728,7 @@ const AuthenticatedRoutes: React.FC = () => {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </VisitorPanelProvider>
         </NotificationProvider>
       </SocketProvider>
     </AuthProvider>

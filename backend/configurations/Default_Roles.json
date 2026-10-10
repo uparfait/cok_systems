@@ -27,14 +27,6 @@
       "children": []
     },
     {
-      "id": "assigned-visitors",
-      "label": "Assigned Visitors",
-      "path": "/{roleSlug}/assigned",
-      "icon": "FiUserCheck",
-      "default_enabled": false,
-      "children": []
-    },
-    {
       "id": "requests",
       "label": "Requests",
       "path": "/{roleSlug}/requests",
@@ -97,7 +89,8 @@
         { "id": "user-management", "label": "User Management", "path": "/{roleSlug}/user-management", "icon": "FiUser" },
         { "id": "system-audit", "label": "System Audit", "path": "/{roleSlug}/system-audit", "icon": "FiActivity" },
         { "id": "storage-management", "label": "Storage Management", "path": "/{roleSlug}/storage-management", "icon": "FiHardDrive" },
-        { "id": "deployment-management", "label": "Deployment Management", "path": "/{roleSlug}/deployment-management", "icon": "FiUploadCloud" }
+        { "id": "deployment-management", "label": "Deployment Management", "path": "/{roleSlug}/deployment-management", "icon": "FiUploadCloud" },
+        { "id": "legacy-data", "label": "Legacy Data", "path": "/{roleSlug}/legacy-data", "icon": "FiDatabase" }
       ]
     },
     {
@@ -223,7 +216,8 @@
             { "id": "user-management", "label": "User Management", "path": "/{roleSlug}/user-management", "icon": "FiUser", "permission": "user_management" },
             { "id": "system-audit", "label": "System Audit", "path": "/{roleSlug}/system-audit", "icon": "FiActivity", "permission": "admin" },
             { "id": "storage-management", "label": "Storage Management", "path": "/{roleSlug}/storage-management", "icon": "FiHardDrive", "permission": "admin" },
-            { "id": "deployment-management", "label": "Deployment Management", "path": "/{roleSlug}/deployment-management", "icon": "FiUploadCloud", "permission": "admin" }
+            { "id": "deployment-management", "label": "Deployment Management", "path": "/{roleSlug}/deployment-management", "icon": "FiUploadCloud", "permission": "admin" },
+            { "id": "legacy-data", "label": "Legacy Data", "path": "/{roleSlug}/legacy-data", "icon": "FiDatabase", "permission": "admin" }
           ]
         },
         {
@@ -258,7 +252,6 @@
         { "id": "calender", "label": "Calendar", "path": "/calendar", "icon": "FiCalendar" },
         { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiHome" },
         { "id": "visitors", "label": "Visitors", "path": "/{roleSlug}/visitors", "icon": "FiUsers" },
-        { "id": "assigned-visitors", "label": "Assigned Visitors", "path": "/{roleSlug}/assigned", "icon": "FiUserCheck" },
         { "id": "requests", "label": "Requests", "path": "/{roleSlug}/requests", "icon": "FiFile" },
         {
           "id": "task-manager", "label": "Task Manager", "path": "/{roleSlug}/tasks", "icon": "FiClipboard",
@@ -277,7 +270,7 @@
       "links": [
         { "id": "calender", "label": "Calendar", "path": "/calendar", "icon": "FiCalendar" },
         { "id": "dashboard", "label": "Dashboard", "path": "/{roleSlug}/dashboard", "icon": "FiGrid" },
-        { "id": "visitors", "label": "Visitors", "path": "/{roleSlug}/all-visitors", "icon": "FiUsers" },
+        { "id": "visitors", "label": "Visitors", "path": "/{roleSlug}/visitors", "icon": "FiUsers" },
         {
           "id": "task-manager", "label": "Task Manager", "path": "/{roleSlug}/tasks", "icon": "FiClipboard",
           "children": [
@@ -285,7 +278,6 @@
             { "id": "follow-ups", "label": "Follow-ups", "path": "/{roleSlug}/followups", "icon": "FiCheck" }
           ]
         },
-        { "id": "history", "label": "Service History", "path": "/{roleSlug}/dashboard?tab=history", "icon": "FiFileText" },
         { "id": "queue", "label": "Department Queue", "path": "/{roleSlug}/dashboard?tab=queue", "icon": "FiList" },
         { "id": "dcs", "label": "DCS", "path": "/dcs-system", "icon": "FiDatabase" }
       ]

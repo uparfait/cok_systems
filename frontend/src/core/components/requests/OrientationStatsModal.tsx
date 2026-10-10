@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiX } from 'react-icons/fi';
 import requestService, { type RequestStatistics } from '../../../core/services/requestService';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import OverlayShell from '../overlay/OverlayShell';
 
 interface OrientationStat {
   name: string;
@@ -102,18 +102,8 @@ const OrientationStatsModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white w-full max-w-6xl max-h-[90vh] overflow-y-auto" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary" style={{ borderRadius: 0 }}>
-          <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-            Orientation Statistics
-          </h2>
-          <button onClick={onClose} className="cok-btn-outlined-reverse" style={{ padding: '0.4rem 0.8rem' }}>
-            <FiX className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="p-4 sm:p-6 space-y-4">
+    <OverlayShell title="Orientation Statistics" onClose={onClose} width="xl">
+        <div className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-2">
             <select
               value={period}
@@ -202,8 +192,7 @@ const OrientationStatsModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </OverlayShell>
   );
 };
 

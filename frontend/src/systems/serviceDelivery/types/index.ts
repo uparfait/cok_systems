@@ -1,36 +1,110 @@
-// Common types for Service Delivery System
-// Centralized type definitions to avoid duplication
+import type {
+  DepartmentAssignment,
+  ServiceDuration,
+  ServiceStatusEntry,
+  ServingBy,
+  Visitor,
+  VisitorIdentification,
+  VisitNote,
+} from '../../../core/components/visitor/visitorTypes';
 
-// ==================== Visitor Types ====================
+export type { DepartmentAssignment, ServiceDuration, ServingBy, Visitor, VisitorIdentification, VisitNote };
 
-export interface Visitor {
-  id: string;
+export type ServiceStatusType = 'Not started' | 'Inprogress' | 'Transfered' | 'Completed';
+
+export interface VisitServiceStatus extends Omit<ServiceStatusEntry, 's_type'> {
+  s_type: ServiceStatusType;
+}
+
+export interface VehicleDetails {
+  plate_number?: string;
+  entered_time?: string | null;
+  exited_time?: string | null;
+  duration?: string | null;
+}
+
+export interface VehicleStorage {
+  has_vehicle?: boolean;
+  parking_record?: string | null;
+  vehicle_details?: VehicleDetails;
+}
+
+export interface EmergencyDuration {
+  type_of_emergency?: 'Leave outside' | 'Other';
+  duration?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+  provider_name?: string;
+  provider_id?: string;
+}
+
+export interface VisitDurations {
+  services_durations?: ServiceDuration[];
+  entry_and_leave_duration?: string | null;
+  emergency_durations?: EmergencyDuration[];
+}
+
+export interface VisitItem {
+  item_name?: string;
+  quantity?: number;
+  description?: string;
+}
+
+export interface VisitRow {
+  _id: string;
+  visitor_id: string | null;
+  visitor: Visitor | null;
   full_name: string;
-  identification: string;
   telephone: string;
-  email?: string;
-  address?: string;
-  status: 'pending' | 'waiting' | 'In_progress' | 'completed';
-  check_in_time: string;
-  department?: string;
-  service?: string;
-  purpose?: string;
-  assignedStaff?: string;
+  email: string;
+  gender: string;
+  identification: VisitorIdentification;
+  N_visits: number;
+  Is_In_House: boolean;
+  serving_by: ServingBy | null;
+  entry_date: string;
+  exist_date: string | null;
+  is_still_inhouse: boolean;
+  is_being_served: boolean;
+  marked_as_out: boolean;
+  registered_by?: string;
+  vehicle_storage?: VehicleStorage;
+  departments_assigned: DepartmentAssignment[];
+  services_status: VisitServiceStatus[];
+  durations?: VisitDurations;
+  items_entered_with?: VisitItem[];
+  items_exited_with?: VisitItem[];
+  notes?: VisitNote[];
+  attachments_count?: number;
+  current_duration?: string;
+  current_duration_hours?: number;
+  is_near_limit?: boolean;
+  is_over_limit?: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
-export interface VisitorManager {
-  id: string;
-  fullName: string;
-  nationalId: string;
-  service: string;
-  department: string;
-  arrivalTime: string;
-  status: string;
-  phone: string;
-  requestId?: string;
+export interface VisitListResponse {
+  success: boolean;
+  type?: string;
+  message?: string;
+  total: number;
+  page: number;
+  limit?: number;
+  pages?: number;
+  data: VisitRow[];
 }
 
-// ==================== Employee Types ====================
+export interface ServiceRecord {
+  visit_id: string;
+  visitor_id: string | null;
+  full_name: string;
+  department_id: string;
+  department_name: string;
+  provider_name: string;
+  status: ServiceStatusType;
+  assigned_time: string | null;
+}
 
 export interface Employee {
   id: string;
@@ -50,23 +124,6 @@ export interface DepartmentEmployee {
   initials: string;
 }
 
-// ==================== Service Status Types ====================
-
-export interface ServiceStatusVisitor {
-  id: string;
-  requestId: string;
-  fullName: string;
-  initials: string;
-  contact: string;
-  service: string;
-  status: 'Pending' | 'In-Progress' | 'Completed' | 'Transferred';
-  assignedTo: string;
-  assignedToInitials?: string;
-  createdAt?: string;
-}
-
-// ==================== User Types ====================
-
 export interface UserProfile {
   firstName: string;
   lastName: string;
@@ -81,20 +138,6 @@ export interface CurrentUser {
   avatar: string | null;
 }
 
-// ==================== Service Record Types ====================
-
-export interface ServiceRecord {
-  id: string;
-  visitorName: string;
-  serviceId: string;
-  status: 'pending' | 'completed' | 'transferred';
-  assignmentTime: string;
-  avatarColor: string;
-  initials: string;
-}
-
-// ==================== Department Types ====================
-
 export interface Department {
   id: string;
   name: string;
@@ -103,8 +146,6 @@ export interface Department {
   isActive: boolean;
 }
 
-// ==================== Status Badge Types ====================
-
 export interface StatusBadgeStyle {
   bg: string;
   border: string;
@@ -112,15 +153,11 @@ export interface StatusBadgeStyle {
   label: string;
 }
 
-// ==================== Pagination Types ====================
-
 export interface PaginationState {
   currentPage: number;
   itemsPerPage: number;
   totalItems: number;
 }
-
-// ==================== Notification Types ====================
 
 export interface Notification {
   id: string;
