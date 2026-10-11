@@ -175,6 +175,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [savingCertificate, setSavingCertificate] = useState(false);
   const [removingCertificate, setRemovingCertificate] = useState(false);
   const certificateInputRef = useRef<HTMLInputElement>(null);
+  const certificatePasswordRef = useRef<HTMLInputElement>(null);
 
   const roleNames: { [key: string]: string } = {
     'system_admin': 'System Administrator',
@@ -460,12 +461,37 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     setCertificateFile(file);
     setCertificatePassword('');
     setShowCertificatePassword(false);
+    showWarning('Certificate selected. Enter its password to verify and save it.');
   };
+
+  // Once a file is picked, put the cursor straight into the password field so verification is not forgotten
+  useEffect(() => {
+    if (certificateFile) certificatePasswordRef.current?.focus();
+  }, [certificateFile]);
 
   const cancelPendingCertificate = () => {
     setCertificateFile(null);
     setCertificatePassword('');
     setShowCertificatePassword(false);
+  };
+
+  // An unverified certificate is lost when the panel goes away, so refuse to leave until it is verified or cancelled
+  const hasUnverifiedCertificate = () => {
+    if (!certificateFile || savingCertificate) return false;
+    showWarning('Verify the certificate password first, or cancel the upload');
+    certificatePasswordRef.current?.focus();
+    return true;
+  };
+
+  const switchTab = (tab: typeof activeTab) => {
+    if (hasUnverifiedCertificate()) return;
+    setActiveTab(tab);
+    if (tab !== 'notifications') setShowPasswordForm(false);
+  };
+
+  const handleClose = () => {
+    if (hasUnverifiedCertificate()) return;
+    onClose();
   };
 
   // The server opens the file with this password; a wrong password means nothing is stored
@@ -619,7 +645,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
           <span>Profile</span>
         </span>
       }
-      onClose={onClose}
+      onClose={handleClose}
       busy={busy}
       width="lg"
       zIndex={10000}
@@ -628,7 +654,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
         <div className="border-b" style={{ borderColor: BORDER }}>
           <nav className="flex overflow-x-auto">
             <button
-              onClick={() => { setActiveTab('profile'); setShowPasswordForm(false); }}
+              onClick={() => switchTab('profile')}
               className={`flex cursor-pointer items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'profile'
                   ? 'text-[#056daa] border-b-2 border-[#056daa] bg-blue-50'
@@ -640,7 +666,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
               Profile
             </button>
              <button
-               onClick={() => { setActiveTab('security'); setShowPasswordForm(false); }}
+               onClick={() => switchTab('security')}
                className={`flex cursor-pointer items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
                  activeTab === 'security'
                    ? 'text-[#056daa] border-b-2 border-[#056daa] bg-blue-50'
@@ -652,7 +678,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                Security
              </button>
              <button
-               onClick={() => { setActiveTab('notifications'); }}
+               onClick={() => switchTab('notifications')}
                className={`flex cursor-pointer items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
                  activeTab === 'notifications'
                    ? 'text-[#056daa] border-b-2 border-[#056daa] bg-blue-50'
@@ -664,7 +690,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                Notifications
              </button>
              <button
-               onClick={() => { setActiveTab('signature'); setShowPasswordForm(false); }}
+               onClick={() => switchTab('signature')}
                className={`flex cursor-pointer items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
                  activeTab === 'signature'
                    ? 'text-[#056daa] border-b-2 border-[#056daa] bg-blue-50'
@@ -1328,16 +1354,23 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                                      <FiX className="w-4 h-4" />
                                    </button>
                                  </div>
+                                 <div className="flex items-start gap-2 px-3 py-2 text-xs" style={{ backgroundColor: '#FFF8E1', border: '1px solid #F5C451', color: '#8A6D1D' }}>
+                                   <FiAlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                                   <span>Not saved yet. Enter the certificate password below and press Verify and save.</span>
+                                 </div>
                                  <div>
                                    <label className="block text-xs font-semibold uppercase mb-1.5" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading, letterSpacing: '0.5px' }}>
-                                     Certificate password
+                                     Certificate password <span style={{ color: '#E74C3C' }}>*</span>
                                    </label>
                                    <div className="relative">
                                      <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: GRAY_DISABLED }} />
                                      <input
+                                       ref={certificatePasswordRef}
                                        type={showCertificatePassword ? 'text' : 'password'}
                                        value={certificatePassword}
                                        autoComplete="off"
+                                       autoFocus
+                                       required
                                        placeholder="Password for this certificate"
                                        onChange={(e) => setCertificatePassword(e.target.value)}
                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveSigningCertificate(); } }}
