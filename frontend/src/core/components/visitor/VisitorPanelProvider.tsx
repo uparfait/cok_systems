@@ -1,8 +1,12 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import VisitorPanel from './VisitorPanel';
 
+export interface OpenVisitorOptions {
+  readOnly?: boolean;
+}
+
 interface VisitorPanelContextValue {
-  openVisitor: (visitorId?: string | null) => void;
+  openVisitor: (visitorId?: string | null, options?: OpenVisitorOptions) => void;
   closeVisitor: () => void;
 }
 
@@ -22,18 +26,18 @@ export const visitorIdOf = (row: unknown): string | null => {
 };
 
 export const VisitorPanelProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [visitorId, setVisitorId] = useState<string | null>(null);
+  const [open, setOpen] = useState<{ id: string; readOnly: boolean } | null>(null);
 
-  const openVisitor = useCallback((id?: string | null) => {
-    if (id) setVisitorId(String(id));
+  const openVisitor = useCallback((id?: string | null, options?: OpenVisitorOptions) => {
+    if (id) setOpen({ id: String(id), readOnly: !!(options && options.readOnly) });
   }, []);
-  const closeVisitor = useCallback(() => setVisitorId(null), []);
+  const closeVisitor = useCallback(() => setOpen(null), []);
   const value = useMemo(() => ({ openVisitor, closeVisitor }), [openVisitor, closeVisitor]);
 
   return (
     <VisitorPanelContext.Provider value={value}>
       {children}
-      {visitorId ? <VisitorPanel key={visitorId} visitorId={visitorId} onClose={closeVisitor} /> : null}
+      {open ? <VisitorPanel key={open.id} visitorId={open.id} readOnly={open.readOnly} onClose={closeVisitor} /> : null}
     </VisitorPanelContext.Provider>
   );
 };

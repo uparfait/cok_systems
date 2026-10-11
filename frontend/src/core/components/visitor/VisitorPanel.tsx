@@ -25,9 +25,10 @@ const payloadVisitor = (payload: unknown): string => {
 interface VisitorPanelProps {
   visitorId: string;
   onClose: () => void;
+  readOnly?: boolean;
 }
 
-const VisitorPanel: React.FC<VisitorPanelProps> = ({ visitorId, onClose }) => {
+const VisitorPanel: React.FC<VisitorPanelProps> = ({ visitorId, onClose, readOnly = false }) => {
   const { socket } = useSocket();
   const [details, setDetails] = useState<VisitorDetails | null>(null);
   const [error, setError] = useState('');
@@ -75,7 +76,7 @@ const VisitorPanel: React.FC<VisitorPanelProps> = ({ visitorId, onClose }) => {
 
   const tabBar = (
     <div className="flex gap-1 px-4 sm:px-5 border-b border-gray-200 overflow-x-auto">
-      {TABS.map((t) => (
+      {TABS.filter((t) => !readOnly || t.key !== 'add').map((t) => (
         <button
           key={t.key}
           type="button"
@@ -105,6 +106,7 @@ const VisitorPanel: React.FC<VisitorPanelProps> = ({ visitorId, onClose }) => {
       {details && tab === 'info' ? (
         <VisitorInfoTab
           details={details}
+          readOnly={readOnly}
           setBusy={setBusy}
           onChanged={(next) => {
             if (next) setDetails(next);
@@ -112,7 +114,7 @@ const VisitorPanel: React.FC<VisitorPanelProps> = ({ visitorId, onClose }) => {
           }}
         />
       ) : null}
-      {details && tab === 'add' ? (
+      {details && tab === 'add' && !readOnly ? (
         <VisitorAddAttachmentTab
           visitorId={visitorId}
           canAdd={details.permissions.can_add_attachment}
@@ -123,7 +125,7 @@ const VisitorPanel: React.FC<VisitorPanelProps> = ({ visitorId, onClose }) => {
           }}
         />
       ) : null}
-      {details && tab === 'list' ? <VisitorAttachmentsTab visitorId={visitorId} refreshKey={attachmentsKey} setBusy={setBusy} /> : null}
+      {details && tab === 'list' ? <VisitorAttachmentsTab visitorId={visitorId} refreshKey={attachmentsKey} setBusy={setBusy} readOnly={readOnly} /> : null}
     </OverlayShell>
   );
 };

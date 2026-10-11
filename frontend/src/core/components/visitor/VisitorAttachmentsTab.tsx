@@ -8,6 +8,7 @@ interface VisitorAttachmentsTabProps {
   visitorId: string;
   refreshKey: number;
   setBusy: (busy: boolean) => void;
+  readOnly?: boolean;
 }
 
 const PAGE = 10;
@@ -75,7 +76,7 @@ const FileEditor: React.FC<EditorProps> = ({ visitorId, group, file, setBusy, on
   );
 };
 
-const VisitorAttachmentsTab: React.FC<VisitorAttachmentsTabProps> = ({ visitorId, refreshKey, setBusy }) => {
+const VisitorAttachmentsTab: React.FC<VisitorAttachmentsTabProps> = ({ visitorId, refreshKey, setBusy, readOnly = false }) => {
   const { showError } = useToast();
   const [groups, setGroups] = useState<VisitorAttachmentGroup[]>([]);
   const [page, setPage] = useState(0);
@@ -182,7 +183,7 @@ const VisitorAttachmentsTab: React.FC<VisitorAttachmentsTabProps> = ({ visitorId
                   <button type="button" aria-label="Download" title="Download" className={ICON_BUTTON} disabled={opening === file._id} onClick={() => open(file, true)}>
                     <FiDownload className="h-4 w-4" />
                   </button>
-                  {group.can_edit ? (
+                  {group.can_edit && !readOnly ? (
                     <button type="button" aria-label="Edit" title="Edit" className={`${ICON_BUTTON} ${editing === file._id ? 'bg-[#056daa]/10 text-[#056daa]' : ''}`} onClick={() => setEditing(editing === file._id ? null : file._id)}>
                       <FiEdit2 className="h-4 w-4" />
                     </button>

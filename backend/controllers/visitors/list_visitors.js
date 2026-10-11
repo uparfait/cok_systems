@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Visitor = require('../../models/visitor.js');
 const ServiceDelivery = require('../../models/service_delivery.js');
 const {
@@ -82,8 +83,27 @@ function currentVisitOf(visit) {
 }
 
 /**
+ * The visits behind an overview card: people who visited in the range, people
+ * served (a service completed in the range), people with a request not served
+ * yet (assigned in the range). Returns a ServiceDelivery filter or null.
+ */
+function viewFilter(view, range) {
+    const inRange = range || { $type: 'date' };
+    if (view === 'visited') return { entry_date: inRange };
+    if (view === 'served') return { 'durations.services_durations': { $elemMatch: { started_at: inRange, ended_at: { $type: 'date' } } } };
+    if (view === 'not_served') {
+        return {
+            services_status: { $elemMatch: { s_type: { $in: ['Not started', 'Inprogress'] } } },
+            $or: [{ 'departments_assigned.assigned_time': inRange }, { entry_date: inRange }],
+        };
+    }
+    return null;
+}
+
+/**
  * GET /visitors - one page of visitors (in-house first, newest update first)
- * with their open visit. Filters mirror the table header filters.
+ * with their open visit. Filters mirror the table header filters; view +
+ * view_from / view_to pick the people behind an overview card.
  */
 module.exports = async function list_visitors(req, res) {
     try {
@@ -91,13 +111,20 @@ module.exports = async function list_visitors(req, res) {
         const page = Math.max(1, parseInt(q.page, 10) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(q.limit, 10) || 20));
         const match = buildMatch(q);
+        const idSets = [];
 
         if (q.scope === 'mine') {
             const scope = await departmentScopeFor(req.user, roleSlugOf(req));
             const visitFilter = { 'departments_assigned.department_id': { $in: scope } };
             if (match.Is_In_House === true) visitFilter.is_still_inhouse = true;
-            const ids = scope.length ? await ServiceDelivery.distinct('visitor', visitFilter) : [];
-            match._id = { $in: ids.filter(Boolean) };
+            idSets.push(scope.length ? await ServiceDelivery.distinct('visitor', visitFilter) : []);
+        }
+        const byView = viewFilter(q.view, dateRange(q.view_from, q.view_to));
+        if (byView) idSets.push(await ServiceDelivery.distinct('visitor', byView));
+        if (idSets.length) {
+            const allowed = idSets.map((ids) => new Set(ids.filter(Boolean).map(String)));
+            const ids = [...allowed[0]].filter((id) => allowed.every((set) => set.has(id)));
+            match._id = { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) };
         }
 
         const field = SORTABLE[q.sort];

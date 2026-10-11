@@ -221,24 +221,33 @@ const DeptServicesMirror: React.FC<{ rows: DeptServiceRow[]; compact?: boolean }
   );
 };
 
-export const DeptServicesTotals: React.FC<{ totals: DeptServiceTotals; loading: boolean }> = ({ totals, loading }) => {
-  const cards: Array<{ label: string; value: number; hint: string; meta?: string; color: string; accent: string }> = [
-    { label: 'Total Visitors', value: totals.visitors, hint: 'People who visited the City of Kigali in this period', meta: `${totals.visits.toLocaleString()} visit(s)`, color: '#333333', accent: CC.amber },
-    { label: 'In House Now', value: totals.inHouse, hint: 'Visitors in the building right now', color: PRIMARY, accent: PRIMARY },
-    { label: 'Returning Visitors', value: totals.returning, hint: 'People with more than one visit', meta: 'All time', color: CC.purple, accent: CC.purple },
-    { label: 'Registered Visitors', value: totals.registered, hint: 'Every person registered so far', meta: 'All time', color: '#333333', accent: CC.blue },
-    { label: 'Total Served', value: totals.served, hint: 'Services delivered to visitors in this period', color: CC.teal, accent: CC.teal },
-    { label: 'Total Not Served', value: totals.notServed, hint: 'Department assignments not served yet', meta: `Of ${totals.assigned.toLocaleString()} assignment(s)`, color: CC.red, accent: CC.red },
+export type TotalsCardKey = 'visitors' | 'inHouse' | 'returning' | 'registered' | 'served' | 'notServed';
+
+export const DeptServicesTotals: React.FC<{ totals: DeptServiceTotals; loading: boolean; onSelect?: (card: TotalsCardKey) => void }> = ({ totals, loading, onSelect }) => {
+  const cards: Array<{ key: TotalsCardKey; label: string; value: number; hint: string; meta?: string; color: string; accent: string }> = [
+    { key: 'visitors', label: 'Total Visitors', value: totals.visitors, hint: 'People who visited the City of Kigali in this period', meta: `${totals.visits.toLocaleString()} visit(s)`, color: '#333333', accent: CC.amber },
+    { key: 'inHouse', label: 'In House Now', value: totals.inHouse, hint: 'Visitors in the building right now', color: PRIMARY, accent: PRIMARY },
+    { key: 'returning', label: 'Returning Visitors', value: totals.returning, hint: 'People with more than one visit', meta: 'All time', color: CC.purple, accent: CC.purple },
+    { key: 'registered', label: 'Registered Visitors', value: totals.registered, hint: 'Every person registered so far', meta: 'All time', color: '#333333', accent: CC.blue },
+    { key: 'served', label: 'Total Served', value: totals.served, hint: 'Services delivered to visitors in this period', color: CC.teal, accent: CC.teal },
+    { key: 'notServed', label: 'Total Not Served', value: totals.notServed, hint: 'Department assignments not served yet', meta: `Of ${totals.assigned.toLocaleString()} assignment(s)`, color: CC.red, accent: CC.red },
   ];
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
       {cards.map((card) => (
-        <div key={card.label} className="bg-white p-4 min-w-0" style={{ border: `1px solid ${BORDER}`, borderLeft: `4px solid ${card.accent}` }}>
+        <button
+          key={card.key}
+          type="button"
+          onClick={() => onSelect?.(card.key)}
+          title={`Show the visitors behind ${card.label}`}
+          className="bg-white p-4 min-w-0 text-left cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#056daa]/40"
+          style={{ border: `1px solid ${BORDER}`, borderLeft: `4px solid ${card.accent}`, borderRadius: 0 }}
+        >
           <div className="text-[11px] uppercase tracking-wide text-gray-500" style={{ fontFamily: fontHeading }}>{card.label}</div>
           <div className="text-3xl font-bold mt-1 leading-none" style={{ color: card.color, fontFamily: fontHeading }}>{loading ? '-' : card.value.toLocaleString()}</div>
           <div className="text-xs text-gray-500 mt-1.5">{card.hint}</div>
           {card.meta && !loading ? <div className="text-[11px] font-semibold text-gray-400 mt-0.5">{card.meta}</div> : null}
-        </div>
+        </button>
       ))}
     </div>
   );

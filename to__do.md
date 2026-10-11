@@ -56,6 +56,10 @@ Status legend: [ ] to do, [x] done.
     return for someone already inside, checking out a car that already left and sending a visitor again to the
     department where they already wait are all refused with a clear message (who and when). Closing a visit is
     atomic, so two gates acting at the same moment cannot both succeed, and the buttons lock on the first click.
+18. Overview page: the six figure cards open a table of the people behind them (visited in the period, in house now,
+    returning, registered, served in the period, not served yet). A visitor in that table opens the panel read only:
+    details and attachments to open or download, no edit, no actions, no Add attachment. The full-screen button is a
+    small round icon that can be dragged anywhere; its place is remembered. Overlays open inside full screen too.
 
 ## 1. Data models (backend)
 

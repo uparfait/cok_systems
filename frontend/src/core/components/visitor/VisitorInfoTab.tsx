@@ -11,6 +11,7 @@ interface VisitorInfoTabProps {
   details: VisitorDetails;
   onChanged: (next?: VisitorDetails) => void;
   setBusy: (busy: boolean) => void;
+  readOnly?: boolean;
 }
 
 const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
@@ -37,7 +38,7 @@ const EditToggle: React.FC<{ on: boolean; disabled: boolean; onChange: (on: bool
   </button>
 );
 
-const VisitorInfoTab: React.FC<VisitorInfoTabProps> = ({ details, onChanged, setBusy }) => {
+const VisitorInfoTab: React.FC<VisitorInfoTabProps> = ({ details, onChanged, setBusy, readOnly = false }) => {
   const { showSuccess, showError } = useToast();
   const { visitor, current_visit: currentVisit, permissions } = details;
   const [editing, setEditing] = useState(false);
@@ -78,9 +79,11 @@ const VisitorInfoTab: React.FC<VisitorInfoTabProps> = ({ details, onChanged, set
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <EditToggle on={editing} disabled={!permissions.can_edit || saving} onChange={toggleEdit} />
-      </div>
+      {readOnly ? null : (
+        <div className="flex justify-end">
+          <EditToggle on={editing} disabled={!permissions.can_edit || saving} onChange={toggleEdit} />
+        </div>
+      )}
 
       {editing ? (
         <div className="flex flex-col gap-3">
@@ -105,7 +108,7 @@ const VisitorInfoTab: React.FC<VisitorInfoTabProps> = ({ details, onChanged, set
         </div>
       )}
 
-      {currentVisit && !editing ? <VisitorActions details={details} onChanged={onChanged} setBusy={setBusy} /> : null}
+      {currentVisit && !editing && !readOnly ? <VisitorActions details={details} onChanged={onChanged} setBusy={setBusy} /> : null}
     </div>
   );
 };

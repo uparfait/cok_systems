@@ -5,6 +5,9 @@ import MainLayout from '../../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../../core/components/LoadingSpinner';
 import type { AppliedFilter, PeriodValue } from '../components/FeedbackFeed';
 import MayorDeptServicesSection, { DeptServicesTotals, useDeptServices } from './MayorDeptServicesSection';
+import type { TotalsCardKey } from './MayorDeptServicesSection';
+import MayorVisitorsOverlay from './MayorVisitorsOverlay';
+import FullscreenFab from './FullscreenFab';
 import MayorRequestsSection from './MayorRequestsSection';
 import MayorRatingSection, { DepartmentSentimentPanel, useRatingData } from './MayorRatingSection';
 import MayorActivitySection from './MayorActivitySection';
@@ -34,6 +37,7 @@ const MayorDashboardPage: React.FC = () => {
   const [applied, setApplied] = useState<AppliedFilter>({ period: 'month' });
   const [refreshTick, setRefreshTick] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [openCard, setOpenCard] = useState<TotalsCardKey | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
   const deptServices = useDeptServices(applied, refreshTick);
@@ -90,30 +94,10 @@ const MayorDashboardPage: React.FC = () => {
       className={isFullscreen ? 'overflow-y-auto p-4 sm:p-6' : ''}
       style={{ backgroundColor: isFullscreen ? '#F7F9FB' : undefined, minHeight: isFullscreen ? '100vh' : undefined }}
     >
-      <button
-        type="button"
-        onClick={toggleFullscreen}
-        title={isFullscreen ? 'Exit full screen' : 'View in full screen'}
-        className="fixed z-40 text-xs font-semibold uppercase cursor-pointer shadow-lg transition-colors"
-        style={{
-          top: isFullscreen ? 16 : 76,
-          right: 16,
-          padding: '0.5rem 0.9rem',
-          backgroundColor: PRIMARY,
-          color: '#FFFFFF',
-          border: `1px solid ${PRIMARY}`,
-          borderRadius: 0,
-          letterSpacing: '1px',
-          fontFamily: fontHeading,
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
-      >
-        {isFullscreen ? 'Exit full screen' : 'Full screen'}
-      </button>
+      <FullscreenFab active={isFullscreen} onToggle={toggleFullscreen} />
 
       <div className="space-y-3">
-        <DeptServicesTotals totals={deptServices.totals} loading={deptServices.loading} />
+        <DeptServicesTotals totals={deptServices.totals} loading={deptServices.loading} onSelect={setOpenCard} />
 
         <div className="bg-white p-3" style={{ border: `1px solid ${BORDER}` }}>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
@@ -169,6 +153,8 @@ const MayorDashboardPage: React.FC = () => {
         <MayorActivitySection applied={applied} refreshTick={refreshTick} />
         <MayorOccupancySection applied={applied} refreshTick={refreshTick} />
       </div>
+
+      {openCard ? <MayorVisitorsOverlay card={openCard} applied={applied} onClose={() => setOpenCard(null)} /> : null}
     </div>
   );
 

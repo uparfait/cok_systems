@@ -198,6 +198,9 @@ export interface VisitorListParams {
   n_visits?: string;
   n_visits_mode?: string;
   scope?: 'mine' | '';
+  view?: 'visited' | 'served' | 'not_served';
+  view_from?: string;
+  view_to?: string;
   sort?: string;
   dir?: 'asc' | 'desc';
 }
