@@ -6,6 +6,7 @@ import { new_idempotency_key, is_session_error } from "../services/batchApproval
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
 import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "./DcsButtonOutlineDanger.jsx";
+import DcsOverlayHeader from "./DcsOverlayHeader.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const PRIMARY = "#056daa";
@@ -139,16 +140,13 @@ export default function DcsBatchDecisionModal({ token, formName, recordCount, de
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
-      <div className="w-full max-w-xl bg-white max-h-[90vh] flex flex-col border-2" style={{ borderColor: accent }}>
-        <div className="px-5 py-4 shrink-0" style={{ backgroundColor: accent }}>
-          <h2 className="text-white font-bold text-base" style={{ fontFamily: fontHeading }}>
-            {translate(is_approve ? "DCS_APPROVAL_BTN_APPROVE" : "DCS_APPROVAL_BTN_REJECT")}
-          </h2>
-          <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.85)", fontFamily: fontHeading }}>
-            {formName}
-            {recordCount > 1 ? ` - ${translate("DCS_SCHED_RECORDS", { count: recordCount })}` : ""}
-          </p>
-        </div>
+      <div className="w-full max-w-xl bg-white border border-gray-200 max-h-[90vh] flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-busy={acting}>
+        <DcsOverlayHeader
+          title={translate(is_approve ? "DCS_APPROVAL_BTN_APPROVE" : "DCS_APPROVAL_BTN_REJECT")}
+          subtitle={`${formName || ""}${recordCount > 1 ? ` - ${translate("DCS_SCHED_RECORDS", { count: recordCount })}` : ""}`}
+          onClose={onClose}
+          busy={acting}
+        />
 
         <div className="p-5 overflow-y-auto">
           <label className="block text-xs font-semibold uppercase mb-1" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>
@@ -230,10 +228,7 @@ export default function DcsBatchDecisionModal({ token, formName, recordCount, de
           )}
         </div>
 
-        <div className="px-5 py-3.5 flex gap-3 shrink-0 border-t" style={{ borderColor: BORDER, backgroundColor: NEUTRAL_LIGHT }}>
-          <DcsButtonOutline onClick={onClose} disabled={acting} className="flex-1">
-            {translate("DCS_MYAPPROVALS_CANCEL")}
-          </DcsButtonOutline>
+        <div className="px-5 py-3.5 flex justify-end gap-3 shrink-0 border-t" style={{ borderColor: BORDER, backgroundColor: NEUTRAL_LIGHT }}>
           {is_approve ? (
             <DcsButtonPrimary onClick={handle_confirm} disabled={acting} className="flex-1">
               <span className="inline-flex items-center justify-center gap-2">

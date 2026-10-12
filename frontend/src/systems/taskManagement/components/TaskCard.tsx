@@ -1,5 +1,3 @@
-// TaskCard - Individual task card component with priority borders and CoK design
-
 import React, { useState, useEffect } from 'react'
 import { FiClock, FiMessageSquare, FiPaperclip, FiMoreVertical, FiEdit, FiMove, FiTrash2 } from 'react-icons/fi'
 import { useToast } from '../../../core/contexts/ToastContext'
@@ -83,16 +81,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
     }
   }
 
-  const getPriorityBorderColor = () => {
-    switch (task.priority) {
-      case 'Low': return SUCCESS
-      case 'Medium': return WARNING
-      case 'High': return '#FF7043'
-      case 'Urgent': return DANGER
-      default: return BORDER
-    }
-  }
-
   const getPriorityBadgeStyle = (): React.CSSProperties => {
     switch (task.priority) {
       case 'Low':
@@ -108,7 +96,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
     }
   }
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
       setShowDropdown(false)
@@ -119,14 +106,22 @@ const TaskCard: React.FC<TaskCardProps> = ({
     }
   }, [showDropdown])
 
-  const borderColor = getPriorityBorderColor()
+  const isOverdue = !!task.dueDate && task.status !== 'Completed' && new Date(task.dueDate).getTime() < Date.now()
+  const showOverdueTag = isOverdue && task.status === 'In-progress'
+  const tagStyle: React.CSSProperties = {
+    fontFamily: fontHeading,
+    borderRadius: 30,
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    textTransform: 'uppercase'
+  }
 
   return (
     <div
       className="cursor-pointer"
       style={{
         backgroundColor: "#fdfdfdfd",
-        border: `3px solid #f1f1f1f1`,
+        border: `3px solid ${isOverdue ? DANGER : '#f1f1f1f1'}`,
         borderRadius: 10,
         padding: '16px',
         transition: 'opacity 0.15s ease, transform 0.15s ease',
@@ -139,7 +134,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
         setShowDropdown(!showDropdown)
       }}
     >
-      {/* Top Dropdown Menu */}
       <div className="flex justify-end mb-2">
         <div className="relative">
           <button
@@ -241,38 +235,37 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       </div>
 
-      {/* Title - Uppercase */}
       <h3 className="font-semibold mb-2 truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading, textTransform: 'uppercase' }} title={task.title}>
         {task.title.trim()}
       </h3>
 
-      {/* Description */}
       {task.description && (
         <p className="text-sm mb-3 line-clamp-2" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }} title={task.description}>
           {task.description.trim()}
         </p>
       )}
 
-      {/* Priority Badge */}
-      {task.priority && (
-        <div className="mb-3 ">
-          <span
-            className="text-xs px-2 py-0.5 inline-block"
-            style={{
-              ...getPriorityBadgeStyle(),
-              fontFamily: fontHeading,
-              borderRadius: 30,
-              fontWeight: 600,
-              letterSpacing: '0.5px',
-              textTransform: 'uppercase'
-            }}
-          >
-            {task.priority}
-          </span>
+      {(task.priority || showOverdueTag) && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {task.priority && (
+            <span
+              className="text-xs px-2 py-0.5 inline-block"
+              style={{ ...getPriorityBadgeStyle(), ...tagStyle }}
+            >
+              {task.priority}
+            </span>
+          )}
+          {showOverdueTag && (
+            <span
+              className="text-xs px-2 py-0.5 inline-block"
+              style={{ backgroundColor: '#FFEBEE', color: DANGER, ...tagStyle }}
+            >
+              Overdue
+            </span>
+          )}
         </div>
       )}
 
-      {/* Status Indicator */}
       <div className="flex items-center mb-2">
         <div className="w-2 h-2 mr-2" style={{
           backgroundColor: task.status === 'Completed' ? SUCCESS : task.status === 'In-progress' ? PRIMARY : GRAY_DISABLED,
@@ -283,7 +276,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </span>
       </div>
 
-      {/* Progress Bar - Show for all tasks with checklists */}
       {task.checklists && task.checklists.length > 0 && (
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
@@ -316,7 +308,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       )}
 
-      {/* Due Date */}
       {task.dueDate && (
         <div className="flex items-center text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
           <FiClock className="w-3 h-3 mr-1" />

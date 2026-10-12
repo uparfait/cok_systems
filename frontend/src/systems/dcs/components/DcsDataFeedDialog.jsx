@@ -3,9 +3,9 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { list_data_tokens, create_data_token, rotate_data_token, delete_data_token, data_feed_url } from "../services/dataFeedService.js";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
-import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsConfirmDialog from "./DcsConfirmDialog.jsx";
 import DcsDataFeedForm from "./DcsDataFeedForm.jsx";
+import DcsOverlayHeader from "./DcsOverlayHeader.jsx";
 
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 const MUTED = "#9E9E9E";
@@ -209,14 +209,9 @@ export default function DcsDataFeedDialog({ formGroupId, versions, onClose, asPa
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={saving ? undefined : onClose} />
-      <div className="relative bg-white w-full max-w-3xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col cok-auth-card">
-        <div className="p-4 sm:p-5 flex items-start justify-between gap-3">
-          {head}
-          <DcsButtonOutline onClick={onClose} disabled={saving}>
-            {translate("DCS_BTN_CLOSE")}
-          </DcsButtonOutline>
-        </div>
-        <div className="px-4 sm:px-5 pb-4 overflow-y-auto flex-1">{body}</div>
+      <div className="relative bg-white w-full max-w-3xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col cok-auth-card" role="dialog" aria-modal="true" aria-busy={saving}>
+        <DcsOverlayHeader title={translate("DCS_FEED_TITLE")} subtitle={translate("DCS_FEED_HINT")} onClose={onClose} busy={saving} />
+        <div className="px-4 sm:px-5 py-4 overflow-y-auto flex-1">{body}</div>
       </div>
       {confirm}
     </div>

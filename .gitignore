@@ -8,6 +8,9 @@ backend/uploads/visitor_attachments
 # Runtime approval attachments, keep the folder but not the uploaded files
 dc_backend/uploads/approvals/*
 !dc_backend/uploads/approvals/.gitkeep
+# Runtime CSV imports waiting to run, keep the folder but not the files
+dc_backend/uploads/imports/*
+!dc_backend/uploads/imports/.gitkeep
 docker-compose.yml
 # Ignore all files and subfolders within any 'upload' directory
 **/upload/**

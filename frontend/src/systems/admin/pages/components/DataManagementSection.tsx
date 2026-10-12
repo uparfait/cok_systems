@@ -48,6 +48,7 @@ const AVAILABLE_COLLECTIONS = [
   { value: 'staffcars', label: 'Staff Cars' },
   { value: 'tasks', label: 'Tasks' },
   { value: 'unservicedfeedbacks', label: 'Unserviced Feedbacks' },
+  { value: 'visitors', label: 'Visitors' },
   { value: 'notificationsubscriptions', label: 'Notification Subscriptions' },
 ];
 

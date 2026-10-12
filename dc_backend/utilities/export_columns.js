@@ -36,9 +36,21 @@ function collect_data_fields(version_doc) {
   return flatten_fields(version_doc.schema.fields).filter((field) => !NON_DATA_TYPES.includes(field.type));
 }
 
-function build_column_entry(field, language, translate) {
+const GEO_PARTS = ["latitude", "longitude", "accuracy"];
+
+/**
+ * The column(s) one field takes. A location field is written as exactly
+ * three columns - "<label> latitude", "<label> longitude", "<label>
+ * accuracy" - never its address or any other sub-field, the same three
+ * the CSV headers template offers and the import maps, so an export can
+ * be imported back as it is.
+ */
+function column_entries(field, language, translate) {
   const label = get_field_text(field.label, language) || (field.type === "geolocation" ? translate("DCS_GEO_TABLE_HEADER_LABEL", language) : "");
-  return { key: field.id, label, type: field.type };
+  if (field.type === "geolocation") {
+    return GEO_PARTS.map((part) => ({ key: `${field.id}__${part}`, label: `${label} ${part}`, type: "number", field_id: field.id, part }));
+  }
+  return [{ key: field.id, label, type: field.type }];
 }
 
 /**
@@ -76,8 +88,8 @@ function build_diffed_columns(versions, language, translate) {
     // append that correction as a second car instead of replacing the
     // line it already has.
     { key: "record_id", label: translate("TABLE_RECORD_ID", language), type: "id" },
-    ...active_fields.filter(has_any_label).map((field) => build_column_entry(field, language, translate)),
-    ...removed_field_defs.filter(has_any_label).map((field) => build_column_entry(field, language, translate)),
+    ...active_fields.filter(has_any_label).flatMap((field) => column_entries(field, language, translate)),
+    ...removed_field_defs.filter(has_any_label).flatMap((field) => column_entries(field, language, translate)),
     { key: "version", label: translate("TABLE_VERSION", language) },
     { key: "submitted_by", label: translate("TABLE_SUBMITTED_BY", language) },
     { key: "submitted_at", label: translate("TABLE_SUBMITTED_AT", language) },
@@ -111,9 +123,28 @@ function format_cell(raw_value, field_type, origin) {
   return JSON.stringify(raw_value);
 }
 
+/**
+ * The cell one data column takes from a submission's answers: a location
+ * part column reads its number straight off the stored location (typed,
+ * so a spreadsheet sums and maps it), any other column goes through
+ * format_cell.
+ */
+function column_cell(data, column, field_type_by_id, origin) {
+  const values = data || {};
+  if (column.part) {
+    const raw = values[column.field_id];
+    if (!raw || typeof raw !== "object" || raw.__map__location__data !== true) return "";
+    const part = raw[column.part];
+    return typeof part === "number" && Number.isFinite(part) ? part : part === null || part === undefined || part === "" ? "" : Number(part) || "";
+  }
+  return format_cell(values[column.key], field_type_by_id.get(column.key), origin);
+}
+
 module.exports = {
   NON_DATA_TYPES,
   MEDIA_TYPES,
+  GEO_PARTS,
+  column_cell,
   sanitize_filename,
   get_field_text,
   has_any_label,

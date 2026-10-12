@@ -1,3 +1,5 @@
+import { createContext, useContext, useEffect, useState } from "react";
+
 /**
  * HOW MUCH OF A ROW each widget claims, and therefore how many of them a
  * row holds.
@@ -70,4 +72,64 @@ export function row_class(widget, whole) {
   const size = (widget && widget.size) || "medium";
   if (is_kpi_widget(widget)) return KPI_CLASSES[size] || KPI_CLASSES.small;
   return CHART_CLASSES[size] || CHART_CLASSES.medium;
+}
+
+export const HEIGHT_RATIOS = {
+  chart: { ratio: 0.6, min: 150, max: 960 },
+  kpi: { ratio: 0.22, min: 64, max: 260 },
+  table: { ratio: 0.7, min: 180, max: 1100 },
+  map: { ratio: 0.65, min: 220, max: 1000 },
+};
+const SCREEN_SHARE = 0.85;
+export const HEIGHT_SLACK = 12;
+
+export function height_kind(widget) {
+  const type = widget && widget.chart_type;
+  if (!type || type === "canvas" || type === "text") return "";
+  if (type === "kpi" || type === "table" || type === "map") return type;
+  return "chart";
+}
+
+export function card_height(widget, width, room) {
+  const rule = HEIGHT_RATIOS[height_kind(widget)];
+  if (!rule || !room || !(Number(width) > 0)) return 0;
+  const zoom = Number(room.zoom) > 0 ? Number(room.zoom) : 1;
+  const across = Number(room.visual) > 0 ? Number(room.visual) : Infinity;
+  const down = Number(room.height) > 0 ? Number(room.height) : Infinity;
+  const shorter = Math.min(across, down);
+  const cap = Math.max(rule.min, Math.min(rule.max, Number.isFinite(shorter) ? Math.round(shorter * SCREEN_SHARE) : rule.max));
+  return Math.round(Math.min(cap, Math.max(rule.min, Number(width) * zoom * rule.ratio)));
+}
+
+export const BoardRoomContext = createContext(null);
+export const useBoardRoom = () => useContext(BoardRoomContext);
+
+export function useBoardRoomSize(element_ref, active) {
+  const [room, setRoom] = useState(null);
+  useEffect(() => {
+    const element = element_ref.current;
+    if (!active || !element || typeof window === "undefined") return undefined;
+    let frame = null;
+    const measure = () => {
+      frame = null;
+      const width = element.offsetWidth;
+      const visual = Math.round(element.getBoundingClientRect().width);
+      const next = { width, visual, zoom: width > 0 ? Math.round((visual / width) * 1000) / 1000 : 1, height: window.innerHeight };
+      setRoom((current) => (current && current.width === next.width && current.visual === next.visual && current.height === next.height ? current : next));
+    };
+    const schedule = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(measure);
+    };
+    measure();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null;
+    if (observer) observer.observe(element);
+    window.addEventListener("resize", schedule);
+    return () => {
+      if (observer) observer.disconnect();
+      window.removeEventListener("resize", schedule);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [element_ref, active]);
+  return room;
 }

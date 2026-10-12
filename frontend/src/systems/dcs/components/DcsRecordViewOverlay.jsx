@@ -10,7 +10,7 @@ import { ApprovalDetailsBody } from "./DcsApprovalDetailsDialog.jsx";
 import RecordHistorySlides from "../tracking/RecordHistorySlides.jsx";
 import { is_tracking_enabled } from "../tracking/trackingConfig.js";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
-import DcsCloseIconButton from "./DcsCloseIconButton.jsx";
+import DcsOverlayHeader from "./DcsOverlayHeader.jsx";
 
 const PRIMARY = "#056daa";
 const MUTED = "#9E9E9E";
@@ -111,15 +111,7 @@ export default function DcsRecordViewOverlay({ record, fields, tracking, onClose
     <div className="dcs-tracking-overlay dcs-no-print" role="dialog" aria-modal="true" aria-label={translate("DCS_RECORD_VIEW_TITLE")}>
       <div className="absolute inset-0 bg-black/45" onClick={onClose} />
       <div className="dcs-tracking-panel">
-        <div className="cok-bg-primary px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
-          <div className="min-w-0">
-            <p className="text-white font-semibold uppercase tracking-wide text-sm truncate" style={{ fontFamily: FONT }}>
-              {translate("DCS_RECORD_VIEW_TITLE")}
-            </p>
-            <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.85)", fontFamily: FONT }}>{when(record.submitted_at)}</p>
-          </div>
-          <DcsCloseIconButton onClick={onClose} />
-        </div>
+        <DcsOverlayHeader title={translate("DCS_RECORD_VIEW_TITLE")} subtitle={when(record.submitted_at)} onClose={onClose} />
 
         <div className="dcs-record-meta flex-shrink-0">
           <MetaItem label={translate("DCS_TABLE_SUBMITTED_AT")}>{when(record.submitted_at)}</MetaItem>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import OverlayCloseButton from "../../../core/components/overlay/OverlayCloseButton";
 import { portal_root } from "../util-dashboard/portalRoot.js";
 import { useBoardTheme } from "../util-dashboard/boardTheme.jsx";
 import { useBoardColors, portal_tint } from "../util-dashboard/boardColors.jsx";
@@ -138,9 +139,12 @@ function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange,
           style={tint.style}
           style={{ backgroundColor: SURFACE, color: TEXT, border: `1px solid ${BORDER}` }}
         >
-          <Dialog.Title className="text-sm font-semibold mb-3" style={{ fontFamily: FONT, color: TEXT }}>
-            {translate("DCS_STATS_PERIOD_CUSTOM")}
-          </Dialog.Title>
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <Dialog.Title className="text-sm font-semibold" style={{ fontFamily: FONT, color: TEXT }}>
+              {translate("DCS_STATS_PERIOD_CUSTOM")}
+            </Dialog.Title>
+            <OverlayCloseButton onClick={onCancel} small />
+          </div>
 
           <div className="flex flex-col gap-3 mb-3">
             <Segment
@@ -167,14 +171,6 @@ function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange,
           </div>
 
           <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-3 py-1.5 text-xs border rounded-none cursor-pointer"
-              style={{ fontFamily: FONT, backgroundColor: SURFACE, color: TEXT, borderColor: BORDER }}
-            >
-              {translate("DCS_BTN_CANCEL")}
-            </button>
             <button
               type="button"
               onClick={handle_apply}

@@ -11,7 +11,7 @@ import {
 } from "../services/approvalsService.js";
 import DcsApprovalStatusChip from "./DcsApprovalStatusChip.jsx";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
-import DcsButtonOutline from "./DcsButtonOutline.jsx";
+import DcsOverlayHeader from "./DcsOverlayHeader.jsx";
 import { TwoColumnSkeleton } from "./DcsSkeletons.jsx";
 
 const BORDER = "#E0E0E0";
@@ -447,32 +447,19 @@ export default function DcsApprovalScheduleDialog({ form_group_id, onClose, onCh
     );
   }
 
+  const busy = acting || saving_retention;
+
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={acting ? undefined : onClose} />
-      <div className="relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 880, maxHeight: "90vh", borderColor: PRIMARY }}>
-        <div className="flex items-start justify-between gap-4 px-6 py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
-          {head}
-          <button
-            type="button"
-            onClick={acting ? undefined : onClose}
-            aria-label={translate("DCS_BTN_CLOSE")}
-            className="cursor-pointer flex-shrink-0 flex items-center justify-center"
-            style={{ width: 32, height: 32, color: FADED }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
+      <div className="absolute inset-0 bg-black/40" onClick={busy ? undefined : onClose} />
+      <div className="relative bg-white border border-gray-200 w-full flex flex-col shadow-xl" style={{ maxWidth: 880, maxHeight: "90vh" }} role="dialog" aria-modal="true" aria-busy={busy}>
+        <DcsOverlayHeader title={translate("DCS_SCHED_TITLE")} subtitle={translate("DCS_SCHED_APPROVERS_HINT")} onClose={onClose} busy={busy} />
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">{body}</div>
-        <div className="flex justify-end gap-3 px-6 py-4 flex-shrink-0" style={{ borderTop: `1px solid ${BORDER}` }}>
-          <DcsButtonOutline onClick={onClose} disabled={acting}>
-            {translate("DCS_BTN_CLOSE")}
-          </DcsButtonOutline>
-          {submit_button}
-        </div>
+        {submit_button && (
+          <div className="flex justify-end gap-3 px-6 py-4 flex-shrink-0" style={{ borderTop: `1px solid ${BORDER}` }}>
+            {submit_button}
+          </div>
+        )}
       </div>
     </div>
   );

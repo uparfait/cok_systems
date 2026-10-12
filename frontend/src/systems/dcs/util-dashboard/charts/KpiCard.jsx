@@ -3,6 +3,7 @@ import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { build_palette } from "../appearance.js";
 import { chart_density, kpi_density } from "./density.js";
 import { fit_text_font } from "./labelDensity.jsx";
+import { text_width } from "./chartLabels.jsx";
 
 const GOOD = "#27AE60";
 const BAD = "#E74C3C";
@@ -73,20 +74,47 @@ function AnimatedNumber({ value, style, className, format }) {
 // PREVIEW of them and a line that opens the rest.
 const LIST_ALL_UNDER = 4;
 const PREVIEW = 2;
-export default function KpiCard({ value, changePct, legend, totalLabel, palette, density, onLegendClick }) {
+const NUMBER_LINE = 1.1;
+const LEGEND_LINE = 1.6;
+const LEGEND_MAX = 280;
+const CARD_PADDING = 20;
+const WORD_ROW = 14;
+const SMALL_ROW = 20;
+
+/**
+ * The number is the card's whole point, so it is written as TALL as the
+ * room the card was given allows: the card's height, less what its other
+ * lines take (a word over the number, the legend rows, the "show more"
+ * line, the change against the previous window) - and then, if that
+ * figure is still too wide for the card, it SHRINKS until it fits rather
+ * than wrapping. "$1.2bn Rwf" comes out smaller than "42" does, which is
+ * right: a number broken across two lines has stopped being a number
+ * anyone can read at a glance. A card whose room is not known yet (its
+ * first paint, or a card sized by what it holds) writes the width
+ * profile's size, so it can never grow the card it sits in.
+ */
+function number_font_for(text, width, room_height, parts) {
+  let left = room_height - CARD_PADDING;
+  if (parts.total) left -= WORD_ROW;
+  if (parts.legend_rows > 0) left -= 8 + Math.min(LEGEND_MAX, parts.legend_rows * Math.round(parts.legend_font * LEGEND_LINE));
+  if (parts.folds) left -= SMALL_ROW;
+  if (parts.change) left -= SMALL_ROW;
+  const by_height = room_height > 0 ? Math.floor(left / NUMBER_LINE) : 0;
+  // The width's own ceiling, so the shrinking below starts near the answer
+  // instead of walking down from a figure the card could never hold.
+  const max_px = Math.max(48, width - 16);
+  const per_px = text_width(text, 100) / 100;
+  const by_width = per_px > 0 ? Math.floor(max_px / per_px) : by_height;
+  const roomy = Math.max(11, parts.floor, Math.min(by_height, by_width));
+  return fit_text_font(text, max_px, roomy, 8);
+}
+
+export default function KpiCard({ value, changePct, legend, totalLabel, palette, density, roomHeight, onLegendClick }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
-  // The number is the card's whole point, so it takes as much of the card's
-  // width as it can without ever spilling out of a narrow one - and then,
-  // if the finished text is still too long for that, it SHRINKS to fit
-  // rather than wrapping. "$1.2bn Rwf" comes out smaller than "42" does,
-  // which is right: a number broken across two lines has stopped being a
-  // number anyone can read at a glance.
   // What this card's own width allows: a card made very small writes a
   // smaller number, not a number spilling out of it.
   const room = kpi_density(size.width);
-  const roomy_font = Math.max(11, Math.min(room.number, Math.round(size.width / 7)));
-  const number_font = fit_text_font(colors.number_text(value), Math.max(48, size.width - 16), roomy_font, 8);
   const direction = changePct === null || changePct === undefined ? null : changePct >= 0 ? "up" : "down";
   const has_legend = Array.isArray(legend) && legend.length > 0;
   const { translate } = useDcsLanguage();
@@ -94,6 +122,10 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
   const rows = has_legend ? legend : [];
   const folds = rows.length >= LIST_ALL_UNDER;
   const shown = folds && !open ? rows.slice(0, PREVIEW) : rows;
+  const room_height = Number(roomHeight) > 0 ? Number(roomHeight) : 0;
+  // The legend grows with the card too, within reason.
+  const legend_font = room_height > 0 ? Math.max(room.legend, Math.min(16, Math.round(room_height / 10))) : room.legend;
+  const number_font = number_font_for(colors.number_text(value), size.width, room_height, { total: !!totalLabel, legend_rows: shown.length, legend_font, folds, change: direction !== null, floor: room.number });
   return (
     <div className="flex flex-col items-center justify-center text-center py-2 min-w-0">
       {/* Nothing is written over the number unless it says something the
@@ -110,7 +142,7 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
       {has_legend && (
         <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0, maxHeight: shown.length > 12 ? 280 : undefined, overflowY: shown.length > 12 ? "auto" : "visible" }}>
           {shown.map((row, index) => (
-            <li key={`${row.label}-${index}`} className={`flex items-center justify-between gap-2 min-w-0 ${onLegendClick ? "dcs-legend-clickable" : ""}`} style={{ opacity: row.matches === false ? 0.6 : 1, fontSize: room.legend }} onClick={onLegendClick ? () => onLegendClick(row) : undefined}>
+            <li key={`${row.label}-${index}`} className={`flex items-center justify-between gap-2 min-w-0 ${onLegendClick ? "dcs-legend-clickable" : ""}`} style={{ opacity: row.matches === false ? 0.6 : 1, fontSize: legend_font }} onClick={onLegendClick ? () => onLegendClick(row) : undefined}>
               <span className="flex items-center gap-1.5 min-w-0">
                 <span className="flex-shrink-0" style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: colors.color_for(row.label, index), transition: "background-color 300ms ease" }} />
                 {/* An occurrence card showing every value marks the ones that met its rule. */}

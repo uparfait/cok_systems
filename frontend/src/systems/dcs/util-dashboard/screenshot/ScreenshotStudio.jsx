@@ -5,7 +5,7 @@ import { useToast } from "../../../../core/contexts/ToastContext.tsx";
 import { useBoardTheme } from "../boardTheme.jsx";
 import { useBoardColors } from "../boardColors.jsx";
 import { portal_root } from "../portalRoot.js";
-import { IconButton, CLOSE_SVG } from "../BoardIcons.jsx";
+import DcsOverlayHeader from "../../components/DcsOverlayHeader.jsx";
 import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import WidgetCard from "../WidgetCard.jsx";
@@ -13,7 +13,6 @@ import StudioItem from "./StudioItem.jsx";
 import { initial_items, canvas_size, move_rect, resize_rect, snap_rect, bring_to_front, replace_item, file_name_of } from "./studioLayout.js";
 import { export_canvas_png, export_canvas_pdf } from "./exportCanvas.js";
 
-const PRIMARY = "#056daa";
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 const LIGHT_BG = "#F4F7F9";
 const DARK_BG = "#0F171F";
@@ -129,19 +128,7 @@ export default function ScreenshotStudio({ form, widgets, dataByWidget, rects, b
 
   return createPortal(
     <div className={`dcs-studio-root fixed inset-0 z-[10000] flex flex-col ${board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`} style={{ backgroundColor: background }}>
-      <div className="flex items-center justify-between gap-3 flex-shrink-0 px-4 sm:px-5 py-2" style={{ backgroundColor: PRIMARY }}>
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...FONT }}>
-            {translate("DCS_DB_SHOT_TITLE")}
-          </p>
-          <p className="text-[11px] font-semibold truncate" style={{ color: "rgba(255,255,255,0.85)", ...FONT }}>
-            {form.dashboard_name || form.form_name || ""}
-          </p>
-        </div>
-        <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger disabled={exporting}>
-          {CLOSE_SVG}
-        </IconButton>
-      </div>
+      <DcsOverlayHeader title={translate("DCS_DB_SHOT_TITLE")} subtitle={form.dashboard_name || form.form_name || ""} onClose={onClose} busy={exporting} />
       <div className="dcs-studio-toolbar flex-shrink-0 px-4 sm:px-5 py-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs font-semibold" style={{ color: "var(--board-muted, #9E9E9E)", ...FONT }}>
           {translate("DCS_DB_WIDGETS_COUNT", { count: items.length })}

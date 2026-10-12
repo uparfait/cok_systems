@@ -8,7 +8,7 @@ import { strip_container_labels } from "./stripContainerLabels.js";
 import { resolve_template_placeholders } from "../jsonlogic/resolveTemplates.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
-import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 import { is_tracking_enabled, normalize_tracking, tracking_payload } from "../tracking/trackingConfig.js";
 
 /**
@@ -129,13 +129,8 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex flex-col" style={{ backgroundColor: "#F7F9FB" }}>
-      <div className="cok-bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0">
-        <span className="text-white font-semibold uppercase tracking-wide text-sm" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-          {translate("DCS_CODE_OVERLAY_TITLE")}
-        </span>
-        <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
-      </div>
+    <div className="fixed inset-0 z-[10000] flex flex-col" style={{ backgroundColor: "#F7F9FB" }} role="dialog" aria-modal="true">
+      <DcsOverlayHeader title={translate("DCS_CODE_OVERLAY_TITLE")} onClose={onClose} />
 
       <div className="flex-1 overflow-y-auto p-4 min-[700px]:p-6">
         <div className="w-full min-[900px]:max-w-[860px] mx-auto space-y-6">
@@ -146,14 +141,14 @@ export default function DcsFormCodeOverlay({ fields, allFields, onCreateForm, on
             {allFields.length === 0 ? (
               <p className="text-xs" style={{ color: "#9E9E9E" }}>{translate("DCS_CODE_OVERLAY_NO_FIELDS")}</p>
             ) : (
-              <div className="w-full overflow-x-auto">
+              <div className="cok-table-scroll w-full" style={{ "--cok-table-max-h": "50vh" }}>
                 <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
                   <thead>
-                    <tr style={{ backgroundColor: "#F7F9FB" }}>
-                      <th className="text-left p-2 border" style={{ borderColor: "#E0E0E0" }}>{translate("DCS_CODE_OVERLAY_TABLE_TYPE")}</th>
-                      <th className="text-left p-2 border" style={{ borderColor: "#E0E0E0" }}>{translate("DCS_CODE_OVERLAY_TABLE_LABEL")}</th>
-                      <th className="text-left p-2 border" style={{ borderColor: "#E0E0E0" }}>{translate("DCS_CODE_OVERLAY_TABLE_MANDATORY")}</th>
-                      <th className="text-left p-2 border" style={{ borderColor: "#E0E0E0" }}>{translate("DCS_CODE_OVERLAY_TABLE_VALIDATIONS")}</th>
+                    <tr>
+                      <th className="text-left p-2 border" style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}>{translate("DCS_CODE_OVERLAY_TABLE_TYPE")}</th>
+                      <th className="text-left p-2 border" style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}>{translate("DCS_CODE_OVERLAY_TABLE_LABEL")}</th>
+                      <th className="text-left p-2 border" style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}>{translate("DCS_CODE_OVERLAY_TABLE_MANDATORY")}</th>
+                      <th className="text-left p-2 border" style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}>{translate("DCS_CODE_OVERLAY_TABLE_VALIDATIONS")}</th>
                     </tr>
                   </thead>
                   <tbody>

@@ -7,7 +7,7 @@ import DcsWizardSteps from "../components/DcsWizardSteps.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
-import DcsCloseIconButton from "../components/DcsCloseIconButton.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 import DcsFieldIcon from "../components/DcsFieldIcon.jsx";
 
 const PRIMARY = "#056daa";
@@ -84,15 +84,10 @@ export default function TrackingSetupOverlay({ fields, tracking, onSave, onClose
   const visible_editable = editable.filter((field) => matches(field, query, language));
 
   return createPortal(
-    <div className="dcs-tracking-overlay">
+    <div className="dcs-tracking-overlay" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/45" onClick={onClose} />
       <div className="dcs-tracking-panel">
-        <div className="cok-bg-primary px-4 py-3 flex items-center justify-between gap-2 flex-shrink-0">
-          <span className="text-white font-semibold uppercase tracking-wide text-sm truncate" style={{ fontFamily: FONT }}>
-            {translate("DCS_TRACKING_TITLE")}
-          </span>
-          <DcsCloseIconButton onClick={onClose} />
-        </div>
+        <DcsOverlayHeader title={translate("DCS_TRACKING_TITLE")} onClose={onClose} />
 
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3">
           <DcsWizardSteps steps={STEPS} currentIndex={step} maxReachedIndex={max_reached} onSelect={setStep} />

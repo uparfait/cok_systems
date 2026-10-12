@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
+import DcsOverlayHeader from "./DcsOverlayHeader.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
-const PRIMARY = "#056daa";
 const BORDER = "#E0E0E0";
 const GRAY = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
@@ -38,12 +38,8 @@ export default function DcsBatchTokenDialog({ maskedEmail, busy, resending, onVe
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-      <div className="w-full max-w-sm bg-white border-2" style={{ borderColor: PRIMARY }}>
-        <div className="px-5 py-4" style={{ backgroundColor: PRIMARY }}>
-          <h2 className="text-white font-bold text-base uppercase" style={{ fontFamily: fontHeading, letterSpacing: 1 }}>
-            {translate("DCS_BATCH_OTP_LABEL")}
-          </h2>
-        </div>
+      <div className="w-full max-w-sm bg-white border border-gray-200 shadow-xl" role="dialog" aria-modal="true" aria-busy={!!busy}>
+        <DcsOverlayHeader title={translate("DCS_BATCH_OTP_LABEL")} busy={busy} />
         <div className="p-5">
           <p className="text-sm mb-3" style={{ color: "#555555", fontFamily: fontHeading }}>
             {translate("DCS_BATCH_OTP_HINT", { email: maskedEmail || "" })}

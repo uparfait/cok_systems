@@ -4,7 +4,8 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { save_dashboard, request_error_text } from "./dashboardService.js";
 import { chart_definition, classify_fields, field_label_text, SUBMITTED_AT_FIELD } from "./chartCatalog.js";
-import { IconButton, FULLSCREEN_SVG, CLOSE_SVG } from "./BoardIcons.jsx";
+import { IconButton, FULLSCREEN_SVG } from "./BoardIcons.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
@@ -162,39 +163,27 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, focusIds,
     return definition ? translate(definition.labelKey) : widget.chart_type;
   };
 
-  // Rendered through a PORTAL onto document.body: a fixed overlay inside a
-  // transformed/filtered ancestor (the glass cards) would be trapped in
-  // that container instead of covering the whole window. The panel itself
-  // sits CENTERED over a transparent backdrop, headed by a solid band of
-  // the system blue - the same header treatment the test data panel uses.
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={saving ? undefined : onClose} />
       <div
         className="relative bg-white border-2 w-full flex flex-col"
-        style={{ maxWidth: 760, maxHeight: "92vh", borderColor: PRIMARY }}
+        style={{ maxWidth: 760, maxHeight: "92vh", borderColor: "#E0E0E0" }}
       >
-      <div className="flex items-center justify-between gap-2 flex-shrink-0 px-4 sm:px-5 py-2" style={{ backgroundColor: PRIMARY }}>
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...HEADING_FONT }}>
-            {translate("DCS_DB_REVIEW_TITLE")}
-          </p>
-          <p className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.85)", ...HEADING_FONT }}>
-            {translate("DCS_DB_FORM_WIDGET_COUNT", { count: visible.length })}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {widgets.length > 0 && (
-            <IconButton title={translate("DCS_DB_REVIEW_OPEN_FULL")} onClick={onOpenDashboard} onDark disabled={saving}>
+      <DcsOverlayHeader
+        title={translate("DCS_DB_REVIEW_TITLE")}
+        subtitle={translate("DCS_DB_FORM_WIDGET_COUNT", { count: visible.length })}
+        onClose={onClose}
+        busy={saving}
+        extra={
+          widgets.length > 0 ? (
+            <IconButton title={translate("DCS_DB_REVIEW_OPEN_FULL")} onClick={onOpenDashboard} disabled={saving}>
               {FULLSCREEN_SVG}
             </IconButton>
-          )}
-          <IconButton title={translate("DCS_DB_REVIEW_CLOSE")} onClick={onClose} onDark danger disabled={saving}>
-            {CLOSE_SVG}
-          </IconButton>
-        </div>
-        <style>{`.dcs-db-iconbtn { transition: background-color 160ms ease, color 160ms ease, transform 120ms ease; } .dcs-db-iconbtn:hover:not(:disabled) { transform: translateY(-1px); }`}</style>
-      </div>
+          ) : null
+        }
+      />
+      <style>{`.dcs-db-iconbtn { transition: background-color 160ms ease, color 160ms ease, transform 120ms ease; } .dcs-db-iconbtn:hover:not(:disabled) { transform: translateY(-1px); }`}</style>
       <div className="flex flex-col flex-1 min-h-0 px-4 sm:px-5 pt-3 pb-4">
       <p className="text-xs mb-3" style={{ color: TEXT_MUTED }}>
         {translate("DCS_DB_REVIEW_HINT")}
@@ -304,7 +293,7 @@ export default function GeneratedWidgetsReview({ form, initialWidgets, focusIds,
                               {translate("DCS_DB_REVIEW_SAVE_ROW")}
                             </DcsButtonPrimary>
                             <DcsButtonOutline className="w-full sm:w-32" type="button" onClick={() => clear_draft(widget.id)}>
-                              {translate("DCS_DB_REVIEW_CANCEL_ROW")}
+                              {translate("DCS_BTN_BACK")}
                             </DcsButtonOutline>
                           </>
                         )}

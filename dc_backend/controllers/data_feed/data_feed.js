@@ -3,7 +3,7 @@ const submissions_model = require("../../models/submissions_model.js");
 const forms_model = require("../../models/forms_model.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { format_respondent } = require("../../utilities/respondent.js");
-const { build_diffed_columns, format_cell } = require("../../utilities/export_columns.js");
+const { build_diffed_columns, column_cell } = require("../../utilities/export_columns.js");
 const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { translate } = require("../../i18n/index.js");
@@ -117,7 +117,7 @@ function row_values(submission, columns, field_type_by_id, origin) {
     const raw = data[column.key];
     // Numbers and booleans stay typed so a BI tool sums and filters them as such.
     if (typeof raw === "number" || typeof raw === "boolean") return raw;
-    return format_cell(raw, field_type_by_id.get(column.key), origin);
+    return column_cell(data, column, field_type_by_id, origin);
   });
 }
 

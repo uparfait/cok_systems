@@ -34,6 +34,13 @@ async function list_by_record_key(form_group_id, record_key) {
     .toArray();
 }
 
+/** Which of these keys the form already holds - one query for a whole import batch. */
+async function list_existing_record_keys(form_group_id, record_keys) {
+  const keys = (record_keys || []).filter(Boolean);
+  if (keys.length === 0) return [];
+  return get_db().collection(COLLECTION_NAME).distinct("record_key", { form_group_id, record_key: { $in: keys } });
+}
+
 /** How many records of the form already carry this key. */
 async function count_by_record_key(form_group_id, record_key) {
   if (!record_key) return 0;

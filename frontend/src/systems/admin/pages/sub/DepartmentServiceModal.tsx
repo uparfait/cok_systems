@@ -1,36 +1,67 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FiUsers, FiPackage, FiSearch, FiEdit2, FiTrash2, FiChevronLeft, FiChevronRight, FiAlertCircle, FiPlus, FiCheck, FiRefreshCw } from 'react-icons/fi';
 import OverlayShell from '../../../../core/components/overlay/OverlayShell';
+import { employeeService } from '../../../../core/services/adminService';
+import { useDebounce } from '../../../../core/hooks/useDebounce';
 
 interface Department { _id?: string; name?: string; department_id?: string; services?: any[]; sub_departments?: any[]; description?: string; }
 
-interface EmployeesModalProps {
-  show: boolean; department: Department | null; employees: any[]; loading: boolean; page: number; searchQuery: string;
-  onClose: () => void; onSearchChange: (q: string) => void; onPageChange: (p: number) => void;
-  itemsPerPage: number; getEmployees: (dept: Department) => any[];
-}
+const EMPLOYEES_PAGE_SIZE = 20;
 
-export const EmployeesModal: React.FC<EmployeesModalProps> = ({ show, department, employees, page, searchQuery, onClose, onSearchChange, onPageChange, itemsPerPage, getEmployees }) => {
+interface EmployeesModalProps { show: boolean; department: Department | null; onClose: () => void; }
+
+export const EmployeesModal: React.FC<EmployeesModalProps> = ({ show, department, onClose }) => {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const debouncedSearch = useDebounce(search, 300);
+  const requestRef = useRef(0);
+  const departmentId = department?._id || department?.department_id || '';
+
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+  useEffect(() => {
+    if (!show || !departmentId) return;
+    requestRef.current += 1;
+    const requestId = requestRef.current;
+    setLoading(true);
+    employeeService.getByDepartment(departmentId, false, page, EMPLOYEES_PAGE_SIZE, debouncedSearch.trim())
+      .then((r: any) => {
+        if (requestId !== requestRef.current) return;
+        const list = Array.isArray(r?.data) ? r.data : (r?.data?.data || []);
+        setRows(r?.success === false ? [] : list);
+        setTotal(Number(r?.total) || 0);
+      })
+      .catch(() => { if (requestId === requestRef.current) { setRows([]); setTotal(0); } })
+      .finally(() => { if (requestId === requestRef.current) setLoading(false); });
+  }, [show, departmentId, page, debouncedSearch]);
+
   if (!show || !department) return null;
-  const deptEmployees = getEmployees(department);
-  const totalPages = Math.ceil(deptEmployees.length / itemsPerPage);
-  const paginated = deptEmployees.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  const close = () => { requestRef.current += 1; setSearch(''); setPage(1); setRows([]); setTotal(0); setLoading(false); onClose(); };
+  const totalPages = Math.max(1, Math.ceil(total / EMPLOYEES_PAGE_SIZE));
+  const from = total === 0 ? 0 : (page - 1) * EMPLOYEES_PAGE_SIZE + 1;
+  const to = Math.min(page * EMPLOYEES_PAGE_SIZE, total);
+  const pagerButton = 'inline-flex items-center gap-1 px-3 py-1.5 cok-btn-outlined text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
   return (
     <OverlayShell
       title={<span className="inline-flex items-center gap-2 max-w-full"><FiUsers className="w-4 h-4 shrink-0 cok-primary-color" /><span className="truncate">Employees</span></span>}
       subtitle={department.name}
-      onClose={onClose}
+      onClose={close}
       width="lg"
       headerExtra={
         <div className="px-4 sm:px-5 py-2 border-b border-gray-100 bg-white flex-shrink-0">
-          <div className="relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => { onSearchChange(e.target.value); onPageChange(1); }} className="w-full pl-8 pr-3 py-1.5 cok-auth-input text-sm" /></div>
+          <div className="relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Search by name, email or phone..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-8 pr-3 py-1.5 cok-auth-input text-sm" /></div>
         </div>
       }
-      footer={totalPages > 1 ? <div className="w-full flex items-center justify-center gap-2"><button onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page === 1} className="p-1.5 hover:bg-gray-100 disabled:opacity-50"><FiChevronLeft className="w-4 h-4" /></button><span className="text-xs text-gray-600">Page {page} of {totalPages}</span><button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages} className="p-1.5 hover:bg-gray-100 disabled:opacity-50"><FiChevronRight className="w-4 h-4" /></button></div> : undefined}
+      footer={total > 0 ? <div className="w-full flex items-center justify-between gap-2"><button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={loading || page <= 1} className={pagerButton}><FiChevronLeft className="w-4 h-4" />Previous</button><span className="text-xs text-gray-600">{from}-{to} of {total}</span><button type="button" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={loading || page >= totalPages} className={pagerButton}>Next<FiChevronRight className="w-4 h-4" /></button></div> : undefined}
     >
-      {paginated.length === 0 ? <div className="text-center py-8"><FiUsers className="w-8 h-8 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-500">{searchQuery ? 'No matches' : 'No employees'}</p></div>
-        : <div className="cok-table-scroll"><table className="w-full text-sm"><thead className="cok-bg-primary sticky top-0"><tr><th className="px-3 py-2 text-left font-semibold text-white text-xs uppercase tracking-wider">Employee</th><th className="px-3 py-2 text-left font-semibold text-white text-xs uppercase tracking-wider">Email</th><th className="px-3 py-2 text-left font-semibold text-white text-xs uppercase tracking-wider">Position</th></tr></thead>
-          <tbody className="divide-y divide-[#E0E0E0]">{paginated.map((emp: any) => <tr key={emp._id} className="hover:bg-[#F7F9FB]"><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="w-7 h-7 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><span className="cok-primary-color font-semibold text-xs">{(emp.full_name || 'E').charAt(0)}</span></div><span className="font-medium text-gray-900 text-sm">{emp.full_name}</span></div></td><td className="px-3 py-2.5 text-xs text-gray-600">{emp.email}</td><td className="px-3 py-2.5 text-xs text-gray-600">{emp.roles?.role_name || '-'}</td></tr>)}</tbody></table></div>}
+      {loading ? <div className="flex justify-center py-8"><FiRefreshCw className="w-6 h-6 animate-spin text-[#056daa]" /></div>
+        : rows.length === 0 ? <div className="text-center py-8"><FiUsers className="w-8 h-8 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-500">{search ? 'No matches' : 'No employees'}</p></div>
+          : <div className="cok-table-scroll"><table className="w-full text-sm"><thead className="cok-bg-primary sticky top-0"><tr><th className="px-3 py-2 text-left font-semibold text-white text-xs uppercase tracking-wider">Employee</th><th className="px-3 py-2 text-left font-semibold text-white text-xs uppercase tracking-wider">Email</th><th className="px-3 py-2 text-left font-semibold text-white text-xs uppercase tracking-wider">Position</th></tr></thead>
+            <tbody className="divide-y divide-[#E0E0E0]">{rows.map((emp: any) => <tr key={emp._id} className="hover:bg-[#F7F9FB]"><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="w-7 h-7 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><span className="cok-primary-color font-semibold text-xs">{(emp.full_name || 'E').charAt(0)}</span></div><span className="font-medium text-gray-900 text-sm">{emp.full_name}</span></div></td><td className="px-3 py-2.5 text-xs text-gray-600">{emp.email}</td><td className="px-3 py-2.5 text-xs text-gray-600">{emp.roles?.role_name || '-'}</td></tr>)}</tbody></table></div>}
     </OverlayShell>
   );
 };

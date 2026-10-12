@@ -70,14 +70,14 @@ const VisitorAddAttachmentTab: React.FC<VisitorAddAttachmentTabProps> = ({ visit
   return (
     <div className="flex flex-col gap-4 max-w-2xl">
       <div>
-        <label className={`${LABEL} cok-req`}>Description</label>
-        <input
-          type="text"
+        <label className="cok-auth-label cok-req">Description</label>
+        <textarea
+          rows={3}
           value={description}
           disabled={saving}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="What are these files about?"
-          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-[#056daa] disabled:bg-gray-100"
+          className="cok-auth-input w-full py-2.5 px-3 text-sm"
         />
       </div>
 

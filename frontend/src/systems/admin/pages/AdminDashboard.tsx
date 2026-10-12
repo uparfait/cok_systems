@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
-import { departmentService, employeeService, smartParkingService, serviceDeliveryService, statisticsService } from '../../../core/services/adminService';
+import { smartParkingService, serviceDeliveryService, statisticsService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { FiUsers, FiTruck, FiSettings, FiRefreshCw, FiTrendingUp, FiAlertTriangle, FiClock, FiActivity, FiWifiOff, FiGrid } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding, HiOutlineShieldCheck, HiOutlineChartBar } from 'react-icons/hi';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import StatCard from './sub/AdminDashboardStats';
+import HourlyParkingChart from '../../smartParking/pages/dashboard/HourlyParkingChart';
 import ActivityFeed from './sub/AdminDashboardActivity';
 import LoadingInline from './sub/LoadingSpinner';
 import { useVisitorPanel, visitorIdOf } from '../../../core/components/visitor/VisitorPanelProvider';
@@ -24,7 +24,7 @@ const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
 const NOTIFICATION_DURATION = 5000, RELOAD_DEBOUNCE_DELAY = 2000, LOADING_TIMEOUT = 15000, SILENT_REFRESH_INTERVAL = 10000, DEFAULT_PARKING_CAPACITY = 200;
 
-interface DashboardStats { departments: number; units: number; employees: number; parkingRecords: number; visitors: number; flaggedVehicles: number; activeVisitors: number; registeredVisitors: number; returningVisitors: number; parkingCapacity: number; }
+interface DashboardStats { departments: number; units: number; employees: number; carsInside: number; visitors: number; flaggedVehicles: number; activeVisitors: number; registeredVisitors: number; returningVisitors: number; parkingCapacity: number; }
 
 const extractDataFromResponse = (response: any): any[] => {
   if (!response) return [];
@@ -33,14 +33,6 @@ const extractDataFromResponse = (response: any): any[] => {
   if (Array.isArray(response.data?.data)) return response.data.data;
   return [];
 };
-
-const extractTotalFromResponse = (response: any): number => {
-    if(!response) return 0;
-    if(typeof response.total === 'number') return response.total;
-    if(typeof response.data?.total === 'number') return response.data.total;
-    if(typeof response.data?.data?.total === 'number') return response.data.data.total;
-    return 0;
-}
 
 const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -58,13 +50,10 @@ const AdminDashboard: React.FC = () => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [realtimeNotification, setRealtimeNotification] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [stats, setStats] = useState<DashboardStats>({ departments: 0, units: 0, employees: 0, parkingRecords: 0, visitors: 0, flaggedVehicles: 0, activeVisitors: 0, registeredVisitors: 0, returningVisitors: 0, parkingCapacity: DEFAULT_PARKING_CAPACITY });
+  const [stats, setStats] = useState<DashboardStats>({ departments: 0, units: 0, employees: 0, carsInside: 0, visitors: 0, flaggedVehicles: 0, activeVisitors: 0, registeredVisitors: 0, returningVisitors: 0, parkingCapacity: DEFAULT_PARKING_CAPACITY });
   const [recentParking, setRecentParking] = useState<any[]>([]);
   const [recentVisitors, setRecentVisitors] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [hourlyParkingData, setHourlyParkingData] = useState<any[]>([]);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [loadingStates, setLoadingStates] = useState({ stats: false, parking: false, visitors: false, departments: false });
 
   const loadData = useCallback(async (silent = false) => {
@@ -74,35 +63,19 @@ const AdminDashboard: React.FC = () => {
     }
     try {
       if (!silent) setLoadingStates({ stats: true, parking: true, visitors: true, departments: true });
-      const [deptRes, empRes, parkingRes, visitorRes, serviceStatsRes, hourlyStatsRes] = await Promise.allSettled([
-        departmentService.getAll(), employeeService.getAll(), smartParkingService.getAllPaginated(1, 50), serviceDeliveryService.getAllVisitors(1, 50), statisticsService.getServiceDeliveryStats(), statisticsService.getHourlyParkingStats()
+      const [parkingRes, visitorRes, figuresRes] = await Promise.allSettled([
+        smartParkingService.getAllPaginated(1, 50), serviceDeliveryService.getAllVisitors(1, 50), statisticsService.getAdminDashboard()
       ]);
-      let departmentsCount = 0, unitsCount = 0, departmentsData: any[] = [];
-      if (deptRes.status === 'fulfilled') { departmentsData = extractDataFromResponse(deptRes.value); departmentsCount = departmentsData.length; unitsCount = departmentsData.reduce((sum: number, d: any) => sum + (Array.isArray(d.sub_departments) ? d.sub_departments.length : 0), 0); setDepartments(departmentsData); }
-      setLoadingStates(prev => ({ ...prev, departments: false }));
-      let employeesCount = 0;
-      if (empRes.status === 'fulfilled') { employeesCount = extractTotalFromResponse(empRes.value); }
-      setLoadingStates(prev => ({ ...prev, stats: false }));
-      let parkingData: any[] = [], parkingCount = 0, flaggedCount = 0;
+      setLoadingStates(prev => ({ ...prev, departments: false, stats: false }));
       if (parkingRes.status === 'fulfilled') {
-        parkingData = extractDataFromResponse(parkingRes.value);
-        parkingCount = parkingRes.value?.total !== undefined ? parkingRes.value.total : (hourlyStatsRes.status === 'fulfilled' && hourlyStatsRes.value?.hourly ? hourlyStatsRes.value.hourly.reduce((sum: number, d: any) => sum + (d.check_in || 0), 0) : parkingData.length);
-        flaggedCount = parkingData.filter((p: any) => p.is_flagged || p.flagged).length;
+        const parkingData = extractDataFromResponse(parkingRes.value);
         setRecentParking([...parkingData].sort((a: any, b: any) => new Date(b.check_in || b.checkInTime || 0).getTime() - new Date(a.check_in || a.checkInTime || 0).getTime()).slice(0, 5));
       }
       setLoadingStates(prev => ({ ...prev, parking: false }));
-      let visitorData: any[] = [], visitorCount = 0, activeVisitorCount = 0;
       if (visitorRes.status === 'fulfilled') {
-        visitorData = extractDataFromResponse(visitorRes.value);
-        visitorCount = visitorRes.value?.total !== undefined ? visitorRes.value.total : (visitorRes.value?.data?.total !== undefined ? visitorRes.value.data.total : visitorData.length);
-        activeVisitorCount = visitorData.filter((v: any) => v.is_still_inhouse || v.status === 'Inside').length;
+        const visitorData = extractDataFromResponse(visitorRes.value);
         setRecentVisitors([...visitorData].sort((a: any, b: any) => new Date(b.entry_date || b.check_in || 0).getTime() - new Date(a.entry_date || a.check_in || 0).getTime()).slice(0, 5));
       }
-      const serviceData = serviceStatsRes.status === 'fulfilled' ? serviceStatsRes.value?.data : null;
-      if (typeof serviceData?.visitors_in_house === 'number') activeVisitorCount = serviceData.visitors_in_house;
-      else if (typeof serviceData?.inhouse === 'number') activeVisitorCount = serviceData.inhouse;
-      const registeredVisitorCount = Number(serviceData?.registered_visitors) || 0;
-      const returningVisitorCount = Number(serviceData?.returning_visitors) || 0;
       setLoadingStates(prev => ({ ...prev, visitors: false }));
       try {
         const auditResp = await fetch('/cok/api/audit/logs?page=1&limit=40', { headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` } });
@@ -111,7 +84,9 @@ const AdminDashboard: React.FC = () => {
           setAuditLogs(Array.isArray(auditData?.data) ? auditData.data : []);
         }
       } catch { }
-      setStats({ departments: departmentsCount, units: unitsCount, employees: employeesCount, parkingRecords: parkingCount, visitors: visitorCount, flaggedVehicles: flaggedCount, activeVisitors: activeVisitorCount, registeredVisitors: registeredVisitorCount, returningVisitors: returningVisitorCount, parkingCapacity: DEFAULT_PARKING_CAPACITY });
+      const figures = figuresRes.status === 'fulfilled' ? (figuresRes.value?.data || {}) : {};
+      const count = (key: string) => Number(figures[key]) || 0;
+      setStats({ departments: count('departments'), units: count('units'), employees: count('employees'), carsInside: count('cars_inside'), visitors: count('visits_today'), flaggedVehicles: count('flagged_cars'), activeVisitors: count('visitors_in_house'), registeredVisitors: count('registered_visitors'), returningVisitors: count('returning_visitors'), parkingCapacity: DEFAULT_PARKING_CAPACITY });
       setLastUpdated(new Date());
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
@@ -125,16 +100,10 @@ const AdminDashboard: React.FC = () => {
     }
   }, []);
 
-  const fetchHourlyAnalytics = useCallback(async () => {
-    setAnalyticsLoading(true);
-    try { const response = await statisticsService.getHourlyParkingStats(); const hourlyData = response?.hourly || response?.data?.hourly || response?.data?.data?.hourly || []; if (Array.isArray(hourlyData)) setHourlyParkingData(hourlyData); }
-    catch (error) { console.error(error); } finally { setAnalyticsLoading(false); }
-  }, []);
-
   const scheduleReload = useCallback(() => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); debounceTimerRef.current = setTimeout(() => loadData(), RELOAD_DEBOUNCE_DELAY); }, [loadData]);
   const showNotification = useCallback((message: string) => { setRealtimeNotification(message); if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current); notificationTimerRef.current = setTimeout(() => setRealtimeNotification(null), NOTIFICATION_DURATION); }, []);
 
-  const handleRefresh = useCallback(() => { loadData(); fetchHourlyAnalytics(); }, [loadData, fetchHourlyAnalytics]);
+  const handleRefresh = useCallback(() => { loadData(); }, [loadData]);
 
   const colorClasses = useMemo(() => ({ blue: { bg: 'cok-bg-primary', text: 'text-[#056daa]', light: 'bg-[rgba(5,109,170,0.1)]' }, green: { bg: 'bg-[#4CAF50]', text: 'text-[#388E3C]', light: 'bg-[rgba(76,175,80,0.12)]' }, purple: { bg: 'bg-[#2980B9]', text: 'text-[#2980B9]', light: 'bg-[rgba(41,128,185,0.1)]' }, orange: { bg: 'bg-[#F39C12]', text: 'text-[#F39C12]', light: 'bg-[rgba(243,156,18,0.12)]' }, red: { bg: 'bg-[#E74C3C]', text: 'text-[#E74C3C]', light: 'bg-[rgba(231,76,60,0.12)]' }, indigo: { bg: 'bg-[#2980B9]', text: 'text-[#2980B9]', light: 'bg-[rgba(41,128,185,0.1)]' } }), []);
   const base = `/${window.location.pathname.split('/')[1] || 'system-admin'}`;
@@ -148,11 +117,11 @@ const AdminDashboard: React.FC = () => {
     { label: 'Total Departments', value: stats.departments, icon: HiOutlineOfficeBuilding, color: 'blue', subtext: stats.departments > 0 ? `${stats.units} total units` : 'No departments', trend: stats.departments > 0 ? `${stats.departments} departments, ${stats.units} units` : 'No data', path: `${base}/departments` },
     { label: 'Total Employees', value: stats.employees, icon: FiUsers, color: 'green', subtext: stats.employees > 0 ? 'Registered staff' : 'No employees', trend: stats.employees > 0 ? `${stats.employees} registered` : 'No data', path: `${base}/employees` },
     { label: 'Visitors In House', value: stats.activeVisitors, icon: FiActivity, color: 'orange', subtext: `${stats.registeredVisitors} registered visitors`, trend: `${stats.returningVisitors} returning visitors`, path: '' },
-    { label: "Today's Check-ins", value: stats.parkingRecords, icon: FiTruck, color: 'purple', subtext: stats.parkingRecords > 0 ? 'Check-ins recorded' : 'No records', trend: stats.activeVisitors > 0 ? `${stats.activeVisitors} inside` : 'No data', path: `${base}/smart-parking` },
+    { label: 'Cars inside', value: stats.carsInside, icon: FiTruck, color: 'purple', subtext: stats.carsInside > 0 ? 'Currently parked' : 'No car inside', trend: stats.flaggedVehicles > 0 ? `${stats.flaggedVehicles} flagged` : 'No flagged car', path: `${base}/smart-parking` },
   ], [stats, base]);
 
   useEffect(() => { const handleOnline = () => { setIsOffline(false); loadData(); }; const handleOffline = () => setIsOffline(true); window.addEventListener('online', handleOnline); window.addEventListener('offline', handleOffline); return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); }; }, [loadData]);
-  useEffect(() => { if (!authLoading) { if (!isAuthenticated) navigate('/login'); else { loadData(); fetchHourlyAnalytics(); } } return () => { if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); }; }, [isAuthenticated, authLoading, navigate, loadData, fetchHourlyAnalytics]);
+  useEffect(() => { if (!authLoading) { if (!isAuthenticated) navigate('/login'); else { loadData(); } } return () => { if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); }; }, [isAuthenticated, authLoading, navigate, loadData]);
   useEffect(() => { if (!isAuthenticated || authLoading) return; const interval = setInterval(() => loadData(true), SILENT_REFRESH_INTERVAL); return () => clearInterval(interval); }, [isAuthenticated, authLoading, loadData]);
   useEffect(() => {
     setSocketConnected(isConnected);
@@ -244,7 +213,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-            {hourlyParkingData.length > 0 && <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}><h2 className="text-sm font-semibold text-[#333333] mb-3">Parking Activity (Hourly)</h2><div className="h-48"><ResponsiveContainer width="100%" height="100%"><AreaChart data={hourlyParkingData} margin={{ top: 15, right: 10, left: 0, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} /><XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11, fill: GRAY_DISABLED }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 11, fill: GRAY_DISABLED }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0, boxShadow: CARD_SHADOW }} /><Legend wrapperStyle={{ fontSize: '11px' }} /><Area type="monotone" dataKey="check_in" stroke={PRIMARY} fill="rgba(5,109,170,0.1)" name="Check-ins" dot={{ r: 3 }} label={{ position: 'top', fill: NEUTRAL_DARK, fontSize: 10, fontWeight: 600 }} /><Area type="monotone" dataKey="check_out" stroke={DANGER} fill="rgba(231,76,60,0.1)" name="Check-outs" dot={{ r: 3 }} label={{ position: 'top', fill: NEUTRAL_DARK, fontSize: 10, fontWeight: 600 }} /></AreaChart></ResponsiveContainer></div></div>}
+            <HourlyParkingChart enabled={!authLoading} />
           </div>
 
           <div className="space-y-4">

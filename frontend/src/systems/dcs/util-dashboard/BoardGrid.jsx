@@ -1,13 +1,13 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import WidgetCard from "./WidgetCard.jsx";
 import CanvasWidget from "./CanvasWidget.jsx";
-import { canvas_frame, canvas_flex, is_rest } from "./boxLayout.js";
+import { canvas_frame, canvas_flex, is_rest, is_free, css_length, canvas_size_mode } from "./boxLayout.js";
 import CanvasFrame from "./CanvasFrame.jsx";
 import BoardFreeSurface from "./BoardFreeSurface.jsx";
 import { is_studio } from "./boxLayout.js";
 import ExpandableSlot from "./ExpandableSlot.jsx";
 import { build_palette } from "./appearance.js";
-import { row_class } from "./boardRows.js";
+import { row_class, BoardRoomContext, useBoardRoomSize } from "./boardRows.js";
 import { drill_target, field_label } from "./cascade.js";
 import { useBoardTheme } from "./boardTheme.jsx";
 import { useBoardColors } from "./boardColors.jsx";
@@ -65,6 +65,26 @@ export default function BoardGrid({
   const [expanded_id, setExpandedId] = useState(null);
   const board = useBoardTheme();
   const board_colors = useBoardColors();
+  const grid_ref = useRef(null);
+  const room = useBoardRoomSize(grid_ref, !is_studio(layout));
+  const by_id = new Map(widgets.map((widget) => [widget.id, widget]));
+  const held = (length) => css_length(length) !== "" || is_rest(length);
+  const sizes_by_width = (widget) => {
+    if (is_studio(layout)) return false;
+    const box = widget.box || {};
+    if (widget.parent_id && (held(box.height) || held(box.max_height))) return false;
+    let parent = widget.parent_id ? by_id.get(widget.parent_id) : null;
+    for (let depth = 0; parent && depth < 8; depth += 1) {
+      const canvas = parent.canvas || {};
+      if (is_free(canvas)) return false;
+      if (held(canvas_size_mode(canvas) === "range" ? canvas.max_height : canvas.height)) return false;
+      const next = parent.parent_id ? by_id.get(parent.parent_id) : null;
+      const own = parent.box || {};
+      if (next && (held(own.height) || held(own.max_height))) return false;
+      parent = next;
+    }
+    return true;
+  };
   // A widget that the board filters leave with nothing to show (a KPI with
   // no total and no legend, a chart with no rows, points or nodes) hides
   // until the filters change - an empty card would only say that the
@@ -208,6 +228,7 @@ export default function BoardGrid({
       onPickIcon={editable && onPickIcon ? () => onPickIcon(widget) : undefined}
       onAppearance={editable && onAppearance ? () => onAppearance(widget) : undefined}
       expanded={expanded_id === widget.id || is_studio(layout)}
+      sizeByWidth={sizes_by_width(widget)}
       onExpand={is_canvas(widget) || arranging ? undefined : () => setExpandedId((current) => (current === widget.id ? null : widget.id))}
       onOpenRecords={onOpenRecords ? (pick) => onOpenRecords(widget, pick) : undefined}
     />
@@ -280,8 +301,8 @@ export default function BoardGrid({
   // like every other.
   const lone_chart = kpi_widgets.length === 0 && chart_widgets.length === 1 && !is_canvas(chart_widgets[0]) ? chart_widgets[0] : null;
   return (
-    <>
-      <div>
+    <BoardRoomContext.Provider value={room}>
+      <div ref={grid_ref}>
         <div className="flex flex-wrap items-stretch gap-3">
           {kpi_widgets.concat(chart_widgets).map((widget) => {
             if (!is_canvas(widget)) {
@@ -309,6 +330,6 @@ export default function BoardGrid({
           })}
         </div>
       </div>
-    </>
+    </BoardRoomContext.Provider>
   );
 }

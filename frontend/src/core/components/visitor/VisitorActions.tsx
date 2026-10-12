@@ -90,7 +90,7 @@ const VisitorActions: React.FC<VisitorActionsProps> = ({ details, onChanged, set
 
           {(action === 'send' || action === 'transfer') ? <VisitorSendForm value={target} onChange={setTarget} disabled={working} /> : null}
 
-          {(action === 'complete' || action === 'transfer') ? (
+          {action === 'complete' ? (
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-600 mb-1">Notes</label>
               <textarea
@@ -99,7 +99,7 @@ const VisitorActions: React.FC<VisitorActionsProps> = ({ details, onChanged, set
                 value={notes}
                 disabled={working}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder={action === 'complete' ? 'What was done for the visitor' : 'Why the visitor is transferred'}
+                placeholder="What was done for the visitor"
               />
             </div>
           ) : null}
@@ -128,7 +128,7 @@ const VisitorActions: React.FC<VisitorActionsProps> = ({ details, onChanged, set
             ) : null}
             {action === 'transfer' ? (
               <button type="button" className="cok-btn-primary w-auto! px-6!" disabled={working || !target}
-                onClick={() => target && run('Visitor transferred', () => visitorApi.transfer(visitor._id, { ...target, notes }))}>
+                onClick={() => target && run('Visitor transferred', () => visitorApi.transfer(visitor._id, target))}>
                 {working ? 'Transferring...' : 'Transfer'}
               </button>
             ) : null}

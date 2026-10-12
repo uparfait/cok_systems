@@ -129,10 +129,15 @@ module.exports = async function list_visitors(req, res) {
 
         const field = SORTABLE[q.sort];
         const dir = q.dir === 'asc' ? 1 : -1;
-        const sort = field ? { Is_In_House: -1, [field]: dir, _id: -1 } : { Is_In_House: -1, updatedAt: -1, _id: -1 };
+        // In house and not yet sent to a department first, then in house and sent, then not in house
+        const sort = field ? { Is_In_House: -1, sent_rank: 1, [field]: dir, _id: -1 } : { Is_In_House: -1, sent_rank: 1, updatedAt: -1, _id: -1 };
+        const sentIds = match.Is_In_House === false
+            ? []
+            : await ServiceDelivery.distinct('visitor', { is_still_inhouse: true, visitor: { $ne: null }, 'departments_assigned.0': { $exists: true } });
 
         const [result] = await Visitor.aggregate([
             { $match: match },
+            { $addFields: { sent_rank: { $cond: [{ $and: [{ $eq: ['$Is_In_House', true] }, { $in: ['$_id', sentIds] }] }, 1, 0] } } },
             { $sort: sort },
             {
                 $facet: {
@@ -167,7 +172,7 @@ module.exports = async function list_visitors(req, res) {
         ]);
 
         const total = (result && result.total[0] && result.total[0].n) || 0;
-        const data = ((result && result.data) || []).map((row) => ({
+        const data = ((result && result.data) || []).map(({ sent_rank, ...row }) => ({
             ...visitorView(row),
             current_visit: currentVisitOf(row.open_visit && row.open_visit[0]),
         }));

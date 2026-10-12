@@ -57,7 +57,7 @@ Router.use((err, req, res, next) => {
  * /department/crud:
  *   get:
  *     summary: "List all departments"
- *     description: "Retrieve a paginated list of all departments. Returns departments with their leaders, services, sub-departments, and employee counts."
+ *     description: "Retrieve every department with its units (sub_departments), leaders, services, the number of people in each (employee_count, counted from the employee accounts; a department includes the people of its units) and the totals of departments and units. limit=0 (the default) returns everything; a positive limit pages the main departments."
  *     tags: [Departments]
  *     security:
  *       - BearerAuth: []
@@ -73,9 +73,9 @@ Router.use((err, req, res, next) => {
  *         name: limit
  *         schema:
  *           type: integer
- *           default: 1000
- *         description: "Number of records per page"
- *         example: 20
+ *           default: 0
+ *         description: "Records per page; 0 (the default) returns every department"
+ *         example: 0
  *     responses:
  *       200:
  *         description: List of departments retrieved successfully
@@ -112,6 +112,10 @@ Router.use((err, req, res, next) => {
  *                       total_employees:
  *                         type: integer
  *                         example: 25
+ *                       employee_count:
+ *                         type: integer
+ *                         description: "People counted from the employee accounts, units included"
+ *                         example: 25
  *                       room_number:
  *                         type: string
  *                         example: "Room 205, 2nd Floor"
@@ -121,6 +125,11 @@ Router.use((err, req, res, next) => {
  *                           type: object
  *                       sub_departments:
  *                         type: array
+ *                 totals:
+ *                   type: object
+ *                   properties:
+ *                     departments: { type: integer, example: 12 }
+ *                     units: { type: integer, example: 30 }
  *                 pagination:
  *                   $ref: '#/components/schemas/PaginationInfo'
  *       500:

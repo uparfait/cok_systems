@@ -16,6 +16,7 @@ import { get_field_text } from "../fields/fieldText.js";
 import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "./DcsButtonOutlineDanger.jsx";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
+import DcsOverlayHeader from "./DcsOverlayHeader.jsx";
 import TestDataRangesStep from "./TestDataRangesStep.jsx";
 
 const PRIMARY = "#056daa";
@@ -66,21 +67,8 @@ function TestOverlay({ titleKey, onClose, busy, children }) {
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={busy ? undefined : onClose} />
-      <div className="relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 540, borderColor: PRIMARY, maxHeight: "85vh" }}>
-        <div className="flex items-center justify-between gap-3 px-5 py-4 shrink-0" style={{ backgroundColor: PRIMARY }}>
-          <p className="text-base font-extrabold uppercase leading-tight" style={{ color: WHITE, fontFamily: FONT, letterSpacing: "-0.5px" }}>
-            {translate(titleKey)}
-          </p>
-          <button
-            type="button"
-            onClick={busy ? undefined : onClose}
-            disabled={busy}
-            className="text-xs font-semibold uppercase cursor-pointer shrink-0"
-            style={{ color: WHITE, background: "none", border: `1px solid rgba(255,255,255,0.6)`, padding: "0.25rem 0.6rem", fontFamily: FONT }}
-          >
-            {translate("DCS_BTN_CLOSE")}
-          </button>
-        </div>
+      <div className="relative bg-white border border-gray-200 w-full flex flex-col shadow-xl" style={{ maxWidth: 540, maxHeight: "85vh" }} role="dialog" aria-modal="true" aria-busy={!!busy}>
+        <DcsOverlayHeader title={translate(titleKey)} onClose={onClose} busy={busy} />
         <div className="p-5 overflow-y-auto" style={{ minHeight: 0 }}>
           {children}
         </div>
@@ -823,14 +811,9 @@ function ClearTestApprovalsOverlay({ formGroupId, onRefreshForm, onClose }) {
             <span className="dcs-inline-spinner" style={{ color: PRIMARY }} />
           </div>
         ) : (
-          <div className="flex gap-3">
-            <DcsButtonOutline className="flex-1" onClick={onClose}>
-              {translate("DCS_NO")}
-            </DcsButtonOutline>
-            <DcsButtonOutlineDanger className="flex-1" onClick={handle_clear}>
-              {translate("DCS_TEST_APPROVALS_CLEAR_CONFIRM_BTN")}
-            </DcsButtonOutlineDanger>
-          </div>
+          <DcsButtonOutlineDanger className="w-full" onClick={handle_clear}>
+            {translate("DCS_TEST_APPROVALS_CLEAR_CONFIRM_BTN")}
+          </DcsButtonOutlineDanger>
         )}
       </div>
     </TestOverlay>

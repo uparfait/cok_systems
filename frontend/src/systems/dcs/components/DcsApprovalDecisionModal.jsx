@@ -5,6 +5,7 @@ import { submit_approval_decision, upload_approval_file } from "../services/appr
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
 import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "./DcsButtonOutlineDanger.jsx";
+import DcsOverlayHeader from "./DcsOverlayHeader.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const PRIMARY = "#056daa";
@@ -132,38 +133,14 @@ export default function DcsApprovalDecisionModal({ record, form, decision, onClo
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
-      <div className="w-full max-w-xl bg-white max-h-[90vh] flex flex-col shadow-2xl">
-        {/* Header - action, form and submission date at a glance */}
-        <div className="px-5 py-4 flex items-center gap-3 shrink-0" style={{ backgroundColor: accent }}>
-          <div
-            className="w-10 h-10 flex items-center justify-center text-lg font-extrabold shrink-0"
-            style={{ backgroundColor: "rgba(255,255,255,0.18)", color: "#FFFFFF", borderRadius: "50%" }}
-            aria-hidden="true"
-          >
-            {is_approve ? "✓" : "✕"}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-white font-bold text-base leading-tight truncate" style={{ fontFamily: fontHeading }}>
-              {translate(is_approve ? "DCS_APPROVAL_BTN_APPROVE" : "DCS_APPROVAL_BTN_REJECT")}
-            </h2>
-            <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.85)", fontFamily: fontHeading }}>
-              {form_name}
-              {record.submitted_at ? ` · ${translate("DCS_APPROVAL_SUBMITTED_AT", { date: new Date(record.submitted_at).toLocaleString() })}` : ""}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={acting}
-            className="cursor-pointer text-white text-lg leading-none w-8 h-8 flex items-center justify-center shrink-0"
-            style={{ backgroundColor: "rgba(255,255,255,0.14)", borderRadius: "50%" }}
-            aria-label={translate("DCS_MYAPPROVALS_CANCEL")}
-          >
-            &times;
-          </button>
-        </div>
+      <div className="w-full max-w-xl bg-white border border-gray-200 max-h-[90vh] flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-busy={acting}>
+        <DcsOverlayHeader
+          title={translate(is_approve ? "DCS_APPROVAL_BTN_APPROVE" : "DCS_APPROVAL_BTN_REJECT")}
+          subtitle={`${form_name}${record.submitted_at ? ` - ${translate("DCS_APPROVAL_SUBMITTED_AT", { date: new Date(record.submitted_at).toLocaleString() })}` : ""}`}
+          onClose={onClose}
+          busy={acting}
+        />
 
-        {/* Scrollable body - comment and signature (the data was already reviewed in the list) */}
         <div className="px-5 py-4 overflow-y-auto flex-1">
           <label className="block text-xs font-bold uppercase mb-1.5" style={{ color: accent, fontFamily: fontHeading, letterSpacing: 0.8 }}>
             {translate("DCS_APPROVAL_COMMENT_LABEL")}
@@ -241,11 +218,7 @@ export default function DcsApprovalDecisionModal({ record, form, decision, onClo
           )}
         </div>
 
-        {/* Fixed action bar - always reachable without scrolling */}
-        <div className="px-5 py-3.5 flex gap-3 shrink-0 border-t" style={{ borderColor: BORDER, backgroundColor: NEUTRAL_LIGHT }}>
-          <DcsButtonOutline onClick={onClose} disabled={acting} className="flex-1">
-            {translate("DCS_MYAPPROVALS_CANCEL")}
-          </DcsButtonOutline>
+        <div className="px-5 py-3.5 flex justify-end gap-3 shrink-0 border-t" style={{ borderColor: BORDER, backgroundColor: NEUTRAL_LIGHT }}>
           {is_approve ? (
             <DcsButtonPrimary onClick={handle_confirm} disabled={acting} className="flex-1">
               <span className="inline-flex items-center justify-center gap-2">

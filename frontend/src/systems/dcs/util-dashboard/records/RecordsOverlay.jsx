@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { portal_root } from "../portalRoot.js";
-import { IconButton, CLOSE_SVG } from "../BoardIcons.jsx";
+import DcsOverlayHeader from "../../components/DcsOverlayHeader.jsx";
 import DcsDataTable from "../../components/DcsDataTable.jsx";
 import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
@@ -56,7 +56,7 @@ export default function RecordsOverlay({ title, subtitle, fetchPage, exportRecor
   const [closing, setClosing] = useState(false);
   const close_timer = useRef(null);
   const request_close = () => {
-    if (closing) return;
+    if (closing || exporting !== null) return;
     setClosing(true);
     close_timer.current = setTimeout(onClose, CLOSE_MS);
   };
@@ -78,12 +78,12 @@ export default function RecordsOverlay({ title, subtitle, fetchPage, exportRecor
 
   useEffect(() => {
     const on_key = (event) => {
-      if (event.key === "Escape") request_close();
+      if (event.key === "Escape" && exporting === null) request_close();
     };
     document.addEventListener("keydown", on_key);
     return () => document.removeEventListener("keydown", on_key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closing]);
+  }, [closing, exporting]);
 
   // Column labels follow the viewer's language when the schema is at hand.
   const schema_fields = useMemo(() => new Map(flatten_schema_fields((schema && schema.fields) || []).map((field) => [field.id, field])), [schema]);
@@ -137,22 +137,12 @@ export default function RecordsOverlay({ title, subtitle, fetchPage, exportRecor
   return createPortal(
     <div className={`dcs-records-overlay ${closing ? "is-closing" : ""}`} role="dialog" aria-modal="true">
       <div className="dcs-records-panel">
-        <div className="flex items-center justify-between gap-3 flex-shrink-0 px-4 sm:px-5 py-2 border-b" style={{ backgroundColor: "#FFFFFF", borderColor: "#E0E0E0" }}>
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#333333", letterSpacing: "0.3px", ...FONT }}>
-              {translate("DCS_DB_RECORDS_TITLE_OF", { title })}
-            </p>
-            <p className="text-[11px] font-semibold truncate" style={{ color: "#9E9E9E", ...FONT }}>
-              {subtitle || ""}
-              {result ? `${subtitle ? " - " : ""}${translate("DCS_DB_RECORDS_COUNT", { count: total.toLocaleString("en-US") })}` : ""}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <IconButton title={translate("DCS_BTN_CLOSE")} onClick={request_close} danger>
-              {CLOSE_SVG}
-            </IconButton>
-          </div>
-        </div>
+        <DcsOverlayHeader
+          title={translate("DCS_DB_RECORDS_TITLE_OF", { title })}
+          subtitle={`${subtitle || ""}${result ? `${subtitle ? " - " : ""}${translate("DCS_DB_RECORDS_COUNT", { count: total.toLocaleString("en-US") })}` : ""}`}
+          onClose={request_close}
+          busy={exporting !== null}
+        />
 
         <div className="flex-shrink-0 px-4 sm:px-5 py-2 flex flex-wrap items-center gap-2 border-b" style={{ borderColor: "#E0E0E0" }}>
           <span className="text-[11px] font-bold uppercase" style={{ color: "#9E9E9E", letterSpacing: "0.4px", ...FONT }}>

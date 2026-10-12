@@ -17,7 +17,8 @@ const get_form_submission_stats = require("../../controllers/forms/get_form_subm
 const { get_table_settings, save_table_settings } = require("../../controllers/forms/table_settings.js");
 const { list_translation_links, create_translation_link, delete_translation_link } = require("../../controllers/forms/translation_links.js");
 const { list_translation_proposals, apply_translation_proposals, restore_translation_proposals, dismiss_translation_proposals } = require("../../controllers/forms/translation_proposals.js");
-const { upload_design_file: upload_design_file_middleware } = require("../../utilities/upload.js");
+const { upload_design_file: upload_design_file_middleware, upload_import_file } = require("../../utilities/upload.js");
+const { import_template, import_upload, import_run, import_status } = require("../../controllers/submissions/import_submissions.js");
 
 /**
  * @swagger
@@ -282,5 +283,55 @@ Router.get("/:form_group_id/translation-links/:link_id/proposals", list_translat
 Router.post("/:form_group_id/translation-links/:link_id/proposals/apply", apply_translation_proposals);
 Router.post("/:form_group_id/translation-links/:link_id/proposals/restore", restore_translation_proposals);
 Router.post("/:form_group_id/translation-links/:link_id/proposals/dismiss", dismiss_translation_proposals);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/import/template:
+ *   get:
+ *     summary: "Headers template of the form's fillable fields (a location field gives three columns - latitude, longitude, accuracy - the same the export writes); ?format=csv|xlsx (csv by default), ?language= picks the labels, English by default; form editors only"
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: The template as a text/csv or .xlsx download
+ * /dcs/api/forms/{form_group_id}/import/upload:
+ *   post:
+ *     summary: "Upload a .csv or .xlsx of responses (multipart field: file; an Excel file is read from its first sheet, row 1 the headers); the file is parsed and kept on the server; answers with the import id, the headers, a five-row preview and the form's fillable fields (id, label, type, required, options, location sub-targets)"
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Import session opened
+ *       422:
+ *         description: Not a .csv or .xlsx, no header row, or no data rows
+ * /dcs/api/forms/{form_group_id}/import/{import_id}/run:
+ *   post:
+ *     summary: "Start the import from { mapping: [{ column, field_id, part }], defaults: { field_id: { mode: leave|use, value } } }: every row is checked, then written in batches of 50 as submissions marked source=import; all or nothing - a failing row stops the run and removes what it wrote; answers at once with { running: true }"
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       202:
+ *         description: Import started
+ *       409:
+ *         description: This import already ran
+ *       422:
+ *         description: A required field would stay empty (required_fields lists them)
+ * /dcs/api/forms/{form_group_id}/import/{import_id}/status:
+ *   get:
+ *     summary: "Progress of the import run: status (uploaded, running, done, failed), stage, done_rows of total_rows, created, failed_rows, error and message"
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Import progress fetched
+ */
+Router.get("/:form_group_id/import/template", import_template);
+Router.post("/:form_group_id/import/upload", upload_import_file.single("file"), import_upload);
+Router.post("/:form_group_id/import/:import_id/run", import_run);
+Router.get("/:form_group_id/import/:import_id/status", import_status);
 
 module.exports = Router;

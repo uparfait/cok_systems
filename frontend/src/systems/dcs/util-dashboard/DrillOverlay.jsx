@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { IconButton, CLOSE_SVG } from "./BoardIcons.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 import WidgetCard from "./WidgetCard.jsx";
 import { useBoardTheme } from "./boardTheme.jsx";
 import { useNarrowViewport } from "./useNarrowViewport.js";
@@ -11,6 +11,7 @@ import { useBoardColors, portal_tint } from "./boardColors.jsx";
 
 const PRIMARY = "#056daa";
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
+const ACTION_STYLE = { color: PRIMARY, border: `1px solid ${PRIMARY}`, background: "none", letterSpacing: "0.4px", ...FONT };
 
 /**
  * The level a widget was drilled down to: ONE PANEL, the one being
@@ -52,36 +53,30 @@ export default function DrillOverlay({ stack, fields, onDrill, onOpenRecords, on
         const step = 0;
         return (
           <div key={level.widget.id} className={`dcs-drill-panel dcs-board-root ${is_top ? "is-top" : ""} ${narrow ? "is-full" : ""}`} style={{ top: step, left: 0, right: 0, bottom: 0 }} aria-hidden={!is_top}>
-            <div className="flex items-center justify-between gap-3 flex-shrink-0 px-4 py-2" style={{ backgroundColor: PRIMARY }}>
-              <div className="min-w-0 flex items-center gap-3">
-                {index > 0 && is_top && (
-                  <button type="button" className="text-xs font-bold uppercase px-2 py-1 cursor-pointer" style={{ color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.7)", background: "none", letterSpacing: "0.4px", ...FONT }} onClick={onBack}>
-                    {translate("DCS_DB_DRILL_BACK")}
-                  </button>
-                )}
-                {is_top && onOpenRecords && (
-                  <button type="button" className="text-xs font-bold uppercase px-2 py-1 cursor-pointer flex-shrink-0" style={{ color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.7)", background: "none", letterSpacing: "0.4px", ...FONT }} onClick={() => onOpenRecords(level.widget, null)}>
-                    {translate("DCS_DB_DRILL_TABLE")}
-                  </button>
-                )}
-                {is_top && target && (
-                  <button type="button" className="text-xs font-bold uppercase px-2 py-1 cursor-pointer flex-shrink-0" style={{ color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.7)", background: "none", letterSpacing: "0.4px", ...FONT }} onClick={() => onDrill(level.widget)}>
-                    {translate("DCS_DB_DRILL_CHILD", { field: field_label(target.child) })}
-                  </button>
-                )}
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...FONT }}>
-                    {level.widget.title}
-                  </p>
-                  <p className="text-[11px] font-semibold truncate" style={{ color: "rgba(255,255,255,0.85)", ...FONT }}>
-                    {stack.slice(0, index + 1).map((entry) => field_label(entry.child)).join(" > ")}
-                  </p>
+            <DcsOverlayHeader
+              title={level.widget.title}
+              subtitle={stack.slice(0, index + 1).map((entry) => field_label(entry.child)).join(" > ")}
+              onClose={onClose}
+              extra={
+                <div className="flex flex-wrap items-center justify-end gap-2 flex-shrink-0">
+                  {index > 0 && is_top && (
+                    <button type="button" className="text-xs font-bold uppercase px-2 py-1 cursor-pointer" style={ACTION_STYLE} onClick={onBack}>
+                      {translate("DCS_DB_DRILL_BACK")}
+                    </button>
+                  )}
+                  {is_top && onOpenRecords && (
+                    <button type="button" className="text-xs font-bold uppercase px-2 py-1 cursor-pointer" style={ACTION_STYLE} onClick={() => onOpenRecords(level.widget, null)}>
+                      {translate("DCS_DB_DRILL_TABLE")}
+                    </button>
+                  )}
+                  {is_top && target && (
+                    <button type="button" className="text-xs font-bold uppercase px-2 py-1 cursor-pointer" style={ACTION_STYLE} onClick={() => onDrill(level.widget)}>
+                      {translate("DCS_DB_DRILL_CHILD", { field: field_label(target.child) })}
+                    </button>
+                  )}
                 </div>
-              </div>
-              <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger>
-                {CLOSE_SVG}
-              </IconButton>
-            </div>
+              }
+            />
             <div className="dcs-drill-body">
               <WidgetCard
                 widget={level.widget}

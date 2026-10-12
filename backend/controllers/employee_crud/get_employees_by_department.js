@@ -16,6 +16,10 @@ const mongoose = require('mongoose');
  *    when any are found, ONLY those are returned
  * 2. otherwise employees whose `department` equals the id (the id is a parent)
  * 3. last resort: users listed in the Department document's `employees` array
+ *
+ * Optional `search` narrows the members of the resolved department by full
+ * name, email or telephone (case-insensitive); it never changes which
+ * department the id resolves to.
  */
 module.exports = async function get_employees_by_department(req, res, next) {
     try {
@@ -24,6 +28,7 @@ module.exports = async function get_employees_by_department(req, res, next) {
             department_name = null,
             is_active = null,
             is_account_activated = null,
+            search = '',
             limit = 50,
             page = 1
         } = req.query || {};
@@ -47,10 +52,21 @@ module.exports = async function get_employees_by_department(req, res, next) {
             activeFilters.is_account_activated = is_account_activated === 'true' || is_account_activated === true;
         }
 
+        const search_text = String(search || '').trim();
+        const search_regex = search_text ? new RegExp(search_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
+        const search_filter = search_regex
+            ? { $or: [{ full_name: search_regex }, { email: search_regex }, { telephone: search_regex }] }
+            : null;
+
+        // `found` says the id has members at all, so a search with no match
+        // still stops here instead of falling through to the next lookup
         const fetchFor = async (baseFilter) => {
-            const filter = { ...baseFilter, ...activeFilters };
-            const total = await User.countDocuments(filter);
-            if (total === 0) return { total: 0, employees: [] };
+            const members = { ...baseFilter, ...activeFilters };
+            const total_members = await User.countDocuments(members);
+            if (total_members === 0) return { total: 0, employees: [], found: false };
+            const filter = search_filter ? { $and: [members, search_filter] } : members;
+            const total = search_filter ? await User.countDocuments(filter) : total_members;
+            if (total === 0) return { total: 0, employees: [], found: true };
             const employees = await User.find(filter)
                 .select('-twofa_setup -password -auth -twofa_secret')
                 .limit(limit_val)
@@ -58,7 +74,7 @@ module.exports = async function get_employees_by_department(req, res, next) {
                 .sort({ created_date: -1 })
                 .populate('department', 'department_name department_id _id')
                 .populate('roles', 'role_name');
-            return { total, employees };
+            return { total, employees, found: true };
         };
 
         const resolveById = async (id) => {
@@ -67,7 +83,7 @@ module.exports = async function get_employees_by_department(req, res, next) {
             // 1. Units first: the id is a unit when employees carry it in
             //    their department_unit string field
             let result = await fetchFor({ department_unit: idStr });
-            if (result.total > 0) return result;
+            if (result.found) return result;
 
             // 2. Then the parent: employees whose department points at the id
             if (mongoose.Types.ObjectId.isValid(idStr)) {
@@ -77,7 +93,7 @@ module.exports = async function get_employees_by_department(req, res, next) {
                         { department: idStr }
                     ]
                 });
-                if (result.total > 0) return result;
+                if (result.found) return result;
             }
 
             // 3. Last resort: the Department document's employees array
@@ -102,7 +118,7 @@ module.exports = async function get_employees_by_department(req, res, next) {
             }).select('_id');
             for (const dept of departments) {
                 result = await resolveById(dept._id);
-                if (result.total > 0) break;
+                if (result.found) break;
             }
         }
 

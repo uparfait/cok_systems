@@ -703,6 +703,24 @@ async function insert_test_submissions(documents) {
 }
 
 /**
+ * Writes one batch of imported records as given (each already carries its
+ * form, version, answers, submitted_at and the import id it came from).
+ * Plain insertMany, no transaction: a failed import removes what it wrote
+ * through delete_by_import_id instead.
+ */
+async function insert_imported_submissions(documents) {
+  if (!documents || documents.length === 0) return 0;
+  const result = await get_db().collection(COLLECTION_NAME).insertMany(documents, { ordered: true });
+  return result.insertedCount;
+}
+
+/** Removes every record one import wrote - the rollback of a failed import. */
+async function delete_by_import_id(form_group_id, import_id) {
+  const result = await get_db().collection(COLLECTION_NAME).deleteMany({ form_group_id, source: "import", import_id });
+  return result.deletedCount;
+}
+
+/**
  * Permanently removes generated test records of one form - never a real
  * submission, the flag filter is unconditional. start/end narrow by
  * submitted_at and version narrows to one form version; either is optional.
@@ -756,6 +774,8 @@ module.exports = {
   TEST_DATA_FLAG,
   ensure_submission_indexes,
   create_submission,
+  insert_imported_submissions,
+  delete_by_import_id,
   insert_test_submissions,
   delete_test_submissions,
   list_test_submissions,

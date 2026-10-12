@@ -4,7 +4,7 @@ import { DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
 import { get_templates, get_template } from "../services/templatesService.js";
 import { clone_selected_fields } from "../jsonlogic/resolveTemplates.js";
 import DcsFieldIcon from "../components/DcsFieldIcon.jsx";
-import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 import TemplateFieldPickerOverlay from "./TemplateFieldPickerOverlay.jsx";
 
 /**
@@ -122,15 +122,12 @@ export default function AddComponentPanel({ isOpen, onClose, onSelect, onInsertT
         <div className="fixed inset-0 z-[10000] flex items-start justify-center pt-10 px-4">
           <div className="absolute inset-0 bg-black/40" onClick={onClose} />
           <div
-            className="relative bg-white border-2 w-full flex flex-col"
-            style={{ borderColor: "#E0E0E0", minWidth: "50vw", maxWidth: 900, maxHeight: "80vh" }}
+            className="relative bg-white border border-gray-200 w-full flex flex-col shadow-xl"
+            style={{ minWidth: "50vw", maxWidth: 900, maxHeight: "80vh" }}
+            role="dialog"
+            aria-modal="true"
           >
-            <div className="flex items-center justify-between px-3 py-3 border-b flex-shrink-0" style={{ borderColor: "#E0E0E0" }}>
-              <p className="text-sm font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-                {translate("DCS_PICKER_TITLE")}
-              </p>
-              <DcsButtonOutline onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutline>
-            </div>
+            <DcsOverlayHeader title={translate("DCS_PICKER_TITLE")} onClose={onClose} />
 
             {onInsertTemplate && (
               <div className="flex border-b flex-shrink-0" style={{ borderColor: "#E0E0E0" }}>

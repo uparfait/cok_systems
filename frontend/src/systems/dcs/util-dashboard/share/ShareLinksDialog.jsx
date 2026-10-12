@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useToast } from "../../../../core/contexts/ToastContext.tsx";
 import { list_dashboard_links, create_dashboard_link, update_dashboard_link, delete_dashboard_link, public_dashboard_url, request_error_text } from "../dashboardService.js";
-import { IconButton, CLOSE_SVG } from "../BoardIcons.jsx";
+import DcsOverlayHeader from "../../components/DcsOverlayHeader.jsx";
 import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../../components/DcsConfirmDialog.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
@@ -139,20 +139,13 @@ export default function ShareLinksDialog({ form, filters, fields, fetchFilterVal
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
       <div className="absolute inset-0 bg-black/45" onClick={saving ? undefined : onClose} />
-      <div className="dcs-builder-pop relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 760, maxHeight: "92vh", borderColor: PRIMARY }}>
-        <div className="flex items-center justify-between gap-2 flex-shrink-0 px-4 sm:px-5 py-2" style={{ backgroundColor: PRIMARY }}>
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...FONT }}>
-              {translate("DCS_DB_SHARE_TITLE")}
-            </p>
-            <p className="text-[11px] font-semibold truncate" style={{ color: "rgba(255,255,255,0.85)", ...FONT }}>
-              {form.dashboard_name ? `${form.dashboard_name} - ${form.form_name || form.form_group_id}` : form.form_name || form.form_group_id}
-            </p>
-          </div>
-          <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger disabled={saving}>
-            {CLOSE_SVG}
-          </IconButton>
-        </div>
+      <div className="dcs-builder-pop relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 760, maxHeight: "92vh", borderColor: BORDER }}>
+        <DcsOverlayHeader
+          title={translate("DCS_DB_SHARE_TITLE")}
+          subtitle={form.dashboard_name ? `${form.dashboard_name} - ${form.form_name || form.form_group_id}` : form.form_name || form.form_group_id}
+          onClose={onClose}
+          busy={saving}
+        />
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           <p className="text-xs" style={{ color: TEXT_MUTED }}>

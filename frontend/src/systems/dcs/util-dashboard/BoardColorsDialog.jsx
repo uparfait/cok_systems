@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { IconButton, CLOSE_SVG } from "./BoardIcons.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
-import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
-import { ChipGrid, PRIMARY, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builder/builderUi.jsx";
+import { ChipGrid, PRIMARY, BORDER, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builder/builderUi.jsx";
 import ColorInput from "./builder/ColorInput.jsx";
 import { resolve_board_colors, auto_border, auto_text } from "./boardColors.jsx";
 import { portal_root } from "./portalRoot.js";
@@ -76,20 +75,8 @@ export default function BoardColorsDialog({ appearance, boardName, onApply, onCl
   return createPortal(
     <div className="fixed inset-0 z-[10020] flex items-center justify-center p-3 sm:p-4">
       <div className="absolute inset-0 bg-black/45" onClick={applying ? undefined : onClose} />
-      <div className="dcs-builder-pop relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 560, maxHeight: "92vh", borderColor: PRIMARY }}>
-        <div className="flex items-center justify-between gap-2 flex-shrink-0 px-4 sm:px-5 py-2" style={{ backgroundColor: PRIMARY }}>
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...HEADING_FONT }}>
-              {translate("DCS_DB_BOARD_COLORS")}
-            </p>
-            <p className="text-[11px] font-semibold truncate" style={{ color: "rgba(255,255,255,0.85)", ...HEADING_FONT }}>
-              {boardName}
-            </p>
-          </div>
-          <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger disabled={applying}>
-            {CLOSE_SVG}
-          </IconButton>
-        </div>
+      <div className="dcs-builder-pop relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 560, maxHeight: "92vh", borderColor: BORDER }}>
+        <DcsOverlayHeader title={translate("DCS_DB_BOARD_COLORS")} subtitle={boardName} onClose={onClose} busy={applying} />
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-3 flex flex-col gap-3">
           <p className="text-xs" style={{ color: TEXT_MUTED }}>
@@ -175,10 +162,7 @@ export default function BoardColorsDialog({ appearance, boardName, onApply, onCl
           </div>
         </div>
 
-        {/* The line that puts the board back to the usual colours reads in
-            full: on a narrow dialog it takes a row of its own above the
-            buttons rather than being squeezed behind them. */}
-        <div className="flex-shrink-0 px-4 sm:px-5 py-2 border-t-2 flex flex-wrap items-center justify-end gap-2" style={{ borderColor: PRIMARY }}>
+        <div className="flex-shrink-0 px-4 sm:px-5 py-2 border-t flex flex-wrap items-center justify-end gap-2" style={{ borderColor: BORDER }}>
           <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
             {outcome ? (
               <p className="text-[11px] font-semibold truncate m-0" style={{ color: outcome.error ? "#E74C3C" : "#1E8449", ...HEADING_FONT }}>
@@ -198,9 +182,6 @@ export default function BoardColorsDialog({ appearance, boardName, onApply, onCl
               )
             )}
           </div>
-          <DcsButtonOutline onClick={onClose} disabled={applying}>
-            {translate("DCS_BTN_CANCEL")}
-          </DcsButtonOutline>
           <DcsButtonPrimary onClick={apply} disabled={applying}>
             {translate(applying ? "DCS_DB_SAVING" : "DCS_BTN_APPLY")}
           </DcsButtonPrimary>

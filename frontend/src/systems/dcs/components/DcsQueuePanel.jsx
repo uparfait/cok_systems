@@ -4,6 +4,7 @@ import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
 import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "./DcsButtonOutlineDanger.jsx";
 import DcsConfirmDialog from "./DcsConfirmDialog.jsx";
+import DcsOverlayHeader from "./DcsOverlayHeader.jsx";
 import DcsRespondentGate from "./DcsRespondentGate.jsx";
 
 const STATUS_LABEL_KEYS = {
@@ -76,28 +77,15 @@ export default function DcsQueuePanel({
 
   return (
     <div className="fixed inset-0 z-[10000] flex dcs-no-print">
-      <div className="absolute inset-0 dcs-queue-backdrop" onClick={onClose} />
+      <div className="absolute inset-0 dcs-queue-backdrop" onClick={is_busy ? undefined : onClose} />
       <div
         className="dcs-queue-panel-enter relative bg-white w-full max-w-sm h-full flex flex-col shadow-lg"
         style={{ backgroundColor: "#F7F9FB" }}
+        role="dialog"
+        aria-modal="true"
+        aria-busy={is_busy}
       >
-        <div className="cok-bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0">
-          <span className="text-white font-semibold uppercase tracking-wide text-sm" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-            {translate("DCS_QUEUE_TITLE")}
-          </span>
-          <button
-            type="button"
-            onClick={onClose}
-            title={translate("DCS_BTN_CLOSE")}
-            className="cursor-pointer flex items-center justify-center"
-            style={{ width: 28, height: 28, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.6)" }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5">
-              <line x1="5" y1="5" x2="19" y2="19" />
-              <line x1="19" y1="5" x2="5" y2="19" />
-            </svg>
-          </button>
-        </div>
+        <DcsOverlayHeader title={translate("DCS_QUEUE_TITLE")} onClose={onClose} busy={is_busy} />
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <p className="text-xs" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif" }}>

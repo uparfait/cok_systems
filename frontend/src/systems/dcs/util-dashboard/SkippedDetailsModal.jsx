@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_kpi_skipped } from "./dashboardService.js";
-import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const ORANGE = "#E67E22";
@@ -93,13 +93,9 @@ export default function SkippedDetailsModal({ form, widget, period, filters, onC
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white border-2 w-full p-5 sm:p-6 flex flex-col" style={{ maxWidth: 620, maxHeight: "85vh", borderColor: ORANGE }}>
-        <p className="text-base font-semibold mb-1" style={{ color: TEXT_DARK, ...HEADING_FONT }}>
-          {translate("DCS_DB_SKIPPED_TITLE")}
-        </p>
-        <p className="text-xs mb-1 truncate" style={{ color: ORANGE, ...HEADING_FONT, fontWeight: 600 }}>
-          {widget.title}
-        </p>
+      <div className="relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 620, maxHeight: "85vh", borderColor: ORANGE }}>
+        <DcsOverlayHeader title={translate("DCS_DB_SKIPPED_TITLE")} subtitle={widget.title} onClose={onClose} />
+        <div className="flex-1 min-h-0 flex flex-col px-4 sm:px-5 py-4">
         <p className="text-xs mb-3" style={{ color: TEXT_MUTED }}>
           {translate("DCS_DB_SKIPPED_HINT")}
         </p>
@@ -118,8 +114,8 @@ export default function SkippedDetailsModal({ form, widget, period, filters, onC
           </p>
         ) : (
           <>
-            <div className="overflow-auto border" style={{ maxHeight: "50vh", borderColor: "#E0E0E0" }} onScroll={handle_scroll}>
-              <table className="w-full" style={{ borderCollapse: "collapse" }}>
+            <div className="cok-table-scroll border" style={{ maxHeight: "50vh", borderColor: "#E0E0E0" }} onScroll={handle_scroll}>
+              <table className="w-full">
                 <thead>
                   <tr>
                     <th style={th_style}>#</th>
@@ -132,7 +128,7 @@ export default function SkippedDetailsModal({ form, widget, period, filters, onC
                     <tr key={index}>
                       <td style={td_style}>{index + 1}</td>
                       <td style={td_style}>{format_date(row.submitted_at)}</td>
-                      <td style={{ ...td_style, wordBreak: "break-word" }}>{format_raw(row.raw)}</td>
+                      <td style={{ ...td_style, whiteSpace: "normal", wordBreak: "break-word" }}>{format_raw(row.raw)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -156,10 +152,6 @@ export default function SkippedDetailsModal({ form, widget, period, filters, onC
           </>
         )}
 
-        <div className="pt-4">
-          <DcsButtonOutline className="w-full" onClick={onClose}>
-            {translate("DCS_DB_SKIPPED_CLOSE")}
-          </DcsButtonOutline>
         </div>
       </div>
     </div>

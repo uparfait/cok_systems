@@ -8,7 +8,7 @@ const { XlsxStreamWriter } = require("../../utilities/xlsx_stream_writer.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { format_respondent } = require("../../utilities/respondent.js");
-const { build_diffed_columns, format_cell, sanitize_filename } = require("../../utilities/export_columns.js");
+const { build_diffed_columns, column_cell, sanitize_filename } = require("../../utilities/export_columns.js");
 const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { translate } = require("../../i18n/index.js");
@@ -31,7 +31,6 @@ const STYLE_NOTE = 4;
  */
 async function run_export(job, form_group_id, bounds, columns, field_type_by_id, title, lang, origin, tracking) {
   const keys = columns.map((column) => column.key);
-  const types = columns.map((column) => field_type_by_id.get(column.key) || null);
   const version_at = keys.indexOf("version");
   const by_at = keys.indexOf("submitted_by");
   const at_at = keys.indexOf("submitted_at");
@@ -55,7 +54,7 @@ async function run_export(job, form_group_id, bounds, columns, field_type_by_id,
       const data = submission.data || {};
       const values = new Array(keys.length);
       for (let index = 0; index < keys.length; index += 1) {
-        if (data_at[index] !== -1) values[index] = format_cell(data[keys[index]], types[index], origin);
+        if (data_at[index] !== -1) values[index] = column_cell(data, columns[index], field_type_by_id, origin);
       }
       if (id_at >= 0) values[id_at] = submission._id ? submission._id.toString() : "";
       if (version_at >= 0) values[version_at] = submission.version || "";

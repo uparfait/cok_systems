@@ -31,6 +31,11 @@ const PREVIEW_COUNT = 12;
 // misstate the others: they always draw every value they were given.
 const WHOLE_OF_TOTAL = ["pie", "donut", "waffle"];
 
+const sized_density = (base, height) => {
+  const extra = Math.max(0, Math.min(3, Math.floor((height - 360) / 180)));
+  return { ...base, height, max_height: Math.max(base.max_height || 0, height), font: base.font + extra, value_font: base.value_font + extra };
+};
+
 /**
  * Renders one widget's data with the right chart component. The backend
  * folds category tails into an internal "__other__" row - translated to a
@@ -47,7 +52,7 @@ const WHOLE_OF_TOTAL = ["pie", "donut", "waffle"];
  * Under every legend sits the count line: how many different values each
  * choice field the widget reads holds under the same filters.
  */
-export default function WidgetChart({ widget, data, fitMode, animate, cardWidth, fillHeight, onPick, canHeat, canWorld, onMapMode, onTablePage }) {
+export default function WidgetChart({ widget, data, fitMode, animate, cardWidth, fillHeight, chartHeight, areaHeight, onPick, canHeat, canWorld, onMapMode, onTablePage }) {
   const { translate } = useDcsLanguage();
   const [show_other, setShowOther] = useState(false);
   const [show_all, setShowAll] = useState(false);
@@ -58,7 +63,8 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
   // the other way round - a small widget stays small whatever it holds.
   const base_density = chart_density(cardWidth);
   // An expanded card offers more height than the profile's own: take it.
-  const density = fillHeight > base_density.height ? { ...base_density, height: fillHeight, max_height: Math.max(base_density.max_height || 0, fillHeight) } : base_density;
+  const sized = Number(chartHeight) > 0 && !(fillHeight > 0);
+  const density = fillHeight > base_density.height ? { ...base_density, height: fillHeight, max_height: Math.max(base_density.max_height || 0, fillHeight) } : sized ? sized_density(base_density, Number(chartHeight)) : base_density;
 
   if (!data) return null;
 
@@ -70,7 +76,7 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
   const is_empty = data.kind === "kpi" || data.kind === "table" ? false : !(has_rows || has_points || has_nodes);
   if (is_empty) {
     return (
-      <div className="flex items-center justify-center text-xs" style={{ height: Math.min(180, density.height), color: palette.muted }}>
+      <div className="flex items-center justify-center text-xs" style={{ height: sized ? density.height : Math.min(180, density.height), color: palette.muted }}>
         {translate("DCS_DB_NO_DATA")}
       </div>
     );
@@ -123,11 +129,15 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
   if (data.kind === "kpi") {
     const legend = data.legend || [];
     return (
-      <div>
+      <div className="flex flex-col justify-center h-full" style={sized ? { minHeight: density.height } : undefined}>
         <KpiCard
           value={data.value}
           changePct={data.change_pct}
           legend={legend}
+          // The room the card really has: the height its width earns in the
+          // grid, or the measured area when its row, its designed box or the
+          // screen gives it more (less the area's own padding under it).
+          roomHeight={Math.max(sized ? density.height : 0, Number(areaHeight) > 0 ? Number(areaHeight) - 8 : 0)}
           // Only an occurrence card needs a word over its number; a plain
           // total is already named by the card's title.
           totalLabel={data.occurrences ? translate(data.occurrences.has_rule ? "DCS_DB_OCC_VALUES_MATCHING" : "DCS_DB_OCC_VALUES") : ""}

@@ -14,6 +14,7 @@ import DcsApproverPanel from "../components/DcsApproverPanel.jsx";
 import DcsDetailsToggleButton from "../components/DcsDetailsToggleButton.jsx";
 import DcsApprovalFormView from "../components/DcsApprovalFormView.jsx";
 import DcsApprovalSettingsButton from "../components/DcsApprovalSettingsButton.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const PRIMARY = "#056daa";
@@ -522,16 +523,11 @@ function MyApprovalsPageContent() {
         />
       )}
 
-      {/* Bulk approve modal - the signature is still required, exactly like the single page */}
       {show_modal && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
-          <div className="w-full max-w-lg bg-white max-h-[90vh] overflow-y-auto border-2 min-[760px]:rounded-[5px]" style={{ borderColor: PRIMARY }}>
-            <div className="px-5 py-4" style={{ backgroundColor: PRIMARY }}>
-              <h2 className="text-white font-bold text-base" style={{ fontFamily: fontHeading }}>
-                {translate("DCS_MYAPPROVALS_MODAL_TITLE", { count: approvable.length })}
-              </h2>
-            </div>
-            <div className="p-5">
+          <div className="w-full max-w-lg bg-white border border-gray-200 max-h-[90vh] flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-busy={progress !== null}>
+            <DcsOverlayHeader title={translate("DCS_MYAPPROVALS_MODAL_TITLE", { count: approvable.length })} onClose={() => setShowModal(false)} busy={progress !== null} />
+            <div className="p-5 overflow-y-auto flex-1 min-h-0">
               <p className="text-sm" style={{ color: "#555555", fontFamily: fontHeading }}>{translate("DCS_MYAPPROVALS_MODAL_HINT")}</p>
 
               <label className="block text-xs font-semibold uppercase mt-4 mb-1" style={{ color: GRAY, fontFamily: fontHeading, letterSpacing: 0.5 }}>
@@ -606,9 +602,6 @@ function MyApprovalsPageContent() {
               )}
 
               <div className="flex gap-3 mt-5 flex-wrap">
-                <DcsButtonOutline onClick={() => setShowModal(false)} disabled={progress !== null} className="flex-1">
-                  {translate("DCS_MYAPPROVALS_CANCEL")}
-                </DcsButtonOutline>
                 <DcsButtonPrimary onClick={handle_bulk_approve} disabled={progress !== null || approvable.length === 0} className="flex-1">
                   {progress !== null
                     ? translate("DCS_MYAPPROVALS_PROGRESS", { done: progress.done, total: progress.total })

@@ -10,6 +10,7 @@ import DcsHeader from "./DcsHeader.jsx";
 import { DcsContextNavProvider } from "./contextNav.jsx";
 import DcsSidebarShell from "./DcsSidebarShell.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
+import OverlayCloseButton from "../../../core/components/overlay/OverlayCloseButton";
 
 // Ignored below this scroll position - right near the top, a tiny
 // scroll-down jitter must never hide the bar the instant the page loads.
@@ -157,18 +158,12 @@ export default function DcsShell() {
               onNavigate={handle_main_sidebar_navigate}
               userDepartment={user_department}
             />
-            <button
-              type="button"
-              onClick={() => setIsMainSidebarOpen(false)}
-              title="Close"
-              className="dcs-sidebar-toggle cursor-pointer flex items-center justify-center bg-white border absolute"
-              style={{ top: 24, left: 224, width: 32, height: 32, borderRadius: "50%", borderColor: "#E0E0E0", zIndex: 60 }}
+            <div
+              className="dcs-sidebar-toggle bg-white border absolute"
+              style={{ top: 24, left: 224, borderRadius: "50%", borderColor: "#E0E0E0", zIndex: 60 }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2.5">
-                <line x1="5" y1="5" x2="19" y2="19" />
-                <line x1="19" y1="5" x2="5" y2="19" />
-              </svg>
-            </button>
+              <OverlayCloseButton onClick={() => setIsMainSidebarOpen(false)} />
+            </div>
           </div>
 
           {/* The sub-header always stays in view - it now carries the open

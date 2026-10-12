@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 import { feedbackService } from '../../../../core/services/adminService';
 import { FiStar, FiMessageSquare, FiPhone } from 'react-icons/fi';
+import DepartmentSearchSelect from './DepartmentSearchSelect';
 
 const PRIMARY = "#056daa";
 const NEUTRAL_DARK = "#333333";
@@ -15,6 +16,7 @@ export interface DeptOption { name: string; id: string; }
 
 export default function FeedbackFeed({ applied, departments, units, initialTarget }: { applied: AppliedFilter; departments: DeptOption[]; units: DeptOption[]; initialTarget?: string }) {
   const [target, setTarget] = useState(initialTarget || 'all');
+  const [chosenName, setChosenName] = useState('');
   const [items, setItems] = useState<FeedbackItem[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -79,25 +81,12 @@ export default function FeedbackFeed({ applied, departments, units, initialTarge
           </h2>
           <p className="text-xs text-[#555555] mt-0.5">{total} feedback{total === 1 ? '' : 's'} for the selected filters</p>
         </div>
-        <select
+        <DepartmentSearchSelect
           value={target}
-          onChange={(e) => setTarget(e.target.value)}
-          className="cok-auth-input w-full sm:w-72 text-sm"
-          style={{ paddingLeft: '12px', minHeight: '38px' }}
-        >
-          <option value="all">All</option>
-          <option value="general">General</option>
-          {departments.length > 0 && (
-            <optgroup label="Departments">
-              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </optgroup>
-          )}
-          {units.length > 0 && (
-            <optgroup label="Units">
-              {units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </optgroup>
-          )}
-        </select>
+          valueName={[...departments, ...units].find((d) => d.id === target)?.name || chosenName}
+          onChange={(choice) => { setTarget(choice.id); setChosenName(choice.name); }}
+          className="w-full sm:w-72"
+        />
       </div>
 
       {initialLoading ? (

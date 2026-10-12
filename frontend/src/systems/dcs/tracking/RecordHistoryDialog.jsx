@@ -4,7 +4,7 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { format_when } from "./trackingConfig.js";
 import { RecordHistoryList, FieldTimeline, RecordDates, RecordFieldsList } from "./RecordHistory.jsx";
 import { HistoryIcon } from "./TrackingIcons.jsx";
-import DcsCloseIconButton from "../components/DcsCloseIconButton.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 
 const TEXT = "#333333";
 const FONT = "'Montserrat', sans-serif";
@@ -17,15 +17,10 @@ const FONT = "'Montserrat', sans-serif";
 export default function RecordHistoryDialog({ record, fields, tracking, onClose }) {
   const { translate } = useDcsLanguage();
   return createPortal(
-    <div className="dcs-tracking-overlay">
+    <div className="dcs-tracking-overlay" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/45" onClick={onClose} />
       <div className="dcs-tracking-panel">
-        <div className="cok-bg-primary px-4 py-3 flex items-center justify-between gap-2 flex-shrink-0">
-          <span className="text-white font-semibold uppercase tracking-wide text-sm truncate" style={{ fontFamily: FONT }}>
-            {translate("DCS_TRACKING_HISTORY_TITLE")}
-          </span>
-          <DcsCloseIconButton onClick={onClose} />
-        </div>
+        <DcsOverlayHeader title={translate("DCS_TRACKING_HISTORY_TITLE")} onClose={onClose} />
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-4 space-y-4">
           <div>
             <p className="text-sm font-bold" style={{ color: TEXT, fontFamily: FONT }}>{format_when(record.submitted_at)}</p>

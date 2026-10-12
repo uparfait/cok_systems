@@ -9,9 +9,11 @@ import CardMenu from "./WidgetCardMenu.jsx";
 import { useBoardTheme } from "./boardTheme.jsx";
 import { useBoardColors } from "./boardColors.jsx";
 import { chart_density, kpi_density } from "./charts/density.js";
+import { fit_text_font } from "./charts/labelDensity.jsx";
 import TextWidget from "./charts/TextWidget.jsx";
 import { period_of, period_label } from "./builder/widgetBehavior.js";
 import { shown_title } from "./cascade.js";
+import { card_height, useBoardRoom, HEIGHT_SLACK, HEIGHT_RATIOS } from "./boardRows.js";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -184,7 +186,7 @@ function KpiIconSlot({ icon, color, size }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, onExpand, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, onBehavior, onTablePage, onDrill, drillChild, slot, onContextMenu }) {
+export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, sizeByWidth, onExpand, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, onBehavior, onTablePage, onDrill, drillChild, slot, onContextMenu }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -219,7 +221,6 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // KPI cards are deliberately COMPACT: small paddings and short state
   // areas, so a row of them stays low - only a description adds height.
   const is_kpi = widget.chart_type === "kpi";
-  const state_height = is_kpi ? 90 : 180;
   // Charts animate in once, on their first data; the silent refresh every
   // 30 seconds then only moves marks to their new values, so numbers never
   // vanish and reappear on the card.
@@ -227,6 +228,12 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   const animate = !drawn_ref.current;
   const chart_ref = useRef(null);
   const chart_size = useCardSize(chart_ref);
+  const room = useBoardRoom();
+  const wanted = sizeByWidth && !expanded && !wordless ? card_height(widget, chart_size.width, room) : 0;
+  const held_ref = useRef(0);
+  if (wanted > 0 && Math.abs(wanted - held_ref.current) > HEIGHT_SLACK) held_ref.current = wanted;
+  const derived = wanted > 0 ? held_ref.current : 0;
+  const state_height = derived || (is_kpi ? 90 : 180);
   // Lifted to fill the screen, the chart grows to the room it is given
   // (minus the axis and padding under it) instead of its usual height.
   const fill_height = expanded ? Math.max(0, chart_size.height - 56) : 0;
@@ -236,12 +243,24 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // A chart that FILLS the room it was given says so, because its drawn
   // height then tells nothing about what it needs.
   const has_chart = !!data && !data.error && !data.locked && !loading;
-  const base_chart_height = chart_density(chart_size.width).height;
+  const base_chart_height = derived || chart_density(chart_size.width).height;
   // What a KPI card of this width may draw: its icon, its title, its
   // number and its padding all follow the room it ended up with.
   const kpi = kpi_density(chart_size.width, widget.size);
-  const base_need = wordless ? 0 : !has_chart ? state_height : is_kpi ? 0 : base_chart_height + 56;
-  const filled = has_chart && !is_kpi && !wordless && fill_height > base_chart_height;
+  // A KPI card's title is written as large as the card's width allows and
+  // centred over the number, so the card reads as one tile from across a
+  // room; its icon and description follow. A long title is shrunk until it
+  // fits in about two lines, so one wordy card never makes its whole row
+  // tall.
+  const kpi_title_cap = Math.max(kpi.title, Math.min(48, Math.round(chart_size.width / 12)));
+  const kpi_icon_size = kpi.icon ? Math.max(kpi.icon, Math.round(kpi_title_cap * 1.1)) : 0;
+  const kpi_title_room = Math.max(60, chart_size.width - 24 - (kpi_icon_size ? kpi_icon_size + 14 : 0));
+  const kpi_title_font = is_kpi ? fit_text_font(title_shown || type_label || "", kpi_title_room * 1.5, kpi_title_cap, kpi.title) : 14;
+  // A KPI card FILLS whatever room it is given - its number grows to the
+  // card - so its drawn height says nothing about what it needs: it asks
+  // only for the least a KPI card may be, and keeps its designed height.
+  const base_need = wordless ? 0 : !has_chart ? state_height : is_kpi ? HEIGHT_RATIOS.kpi.min : base_chart_height + 56;
+  const filled = has_chart && !wordless && (is_kpi || fill_height > base_chart_height);
   useEffect(() => {
     if (data && !data.error && !data.locked) drawn_ref.current = true;
   }, [data]);
@@ -290,10 +309,10 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           added and where the card's own menu lives: its size, its colour
           settings, its words and the way to remove it. */}
       {(!wordless || editable || !!widget.title || !!widget.description) && (
-      <div className={`${is_kpi ? `${kpi.pad} pt-2 pb-1` : "px-3 pt-3 pb-2"} flex items-start gap-2`}>
-        {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} size={kpi.icon} />}
-        <div className="min-w-0 flex-1 relative">
-          <div className="flex flex-wrap items-baseline gap-x-1.5">
+      <div className={`${is_kpi ? `${kpi.pad} pt-2 pb-1 items-center justify-center text-center` : "px-3 pt-3 pb-2 items-start"} flex gap-2`}>
+        {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} size={kpi_icon_size} />}
+        <div className={`min-w-0 relative ${is_kpi ? "" : "flex-1"}`}>
+          <div className={`flex flex-wrap items-baseline gap-x-1.5 ${is_kpi ? "justify-center" : ""}`}>
           {/* The name and the description are SHOWN here and set in the
               settings dialog. They used to be typed in place, which made
               every heading on a board a control and renamed a chart on a
@@ -304,7 +323,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             hideWhenEmpty={wordless}
             editable={false}
             maxLength={120}
-            textStyle={{ color: palette.text, fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: is_kpi ? kpi.title : 14 }}
+            textStyle={{ color: palette.text, fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: kpi_title_font, lineHeight: is_kpi ? 1.15 : undefined }}
           />
           </div>
           <EditableText
@@ -312,10 +331,10 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             hideWhenEmpty
             editable={false}
             maxLength={300}
-            textStyle={{ color: palette.muted, fontSize: is_kpi ? Math.max(9, kpi.title - 1) : 12 }}
+            textStyle={{ color: palette.muted, fontSize: is_kpi ? Math.max(9, Math.round(kpi_title_font * 0.5)) : 12 }}
           />
           {fixed && (
-            <div className="flex flex-wrap gap-1 mt-1">
+            <div className={`flex flex-wrap gap-1 mt-1 ${is_kpi ? "justify-center" : ""}`}>
               <span className="dcs-widget-chip" style={{ color: palette.number, borderColor: palette.border }} title={translate("DCS_DB_PERIOD_LOCKED_HINT")}>
                 {translate("DCS_DB_CHIP_FIXED", { period: period_label(own_period, translate) })}
               </span>
@@ -375,7 +394,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             )}
           </div>
         ) : (
-          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_size.width} fillHeight={fill_height} onPick={pick_records} canHeat={canHeat} canWorld={canMap} onMapMode={onMapMode} onTablePage={onTablePage ? (page, page_size) => onTablePage(widget, page, page_size) : undefined} />
+          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_size.width} fillHeight={fill_height} chartHeight={derived} areaHeight={chart_size.height} onPick={pick_records} canHeat={canHeat} canWorld={canMap} onMapMode={onMapMode} onTablePage={onTablePage ? (page, page_size) => onTablePage(widget, page, page_size) : undefined} />
         )}
       </div>
 

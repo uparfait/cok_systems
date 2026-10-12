@@ -7,9 +7,26 @@ const config = require("../configurations/config.js");
 const SUBMISSION_UPLOAD_DIR = path.join(__dirname, "..", config.upload_dir, "submissions");
 const DESIGN_UPLOAD_DIR = path.join(__dirname, "..", config.upload_dir, "design");
 const APPROVAL_UPLOAD_DIR = path.join(__dirname, "..", config.upload_dir, "approvals");
+const IMPORT_UPLOAD_DIR = path.join(__dirname, "..", config.upload_dir, "imports");
 fs.mkdirSync(SUBMISSION_UPLOAD_DIR, { recursive: true });
 fs.mkdirSync(DESIGN_UPLOAD_DIR, { recursive: true });
 fs.mkdirSync(APPROVAL_UPLOAD_DIR, { recursive: true });
+fs.mkdirSync(IMPORT_UPLOAD_DIR, { recursive: true });
+
+// What browsers declare for a .csv or an .xlsx: Windows often calls a
+// .csv Excel, some say plain text or nothing in particular.
+const IMPORT_EXTENSIONS = [".csv", ".xlsx"];
+const IMPORT_MIME_TYPES = [
+  "text/csv",
+  "application/csv",
+  "text/x-csv",
+  "application/x-csv",
+  "text/comma-separated-values",
+  "text/plain",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/octet-stream",
+];
 
 function make_disk_storage(destination) {
   return multer.diskStorage({
@@ -55,4 +72,21 @@ const upload_approval_file = multer({
   storage: make_disk_storage(APPROVAL_UPLOAD_DIR),
 });
 
-module.exports = { upload_submission_file, upload_design_file, upload_approval_file };
+/**
+ * The CSV or Excel file a form editor imports responses from: kept in its
+ * own folder until the import has run, then removed. Only a .csv or an
+ * .xlsx is taken (.xls is not: the spreadsheet library reads neither) -
+ * the extension and the declared type are both checked; anything else is
+ * dropped here and the controller answers 422 (req.import_file_rejected).
+ */
+const upload_import_file = multer({
+  storage: make_disk_storage(IMPORT_UPLOAD_DIR),
+  fileFilter: (req, file, cb) => {
+    const extension_ok = IMPORT_EXTENSIONS.includes(path.extname(file.originalname || "").toLowerCase());
+    const type_ok = IMPORT_MIME_TYPES.includes(String(file.mimetype || "").toLowerCase());
+    if (!extension_ok || !type_ok) req.import_file_rejected = true;
+    cb(null, extension_ok && type_ok);
+  },
+});
+
+module.exports = { upload_submission_file, upload_design_file, upload_approval_file, upload_import_file, IMPORT_UPLOAD_DIR };

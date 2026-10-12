@@ -7,15 +7,13 @@ import { useBoardColors } from "../boardColors.jsx";
 import { save_dashboard, request_error_text } from "../dashboardService.js";
 import { finalize_widgets } from "../builder/composeWidgets.js";
 import DcsConfirmDialog from "../../components/DcsConfirmDialog.jsx";
-import { IconButton, CLOSE_SVG } from "../BoardIcons.jsx";
+import DcsOverlayHeader from "../../components/DcsOverlayHeader.jsx";
 import BoardGrid from "../BoardGrid.jsx";
 import StudioToolbar from "./StudioToolbar.jsx";
 import { useBoardStudio, descendants_of } from "./useBoardStudio.js";
 import { is_studio, board_width, studio_layout } from "../boxLayout.js";
 import { portal_root } from "../portalRoot.js";
 
-const PRIMARY = "#056daa";
-const FONT = { fontFamily: "'Montserrat', sans-serif" };
 const LIGHT_BG = "#F4F7F9";
 const DARK_BG = "#0F171F";
 
@@ -137,29 +135,14 @@ export default function StudioBoard({ form, fields, widgets, layout, editable, o
     <>
       {createPortal(
         <div className={`dcs-studio-root fixed inset-0 z-[10000] flex flex-col ${board.is_dark ? "dcs-board-dark dcs-board-dark-portal" : ""}`} style={{ backgroundColor: background }}>
-          <div className="flex items-center justify-between gap-3 flex-shrink-0 px-4 sm:px-5 py-2" style={{ backgroundColor: PRIMARY }}>
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...FONT }}>
-                {translate("DCS_DB_SEL_ON")}
-              </p>
-              <p className="text-[11px] font-semibold truncate" style={{ color: "rgba(255,255,255,0.85)", ...FONT }}>
-                {translate("DCS_DB_SEL_HINT")}
-              </p>
-            </div>
-            <IconButton title={translate("DCS_BTN_CLOSE")} onClick={request_exit} onDark danger disabled={saving}>
-              {CLOSE_SVG}
-            </IconButton>
-          </div>
+          <DcsOverlayHeader title={translate("DCS_DB_SEL_ON")} subtitle={translate("DCS_DB_SEL_HINT")} onClose={request_exit} busy={saving} />
 
-          {/* The screenshot studio's own ground: a faint grid to place
-              things against, and the board standing on it inside its own
-              border, so its edges are seen and nothing is placed off them. */}
           <div className="dcs-board-root dcs-studio-scroll flex-1 min-h-0 overflow-auto">
             {surface}
           </div>
 
           <div className="flex-shrink-0 px-3 sm:px-4 py-2 flex justify-end" style={{ backgroundColor: background }}>
-            <StudioToolbar dirty={studio.dirty} saving={saving} onSave={handle_save} onDiscard={studio.discard} onExit={request_exit} />
+            <StudioToolbar dirty={studio.dirty} saving={saving} onSave={handle_save} onDiscard={studio.discard} />
           </div>
         </div>,
         portal_root(),

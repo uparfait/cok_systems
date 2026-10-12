@@ -1,50 +1,43 @@
 import React, { useState, useMemo } from "react";
-import { departmentService, type Department, type Employee, } from "../../../core/services/adminService";
+import { departmentService, type Department, } from "../../../core/services/adminService";
 import { FiPlus, FiEdit2, FiTrash2, FiUsers, FiPackage, FiRefreshCw, FiChevronLeft, FiChevronRight, FiSearch, } from "react-icons/fi";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { EmployeesModal, ServicesModal } from "../pages/sub/DepartmentServiceModal";
 import { FiLoader } from 'react-icons/fi';
 
+export type DepartmentRow = Omit<Department, 'sub_departments'> & { employee_count: number; sub_departments: DepartmentRow[] };
+
+type FlatRow = DepartmentRow & { isSubDepartment?: boolean; parentId?: string; level?: number };
+
 interface DepartmentTableProps {
-  departments: Department[]; employees: Employee[]; loading: boolean;
+  departments: DepartmentRow[]; loading: boolean;
   onEdit: (dept: Department) => void; onDelete: (id: string, name: string) => void;
   onAddUnit: (dept: Department) => void; onViewDetails: (dept: Department) => void; refreshDepartments: () => void;
 }
 
-const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({ departments, employees, loading, onEdit, onDelete, onAddUnit, onViewDetails, refreshDepartments }) => {
+const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({ departments, loading, onEdit, onDelete, onAddUnit, onViewDetails, refreshDepartments }) => {
   const [showEmployeesModal, setShowEmployeesModal] = useState(false);
   const [showServicesModal, setShowServicesModal] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
-  const [employeesPage, setEmployeesPage] = useState(1);
-  const [employeesSearchQuery, setEmployeesSearchQuery] = useState("");
   const [servicesPage, setServicesPage] = useState(1);
   const [serviceError, setServiceError] = useState("");
   const [serviceLoading, setServiceLoading] = useState(false);
   const itemsPerPage = 10;
 
   const flattenedDepartments = useMemo(() => {
-    const flattened: (Department & { isSubDepartment?: boolean; parentId?: string; level?: number })[] = [];
+    const flattened: FlatRow[] = [];
     departments.forEach((dept) => {
       if (dept.sub_department_mng?.is_sub_department !== true) {
         flattened.push({ ...dept, isSubDepartment: false, level: 0 });
-        if (dept.sub_departments && dept.sub_departments.length > 0) {
-          dept.sub_departments.forEach((subDept) => { flattened.push({ ...subDept, isSubDepartment: true, parentId: dept._id, level: 1 }); });
-        }
+        (dept.sub_departments || []).forEach((subDept) => { flattened.push({ ...subDept, isSubDepartment: true, parentId: dept._id, level: 1 }); });
       }
     });
     return flattened;
   }, [departments]);
 
-  const getDepartmentEmployees = (dept: Department) => {
-    const deptName = dept.name;
-    let filtered = employees.filter((emp: any) => emp.department === deptName || emp.department?.department_name === deptName || emp.department?._id === dept._id);
-    if (employeesSearchQuery.trim()) { const q = employeesSearchQuery.toLowerCase(); filtered = filtered.filter((emp: any) => emp.full_name?.toLowerCase().includes(q) || emp.email?.toLowerCase().includes(q) || emp.telephone?.toLowerCase().includes(q)); }
-    return filtered;
-  };
+  const getSubDepartmentCount = (dept: DepartmentRow) => dept.sub_departments ? dept.sub_departments.length : 0;
 
-  const getSubDepartmentCount = (dept: Department) => dept.sub_departments ? dept.sub_departments.length : 0;
-
-  const handleShowEmployees = (dept: Department) => { setSelectedDepartment(dept); setEmployeesPage(1); setEmployeesSearchQuery(""); setShowEmployeesModal(true); };
+  const handleShowEmployees = (dept: Department) => { setSelectedDepartment(dept); setShowEmployeesModal(true); };
   const handleShowServices = (dept: Department) => { setSelectedDepartment(dept); setServicesPage(1); setShowServicesModal(true); };
 
   const handleAddService = async (name: string, desc: string) => {
@@ -86,7 +79,6 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({ departments
               {loading ? <tr><td colSpan={9} className="px-4 py-6 text-center"><div className="flex justify-center items-center gap-2"><FiLoader className="w-6 h-6 animate-spin text-[#056daa]" /><span className="text-sm text-gray-500">Loading...</span></div></td></tr>
                 : flattenedDepartments.length === 0 ? <tr><td colSpan={9} className="px-4 py-8 text-center"><HiOutlineOfficeBuilding className="w-8 h-8 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-500">No departments found</p></td></tr>
                   : flattenedDepartments.map((dept) => {
-                    const deptEmployees = getDepartmentEmployees(dept);
                     const deptServices = dept.services || [];
                     const subDeptCount = getSubDepartmentCount(dept);
                     const isSubDept = dept.isSubDepartment;
@@ -98,7 +90,7 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({ departments
                         <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 font-medium ${isSubDept ? "bg-[rgba(41,128,185,0.08)] text-[#2980B9]" : "bg-gray-100 text-gray-700"}`}>{dept.dpt_id || dept.department_id || "-"}</span></td>
                         <td className="px-4 py-3">{dept.room_number ? <span className="text-xs px-2 py-0.5 bg-[rgba(243,156,18,0.12)] text-[#F39C12]">{dept.room_number}</span> : <span className="text-gray-400 text-sm">-</span>}</td>
                         <td className="px-4 py-3"><p className="text-sm">{typeof dept.department_leader === "object" && dept.department_leader ? dept.department_leader.full_name || dept.department_leader.email || "Not assigned" : typeof dept.department_leader === "string" ? dept.department_leader : "Not assigned"}</p></td>
-                        <td className="px-4 py-3 text-center"><button onClick={() => handleShowEmployees(dept)} className="inline-flex items-center gap-1 px-2.5 py-1.5 cok-btn-primary text-sm font-semibold"><FiUsers className="w-3.5 h-3.5" />{deptEmployees.length}</button></td>
+                        <td className="px-4 py-3 text-center"><button onClick={() => handleShowEmployees(dept)} className="inline-flex items-center gap-1 px-2.5 py-1.5 cok-btn-primary text-sm font-semibold" title="People in this department"><FiUsers className="w-3.5 h-3.5" />{dept.employee_count}</button></td>
                         <td className="px-4 py-3 text-center"><button onClick={() => handleShowServices(dept)} className="inline-flex items-center gap-1 px-2.5 py-1.5 cok-btn-primary text-sm font-semibold"><FiPackage className="w-3.5 h-3.5" />{deptServices.length}</button></td>
                         <td className="px-4 py-3 text-center">{!isSubDept ? <span className={`text-xs px-2 py-0.5 font-semibold ${subDeptCount > 0 ? "bg-[rgba(5,109,170,0.1)] text-[#056daa]" : "bg-gray-100 text-gray-600"}`}>{subDeptCount}</span> : <span className="text-gray-400">-</span>}</td>
                         <td className="px-4 py-3"><div className="flex items-center gap-1">{!isSubDept && <button onClick={() => onAddUnit(dept)} className="p-1.5 text-white cursor-pointer cok-primary-bg " title="Add Unit"><FiPlus className="w-3.5 h-3.5" /></button>}
@@ -112,7 +104,7 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({ departments
         </div>
       </div>
 
-      <EmployeesModal show={showEmployeesModal} department={selectedDepartment} employees={employees} loading={false} page={employeesPage} searchQuery={employeesSearchQuery} onClose={() => setShowEmployeesModal(false)} onSearchChange={setEmployeesSearchQuery} onPageChange={setEmployeesPage} itemsPerPage={itemsPerPage} getEmployees={getDepartmentEmployees} />
+      <EmployeesModal show={showEmployeesModal} department={selectedDepartment} onClose={() => setShowEmployeesModal(false)} />
       <ServicesModal show={showServicesModal} department={selectedDepartment} loading={serviceLoading} page={servicesPage} onClose={() => { setShowServicesModal(false); setServiceError(""); }} onPageChange={setServicesPage} itemsPerPage={itemsPerPage} services={selectedDepartment?.services || []} onAdd={handleAddService} onEdit={handleEditService} onDelete={handleDeleteService} error={serviceError} actionLoading={serviceLoading} />
     </div>
   );

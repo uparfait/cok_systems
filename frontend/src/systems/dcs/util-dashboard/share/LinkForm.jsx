@@ -103,7 +103,7 @@ export default function LinkForm({ initial, saving, onSubmit, onCancel, filters,
           {saving ? translate("DCS_WAITING_GENERIC") : translate("DCS_DB_SHARE_SAVE")}
         </DcsButtonPrimary>
         <DcsButtonOutline className="flex-1" onClick={onCancel} disabled={saving}>
-          {translate("DCS_BTN_CANCEL")}
+          {translate("DCS_BTN_BACK")}
         </DcsButtonOutline>
       </div>
     </form>

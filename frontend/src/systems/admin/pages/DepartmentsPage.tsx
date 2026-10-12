@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
-import { departmentService, employeeService, normalizeDepartments, type Department, type Employee } from '../../../core/services/adminService';
-import DepartmentManagementTable from '../components/DepartmentManagementTable';
+import { departmentService, normalizeDepartment, type Department, type DepartmentRaw } from '../../../core/services/adminService';
+import DepartmentManagementTable, { type DepartmentRow } from '../components/DepartmentManagementTable';
+import LeaderSearchInput, { type LeaderOption } from '../components/LeaderSearchInput';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import OverlayShell from '../../../core/components/overlay/OverlayShell';
 import MainLayout from '../../../core/components/Layout/MainLayout';
@@ -22,13 +23,26 @@ const errMsg = (err: unknown, fallback: string): string => {
   return fallback;
 };
 
+const toRow = (raw: DepartmentRaw): DepartmentRow => ({
+  ...normalizeDepartment(raw),
+  employee_count: Number((raw as { employee_count?: number }).employee_count) || 0,
+  sub_departments: (raw.sub_departments || []).map(toRow),
+});
+
+const leaderOption = (leader: Department['leader'] | undefined): LeaderOption | null => {
+  if (!leader) return null;
+  return typeof leader === 'string' ? { _id: leader } : leader;
+};
+
+const matchesQuery = (d: DepartmentRow, q: string) => [d.name, d.description, d.room_number, d.dpt_id].some(v => (v || '').toLowerCase().includes(q));
+
 const DepartmentsPage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<DepartmentRow[]>([]);
+  const [totals, setTotals] = useState({ departments: 0, units: 0 });
   const [loading, setLoading] = useState(true);
   const [firstLoad, setFirstLoad] = useState(true);
   const [error, setError] = useState('');
@@ -48,10 +62,12 @@ const DepartmentsPage: React.FC = () => {
 
   const loadDepartments = useCallback(async (isInitial = false) => {
     try { if (isInitial) setFirstLoad(true); setLoading(true); setError('');
-      const [deptR, empR] = await Promise.all([departmentService.getAll(), employeeService.getAll()]);
-      if (deptR?.success) setDepartments(normalizeDepartments(Array.isArray(deptR.data) ? deptR.data : (deptR.data?.data || [])));
-      else if (deptR) setError(deptR.message || deptR.error || 'Failed');
-      if (empR?.success) setEmployees(Array.isArray(empR.data) ? empR.data : (empR.data?.data || []));
+      const r = await departmentService.getAll();
+      if (r?.success) {
+        const raw: DepartmentRaw[] = Array.isArray(r.data) ? r.data : (r.data?.data || []);
+        setDepartments(raw.map(toRow));
+        setTotals({ departments: Number(r.totals?.departments) || 0, units: Number(r.totals?.units) || 0 });
+      } else if (r) setError(r.message || r.error || 'Failed');
     } catch (err) { setError(err instanceof Error ? err.message : 'Error loading data'); }
     finally { setLoading(false); setFirstLoad(false); }
   }, []);
@@ -59,33 +75,26 @@ const DepartmentsPage: React.FC = () => {
   useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); else if (isAuthenticated) loadDepartments(true); }, [isAuthenticated, authLoading, navigate, location.pathname, loadDepartments]);
 
   const filteredDepartments = useMemo(() => {
-    let f = departments.filter(d => !d.is_unit);
-    if (searchQuery?.trim()) { const q = searchQuery.toLowerCase(); f = f.filter(d => d.name?.toLowerCase().includes(q) || d.description?.toLowerCase().includes(q) || d.room_number?.toLowerCase().includes(q)); }
-    return f;
+    const q = searchQuery.trim().toLowerCase();
+    const main = departments.filter(d => !d.is_unit);
+    if (!q) return main;
+    return main.filter(d => matchesQuery(d, q) || d.sub_departments.some(u => matchesQuery(u, q)));
   }, [departments, searchQuery]);
 
-  const stats = useMemo(() => departments.filter(d => !d.is_unit).length, [departments]);
-
-  const handleSearch = async () => {
-    if (!searchQuery?.trim()) { loadDepartments(false); return; }
-    try { setLoading(true); const r = await departmentService?.search(searchQuery); if (r.success) setDepartments(r.data || []); else setError(r.message || 'Search failed'); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Search failed'); } finally { setLoading(false); }
-  };
-
-  const handleNewDepartment = () => { setEditingDepartment(null); setFormData({ name: '', description: '', room_number: '', dpt_id: '', leader: '', services: [] }); setFormError(''); setFormSuccess(''); setShowModal(true); };
+  const handleNewDepartment = () => { setEditingDepartment(null); setFormData({ name: '', description: '', room_number: '', dpt_id: '', leader: null, services: [] }); setFormError(''); setFormSuccess(''); setShowModal(true); };
   const handleEdit = (department: Department) => {
-    let leaderId = ''; const leader = department.leader || department.department_leader;
-    if (leader) { if (typeof leader === 'string') leaderId = leader; else if (typeof leader === 'object') leaderId = (leader as { _id?: string })._id || ''; }
-    setEditingDepartment(department); setFormData({ name: department.name || '', description: department.description || '', room_number: department.room_number || '', dpt_id: department.dpt_id || department.department_id || '', leader: leaderId, services: department.services || [], is_unit: department.is_unit || false }); setFormError(''); setFormSuccess(''); setShowModal(true);
+    setEditingDepartment(department);
+    setFormData({ name: department.name || '', description: department.description || '', room_number: department.room_number || '', dpt_id: department.dpt_id || department.department_id || '', leader: leaderOption(department.leader || department.department_leader), services: department.services || [], is_unit: department.is_unit || false });
+    setFormError(''); setFormSuccess(''); setShowModal(true);
   };
-  const handleAddUnit = (department: Department) => { setEditingDepartment(null); setFormData({ name: '', description: '', room_number: '', dpt_id: '', leader: '', services: [], is_unit: true, parent_department: department._id }); setFormError(''); setFormSuccess(''); setShowModal(true); };
+  const handleAddUnit = (department: Department) => { setEditingDepartment(null); setFormData({ name: '', description: '', room_number: '', dpt_id: '', leader: null, services: [], is_unit: true, parent_department: department._id }); setFormError(''); setFormSuccess(''); setShowModal(true); };
 
   const entityLabel = formData?.is_unit ? 'Department unit' : 'Department';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setFormError(''); setFormSuccess('');
     if (!formData?.name?.trim()) { setFormError(`${entityLabel} name is required`); return; }
-    try { setSubmitting(true); const sd: Record<string, unknown> = { name: formData.name, description: formData.description || '', room_number: formData.room_number || '', dpt_id: formData.dpt_id || '', leader: formData.leader || null, services: formData.services || [] };
+    try { setSubmitting(true); const sd: Record<string, unknown> = { name: formData.name, description: formData.description || '', room_number: formData.room_number || '', dpt_id: formData.dpt_id || '', leader: leaderOption(formData.leader)?._id || null, services: formData.services || [] };
       if (formData?.is_unit) { sd.is_unit = true; if (formData?.parent_department) sd.parent_department = formData.parent_department; }
       if (editingDepartment?._id) {
         const r = await departmentService.update(editingDepartment._id, sd);
@@ -122,11 +131,16 @@ const DepartmentsPage: React.FC = () => {
       <div className="space-y-4">
         <div className="bg-white border border-gray-200 p-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-                        <div className="mt-3 inline-flex items-center gap-3 bg-gray-50 p-3 border border-gray-100">
-            <div className="w-8 h-8 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><HiOutlineOfficeBuilding className="w-4 h-4 cok-primary-color" /></div>
-            <div><p className="text-xs text-gray-500">Total Departments</p>{loading && firstLoad ? <div className="h-7 w-14 bg-gray-200 animate-pulse mt-1" /> : <p className="text-xl font-bold text-gray-900">{stats}</p>}</div>
-          </div> </div>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <div className="inline-flex items-center gap-3 bg-gray-50 p-3 border border-gray-100">
+                <div className="w-8 h-8 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><HiOutlineOfficeBuilding className="w-4 h-4 cok-primary-color" /></div>
+                <div><p className="text-xs text-gray-500">Total Departments</p>{loading && firstLoad ? <div className="h-7 w-14 bg-gray-200 animate-pulse mt-1" /> : <p className="text-xl font-bold text-gray-900">{totals.departments}</p>}</div>
+              </div>
+              <div className="inline-flex items-center gap-3 bg-gray-50 p-3 border border-gray-100">
+                <div className="w-8 h-8 bg-[rgba(41,128,185,0.08)] flex items-center justify-center"><HiOutlineOfficeBuilding className="w-4 h-4 text-[#2980B9]" /></div>
+                <div><p className="text-xs text-gray-500">Total Units</p>{loading && firstLoad ? <div className="h-7 w-14 bg-gray-200 animate-pulse mt-1" /> : <p className="text-xl font-bold text-gray-900">{totals.units}</p>}</div>
+              </div>
+            </div>
             <button onClick={handleNewDepartment} className="inline-flex items-center gap-1.5 px-4 py-2 cok-btn-primary text-white max-w-max text-sm font-semibold"><FiPlus className="w-4 h-4" />Add Department</button>
           </div>
 
@@ -134,8 +148,8 @@ const DepartmentsPage: React.FC = () => {
 
         <div className="bg-white border border-gray-200 p-3">
           <div className="flex flex-col lg:flex-row gap-3">
-            <div className="flex-1 relative"><FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Search departments..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} className="w-full pl-9 pr-3 py-1.5 cok-auth-input text-sm" /></div>
-            <div className="flex items-center gap-2"><button onClick={handleSearch} className="px-3 py-1.5 cok-btn-primary text-white text-sm font-medium">Search</button><button onClick={() => loadDepartments(false)} className="p-1.5 hover:bg-gray-100 text-gray-600"><FiRefreshCw className="w-4 h-4" /></button></div>
+            <div className="flex-1 relative"><FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Search departments and units..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-1.5 cok-auth-input text-sm" /></div>
+            <div className="flex items-center gap-2"><button onClick={() => loadDepartments(false)} className="p-1.5 hover:bg-gray-100 text-gray-600" title="Refresh"><FiRefreshCw className="w-4 h-4" /></button></div>
           </div>
         </div>
 
@@ -144,7 +158,7 @@ const DepartmentsPage: React.FC = () => {
         <div className="bg-white border border-gray-200 overflow-hidden">
           {loading && firstLoad ? <div className="p-8 text-center flex justify-center flex-row items-center text-gray-500"> <SpiralLoader /> </div>
             : filteredDepartments.length === 0 ? <div className="p-8 text-center"><HiOutlineOfficeBuilding className="w-10 h-10 text-gray-400 mx-auto mb-3" /><h3 className="text-sm font-semibold text-gray-900 mb-1">No departments found</h3><p className="text-xs text-gray-500">{searchQuery ? 'Try adjusting your search' : 'Get started by adding your first department'}</p></div>
-              : <DepartmentManagementTable departments={filteredDepartments} employees={employees} loading={loading} onEdit={handleEdit} onDelete={handleDeleteClick} onAddUnit={handleAddUnit} onViewDetails={handleEdit} refreshDepartments={() => loadDepartments(false)} />}
+              : <DepartmentManagementTable departments={filteredDepartments} loading={loading} onEdit={handleEdit} onDelete={handleDeleteClick} onAddUnit={handleAddUnit} onViewDetails={handleEdit} refreshDepartments={() => loadDepartments(false)} />}
         </div>
 
         {showModal && (
@@ -163,7 +177,7 @@ const DepartmentsPage: React.FC = () => {
               <div><label className="text-xs font-semibold text-gray-700 mb-1 block">{entityLabel} Code (optional)</label><input type="text" value={formData?.dpt_id || ''} onChange={e => setFormData({ ...formData, dpt_id: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="e.g., DEP-001" /></div>
               <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Room Number</label><input type="text" value={formData?.room_number || ''} onChange={e => setFormData({ ...formData, room_number: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="e.g., 101" /></div>
               <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Description</label><textarea value={formData?.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm resize-none" rows={2} placeholder="Description" /></div>
-              <div><label className="text-xs font-semibold text-gray-700 mb-1 block">{entityLabel} Leader</label><select value={typeof formData?.leader === 'string' ? formData?.leader : ''} onChange={e => setFormData({ ...formData, leader: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm"><option value="">No leader</option>{employees.map(emp => <option key={emp._id || emp.employee_id} value={emp._id || emp.employee_id || ''}>{emp.full_name} ({emp.email})</option>)}</select></div>
+              <div><label className="text-xs font-semibold text-gray-700 mb-1 block">{entityLabel} Leader</label><LeaderSearchInput value={leaderOption(formData?.leader)} onChange={leader => setFormData({ ...formData, leader })} disabled={submitting} /></div>
               <div className="flex gap-3 pt-1">
                 <button type="submit" disabled={submitting} className="flex-1 px-3 py-2 cok-btn-primary text-white text-sm font-medium disabled:opacity-50">{submitting ? 'Saving...' : editingDepartment ? 'Update' : 'Create'}</button>
               </div>

@@ -6,7 +6,7 @@ import { compute_derived_values } from "./formEngine.js";
 import RendererEngine from "./RendererEngine.jsx";
 import DcsSubmitControl from "../components/DcsSubmitControl.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
-import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
+import OverlayCloseButton from "../../../core/components/overlay/OverlayCloseButton";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 /**
@@ -69,11 +69,9 @@ export default function ReviewOverlay({ schema, onClose, onPublish, publishing, 
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] overflow-y-auto p-0 min-[760px]:px-6 min-[760px]:pt-[52px] min-[760px]:pb-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }}>
-      <div className="fixed" style={{ top: 12, right: 12, zIndex: 10001 }}>
-        <DcsButtonOutlineReverse onClick={onClose} disabled={publishing}>
-          {translate("DCS_BTN_CLOSE")}
-        </DcsButtonOutlineReverse>
+    <div className="fixed inset-0 z-[10000] overflow-y-auto p-0 min-[760px]:px-6 min-[760px]:pt-[52px] min-[760px]:pb-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }} role="dialog" aria-modal="true" aria-busy={!!publishing}>
+      <div className="fixed bg-white border shadow-md" style={{ top: 12, right: 12, zIndex: 10001, borderRadius: "50%", borderColor: "#E0E0E0" }}>
+        <OverlayCloseButton onClick={onClose} disabled={!!publishing} />
       </div>
 
       {/* The same card as PublicFormPage: 5 px rounded border in the

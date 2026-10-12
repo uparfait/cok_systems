@@ -78,7 +78,7 @@ export default function DcsDataFeedForm({ versions, saving, onSubmit, onCancel }
       </div>
       <div className="flex justify-end gap-2">
         <DcsButtonOutline onClick={onCancel} disabled={saving}>
-          {translate("DCS_BTN_CANCEL")}
+          {translate("DCS_BTN_BACK")}
         </DcsButtonOutline>
         <DcsButtonPrimary onClick={submit} disabled={!valid || saving}>
           {saving ? translate("DCS_WAITING_GENERIC") : translate("DCS_FEED_CREATE")}

@@ -5,6 +5,7 @@ import { list_translation_proposals, apply_translation_proposals, restore_transl
 import { get_field_text } from "../fields/fieldText.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 import { translatable_entries, field_type_name, LANGUAGE_NAME_KEYS, page_count, page_slice } from "./translationTexts.js";
 
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
@@ -156,29 +157,22 @@ export default function TranslationReviewDialog({ formGroupId, link, fields, onC
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={busy ? undefined : onClose} />
-      <div className="relative bg-white w-full max-w-3xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col cok-auth-card">
-        <div className="p-4 sm:p-5 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-base font-bold truncate" style={{ color: TEXT, ...FONT }}>
-              {person ? person.name : `${translate("DCS_TRANSLATION_REVIEW_TITLE")} - ${link.title}`}
-            </h2>
-            <p className="text-xs mt-1" style={{ color: MUTED, ...FONT }}>
-              {person ? [person.email, person.phone].filter(Boolean).join(" - ") : translate("DCS_TRANSLATION_TRANSLATORS_HINT")}
-            </p>
-          </div>
-          <div className="flex gap-2 flex-shrink-0">
-            {person && (
+      <div className="relative bg-white w-full max-w-3xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col cok-auth-card" role="dialog" aria-modal="true" aria-busy={busy}>
+        <DcsOverlayHeader
+          title={person ? person.name : `${translate("DCS_TRANSLATION_REVIEW_TITLE")} - ${link.title}`}
+          subtitle={person ? [person.email, person.phone].filter(Boolean).join(" - ") : translate("DCS_TRANSLATION_TRANSLATORS_HINT")}
+          onClose={onClose}
+          busy={busy}
+          extra={
+            person ? (
               <DcsButtonOutline onClick={() => open_person(null)} disabled={busy}>
                 {translate("DCS_TRANSLATION_BACK_TO_LIST")}
               </DcsButtonOutline>
-            )}
-            <DcsButtonOutline onClick={onClose} disabled={busy}>
-              {translate("DCS_BTN_CLOSE")}
-            </DcsButtonOutline>
-          </div>
-        </div>
+            ) : null
+          }
+        />
 
-        <div className="px-4 sm:px-5 pb-4 overflow-y-auto space-y-3 flex-1">
+        <div className="px-4 sm:px-5 py-4 overflow-y-auto space-y-3 flex-1">
           {loading && (
             <p className="text-sm" style={{ color: MUTED, ...FONT }}>
               {translate("DCS_WAITING_GENERIC")}

@@ -6,7 +6,7 @@ import RendererEngine from "../renderer/RendererEngine.jsx";
 import { field_name, format_when } from "./trackingConfig.js";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
-import DcsCloseIconButton from "../components/DcsCloseIconButton.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 
 const PRIMARY = "#056daa";
 const MUTED = "#9E9E9E";
@@ -147,17 +147,11 @@ export function RecordHistorySlidesOverlay({ record, fields, onClose, onLoadLate
     <div className="dcs-tracking-overlay dcs-no-print" role="dialog" aria-modal="true" aria-label={translate("DCS_HISTORY_SLIDES_TITLE")}>
       <div className="absolute inset-0 bg-black/45" onClick={onClose} />
       <div className="dcs-tracking-panel is-full">
-        <div className="cok-bg-primary px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
-          <div className="min-w-0">
-            <p className="text-white font-semibold text-sm truncate" style={{ fontFamily: FONT }}>
-              {shown ? format_when(shown.entry.at) : translate("DCS_HISTORY_SLIDES_TITLE")}
-            </p>
-            <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.85)", fontFamily: FONT }}>
-              {shown ? `${translate("DCS_HISTORY_SLIDES_TITLE")} - ${slide_position(shown.index, shown.total, translate)}` : translate("DCS_HISTORY_CHANGED_HINT")}
-            </p>
-          </div>
-          <DcsCloseIconButton onClick={onClose} />
-        </div>
+        <DcsOverlayHeader
+          title={shown ? format_when(shown.entry.at) : translate("DCS_HISTORY_SLIDES_TITLE")}
+          subtitle={shown ? `${translate("DCS_HISTORY_SLIDES_TITLE")} - ${slide_position(shown.index, shown.total, translate)}` : translate("DCS_HISTORY_CHANGED_HINT")}
+          onClose={onClose}
+        />
         <div className="flex-1 min-h-0 overflow-y-auto px-4 min-[560px]:px-6 py-4">
           <div className="w-full mx-auto" style={{ maxWidth: 760 }}>
             <RecordHistorySlides

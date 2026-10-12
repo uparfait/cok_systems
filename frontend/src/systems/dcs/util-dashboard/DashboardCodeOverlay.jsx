@@ -9,7 +9,7 @@ import { build_dashboard_creation_guide, parse_pasted_dashboard, normalize_paste
 import { MAX_BOARD_FILTERS } from "./boardFilters.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
-import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 import { portal_root } from "./portalRoot.js";
 
 const BORDER = "#E0E0E0";
@@ -166,19 +166,12 @@ export default function DashboardCodeOverlay({ form, widgets, filters, onSaved, 
     }
   };
 
-  const cell = "p-2 border align-top";
+  const cell = "p-2 border-b align-top";
   const cell_style = { borderColor: BORDER, color: TEXT_DARK };
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex flex-col" style={{ backgroundColor: "#F7F9FB" }}>
-      <div className="cok-bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0">
-        <span className="text-white font-semibold uppercase tracking-wide text-sm" style={{ fontFamily: FONT }}>
-          {translate("DCS_DB_CODE_TITLE")}
-        </span>
-        <DcsButtonOutlineReverse onClick={onClose} disabled={saving}>
-          {translate("DCS_BTN_CLOSE")}
-        </DcsButtonOutlineReverse>
-      </div>
+      <DcsOverlayHeader title={translate("DCS_DB_CODE_TITLE")} subtitle={form.form_name || form.form_group_id} onClose={onClose} busy={saving} />
 
       <div className="flex-1 overflow-y-auto p-4 min-[700px]:p-6">
         <div className="w-full min-[900px]:max-w-[900px] mx-auto space-y-6">
@@ -188,12 +181,12 @@ export default function DashboardCodeOverlay({ form, widgets, filters, onSaved, 
                 {translate("DCS_DB_CODE_NO_WIDGETS")}
               </p>
             ) : (
-              <div className="w-full overflow-x-auto">
-                <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+              <div className="cok-table-scroll w-full">
+                <table className="w-full text-xs">
                   <thead>
-                    <tr style={{ backgroundColor: "#F7F9FB" }}>
+                    <tr>
                       {["DCS_DB_CODE_TABLE_TYPE", "DCS_DB_CODE_TABLE_TITLE", "DCS_DB_CODE_TABLE_MEASURE", "DCS_DB_CODE_TABLE_GROUP", "DCS_DB_CODE_TABLE_SPLIT"].map((key) => (
-                        <th key={key} className="text-left p-2 border" style={{ borderColor: BORDER }}>
+                        <th key={key} className="text-left p-2 border-b" style={{ borderColor: BORDER, backgroundColor: "#F7F9FB" }}>
                           {translate(key)}
                         </th>
                       ))}

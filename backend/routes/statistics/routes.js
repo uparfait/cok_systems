@@ -8,6 +8,7 @@ const multer = require('multer')
 const upload = multer()
 const statisticsController = require('../../controllers/statistics/statistics.js');
 const { getParkingMovement } = require('../../controllers/statistics/parking_movement.js');
+const { getAdminDashboard } = require('../../controllers/statistics/admin_dashboard.js');
 
 Router.use(upload.any())
 
@@ -258,6 +259,23 @@ Router.get('/hourly-parking', statisticsController.getHourlyParkingStats);
  *         description: Internal server error
  */
 Router.get('/parking-movement', getParkingMovement);
+
+/**
+ * @swagger
+ * /statistics/admin-dashboard:
+ *   get:
+ *     summary: "Figures for the admin home cards"
+ *     description: "All counted on the server: departments, units, employees (accounts), cars_inside, flagged_cars (inside and flagged), visitors_in_house, registered_visitors, returning_visitors (more than one visit), visits_today."
+ *     tags: [Statistics]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: "data: { departments, units, employees, cars_inside, flagged_cars, visitors_in_house, registered_visitors, returning_visitors, visits_today }"
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/admin-dashboard', getAdminDashboard);
 
 /**
  * @swagger

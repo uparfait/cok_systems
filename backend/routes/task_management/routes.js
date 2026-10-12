@@ -236,7 +236,7 @@ Router.post('/boards/:boardId/lists', auditSuccess('CREATE', 'lists', (req, res,
  * /tasks:
  *   get:
  *     summary: "Get all tasks"
- *     description: "Retrieve tasks with optional filtering by status, priority, assignee, and title search."
+ *     description: "Retrieve tasks with optional filtering by status, priority, assignee, and title search. Returns every matching task unless a positive limit is given."
  *     tags: [Task Management]
  *     security:
  *       - BearerAuth: []
@@ -268,7 +268,8 @@ Router.post('/boards/:boardId/lists', auditSuccess('CREATE', 'lists', (req, res,
  *         name: limit
  *         schema:
  *           type: integer
- *           default: 20
+ *           default: 0
+ *         description: "0 or omitted returns all matching tasks; a positive number pages the results together with skip"
  *       - in: query
  *         name: skip
  *         schema:

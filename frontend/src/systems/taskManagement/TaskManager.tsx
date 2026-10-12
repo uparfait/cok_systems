@@ -21,8 +21,6 @@ const GRAY_DISABLED = '#9E9E9E'
 const BORDER = '#E0E0E0'
 const fontHeading = "'Montserrat', sans-serif"
 
-const PAGE_SIZE = 20
-
 type TaskStatus = Task['status']
 
 interface ColumnDef {
@@ -34,9 +32,7 @@ interface ColumnDef {
 
 interface ColumnState {
   tasks: Task[]
-  total: number
-  initialLoading: boolean
-  loadingMore: boolean
+  loading: boolean
 }
 
 const COLUMN_DEFS: ColumnDef[] = [
@@ -47,9 +43,7 @@ const COLUMN_DEFS: ColumnDef[] = [
 
 const emptyColumn = (): ColumnState => ({
   tasks: [],
-  total: 0,
-  initialLoading: true,
-  loadingMore: false,
+  loading: true,
 })
 
 const TaskManager: React.FC = () => {
@@ -73,60 +67,43 @@ const TaskManager: React.FC = () => {
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null)
   const [optimisticTaskId, setOptimisticTaskId] = useState<string | null>(null)
 
-  // Load one page of one status column (first 20, then more as the user
-  // scrolls to the bottom of the column)
-  const loadColumnPage = useCallback(async (status: TaskStatus, append: boolean) => {
+  const loadColumn = useCallback(async (status: TaskStatus) => {
     if (!user?.userId) return
 
     setColumns(prev => ({
       ...prev,
       [status]: {
         ...prev[status],
-        initialLoading: !append && prev[status].tasks.length === 0,
-        loadingMore: append,
+        loading: prev[status].tasks.length === 0,
       },
     }))
 
     try {
-      const skip = append ? columnsRef.current[status].tasks.length : 0
       const response: any = await getTasks({
         incharge: user.userId,
         status,
-        limit: PAGE_SIZE,
-        skip,
+        limit: 0,
       })
 
-      if (response.status) {
-        const tasks: Task[] = response.data?.tasks || []
-        const total: number = response.data?.pagination?.total ?? tasks.length
-
-        setColumns(prev => {
-          const existing = append ? prev[status].tasks : []
-          const seen = new Set(existing.map(t => t._id))
-          const merged = [...existing, ...tasks.filter(t => !seen.has(t._id))]
-          return {
-            ...prev,
-            [status]: {
-              tasks: merged,
-              total,
-              initialLoading: false,
-              loadingMore: false,
-            },
-          }
-        })
-      }
+      setColumns(prev => ({
+        ...prev,
+        [status]: {
+          tasks: response?.status ? (response.data?.tasks || []) : prev[status].tasks,
+          loading: false,
+        },
+      }))
     } catch (error: any) {
       showError(error?.message || 'Failed to load tasks')
       setColumns(prev => ({
         ...prev,
-        [status]: { ...prev[status], initialLoading: false, loadingMore: false },
+        [status]: { ...prev[status], loading: false },
       }))
     }
   }, [user?.userId, showError])
 
   const reloadAll = useCallback(() => {
-    COLUMN_DEFS.forEach(def => loadColumnPage(def.status, false))
-  }, [loadColumnPage])
+    COLUMN_DEFS.forEach(def => loadColumn(def.status))
+  }, [loadColumn])
 
   useEffect(() => { reloadAll() }, [reloadAll])
 
@@ -134,17 +111,6 @@ const TaskManager: React.FC = () => {
     onTaskStatusUpdated: () => { reloadAll() },
     onTaskUpdated: () => { reloadAll() },
   })
-
-  // Infinite scroll: hit the bottom of a column -> load the next page
-  const handleColumnScroll = (e: React.UIEvent<HTMLDivElement>, status: TaskStatus) => {
-    const el = e.currentTarget
-    const col = columnsRef.current[status]
-    if (!col || col.loadingMore || col.initialLoading) return
-    if (col.tasks.length >= col.total) return
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 60) {
-      loadColumnPage(status, true)
-    }
-  }
 
   const handleDragStart = (task: Task) => setDraggedTask(task)
 
@@ -172,19 +138,16 @@ const TaskManager: React.FC = () => {
 
     const toPosition = columnsRef.current[toStatus]?.tasks.length || 0
 
-    // Optimistic move between columns
     const movedTask: Task = { ...task, status: toStatus }
     setColumns(prev => ({
       ...prev,
       [fromStatus]: {
         ...prev[fromStatus],
         tasks: prev[fromStatus].tasks.filter(t => t._id !== task._id),
-        total: Math.max(0, prev[fromStatus].total - 1),
       },
       [toStatus]: {
         ...prev[toStatus],
         tasks: [...prev[toStatus].tasks, movedTask],
-        total: prev[toStatus].total + 1,
       },
     }))
     setOptimisticTaskId(task._id || null)
@@ -200,9 +163,8 @@ const TaskManager: React.FC = () => {
     } catch (error: unknown) {
       showError((error as Error)?.message || 'Failed to move task')
       setOptimisticTaskId(null)
-      // Revert by reloading the two affected columns
-      loadColumnPage(fromStatus, false)
-      loadColumnPage(toStatus, false)
+      loadColumn(fromStatus)
+      loadColumn(toStatus)
     }
   }
 
@@ -235,7 +197,6 @@ const TaskManager: React.FC = () => {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-      {/* Scrollable Columns Container */}
       <div
         ref={scrollContainerRef}
         className="overflow-x-auto overflow-y-hidden px-4 pb-8 pt-2"
@@ -258,7 +219,6 @@ const TaskManager: React.FC = () => {
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, def.id)}
               >
-                {/* Column Header */}
                 <div
                   className="px-5 py-4 flex-shrink-0"
                   style={{ backgroundColor: def.headerColor }}
@@ -274,7 +234,7 @@ const TaskManager: React.FC = () => {
                         fontFamily: fontHeading,
                         borderRadius: 0
                       }}>
-                        {col.total}
+                        {col.tasks.length}
                       </span>
                       <button
                         type="button"
@@ -294,12 +254,8 @@ const TaskManager: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Tasks Container with per-column infinite scroll */}
-                <div
-                  className="flex-1 p-4 space-y-3 min-h-[500px] max-h-[calc(80vh-100px)] overflow-y-auto custom-scrollbar"
-                  onScroll={(e) => handleColumnScroll(e, def.status)}
-                >
-                  {col.initialLoading ? (
+                <div className="flex-1 p-4 space-y-3 min-h-[500px] max-h-[calc(80vh-100px)] overflow-y-auto custom-scrollbar">
+                  {col.loading ? (
                     <div className="flex justify-center items-center py-12">
                       <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: PRIMARY, borderTopColor: 'transparent' }} />
                     </div>
@@ -324,49 +280,34 @@ const TaskManager: React.FC = () => {
                       </button>
                     </div>
                   ) : (
-                    <>
-                      {col.tasks.map((task) => {
-                        const isOptimistic = optimisticTaskId === task._id
-                        return (
-                          <div
-                            key={task._id}
-                            draggable
-                            onDragStart={() => handleDragStart(task)}
-                            className="cursor-grab active:cursor-grabbing"
-                            style={{
-                              transition: 'opacity 0.3s ease, transform 0.3s ease',
-                              opacity: draggedTask?._id === task._id ? 0.4 : 1,
-                              transform: draggedTask?._id === task._id ? 'scale(0.95)' : 'scale(1)',
-                              outline: isOptimistic ? `2px solid ${PRIMARY}` : 'none',
-                              outlineOffset: isOptimistic ? '2px' : '0'
-                            }}
-                          >
-                            <TaskCard
-                              task={task}
-                              onClick={() => handleTaskClick(task)}
-                              progress={getTaskProgress(task)}
-                              statusColor={getTaskStatusColor(task)}
-                              onUpdate={() => handleTaskClick(task)}
-                              onMove={() => reloadAll()}
-                              draggedTaskId={draggedTask?._id || null}
-                            />
-                          </div>
-                        )
-                      })}
-
-                      {col.loadingMore && (
-                        <div className="flex items-center justify-center gap-2 py-4">
-                          <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: PRIMARY, borderTopColor: 'transparent' }} />
-                          <span className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Loading more...</span>
+                    col.tasks.map((task) => {
+                      const isOptimistic = optimisticTaskId === task._id
+                      return (
+                        <div
+                          key={task._id}
+                          draggable
+                          onDragStart={() => handleDragStart(task)}
+                          className="cursor-grab active:cursor-grabbing"
+                          style={{
+                            transition: 'opacity 0.3s ease, transform 0.3s ease',
+                            opacity: draggedTask?._id === task._id ? 0.4 : 1,
+                            transform: draggedTask?._id === task._id ? 'scale(0.95)' : 'scale(1)',
+                            outline: isOptimistic ? `2px solid ${PRIMARY}` : 'none',
+                            outlineOffset: isOptimistic ? '2px' : '0'
+                          }}
+                        >
+                          <TaskCard
+                            task={task}
+                            onClick={() => handleTaskClick(task)}
+                            progress={getTaskProgress(task)}
+                            statusColor={getTaskStatusColor(task)}
+                            onUpdate={() => handleTaskClick(task)}
+                            onMove={() => reloadAll()}
+                            draggedTaskId={draggedTask?._id || null}
+                          />
                         </div>
-                      )}
-
-                      {!col.loadingMore && col.tasks.length >= col.total && col.tasks.length >= PAGE_SIZE && (
-                        <p className="text-center text-xs py-3" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
-                          All tasks loaded
-                        </p>
-                      )}
-                    </>
+                      )
+                    })
                   )}
                 </div>
               </div>
@@ -375,7 +316,6 @@ const TaskManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Modals */}
       {showCreateModal && (
         <CreateTaskModal
           onClose={() => setShowCreateModal(false)}

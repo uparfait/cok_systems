@@ -169,8 +169,8 @@ export const employeeService = {
     if (params.length > 0) url += '?' + params.join('&');
     return get(url);
   },
-  getByDepartment: (departmentId: string, activeOnly: boolean = true, page: number = 1, limit: number = 20) => {
-    const params = `department_id=${encodeURIComponent(departmentId)}&page=${page}&limit=${limit}`;
+  getByDepartment: (departmentId: string, activeOnly: boolean = true, page: number = 1, limit: number = 20, search: string = '') => {
+    const params = `department_id=${encodeURIComponent(departmentId)}&page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`;
     return activeOnly
       ? get(`/employee/crud/by-department?${params}&is_active=true`)
       : get(`/employee/crud/by-department?${params}`);
@@ -687,6 +687,7 @@ export const statisticsService = {
     return get(`/statistics/feedback-average${qs ? `?${qs}` : ''}`);
   },
   getCurrentlyParkedStats: () => get('/statistics/currently-parked'),
+  getAdminDashboard: () => get('/statistics/admin-dashboard'),
   getFlaggedVehiclesStats: () => get('/statistics/flagged-vehicles'),
   getEmergencyCarsStats: () => get('/statistics/emergency-cars'),
   getParkingSlots: () => get('/smartparking/slots'),

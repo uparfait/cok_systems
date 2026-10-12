@@ -7,7 +7,7 @@ const { warning_response, error_response } = require("../../utilities/response.j
 const { translate } = require("../../i18n/index.js");
 const { format_respondent } = require("../../utilities/respondent.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
-const { build_diffed_columns, format_cell, sanitize_filename } = require("../../utilities/export_columns.js");
+const { build_diffed_columns, column_cell, sanitize_filename } = require("../../utilities/export_columns.js");
 const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 
 const EXPORT_PAGE_SIZE = 500;
@@ -88,8 +88,9 @@ async function export_submissions(req, res) {
     } else {
       for (const submission of all_items) {
         const row_data = {};
-        field_type_by_id.forEach((field_type, field_id) => {
-          row_data[field_id] = format_cell(submission.data ? submission.data[field_id] : undefined, field_type, origin);
+        data_columns.forEach((column) => {
+          if (["record_id", "version", "submitted_by", "submitted_at"].includes(column.key)) return;
+          row_data[column.key] = column_cell(submission.data, column, field_type_by_id, origin);
         });
         row_data["record_id"] = submission._id ? submission._id.toString() : "";
         row_data["version"] = submission.version || "";

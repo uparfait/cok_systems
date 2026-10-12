@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
-import { IconButton, CLOSE_SVG } from "../BoardIcons.jsx";
+import DcsOverlayHeader from "../../components/DcsOverlayHeader.jsx";
 import DcsButtonOutlineDanger from "../../components/DcsButtonOutlineDanger.jsx";
 import SpiralLoader from "../../../event-managment/components/SpiralLoader.jsx";
 import LibraryIcon from "./LibraryIcon.jsx";
@@ -60,20 +60,8 @@ export default function IconPickerPanel({ widget, saving, onPick, onRemove, onCl
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-5">
       <div className="absolute inset-0 bg-black/40" onClick={saving ? undefined : onClose} />
-      <aside className="dcs-builder-pop relative w-full flex flex-col bg-white border-2" style={{ maxWidth: 860, height: "90vh", borderColor: PRIMARY }}>
-        <div className="flex items-center justify-between gap-2 flex-shrink-0 px-4 py-2" style={{ backgroundColor: PRIMARY }}>
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...HEADING_FONT }}>
-              {translate(current ? "DCS_DB_ICON_CHANGE" : "DCS_DB_ICON_SET")}
-            </p>
-            <p className="text-[11px] font-semibold truncate" style={{ color: "rgba(255,255,255,0.85)", ...HEADING_FONT }}>
-              {widget ? widget.title : ""}
-            </p>
-          </div>
-          <IconButton title={translate("DCS_BTN_CLOSE")} onClick={onClose} onDark danger disabled={saving}>
-            {CLOSE_SVG}
-          </IconButton>
-        </div>
+      <aside className="dcs-builder-pop relative w-full flex flex-col bg-white border-2" style={{ maxWidth: 860, height: "90vh", borderColor: BORDER }}>
+        <DcsOverlayHeader title={translate(current ? "DCS_DB_ICON_CHANGE" : "DCS_DB_ICON_SET")} subtitle={widget ? widget.title : ""} onClose={onClose} busy={saving} />
 
         <div className="flex-shrink-0 px-4 pt-3 pb-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
           <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: TEXT_MUTED, ...HEADING_FONT }}>

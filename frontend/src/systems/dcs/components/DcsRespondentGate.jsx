@@ -37,7 +37,7 @@ export default function DcsRespondentGate({ saved, onConfirm, titleKey, messageK
 
   if (mode === "confirm" && saved) {
     return (
-      <DcsCenterOverlay title={translate("DCS_RESPONDENT_CONFIRM_TITLE")} message={translate("DCS_RESPONDENT_CONFIRM_MESSAGE")}>
+      <DcsCenterOverlay title={translate("DCS_RESPONDENT_CONFIRM_TITLE")} message={translate("DCS_RESPONDENT_CONFIRM_MESSAGE")} busy={busy}>
         <div className="border-2 p-3 mb-4" style={{ borderColor: "#E0E0E0" }}>
           <p className="text-sm font-bold" style={{ color: "#333333", fontFamily: FONT }}>{saved.name}</p>
           <p className="text-sm break-all" style={{ color: "#555555", fontFamily: FONT }}>{saved.email}</p>
@@ -56,7 +56,7 @@ export default function DcsRespondentGate({ saved, onConfirm, titleKey, messageK
   }
 
   return (
-    <DcsCenterOverlay title={translate(titleKey || "DCS_RESPONDENT_TITLE")} message={translate(messageKey || "DCS_RESPONDENT_MESSAGE")}>
+    <DcsCenterOverlay title={translate(titleKey || "DCS_RESPONDENT_TITLE")} message={translate(messageKey || "DCS_RESPONDENT_MESSAGE")} busy={busy}>
       <div className="flex flex-col gap-3">
         {FIELDS.map((field) => (
           <div key={field.key}>
@@ -90,7 +90,7 @@ export default function DcsRespondentGate({ saved, onConfirm, titleKey, messageK
         </DcsButtonPrimary>
         {saved && (
           <DcsButtonOutline className="flex-1" onClick={() => setMode("confirm")} disabled={busy}>
-            {translate("DCS_BTN_CANCEL")}
+            {translate("DCS_BTN_BACK")}
           </DcsButtonOutline>
         )}
       </div>

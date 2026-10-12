@@ -19,7 +19,7 @@ const DATA_LINKS = [
   { key: "table", icon: "table", labelKey: "DCS_WS_TABLE", to: "/data" },
   { key: "dashboard", icon: "dashboard", labelKey: "DCS_FORM_NAV_BSC_DASHBOARD", to: "/dashboard" },
   { key: "gallery", icon: "gallery", labelKey: "DCS_WS_GALLERY", to: "/data/gallery" },
-  { key: "downloads", icon: "downloads", labelKey: "DCS_WS_DOWNLOADS", to: "/data/downloads" },
+  { key: "downloads", icon: "downloads", labelKey: "DCS_WS_DOWNLOAD_IMPORTS", to: "/data/downloads" },
   { key: "share", icon: "share", labelKey: "DCS_WS_SHARE", to: "/data/share" },
   { key: "approvals", icon: "approvals", labelKey: "DCS_WS_SCHEDULE_APPROVALS", to: "/data/approvals" },
 ];

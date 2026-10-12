@@ -1,6 +1,10 @@
 const Task = require('../../models/task')
 const { StatusCodes } = require('http-status-codes')
 
+/**
+ * GET /tasks. A missing limit or limit=0 returns every matching task;
+ * a positive limit pages the results together with skip.
+ */
 const getTasks = async (req, res) => {
     try {
         const {
@@ -8,7 +12,7 @@ const getTasks = async (req, res) => {
             priority,
             incharge,
             title,
-            limit = 50,
+            limit = 0,
             skip = 0,
             sortBy = 'createdAt',
             sortOrder = 'desc',
@@ -44,21 +48,24 @@ const getTasks = async (req, res) => {
 
         query.createdBy = req.user.id || req.user._id || null // Ensure the query is filtered by the authenticated user
 
+        const limitNum = parseInt(limit) || 0
+        const skipNum = parseInt(skip) || 0
+        const hasLimit = limitNum > 0
+
         // Build sort object
         const sort = {}
         sort[sortBy] = sortOrder === 'desc' ? -1 : 1
 
-        const tasks = await Task.find(query)
+        const find = Task.find(query)
             .populate('incharge', 'full_name email')
             .populate('belongs.itBelongsTo', 'full_name email telephone')
             .populate('comments.commenter', 'full_name email')
             .populate('attachmentsFile.uploadedBy', 'full_name email')
             .sort(sort)
-            .limit(parseInt(limit))
-            .skip(parseInt(skip))
+            .skip(skipNum)
+        if (hasLimit) find.limit(limitNum)
 
-
-
+        const tasks = await find
         const total = await Task.countDocuments(query)
 
         res.status(StatusCodes.OK).json({
@@ -68,9 +75,9 @@ const getTasks = async (req, res) => {
                 tasks,
                 pagination: {
                     total,
-                    limit: parseInt(limit),
-                    skip: parseInt(skip),
-                    hasMore: total > parseInt(skip) + parseInt(limit)
+                    limit: limitNum,
+                    skip: skipNum,
+                    hasMore: hasLimit && total > skipNum + limitNum
                 }
             }
         })

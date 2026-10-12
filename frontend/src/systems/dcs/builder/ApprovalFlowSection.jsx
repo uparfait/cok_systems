@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { FiCheckCircle, FiUser, FiFilter, FiMove, FiTrash2, FiPlus, FiShield } from "react-icons/fi";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { options_under_presets } from "../fields/presetFields.js";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -515,15 +516,10 @@ function HierarchyOverlay({ title, onClose, empty, emptyText, children }) {
     <div
       className="fixed inset-0 flex flex-col"
       style={{ backgroundColor: WHITE, zIndex: 9999999, userSelect: "none", WebkitUserSelect: "none" }}
+      role="dialog"
+      aria-modal="true"
     >
-      <div className="flex items-center justify-between gap-2 px-4 py-3 shrink-0" style={{ backgroundColor: PRIMARY }}>
-        <p className="text-sm font-extrabold uppercase" style={{ color: "rgba(255,255,255,0.88)", fontFamily: fontHeading, letterSpacing: "-0.3px" }}>
-          {title}
-        </p>
-        <button type="button" onClick={onClose} className="dcs-approval-hier-btn text-lg leading-none">
-          ×
-        </button>
-      </div>
+      <DcsOverlayHeader title={title} onClose={onClose} />
       <div className="flex-1" style={{ overflow: "auto", minHeight: 0 }}>
         {empty ? (
           <p className="p-6 text-sm" style={{ color: GRAY, fontFamily: fontHeading }}>
@@ -1543,21 +1539,7 @@ export default function ApprovalFlowSection({ value, onChange, fields, onSave, r
                           style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, width: "80%", maxWidth: "80%", maxHeight: "70%" }}
                           onClick={(event) => event.stopPropagation()}
                         >
-                          {/* Fixed header - never scrolls */}
-                          <div className="flex items-center justify-between gap-2 shrink-0 px-4 py-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
-                            <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
-                              {popup_field ? field_label(popup_field, language) : ""}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => set_popup_group(null)}
-                              className="p-1 text-lg leading-none"
-                              style={{ color: GRAY, cursor: "pointer" }}
-                            >
-                              ×
-                            </button>
-                          </div>
-                          {/* Only this list scrolls when there are many */}
+                          <DcsOverlayHeader title={popup_field ? field_label(popup_field, language) : ""} onClose={() => set_popup_group(null)} />
                           <div className="space-y-1 px-4 py-3 overflow-y-auto" style={{ flex: "1 1 auto", minHeight: 0 }}>
                             {entries.map((entry) => (
                               <p key={entry.index} className="text-xs" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>

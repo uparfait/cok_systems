@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_submission_approval_details } from "../services/approvalsService.js";
 import DcsApprovalStatusChip from "./DcsApprovalStatusChip.jsx";
-import DcsButtonOutline from "./DcsButtonOutline.jsx";
+import DcsOverlayHeader from "./DcsOverlayHeader.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const BORDER = "#E0E0E0";
@@ -229,15 +229,14 @@ export default function DcsApprovalDetailsDialog({ submission_id, onClose }) {
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 520, maxHeight: "85vh", borderColor: PRIMARY }}>
-        <div className="flex items-center justify-between px-6 pt-5 pb-3">
-          <p className="text-base font-bold uppercase" style={{ color: PRIMARY, fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.5px" }}>
-            {translate("DCS_APPROVAL_DETAILS_TITLE")}
-          </p>
-          {load_state === "ready" && <DcsApprovalStatusChip status={details.status === "none" ? undefined : details.status} />}
-        </div>
+      <div className="relative bg-white border border-gray-200 w-full flex flex-col shadow-xl" style={{ maxWidth: 520, maxHeight: "85vh" }} role="dialog" aria-modal="true">
+        <DcsOverlayHeader
+          title={translate("DCS_APPROVAL_DETAILS_TITLE")}
+          onClose={onClose}
+          extra={load_state === "ready" ? <DcsApprovalStatusChip status={details.status === "none" ? undefined : details.status} /> : null}
+        />
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
           {load_state === "loading" && <SpiralLoader />}
           {load_state === "error" && (
             <p className="text-sm" style={{ color: SOFT_RED }}>
@@ -288,12 +287,6 @@ export default function DcsApprovalDetailsDialog({ submission_id, onClose }) {
               </div>
             </div>
           )}
-        </div>
-
-        <div className="px-6 pb-5">
-          <DcsButtonOutline className="w-full" onClick={onClose}>
-            {translate("DCS_BTN_CLOSE")}
-          </DcsButtonOutline>
         </div>
       </div>
     </div>

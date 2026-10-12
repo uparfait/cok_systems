@@ -164,3 +164,50 @@ Status legend: [ ] to do, [x] done.
       attachments, legacy clean-up)
 - [x] 13.2 Frontend type check and production build pass
 - [ ] 13.3 Independent review of all changes
+
+## Round 2 (2026-10-12)
+
+### A. Departments page (/:roleSlug/departments)
+
+- [x] A1 Backend sends every department and unit (no limit), with the number of people in each counted from the
+      employee accounts (units included, the stored total_employees ignored), plus totals: departments and units
+- [x] A2 Assigning a leader: employee search served by the backend
+
+### B. Tasks (/tasks)
+
+- [x] B1 All tasks fetched and sent, no limit
+- [x] B2 Overdue tasks: red border, and an "Overdue" tag on in-progress tasks past their due date
+
+### C. Visitors
+
+- [x] C1 Add attachment: the description is a textarea in the system input style
+- [x] C2 Send / transfer to a department: search departments, search units once a department is chosen, search employees
+- [x] C3 Transfer: the notes input is removed
+
+### D. DCS
+
+- [x] D1 Every overlay and overlay table: white header without background colour, the circled transparent close icon
+      (as on the visitor panel), no Cancel buttons (Close does it)
+- [x] D2 Dashboard widgets sized from the screen: widths fill the screen, heights follow the width, on every screen size
+- [x] D3 Form data page: "Download & imports". Import: CSV only, upload with progress, backend returns the CSV headers and
+      the form's fillable data fields; a 90% x 90% mapping screen (CSV headers left, form fields right; a location field
+      takes latitude, longitude and accuracy); step two chooses what to do with empty values per field (respecting
+      select, radio, time and other types); then the import runs. Download: the form's CSV header template
+
+### E. Admin (added 2026-10-12)
+
+- [x] E1 Admin dashboard: the "Today's Check-ins" card becomes "Cars inside" and the API sends that count only
+- [x] E2 Admin dashboard: "Parking Activity (Hourly)" becomes the gate dashboard chart with its period filter
+- [x] E3 Storage management: the visitors collection (models/visitor.js) is listed too
+- [x] E4 Deleting a department counts its employees instead of reading total_employees
+- [x] E5 Feedback analysis: the department filter is a search served by the backend
+- [x] E6 Departments page: the employees of a department open 20 per page from the backend, with a search
+- [x] D3a Import run: no transactions, insertMany 50 rows at a time read from the CSV on disk, progress shown while it
+      runs, on any error everything saved by that import is removed and the error is announced with the row and field
+- [x] D3b Export: a map / location field gives only latitude, longitude and accuracy columns (no address)
+- [x] D3c Mapping step: clicking a CSV header starts a line that follows the mouse and connects to the form field
+      clicked next, drawn with right-angle rounded corners like MySQL Workbench relationships; one colour per pair,
+      hover highlights, click removes
+- [x] E7 Admin dashboard: every card figure comes from the backend as a real number, nothing counted in the browser
+- [x] E8 Visitors page order: in house and not yet sent to a department first (newest first), then in house and sent,
+      then not in house

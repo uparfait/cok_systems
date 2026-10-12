@@ -4,14 +4,13 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { track_message_text } from "./editDiffMessage.js";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
-import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
+import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 
 const PRIMARY = "#056daa";
 const BORDER = "#E0E0E0";
 const MUTED = "#9E9E9E";
-const HEADER_HEIGHT_PX = 50;
 const HEADING_FONT = { fontFamily: "'Montserrat', sans-serif" };
 
 function format_time(iso_text, language) {
@@ -39,29 +38,12 @@ function CenteredOverlay({ titleKey, subtitle, onClose, panelStyle, children }) 
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
-        className="relative bg-white border-2 w-full flex flex-col"
-        style={Object.assign({ maxWidth: 620, maxHeight: "92vh", borderColor: PRIMARY }, panelStyle || {})}
+        className="relative bg-white border border-gray-200 w-full flex flex-col shadow-xl"
+        style={Object.assign({ maxWidth: 620, maxHeight: "92vh" }, panelStyle || {})}
+        role="dialog"
+        aria-modal="true"
       >
-        <div
-          className="flex items-center justify-between gap-2 flex-shrink-0 px-4 sm:px-5"
-          style={{ backgroundColor: PRIMARY, height: HEADER_HEIGHT_PX }}
-        >
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...HEADING_FONT }}>
-              {translate(titleKey)}
-            </p>
-            {subtitle && (
-              <p className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.85)", ...HEADING_FONT }}>
-                {subtitle}
-              </p>
-            )}
-          </div>
-          {onClose && (
-            <div className="flex-shrink-0" style={{ width: 96 }}>
-              <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
-            </div>
-          )}
-        </div>
+        <DcsOverlayHeader title={translate(titleKey)} subtitle={subtitle} onClose={onClose} />
         <div className="flex flex-col flex-1 min-h-0 px-4 sm:px-5 pt-3 pb-4">{children}</div>
       </div>
     </div>,
@@ -113,7 +95,7 @@ export function EditHistoryRestoredDialog({ restored, entries, onApply, onDiscar
 
   return (
     <>
-      <CenteredOverlay titleKey="DCS_TRACK_RESTORED_TITLE" panelStyle={{ maxWidth: 560 }}>
+      <CenteredOverlay titleKey="DCS_TRACK_RESTORED_TITLE" onClose={onLater} panelStyle={{ maxWidth: 560 }}>
         <p className="text-xs font-semibold" style={{ color: "#333333", ...HEADING_FONT }}>
           {translate("DCS_TRACK_RESTORED_SHORT", { count: restored.count })}
         </p>
@@ -131,9 +113,6 @@ export function EditHistoryRestoredDialog({ restored, entries, onApply, onDiscar
           ))}
         </ol>
 
-        {/* The two real answers sit together - one column on a phone, side
-            by side once there is room - and deferring sits on its own row
-            below them, wide enough to be the easy way out it is. */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 flex-shrink-0">
           <DcsButtonPrimary type="button" onClick={() => setPending("apply")}>
             {translate("DCS_TRACK_RESTORED_APPLY")}
@@ -141,12 +120,6 @@ export function EditHistoryRestoredDialog({ restored, entries, onApply, onDiscar
           <DcsButtonOutlineDanger type="button" onClick={() => setPending("discard")}>
             {translate("DCS_TRACK_RESTORED_DISCARD")}
           </DcsButtonOutlineDanger>
-        </div>
-
-        <div className="mt-2 flex-shrink-0">
-          <DcsButtonOutline type="button" className="w-full" style={{ padding: "1.1rem 2rem", fontSize: 14 }} onClick={onLater}>
-            {translate("DCS_TRACK_RESTORED_LATER")}
-          </DcsButtonOutline>
         </div>
       </CenteredOverlay>
 

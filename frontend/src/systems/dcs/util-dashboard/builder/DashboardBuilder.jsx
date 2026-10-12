@@ -3,9 +3,8 @@ import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useToast } from "../../../../core/contexts/ToastContext.tsx";
 import { save_dashboard, request_error_text } from "../dashboardService.js";
-import { IconButton, CLOSE_SVG } from "../BoardIcons.jsx";
+import DcsOverlayHeader from "../../components/DcsOverlayHeader.jsx";
 import DcsButtonPrimary from "../../components/DcsButtonPrimary.jsx";
-import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import DcsConfirmDialog from "../../components/DcsConfirmDialog.jsx";
 import GenerationProgress from "../GenerationProgress.jsx";
 import KpiComposer from "./KpiComposer.jsx";
@@ -155,20 +154,8 @@ export default function DashboardBuilder({ form, existingWidgets, existingFilter
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
       <div className="absolute inset-0 bg-black/45" onClick={request_close} />
-      <div className="dcs-builder-pop relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 1180, height: "94vh", borderColor: PRIMARY }}>
-        <div className="flex items-center justify-between gap-2 flex-shrink-0 px-4 sm:px-5 py-2" style={{ backgroundColor: PRIMARY }}>
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase leading-tight truncate" style={{ color: "#FFFFFF", letterSpacing: "0.3px", ...HEADING_FONT }}>
-              {translate("DCS_DB_BUILDER_TITLE")}
-            </p>
-            <p className="text-[11px] font-semibold truncate" style={{ color: "rgba(255,255,255,0.85)", ...HEADING_FONT }}>
-              {translate("DCS_DB_BUILDER_SUBTITLE", { name: form.form_name || form.form_group_id })}
-            </p>
-          </div>
-          <IconButton title={translate("DCS_BTN_CLOSE")} onClick={request_close} onDark danger disabled={saving}>
-            {CLOSE_SVG}
-          </IconButton>
-        </div>
+      <div className="dcs-builder-pop relative bg-white border-2 w-full flex flex-col" style={{ maxWidth: 1180, height: "94vh", borderColor: BORDER }}>
+        <DcsOverlayHeader title={translate("DCS_DB_BUILDER_TITLE")} subtitle={translate("DCS_DB_BUILDER_SUBTITLE", { name: form.form_name || form.form_group_id })} onClose={request_close} busy={saving} />
 
         <div className="flex items-end gap-1 px-4 sm:px-5 flex-shrink-0 overflow-x-auto" style={{ borderBottom: `1px solid ${BORDER}` }}>
           {TABS.map((entry) => {
@@ -259,9 +246,6 @@ export default function DashboardBuilder({ form, existingWidgets, existingFilter
                 )}
               </div>
               <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
-                <DcsButtonOutline className="sm:w-32" onClick={request_close}>
-                  {translate("DCS_DB_BUILDER_CANCEL")}
-                </DcsButtonOutline>
                 <DcsButtonPrimary className="sm:w-56" disabled={!can_save} onClick={handle_save}>
                   {reconfigure ? translate("DCS_DB_BUILDER_UPDATE") : draft_widgets === 0 && filters_changed ? translate("DCS_DB_BUILDER_SAVE_FILTERS") : translate("DCS_DB_BUILDER_SAVE", { count: draft_widgets })}
                 </DcsButtonPrimary>
