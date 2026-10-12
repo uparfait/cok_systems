@@ -38,14 +38,13 @@ export default function FormDownloadsPage() {
   const { showError } = useToast();
   const [tab, setTab] = useState("download");
   const [import_open, setImportOpen] = useState(false);
-  const [template_format, setTemplateFormat] = useState("csv");
   const [template_busy, setTemplateBusy] = useState(false);
 
   const download_template = async () => {
     if (template_busy) return;
     setTemplateBusy(true);
     try {
-      await download_import_template(form_group_id, language, template_format);
+      await download_import_template(form_group_id, language, "xlsx");
     } catch (error) {
       showError(error.message || translate("DCS_DL_TEMPLATE_FAILED"));
     } finally {
@@ -70,11 +69,6 @@ export default function FormDownloadsPage() {
           <>
             <DcsExportDialog asPage form_group_id={form_group_id} />
             <Card title={translate("DCS_DL_TEMPLATE_TITLE")}>
-              <label className="cok-auth-label">{translate("DCS_DL_TEMPLATE_FORMAT")}</label>
-              <select value={template_format} onChange={(event) => setTemplateFormat(event.target.value)} disabled={template_busy} className="cok-auth-input w-full cursor-pointer mb-3" style={{ paddingLeft: 14, ...FONT }}>
-                <option value="csv">{translate("DCS_DL_FORMAT_CSV")}</option>
-                <option value="xlsx">{translate("DCS_DL_FORMAT_XLSX")}</option>
-              </select>
               <DcsButtonOutline onClick={download_template} disabled={template_busy}>
                 {template_busy ? translate("DCS_WAITING_GENERIC") : translate("DCS_DL_TEMPLATE_BTN")}
               </DcsButtonOutline>

@@ -115,5 +115,6 @@ module.exports = {
   find_record,
   apply_record_update,
   apply_record_key,
+  list_existing_record_keys,
   to_public_record,
 };

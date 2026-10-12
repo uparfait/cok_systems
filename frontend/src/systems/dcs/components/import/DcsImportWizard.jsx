@@ -95,7 +95,7 @@ export default function DcsImportWizard({ formGroupId, onClose, onImported }) {
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center dcs-no-print">
-      <div className="absolute inset-0 bg-black/45" onClick={close} />
+      <div className="absolute inset-0 bg-black/45" />
       <div className="relative bg-white flex flex-col w-full h-full sm:w-[90vw] sm:h-[90vh] shadow-xl" role="dialog" aria-modal="true">
         <DcsOverlayHeader title={translate("DCS_IMPORT_TITLE")} subtitle={session ? `${session.file_name} - ${translate("DCS_IMPORT_FILE_SUMMARY", { rows: session.row_count, columns: session.headers.length })}` : translate("DCS_IMPORT_SUBTITLE")} onClose={close} busy={busy} />
         <div className="flex-1 min-h-0 flex flex-col px-4 min-[480px]:px-5 pt-4 pb-4">
