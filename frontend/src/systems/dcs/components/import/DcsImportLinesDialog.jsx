@@ -8,9 +8,9 @@ const TEXT = "#333333";
 const MUTED = "#9E9E9E";
 const ABOVE_WIZARD = 10070;
 
-export default function DcsImportErrorsDialog({ errors, total, message, onClose }) {
+export default function DcsImportLinesDialog({ title, subtitle, lines, more, onClose }) {
   const { translate } = useDcsLanguage();
-  const listed = errors || [];
+  const listed = lines || [];
 
   useEffect(() => {
     const on_key = (event) => {
@@ -23,23 +23,21 @@ export default function DcsImportErrorsDialog({ errors, total, message, onClose 
     return () => document.removeEventListener("keydown", on_key, true);
   }, [onClose]);
 
-  const line = (entry) => translate(entry.column ? "DCS_IMPORT_ERROR_LINE" : "DCS_IMPORT_ERROR_LINE_NO_COLUMN", { row: entry.row, column: entry.column, field: entry.field, reason: entry.reason });
-
   return createPortal(
     <div className="fixed inset-0 flex items-center justify-center dcs-no-print" style={{ zIndex: ABOVE_WIZARD }}>
       <div className="absolute inset-0 bg-black/45" onClick={onClose} />
       <div className="relative bg-white flex flex-col w-full h-full sm:w-[90vw] sm:h-[90vh] shadow-xl" role="dialog" aria-modal="true">
-        <DcsOverlayHeader title={translate("DCS_IMPORT_ERRORS_TITLE", { count: total || listed.length })} subtitle={message} onClose={onClose} />
+        <DcsOverlayHeader title={title} subtitle={subtitle} onClose={onClose} />
         <div className="flex-1 min-h-0 overflow-y-auto px-4 min-[480px]:px-5 py-4">
           <ol className="space-y-1.5">
-            {listed.map((entry, index) => (
-              <li key={`${entry.row}-${index}`} className="text-sm" style={{ color: TEXT, overflowWrap: "anywhere", ...FONT }}>
-                {index + 1}. {line(entry)}
+            {listed.map((line, index) => (
+              <li key={index} className="text-sm" style={{ color: TEXT, overflowWrap: "anywhere", ...FONT }}>
+                {index + 1}. {line}
               </li>
             ))}
-            {(total || 0) > listed.length ? (
+            {(more || 0) > 0 ? (
               <li className="text-sm" style={{ color: MUTED, ...FONT }}>
-                {translate("DCS_IMPORT_ERRORS_MORE", { count: total - listed.length })}
+                {translate("DCS_IMPORT_ERRORS_MORE", { count: more })}
               </li>
             ) : null}
           </ol>

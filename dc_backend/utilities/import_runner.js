@@ -27,6 +27,7 @@ const BATCH_SIZE = 50;
 const CHECK_PROGRESS_EVERY = 200;
 const KEY_CHUNK = 500;
 const MAX_REPORTED_ERRORS = 200;
+const MAX_NOTES = 500;
 
 const column_index = (value, width) => (Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) < width ? Number(value) : null);
 
@@ -94,10 +95,11 @@ function required_left_empty(plan) {
     .map((entry) => entry.view.label);
 }
 
-/** One row's answers plus every cell of it that could not be read. */
+/** One row's answers, every cell of it that could not be read, and every value matched to an option by other than its exact text. */
 function build_row(plan, cells, language) {
   const data = {};
   const errors = [];
+  const notes = [];
   for (const entry of plan.entries) {
     let converted;
     if (entry.field.type === "geolocation") {
@@ -113,8 +115,9 @@ function build_row(plan, cells, language) {
     }
     if (converted.error) errors.push({ field: entry.view.label, reason: converted.error, column: column_name(plan, entry) });
     else if (converted.value !== undefined) data[entry.field.id] = converted.value;
+    if (!converted.error && converted.notes) converted.notes.forEach((note) => notes.push({ field: entry.view.label, column: column_name(plan, entry), from: note.from, to: note.to }));
   }
-  return { data, errors };
+  return { data, errors, notes };
 }
 
 /** Every blocking message of a failed validation, each with its field and the column that fed it. */
@@ -166,11 +169,19 @@ async function run_import_job(session, version_doc, plan, language, user) {
     problem_count += 1;
     if (problems.length < MAX_REPORTED_ERRORS) problems.push({ row, column: problem.column || "", field: problem.field || "", reason: problem.reason || "" });
   };
+  const notes = [];
+  let note_count = 0;
+  const remember = (row, note) => {
+    note_count += 1;
+    if (notes.length < MAX_NOTES) notes.push({ row, column: note.column || "", field: note.field || "", from: note.from, to: note.to });
+  };
+  const outcome_notes = () => ({ notes, note_count });
 
-  /** The checked answers of one row (every problem reported), or null when the row has any. */
-  const check_row = (cells, index) => {
+  /** The checked answers of one row (every problem reported, every near match remembered on the first pass), or null when the row has any problem. */
+  const check_row = (cells, index, first_pass) => {
     const built = build_row(plan, cells, language);
     built.errors.forEach((problem) => report(row_of(index), problem));
+    if (first_pass) built.notes.forEach((note) => remember(row_of(index), note));
     const validation = validate_submission_data(version_doc.schema, built.data, language);
     if (!validation.valid) blocking_problems(validation.field_errors, plan, label_of).forEach((problem) => report(row_of(index), problem));
     return built.errors.length === 0 && validation.valid ? validation.resolved_data : null;
@@ -204,7 +215,7 @@ async function run_import_job(session, version_doc, plan, language, user) {
 
     const key_rows = new Map();
     for (let index = 0; index < rows.length; index += 1) {
-      const resolved = check_row(rows[index], index);
+      const resolved = check_row(rows[index], index, true);
       if (resolved && tracking && tracking.key_unique) {
         const key = to_document(resolved, index).record_key;
         if (key && key_rows.has(key)) report(row_of(index), { column: key_column, field: key_label, reason: translate("IMPORT_DUPLICATE_KEY", language, { value: key, row: key_rows.get(key) }) });
@@ -223,7 +234,7 @@ async function run_import_job(session, version_doc, plan, language, user) {
 
     if (problem_count > 0) {
       problems.sort((a, b) => a.row - b.row);
-      await imports_model.finish_import(import_id, "failed", {
+      await imports_model.finish_import(import_id, "failed", Object.assign({
         stage: "failed",
         checked_rows: rows.length,
         created: 0,
@@ -235,20 +246,20 @@ async function run_import_job(session, version_doc, plan, language, user) {
         errors: problems,
         error_count: problem_count,
         message: translate("IMPORT_NOTHING_SAVED_FIX", language),
-      });
+      }, outcome_notes()));
       return;
     }
 
     await imports_model.update_progress(import_id, { stage: "saving", checked_rows: rows.length, done_rows: 0 });
     let created = 0;
     for (let start = 0; start < rows.length; start += BATCH_SIZE) {
-      const batch = rows.slice(start, start + BATCH_SIZE).map((cells, offset) => to_document(check_row(cells, start + offset), start + offset));
+      const batch = rows.slice(start, start + BATCH_SIZE).map((cells, offset) => to_document(check_row(cells, start + offset, false), start + offset));
       wrote_any = true;
       created += await submissions_model.insert_imported_submissions(batch);
       await imports_model.update_progress(import_id, { done_rows: created, created });
       await release();
     }
-    await imports_model.finish_import(import_id, "done", {
+    await imports_model.finish_import(import_id, "done", Object.assign({
       stage: "done",
       done_rows: created,
       created,
@@ -257,10 +268,10 @@ async function run_import_job(session, version_doc, plan, language, user) {
       errors: [],
       error_count: 0,
       message: translate("IMPORT_SAVED", language, { count: created }),
-    });
+    }, outcome_notes()));
   } catch (error) {
     if (wrote_any) await submissions_model.delete_by_import_id(form_group_id, import_id).catch(() => 0);
-    await imports_model.finish_import(import_id, "failed", {
+    await imports_model.finish_import(import_id, "failed", Object.assign({
       stage: "failed",
       created: 0,
       failed_rows: 0,
@@ -268,10 +279,10 @@ async function run_import_job(session, version_doc, plan, language, user) {
       errors: [],
       error_count: 0,
       message: translate("IMPORT_NOTHING_SAVED", language),
-    });
+    }, outcome_notes()));
   } finally {
     if (session.file_path) fs.promises.unlink(session.file_path).catch(() => {});
   }
 }
 
-module.exports = { BATCH_SIZE, MAX_REPORTED_ERRORS, build_plan, required_left_empty, build_row, failure_message, run_import_job };
+module.exports = { BATCH_SIZE, MAX_REPORTED_ERRORS, MAX_NOTES, build_plan, required_left_empty, build_row, failure_message, run_import_job };

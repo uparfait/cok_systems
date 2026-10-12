@@ -5,18 +5,27 @@ import { useToast } from "@/core/contexts/ToastContext";
 import { run_import, get_import_status } from "../../services/importService.js";
 import DcsButtonPrimary from "../DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../DcsButtonOutline.jsx";
-import DcsImportErrorsDialog from "./DcsImportErrorsDialog.jsx";
+import DcsImportLinesDialog from "./DcsImportLinesDialog.jsx";
 
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 const DANGER = "#E74C3C";
 const PRIMARY = "#056daa";
+const SUCCESS = "#27AE60";
 const POLL_MS = 1000;
+
+function LinkButton({ onClick, children }) {
+  return (
+    <button type="button" className="text-xs font-semibold underline cursor-pointer bg-transparent border-0 p-0" style={{ color: PRIMARY, ...FONT }} onClick={onClick}>
+      {children}
+    </button>
+  );
+}
 
 export default function DcsImportRunStep({ formGroupId, importId, mapping, onBusy, onBack, onFinished }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const [status, setStatus] = useState(null);
-  const [errors_open, setErrorsOpen] = useState(false);
+  const [dialog, setDialog] = useState(null);
   const started = useRef(false);
   const finished = useRef(false);
   const latest = useRef({});
@@ -39,7 +48,7 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
         return;
       }
       fail(next.message || next.error || t("DCS_IMPORT_ERROR_GENERIC"));
-      if (next.errors && next.errors.length > 0) setErrorsOpen(true);
+      if (next.errors && next.errors.length > 0) setDialog("errors");
     };
 
     const poll = async () => {
@@ -54,7 +63,7 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
         }
       } catch (error) {
         if (!error.is_network_error) {
-          const failed = { status: "failed", error: error.message, errors: [] };
+          const failed = { status: "failed", error: error.message, errors: [], notes: [] };
           setStatus(failed);
           finish(failed);
           return;
@@ -69,7 +78,7 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
         timer = setTimeout(poll, POLL_MS);
       })
       .catch((error) => {
-        const failed = { status: "failed", error: error.message || latest.current.translate("DCS_IMPORT_ERROR_GENERIC"), errors: [] };
+        const failed = { status: "failed", error: error.message || latest.current.translate("DCS_IMPORT_ERROR_GENERIC"), errors: [], notes: [] };
         setStatus(failed);
         finish(failed);
       });
@@ -88,12 +97,25 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
   const is_failed = status && status.status === "failed";
   const running = !status || (!is_done && !is_failed);
   const errors = (status && status.errors) || [];
+  const notes = (status && status.notes) || [];
+  const error_total = status ? status.error_count || errors.length : 0;
+  const note_total = status ? status.note_count || notes.length : 0;
   const stage_text = () => {
     if (!status || (!status.stage && running)) return translate("DCS_IMPORT_STARTING");
     if (is_done) return status.message || translate("DCS_IMPORT_DONE", { count: status.created || 0 });
     if (is_failed) return translate("DCS_IMPORT_FAILED_TITLE");
     return translate(is_saving ? "DCS_IMPORT_SAVING" : "DCS_IMPORT_CHECKING", { done, total });
   };
+  const error_line = (entry) => translate(entry.column ? "DCS_IMPORT_ERROR_LINE" : "DCS_IMPORT_ERROR_LINE_NO_COLUMN", { row: entry.row, column: entry.column, field: entry.field, reason: entry.reason });
+  const note_line = (entry) => translate("DCS_IMPORT_NOTE_LINE", { row: entry.row, column: entry.column, from: entry.from, to: entry.to });
+  const notes_block = note_total > 0 ? (
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <span className="text-xs" style={{ color: "#555555", ...FONT }}>
+        {translate("DCS_IMPORT_NOTES_COUNT", { count: note_total })}
+      </span>
+      <LinkButton onClick={() => setDialog("notes")}>{translate("DCS_IMPORT_VIEW_NOTES")}</LinkButton>
+    </div>
+  ) : null;
 
   return (
     <div className="max-w-xl mx-auto w-full flex flex-col h-full min-h-0">
@@ -113,9 +135,12 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
         </div>
 
         {is_done && (
-          <p className="text-sm font-semibold" style={{ color: "#27AE60", ...FONT }}>
-            {status.message || translate("DCS_IMPORT_DONE", { count: status.created || 0 })}
-          </p>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: SUCCESS, ...FONT }}>
+              {status.message || translate("DCS_IMPORT_DONE", { count: status.created || 0 })}
+            </p>
+            {notes_block}
+          </div>
         )}
         {is_failed && (
           <div className="border-2 p-3" style={{ borderColor: DANGER }}>
@@ -127,11 +152,10 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
                 {status.error}
               </p>
             ) : null}
-            {errors.length > 0 ? (
-              <button type="button" className="text-xs font-semibold underline cursor-pointer bg-transparent border-0 p-0 mt-2" style={{ color: PRIMARY, ...FONT }} onClick={() => setErrorsOpen(true)}>
-                {translate("DCS_IMPORT_VIEW_ERRORS", { count: status.error_count || errors.length })}
-              </button>
-            ) : null}
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+              {errors.length > 0 ? <LinkButton onClick={() => setDialog("errors")}>{translate("DCS_IMPORT_VIEW_ERRORS", { count: error_total })}</LinkButton> : null}
+            </div>
+            {notes_block}
           </div>
         )}
       </div>
@@ -149,7 +173,8 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
         </div>
       )}
 
-      {errors_open && errors.length > 0 ? <DcsImportErrorsDialog errors={errors} total={status.error_count || errors.length} message={status.message || translate("DCS_IMPORT_NOTHING_SAVED")} onClose={() => setErrorsOpen(false)} /> : null}
+      {dialog === "errors" && errors.length > 0 ? <DcsImportLinesDialog title={translate("DCS_IMPORT_ERRORS_TITLE", { count: error_total })} subtitle={status.message || translate("DCS_IMPORT_NOTHING_SAVED")} lines={errors.map(error_line)} more={error_total - errors.length} onClose={() => setDialog(null)} /> : null}
+      {dialog === "notes" && notes.length > 0 ? <DcsImportLinesDialog title={translate("DCS_IMPORT_NOTES_TITLE", { count: note_total })} subtitle={translate("DCS_IMPORT_NOTES_COUNT", { count: note_total })} lines={notes.map(note_line)} more={note_total - notes.length} onClose={() => setDialog(null)} /> : null}
     </div>
   );
 }

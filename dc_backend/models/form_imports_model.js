@@ -96,6 +96,8 @@ function import_view(document) {
     error: document.error || null,
     errors: Array.isArray(document.errors) ? document.errors : [],
     error_count: document.error_count || 0,
+    notes: Array.isArray(document.notes) ? document.notes : [],
+    note_count: document.note_count || 0,
     message: document.message || null,
     started_at: document.started_at || null,
     finished_at: document.finished_at || null,

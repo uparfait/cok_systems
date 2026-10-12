@@ -76,4 +76,21 @@ function canonical_location_name(level, text, tree) {
   return match ? item_name(match) : null;
 }
 
-module.exports = { LEVELS, items_at_level, location_labels_at_level, canonical_location_name };
+/**
+ * The stored name for a typed location with the same forgiveness the
+ * import gives form options: exact (name or translation) first, then
+ * without punctuation, then by similarity. { name, exact } or null.
+ */
+function resolve_location_name(level, text, tree) {
+  const exact = canonical_location_name(level, text, tree);
+  if (exact) return { name: exact, exact: true };
+  const { best_match } = require("./import_similarity.js");
+  const candidates = items_at_level(level, tree).map((item) => {
+    const translations = item_translations(item);
+    return { value: item_name(item), label: item_name(item), texts: [item_name(item)].concat(translations ? Object.values(translations) : []) };
+  });
+  const found = best_match(text, candidates);
+  return found ? { name: found.candidate.value, exact: false } : null;
+}
+
+module.exports = { LEVELS, items_at_level, location_labels_at_level, canonical_location_name, resolve_location_name };

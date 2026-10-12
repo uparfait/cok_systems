@@ -323,7 +323,7 @@ Router.post("/:form_group_id/translation-links/:link_id/proposals/dismiss", dism
  *         description: A required field would stay empty (required_fields lists them)
  * /dcs/api/forms/{form_group_id}/import/{import_id}/status:
  *   get:
- *     summary: "Progress of the import run: status (uploaded, running, done, failed, cancelled), stage, checked_rows and done_rows of total_rows, created, failed_rows, error, errors [{ row, column, field, reason }] (first 200) with error_count, and message"
+ *     summary: "Progress of the import run: status (uploaded, running, done, failed, cancelled), stage, checked_rows and done_rows of total_rows, created, failed_rows, error, errors [{ row, column, field, reason }] (first 200) with error_count, notes [{ row, column, field, from, to }] (values matched to an option by other than their exact text, first 500) with note_count, and message"
  *     tags: [Forms]
  *     security:
  *       - BearerAuth: []

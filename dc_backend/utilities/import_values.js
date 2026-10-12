@@ -2,6 +2,7 @@ const { translate } = require("../i18n/index.js");
 const { all_options, is_api_sourced, GEO_PARTS } = require("./import_fields.js");
 const { get_field_text } = require("./export_columns.js");
 const location_levels = require("./location_levels.js");
+const { best_match } = require("./import_similarity.js");
 const { clean_text, normalize_key, parse_number, pad_two, format_utc_date, format_utc_time, excel_serial_of, excel_serial_to_date } = require("./import_text.js");
 
 /**
@@ -31,33 +32,58 @@ function fail(key, value, language, vars) {
 
 const to_number = (raw) => parse_number(raw);
 
-function match_option(field, text) {
-  const options = all_options(field);
-  const needle = clean_text(text);
-  const key = normalize_key(text);
-  const by_value = options.find((option) => String(option.value) === needle) || options.find((option) => normalize_key(option.value) === key);
-  if (by_value) return by_value.value;
-  const by_label = options.find((option) => LANGUAGES.some((code) => normalize_key(get_field_text(option.label, code)) === key));
-  return by_label ? by_label.value : undefined;
+/** A note for the run: what was typed and what it was saved as, when the two differ. */
+const note_of = (typed, label) => ({ from: clean_text(typed), to: String(label) });
+
+/** { value, label, texts } per option: the label in the import language, every spelling to compare with. */
+function option_candidates(field, language) {
+  return all_options(field).map((option) => ({
+    value: option.value,
+    label: get_field_text(option.label, language) || String(option.value),
+    texts: [String(option.value)].concat(LANGUAGES.map((code) => get_field_text(option.label, code)).filter(Boolean)),
+  }));
 }
 
-/** An API-sourced location: whatever spelling or translation was typed becomes the name a submission stores. */
+/**
+ * One typed choice against a field's options: exact (value, or label in
+ * any language, case and stray spaces aside), then without punctuation,
+ * then by similarity (utilities/import_similarity.js). Returns { value,
+ * label, exact } or undefined. The value is always the option's own.
+ */
+function resolve_option(field, text, language) {
+  const candidates = option_candidates(field, language);
+  const needle = clean_text(text);
+  const key = normalize_key(text);
+  const exact = candidates.find((candidate) => String(candidate.value) === needle) || candidates.find((candidate) => candidate.texts.some((entry) => normalize_key(entry) === key));
+  if (exact) return { value: exact.value, label: exact.label, exact: true };
+  const found = best_match(text, candidates);
+  return found ? { value: found.candidate.value, label: found.candidate.label, exact: false } : undefined;
+}
+
+/** The option value a typed choice resolves to (any stage), or undefined. */
+function match_option(field, text) {
+  const found = resolve_option(field, text, "en");
+  return found ? found.value : undefined;
+}
+
+/** An API-sourced location: whatever spelling, translation or near-spelling was typed becomes the name a submission stores. */
 function convert_location_choice(field, text) {
   const typed = clean_text(text);
   const level = (field.data_source && field.data_source.level) || "provinces";
-  let canonical = null;
+  let found = null;
   try {
-    canonical = location_levels.canonical_location_name(level, typed);
+    found = location_levels.resolve_location_name(level, typed);
   } catch (error) {
-    canonical = null;
+    found = null;
   }
-  return { value: canonical || typed };
+  if (!found) return { value: typed };
+  return found.exact ? { value: found.name } : { value: found.name, notes: [note_of(typed, found.name)] };
 }
 
 function convert_choice(field, text, language) {
   if (is_api_sourced(field)) return convert_location_choice(field, text);
-  const matched = match_option(field, text);
-  if (matched !== undefined) return { value: matched };
+  const found = resolve_option(field, text, language);
+  if (found) return found.exact ? { value: found.value } : { value: found.value, notes: [note_of(text, found.label)] };
   if (all_options(field).length === 0) return { value: clean_text(text) };
   return fail("IMPORT_VALUE_NOT_OPTION", text, language);
 }
@@ -80,13 +106,15 @@ function split_multi(field, text) {
 function convert_list(field, raw, language) {
   const parts = Array.isArray(raw) ? raw.map((entry) => String(entry)) : split_multi(field, raw);
   const values = [];
+  const notes = [];
   for (const part of parts) {
     if (clean_text(part) === "") continue;
     const converted = convert_choice(field, part, language);
     if (converted.error) return converted;
     if (!values.includes(converted.value)) values.push(converted.value);
+    if (converted.notes) notes.push(...converted.notes);
   }
-  return { value: values };
+  return notes.length > 0 ? { value: values, notes } : { value: values };
 }
 
 /** { year, month, day } of a date text: ISO, dd/mm/yyyy (day first), an Excel serial, else what Date can parse. */
@@ -185,18 +213,30 @@ function convert_boolean(text, language) {
   const key = normalize_key(text);
   if (YES_WORDS.includes(key)) return { value: true };
   if (NO_WORDS.includes(key)) return { value: false };
+  const found = best_match(text, [
+    { value: true, label: translate("IMPORT_OPTION_YES", language), texts: YES_WORDS },
+    { value: false, label: translate("IMPORT_OPTION_NO", language), texts: NO_WORDS },
+  ]);
+  if (found) return { value: found.candidate.value, notes: [note_of(text, found.candidate.label)] };
   return fail("IMPORT_VALUE_NOT_BOOLEAN", text, language);
 }
 
-/** A scale answer: its number, a "3 - label" cell, or the scale's own low / high label. */
+/** A scale answer: its number, a "3 - label" cell, or the scale's own low / high label (exact or near). */
 function convert_likert(field, raw, language) {
   const size = Number(field.scale_size) || 5;
   const number = to_number(raw);
   const leading = Number.isFinite(number) ? number : Number((/^(\d+)\s*[-:]/.exec(clean_text(raw)) || [])[1]);
   if (Number.isInteger(leading) && leading >= 1 && leading <= size) return { value: leading };
+  const label_texts = (label) => LANGUAGES.map((code) => get_field_text(label, code)).filter(Boolean);
+  const candidates = [
+    { value: 1, label: get_field_text(field.low_label, language) || "1", texts: label_texts(field.low_label) },
+    { value: size, label: get_field_text(field.high_label, language) || String(size), texts: label_texts(field.high_label) },
+  ].filter((candidate) => candidate.texts.length > 0);
   const key = normalize_key(raw);
-  if (key && LANGUAGES.some((code) => normalize_key(get_field_text(field.low_label, code)) === key)) return { value: 1 };
-  if (key && LANGUAGES.some((code) => normalize_key(get_field_text(field.high_label, code)) === key)) return { value: size };
+  const exact = candidates.find((candidate) => candidate.texts.some((entry) => normalize_key(entry) === key));
+  if (exact) return { value: exact.value };
+  const found = best_match(raw, candidates);
+  if (found) return { value: found.candidate.value, notes: [note_of(raw, found.candidate.label)] };
   return fail("IMPORT_VALUE_NOT_SCALE", raw, language, { max: size });
 }
 
@@ -283,4 +323,4 @@ function convert_location(parts, whole, language) {
   };
 }
 
-module.exports = { GEO_PARTS, is_blank, convert_cell, convert_location, match_option, split_multi, read_date_parts, read_time };
+module.exports = { GEO_PARTS, is_blank, convert_cell, convert_location, match_option, resolve_option, split_multi, read_date_parts, read_time };
