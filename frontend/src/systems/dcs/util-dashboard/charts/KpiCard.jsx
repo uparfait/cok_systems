@@ -2,8 +2,45 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { build_palette } from "../appearance.js";
 import { chart_density, kpi_density } from "./density.js";
-import { fit_text_font } from "./labelDensity.jsx";
-import { text_width } from "./chartLabels.jsx";
+
+const NUMBER_FONT = "700 {size}px Montserrat, sans-serif";
+const widths = new Map();
+let measure_ctx = null;
+
+/**
+ * How wide the number comes out at this font size, measured in the BOLD
+ * Montserrat it is drawn in - the chart labels' measurer uses the regular
+ * weight, and bold digits are a fifth wider, which is the difference
+ * between a figure that fits and one cut off at the card's edge. Widths
+ * are only remembered once the face has loaded; before that a fallback
+ * face is measured and the card measures again when the fonts are ready.
+ */
+function number_width(text, size) {
+  const value = String(text);
+  const key = `${size}|${value}`;
+  if (widths.has(key)) return widths.get(key);
+  if (!measure_ctx && typeof document !== "undefined") measure_ctx = document.createElement("canvas").getContext("2d");
+  if (!measure_ctx) return value.length * size * 0.7;
+  measure_ctx.font = NUMBER_FONT.replace("{size}", String(size));
+  const width = measure_ctx.measureText(value).width;
+  const loaded = !!(document.fonts && document.fonts.check && document.fonts.check(NUMBER_FONT.replace("{size}", "16")));
+  if (loaded) {
+    if (widths.size > 2000) widths.clear();
+    widths.set(key, width);
+  }
+  return width;
+}
+
+/** Re-renders once the page's fonts have loaded, so a number measured against a fallback face is sized again. */
+function useFontsReady() {
+  const [, bump] = useState(0);
+  useEffect(() => {
+    if (typeof document === "undefined" || !document.fonts || !document.fonts.ready) return undefined;
+    let active = true;
+    document.fonts.ready.then(() => active && bump((count) => count + 1));
+    return () => { active = false; };
+  }, []);
+}
 
 const GOOD = "#27AE60";
 const BAD = "#E74C3C";
@@ -103,10 +140,11 @@ function number_font_for(text, width, room_height, parts) {
   // The width's own ceiling, so the shrinking below starts near the answer
   // instead of walking down from a figure the card could never hold.
   const max_px = Math.max(48, width - 16);
-  const per_px = text_width(text, 100) / 100;
+  const per_px = number_width(text, 100) / 100;
   const by_width = per_px > 0 ? Math.floor(max_px / per_px) : by_height;
-  const roomy = Math.max(11, parts.floor, Math.min(by_height, by_width));
-  return fit_text_font(text, max_px, roomy, 8);
+  let font = Math.max(11, parts.floor, Math.min(by_height, by_width));
+  while (font > 8 && number_width(text, font) > max_px) font -= 1;
+  return font;
 }
 
 export default function KpiCard({ value, changePct, legend, totalLabel, palette, density, roomHeight, onLegendClick }) {
@@ -119,6 +157,7 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
   const has_legend = Array.isArray(legend) && legend.length > 0;
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
+  useFontsReady();
   const rows = has_legend ? legend : [];
   const folds = rows.length >= LIST_ALL_UNDER;
   const shown = folds && !open ? rows.slice(0, PREVIEW) : rows;

@@ -247,15 +247,18 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // What a KPI card of this width may draw: its icon, its title, its
   // number and its padding all follow the room it ended up with.
   const kpi = kpi_density(chart_size.width, widget.size);
-  // A KPI card's title is written as large as the card's width allows and
-  // centred over the number, so the card reads as one tile from across a
-  // room; its icon and description follow. A long title is shrunk until it
-  // fits in about two lines, so one wordy card never makes its whole row
-  // tall.
+  // Every title is written in capitals and grows with its card. A KPI
+  // card's title is as large as the card's width allows and centred over
+  // the number, so the card reads as one tile from across a room; its icon
+  // and description follow. A long title is shrunk until it fits in about
+  // two lines, so one wordy card never makes its whole row tall. A chart's
+  // title grows more modestly, from 14px on a narrow card to 22px on a
+  // wide one.
+  const title_text = String(title_shown || type_label || "").toUpperCase();
   const kpi_title_cap = Math.max(kpi.title, Math.min(48, Math.round(chart_size.width / 12)));
   const kpi_icon_size = kpi.icon ? Math.max(kpi.icon, Math.round(kpi_title_cap * 1.1)) : 0;
   const kpi_title_room = Math.max(60, chart_size.width - 24 - (kpi_icon_size ? kpi_icon_size + 14 : 0));
-  const kpi_title_font = is_kpi ? fit_text_font(title_shown || type_label || "", kpi_title_room * 1.5, kpi_title_cap, kpi.title) : 14;
+  const kpi_title_font = is_kpi ? fit_text_font(title_text, kpi_title_room * 1.5, kpi_title_cap, kpi.title) : Math.max(14, Math.min(22, Math.round(chart_size.width / 40)));
   // A KPI card FILLS whatever room it is given - its number grows to the
   // card - so its drawn height says nothing about what it needs: it asks
   // only for the least a KPI card may be, and keeps its designed height.
@@ -323,7 +326,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             hideWhenEmpty={wordless}
             editable={false}
             maxLength={120}
-            textStyle={{ color: palette.text, fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: kpi_title_font, lineHeight: is_kpi ? 1.15 : undefined }}
+            textStyle={{ color: palette.text, fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: kpi_title_font, lineHeight: is_kpi ? 1.15 : 1.25, textTransform: "uppercase", letterSpacing: "0.3px" }}
           />
           </div>
           <EditableText
