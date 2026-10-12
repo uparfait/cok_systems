@@ -113,7 +113,6 @@ const LIST_ALL_UNDER = 4;
 const PREVIEW = 2;
 const NUMBER_LINE = 1.1;
 const LEGEND_LINE = 1.6;
-const LEGEND_MAX = 280;
 const CARD_PADDING = 20;
 const WORD_ROW = 14;
 const SMALL_ROW = 20;
@@ -133,7 +132,7 @@ const SMALL_ROW = 20;
 function number_font_for(text, width, room_height, parts) {
   let left = room_height - CARD_PADDING;
   if (parts.total) left -= WORD_ROW;
-  if (parts.legend_rows > 0) left -= 8 + Math.min(LEGEND_MAX, parts.legend_rows * Math.round(parts.legend_font * LEGEND_LINE));
+  if (parts.legend_rows > 0) left -= 8 + parts.legend_rows * Math.round(parts.legend_font * LEGEND_LINE);
   if (parts.folds) left -= SMALL_ROW;
   if (parts.change) left -= SMALL_ROW;
   const by_height = room_height > 0 ? Math.floor(left / NUMBER_LINE) : 0;
@@ -179,7 +178,7 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
       ) : null}
       <AnimatedNumber value={value} format={colors.number_text} className="font-bold whitespace-nowrap" style={{ color: colors.number, fontFamily: "'Montserrat', sans-serif", fontSize: number_font, lineHeight: 1.1, maxWidth: "100%" }} />
       {has_legend && (
-        <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0, maxHeight: shown.length > 12 ? 280 : undefined, overflowY: shown.length > 12 ? "auto" : "visible" }}>
+        <ul className="dcs-kpi-legend w-full mt-2 px-1 flex flex-col gap-0.5 text-left" style={{ listStyle: "none", margin: 0 }}>
           {shown.map((row, index) => (
             <li key={`${row.label}-${index}`} className={`flex items-center justify-between gap-2 min-w-0 ${onLegendClick ? "dcs-legend-clickable" : ""}`} style={{ opacity: row.matches === false ? 0.6 : 1, fontSize: legend_font }} onClick={onLegendClick ? () => onLegendClick(row) : undefined}>
               <span className="flex items-center gap-1.5 min-w-0">

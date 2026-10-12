@@ -357,7 +357,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           what will not fit, which is what used to make "Show more" look
           like it had done nothing. min-h-0 is what lets it scroll instead
           of pushing the card taller than the row. */}
-      <div ref={chart_ref} className={`dcs-widget-area ${is_canvas ? "" : `px-2 ${is_kpi ? "pb-2" : "pb-3"}`} flex-1 min-w-0 min-h-0 max-w-full`} style={{ overflowX: "auto", overflowY: "auto" }} data-base-need={base_need} data-filled={filled ? "1" : "0"}>
+      <div ref={chart_ref} className={`dcs-widget-area ${is_canvas ? "" : `px-2 ${is_kpi ? "pb-2" : "pb-3"}`} flex-1 min-w-0 min-h-0 max-w-full`} style={is_kpi ? { overflow: "hidden" } : { overflowX: "auto", overflowY: "auto" }} data-base-need={base_need} data-filled={filled ? "1" : "0"}>
         {slot ? (
           // A canvas has no data to wait for or fail at: what it holds is
           // handed in and drawn straight away.

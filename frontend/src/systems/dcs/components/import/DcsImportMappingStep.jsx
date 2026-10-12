@@ -3,7 +3,7 @@ import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import DcsButtonPrimary from "../DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../DcsButtonOutline.jsx";
 import MappingLines from "./MappingLines.jsx";
-import { color_of, header_text, required_unmapped } from "./importMapping.js";
+import { LINE_COLORS, color_of, header_text, required_unmapped } from "./importMapping.js";
 
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 const MUTED = "#9E9E9E";
@@ -28,6 +28,28 @@ function UnmapButton({ onClick, label }) {
     >
       {label}
     </button>
+  );
+}
+
+function LegendItem({ swatch, text }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: MUTED, ...FONT }}>
+      {swatch}
+      <span>{text}</span>
+    </span>
+  );
+}
+
+function MappingLegend({ translate }) {
+  return (
+    <div className="flex-shrink-0 flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+      <LegendItem swatch={<span className="inline-flex items-center gap-0.5">{LINE_COLORS.slice(0, 3).map((color) => <Tag key={color} color={color} />)}</span>} text={translate("DCS_IMPORT_LEGEND_PAIR")} />
+      <LegendItem swatch={<span className="inline-block" style={{ width: 18, height: 10, border: `2px solid ${PRIMARY}`, backgroundColor: "#EAF4FA" }} />} text={translate("DCS_IMPORT_LEGEND_SELECTED")} />
+      <LegendItem swatch={<span className="inline-block" style={{ width: 22, borderTop: `2px dashed ${PRIMARY}` }} />} text={translate("DCS_IMPORT_LEGEND_PENDING")} />
+      <LegendItem swatch={<Tag color={MUTED} />} text={translate("DCS_IMPORT_LEGEND_UNMAPPED")} />
+      <LegendItem swatch={<span className="font-bold" style={{ color: "#E74C3C" }}>*</span>} text={translate("DCS_IMPORT_LEGEND_REQUIRED")} />
+      <LegendItem swatch={<span className="inline-flex items-center justify-center text-[9px] font-bold leading-none" style={{ width: 14, height: 14, borderRadius: "50%", border: `1.5px solid ${PRIMARY}`, color: PRIMARY }}>x</span>} text={translate("DCS_IMPORT_LEGEND_REMOVE")} />
+    </div>
   );
 }
 
@@ -199,6 +221,7 @@ export default function DcsImportMappingStep({ headers, preview, targets, mappin
 
         <MappingLines areaRef={area_ref} pairs={pairs} pending={pending} hovered={hovered} onHover={setHovered} onRemove={unmap} removeLabel={translate("DCS_IMPORT_REMOVE_LINE")} />
       </div>
+      <MappingLegend translate={translate} />
 
       <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-3 pt-3 mt-3 border-t" style={{ borderColor: BORDER }}>
         <p className="text-xs min-w-0 flex-1" style={{ color: missing.length > 0 ? "#E74C3C" : "#27AE60", ...FONT }}>
