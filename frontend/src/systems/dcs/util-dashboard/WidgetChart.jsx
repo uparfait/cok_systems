@@ -132,7 +132,6 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
       <div className="flex flex-col justify-center h-full" style={sized ? { minHeight: density.height } : undefined}>
         <KpiCard
           value={data.value}
-          changePct={data.change_pct}
           legend={legend}
           // The room the card really has: the height its width earns in the
           // grid, or the measured area when its row, its designed box or the

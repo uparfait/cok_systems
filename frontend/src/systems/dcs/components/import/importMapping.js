@@ -82,26 +82,3 @@ export function header_text(headers, index, translate) {
   return text && text.trim() ? text : translate("DCS_IMPORT_COLUMN_N", { n: index + 1 });
 }
 
-export function initial_defaults(fields) {
-  const defaults = {};
-  (fields || []).forEach((field) => {
-    defaults[field.id] = { mode: field.required ? "use" : "leave", value: field.type === "geolocation" ? { latitude: "", longitude: "", accuracy: "" } : "" };
-  });
-  return defaults;
-}
-
-export function is_default_blank(field, value) {
-  if (field.type === "geolocation") return !value || String(value.latitude || "").trim() === "" || String(value.longitude || "").trim() === "";
-  if (Array.isArray(value)) return value.length === 0;
-  return value === undefined || value === null || String(value).trim() === "";
-}
-
-export function required_defaults_blank(fields, defaults) {
-  return (fields || [])
-    .filter((field) => field.required)
-    .filter((field) => {
-      const choice = defaults[field.id];
-      return choice && choice.mode === "use" && is_default_blank(field, choice.value);
-    })
-    .map((field) => field.label);
-}

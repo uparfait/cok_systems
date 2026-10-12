@@ -2,24 +2,13 @@ import dcs_api_client, { dcs_request } from "./dcsApiClient.js";
 
 const ACCESS_TOKEN_KEY = "accessToken";
 
-export const IMPORT_ACCEPT = ".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const IMPORT_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-export const IMPORT_MIME_TYPES = [
-  "text/csv",
-  "application/csv",
-  "text/x-csv",
-  "application/x-csv",
-  "text/comma-separated-values",
-  "text/plain",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/octet-stream",
-  "",
-];
+export const IMPORT_MIME_TYPES = ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "application/octet-stream", ""];
 
 export function is_import_file(file) {
   if (!file || !file.name) return false;
-  const by_name = /\.(csv|xlsx)$/i.test(file.name);
+  const by_name = /\.xlsx$/i.test(file.name);
   const by_type = IMPORT_MIME_TYPES.includes(String(file.type || "").toLowerCase());
   return by_name && by_type;
 }
@@ -67,10 +56,14 @@ export async function upload_import_file(form_group_id, file, on_progress) {
   return response.data;
 }
 
-export function run_import(form_group_id, import_id, mapping, defaults) {
-  return dcs_request(`/forms/${form_group_id}/import/${import_id}/run`, "POST", { mapping, defaults });
+export function run_import(form_group_id, import_id, mapping) {
+  return dcs_request(`/forms/${form_group_id}/import/${import_id}/run`, "POST", { mapping });
 }
 
 export function get_import_status(form_group_id, import_id) {
   return dcs_request(`/forms/${form_group_id}/import/${import_id}/status`, "GET");
+}
+
+export function delete_import(form_group_id, import_id) {
+  return dcs_request(`/forms/${form_group_id}/import/${import_id}`, "DELETE");
 }

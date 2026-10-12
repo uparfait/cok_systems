@@ -3,7 +3,8 @@ import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import DcsButtonPrimary from "../DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../DcsButtonOutline.jsx";
 import MappingLines from "./MappingLines.jsx";
-import { LINE_COLORS, color_of, header_text, required_unmapped } from "./importMapping.js";
+import DcsImportLegendDialog from "./DcsImportLegendDialog.jsx";
+import { color_of, header_text, required_unmapped } from "./importMapping.js";
 
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 const MUTED = "#9E9E9E";
@@ -31,28 +32,6 @@ function UnmapButton({ onClick, label }) {
   );
 }
 
-function LegendItem({ swatch, text }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: MUTED, ...FONT }}>
-      {swatch}
-      <span>{text}</span>
-    </span>
-  );
-}
-
-function MappingLegend({ translate }) {
-  return (
-    <div className="flex-shrink-0 flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
-      <LegendItem swatch={<span className="inline-flex items-center gap-0.5">{LINE_COLORS.slice(0, 3).map((color) => <Tag key={color} color={color} />)}</span>} text={translate("DCS_IMPORT_LEGEND_PAIR")} />
-      <LegendItem swatch={<span className="inline-block" style={{ width: 18, height: 10, border: `2px solid ${PRIMARY}`, backgroundColor: "#EAF4FA" }} />} text={translate("DCS_IMPORT_LEGEND_SELECTED")} />
-      <LegendItem swatch={<span className="inline-block" style={{ width: 22, borderTop: `2px dashed ${PRIMARY}` }} />} text={translate("DCS_IMPORT_LEGEND_PENDING")} />
-      <LegendItem swatch={<Tag color={MUTED} />} text={translate("DCS_IMPORT_LEGEND_UNMAPPED")} />
-      <LegendItem swatch={<span className="font-bold" style={{ color: "#E74C3C" }}>*</span>} text={translate("DCS_IMPORT_LEGEND_REQUIRED")} />
-      <LegendItem swatch={<span className="inline-flex items-center justify-center text-[9px] font-bold leading-none" style={{ width: 14, height: 14, borderRadius: "50%", border: `1.5px solid ${PRIMARY}`, color: PRIMARY }}>x</span>} text={translate("DCS_IMPORT_LEGEND_REMOVE")} />
-    </div>
-  );
-}
-
 function row_style(active, hot, color) {
   return {
     borderColor: active ? PRIMARY : hot && color ? color : BORDER,
@@ -61,7 +40,7 @@ function row_style(active, hot, color) {
   };
 }
 
-export default function DcsImportMappingStep({ headers, preview, targets, mapping, onMappingChange, onBack, onNext }) {
+export default function DcsImportMappingStep({ headers, preview, sheetName, rowCount, targets, mapping, onMappingChange, onBack, onNext }) {
   const { translate } = useDcsLanguage();
   const area_ref = useRef(null);
   const [pending, setPending] = useState(null);
@@ -84,6 +63,7 @@ export default function DcsImportMappingStep({ headers, preview, targets, mappin
     [targets, mapping],
   );
   const missing = useMemo(() => required_unmapped(mapping, targets), [mapping, targets]);
+  const [legend_open, setLegendOpen] = useState(false);
 
   useEffect(() => {
     const on_key = (event) => {
@@ -126,9 +106,16 @@ export default function DcsImportMappingStep({ headers, preview, targets, mappin
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <p className="text-xs mb-3 flex-shrink-0" style={{ color: MUTED, ...FONT }}>
+      <p className="text-xs mb-1 flex-shrink-0" style={{ color: MUTED, ...FONT }}>
         {translate("DCS_IMPORT_MAP_HINT")}
       </p>
+      {sheetName ? (
+        <p className="text-xs mb-3 flex-shrink-0 font-semibold" style={{ color: TEXT, ...FONT }}>
+          {translate("DCS_IMPORT_SHEET_ROWS", { sheet: sheetName, rows: rowCount || 0 })}
+        </p>
+      ) : (
+        <div className="mb-2" />
+      )}
 
       <div ref={area_ref} className="relative flex-1 min-h-0 flex items-stretch">
         <div data-import-list="headers" className="flex-1 min-w-0 overflow-y-auto pr-1">
@@ -221,19 +208,24 @@ export default function DcsImportMappingStep({ headers, preview, targets, mappin
 
         <MappingLines areaRef={area_ref} pairs={pairs} pending={pending} hovered={hovered} onHover={setHovered} onRemove={unmap} removeLabel={translate("DCS_IMPORT_REMOVE_LINE")} />
       </div>
-      <MappingLegend translate={translate} />
 
       <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-3 pt-3 mt-3 border-t" style={{ borderColor: BORDER }}>
-        <p className="text-xs min-w-0 flex-1" style={{ color: missing.length > 0 ? "#E74C3C" : "#27AE60", ...FONT }}>
-          {missing.length > 0 ? translate("DCS_IMPORT_REQUIRED_UNMAPPED", { fields: missing.join(", ") }) : translate("DCS_IMPORT_ALL_REQUIRED_MAPPED")}
-        </p>
+        <div className="min-w-0 flex-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <button type="button" className="text-xs font-semibold underline cursor-pointer bg-transparent border-0 p-0" style={{ color: PRIMARY, ...FONT }} onClick={() => setLegendOpen(true)}>
+            {translate("DCS_IMPORT_VIEW_LEGEND")}
+          </button>
+          <p className="text-xs min-w-0" style={{ color: missing.length > 0 ? "#E74C3C" : "#27AE60", ...FONT }}>
+            {missing.length > 0 ? translate("DCS_IMPORT_REQUIRED_UNMAPPED", { fields: missing.join(", ") }) : translate("DCS_IMPORT_ALL_REQUIRED_MAPPED")}
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <DcsButtonOutline onClick={onBack}>{translate("DCS_BTN_BACK")}</DcsButtonOutline>
           <DcsButtonPrimary onClick={onNext} disabled={pairs.length === 0}>
-            {translate("DCS_BTN_NEXT")}
+            {translate("DCS_IMPORT_SAVE_BTN")}
           </DcsButtonPrimary>
         </div>
       </div>
+      {legend_open ? <DcsImportLegendDialog onClose={() => setLegendOpen(false)} /> : null}
     </div>
   );
 }

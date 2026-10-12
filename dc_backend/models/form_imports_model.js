@@ -63,6 +63,23 @@ async function finish_import(import_id, status, patch) {
     .updateOne({ _id: to_object_id(import_id) }, { $set: Object.assign({ status, finished_at: new Date() }, patch || {}) });
 }
 
+/** A session given up before its run: marked cancelled only while it is still "uploaded". */
+async function cancel_import(import_id) {
+  const result = await get_db()
+    .collection(COLLECTION_NAME)
+    .updateOne({ _id: to_object_id(import_id), status: "uploaded" }, { $set: { status: "cancelled", finished_at: new Date() } });
+  return result.modifiedCount > 0;
+}
+
+/** The files the running imports are reading right now - what a sweep of old uploads must leave alone. */
+async function list_running_file_paths() {
+  const documents = await get_db()
+    .collection(COLLECTION_NAME)
+    .find({ status: "running" }, { projection: { file_path: 1 } })
+    .toArray();
+  return documents.map((document) => document.file_path).filter(Boolean);
+}
+
 /** The shape the client polls - never the file path or the user record. */
 function import_view(document) {
   return {
@@ -70,16 +87,19 @@ function import_view(document) {
     status: document.status,
     stage: document.stage || null,
     file_name: document.file_name,
+    sheet_name: document.sheet_name || null,
     total_rows: document.total_rows || 0,
     checked_rows: document.checked_rows || 0,
     done_rows: document.done_rows || 0,
     created: document.created || 0,
     failed_rows: document.failed_rows || 0,
     error: document.error || null,
+    errors: Array.isArray(document.errors) ? document.errors : [],
+    error_count: document.error_count || 0,
     message: document.message || null,
     started_at: document.started_at || null,
     finished_at: document.finished_at || null,
   };
 }
 
-module.exports = { create_import, find_import, claim_run, update_progress, finish_import, import_view };
+module.exports = { create_import, find_import, claim_run, update_progress, finish_import, cancel_import, list_running_file_paths, import_view };

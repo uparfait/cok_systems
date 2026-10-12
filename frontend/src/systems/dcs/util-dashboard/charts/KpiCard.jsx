@@ -42,8 +42,6 @@ function useFontsReady() {
   }, []);
 }
 
-const GOOD = "#27AE60";
-const BAD = "#E74C3C";
 const COUNT_DURATION_MS = 650;
 
 function format_number(value) {
@@ -93,9 +91,7 @@ function AnimatedNumber({ value, style, className, format }) {
 /**
  * The single-number widget: the aggregated value of the current window
  * (counting up or down as it changes, and carrying the widget's unit -
- * "$12", "1200RWF"), the change against the equally long
- * window right before it whenever the widget's period is bounded, and -
- * when the card carries a legend - one row per value under the total, each
+ * "$12", "1200RWF") and - when the card carries a legend - one row per value under the total, each
  * in its own color. Deliberately COMPACT - KPI cards sit in a dense grid at
  * the top of the board, several per row, and every card in a row is as
  * tall as the tallest, so a long legend does not lengthen one card, it
@@ -121,7 +117,7 @@ const SMALL_ROW = 20;
  * The number is the card's whole point, so it is written as TALL as the
  * room the card was given allows: the card's height, less what its other
  * lines take (a word over the number, the legend rows, the "show more"
- * line, the change against the previous window) - and then, if that
+ * line) - and then, if that
  * figure is still too wide for the card, it SHRINKS until it fits rather
  * than wrapping. "$1.2bn Rwf" comes out smaller than "42" does, which is
  * right: a number broken across two lines has stopped being a number
@@ -134,7 +130,6 @@ function number_font_for(text, width, room_height, parts) {
   if (parts.total) left -= WORD_ROW;
   if (parts.legend_rows > 0) left -= 8 + parts.legend_rows * Math.round(parts.legend_font * LEGEND_LINE);
   if (parts.folds) left -= SMALL_ROW;
-  if (parts.change) left -= SMALL_ROW;
   const by_height = room_height > 0 ? Math.floor(left / NUMBER_LINE) : 0;
   // The width's own ceiling, so the shrinking below starts near the answer
   // instead of walking down from a figure the card could never hold.
@@ -146,13 +141,12 @@ function number_font_for(text, width, room_height, parts) {
   return font;
 }
 
-export default function KpiCard({ value, changePct, legend, totalLabel, palette, density, roomHeight, onLegendClick }) {
+export default function KpiCard({ value, legend, totalLabel, palette, density, roomHeight, onLegendClick }) {
   const colors = palette || build_palette(null);
   const size = density || chart_density();
   // What this card's own width allows: a card made very small writes a
   // smaller number, not a number spilling out of it.
   const room = kpi_density(size.width);
-  const direction = changePct === null || changePct === undefined ? null : changePct >= 0 ? "up" : "down";
   const has_legend = Array.isArray(legend) && legend.length > 0;
   const { translate } = useDcsLanguage();
   const [open, setOpen] = useState(false);
@@ -163,7 +157,7 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
   const room_height = Number(roomHeight) > 0 ? Number(roomHeight) : 0;
   // The legend grows with the card too, within reason.
   const legend_font = room_height > 0 ? Math.max(room.legend, Math.min(16, Math.round(room_height / 10))) : room.legend;
-  const number_font = number_font_for(colors.number_text(value), size.width, room_height, { total: !!totalLabel, legend_rows: shown.length, legend_font, folds, change: direction !== null, floor: room.number });
+  const number_font = number_font_for(colors.number_text(value), size.width, room_height, { total: !!totalLabel, legend_rows: shown.length, legend_font, folds, floor: room.number });
   return (
     <div className="flex flex-col items-center justify-center text-center py-2 min-w-0">
       {/* Nothing is written over the number unless it says something the
@@ -205,12 +199,6 @@ export default function KpiCard({ value, changePct, legend, totalLabel, palette,
         >
           {open ? translate("DCS_DB_SHOW_LESS") : translate("DCS_DB_SHOW_MORE", { count: rows.length - PREVIEW })}
         </button>
-      )}
-      {direction !== null && (
-        <span className="mt-1 text-xs font-semibold" style={{ color: direction === "up" ? GOOD : BAD, fontFamily: "'Montserrat', sans-serif" }}>
-          {direction === "up" ? "+" : ""}
-          {format_number(changePct)}%
-        </span>
       )}
     </div>
   );

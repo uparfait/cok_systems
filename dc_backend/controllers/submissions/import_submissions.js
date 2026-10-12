@@ -5,6 +5,8 @@ const { manager_context } = require("../forms/translation_links.js");
 const { fillable_fields, fillable_schema_fields, template_headers } = require("../../utilities/import_fields.js");
 const { csv_line } = require("../../utilities/csv_parser.js");
 const { read_import_rows } = require("../../utilities/import_rows.js");
+const { upload_import_file, is_import_format_allowed } = require("../../utilities/upload.js");
+const config = require("../../configurations/config.js");
 const { build_xlsx_template } = require("../../utilities/import_template_xlsx.js");
 const { build_plan, required_left_empty, run_import_job } = require("../../utilities/import_runner.js");
 const { sanitize_filename } = require("../../utilities/export_columns.js");
@@ -15,6 +17,27 @@ const PREVIEW_ROWS = 5;
 
 function remove_file(file) {
   if (file && file.path) fs.unlink(file.path, () => {});
+}
+
+/**
+ * The upload middleware with multer's own refusals turned into answers a
+ * person can read: a file over the cap is a 413 naming the cap, never
+ * the generic server error.
+ */
+function import_upload_middleware(req, res, next) {
+  upload_import_file.single("file")(req, res, (error) => {
+    if (!error) return next();
+    if (error.code === "LIMIT_FILE_SIZE") return res.status(413).json(warning_response(req, "IMPORT_FILE_TOO_LARGE", { max: config.import_max_mb }));
+    if (error.code === "LIMIT_UNEXPECTED_FILE" || error.code === "LIMIT_FILE_COUNT") return res.status(400).json(warning_response(req, "FILE_REQUIRED"));
+    return next(error);
+  });
+}
+
+/** A reader's refusal (unreadable file, duplicate header, too many rows) as a 422; anything else is rethrown. */
+function answer_reader_error(req, res, error, file) {
+  if (!error || !error.code || !String(error.code).startsWith("IMPORT_")) throw error;
+  remove_file(file);
+  return res.status(422).json(warning_response(req, error.code, error.vars || {}));
 }
 
 /**
@@ -76,8 +99,17 @@ async function import_upload(req, res) {
     }
     if (req.import_file_rejected) return res.status(422).json(warning_response(req, "IMPORT_FILE_TYPE"));
     if (!file) return res.status(400).json(warning_response(req, "FILE_REQUIRED"));
+    if (!is_import_format_allowed(file.originalname)) {
+      remove_file(file);
+      return res.status(422).json(warning_response(req, "IMPORT_FILE_TYPE"));
+    }
 
-    const parsed = await read_import_rows(file.path);
+    let parsed;
+    try {
+      parsed = await read_import_rows(file.path);
+    } catch (error) {
+      return answer_reader_error(req, res, error, file);
+    }
     if (parsed.headers.length === 0 || parsed.headers.every((header) => header === "")) {
       remove_file(file);
       return res.status(422).json(warning_response(req, "IMPORT_CSV_EMPTY"));
@@ -95,6 +127,7 @@ async function import_upload(req, res) {
       user: { user_id: String(req.user.user_id), name: req.user.full_name || "", email: req.user.email || "" },
       file_name: file.originalname,
       file_path: file.path,
+      sheet_name: parsed.sheet_name || null,
       headers: parsed.headers,
       row_count: parsed.rows.length,
       preview: parsed.rows.slice(0, PREVIEW_ROWS),
@@ -107,6 +140,7 @@ async function import_upload(req, res) {
         {
           import_id: session._id.toString(),
           file_name: file.originalname,
+          sheet_name: parsed.sheet_name || null,
           headers: parsed.headers,
           row_count: parsed.rows.length,
           preview: session.preview,
@@ -140,7 +174,7 @@ async function import_run(req, res) {
     const field_views = fillable_fields(version_doc, req.language, translate);
     const schema_fields = fillable_schema_fields(version_doc);
     const { mapping, defaults } = req.body || {};
-    const plan = build_plan(field_views, schema_fields, mapping, defaults, session.headers.length);
+    const plan = build_plan(field_views, schema_fields, mapping, defaults, session.headers);
     if (plan.mapped_count === 0) return res.status(400).json(warning_response(req, "IMPORT_MAPPING_REQUIRED"));
     const missing = required_left_empty(plan);
     if (missing.length > 0) {
@@ -160,6 +194,26 @@ async function import_run(req, res) {
   }
 }
 
+/**
+ * A session given up before its run (the wizard closed, a new file
+ * chosen): its file leaves the disk and the session is marked cancelled.
+ * 200 even when the file is already gone; only a run in progress refuses.
+ */
+async function import_cancel(req, res) {
+  try {
+    const context = await manager_context(req, res);
+    if (!context) return undefined;
+    const session = await imports_model.find_import(req.params.form_group_id, req.params.import_id);
+    if (!session) return res.status(404).json(warning_response(req, "IMPORT_NOT_FOUND"));
+    if (session.status === "running") return res.status(409).json(warning_response(req, "IMPORT_RUNNING"));
+    if (session.file_path) await fs.promises.unlink(session.file_path).catch(() => {});
+    const cancelled = session.status === "uploaded" ? await imports_model.cancel_import(session._id) : false;
+    return res.status(200).json(success_response(req, "IMPORT_CANCELLED", { import_id: session._id.toString(), status: cancelled ? "cancelled" : session.status }));
+  } catch (error) {
+    return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
+  }
+}
+
 /** Where the run stands: status, stage, rows done of total, and the outcome message. */
 async function import_status(req, res) {
   try {
@@ -173,4 +227,4 @@ async function import_status(req, res) {
   }
 }
 
-module.exports = { import_template, import_upload, import_run, import_status };
+module.exports = { import_template, import_upload_middleware, import_upload, import_run, import_status, import_cancel };

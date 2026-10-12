@@ -1,4 +1,5 @@
 const fs = require("fs");
+const { normalize_table } = require("./import_table.js");
 
 /**
  * A small CSV reader for uploaded files, with no package behind it:
@@ -79,36 +80,21 @@ function split_rows(text, delimiter) {
   return rows;
 }
 
-const is_blank_row = (row) => row.every((cell) => cell.trim().length === 0);
-
 /**
- * { headers, rows } from raw lines of cells: blank lines dropped, headers
- * trimmed (duplicates kept, columns are addressed by index), every data
- * row padded or cut to the header width. Shared with the Excel reader so
- * both file kinds come out the same.
+ * { headers, rows, row_numbers, delimiter }: the lines as the file has
+ * them (a blank line still counts in the numbering, so a message can name
+ * the line as an editor shows it), then the shared table rules of
+ * utilities/import_table.js.
  */
-function normalize_table(raw_lines) {
-  const lines = (raw_lines || []).filter((row) => !is_blank_row(row));
-  if (lines.length === 0) return { headers: [], rows: [] };
-  const headers = lines[0].map((cell) => cell.trim());
-  const width = headers.length;
-  const rows = lines.slice(1).map((row) => {
-    const padded = row.slice(0, width);
-    while (padded.length < width) padded.push("");
-    return padded;
-  });
-  return { headers, rows };
-}
-
-function parse_csv_text(text) {
+function parse_csv_text(text, options) {
   const body = strip_bom(typeof text === "string" ? text : String(text || ""));
   const delimiter = detect_delimiter(body);
-  return Object.assign(normalize_table(split_rows(body, delimiter)), { delimiter });
+  return Object.assign(normalize_table(split_rows(body, delimiter), null, options), { delimiter });
 }
 
-async function parse_csv_file(file_path) {
+async function parse_csv_file(file_path, options) {
   const text = await fs.promises.readFile(file_path, "utf8");
-  return parse_csv_text(text);
+  return parse_csv_text(text, options);
 }
 
 /** One CSV line: a cell holding the delimiter, a quote or a line break is quoted, quotes doubled. */
@@ -122,4 +108,4 @@ function csv_line(values, delimiter) {
     .join(separator);
 }
 
-module.exports = { parse_csv_text, parse_csv_file, normalize_table, csv_line, detect_delimiter };
+module.exports = { parse_csv_text, parse_csv_file, csv_line, detect_delimiter };

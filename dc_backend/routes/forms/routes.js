@@ -17,8 +17,8 @@ const get_form_submission_stats = require("../../controllers/forms/get_form_subm
 const { get_table_settings, save_table_settings } = require("../../controllers/forms/table_settings.js");
 const { list_translation_links, create_translation_link, delete_translation_link } = require("../../controllers/forms/translation_links.js");
 const { list_translation_proposals, apply_translation_proposals, restore_translation_proposals, dismiss_translation_proposals } = require("../../controllers/forms/translation_proposals.js");
-const { upload_design_file: upload_design_file_middleware, upload_import_file } = require("../../utilities/upload.js");
-const { import_template, import_upload, import_run, import_status } = require("../../controllers/submissions/import_submissions.js");
+const { upload_design_file: upload_design_file_middleware } = require("../../utilities/upload.js");
+const { import_template, import_upload_middleware, import_upload, import_run, import_status, import_cancel } = require("../../controllers/submissions/import_submissions.js");
 
 /**
  * @swagger
@@ -304,11 +304,13 @@ Router.post("/:form_group_id/translation-links/:link_id/proposals/dismiss", dism
  *     responses:
  *       201:
  *         description: Import session opened
+ *       413:
+ *         description: The file is over the size cap (IMPORT_MAX_MB, 20 MB by default)
  *       422:
- *         description: Not a .csv or .xlsx, no header row, or no data rows
+ *         description: Not an accepted format (IMPORT_FORMATS), unreadable workbook, no header row, a header appearing twice, no data rows, or more data rows than the cap (IMPORT_MAX_ROWS)
  * /dcs/api/forms/{form_group_id}/import/{import_id}/run:
  *   post:
- *     summary: "Start the import from { mapping: [{ column, field_id, part }], defaults: { field_id: { mode: leave|use, value } } }: every row is checked, then written in batches of 50 as submissions marked source=import; all or nothing - a failing row stops the run and removes what it wrote; answers at once with { running: true }"
+ *     summary: "Start the import from { mapping: [{ column, field_id, part }] } (an optional defaults object is still accepted): every row is checked first with the public form's own validation and every problem collected as { row, column, field, reason }; anything found means nothing is written; a clean file is written in batches of 50 as submissions marked source=import, a failing batch removes what it wrote; answers at once with { running: true }"
  *     tags: [Forms]
  *     security:
  *       - BearerAuth: []
@@ -321,17 +323,27 @@ Router.post("/:form_group_id/translation-links/:link_id/proposals/dismiss", dism
  *         description: A required field would stay empty (required_fields lists them)
  * /dcs/api/forms/{form_group_id}/import/{import_id}/status:
  *   get:
- *     summary: "Progress of the import run: status (uploaded, running, done, failed), stage, done_rows of total_rows, created, failed_rows, error and message"
+ *     summary: "Progress of the import run: status (uploaded, running, done, failed, cancelled), stage, checked_rows and done_rows of total_rows, created, failed_rows, error, errors [{ row, column, field, reason }] (first 200) with error_count, and message"
  *     tags: [Forms]
  *     security:
  *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Import progress fetched
+ * /dcs/api/forms/{form_group_id}/import/{import_id}:
+ *   delete:
+ *     summary: "Give up an import that has not run: its uploaded file is removed and the session marked cancelled; 200 even when the file is already gone; 409 while it is running"
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Import cancelled
  */
 Router.get("/:form_group_id/import/template", import_template);
-Router.post("/:form_group_id/import/upload", upload_import_file.single("file"), import_upload);
+Router.post("/:form_group_id/import/upload", import_upload_middleware, import_upload);
 Router.post("/:form_group_id/import/:import_id/run", import_run);
 Router.get("/:form_group_id/import/:import_id/status", import_status);
+Router.delete("/:form_group_id/import/:import_id", import_cancel);
 
 module.exports = Router;

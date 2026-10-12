@@ -29,6 +29,15 @@ const DC_CONFIG = {
     ? process.env.CLIENT_URL_SET.split(",").map((origin) => origin.trim().replace(/\/+$/, "")).filter(Boolean)
     : ["https://cok-fr.vercel.app", "http://localhost:5173", "http://localhost:3000"],
   upload_dir: "uploads",
+  // The file kinds the responses import takes at upload: "xlsx" for now;
+  // IMPORT_FORMATS=csv,xlsx lets CSV back in (the CSV reader stays).
+  import_formats: String(process.env.IMPORT_FORMATS || "xlsx")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase().replace(/^\./, ""))
+    .filter(Boolean),
+  // The upload size cap and the data-row cap of one responses import.
+  import_max_mb: Number(process.env.IMPORT_MAX_MB) > 0 ? Number(process.env.IMPORT_MAX_MB) : 20,
+  import_max_rows: Number(process.env.IMPORT_MAX_ROWS) > 0 ? Number(process.env.IMPORT_MAX_ROWS) : 20000,
   email: {
     // The City's outgoing mail server: 197.243.27.181 on port 587 with
     // STARTTLS and SMTP authentication (see utilities/approval_email.js).

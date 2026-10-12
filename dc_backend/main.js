@@ -24,6 +24,8 @@ const {
 
 const { run_auth_check } = require("./utilities/auth_check.js");
 
+const { sweep_import_files } = require("./utilities/import_sweep.js");
+
 const {
     ensure_location_indexes
 } = require("./models/locations_model.js");
@@ -557,6 +559,9 @@ connect_databases()
         await step("Approval request indexes", ensure_approval_request_indexes);
 
         await step("Form approver indexes", ensure_form_approver_indexes);
+
+        // Uploaded import files nobody will read any more (older than a day, no run on them).
+        await step("Import file sweep", sweep_import_files);
 
         // Whether tokens from the main backend can be accepted here.
         await run_auth_check();

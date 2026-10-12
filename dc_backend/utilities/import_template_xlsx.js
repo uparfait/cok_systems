@@ -74,7 +74,8 @@ async function build_xlsx_template(headers, fields, language) {
 
   const sheet = workbook.addWorksheet("Options");
   sheet.columns = listed.map((entry, index) => ({ key: `o${index}`, width: 28 }));
-  style_header(sheet.addRow(listed.map((entry) => entry.field.label)));
+  const multi_hint = translate("IMPORT_TEMPLATE_MULTI_HINT", language);
+  style_header(sheet.addRow(listed.map((entry) => (entry.validate ? entry.field.label : `${entry.field.label} (${multi_hint})`))));
   const longest = Math.max(...listed.map((entry) => entry.options.length));
   for (let row = 0; row < longest; row += 1) sheet.addRow(listed.map((entry) => (row < entry.options.length ? entry.options[row] : null)));
 
