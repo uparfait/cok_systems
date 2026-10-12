@@ -209,8 +209,8 @@ export default function DcsImportMappingStep({ headers, preview, sheetName, rowC
         <MappingLines areaRef={area_ref} pairs={pairs} pending={pending} hovered={hovered} onHover={setHovered} onRemove={unmap} removeLabel={translate("DCS_IMPORT_REMOVE_LINE")} />
       </div>
 
-      <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-3 pt-3 mt-3 border-t" style={{ borderColor: BORDER }}>
-        <div className="min-w-0 flex-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="flex-shrink-0 pt-3 mt-3 border-t" style={{ borderColor: BORDER }}>
+        <div className="min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
           <button type="button" className="text-xs font-semibold underline cursor-pointer bg-transparent border-0 p-0" style={{ color: PRIMARY, ...FONT }} onClick={() => setLegendOpen(true)}>
             {translate("DCS_IMPORT_VIEW_LEGEND")}
           </button>
@@ -218,9 +218,11 @@ export default function DcsImportMappingStep({ headers, preview, sheetName, rowC
             {missing.length > 0 ? translate("DCS_IMPORT_REQUIRED_UNMAPPED", { fields: missing.join(", ") }) : translate("DCS_IMPORT_ALL_REQUIRED_MAPPED")}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <DcsButtonOutline onClick={onBack}>{translate("DCS_BTN_BACK")}</DcsButtonOutline>
-          <DcsButtonPrimary onClick={onNext} disabled={pairs.length === 0}>
+        <div className="grid grid-cols-2 gap-2">
+          <DcsButtonOutline className="w-full" onClick={onBack}>
+            {translate("DCS_BTN_BACK")}
+          </DcsButtonOutline>
+          <DcsButtonPrimary className="w-full" onClick={onNext} disabled={pairs.length === 0}>
             {translate("DCS_IMPORT_SAVE_BTN")}
           </DcsButtonPrimary>
         </div>

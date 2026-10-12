@@ -5,52 +5,18 @@ import { useToast } from "@/core/contexts/ToastContext";
 import { run_import, get_import_status } from "../../services/importService.js";
 import DcsButtonPrimary from "../DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../DcsButtonOutline.jsx";
+import DcsImportErrorsDialog from "./DcsImportErrorsDialog.jsx";
 
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 const DANGER = "#E74C3C";
+const PRIMARY = "#056daa";
 const POLL_MS = 1000;
-
-function ErrorsTable({ errors, total, translate }) {
-  if (!errors || errors.length === 0) return null;
-  const columns = ["DCS_IMPORT_ERRORS_ROW", "DCS_IMPORT_ERRORS_COLUMN", "DCS_IMPORT_ERRORS_FIELD", "DCS_IMPORT_ERRORS_REASON"];
-  return (
-    <div className="mt-3">
-      <div className="cok-table-scroll border" style={{ borderColor: "#E0E0E0", "--cok-table-max-h": "40vh" }}>
-        <table className="w-full text-xs" style={FONT}>
-          <thead>
-            <tr>
-              {columns.map((key) => (
-                <th key={key} className="text-left font-bold uppercase px-2 py-1.5 border-b" style={{ color: "#9E9E9E", borderColor: "#E0E0E0", letterSpacing: "0.4px" }}>
-                  {translate(key)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {errors.map((entry, index) => (
-              <tr key={`${entry.row}-${index}`}>
-                <td className="px-2 py-1 border-b" style={{ color: "#333333", borderColor: "#F0F0F0" }}>{entry.row}</td>
-                <td className="px-2 py-1 border-b" style={{ color: "#333333", borderColor: "#F0F0F0" }}>{entry.column}</td>
-                <td className="px-2 py-1 border-b" style={{ color: "#333333", borderColor: "#F0F0F0" }}>{entry.field}</td>
-                <td className="px-2 py-1 border-b" style={{ color: DANGER, borderColor: "#F0F0F0", whiteSpace: "normal" }}>{entry.reason}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {total > errors.length ? (
-        <p className="text-xs mt-1" style={{ color: "#9E9E9E", ...FONT }}>
-          {translate("DCS_IMPORT_ERRORS_MORE", { count: total - errors.length })}
-        </p>
-      ) : null}
-    </div>
-  );
-}
 
 export default function DcsImportRunStep({ formGroupId, importId, mapping, onBusy, onBack, onFinished }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const [status, setStatus] = useState(null);
+  const [errors_open, setErrorsOpen] = useState(false);
   const started = useRef(false);
   const finished = useRef(false);
   const latest = useRef({});
@@ -68,8 +34,12 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
       finished.current = true;
       const { onBusy: set_busy, showSuccess: success, showError: fail, translate: t } = latest.current;
       set_busy(false);
-      if (next.status === "done") success(next.message || t("DCS_IMPORT_DONE", { count: next.created }));
-      else fail(next.message || next.error || t("DCS_IMPORT_ERROR_GENERIC"));
+      if (next.status === "done") {
+        success(next.message || t("DCS_IMPORT_DONE", { count: next.created }));
+        return;
+      }
+      fail(next.message || next.error || t("DCS_IMPORT_ERROR_GENERIC"));
+      if (next.errors && next.errors.length > 0) setErrorsOpen(true);
     };
 
     const poll = async () => {
@@ -117,6 +87,7 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
   const is_done = status && status.status === "done";
   const is_failed = status && status.status === "failed";
   const running = !status || (!is_done && !is_failed);
+  const errors = (status && status.errors) || [];
   const stage_text = () => {
     if (!status || (!status.stage && running)) return translate("DCS_IMPORT_STARTING");
     if (is_done) return status.message || translate("DCS_IMPORT_DONE", { count: status.created || 0 });
@@ -125,48 +96,60 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
   };
 
   return (
-    <div className="max-w-3xl mx-auto w-full">
-      <div className="mb-4">
-        <div className="flex items-center justify-between gap-3 mb-1">
-          <span className="text-sm min-w-0" style={{ color: is_failed ? DANGER : "#555555", ...FONT }}>
-            {stage_text()}
-          </span>
-          <span className="text-sm font-medium flex-shrink-0" style={FONT}>
-            {translate("DCS_IMPORT_ROWS_PROGRESS", { done: is_done ? status.created || 0 : done, total })}
-          </span>
+    <div className="max-w-xl mx-auto w-full flex flex-col h-full min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="mb-4">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <span className="text-sm min-w-0" style={{ color: is_failed ? DANGER : "#555555", ...FONT }}>
+              {stage_text()}
+            </span>
+            <span className="text-sm font-medium flex-shrink-0" style={FONT}>
+              {translate("DCS_IMPORT_ROWS_PROGRESS", { done: is_done ? status.created || 0 : done, total })}
+            </span>
+          </div>
+          <Progress.Root className="relative w-full h-3 bg-gray-200 overflow-hidden" value={is_done ? 100 : percent}>
+            <Progress.Indicator className="h-full transition-all duration-300 ease-out" style={{ width: `${is_done ? 100 : percent}%`, backgroundColor: is_failed ? DANGER : PRIMARY }} />
+          </Progress.Root>
         </div>
-        <Progress.Root className="relative w-full h-3 bg-gray-200 overflow-hidden" value={is_done ? 100 : percent}>
-          <Progress.Indicator className="h-full transition-all duration-300 ease-out" style={{ width: `${is_done ? 100 : percent}%`, backgroundColor: is_failed ? DANGER : "#056daa" }} />
-        </Progress.Root>
-      </div>
 
-      {is_done && (
-        <p className="text-sm font-semibold" style={{ color: "#27AE60", ...FONT }}>
-          {status.message || translate("DCS_IMPORT_DONE", { count: status.created || 0 })}
-        </p>
-      )}
-      {is_failed && (
-        <div>
+        {is_done && (
+          <p className="text-sm font-semibold" style={{ color: "#27AE60", ...FONT }}>
+            {status.message || translate("DCS_IMPORT_DONE", { count: status.created || 0 })}
+          </p>
+        )}
+        {is_failed && (
           <div className="border-2 p-3" style={{ borderColor: DANGER }}>
-            <p className="text-sm font-semibold break-words" style={{ color: DANGER, ...FONT }}>
+            <p className="text-sm font-semibold" style={{ color: DANGER, overflowWrap: "anywhere", ...FONT }}>
               {status.message || translate("DCS_IMPORT_NOTHING_SAVED")}
             </p>
-            {status.error && (!status.errors || status.errors.length === 0) ? (
-              <p className="text-xs mt-1 break-words" style={{ color: "#555555", ...FONT }}>
+            {status.error && errors.length === 0 ? (
+              <p className="text-xs mt-1" style={{ color: "#555555", overflowWrap: "anywhere", ...FONT }}>
                 {status.error}
               </p>
             ) : null}
+            {errors.length > 0 ? (
+              <button type="button" className="text-xs font-semibold underline cursor-pointer bg-transparent border-0 p-0 mt-2" style={{ color: PRIMARY, ...FONT }} onClick={() => setErrorsOpen(true)}>
+                {translate("DCS_IMPORT_VIEW_ERRORS", { count: status.error_count || errors.length })}
+              </button>
+            ) : null}
           </div>
-          <ErrorsTable errors={status.errors || []} total={status.error_count || 0} translate={translate} />
+        )}
+      </div>
+
+      {!running && (
+        <div className={`flex-shrink-0 grid gap-2 pt-3 mt-3 border-t ${is_failed ? "grid-cols-2" : "grid-cols-1"}`} style={{ borderColor: "#E0E0E0" }}>
+          {is_failed ? (
+            <DcsButtonOutline className="w-full" onClick={onBack}>
+              {translate("DCS_BTN_BACK")}
+            </DcsButtonOutline>
+          ) : null}
+          <DcsButtonPrimary className="w-full" onClick={() => onFinished(status ? status.status : "failed")}>
+            {translate("DCS_IMPORT_DONE_BTN")}
+          </DcsButtonPrimary>
         </div>
       )}
 
-      {!running && (
-        <div className="flex justify-end gap-2 mt-4">
-          {is_failed ? <DcsButtonOutline onClick={onBack}>{translate("DCS_BTN_BACK")}</DcsButtonOutline> : null}
-          <DcsButtonPrimary onClick={() => onFinished(status ? status.status : "failed")}>{translate("DCS_IMPORT_DONE_BTN")}</DcsButtonPrimary>
-        </div>
-      )}
+      {errors_open && errors.length > 0 ? <DcsImportErrorsDialog errors={errors} total={status.error_count || errors.length} message={status.message || translate("DCS_IMPORT_NOTHING_SAVED")} onClose={() => setErrorsOpen(false)} /> : null}
     </div>
   );
 }

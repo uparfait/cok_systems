@@ -5,10 +5,10 @@
  * compares normalize_key of both sides; numbers typed as text with
  * thousand separators or a decimal comma go through parse_number.
  */
-const ZERO_WIDTH = /[​‌‍⁠﻿]/g;
-const ODD_SPACES = /[   -   　]/g;
-const SINGLE_QUOTES = /[‘’‚‛′´]/g;
-const DOUBLE_QUOTES = /[“”„‟″]/g;
+const ZERO_WIDTH = /[\u200b\u200c\u200d\u2060\ufeff]/g;
+const ODD_SPACES = /[\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000]/g;
+const SINGLE_QUOTES = /[\u2018\u2019\u201a\u201b\u2032\u00b4]/g;
+const DOUBLE_QUOTES = /[\u201c\u201d\u201e\u201f\u2033]/g;
 
 const EXCEL_EPOCH_1900 = Date.UTC(1899, 11, 30);
 const EXCEL_EPOCH_1904 = Date.UTC(1904, 0, 1);
