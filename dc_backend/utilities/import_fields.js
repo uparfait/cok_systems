@@ -75,6 +75,7 @@ function describe_field(field, language, translate) {
   if (OPTION_TYPES.includes(field.type)) {
     view.options = option_views(field, language);
     view.api_sourced = is_api_sourced(field);
+    if (view.api_sourced) view.level = (field.data_source && field.data_source.level) || "provinces";
   }
   if (field.type === "likert_scale") view.scale_size = Number(field.scale_size) || 5;
   if (field.type === "geolocation") view.sub_targets = GEO_PARTS.slice();

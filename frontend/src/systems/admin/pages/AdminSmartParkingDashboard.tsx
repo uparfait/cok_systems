@@ -11,8 +11,8 @@ import type { TableHeader } from '../../../core/components/Table';
 import OverlayShell from '../../../core/components/overlay/OverlayShell';
 import { useVisitorPanel, visitorIdOf } from '../../../core/components/visitor/VisitorPanelProvider';
 import { FiTruck, FiRefreshCw, FiFlag, FiCheckCircle, FiMapPin, FiEdit, FiClock, FiArrowLeft } from 'react-icons/fi';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ParkingSlotConfigModal from './sub/ParkingSlotConfigModal';
+import HourlyParkingChart from '../../smartParking/pages/dashboard/HourlyParkingChart';
 import { VISITOR_COLUMNS, visitorCell } from './sub/parkingVisitorColumns';
 import type { ParkingVisitorRow } from './sub/parkingVisitorColumns';
 
@@ -52,7 +52,6 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [firstLoad, setfirstLoad] = useState(true);
   const [stats, setStats] = useState<ParkingStats>({ todayVehicles: 0, currentlyParked: 0, availableSlots: 0, flaggedInside: 0, flaggedTotal: 0, totalCapacity: 0 });
-  const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [allRecords, setAllRecords] = useState<ParkingRecord[]>([]);
   const [showFlaggedModal, setShowFlaggedModal] = useState(false);
@@ -87,7 +86,6 @@ const AdminSmartParkingDashboard: React.FC = () => {
     try {
       const hourlyRes = await statisticsService.getHourlyParkingStats();
       const hourly = hourlyRes?.data?.hourly || [];
-      setHourlyData(hourly);
       const todayCheckIns = hourly.reduce((s: number, h: HourlyData) => s + h.check_in, 0);
       const parkedRes = await statisticsService.getCurrentlyParkedStats();
       const currentlyParked = parkedRes?.data?.total || 0;
@@ -225,11 +223,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
           <button onClick={() => setShowSlotConfig(true)} className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium cursor-pointer" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiEdit className="w-4 h-4" />Click To Set Slots</button>
         </div>
 
-        <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
-          <h2 className="text-sm font-semibold text-[#333333] mb-3">Parking Usage Trends</h2>
-          {loading && firstLoad ? <div className="h-48 flex items-center justify-center"><LoadingSpinner /></div>
-            : <div className="h-48"><ResponsiveContainer width="100%" height="100%"><AreaChart data={hourlyData} margin={{ top: 15, right: 10, left: 0, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} /><XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11, fill: GRAY_DISABLED }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 11, fill: GRAY_DISABLED }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0, boxShadow: CARD_SHADOW }} /><Legend /><Area type="monotone" dataKey="check_in" stroke={PRIMARY} fill="rgba(5,109,170,0.1)" name="Check-ins" dot={{ r: 3 }} label={{ position: 'top', fill: NEUTRAL_DARK, fontSize: 10, fontWeight: 600 }} /><Area type="monotone" dataKey="check_out" stroke={DANGER} fill="rgba(231,76,60,0.1)" name="Check-outs" dot={{ r: 3 }} label={{ position: 'top', fill: NEUTRAL_DARK, fontSize: 10, fontWeight: 600 }} /></AreaChart></ResponsiveContainer></div>}
-        </div>
+        <HourlyParkingChart enabled={!authLoading} title="Parking Movement" />
 
         <ParkingSlotConfigModal show={showSlotConfig} slotConfig={slotConfig} saving={savingSlot} onClose={() => setShowSlotConfig(false)} onChange={(e) => { const { name, value } = e.target; setSlotConfig(p => ({ ...p, [name]: value === '' ? 0 : parseInt(value) || 0 })); }} onSave={async () => { setSavingSlot(true); try { const r = await smartParkingService.updateSlotConfig(slotConfig); if (r.success) { showSuccess('Slot config updated'); setShowSlotConfig(false); fetchData(); } else showError(r.message || 'Failed'); } catch (err: any) { showError(err?.message || 'Failed'); } finally { setSavingSlot(false); } }} />
 

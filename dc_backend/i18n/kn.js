@@ -261,4 +261,7 @@ module.exports = {
   IMPORT_VALUE_NOT_BOOLEAN: "'{{value}}' si yego cyangwa oya",
   IMPORT_VALUE_NOT_COORDINATE: "'{{value}}' si aho hantu ku ikarita",
   IMPORT_LOCATION_INCOMPLETE: "aho hantu hakenewe latitude na longitude zombi",
+  IMPORT_OPTION_YES: "Yego",
+  IMPORT_OPTION_NO: "Oya",
+  IMPORT_TEMPLATE_PICK_FROM_LIST: "Hitamo imwe mu ndangagaciro ziri ku rupapuro rwa Options",
 };

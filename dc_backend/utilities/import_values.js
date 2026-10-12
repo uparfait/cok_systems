@@ -1,6 +1,7 @@
 const { translate } = require("../i18n/index.js");
 const { all_options, is_api_sourced, GEO_PARTS } = require("./import_fields.js");
 const { get_field_text } = require("./export_columns.js");
+const location_levels = require("./location_levels.js");
 
 /**
  * Turns the text of a CSV cell into the value a submission stores for a
@@ -41,10 +42,24 @@ function match_option(field, text) {
   return by_label ? by_label.value : undefined;
 }
 
+/** An API-sourced location: whatever spelling or translation was typed becomes the name a submission stores. */
+function convert_location_choice(field, text) {
+  const typed = String(text).trim();
+  const level = (field.data_source && field.data_source.level) || "provinces";
+  let canonical = null;
+  try {
+    canonical = location_levels.canonical_location_name(level, typed);
+  } catch (error) {
+    canonical = null;
+  }
+  return { value: canonical || typed };
+}
+
 function convert_choice(field, text, language) {
+  if (is_api_sourced(field)) return convert_location_choice(field, text);
   const matched = match_option(field, text);
   if (matched !== undefined) return { value: matched };
-  if (is_api_sourced(field) || all_options(field).length === 0) return { value: String(text).trim() };
+  if (all_options(field).length === 0) return { value: String(text).trim() };
   return fail("IMPORT_VALUE_NOT_OPTION", text, language);
 }
 

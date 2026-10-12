@@ -54,6 +54,15 @@ export default function DcsImportWizard({ formGroupId, onClose, onImported }) {
     go(3);
   };
 
+  const restart = () => {
+    setSession(null);
+    setMapping({});
+    setDefaults({});
+    setRunPayload(null);
+    setReached(0);
+    setStep(0);
+  };
+
   const on_finished = useCallback(
     (status) => {
       if (status === "done" && onImported) onImported();
@@ -78,9 +87,9 @@ export default function DcsImportWizard({ formGroupId, onClose, onImported }) {
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
             {step === 0 && <DcsImportUploadStep formGroupId={formGroupId} onUploaded={on_uploaded} onBusy={setBusy} />}
-            {step === 1 && session && <DcsImportMappingStep headers={session.headers} preview={session.preview} targets={targets} mapping={mapping} onMappingChange={setMapping} onNext={() => go(2)} />}
+            {step === 1 && session && <DcsImportMappingStep headers={session.headers} preview={session.preview} targets={targets} mapping={mapping} onMappingChange={setMapping} onBack={() => setStep(0)} onNext={() => go(2)} />}
             {step === 2 && session && <DcsImportDefaultsStep fields={fields} headers={session.headers} mapping={mapping} defaults={defaults} onDefaultsChange={setDefaults} onBack={() => setStep(1)} onRun={start_run} />}
-            {step === 3 && session && run_payload && <DcsImportRunStep formGroupId={formGroupId} importId={session.import_id} mapping={run_payload.mapping} defaults={run_payload.defaults} onBusy={setBusy} onFinished={on_finished} />}
+            {step === 3 && session && run_payload && <DcsImportRunStep formGroupId={formGroupId} importId={session.import_id} mapping={run_payload.mapping} defaults={run_payload.defaults} onBusy={setBusy} onBack={restart} onFinished={on_finished} />}
           </div>
         </div>
       </div>

@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { FiUsers, FiPackage, FiSearch, FiEdit2, FiTrash2, FiChevronLeft, FiChevronRight, FiAlertCircle, FiPlus, FiCheck, FiRefreshCw } from 'react-icons/fi';
 import OverlayShell from '../../../../core/components/overlay/OverlayShell';
 import { employeeService } from '../../../../core/services/adminService';
-import { useDebounce } from '../../../../core/hooks/useDebounce';
 
 interface Department { _id?: string; name?: string; department_id?: string; services?: any[]; sub_departments?: any[]; description?: string; }
 
@@ -16,18 +15,18 @@ export const EmployeesModal: React.FC<EmployeesModalProps> = ({ show, department
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const debouncedSearch = useDebounce(search, 300);
+  const [query, setQuery] = useState('');
   const requestRef = useRef(0);
   const departmentId = department?._id || department?.department_id || '';
 
-  useEffect(() => { setPage(1); }, [debouncedSearch]);
+  useEffect(() => { setPage(1); }, [query]);
 
   useEffect(() => {
     if (!show || !departmentId) return;
     requestRef.current += 1;
     const requestId = requestRef.current;
     setLoading(true);
-    employeeService.getByDepartment(departmentId, false, page, EMPLOYEES_PAGE_SIZE, debouncedSearch.trim())
+    employeeService.getByDepartment(departmentId, false, page, EMPLOYEES_PAGE_SIZE, query.trim())
       .then((r: any) => {
         if (requestId !== requestRef.current) return;
         const list = Array.isArray(r?.data) ? r.data : (r?.data?.data || []);
@@ -36,11 +35,11 @@ export const EmployeesModal: React.FC<EmployeesModalProps> = ({ show, department
       })
       .catch(() => { if (requestId === requestRef.current) { setRows([]); setTotal(0); } })
       .finally(() => { if (requestId === requestRef.current) setLoading(false); });
-  }, [show, departmentId, page, debouncedSearch]);
+  }, [show, departmentId, page, query]);
 
   if (!show || !department) return null;
 
-  const close = () => { requestRef.current += 1; setSearch(''); setPage(1); setRows([]); setTotal(0); setLoading(false); onClose(); };
+  const close = () => { requestRef.current += 1; setSearch(''); setQuery(''); setPage(1); setRows([]); setTotal(0); setLoading(false); onClose(); };
   const totalPages = Math.max(1, Math.ceil(total / EMPLOYEES_PAGE_SIZE));
   const from = total === 0 ? 0 : (page - 1) * EMPLOYEES_PAGE_SIZE + 1;
   const to = Math.min(page * EMPLOYEES_PAGE_SIZE, total);
@@ -53,7 +52,10 @@ export const EmployeesModal: React.FC<EmployeesModalProps> = ({ show, department
       width="lg"
       headerExtra={
         <div className="px-4 sm:px-5 py-2 border-b border-gray-100 bg-white flex-shrink-0">
-          <div className="relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Search by name, email or phone..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-8 pr-3 py-1.5 cok-auth-input text-sm" /></div>
+          <div className="relative">
+            <input type="text" placeholder="Search by name, email or phone..." value={search} onChange={e => { setSearch(e.target.value); if (!e.target.value.trim()) setQuery(''); }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setQuery(search); } }} className="w-full pl-3 pr-10! py-1.5 cok-auth-input text-sm" />
+            <button type="button" aria-label="Search" title="Search" onClick={() => setQuery(search)} className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-[#056daa] hover:bg-[rgba(5,109,170,0.1)] cursor-pointer"><FiSearch className="w-4 h-4" /></button>
+          </div>
         </div>
       }
       footer={total > 0 ? <div className="w-full flex items-center justify-between gap-2"><button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={loading || page <= 1} className={pagerButton}><FiChevronLeft className="w-4 h-4" />Previous</button><span className="text-xs text-gray-600">{from}-{to} of {total}</span><button type="button" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={loading || page >= totalPages} className={pagerButton}>Next<FiChevronRight className="w-4 h-4" /></button></div> : undefined}

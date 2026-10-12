@@ -10,6 +10,7 @@ import { CARD_SHADOW, NEUTRAL_DARK, WHITE, fontHeading } from './dashboardTheme'
 
 interface HourlyParkingChartProps {
   enabled: boolean;
+  title?: string;
 }
 
 const UNIT_TEXT: Record<Movement['unit'], string> = {
@@ -43,7 +44,7 @@ const Spinner: React.FC = () => (
   </div>
 );
 
-const HourlyParkingChart: React.FC<HourlyParkingChartProps> = ({ enabled }) => {
+const HourlyParkingChart: React.FC<HourlyParkingChartProps> = ({ enabled, title = 'Hourly Parking Analytics' }) => {
   const movement = useParkingMovement(enabled);
   const [customOpen, setCustomOpen] = useState(false);
   const data = movement.data;
@@ -68,7 +69,7 @@ const HourlyParkingChart: React.FC<HourlyParkingChartProps> = ({ enabled }) => {
             <FiTrendingUp className="w-4 h-4 text-[#056daa]" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-base sm:text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Hourly Parking Analytics</h2>
+            <h2 className="text-base sm:text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{title}</h2>
             {data && !movement.loading ? (
               <p className="text-xs text-[#555555] truncate">Vehicle movement {periodName(data)}, {UNIT_TEXT[data.unit]}</p>
             ) : null}

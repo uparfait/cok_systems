@@ -1,11 +1,11 @@
 const fs = require("fs");
-const ExcelJS = require("exceljs");
 const forms_model = require("../../models/forms_model.js");
 const imports_model = require("../../models/form_imports_model.js");
 const { manager_context } = require("../forms/translation_links.js");
 const { fillable_fields, fillable_schema_fields, template_headers } = require("../../utilities/import_fields.js");
 const { csv_line } = require("../../utilities/csv_parser.js");
 const { read_import_rows } = require("../../utilities/import_rows.js");
+const { build_xlsx_template } = require("../../utilities/import_template_xlsx.js");
 const { build_plan, required_left_empty, run_import_job } = require("../../utilities/import_runner.js");
 const { sanitize_filename } = require("../../utilities/export_columns.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
@@ -27,21 +27,11 @@ function remove_file(file) {
  *   GET  /import/:import_id/status the run's progress and outcome
  */
 
-/** The template's one header row as an .xlsx, styled like the export's header. */
-async function xlsx_template(headers) {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Data");
-  sheet.columns = headers.map((header, index) => ({ key: `c${index}`, width: 22 }));
-  const header_row = sheet.addRow(headers);
-  header_row.font = { bold: true, color: { argb: "FFFFFFFF" } };
-  header_row.alignment = { horizontal: "center", vertical: "middle" };
-  header_row.eachCell((cell) => {
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF056DAA" } };
-  });
-  return Buffer.from(await workbook.xlsx.writeBuffer());
-}
-
-/** One header row - the fillable fields, a location as its three columns - as CSV, or as .xlsx with ?format=xlsx. */
+/**
+ * One header row - the fillable fields, a location as its three columns -
+ * as CSV, or with ?format=xlsx as a workbook whose choice columns offer
+ * their options to pick from (see utilities/import_template_xlsx.js).
+ */
 async function import_template(req, res) {
   try {
     const context = await manager_context(req, res);
@@ -50,10 +40,11 @@ async function import_template(req, res) {
     // goes to someone outside the app.
     const lang = (req.query && req.query.language) || "en";
     const as_xlsx = req.query && req.query.format === "xlsx";
-    const headers = template_headers(fillable_fields(context.active_version, lang, translate));
+    const fields = fillable_fields(context.active_version, lang, translate);
+    const headers = template_headers(fields);
     const base_name = `${sanitize_filename(context.active_version.form_name || "form")}_template`;
     if (as_xlsx) {
-      const buffer = await xlsx_template(headers);
+      const buffer = await build_xlsx_template(headers, fields, lang);
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", `attachment; filename="${base_name}.xlsx"`);
       res.setHeader("Content-Length", buffer.length);

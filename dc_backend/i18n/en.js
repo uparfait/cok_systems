@@ -261,4 +261,7 @@ module.exports = {
   IMPORT_VALUE_NOT_BOOLEAN: "'{{value}}' is not yes or no",
   IMPORT_VALUE_NOT_COORDINATE: "'{{value}}' is not a coordinate",
   IMPORT_LOCATION_INCOMPLETE: "a location needs both a latitude and a longitude",
+  IMPORT_OPTION_YES: "Yes",
+  IMPORT_OPTION_NO: "No",
+  IMPORT_TEMPLATE_PICK_FROM_LIST: "Pick one of the values listed on the Options sheet",
 };

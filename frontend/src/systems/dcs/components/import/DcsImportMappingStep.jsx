@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import DcsButtonPrimary from "../DcsButtonPrimary.jsx";
+import DcsButtonOutline from "../DcsButtonOutline.jsx";
 import MappingLines from "./MappingLines.jsx";
 import { color_of, header_text, required_unmapped } from "./importMapping.js";
 
@@ -38,7 +39,7 @@ function row_style(active, hot, color) {
   };
 }
 
-export default function DcsImportMappingStep({ headers, preview, targets, mapping, onMappingChange, onNext }) {
+export default function DcsImportMappingStep({ headers, preview, targets, mapping, onMappingChange, onBack, onNext }) {
   const { translate } = useDcsLanguage();
   const area_ref = useRef(null);
   const [pending, setPending] = useState(null);
@@ -203,9 +204,12 @@ export default function DcsImportMappingStep({ headers, preview, targets, mappin
         <p className="text-xs min-w-0 flex-1" style={{ color: missing.length > 0 ? "#E74C3C" : "#27AE60", ...FONT }}>
           {missing.length > 0 ? translate("DCS_IMPORT_REQUIRED_UNMAPPED", { fields: missing.join(", ") }) : translate("DCS_IMPORT_ALL_REQUIRED_MAPPED")}
         </p>
-        <DcsButtonPrimary onClick={onNext} disabled={pairs.length === 0}>
-          {translate("DCS_BTN_NEXT")}
-        </DcsButtonPrimary>
+        <div className="flex items-center gap-2">
+          <DcsButtonOutline onClick={onBack}>{translate("DCS_BTN_BACK")}</DcsButtonOutline>
+          <DcsButtonPrimary onClick={onNext} disabled={pairs.length === 0}>
+            {translate("DCS_BTN_NEXT")}
+          </DcsButtonPrimary>
+        </div>
       </div>
     </div>
   );

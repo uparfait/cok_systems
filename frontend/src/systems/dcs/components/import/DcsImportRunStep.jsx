@@ -4,11 +4,12 @@ import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useToast } from "@/core/contexts/ToastContext";
 import { run_import, get_import_status } from "../../services/importService.js";
 import DcsButtonPrimary from "../DcsButtonPrimary.jsx";
+import DcsButtonOutline from "../DcsButtonOutline.jsx";
 
 const FONT = { fontFamily: "'Montserrat', sans-serif" };
 const POLL_MS = 1000;
 
-export default function DcsImportRunStep({ formGroupId, importId, mapping, defaults, onBusy, onFinished }) {
+export default function DcsImportRunStep({ formGroupId, importId, mapping, defaults, onBusy, onBack, onFinished }) {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const [status, setStatus] = useState(null);
@@ -117,7 +118,8 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, defau
       )}
 
       {!running && (
-        <div className="flex justify-end mt-4">
+        <div className="flex justify-end gap-2 mt-4">
+          {status && status.status === "failed" && onBack ? <DcsButtonOutline onClick={onBack}>{translate("DCS_BTN_BACK")}</DcsButtonOutline> : null}
           <DcsButtonPrimary onClick={() => onFinished(status ? status.status : "failed")}>{translate("DCS_IMPORT_DONE_BTN")}</DcsButtonPrimary>
         </div>
       )}

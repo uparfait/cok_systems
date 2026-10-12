@@ -288,7 +288,7 @@ Router.post("/:form_group_id/translation-links/:link_id/proposals/dismiss", dism
  * @swagger
  * /dcs/api/forms/{form_group_id}/import/template:
  *   get:
- *     summary: "Headers template of the form's fillable fields (a location field gives three columns - latitude, longitude, accuracy - the same the export writes); ?format=csv|xlsx (csv by default), ?language= picks the labels, English by default; form editors only"
+ *     summary: "Headers template of the form's fillable fields (a location field gives three columns - latitude, longitude, accuracy - the same the export writes); ?format=csv|xlsx (csv by default) - the xlsx adds an Options sheet listing each choice field's values (option labels, the country's locations for an API cascading field, 1..N, Yes/No) and a list validation on every single-choice column; ?language= picks the labels, English by default; form editors only"
  *     tags: [Forms]
  *     security:
  *       - BearerAuth: []
