@@ -7,12 +7,12 @@ const user_signing_profile_schema = new mongoose.Schema(
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     signature_image: {
       data: { type: Buffer },
-      mime: { type: String, default: 'image/png' },
+      mime: { type: String, default: 'image/png' }, 
       size: { type: Number },
       sha256: { type: String },
       uploaded_at: { type: Date },
     },
-    // The holder's PKCS#12 as uploaded, still locked by their own password; the password itself is never stored
+    // The holder's PKCS#12 as uploaded, still locked by their own password;
     signing_certificate: {
       pfx: { type: Buffer },
       size: { type: Number },
