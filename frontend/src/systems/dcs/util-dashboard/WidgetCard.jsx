@@ -13,7 +13,8 @@ import { fit_text_font } from "./charts/labelDensity.jsx";
 import TextWidget from "./charts/TextWidget.jsx";
 import { period_of, period_label } from "./builder/widgetBehavior.js";
 import { shown_title } from "./cascade.js";
-import { card_height, useBoardRoom, HEIGHT_SLACK, HEIGHT_RATIOS } from "./boardRows.js";
+import { card_height, open_height_cap, useBoardRoom, HEIGHT_SLACK, HEIGHT_RATIOS } from "./boardRows.js";
+import { useOpenedContent } from "./useOpenedContent.js";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
@@ -243,6 +244,15 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // A chart that FILLS the room it was given says so, because its drawn
   // height then tells nothing about what it needs.
   const has_chart = !!data && !data.error && !data.locked && !loading;
+  // OPENED OUT by "Show more": the card stops filling its room and grows
+  // to what it holds (the row, or the designed box, grows with it); past
+  // the screen's share on the grid the area scrolls. A KPI card keeps the
+  // room it had when it opened, so its number does not chase the growth.
+  const open = useOpenedContent(chart_ref, [translate("DCS_DB_SHOW_LESS"), translate("DCS_DB_OTHER_BACK")], has_chart && !wordless);
+  const open_room_ref = useRef(0);
+  if (!open) open_room_ref.current = 0;
+  else if (!open_room_ref.current) open_room_ref.current = chart_size.height;
+  const open_cap = open && !expanded ? open_height_cap(room) : 0;
   const base_chart_height = derived || chart_density(chart_size.width).height;
   // What a KPI card of this width may draw: its icon, its title, its
   // number and its padding all follow the room it ended up with.
@@ -263,7 +273,11 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // card - so its drawn height says nothing about what it needs: it asks
   // only for the least a KPI card may be, and keeps its designed height.
   const base_need = wordless ? 0 : !has_chart ? state_height : is_kpi ? HEIGHT_RATIOS.kpi.min : base_chart_height + 56;
-  const filled = has_chart && !wordless && (is_kpi || fill_height > base_chart_height);
+  const filled = has_chart && !wordless && !open && (is_kpi || fill_height > base_chart_height);
+  // A KPI card never shows a scrollbar while folded; opened out, it may
+  // scroll once it really cannot grow any further.
+  const area_style = is_kpi ? { overflowX: "hidden", overflowY: open ? "auto" : "hidden" } : { overflowX: "auto", overflowY: "auto" };
+  if (open_cap > 0) area_style.maxHeight = open_cap;
   useEffect(() => {
     if (data && !data.error && !data.locked) drawn_ref.current = true;
   }, [data]);
@@ -357,7 +371,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           what will not fit, which is what used to make "Show more" look
           like it had done nothing. min-h-0 is what lets it scroll instead
           of pushing the card taller than the row. */}
-      <div ref={chart_ref} className={`dcs-widget-area ${is_canvas ? "" : `px-2 ${is_kpi ? "pb-2" : "pb-3"}`} flex-1 min-w-0 min-h-0 max-w-full`} style={is_kpi ? { overflow: "hidden" } : { overflowX: "auto", overflowY: "auto" }} data-base-need={base_need} data-filled={filled ? "1" : "0"}>
+      <div ref={chart_ref} className={`dcs-widget-area ${is_canvas ? "" : `px-2 ${is_kpi ? "pb-2" : "pb-3"}`} flex-1 min-w-0 min-h-0 max-w-full`} style={area_style} data-base-need={base_need} data-filled={filled ? "1" : "0"}>
         {slot ? (
           // A canvas has no data to wait for or fail at: what it holds is
           // handed in and drawn straight away.
@@ -397,7 +411,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             )}
           </div>
         ) : (
-          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_size.width} fillHeight={fill_height} chartHeight={derived} areaHeight={chart_size.height} onPick={pick_records} canHeat={canHeat} canWorld={canMap} onMapMode={onMapMode} onTablePage={onTablePage ? (page, page_size) => onTablePage(widget, page, page_size) : undefined} />
+          <WidgetChart widget={widget} data={data} fitMode={fitMode} animate={animate} cardWidth={chart_size.width} fillHeight={fill_height} chartHeight={derived} areaHeight={chart_size.height} opened={open} heldRoom={open ? open_room_ref.current : 0} onPick={pick_records} canHeat={canHeat} canWorld={canMap} onMapMode={onMapMode} onTablePage={onTablePage ? (page, page_size) => onTablePage(widget, page, page_size) : undefined} />
         )}
       </div>
 

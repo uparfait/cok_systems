@@ -101,6 +101,19 @@ export function card_height(widget, width, room) {
   return Math.round(Math.min(cap, Math.max(rule.min, Number(width) * zoom * rule.ratio)));
 }
 
+/**
+ * How tall a card OPENED with "Show more" may grow on the grid before its
+ * area scrolls instead: the same share of the screen card_height caps at.
+ * Nothing (0) where the room is not known, such as a designed box.
+ */
+export function open_height_cap(room) {
+  if (!room) return 0;
+  const across = Number(room.visual) > 0 ? Number(room.visual) : Infinity;
+  const down = Number(room.height) > 0 ? Number(room.height) : Infinity;
+  const shorter = Math.min(across, down);
+  return Number.isFinite(shorter) ? Math.round(shorter * SCREEN_SHARE) : 0;
+}
+
 export const BoardRoomContext = createContext(null);
 export const useBoardRoom = () => useContext(BoardRoomContext);
 

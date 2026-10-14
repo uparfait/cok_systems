@@ -327,7 +327,7 @@ function DashboardBoard({ form }) {
   // A person keeps several boards open at once and they look identical.
   const board_name = library.active ? library.active.name : "";
   return (
-    <MapScopeProvider fetchShapes={(names, held) => get_map_shapes(form.form_group_id, names, map_scope, held)} scopeKey={map_scope.join("|")}>
+    <MapScopeProvider fetchShapes={(names, held, more) => get_map_shapes(form.form_group_id, names, map_scope.concat(more || []), held)} scopeKey={map_scope.join("|")}>
     <BoardColorsProvider colors={contents.appearance}>
     {/* Which board is open, in the tab. */}
     {board_name ? <Helmet><title>{board_name}</title></Helmet> : null}

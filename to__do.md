@@ -330,4 +330,4 @@ API contract (both agents follow it exactly):
       updated dates first, sticky header, x and y scroll, the data table's pager icons, 20 per page, Load and
       Show history per row; loaded record banner and update flow as today
 - [x] K6 Frontend tables: one row per record (no stage rows), updated_at and history columns kept
-- [ ] K7 Lead: build, suites, review
+- [x] K7 Lead: build, suites, review

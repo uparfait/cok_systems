@@ -52,7 +52,7 @@ const sized_density = (base, height) => {
  * Under every legend sits the count line: how many different values each
  * choice field the widget reads holds under the same filters.
  */
-export default function WidgetChart({ widget, data, fitMode, animate, cardWidth, fillHeight, chartHeight, areaHeight, onPick, canHeat, canWorld, onMapMode, onTablePage }) {
+export default function WidgetChart({ widget, data, fitMode, animate, cardWidth, fillHeight, chartHeight, areaHeight, opened, heldRoom, onPick, canHeat, canWorld, onMapMode, onTablePage }) {
   const { translate } = useDcsLanguage();
   const [show_other, setShowOther] = useState(false);
   const [show_all, setShowAll] = useState(false);
@@ -128,15 +128,18 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
   }
   if (data.kind === "kpi") {
     const legend = data.legend || [];
+    // Opened out, the card takes its own height instead of stretching to
+    // the area, and keeps the room it had when it opened (see WidgetCard).
+    const kpi_room = opened && Number(heldRoom) > 0 ? Number(heldRoom) : Number(areaHeight) > 0 ? Number(areaHeight) : 0;
     return (
-      <div className="flex flex-col justify-center h-full" style={sized ? { minHeight: density.height } : undefined}>
+      <div className={`flex flex-col justify-center ${opened ? "" : "h-full"}`} style={sized ? { minHeight: density.height } : undefined}>
         <KpiCard
           value={data.value}
           legend={legend}
           // The room the card really has: the height its width earns in the
           // grid, or the measured area when its row, its designed box or the
           // screen gives it more (less the area's own padding under it).
-          roomHeight={Math.max(sized ? density.height : 0, Number(areaHeight) > 0 ? Number(areaHeight) - 8 : 0)}
+          roomHeight={Math.max(sized ? density.height : 0, kpi_room > 0 ? kpi_room - 8 : 0)}
           // Only an occurrence card needs a word over its number; a plain
           // total is already named by the card's title.
           totalLabel={data.occurrences ? translate(data.occurrences.has_rule ? "DCS_DB_OCC_VALUES_MATCHING" : "DCS_DB_OCC_VALUES") : ""}
