@@ -58,7 +58,9 @@ export function useBoardContents({ form, scoped_form, active_id, library, dataRe
 
   const commit = (final_widgets, final_filters, final_layout) => {
     setWidgets(final_widgets);
-    if (final_layout) setLayout(final_layout);
+    // undefined leaves the arrangement alone; null puts it back to none
+    // (a failed move restoring a board that never had one).
+    if (final_layout !== undefined) setLayout(final_layout);
     library.set_count(active_id, final_widgets.length);
     if (Array.isArray(final_filters)) {
       setFilters(final_filters);

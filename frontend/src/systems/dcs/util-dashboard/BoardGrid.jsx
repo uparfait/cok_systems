@@ -11,7 +11,7 @@ import { row_class, BoardRoomContext, useBoardRoomSize } from "./boardRows.js";
 import { drill_target, field_label } from "./cascade.js";
 import { useBoardTheme } from "./boardTheme.jsx";
 import { useBoardColors } from "./boardColors.jsx";
-import { board_order } from "./boardOrder.js";
+import { board_order, hidden_by_filters } from "./boardOrder.js";
 
 // A zero-height full-width item, which is how flex-wrap is made to break
 // a line where it is told rather than only where it runs out of room.
@@ -94,15 +94,9 @@ export default function BoardGrid({
   // filters excluded it, and a widget whose own fixed filters contradict
   // the board's would sit there confusing everyone. Nothing is said about
   // the hidden ones - the filter bar already says what is in view.
-  const emptied_by_filters = (widget) => {
-    const entry = dataByWidget[widget.id];
-    if (!entry || entry.error || entry.locked || !Array.isArray(entry.board_context) || entry.board_context.length === 0) return false;
-    // A table says for itself when nothing matched, in its own empty row.
-    if (entry.kind === "table") return false;
-    if (entry.kind === "kpi") return !(Number(entry.value) > 0) && !(Array.isArray(entry.legend) && entry.legend.length > 0);
-    const has = (list) => Array.isArray(list) && list.length > 0;
-    return !has(entry.rows) && !has(entry.points) && !has(entry.nodes) && !has(entry.items);
-  };
+  // The rule lives in boardOrder.js so the position dialog counts the
+  // same cards the board draws.
+  const emptied_by_filters = (widget) => hidden_by_filters(dataByWidget[widget.id]);
   // A widget that names a canvas as its parent is drawn INSIDE that
   // canvas, not on the board, so the board itself only lays out the ones
   // that belong to nobody. Everything else is reached through its canvas.

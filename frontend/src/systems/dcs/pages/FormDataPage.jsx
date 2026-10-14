@@ -28,14 +28,10 @@ import { is_tracking_enabled } from "../tracking/trackingConfig.js";
 
 function build_rows(submissions, data_fields, translate, on_history_click) {
   return (submissions || []).map((submission) => {
-    // One row per STAGE on a tracked form, so the key carries the stage
-    // too - the same record can legitimately be here twice.
     const row = {
-      dcs_row_key: submission.stage_at ? `${submission._id}|${submission.stage_at}` : submission._id,
+      dcs_row_key: submission._id,
       dcs_record_id: submission._id,
     };
-    // Tracked forms only: when the record last changed, and its history.
-    row.stage_at = submission.stage_at ? new Date(submission.stage_at).toLocaleString() : "-";
     row.updated_at = submission.updated_at ? new Date(submission.updated_at).toLocaleString() : "-";
     const change_count = Math.max(0, (submission.history || []).length - 1);
     row.history = on_history_click && change_count > 0 ? <RecordHistoryButton onClick={() => on_history_click(submission)} count={change_count} /> : "-";
@@ -110,8 +106,6 @@ export default function FormDataPage() {
     .concat([{ key: "submitted_by", labelKey: "DCS_TABLE_SUBMITTED_BY" }, { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" }]));
 
   const tracking = is_tracking_enabled(version_doc.tracking) ? version_doc.tracking : null;
-  // The moment each row is about, offered only once the rows are stages.
-  if (tracking) columns.push({ key: "stage_at", labelKey: "DCS_TRACKING_TABLE_STAGE_AT" });
   columns.push({ key: "updated_at", labelKey: "DCS_TRACKING_TABLE_UPDATED_AT" }, { key: "history", labelKey: "DCS_TRACKING_TABLE_HISTORY", minWidthPx: 96 });
   const rows = build_rows(table.submissions, data_fields, translate, setHistoryRecord);
 
@@ -157,7 +151,7 @@ export default function FormDataPage() {
       )}
 
       {history_record && (
-        <RecordHistorySlidesOverlay record={history_record} fields={version_doc.schema.fields} tracking={tracking} onClose={() => setHistoryRecord(null)} />
+        <RecordHistorySlidesOverlay record={history_record} fields={version_doc.schema.fields} onClose={() => setHistoryRecord(null)} />
       )}
     </div>
   );

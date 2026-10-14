@@ -18,6 +18,24 @@ export function MapScopeProvider({ fetchShapes, scopeKey, children }) {
 }
 
 /**
+ * The board's scope narrowed to more places for whatever is drawn inside:
+ * a map drilled into one district asks for that district's sectors, not
+ * the whole city's. The extra names ride to the page's fetcher as its
+ * third argument (names, held, more), and a name that is not a place is
+ * dropped by the server rather than emptying the map.
+ */
+export function MapScopeNarrow({ names, children }) {
+  const outer = useContext(MapScopeContext);
+  const extra = (names || []).map((name) => String(name || "").trim()).filter(Boolean);
+  if (!outer.fetch_shapes || extra.length === 0) return children;
+  const value = {
+    fetch_shapes: (asked, held, more) => outer.fetch_shapes(asked, held, extra.concat(more || [])),
+    scope_key: `${outer.scope_key}|${extra.join("|")}`,
+  };
+  return <MapScopeContext.Provider value={value}>{children}</MapScopeContext.Provider>;
+}
+
+/**
  * The places a board is filtered to, as plain names. Whatever else the
  * filters hold (a status, a date) is sent along too and dropped by the
  * server, which knows which of them name a place.

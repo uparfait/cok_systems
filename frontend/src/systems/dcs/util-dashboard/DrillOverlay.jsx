@@ -5,7 +5,8 @@ import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 import WidgetCard from "./WidgetCard.jsx";
 import { useBoardTheme } from "./boardTheme.jsx";
 import { useNarrowViewport } from "./useNarrowViewport.js";
-import { drill_target, derive_child_widget, field_label } from "./cascade.js";
+import { drill_target, derive_child_widget, field_label, stacked_values } from "./cascade.js";
+import { MapScopeNarrow } from "./mapScope.jsx";
 import { portal_root } from "./portalRoot.js";
 import { useBoardColors, portal_tint } from "./boardColors.jsx";
 
@@ -78,18 +79,20 @@ export default function DrillOverlay({ stack, fields, onDrill, onOpenRecords, on
               }
             />
             <div className="dcs-drill-body">
-              <WidgetCard
-                widget={level.widget}
-                data={level.data}
-                loading={level.loading}
-                editable={false}
-                expanded
-                fields={fields}
-                onOpenRecords={onOpenRecords ? (pick) => onOpenRecords(level.widget, pick) : undefined}
-                onDrill={target ? () => onDrill(level.widget) : undefined}
-                drillChild={target ? field_label(target.child) : null}
-                onRetry={level.retry}
-              />
+              <MapScopeNarrow names={stacked_values(level.widget).map((entry) => entry.value)}>
+                <WidgetCard
+                  widget={level.widget}
+                  data={level.data}
+                  loading={level.loading}
+                  editable={false}
+                  expanded
+                  fields={fields}
+                  onOpenRecords={onOpenRecords ? (pick) => onOpenRecords(level.widget, pick) : undefined}
+                  onDrill={target ? () => onDrill(level.widget) : undefined}
+                  drillChild={target ? field_label(target.child) : null}
+                  onRetry={level.retry}
+                />
+              </MapScopeNarrow>
             </div>
           </div>
         );
@@ -116,10 +119,10 @@ export function useDrillStack({ fields, fetchBatch, onOpenRecords }) {
       })
       .catch(() => setStack((current) => current.map((entry) => (entry.widget.id === derived.id ? Object.assign({}, entry, { loading: false, data: { widget_id: derived.id, error: "FAILED" } }) : entry))));
   };
-  const open = (widget) => {
+  const open = (widget, value) => {
     const target = drill_target(widget, fields);
     if (!target) return;
-    const derived = derive_child_widget(widget, target);
+    const derived = derive_child_widget(widget, target, value);
     setStack((current) => (current.some((entry) => entry.widget.id === derived.id) ? current : current.concat([{ widget: derived, child: target.child, data: null, loading: true, retry: () => fetch_level(derived) }])));
     fetch_level(derived);
   };

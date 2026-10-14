@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { search_public_records } from "./trackingService.js";
-import { field_name, format_value, format_when } from "./trackingConfig.js";
+import { field_name, format_when, key_fields_of } from "./trackingConfig.js";
 import { RecordDates, RecordFieldsList } from "./RecordHistory.jsx";
 import { RecordHistorySlidesOverlay } from "./RecordHistorySlides.jsx";
-import { InputSearchIcon } from "./RecordFieldWrap.jsx";
+import RecordResultsTable from "./RecordResultsTable.jsx";
+import RecordLookupPager from "./RecordLookupPager.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
@@ -16,77 +16,44 @@ const MUTED = "#9E9E9E";
 const TEXT = "#333333";
 const BORDER = "#E0E0E0";
 const FONT = "'Montserrat', sans-serif";
-const PREVIEW_FIELDS = 3;
+const PAGE_SIZE = 20;
 
-/** One found record: its dates as the title, a few answers, its history as slides, and Load. */
-function RecordCard({ record, fields, tracking, isLoaded, onLoad, onHistory }) {
+export default function RecordLookupOverlay({ formGroupId, fields, tracking, initialField, initialKey, loadedRecord, onLoad, onClose }) {
   const { translate, language } = useDcsLanguage();
-  const preview = flatten_fields(fields)
-    .filter((field) => field.id !== tracking.key_field_id && record.data && record.data[field.id] !== undefined && record.data[field.id] !== null && record.data[field.id] !== "")
-    .slice(0, PREVIEW_FIELDS);
-  const change_count = Math.max(0, (record.history || []).length - 1);
-
-  return (
-    <div className="border p-3" style={{ borderColor: isLoaded ? PRIMARY : BORDER, backgroundColor: isLoaded ? "rgba(5,109,170,0.05)" : "#FFFFFF" }}>
-      <p className="text-sm font-bold" style={{ color: TEXT, fontFamily: FONT }}>{format_when(record.submitted_at)}</p>
-      <RecordDates record={record} />
-      {preview.length > 0 && (
-        <div className="mt-2 space-y-0.5">
-          {preview.map((field) => (
-            <p key={field.id} className="text-xs truncate" style={{ color: TEXT }}>
-              <span style={{ color: MUTED }}>{field_name(field, language)}: </span>
-              {format_value(record.data[field.id])}
-            </p>
-          ))}
-        </div>
-      )}
-      <div className="flex flex-col min-[480px]:flex-row gap-2 mt-3">
-        <DcsButtonOutline className="flex-1" onClick={() => onHistory(record)}>
-          {translate("DCS_TRACKING_SHOW_HISTORY")}
-          {change_count > 0 ? ` (${change_count})` : ""}
-        </DcsButtonOutline>
-        <DcsButtonPrimary className="flex-1" onClick={() => onLoad(record)} disabled={isLoaded}>
-          {translate(isLoaded ? "DCS_TRACKING_LOADED" : "DCS_TRACKING_LOAD")}
-        </DcsButtonPrimary>
-      </div>
-    </div>
-  );
-}
-
-/**
- * The record finder of a tracked form: type the key value, search, and
- * every record holding it is listed newest first - each titled by the
- * date it was recorded, with a few of its answers, its history as slides
- * of the form (full screen) and a Load action that fills the form with
- * it. When a record is already loaded it opens first, with its own
- * history and the search underneath to pick another.
- *
- * Full screen on a phone, a centered card from 750px up.
- */
-export default function RecordLookupOverlay({ formGroupId, fields, tracking, initialKey, loadedRecord, onLoad, onClose }) {
-  const { translate, language } = useDcsLanguage();
+  const key_fields = key_fields_of(tracking, fields);
+  const first_id = key_fields.length > 0 ? key_fields[0].id : "";
+  const [field_id, setFieldId] = useState(initialField && key_fields.some((field) => field.id === initialField) ? initialField : first_id);
   const [key, setKey] = useState(initialKey || "");
   const [results, setResults] = useState(null);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [slides_record, setSlidesRecord] = useState(null);
   const input_ref = useRef(null);
-  const holder_ref = useRef(null);
-  const key_field = flatten_fields(fields).find((field) => field.id === tracking.key_field_id);
-  // Respondents know the key by the field's own name ("National ID"), never as "the key".
-  const key_name = field_name(key_field, language) || translate("DCS_TRACKING_KEY_LABEL");
+  const searched_field = key_fields.find((field) => field.id === field_id) || null;
+  const searched_name = field_name(searched_field, language) || translate("DCS_TRACKING_KEY_LABEL");
 
-  const run_search = async (value) => {
-    const wanted = String(value === undefined ? key : value).trim();
+  const run_search = async (options) => {
+    const wanted = String(options && options.key !== undefined ? options.key : key).trim();
+    const wanted_field = options && options.field !== undefined ? options.field : field_id;
+    const page = (options && options.page) || 1;
     if (!wanted) {
-      setError(translate("DCS_TRACKING_KEY_REQUIRED", { field: key_name }));
+      setError(translate("DCS_TRACKING_KEY_REQUIRED", { field: searched_name }));
       return;
     }
     setSearching(true);
     setError("");
     try {
-      const response = await search_public_records(formGroupId, wanted);
-      setResults((response.data && response.data.records) || []);
+      const response = await search_public_records(formGroupId, { field: wanted_field, key: wanted, page, limit: PAGE_SIZE });
+      const data = response.data || {};
+      const records = data.records || [];
+      setResults({
+        records,
+        page: data.page || page,
+        pages: data.pages || 1,
+        total: data.total !== undefined ? data.total : records.length,
+        field_id: wanted_field,
+        key: wanted,
+      });
     } catch (search_error) {
       setResults(null);
       setError(search_error.message || translate("DCS_ERROR_GENERIC"));
@@ -96,9 +63,8 @@ export default function RecordLookupOverlay({ formGroupId, fields, tracking, ini
   };
 
   useEffect(() => {
-    if (initialKey && String(initialKey).trim()) run_search(initialKey);
+    if (initialKey && String(initialKey).trim()) run_search({ key: initialKey });
     else if (input_ref.current) input_ref.current.focus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const load_and_close = (record) => {
@@ -106,14 +72,47 @@ export default function RecordLookupOverlay({ formGroupId, fields, tracking, ini
     onClose();
   };
 
+  const results_field = results ? key_fields.find((field) => field.id === results.field_id) : null;
+  const results_name = results_field ? field_name(results_field, language) : searched_name;
   const slides_is_loaded = !!slides_record && !!loadedRecord && loadedRecord._id === slides_record._id;
 
   return createPortal(
     <>
       <div className="dcs-tracking-overlay dcs-no-print" role="dialog" aria-modal="true" aria-busy={searching}>
         <div className="absolute inset-0 bg-black/45" onClick={searching ? undefined : onClose} />
-        <div className="dcs-tracking-panel">
+        <div className="dcs-tracking-panel is-lookup">
           <DcsOverlayHeader title={translate("DCS_TRACKING_LOOKUP_TITLE")} onClose={onClose} busy={searching} />
+
+          <div className="flex-shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 space-y-2">
+            <div className="flex flex-col min-[560px]:flex-row min-[560px]:items-center gap-2">
+              <label className="cok-auth-label mb-0 flex-shrink-0">{translate("DCS_TRACKING_SEARCH_IN")}</label>
+              {key_fields.length > 1 ? (
+                <select className="cok-auth-input py-2 min-[560px]:w-56" value={field_id} onChange={(event) => setFieldId(event.target.value)} disabled={searching}>
+                  {key_fields.map((field) => (
+                    <option key={field.id} value={field.id}>{field_name(field, language)}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-sm font-semibold" style={{ color: PRIMARY, fontFamily: FONT }}>{searched_name}</span>
+              )}
+              <input
+                ref={input_ref}
+                type="text"
+                className="cok-auth-input py-2 flex-1 min-w-0"
+                placeholder={translate("DCS_TRACKING_KEY_PLACEHOLDER", { field: searched_name })}
+                value={key}
+                onChange={(event) => setKey(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") run_search();
+                }}
+                disabled={searching}
+              />
+              <DcsButtonPrimary onClick={() => run_search()} disabled={searching}>
+                {translate("DCS_FIELD_SEARCH_BTN")}
+              </DcsButtonPrimary>
+            </div>
+            {error && <p className="text-xs" style={{ color: "#E74C3C" }}>{error}</p>}
+          </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-4 space-y-4">
             {loadedRecord && (
@@ -131,48 +130,39 @@ export default function RecordLookupOverlay({ formGroupId, fields, tracking, ini
               </div>
             )}
 
-            <div>
-              <label className="cok-auth-label">{key_name}</label>
-              <div ref={holder_ref} className="dcs-key-field">
-                <input
-                  ref={input_ref}
-                  type="text"
-                  className="cok-auth-input w-full py-3"
-                  placeholder={translate("DCS_TRACKING_KEY_PLACEHOLDER", { field: key_name })}
-                  value={key}
-                  onChange={(event) => setKey(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") run_search();
-                  }}
-                />
-                <InputSearchIcon holderRef={holder_ref} onClick={() => run_search()} disabled={searching} busy={searching} fieldName={key_name} />
+            {searching && (
+              <div className="flex justify-center py-6" style={{ color: PRIMARY }}>
+                <span className="dcs-inline-spinner" style={{ width: 22, height: 22 }} />
               </div>
-              {error && <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>{error}</p>}
-            </div>
+            )}
 
-            {results && results.length === 0 && (
+            {!searching && results && results.records.length === 0 && (
               <div className="border p-3" style={{ borderColor: BORDER, backgroundColor: "#F7F9FB" }}>
-                <p className="text-sm" style={{ color: TEXT, fontFamily: FONT }}>{translate("DCS_TRACKING_NO_RECORDS", { field: key_name })}</p>
+                <p className="text-sm" style={{ color: TEXT, fontFamily: FONT }}>{translate("DCS_TRACKING_NO_RECORDS", { field: results_name })}</p>
                 <p className="text-xs mt-1" style={{ color: MUTED }}>{translate("DCS_TRACKING_NO_RECORDS_HINT")}</p>
               </div>
             )}
 
-            {results && results.length > 0 && (
+            {!searching && results && results.records.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold" style={{ color: MUTED, fontFamily: FONT }}>
-                  {translate("DCS_TRACKING_RESULTS_COUNT", { count: results.length })}
+                  {translate("DCS_TRACKING_RESULTS_FOR", { count: results.total, field: results_name, key: results.key })}
                 </p>
-                {results.map((record) => (
-                  <RecordCard
-                    key={record._id}
-                    record={record}
-                    fields={fields}
-                    tracking={tracking}
-                    isLoaded={!!loadedRecord && loadedRecord._id === record._id}
-                    onLoad={load_and_close}
-                    onHistory={setSlidesRecord}
-                  />
-                ))}
+                <RecordResultsTable
+                  records={results.records}
+                  fields={fields}
+                  searchedFieldId={results.field_id}
+                  loadedRecord={loadedRecord}
+                  onLoad={load_and_close}
+                  onHistory={setSlidesRecord}
+                />
+                <RecordLookupPager
+                  page={results.page}
+                  pages={results.pages}
+                  total={results.total}
+                  disabled={searching}
+                  onPageChange={(next_page) => run_search({ page: next_page, key: results.key, field: results.field_id })}
+                />
               </div>
             )}
           </div>

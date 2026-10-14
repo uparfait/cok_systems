@@ -19,7 +19,8 @@ const {
 } = require("./models/submissions_model.js");
 
 const {
-    ensure_tracked_record_indexes
+    ensure_tracked_record_indexes,
+    backfill_record_key_pairs
 } = require("./models/tracked_records_model.js");
 
 const { run_auth_check } = require("./utilities/auth_check.js");
@@ -549,6 +550,10 @@ connect_databases()
         await step("Submission indexes", ensure_submission_indexes);
 
         await step("Tracked record indexes", ensure_tracked_record_indexes);
+
+        // Records collected before the key index carry record_key alone;
+        // their searchable pairs are derived from it once, here.
+        await step("Tracked record key pairs", backfill_record_key_pairs);
 
         await step("Location indexes", ensure_location_indexes);
 

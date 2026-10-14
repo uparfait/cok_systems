@@ -6,9 +6,9 @@ import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_public_form, get_public_form_field_options } from "../services/formsService.js";
 import { useLazyFieldResolvers } from "../hooks/useLazyFieldResolvers.js";
 import { usePublicSubmit } from "../hooks/usePublicSubmit.js";
+import { usePublicFormDraft } from "../hooks/usePublicFormDraft.js";
 import { cache_form, get_cached_form } from "../offline/formCache.js";
 import { process_queue_once, list_queue, start_auto_sync } from "../offline/submissionQueue.js";
-import { save_form_draft, get_form_draft, clear_form_draft, has_meaningful_answers, strip_geolocation_values } from "../offline/draftStore.js";
 import { probe_storage } from "../offline/offlineStorage.js";
 import { read_respondent } from "../offline/respondentStore.js";
 import { warm_offline_cache } from "../offline/warmCache.js";
@@ -32,10 +32,11 @@ import PublicApprovalNotices from "../components/PublicApprovalNotices.jsx";
 import PublicSuccessScreen from "../components/PublicSuccessScreen.jsx";
 import PublicFormCardHeader from "../components/PublicFormCardHeader.jsx";
 import { useRecordTracking } from "../tracking/useRecordTracking.jsx";
+import { useFollowUpMode } from "../tracking/useFollowUpMode.js";
 import { is_tracking_enabled, with_key_on_top } from "../tracking/trackingConfig.js";
 import { RecordFloatingButton } from "../tracking/RecordFieldWrap.jsx";
+import { FollowUpModeToggle, KeyExistsNotice } from "../tracking/FollowUpModeBar.jsx";
 import RecordLookupOverlay from "../tracking/RecordLookupOverlay.jsx";
-
 
 function extract_form_group_id(raw_id) {
   return raw_id.split("__v")[0];
@@ -58,8 +59,6 @@ function PublicFormPageContent() {
   const [reveal_all_errors, setRevealAllErrors] = useState(false);
   const [render_reset_key, setRenderResetKey] = useState(0);
   const [queue_records, setQueueRecords] = useState([]);
-  const [draft, setDraft] = useState(null);
-  const [resume_prompt_visible, setResumePromptVisible] = useState(false);
   const [is_syncing, setIsSyncing] = useState(false);
   const [sync_kind, setSyncKind] = useState(null);
   const [file_upload_percent, setFileUploadPercent] = useState(null);
@@ -68,24 +67,14 @@ function PublicFormPageContent() {
   const [approval_notices, setApprovalNotices] = useState([]);
   const [queued_notice_visible, setQueuedNoticeVisible] = useState(false);
   const [storage_backend_name, setStorageBackendName] = useState(null);
-  const [pending_draft_check, setPendingDraftCheck] = useState(null);
+  const [key_exists_notice, setKeyExistsNotice] = useState(null);
   const [respondent, setRespondent] = useState(null);
   const [saved_respondent] = useState(() => read_respondent());
   const reviewing_queue_id_ref = useRef(null);
 
   useEffect(() => {
     if (form) apply_form_manifest({ name: form.form_name || translate("DCS_PUBLIC_FORM_TITLE_FALLBACK"), language });
-  }, [form]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!form || !pending_draft_check) return;
-    setPendingDraftCheck(null);
-    if (!is_tracking_enabled(form.tracking) && has_meaningful_answers(pending_draft_check.data, form.schema)) {
-      setResumePromptVisible(true);
-    } else {
-      clear_form_draft(form_group_id).then(() => refresh_draft());
-    }
-  }, [form, pending_draft_check]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [form]);
 
   useEffect(() => {
     const prevent_default = (event) => event.preventDefault();
@@ -106,17 +95,6 @@ function PublicFormPageContent() {
     }
   }, [form_group_id]);
 
-  const refresh_draft = useCallback(async () => {
-    try {
-      const stored_draft = await get_form_draft(form_group_id);
-      setDraft(stored_draft);
-      return stored_draft;
-    } catch (draft_error) {
-      console.error(draft_error);
-      return null;
-    }
-  }, [form_group_id]);
-
   useEffect(() => {
     let is_mounted = true;
 
@@ -131,7 +109,7 @@ function PublicFormPageContent() {
           setForm(with_key_on_top(response.data));
           await cache_form(form_group_id, response.data);
           setLoadState("ready");
-          if (!is_tracking_enabled(response.data.tracking)) warm_offline_cache(form_group_id, response.data);
+          warm_offline_cache(form_group_id, response.data);
           return;
         } catch (error) {
           last_error = error;
@@ -143,11 +121,6 @@ function PublicFormPageContent() {
       if (!is_mounted) return;
       if (last_error && last_error.is_network_error) {
         const cached_form = await get_cached_form(form_group_id);
-        // A tracked form is never filled in offline: its records live on the server.
-        if (cached_form && is_mounted && is_tracking_enabled(cached_form.tracking)) {
-          setLoadState("needs_connection");
-          return;
-        }
         if (cached_form && is_mounted) {
           setForm(with_key_on_top(cached_form));
           setLoadState("ready");
@@ -162,9 +135,6 @@ function PublicFormPageContent() {
     });
     load_form();
     refresh_queue();
-    refresh_draft().then((stored_draft) => {
-      if (stored_draft && is_mounted) setPendingDraftCheck(stored_draft);
-    });
 
     const handle_online_change = () => setIsOnline(window.navigator.onLine);
     window.addEventListener("online", handle_online_change);
@@ -201,49 +171,34 @@ function PublicFormPageContent() {
       window.clearInterval(online_poll_interval);
       stop_auto_sync();
     };
-  }, [form_group_id, refresh_queue, refresh_draft]);
+  }, [form_group_id, refresh_queue]);
 
-  // A loaded tracked record is edited in place, never saved as a draft.
-  const put_record_values = useCallback((data) => {
-    setValues(form ? compute_derived_values(form.schema, data || {}) : {});
-    setFieldErrors({});
-    setFieldValidMessages({});
-    setRevealAllErrors(false);
-    setSubmitState("idle");
-  }, [form]);
+  const put_record_values = useCallback(
+    (data) => {
+      setValues(form ? compute_derived_values(form.schema, data || {}) : {});
+      setFieldErrors({});
+      setFieldValidMessages({});
+      setRevealAllErrors(false);
+      setSubmitState("idle");
+      setKeyExistsNotice(null);
+    },
+    [form],
+  );
   const clear_record_values = useCallback(() => {
     put_record_values({});
     setRenderResetKey((previous_key) => previous_key + 1);
   }, [put_record_values]);
-  const tracking = useRecordTracking({ form, values, applyValues: put_record_values, clearValues: clear_record_values });
+  const swap_mode_values = useCallback(
+    (data) => {
+      put_record_values(data);
+      setRenderResetKey((previous_key) => previous_key + 1);
+    },
+    [put_record_values],
+  );
 
-  // A tracked form keeps no draft on the device at all: its record has to
-  // be created or updated on the server, in one go, while connected.
-  useEffect(() => {
-    if (!form || tracking.enabled || reviewing_queue_id_ref.current || !has_meaningful_answers(values, form.schema)) return;
-    save_form_draft(form_group_id, form.version, values).then(() => refresh_draft());
-  }, [values]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handle_value_change = (field_id, next_value) => {
-    setSubmitState("idle");
-    setValues((previous_values) => {
-      const merged_values = Object.assign({}, previous_values, { [field_id]: next_value });
-      const resolved_values = compute_derived_values(form.schema, merged_values);
-      const validation_result = validate_submission_client_side(form.schema, resolved_values, language, translate);
-      setFieldErrors(validation_result.field_errors);
-      setFieldValidMessages(validation_result.field_valid_messages);
-      return validation_result.resolved_data;
-    });
-  };
-
-  const handle_save_draft_click = async () => {
-    if (reviewing_queue_id_ref.current) return;
-    const derived_values = compute_derived_values(form.schema, values);
-    const validation_result = validate_submission_client_side(form.schema, derived_values, language, translate);
-    await save_form_draft(form_group_id, form.version, validation_result.resolved_data);
-    await refresh_draft();
-    showSuccess(translate("DCS_TOAST_DRAFT_SAVED"));
-  };
+  const tracked = !!form && is_tracking_enabled(form.tracking);
+  const follow_up = useFollowUpMode({ form, form_group_id, tracked, values, applyValues: swap_mode_values });
+  const tracking = useRecordTracking({ form, values, applyValues: put_record_values, clearValues: clear_record_values, active: follow_up.enabled });
 
   const load_values_for_review = (data) => {
     const resolved_values = compute_derived_values(form.schema, data || {});
@@ -255,16 +210,31 @@ function PublicFormPageContent() {
     setSubmitState("idle");
   };
 
-  const handle_resume_draft = () => {
-    reviewing_queue_id_ref.current = null;
-    load_values_for_review(strip_geolocation_values(draft.data));
-    setResumePromptVisible(false);
-  };
+  const drafts = usePublicFormDraft({
+    form,
+    form_group_id,
+    values,
+    draft_mode: follow_up.draft_mode,
+    ready: follow_up.resolved,
+    reviewing_queue_id_ref,
+    loaded_record: tracking.loaded_record,
+    language,
+    translate,
+    load_values_for_review,
+    showSuccess,
+  });
 
-  const handle_discard_draft = async () => {
-    await clear_form_draft(form_group_id);
-    await refresh_draft();
-    setResumePromptVisible(false);
+  const handle_value_change = (field_id, next_value) => {
+    setSubmitState("idle");
+    setKeyExistsNotice(null);
+    setValues((previous_values) => {
+      const merged_values = Object.assign({}, previous_values, { [field_id]: next_value });
+      const resolved_values = compute_derived_values(form.schema, merged_values);
+      const validation_result = validate_submission_client_side(form.schema, resolved_values, language, translate);
+      setFieldErrors(validation_result.field_errors);
+      setFieldValidMessages(validation_result.field_valid_messages);
+      return validation_result.resolved_data;
+    });
   };
 
   const handle_select_record = (record) => {
@@ -306,6 +276,14 @@ function PublicFormPageContent() {
     await export_ready_records(form, ready_records, language);
   };
 
+  const open_follow_up_from_notice = () => {
+    const notice = key_exists_notice;
+    setKeyExistsNotice(null);
+    if (!notice) return;
+    follow_up.set_mode(true);
+    tracking.open_lookup(notice.field_id, notice.value);
+  };
+
   const { handle_submit } = usePublicSubmit({
     form,
     form_group_id,
@@ -315,7 +293,8 @@ function PublicFormPageContent() {
     respondent,
     reviewing_queue_id_ref,
     refresh_queue,
-    refresh_draft,
+    refresh_draft: drafts.refresh_draft,
+    draft_mode: follow_up.draft_mode,
     showSuccess,
     showError,
     showWarning,
@@ -333,16 +312,15 @@ function PublicFormPageContent() {
       file_upload_percent: setFileUploadPercent,
       approval_notices: setApprovalNotices,
       queued_notice_visible: setQueuedNoticeVisible,
+      key_exists_notice: setKeyExistsNotice,
     },
   });
 
   if (load_state === "loading") return <DcsFormLoadingSpinner />;
   if (load_state === "not_found") return <DcsEmptyState messageKey="DCS_PUBLIC_NOT_FOUND" />;
-  if (load_state === "needs_connection") return <DcsEmptyState messageKey="DCS_TRACKING_FORM_NEEDS_CONNECTION" />;
   if (load_state === "no_active_version") return <DcsEmptyState messageKey="DCS_PUBLIC_NO_ACTIVE_VERSION" />;
 
   const progress_percent = compute_form_progress_percent(form.schema.fields, values);
-  // The who-is-filling-in card only when the form asks for it and nobody answered it yet.
   const gate_needed = form.ask_respondent === true && !respondent;
   const is_success_screen = submit_state === "success_submitted" || submit_state === "success_offline" || submit_state === "success_updated";
   const queued_message = translate("DCS_PUBLIC_QUEUED_MESSAGE") + (storage_backend_name === "memory" ? "\n\n" + translate("DCS_STORAGE_MEMORY_ONLY") : "");
@@ -381,14 +359,18 @@ function PublicFormPageContent() {
               state={submit_state}
               queuedMessage={queued_message}
               onAnother={() => {
-                // Back from an update starts a fresh, empty new record: the
-                // loaded record and its history are let go.
                 if (submit_state === "success_updated") tracking.clear_record();
                 setSubmitState("idle");
               }}
             />
           ) : (
             <>
+              {tracked && (
+                <div className="flex justify-start">
+                  <FollowUpModeToggle enabled={follow_up.enabled} onChange={follow_up.set_mode} disabled={submitting || !follow_up.resolved} />
+                </div>
+              )}
+
               <div style={submitting ? { pointerEvents: "none", opacity: 0.6 } : undefined}>
                 <MediaUploadProvider formGroupId={form_group_id} version={form.version} isOnline={is_online}>
                   <RendererEngine
@@ -402,6 +384,7 @@ function PublicFormPageContent() {
                     revealAllErrors={reveal_all_errors}
                     resolveFieldOptions={resolveFieldOptions}
                     wrapField={tracking.wrap_field}
+                    searchable={tracking.searchable}
                   />
                 </MediaUploadProvider>
               </div>
@@ -417,13 +400,15 @@ function PublicFormPageContent() {
                     <DcsButtonOutline onClick={tracking.clear_record} disabled={submitting}>
                       {translate("DCS_TRACKING_CANCEL_UPDATE")}
                     </DcsButtonOutline>
-                  ) : tracking.enabled ? null : (
-                    <DcsButtonOutline onClick={handle_save_draft_click} disabled={submitting}>
+                  ) : (
+                    <DcsButtonOutline onClick={drafts.handle_save_draft_click} disabled={submitting || !follow_up.resolved}>
                       {translate("DCS_BTN_SAVE_DRAFT")}
                     </DcsButtonOutline>
                   )
                 }
               />
+
+              <KeyExistsNotice notice={key_exists_notice} onOpen={open_follow_up_from_notice} />
             </>
           )}
         </div>
@@ -432,11 +417,12 @@ function PublicFormPageContent() {
           <RecordFloatingButton onClick={() => tracking.open_lookup()} count={tracking.history_count} disabled={submitting} />
         )}
 
-        {tracking.lookup && (
+        {tracking.enabled && tracking.lookup && (
           <RecordLookupOverlay
             formGroupId={form_group_id}
             fields={form.schema.fields}
             tracking={tracking.tracking}
+            initialField={tracking.lookup.field_id}
             initialKey={tracking.lookup.initial_key}
             loadedRecord={tracking.loaded_record}
             onLoad={tracking.load_record}
@@ -447,7 +433,7 @@ function PublicFormPageContent() {
         {is_queue_open && (
           <DcsQueuePanel
             records={queue_records}
-            draft={draft}
+            draft={drafts.draft}
             isOnline={is_online}
             isSyncing={is_syncing}
             storageBackend={storage_backend_name}
@@ -457,10 +443,10 @@ function PublicFormPageContent() {
             onClose={() => setIsQueueOpen(false)}
             onSelectRecord={handle_select_record}
             onContinueDraft={() => {
-              handle_resume_draft();
+              drafts.handle_resume_draft();
               setIsQueueOpen(false);
             }}
-            onDeleteDraft={handle_discard_draft}
+            onDeleteDraft={drafts.handle_discard_draft}
             onUpload={handle_force_upload}
             onExportReady={handle_export_ready}
           />
@@ -468,8 +454,8 @@ function PublicFormPageContent() {
 
         {gate_needed && <DcsRespondentGate saved={saved_respondent} onConfirm={setRespondent} />}
 
-        {!gate_needed && resume_prompt_visible && draft && (
-          <ResumeDraftDialog draft={draft} submitting={submitting} onResume={handle_resume_draft} onDiscard={handle_discard_draft} />
+        {!gate_needed && drafts.resume_prompt_visible && drafts.draft && (
+          <ResumeDraftDialog draft={drafts.draft} submitting={submitting} onResume={drafts.handle_resume_draft} onDiscard={drafts.handle_discard_draft} />
         )}
 
         {queued_notice_visible && (

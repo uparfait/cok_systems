@@ -2,12 +2,12 @@ const ExcelJS = require("exceljs");
 const { translate } = require("../i18n/index.js");
 
 /**
- * The Excel file of a widget's records: a title line naming the widget,
- * the criteria the rows match (one line each), then the same columns as
- * the records table - Submitted at first, every answerable field after -
- * and a total line. Built whole in memory and handed back as a buffer so
- * the response carries its length and the browser can show real download
- * progress.
+ * The Excel file of a widget's records: the header row first (Submitted
+ * at, then every answerable field, the same columns as the records table)
+ * and one row per record, nothing else - no title, criteria or total
+ * lines, so the sheet opens as plain data. Built whole in memory and handed
+ * back as a buffer so the response carries its length and the browser can
+ * show real download progress. The widget title only names the file.
  */
 
 const PRIMARY_ARGB = "FF056DAA";
@@ -19,11 +19,6 @@ function sanitize_filename(name) {
       .trim()
       .replace(/\s+/g, "_") || "records"
   );
-}
-
-function day_text(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
 }
 
 function cell_text(value) {
@@ -43,16 +38,6 @@ async function build_records_workbook({ title, items, columns, criteria, period,
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Records");
 
-  const title_row = sheet.addRow([title || "Records"]);
-  title_row.font = { bold: true, size: 14, color: { argb: PRIMARY_ARGB } };
-  if (period) {
-    sheet.addRow([`${translate("TABLE_DATA_IN_RANGE", lang)}: ${day_text(period.start)} - ${day_text(period.end)}`]).font = { italic: true, color: { argb: "FF555555" } };
-  }
-  (criteria || []).forEach((entry) => {
-    sheet.addRow([`${entry.is_time ? translate("TABLE_SUBMITTED_AT", lang) : entry.field_label}: ${cell_text(entry.value)}`]).font = { color: { argb: "FF555555" } };
-  });
-  sheet.addRow([]);
-
   const header_keys = ["submitted_at"].concat(columns.map((column) => column.id));
   const header_labels = [translate("TABLE_SUBMITTED_AT", lang)].concat(columns.map((column) => column.label || column.id));
   const header_row = sheet.addRow(header_labels);
@@ -71,10 +56,6 @@ async function build_records_workbook({ title, items, columns, criteria, period,
     });
     sheet.addRow(row);
   });
-
-  sheet.addRow([]);
-  const total_row = sheet.addRow([`${translate("TABLE_TOTAL", lang)}: ${items.length}`]);
-  total_row.font = { bold: true, size: 10, color: { argb: PRIMARY_ARGB } };
 
   const buffer = await workbook.xlsx.writeBuffer();
   return { buffer: Buffer.from(buffer), filename: `${sanitize_filename(title)}.xlsx` };

@@ -4251,48 +4251,116 @@ background-color: #056daa;
   border-color: #056daa;
 }
 
-/* The key field with its search icon INSIDE the input, at the right end
-   (InputSearchIcon.jsx measures the input and centers on it). The record
-   finder reuses the same wrapper for its own search box. */
+/* A key field whose control is not a text input (a dropdown, a radio
+   list): the search icon sits INSIDE the control at its left, the same
+   look as the search icon of a text input (FieldSearchButton), and
+   RecordFieldWrap.jsx centers it on the control's own height. */
 .dcs-key-field {
   position: relative;
   width: 100%;
 }
 
 .dcs-key-field input:not([type="checkbox"]):not([type="radio"]),
-.dcs-key-field select {
-  padding-right: 48px;
+.dcs-key-field select,
+.dcs-key-field .dcs-choice-row {
+  padding-left: 48px;
 }
 
 .dcs-key-search-icon {
   position: absolute;
-  right: 8px;
+  left: 8px;
   transform: translateY(-50%);
   z-index: 2;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  border: 1px solid transparent;
-  background-color: transparent;
+  border: none;
+  background: none;
   color: #056daa;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-
-.dcs-key-search-icon:hover:not(:disabled),
-.dcs-key-search-icon:focus-visible {
-  background-color: #056daa;
-  color: #FFFFFF;
-  border-color: #056daa;
-  transform: translateY(-50%) scale(1.06);
 }
 
 .dcs-key-search-icon:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The order number of a key field in the tracking setup. */
+.dcs-tracking-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: #056daa;
+  color: #FFFFFF;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dcs-tracking-row.is-disabled {
+  opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* The record finder: full screen under 640px, a 90% by 90% card above. */
+@media (min-width: 640px) {
+  .dcs-tracking-overlay:has(> .dcs-tracking-panel.is-lookup) {
+    align-items: center;
+  }
+
+  .dcs-tracking-panel.is-lookup {
+    width: 90vw;
+    height: 90vh;
+    max-width: 90vw;
+    max-height: 90vh;
+    border: 2px solid #056daa;
+    padding-bottom: 0;
+  }
+}
+
+/* The finder's results table: its own x and y scroll area, the row
+   actions pinned to the left while the fields scroll sideways. */
+.dcs-lookup-table th.dcs-lookup-sticky,
+.dcs-lookup-table td.dcs-lookup-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background-color: inherit;
+}
+
+.dcs-lookup-table > table > thead > tr {
+  background-color: #F7F9FB;
+}
+
+/* The follow-up mode switch of a tracked public form, and the note that
+   offers it when a new record's key values already exist. */
+.dcs-follow-up-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border: 1px dashed #056daa;
+  background-color: rgba(5, 109, 170, 0.05);
+}
+
+.dcs-follow-up-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 12px;
+  margin-top: 12px;
+  border: 1px solid #F39C12;
+  background-color: rgba(243, 156, 18, 0.1);
 }
 
 /* A field the loaded record does not let this person change. */

@@ -4,6 +4,7 @@ import { KPI_FORMULAS } from "../kpiCatalog.js";
 import { has_preset_config } from "../../fields/presetFields.js";
 import { with_behavior, behavior_spec } from "./widgetBehavior.js";
 import { KPI_SIZES } from "../boardRows.js";
+import { type_rules } from "./typeRules.js";
 
 /**
  * Pure helpers of the dashboard builder: the fields a form offers, the
@@ -77,35 +78,10 @@ export const SPLIT_CHART_TYPES = ["stacked_column", "grouped_column", "stacked_1
 export const CHART_TAB_TYPES = ["column", "bar", "lollipop", "dot_plot", "grouped_column", "grouped_bar", "stacked_column", "stacked_bar", "stacked_100", "stacked_bar_100", "pie", "donut", "line", "area"];
 export const DIAGRAM_TAB_TYPES = ["treemap", "heatmap", "waffle", "scatter", "bubble"];
 
-// Mirrors the backend chart vocabulary: what each type groups on and
-// whether it takes a second (split) choice field.
-const TYPE_RULES = {
-  bar: { kind: "category", split: "none" },
-  column: { kind: "category", split: "none" },
-  lollipop: { kind: "category", split: "none" },
-  dot_plot: { kind: "category", split: "none" },
-  grouped_column: { kind: "category", split: "required" },
-  stacked_column: { kind: "category", split: "required" },
-  stacked_100: { kind: "category", split: "required" },
-  grouped_bar: { kind: "category", split: "required" },
-  stacked_bar: { kind: "category", split: "required" },
-  stacked_bar_100: { kind: "category", split: "required" },
-  heatmap: { kind: "category", split: "required" },
-  pie: { kind: "category", split: "none", slices: 6 },
-  donut: { kind: "category", split: "none", slices: 6 },
-  waffle: { kind: "category", split: "none", slices: 6 },
-  line: { kind: "time", split: "optional" },
-  area: { kind: "time", split: "none" },
-  scatter: { kind: "point", split: "none" },
-  bubble: { kind: "point", split: "none" },
-  treemap: { kind: "tree", split: "none" },
-  // The map colours boundaries instead of bars, from the same category data.
-  map: { kind: "category", split: "optional" },
-  // Words, and a table of records or of totals - neither is a chart.
-  text: { kind: "text", split: "none" },
-  table: { kind: "table", split: "optional" },
-};
-export const type_rules = (chart_type) => TYPE_RULES[chart_type] || { kind: "category", split: "none" };
+// The backend chart vocabulary - what each type groups on and whether it
+// takes a second (split) choice field - lives in typeRules.js, where the
+// cascade can read it too; it is re-exported here for the composers.
+export { type_rules };
 
 const HINT_KEYS = {
   bar: "DCS_DB_HINT_BAR", column: "DCS_DB_HINT_COLUMN", grouped_column: "DCS_DB_HINT_GROUPED", lollipop: "DCS_DB_HINT_LOLLIPOP",

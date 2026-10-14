@@ -1,87 +1,91 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { is_tracking_enabled, locked_field_ids, field_name } from "./trackingConfig.js";
+import { is_tracking_enabled, key_ids_of, locked_field_ids, field_name, SEARCHABLE_INPUT_TYPES } from "./trackingConfig.js";
 import { KeyFieldWrap, LockedFieldWrap } from "./RecordFieldWrap.jsx";
 
-/**
- * The public page's side of record tracking. On a tracked form:
- * - the key field gets a search button; searching opens the record finder
- *   with the typed key;
- * - loading a found record fills the form with its answers and locks
- *   every field the author did not mark as updatable (the key included);
- * - submitting then UPDATES that record instead of creating a new one
- *   (see usePublicSubmit), and clearing puts the form back to a blank new
- *   record.
- *
- * applyValues(data) is the page's own way of putting answers into the
- * form; clearValues() empties it.
- */
-export function useRecordTracking({ form, values, applyValues, clearValues }) {
+const is_empty = (value) => value === undefined || value === null || String(value).trim() === "";
+
+export function useRecordTracking({ form, values, applyValues, clearValues, active }) {
   const { language } = useDcsLanguage();
   const tracking = form && form.tracking;
-  const enabled = is_tracking_enabled(tracking);
+  const tracked = is_tracking_enabled(tracking);
+  const enabled = tracked && active !== false;
   const fields = (form && form.schema && form.schema.fields) || [];
-  const [loaded_record, setLoadedRecord] = useState(null);
+  const key_field_ids = useMemo(() => (tracked ? key_ids_of(tracking) : []), [tracked, tracking]);
+  const [stored_record, setStoredRecord] = useState(null);
   const [lookup, setLookup] = useState(null);
+  const loaded_record = enabled ? stored_record : null;
 
-  const locked = useMemo(() => (enabled && loaded_record ? locked_field_ids(tracking, fields) : new Set()), [enabled, loaded_record, tracking, fields]);
+  const locked = useMemo(() => (loaded_record ? locked_field_ids(tracking, fields) : new Set()), [loaded_record, tracking, fields]);
 
   const open_lookup = useCallback(
-    (initial_key) => {
-      const typed = initial_key !== undefined ? initial_key : values && tracking ? values[tracking.key_field_id] : "";
-      setLookup({ initial_key: typed === undefined || typed === null ? "" : String(typed) });
+    (field_id, value) => {
+      const id = field_id && key_field_ids.includes(field_id) ? field_id : key_field_ids[0] || "";
+      const typed = value !== undefined ? value : values ? values[id] : "";
+      setLookup({ field_id: id, initial_key: typed === undefined || typed === null ? "" : String(typed) });
     },
-    [values, tracking],
+    [values, key_field_ids],
   );
 
   const close_lookup = useCallback(() => setLookup(null), []);
 
   const load_record = useCallback(
     (record) => {
-      setLoadedRecord(record);
+      setStoredRecord(record);
       applyValues(record.data || {});
     },
     [applyValues],
   );
 
   const clear_record = useCallback(() => {
-    setLoadedRecord(null);
+    setStoredRecord(null);
     clearValues();
   }, [clearValues]);
 
-  /** After a successful update: the fresh record stays loaded so its new history shows. */
-  const record_updated = useCallback((record) => {
-    setLoadedRecord(record);
-    if (record && record.data) applyValues(record.data);
-  }, [applyValues]);
+  const record_updated = useCallback(
+    (record) => {
+      setStoredRecord(record);
+      if (record && record.data) applyValues(record.data);
+    },
+    [applyValues],
+  );
 
   const wrap_field = useCallback(
     (element, field) => {
-      if (!enabled) return element;
-      if (field.id === tracking.key_field_id) {
-        return loaded_record ? (
-          <LockedFieldWrap>{element}</LockedFieldWrap>
-        ) : (
-          <KeyFieldWrap onSearch={() => open_lookup()} fieldName={field_name(field, language)}>{element}</KeyFieldWrap>
+      if (key_field_ids.includes(field.id)) {
+        if (loaded_record) return <LockedFieldWrap>{element}</LockedFieldWrap>;
+        if (SEARCHABLE_INPUT_TYPES.includes(field.type) || field.type === "hidden") return element;
+        return (
+          <KeyFieldWrap onSearch={() => open_lookup(field.id)} disabled={is_empty(values ? values[field.id] : undefined)} fieldName={field_name(field, language)}>
+            {element}
+          </KeyFieldWrap>
         );
       }
       if (loaded_record && locked.has(field.id)) return <LockedFieldWrap>{element}</LockedFieldWrap>;
       return element;
     },
-    [enabled, tracking, loaded_record, locked, open_lookup, language],
+    [key_field_ids, loaded_record, locked, open_lookup, values, language],
+  );
+
+  const searchable = useMemo(
+    () => (enabled && !loaded_record ? { ids: key_field_ids, onSearch: (field, value) => open_lookup(field.id, value) } : undefined),
+    [enabled, loaded_record, key_field_ids, open_lookup],
   );
 
   return {
+    tracked,
     enabled,
-    tracking: enabled ? tracking : null,
+    key_field_ids,
+    tracking: tracked ? tracking : null,
     loaded_record,
-    lookup,
+    lookup: enabled ? lookup : null,
     open_lookup,
     close_lookup,
     load_record,
     clear_record,
     record_updated,
     wrap_field: enabled ? wrap_field : undefined,
+    searchable,
     history_count: loaded_record ? Math.max(0, (loaded_record.history || []).length - 1) : 0,
   };
 }

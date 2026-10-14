@@ -1,7 +1,10 @@
 const { get_db } = require("../db_connection/db.js");
 const { to_object_id } = require("../utilities/object_id.js");
+const { key_ids_of } = require("../utilities/tracking.js");
 
 const COLLECTION_NAME = "dcs_submissions";
+const FORMS_COLLECTION = "dcs_forms";
+const KEY_JOINER = "|";
 const MAX_MATCHES = 50;
 const TEST_DATA_FLAG = "is_test_data_generated_sss_ddd";
 const PUBLIC_PROJECTION = { data: 1, version: 1, submitted_at: 1, updated_at: 1, history: 1, tracking_periods: 1, respondent: 1 };
@@ -25,6 +28,39 @@ async function ensure_tracked_record_indexes() {
   await collection.createIndex({ form_group_id: 1, record_key: 1, submitted_at: -1 }, { name: "form_group_record_key", sparse: true });
   await collection.createIndex({ form_group_id: 1, "record_key_pairs.f": 1, "record_key_pairs.k": 1 }, { name: "form_group_record_key_pairs", sparse: true });
   await collection.createIndex({ form_group_id: 1, updated_at: -1 }, { name: "form_group_updated_at" });
+}
+
+/**
+ * Stamps record_key_pairs on the records that predate them (they carry
+ * record_key alone, so the public lookup could not find them): the whole
+ * key read back into its fields in key order. One pipeline update per
+ * tracked form, only over the records still missing their pairs, so it
+ * is a no-op once every record carries them. Returns how many were
+ * stamped. Runs at startup.
+ */
+async function backfill_record_key_pairs() {
+  const db = get_db();
+  const forms = await db
+    .collection(FORMS_COLLECTION)
+    .find({ is_active: true, "tracking.enabled": true }, { projection: { form_group_id: 1, tracking: 1 } })
+    .toArray();
+  let stamped = 0;
+  for (const form of forms) {
+    const key_ids = key_ids_of(form.tracking);
+    if (key_ids.length === 0) continue;
+    // One key: the whole key IS the value. Several: split on the joiner.
+    const split = { $split: ["$record_key", KEY_JOINER] };
+    const pairs = key_ids.map((field_id, index) => ({
+      f: field_id,
+      k: key_ids.length === 1 ? "$record_key" : { $ifNull: [{ $arrayElemAt: [split, index] }, ""] },
+    }));
+    const result = await db.collection(COLLECTION_NAME).updateMany(
+      { form_group_id: form.form_group_id, record_key: { $type: "string", $ne: "" }, record_key_pairs: { $exists: false } },
+      [{ $set: { record_key_pairs: { $filter: { input: pairs, as: "pair", cond: { $ne: ["$$pair.k", ""] } } } } }],
+    );
+    stamped += result.modifiedCount;
+  }
+  return stamped;
 }
 
 /**
@@ -161,6 +197,7 @@ module.exports = {
   TEST_DATA_FLAG,
   MAX_MATCHES,
   ensure_tracked_record_indexes,
+  backfill_record_key_pairs,
   list_by_record_key,
   list_by_key_pair,
   count_by_key_pair,

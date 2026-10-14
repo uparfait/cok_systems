@@ -1,75 +1,84 @@
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 
-/**
- * Record tracking, the frontend half (the server's rules live in
- * dc_backend/utilities/tracking.js): a form whose records are found again
- * by one KEY field and then updated on a chosen set of fields, every
- * change kept with its date and time.
- *
- * tracking: { enabled, key_field_id, key_unique, editable_field_ids }
- */
-
 export const KEY_FIELD_TYPES = ["text", "number", "email", "phone", "url", "single_select", "select_group", "cascading_select", "date", "hidden"];
 export const NOT_EDITABLE_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "section", "group", "geolocation"];
+export const SEARCHABLE_INPUT_TYPES = ["text", "number", "email", "phone", "url", "date"];
+export const MAX_KEY_FIELDS = 5;
 
 export function empty_tracking() {
-  return { enabled: false, key_field_id: "", key_unique: true, editable_field_ids: [] };
+  return { enabled: false, key_field_ids: [], key_field_id: "", key_unique: true, editable_field_ids: [] };
 }
 
-export const is_tracking_enabled = (tracking) => !!(tracking && tracking.enabled === true && tracking.key_field_id);
+export function key_ids_of(tracking) {
+  if (!tracking || typeof tracking !== "object") return [];
+  if (Array.isArray(tracking.key_field_ids)) {
+    return [...new Set(tracking.key_field_ids.filter((id) => typeof id === "string" && id))];
+  }
+  return typeof tracking.key_field_id === "string" && tracking.key_field_id ? [tracking.key_field_id] : [];
+}
 
-/** A stored or pasted config brought to the four known keys; unknown fields are dropped. */
+export const is_tracking_enabled = (tracking) => !!(tracking && tracking.enabled === true && key_ids_of(tracking).length > 0);
+
 export function normalize_tracking(raw, fields) {
   if (!raw || typeof raw !== "object" || raw.enabled !== true) return empty_tracking();
   const known = new Set(flatten_fields(fields || []).map((field) => field.id));
-  const key_field_id = typeof raw.key_field_id === "string" && known.has(raw.key_field_id) ? raw.key_field_id : "";
-  const editable = Array.isArray(raw.editable_field_ids) ? raw.editable_field_ids.filter((id) => typeof id === "string" && known.has(id) && id !== key_field_id) : [];
-  return { enabled: !!key_field_id, key_field_id, key_unique: raw.key_unique !== false, editable_field_ids: [...new Set(editable)] };
-}
-
-/** What is sent to the server: null when off. */
-export function tracking_payload(tracking) {
-  if (!is_tracking_enabled(tracking)) return null;
+  const key_field_ids = key_ids_of(raw).filter((id) => known.has(id)).slice(0, MAX_KEY_FIELDS);
+  const keys = new Set(key_field_ids);
+  const editable = Array.isArray(raw.editable_field_ids) ? raw.editable_field_ids.filter((id) => typeof id === "string" && known.has(id) && !keys.has(id)) : [];
   return {
-    enabled: true,
-    key_field_id: tracking.key_field_id,
-    key_unique: tracking.key_unique !== false,
-    editable_field_ids: (tracking.editable_field_ids || []).filter((id) => id !== tracking.key_field_id),
+    enabled: key_field_ids.length > 0,
+    key_field_ids,
+    key_field_id: key_field_ids[0] || "",
+    key_unique: raw.key_unique !== false,
+    editable_field_ids: [...new Set(editable)],
   };
 }
 
-/** The fields of the form that may be the key: one answer, typed or picked, never a file or a container. */
+export function tracking_payload(tracking) {
+  if (!is_tracking_enabled(tracking)) return null;
+  const key_field_ids = key_ids_of(tracking).slice(0, MAX_KEY_FIELDS);
+  return {
+    enabled: true,
+    key_field_ids,
+    key_field_id: key_field_ids[0],
+    key_unique: tracking.key_unique !== false,
+    editable_field_ids: (tracking.editable_field_ids || []).filter((id) => !key_field_ids.includes(id)),
+  };
+}
+
 export function key_candidates(fields) {
   return flatten_fields(fields || []).filter((field) => KEY_FIELD_TYPES.includes(field.type));
 }
 
-/** The fields that may be updated later: every answer except the key and the containers. */
-export function editable_candidates(fields, key_field_id) {
-  return flatten_fields(fields || []).filter((field) => !NOT_EDITABLE_TYPES.includes(field.type) && field.id !== key_field_id);
+export function editable_candidates(fields, key_field_ids) {
+  const keys = new Set(Array.isArray(key_field_ids) ? key_field_ids : key_field_ids ? [key_field_ids] : []);
+  return flatten_fields(fields || []).filter((field) => !NOT_EDITABLE_TYPES.includes(field.type) && !keys.has(field.id));
 }
 
-/** A field's name for lists and tables, falling back to its id. */
 export function field_name(field, language) {
   if (!field) return "";
   return get_field_text(field.label, language) || get_field_text(field.label, "en") || field.id;
 }
 
-/**
- * The public form of a tracked form always opens on its key field: it is
- * lifted out of wherever the author placed it - a group or a section
- * included - to the very top, so the first thing a person does is type
- * the identifier and find or start the record.
- */
+export function key_fields_of(tracking, fields) {
+  const by_id = new Map(flatten_fields(fields || []).map((field) => [field.id, field]));
+  return key_ids_of(tracking).map((id) => by_id.get(id)).filter(Boolean);
+}
+
+export function key_names(tracking, fields, language) {
+  return key_fields_of(tracking, fields).map((field) => field_name(field, language)).join(" + ");
+}
+
 export function with_key_on_top(form) {
   const tracking = form && form.tracking;
   if (!form || !form.schema || !is_tracking_enabled(tracking)) return form;
-  const key_id = tracking.key_field_id;
-  let key_field = null;
+  const key_ids = key_ids_of(tracking);
+  const found = new Map();
   const strip = (list) =>
     (list || []).reduce((out, field) => {
-      if (field.id === key_id) {
-        key_field = field;
+      if (key_ids.includes(field.id)) {
+        found.set(field.id, field);
         return out;
       }
       if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
@@ -80,21 +89,24 @@ export function with_key_on_top(form) {
       return out;
     }, []);
   const rest = strip(form.schema.fields);
-  if (!key_field) return form;
-  // A key lifted out of a section carries a layout that means nothing at the top level.
-  const top = Object.assign({}, key_field);
-  delete top.section_layout;
-  return Object.assign({}, form, { schema: Object.assign({}, form.schema, { fields: [top].concat(rest) }) });
+  const top = key_ids
+    .filter((id) => found.has(id))
+    .map((id) => {
+      const copy = Object.assign({}, found.get(id));
+      delete copy.section_layout;
+      return copy;
+    });
+  if (top.length === 0) return form;
+  return Object.assign({}, form, { schema: Object.assign({}, form.schema, { fields: top.concat(rest) }) });
 }
 
-/** The set of field ids a respondent may NOT change on a loaded record. */
 export function locked_field_ids(tracking, fields) {
   if (!is_tracking_enabled(tracking)) return new Set();
   const editable = new Set(tracking.editable_field_ids || []);
-  return new Set(flatten_fields(fields || []).map((field) => field.id).filter((id) => !editable.has(id)));
+  const keys = new Set(key_ids_of(tracking));
+  return new Set(flatten_fields(fields || []).map((field) => field.id).filter((id) => keys.has(id) || !editable.has(id)));
 }
 
-/** One stored answer as a short line for the history tables. */
 export function format_value(value) {
   if (value === null || value === undefined || value === "") return "-";
   if (Array.isArray(value)) return value.map((entry) => format_value(entry)).join(", ");

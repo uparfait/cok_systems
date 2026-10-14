@@ -137,7 +137,7 @@ function PublicBoard({ onFixedTheme }) {
   }
 
   return (
-    <MapScopeProvider fetchShapes={(names, held) => get_public_map_shapes(token, names, map_scope, held)} scopeKey={map_scope.join("|")}>
+    <MapScopeProvider fetchShapes={(names, held, more) => get_public_map_shapes(token, names, map_scope.concat(more || []), held)} scopeKey={map_scope.join("|")}>
     <BoardColorsProvider colors={info && info.appearance}>
       {/* Which board this link opens, in the tab - the name the link was
           given, else the board's own, else the form's. */}

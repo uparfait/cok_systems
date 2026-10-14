@@ -207,7 +207,7 @@ function DashboardBoard({ form }) {
   // and the box it takes inside a canvas), and removing one - both saved
   // right away with a per-card spinner. See useWidgetEdits.
   const edits = useWidgetEdits({ form: scoped_form, widgets, layout: board_layout, data, translate, showSuccess, showError, showInfo, onCommit: commit_widgets });
-  const position = useWidgetPosition({ widgets, layout: board_layout, onMove: edits.move_widget });
+  const position = useWidgetPosition({ widgets, layout: board_layout, dataByWidget: data.data_by_widget, onMove: edits.move_widget });
 
   const open_builder_in = (canvas) => {
     setIntoCanvas(canvas.id);

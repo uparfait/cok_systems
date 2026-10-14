@@ -4,6 +4,14 @@ const parent_of = (widget) => widget.parent_id || null;
 
 const is_kpi = (widget) => widget.chart_type === "kpi";
 
+export function hidden_by_filters(entry) {
+  if (!entry || entry.error || entry.locked || !Array.isArray(entry.board_context) || entry.board_context.length === 0) return false;
+  if (entry.kind === "table") return false;
+  if (entry.kind === "kpi") return !(Number(entry.value) > 0) && !(Array.isArray(entry.legend) && entry.legend.length > 0);
+  const has = (list) => Array.isArray(list) && list.length > 0;
+  return !has(entry.rows) && !has(entry.points) && !has(entry.nodes) && !has(entry.items);
+}
+
 export function siblings_of(widgets, layout, parent_id) {
   const list = widgets.filter((widget) => parent_of(widget) === (parent_id || null));
   if (parent_id || is_ordered(layout)) return list;
@@ -34,9 +42,11 @@ export function arranged_widgets(widgets, layout, override) {
   return out.map((widget, index) => ({ ...widget, position: index }));
 }
 
-export function position_of(widgets, layout, widget) {
+const drawn = (list, is_hidden, keep_id) => list.filter((widget) => widget.id === keep_id || !(is_hidden && is_hidden(widget)));
+
+export function position_of(widgets, layout, widget, is_hidden) {
   if (!widget) return { index: -1, count: 0 };
-  const list = siblings_of(widgets, layout, parent_of(widget));
+  const list = drawn(siblings_of(widgets, layout, parent_of(widget)), is_hidden, widget.id);
   return { index: list.findIndex((entry) => entry.id === widget.id), count: list.length };
 }
 
@@ -46,12 +56,15 @@ export function clamp_position(value, count) {
   return Math.min(Math.max(number, 1), count);
 }
 
-export function move_widget(widgets, layout, widget_id, position) {
+export function move_widget(widgets, layout, widget_id, position, is_hidden) {
   const target = widgets.find((widget) => widget.id === widget_id);
   if (!target) return arranged_widgets(widgets, layout);
   const parent_id = parent_of(target);
-  const list = siblings_of(widgets, layout, parent_id).filter((widget) => widget.id !== widget_id);
-  const at = clamp_position(position, list.length + 1) - 1;
-  list.splice(at, 0, target);
+  const rest = siblings_of(widgets, layout, parent_id).filter((widget) => widget.id !== widget_id);
+  const shown = drawn(rest, is_hidden, null);
+  const at = clamp_position(position, shown.length + 1) - 1;
+  const index = at < shown.length ? rest.indexOf(shown[at]) : shown.length > 0 ? rest.indexOf(shown[shown.length - 1]) + 1 : rest.length;
+  const list = rest.slice();
+  list.splice(index, 0, target);
   return arranged_widgets(widgets, layout, { parent_id, list });
 }

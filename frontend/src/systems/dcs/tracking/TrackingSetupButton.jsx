@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { is_tracking_enabled, field_name } from "./trackingConfig.js";
-import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
+import { is_tracking_enabled, key_names } from "./trackingConfig.js";
 import { KeyIcon } from "./TrackingIcons.jsx";
 import TrackingSetupOverlay from "./TrackingSetupOverlay.jsx";
 
@@ -19,7 +18,7 @@ export default function TrackingSetupButton({ fields, tracking, onChange, disabl
   const { translate, language } = useDcsLanguage();
   const [open, setOpen] = useState(false);
   const enabled = is_tracking_enabled(tracking);
-  const key_field = enabled ? flatten_fields(fields || []).find((field) => field.id === tracking.key_field_id) : null;
+  const key_label = enabled ? key_names(tracking, fields, language) : "";
   const count = enabled ? (tracking.editable_field_ids || []).length : 0;
 
   return (
@@ -42,7 +41,7 @@ export default function TrackingSetupButton({ fields, tracking, onChange, disabl
           </p>
           <p className="text-xs truncate" style={{ color: MUTED, fontFamily: FONT }}>
             {enabled
-              ? translate("DCS_TRACKING_SUMMARY", { key: field_name(key_field, language), count })
+              ? translate("DCS_TRACKING_SUMMARY", { key: key_label, count })
               : translate("DCS_TRACKING_OFF_HINT")}
           </p>
         </div>

@@ -34,7 +34,8 @@ const words_of = (label) =>
     .split(/[^a-z]+/)
     .filter(Boolean);
 
-function level_of(field) {
+/** The level a field names ("district", "cell"...), or null when it names no place. */
+export function level_of(field) {
   const source = field && field.raw && field.raw.data_source;
   if (source && LEVEL_OF_SOURCE[source.level]) return LEVEL_OF_SOURCE[source.level];
   if (!field || !CHOICE_TYPES.includes(field.type)) return null;

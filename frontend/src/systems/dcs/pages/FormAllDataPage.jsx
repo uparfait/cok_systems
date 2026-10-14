@@ -126,12 +126,7 @@ export default function FormAllDataPage() {
     );
   }
 
-  // Any record may have been edited, so the change columns are always
-  // there; a row with nothing changed shows a dash instead of a button.
   const tracking_columns = [
-    // Only meaningful once the rows are stages, so it is offered only then
-    // - an untracked form would just repeat its Submitted at column.
-    ...(tracking ? [{ key: "stage_at", labelKey: "DCS_TRACKING_TABLE_STAGE_AT" }] : []),
     { key: "updated_at", labelKey: "DCS_TRACKING_TABLE_UPDATED_AT" },
     { key: "history", labelKey: "DCS_TRACKING_TABLE_HISTORY", minWidthPx: 96 },
   ];
@@ -344,7 +339,6 @@ export default function FormAllDataPage() {
         <RecordHistorySlidesOverlay
           record={history_record}
           fields={((versions.find((entry) => entry.version === history_record.version) || active_version).schema || {}).fields || []}
-          tracking={tracking}
           onClose={() => setHistoryRecord(null)}
         />
       )}

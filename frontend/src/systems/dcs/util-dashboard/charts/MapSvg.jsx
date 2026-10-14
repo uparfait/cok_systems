@@ -1,5 +1,6 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { readable_on } from "../appearance.js";
+import LibraryIcon from "../icons/LibraryIcon.jsx";
 import { bounds_of, points_box } from "./mapGeometry.js";
 import { mix } from "./heatScale.js";
 import { fit_projection, viewed, shape_path, screen_box, view_on, zoomed, HOME_VIEW } from "./mapProjection.js";
@@ -29,21 +30,23 @@ function use_size(ref) {
 
 function mark_row(marks, size, format) {
   const font = Math.max(10, Math.round(size * 0.42));
+  const glyph = Math.round(size * 0.55);
+  const pad = Math.max(4, Math.round(size * 0.18));
   const laid = marks.map((mark) => {
     const text = format(mark.count);
-    const radius = Math.max(size / 2, (text.length * font * LETTER_WIDTH) / 2 + 4);
-    return { ...mark, text, radius, font };
+    const width = Math.max(size, pad + glyph + 3 + text.length * font * LETTER_WIDTH + pad);
+    return { ...mark, text, width, font, glyph, pad, ink: readable_on(mark.color, null) };
   });
-  const total = laid.reduce((sum, mark) => sum + mark.radius * 2, 0) + Math.max(0, laid.length - 1) * 2;
+  const total = laid.reduce((sum, mark) => sum + mark.width, 0) + Math.max(0, laid.length - 1) * 2;
   let cursor = -total / 2;
   return laid.map((mark) => {
-    const offset = cursor + mark.radius;
-    cursor += mark.radius * 2 + 2;
-    return { ...mark, offset };
+    const left = cursor;
+    cursor += mark.width + 2;
+    return { ...mark, left };
   });
 }
 
-const MapSvg = forwardRef(function MapSvg({ shapes, outlines, describeLand, describeOutline, signature, places, heat, colors, theme, markSize, format, onTip, onPick, onZoomPlace }, ref) {
+const MapSvg = forwardRef(function MapSvg({ shapes, outlines, describeLand, describeOutline, signature, places, heat, colors, theme, icon, markSize, format, onTip, onPick, onZoomPlace }, ref) {
   const host_ref = useRef(null);
   const moved_ref = useRef(false);
   const describe_ref = useRef(null);
@@ -194,14 +197,18 @@ const MapSvg = forwardRef(function MapSvg({ shapes, outlines, describeLand, desc
                 {spot.row.map((mark) => (
                   <g
                     key={mark.key}
+                    transform={`translate(${spot.x + mark.left} ${spot.y - markSize / 2})`}
                     style={{ cursor: "pointer" }}
                     onClick={(event) => {
                       event.stopPropagation();
                       if (!moved_ref.current && onZoomPlace) onZoomPlace(spot);
                     }}
                   >
-                    <circle cx={spot.x + mark.offset} cy={spot.y} r={mark.radius} fill={mark.color} stroke="#FFFFFF" strokeWidth={1.5} />
-                    <text x={spot.x + mark.offset} y={spot.y} dy="0.35em" textAnchor="middle" fontSize={mark.font} fontWeight={700} fill={readable_on(mark.color, null)} pointerEvents="none">
+                    <rect width={mark.width} height={markSize} rx={markSize / 2} fill={mark.color} stroke="#FFFFFF" strokeWidth={1.5} />
+                    <g transform={`translate(${mark.pad} ${(markSize - mark.glyph) / 2})`} pointerEvents="none">
+                      <LibraryIcon icon={icon} size={mark.glyph} color={mark.ink} />
+                    </g>
+                    <text x={mark.pad + mark.glyph + 3} y={markSize / 2} dy="0.35em" fontSize={mark.font} fontWeight={700} fill={mark.ink} pointerEvents="none">
                       {mark.text}
                     </text>
                   </g>

@@ -2,13 +2,14 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import DcsCenterOverlay from "../components/DcsCenterOverlay.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
-import { position_of, clamp_position } from "./boardOrder.js";
+import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
+import { position_of, clamp_position, hidden_by_filters } from "./boardOrder.js";
 
 const FONT = "'Montserrat', sans-serif";
 
-export default function WidgetPositionDialog({ widget, widgets, layout, saving, onSave, onClose }) {
+export default function WidgetPositionDialog({ widget, widgets, layout, hidden, saving, onSave, onClose }) {
   const { translate } = useDcsLanguage();
-  const { index, count } = position_of(widgets, layout, widget);
+  const { index, count } = position_of(widgets, layout, widget, hidden);
   const current = index + 1;
   const [value, setValue] = useState(String(current || 1));
 
@@ -28,11 +29,11 @@ export default function WidgetPositionDialog({ widget, widgets, layout, saving, 
 
   return (
     <DcsCenterOverlay title={translate("DCS_DB_POSITION_TITLE")} onClose={onClose} onBackdrop={onClose} busy={saving} maxWidth={400}>
-      <form onSubmit={submit} className="flex flex-col gap-3">
+      <form onSubmit={submit} className="flex flex-col gap-3" aria-busy={!!saving} data-testid="dcs-position-dialog">
         <p className="text-sm" style={{ color: "#333333", fontFamily: FONT, margin: 0 }}>
           {translate("DCS_DB_POSITION_COUNT", { count })}
         </p>
-        <p className="text-sm font-semibold" style={{ color: "#056daa", fontFamily: FONT, margin: 0 }}>
+        <p className="text-sm font-semibold" style={{ color: "#056daa", fontFamily: FONT, margin: 0 }} data-testid="dcs-position-current">
           {translate("DCS_DB_POSITION_CURRENT", { position: current })}
         </p>
         <div>
@@ -54,8 +55,8 @@ export default function WidgetPositionDialog({ widget, widgets, layout, saving, 
           />
         </div>
         <div className="flex justify-end">
-          <DcsButtonPrimary type="submit" disabled={saving || count < 1}>
-            {translate("DCS_DB_POSITION_SAVE")}
+          <DcsButtonPrimary type="submit" disabled={saving || count < 1} className="min-w-28">
+            {saving ? <SpiralLoader padded={false} size={18} color="#FFFFFF" /> : translate("DCS_DB_POSITION_SAVE")}
           </DcsButtonPrimary>
         </div>
       </form>
@@ -63,11 +64,12 @@ export default function WidgetPositionDialog({ widget, widgets, layout, saving, 
   );
 }
 
-export function useWidgetPosition({ widgets, layout, onMove }) {
+export function useWidgetPosition({ widgets, layout, dataByWidget, onMove }) {
   const [target, setTarget] = useState(null);
   const [saving, setSaving] = useState(false);
   const open = useCallback((widget) => setTarget(widget || null), []);
   const close = useCallback(() => setTarget(null), []);
+  const hidden = useCallback((widget) => hidden_by_filters((dataByWidget || {})[widget.id]), [dataByWidget]);
 
   const save = async (position) => {
     if (!target) return;
@@ -81,6 +83,6 @@ export function useWidgetPosition({ widgets, layout, onMove }) {
   };
 
   const shown = target ? widgets.find((widget) => widget.id === target.id) || null : null;
-  const element = shown ? <WidgetPositionDialog key={shown.id} widget={shown} widgets={widgets} layout={layout} saving={saving} onSave={save} onClose={close} /> : null;
+  const element = shown ? <WidgetPositionDialog key={shown.id} widget={shown} widgets={widgets} layout={layout} hidden={hidden} saving={saving} onSave={save} onClose={close} /> : null;
   return { open, element };
 }

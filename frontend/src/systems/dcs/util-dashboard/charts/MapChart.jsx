@@ -451,6 +451,7 @@ export default function MapChart({
             heat={is_heat ? heat_plan : null}
             colors={colors}
             theme={theme_ref.current}
+            icon={marker_icon}
             markSize={mark_size}
             format={number_text}
             onTip={setTip}

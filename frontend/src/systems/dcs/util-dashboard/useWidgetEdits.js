@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { save_dashboard, request_error_text } from "./dashboardService.js";
 import { fold_family } from "./chartCatalog.js";
-import { move_widget as reorder } from "./boardOrder.js";
+import { move_widget as reorder, hidden_by_filters } from "./boardOrder.js";
 
 /**
  * The two edits a board makes to ONE widget at a time - changing it and
@@ -32,21 +32,34 @@ export function useWidgetEdits({ form, widgets, layout, data, translate, showSuc
   };
 
   /**
-   * Moves one widget to a numbered place among the widgets beside it (the
-   * board's top level, or the section it sits in), children following
-   * their parent. The first move freezes the shown order into the array
-   * and marks the board ORDERED, so from then on the array is the order.
+   * Moves one widget to a numbered place among the widgets DRAWN beside it
+   * (the board's top level, or the section it sits in; cards the filters
+   * hide are not counted), the others shifting to make room and children
+   * following their parent. The first move freezes the shown order into
+   * the array and marks the board ORDERED, so from then on the array is
+   * the order. The board takes the new order at once and the save follows;
+   * a refused save puts the previous order back.
    */
   const move_widget = async (target, position) => {
     if (!target) return { ok: false, message: "" };
-    const next_widgets = reorder(widgets, layout, target.id, position);
+    const hidden = (widget) => hidden_by_filters((data.data_by_widget || {})[widget.id]);
+    const before = { widgets, layout: layout || null };
+    const next_widgets = reorder(widgets, layout, target.id, position, hidden);
     const next_layout = Object.assign({}, layout || {}, { ordered: true });
+    data.settle(next_widgets);
+    onCommit(next_widgets, undefined, next_layout);
     setSavingWidgetId(target.id);
     try {
-      await save(next_widgets, next_layout);
+      const saved = await save_dashboard(form, next_widgets, undefined, next_layout);
+      const final_widgets = (saved.data && saved.data.widgets) || next_widgets;
+      const final_layout = Object.assign({}, next_layout, (saved.data && saved.data.layout) || {}, { ordered: true });
+      data.settle(final_widgets);
+      onCommit(final_widgets, undefined, final_layout);
       showSuccess(translate("DCS_DB_WIDGET_UPDATED"));
       return { ok: true, message: "" };
     } catch (error) {
+      data.settle(before.widgets);
+      onCommit(before.widgets, undefined, before.layout);
       const text = request_error_text(error, translate("DCS_ERROR_GENERIC"));
       showError(text);
       return { ok: false, message: text };

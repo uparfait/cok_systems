@@ -318,16 +318,16 @@ API contract (both agents follow it exactly):
   that was created OR last updated in the period (date_window_filter semantics); time buckets of over-time widgets
   and KPI windows use last_moved_at = ifNull(updated_at, submitted_at) on tracked forms, submitted_at otherwise.
   No stage expansion anywhere in tables or dashboards. Export and data feed keep their current behaviour.
-- [ ] K1 Backend: tracking.js multi-key config, record_key + record_key_pairs, tracking_fields_for_new,
+- [x] K1 Backend: tracking.js multi-key config, record_key + record_key_pairs, tracking_fields_for_new,
       apply_record_key, submit_response 409 on the combination, import runner unchanged in behaviour
-- [ ] K2 Backend: paged lookup by field, any-key lookup, index; update route untouched
-- [ ] K3 Backend: list_submissions / get_form_submission_stats / submission_values / media and every util-dashboard
+- [x] K2 Backend: paged lookup by field, any-key lookup, index; update route untouched
+- [x] K3 Backend: list_submissions / get_form_submission_stats / submission_values / media and every util-dashboard
       pipeline read the current state (no stages), period = created or last updated; tests updated
       (tracking_stages, dashboard_stages, tracking_window) + new tests/tracking_lookup.test.js
-- [ ] K4 Frontend setup wizard: choose several key fields (checkboxes, order kept), unique = the combination
-- [ ] K5 Frontend public form: search icon inside every key field input at the left; lookup overlay responsive
+- [x] K4 Frontend setup wizard: choose several key fields (checkboxes, order kept), unique = the combination
+- [x] K5 Frontend public form: search icon inside every key field input at the left; lookup overlay responsive
       (scrolling body, full screen under 640px), results as a table with every field in form order, submitted and
       updated dates first, sticky header, x and y scroll, the data table's pager icons, 20 per page, Load and
       Show history per row; loaded record banner and update flow as today
-- [ ] K6 Frontend tables: one row per record (no stage rows), updated_at and history columns kept
+- [x] K6 Frontend tables: one row per record (no stage rows), updated_at and history columns kept
 - [ ] K7 Lead: build, suites, review

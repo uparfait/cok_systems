@@ -5,7 +5,6 @@ import { validate_submission_client_side } from "../jsonlogic/validateSubmission
 import { scroll_to_first_error } from "../renderer/scrollToError.js";
 import { update_public_record } from "../tracking/trackingService.js";
 
-/** Only the updatable fields' errors count when a loaded record is being updated - a locked field cannot be fixed. */
 function editable_errors_only(field_errors, tracking) {
   const allowed = new Set((tracking.tracking && tracking.tracking.editable_field_ids) || []);
   const kept = {};
@@ -17,14 +16,6 @@ function editable_errors_only(field_errors, tracking) {
 
 const has_blocking = (field_errors) => Object.keys(field_errors).some((field_id) => field_errors[field_id].some((entry) => typeof entry === "string" || entry.severity === "error"));
 
-/**
- * The public page's submit flow: validate, then either send straight to the
- * server, or - offline, or when the network fails mid-way - save the exact
- * response on the device for the sync loop, telling the respondent plainly
- * that it has NOT been sent yet. A definitive server rejection keeps the
- * response on the device as an error record to fix and resubmit. Every
- * response carries who filled it in (respondent).
- */
 export function usePublicSubmit(context) {
   const {
     form,
@@ -36,6 +27,7 @@ export function usePublicSubmit(context) {
     reviewing_queue_id_ref,
     refresh_queue,
     refresh_draft,
+    draft_mode,
     showSuccess,
     showError,
     showWarning,
@@ -43,9 +35,6 @@ export function usePublicSubmit(context) {
     set,
   } = context;
 
-  // A record loaded from the tracked records is UPDATED in place: only the
-  // updatable fields travel, the server keeps every change with its time.
-  // It needs the connection - there is no offline queue for an update.
   const handle_update = async (resolved_values, field_errors) => {
     const editable_errors = editable_errors_only(field_errors, tracking);
     set.field_errors(editable_errors);
@@ -84,6 +73,20 @@ export function usePublicSubmit(context) {
     }
   };
 
+  const handle_key_exists = (direct_error, failed_data) => {
+    const first_key = (tracking.key_field_ids || [])[0] || "";
+    set.values(failed_data);
+    set.field_errors(direct_error.field_errors || {});
+    set.reveal_all_errors(true);
+    set.submit_state("idle");
+    showWarning(direct_error.message || translate("DCS_TRACKING_KEY_EXISTS", { field: translate("DCS_TRACKING_KEY_LABEL") }));
+    if (tracking.enabled) {
+      tracking.open_lookup(first_key, failed_data[first_key]);
+    } else if (set.key_exists_notice) {
+      set.key_exists_notice({ message: direct_error.message || "", field_id: first_key, value: failed_data[first_key] });
+    }
+  };
+
   const handle_submit = async () => {
     set.submitting(true);
     try {
@@ -92,8 +95,8 @@ export function usePublicSubmit(context) {
       const resolved_values = validation_result.resolved_data;
       set.field_errors(validation_result.field_errors);
       set.field_valid_messages(validation_result.field_valid_messages);
-      const is_tracked = !!(tracking && tracking.enabled);
-      if (is_tracked && tracking.loaded_record) {
+      const follow_up = !!(tracking && tracking.enabled);
+      if (follow_up && tracking.loaded_record) {
         await handle_update(resolved_values, validation_result.field_errors);
         return;
       }
@@ -102,17 +105,14 @@ export function usePublicSubmit(context) {
         set.submit_state("error");
         const unanswered = Object.keys(validation_result.field_errors || {});
         window.requestAnimationFrame(() => scroll_to_first_error(unanswered));
-        if (!reviewing_queue_id_ref.current && !is_tracked && has_meaningful_answers(resolved_values, form.schema)) {
-          await save_form_draft(form_group_id, form.version, resolved_values);
+        if (!reviewing_queue_id_ref.current && has_meaningful_answers(resolved_values, form.schema)) {
+          await save_form_draft(form_group_id, form.version, resolved_values, draft_mode);
           await refresh_draft();
         }
         return;
       }
 
-      // A tracked form's record is created on the server in one go, while
-      // connected: nothing is queued or kept for later, the answers stay on
-      // screen and the person retries until it goes through.
-      if (is_tracked && !window.navigator.onLine) {
+      if (follow_up && !window.navigator.onLine) {
         set.submit_state("error");
         showError(translate("DCS_TRACKING_SUBMIT_NEEDS_CONNECTION"));
         return;
@@ -138,7 +138,7 @@ export function usePublicSubmit(context) {
           });
         } else {
           await enqueue_submission(form_group_id, form.version, data_to_store, { client_submission_id, respondent });
-          await clear_form_draft(form_group_id);
+          await clear_form_draft(form_group_id, draft_mode);
           await refresh_draft();
         }
         await refresh_queue();
@@ -180,7 +180,7 @@ export function usePublicSubmit(context) {
         if (reviewing_record) {
           await remove_from_queue(reviewing_record.id);
         } else {
-          await clear_form_draft(form_group_id);
+          await clear_form_draft(form_group_id, draft_mode);
           await refresh_draft();
         }
         await refresh_queue();
@@ -195,7 +195,7 @@ export function usePublicSubmit(context) {
         const failed_data = (direct_error && direct_error.partial_data) || resolved_values;
 
         if (direct_error && direct_error.is_network_error) {
-          if (is_tracked) {
+          if (follow_up) {
             set.values(failed_data);
             set.submit_state("error");
             showError(translate("DCS_TRACKING_SUBMIT_RETRY"));
@@ -206,22 +206,13 @@ export function usePublicSubmit(context) {
           return;
         }
 
-        // A tracked form whose key must be unique already holds a record
-        // with this key: nothing is queued, the record finder opens on it
-        // so the existing record can be loaded and updated instead.
-        if (direct_error && direct_error.status_code === 409 && direct_error.record_key && tracking) {
-          // Not a mistake, a redirection: the answers stay, the finder opens.
-          set.values(failed_data);
-          set.field_errors({});
-          set.submit_state("idle");
-          showWarning(direct_error.message || translate("DCS_TRACKING_KEY_EXISTS"));
-          tracking.open_lookup(direct_error.record_key);
+        if (direct_error && direct_error.status_code === 409 && direct_error.record_key && tracking && tracking.tracked) {
+          handle_key_exists(direct_error, failed_data);
           return;
         }
 
         const server_field_errors = (direct_error && direct_error.field_errors) || null;
-        // A tracked form keeps no error record either: it is fixed and resubmitted here.
-        if (!is_tracked && reviewing_record) {
+        if (!follow_up && reviewing_record) {
           await update_queue_item(reviewing_record.id, {
             data: failed_data,
             version: form.version,
@@ -229,7 +220,7 @@ export function usePublicSubmit(context) {
             field_errors: server_field_errors,
             updated_at: new Date().toISOString(),
           });
-        } else if (!is_tracked) {
+        } else if (!follow_up) {
           const error_item = await enqueue_submission(form_group_id, form.version, failed_data, {
             client_submission_id,
             respondent,
@@ -237,7 +228,7 @@ export function usePublicSubmit(context) {
             field_errors: server_field_errors,
           });
           reviewing_queue_id_ref.current = error_item.id;
-          await clear_form_draft(form_group_id);
+          await clear_form_draft(form_group_id, draft_mode);
           await refresh_draft();
         }
         await refresh_queue();
