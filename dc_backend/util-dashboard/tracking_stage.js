@@ -1,9 +1,9 @@
 /**
- * The EXPORT and the DATA FEED of a TRACKED form read every updatable
- * field AS IT STOOD at the end of the selected window, not as it stands
- * today: an export of "the 12:00 hour" says the car was in, even though it
- * has since left. (The tables and the dashboards do not use this - they
- * read the current state; see utilities/tracking_window.js.)
+ * Every reader of a TRACKED form - the tables, the exports, the data feed,
+ * the dashboards - reads every updatable field AS IT STOOD at the end of
+ * the selected window, not as it stands today: a reading of "the 12:00
+ * hour" says the car was in, even though it has since left (see
+ * utilities/tracking_window.js, which wraps this as as_of_stages).
  *
  * Each record keeps, per updatable field, the periods its value held
  * (tracking_periods.<field>: [{ value, from, to }], the open one with
@@ -44,9 +44,9 @@ function value_at(field_id, at) {
 }
 
 /**
- * The stages to place right after the export's or the feed's $match.
- * Empty for an untracked form, a window without an end, or a tracking
- * config with no updatable field. The caller passes { tracking }.
+ * The stages to place right after a reader's opening $match. Empty for an
+ * untracked form, a window without an end, or a tracking config with no
+ * updatable field. The caller passes { tracking }.
  */
 function tracking_stages(widget, bounds) {
   const tracking = widget && widget.tracking;

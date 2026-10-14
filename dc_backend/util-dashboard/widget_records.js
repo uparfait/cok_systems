@@ -108,9 +108,15 @@ async function pick_conditions(widget, pick, bounds, catalog) {
       const over_time = widget.over_time && widget.over_time.enabled === true ? widget.over_time : null;
       const timed_field = over_time ? over_time.field_id || SUBMITTED_AT_FIELD : group;
       const source = timed_field && timed_field !== SUBMITTED_AT_FIELD ? timed_field : SUBMITTED_AT_FIELD;
+      if (source === SUBMITTED_AT_FIELD) {
+        // The records' own moments: the bucket becomes the window - the
+        // records created or changed inside it, read as they were at its
+        // end (what the column counted).
+        return { conditions, criteria: criteria.concat([{ field_id: source, field_label: "", value: picked.label, is_time: true }]), bounds: range };
+      }
       const expr = pipelines.time_source_expr(source, widget.tracking);
       conditions.push({ $expr: { $and: [{ $gte: [expr, range.start] }, { $lte: [expr, range.end] }] } });
-      criteria.push({ field_id: source, field_label: source === SUBMITTED_AT_FIELD ? "" : label_of(source), value: picked.label, is_time: true });
+      criteria.push({ field_id: source, field_label: label_of(source), value: picked.label, is_time: true });
     }
   }
   return { conditions, criteria };
@@ -172,11 +178,12 @@ async function records_query(body, form_group_id, form_version, project_id, forc
   const period_override = sanitize_period_override(body.period);
   const bounds = effective_bounds(shaped, period_override);
   const picked = await pick_conditions(shaped, body.pick, bounds, catalog);
-  // The rows are read through the same opening match as the widget itself
-  // (the records' current answers, windowed on their last move for a
-  // tracked form), so what was clicked is matched against exactly what
-  // was charted.
-  const stages = base_stages(shaped, bounds).concat(picked.conditions.length > 0 ? [{ $match: { $and: picked.conditions } }] : []);
+  // The rows are read through the same opening as the widget itself (a
+  // tracked form's records as they were at the window's end; a clicked
+  // time bucket is its own window), so what was clicked is matched
+  // against exactly what was charted.
+  const window = picked.bounds || bounds;
+  const stages = base_stages(shaped, window).concat(picked.conditions.length > 0 ? [{ $match: { $and: picked.conditions } }] : []);
 
   const label_of = (field_id) => field_label_text(catalog.fields_by_id.get(field_id)) || field_id;
   const criteria = (shaped.filters || [])
@@ -184,7 +191,7 @@ async function records_query(body, form_group_id, form_version, project_id, forc
     .map((filter) => ({ field_id: filter.field_id, field_label: label_of(filter.field_id), value: filter.value }))
     .concat(picked.criteria);
   const columns = await table_columns(form_group_id, form_version, body.language || "en", allowed_fields);
-  return { stages, criteria, period: bounds ? { start: bounds.start, end: bounds.end } : null, columns };
+  return { stages, criteria, period: window ? { start: window.start, end: window.end } : null, columns };
 }
 
 const ROW_PROJECTION = { $project: { data: 1, submitted_at: 1, version: 1 } };

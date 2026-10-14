@@ -1,6 +1,6 @@
 const { get_db } = require("../db_connection/db.js");
 const { apply_value_filters } = require("./submissions_model.js");
-const { window_filter } = require("../utilities/tracking_window.js");
+const { date_window_filter, as_of_stages } = require("../utilities/tracking_window.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 
@@ -30,13 +30,18 @@ function media_entries_expression(field_ids) {
 }
 
 function build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking) {
-  // The same records the table lists (see utilities/tracking_window.js),
-  // each with the pictures it holds today.
-  const match = Object.assign({ form_group_id }, window_filter(date_bounds, tracking));
-  apply_value_filters(match, filters);
+  // The same records the table lists, read the same way (see
+  // utilities/tracking_window.js): an image field changed since the range
+  // shows the picture it held at the range's end.
+  const match = Object.assign({ form_group_id }, date_window_filter(date_bounds, tracking));
+  const value_filter = {};
+  apply_value_filters(value_filter, filters);
 
   return [
     { $match: match },
+    ...as_of_stages(tracking, date_bounds),
+    // After the rewrite, so a filter matches the values the range shows.
+    ...(Object.keys(value_filter).length > 0 ? [{ $match: value_filter }] : []),
     { $sort: { submitted_at: -1, _id: -1 } },
     { $project: { submitted_at: 1, version: 1, respondent: 1, entries: media_entries_expression(field_ids) } },
     { $unwind: "$entries" },

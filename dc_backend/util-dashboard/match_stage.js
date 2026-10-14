@@ -1,17 +1,14 @@
 const { resolve_period_bounds } = require("../utilities/period_bounds.js");
-const { window_filter } = require("../utilities/tracking_window.js");
+const { date_window_filter, as_of_stages, stage_prefilter, stage_rows_stages } = require("../utilities/tracking_window.js");
 
 /**
- * Builds the base $match of every widget pipeline: the form's submissions
+ * Builds the opening of every widget pipeline: the form's submissions
  * (generated test data INCLUDED - the dashboard charts everything the form
  * holds, exactly like the submissions-over-time chart) inside the effective
- * time window, narrowed by the widget's own field filters. Everything here
- * stays a plain Mongo query - the database does all the filtering.
- *
- * Every widget reads the CURRENT state of the form's records: one row per
- * record with the answers it holds today. On a tracked form the window
- * keeps the records created or last updated inside it (see
- * utilities/tracking_window.js); on any other form, what arrived inside it.
+ * time window, read AS THEY WERE at the window's end on a tracked form
+ * (see utilities/tracking_window.js), narrowed by the widget's own field
+ * filters over those values. Everything here stays a plain Mongo query -
+ * the database does all the filtering.
  */
 
 function escape_regex(value) {
@@ -76,17 +73,20 @@ function effective_bounds(widget, period_override) {
 }
 
 /**
- * The base $match for one widget: the form and the window. Version is
- * intentionally not filtered: a dashboard reads the whole form group's
- * history, whichever version each record was collected with.
+ * The base $match for one widget: the form and the window's membership
+ * (created or changed inside it on a tracked form, arrived inside it
+ * otherwise). Version is intentionally not filtered: a dashboard reads
+ * the whole form group's history, whichever version each record was
+ * collected with.
  */
 function build_match_stage(widget, bounds) {
-  return { $match: Object.assign({ form_group_id: widget.form_group_id }, window_filter(bounds, widget && widget.tracking)) };
+  return { $match: Object.assign({ form_group_id: widget.form_group_id }, date_window_filter(bounds, widget && widget.tracking)) };
 }
 
 /**
- * The widget's own field filters as a $match over the records' current
- * answers ("status is out" keeps the cars that are out right now).
+ * The widget's own field filters as a $match - placed AFTER the as-of
+ * rewrite, so "status is out" judges the value the row shows for the
+ * window, not whatever the record says today.
  */
 function filter_stages(widget) {
   const conditions = ((widget && widget.filters) || []).map((filter) => filter_condition(filter));
@@ -95,19 +95,45 @@ function filter_stages(widget) {
 }
 
 /**
+ * The window of one KPI facet, placed after the form's own $match: the
+ * membership, the as-of rewrite at the window's end, the widget's filters.
+ */
+function window_stages(widget, bounds) {
+  const tracking = widget && widget.tracking;
+  const membership = date_window_filter(bounds, tracking);
+  return [...(Object.keys(membership).length > 0 ? [{ $match: membership }] : []), ...as_of_stages(tracking, bounds), ...filter_stages(widget)];
+}
+
+/**
  * The opening of every widget pipeline: the indexed $match of the form
- * inside the window, then the widget's filters. Plain matches only - a
- * record is one row, never expanded. The KPI cards pass no bounds here
- * and window each facet on their own (see kpi_metrics.js).
+ * inside the window, the as-of rewrite at its end, then the widget's
+ * filters. One row per record.
  */
 function base_stages(widget, bounds) {
-  return [build_match_stage(widget, bounds), ...filter_stages(widget)];
+  return [build_match_stage(widget, bounds), ...as_of_stages(widget && widget.tracking, bounds), ...filter_stages(widget)];
+}
+
+/**
+ * The opening of an OVER-TIME pipeline: one row per stage moment inside
+ * the window, carrying the values at that moment, then the widget's
+ * filters over those - a car "in" at 12:00 and "out" at 13:00 reaches
+ * the chart as two rows, one for each column.
+ */
+function stage_base_stages(widget, bounds) {
+  const tracking = widget && widget.tracking;
+  return [
+    { $match: Object.assign({ form_group_id: widget.form_group_id }, stage_prefilter(bounds, tracking)) },
+    ...stage_rows_stages(tracking, bounds),
+    ...filter_stages(widget),
+  ];
 }
 
 module.exports = {
   build_match_stage,
   filter_stages,
+  window_stages,
   base_stages,
+  stage_base_stages,
   effective_bounds,
   is_period_locked,
   numeric_expr,

@@ -1,5 +1,5 @@
 const { get_db } = require("../db_connection/db.js");
-const { window_filter } = require("../utilities/tracking_window.js");
+const { date_window_filter, as_of_stages } = require("../utilities/tracking_window.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 const MAX_VALUES = 200;
@@ -26,11 +26,12 @@ function value_candidates(values) {
  * records carry it - what a choice column's own filter dropdown lists,
  * under the very date range the table shows.
  *
- * Counted over the same records the table lists: on a tracked form the
- * records created or last updated inside the range, with their current
- * answers (see utilities/tracking_window.js); on any other form what was
- * submitted inside the range. So every value the dropdown offers, and
- * every count beside it, is one the table can actually show.
+ * Counted over the same records the table lists, read the same way: on a
+ * tracked form the records created or changed inside the range, with the
+ * values they held at the range's end (see utilities/tracking_window.js);
+ * on any other form what was submitted inside the range. So every value
+ * the dropdown offers, and every count beside it, is one the table can
+ * actually show.
  *
  * parent (optional: { field_id, values }) narrows the count to the records
  * whose PARENT answer is one of the picked values, so a sector filter
@@ -40,10 +41,11 @@ function value_candidates(values) {
  * its picks counted on its own.
  */
 async function list_field_values(form_group_id, field_id, date_bounds, parent, tracking) {
-  const match = Object.assign({ form_group_id }, window_filter(date_bounds, tracking));
-  match[`data.${field_id}`] = { $exists: true, $nin: [null, ""] };
+  const match = Object.assign({ form_group_id }, date_window_filter(date_bounds, tracking));
+  // Judged AFTER the as-of rewrite, so the values counted are the values the rows show.
+  const answered = { [`data.${field_id}`]: { $exists: true, $nin: [null, ""] } };
   if (parent && parent.field_id && Array.isArray(parent.values) && parent.values.length > 0) {
-    match[`data.${parent.field_id}`] = { $in: value_candidates(parent.values) };
+    answered[`data.${parent.field_id}`] = { $in: value_candidates(parent.values) };
   }
 
   const rows = await get_db()
@@ -51,6 +53,8 @@ async function list_field_values(form_group_id, field_id, date_bounds, parent, t
     .aggregate(
       [
         { $match: match },
+        ...as_of_stages(tracking, date_bounds),
+        { $match: answered },
         { $project: { value: `$data.${field_id}` } },
         { $unwind: "$value" },
         { $match: { value: { $type: ["string", "double", "int", "long", "decimal", "bool"] } } },

@@ -129,7 +129,7 @@ async function run_all_tests() {
   try {
     test_update_moments_are_increasing_and_bounded();
     await test_every_generated_record_carries_a_consistent_history();
-    await test_the_dashboard_reads_each_record_by_its_last_update();
+    await test_the_dashboard_reads_each_record_as_it_was();
     await test_an_untracked_form_generates_as_before();
     await test_deleting_test_data_removes_everything();
   } finally {
@@ -223,9 +223,10 @@ async function test_every_generated_record_carries_a_consistent_history() {
   assert.ok(anonymous + named === tracked_records.flatMap((record) => record.history.slice(1)).length, "every update says who made it, or nobody");
 }
 
-/** A KPI over a window that holds a record's creation but not its last update does not count it. */
-async function test_the_dashboard_reads_each_record_by_its_last_update() {
+/** A window keeps every record created or changed inside it, read as it was at the window's end. */
+async function test_the_dashboard_reads_each_record_as_it_was() {
   const { compute_widget_data } = require("../util-dashboard/widget_data.js");
+  const submissions_model = require("../models/submissions_model.js");
   const form_version = await db.collection("dcs_forms").findOne({ form_group_id: FORM });
   const count_in = async (start, end) => {
     const widget = { form_group_id: FORM, chart_type: "kpi", metric: { aggregation: "count" }, filters: [], period: { preset: "custom", from: start.toISOString(), to: end.toISOString() } };
@@ -233,22 +234,31 @@ async function test_the_dashboard_reads_each_record_by_its_last_update() {
   };
   // A custom window is read to the second (its end is the end of that
   // second, and the same instant twice means the whole day), so the
-  // windows below are built a second apart rather than a millisecond.
+  // windows below are built on whole-second edges.
   const total = tracked_records.length;
   const first_submitted = new Date(Math.min(...tracked_records.map((record) => record.submitted_at.getTime())));
   const last_updated = new Date(Math.max(...tracked_records.map((record) => record.updated_at.getTime())));
   // cut is the last millisecond of the second before the latest update's second.
   const cut = new Date(Math.floor(last_updated.getTime() / 1000) * 1000 - 1);
   const latest = tracked_records.filter((record) => record.updated_at > cut).length;
-  // The same instant twice would mean a whole day; a window of that one second, then.
   const last_second_end = new Date(cut.getTime() + 1000);
   assert.strictEqual(await count_in(first_submitted, last_updated), total, "the whole span counts every record");
-  assert.strictEqual(await count_in(new Date(cut.getTime() + 1), last_second_end), latest, "the last second holds exactly the records last updated then");
+  assert.strictEqual(await count_in(new Date(cut.getTime() + 1), last_second_end), latest, "the last second holds exactly the records that changed then");
   assert.ok(latest >= 1 && latest < total, "which is the latest one (or a few sharing its second), not everything");
-  assert.strictEqual(await count_in(first_submitted, cut), total - latest, "a window that holds their creation but not their last update leaves them out");
-  const last_submitted = new Date(Math.max(...tracked_records.map((record) => record.submitted_at.getTime())));
-  const moved_inside = tracked_records.filter((record) => record.updated_at <= new Date(Math.floor(last_submitted.getTime() / 1000) * 1000 + 999)).length;
-  assert.strictEqual(await count_in(first_submitted, last_submitted), moved_inside, "the submission window counts only the records whose last update fell inside it");
+  assert.strictEqual(await count_in(first_submitted, cut), total, "every record was created inside the span before, so all belong to it, read as they were then");
+
+  // One record read as of a moment before its first status change, and as of its last.
+  const changed = tracked_records.find((record) => record.tracking_periods[STATUS].length >= 2);
+  assert.ok(changed, "some record changed its status");
+  const first_change = changed.tracking_periods[STATUS][1].from;
+  const before = new Date(first_change.getTime() - 1000);
+  const rows_as_of = async (end) => (await submissions_model.list_submissions(FORM, undefined, 1, 100, { start: changed.submitted_at, end }, { tracking: TRACKING })).items.find((item) => String(item._id) === String(changed._id));
+  const earlier = await rows_as_of(before);
+  assert.ok(earlier, "the record belongs to a window holding its creation");
+  assert.strictEqual(json(earlier.data[STATUS]), json(changed.tracking_periods[STATUS][0].value), "read before its first change, it shows its first status");
+  assert.strictEqual(earlier.as_of.getTime(), before.getTime(), "and says what moment it reads as of");
+  const now_row = await rows_as_of(changed.updated_at);
+  assert.strictEqual(json(now_row.data[STATUS]), json(changed.data[STATUS]), "read at its last update, it shows its current status");
 }
 
 /** No tracking: records are what the generator always made, nothing more. */

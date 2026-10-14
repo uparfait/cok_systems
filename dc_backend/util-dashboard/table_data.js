@@ -1,6 +1,7 @@
 const { get_db } = require("../db_connection/db.js");
 const { base_stages, filter_stages, numeric_expr } = require("./match_stage.js");
 const { is_multi_value, field_label_text } = require("./field_catalog.js");
+const { is_updatable } = require("../utilities/tracking_window.js");
 const { CHART_KINDS, TABLE_LIMITS, SUBMITTED_AT_FIELD, NUMERIC_AGGREGATIONS } = require("./constants.js");
 
 const SUBMISSIONS_COLLECTION = "dcs_submissions";
@@ -100,6 +101,9 @@ async function table_records(widget, bounds, catalog, records_policy) {
     page_size,
     pages,
     show_submitted_at: settings.show_submitted_at !== false,
+    // The moment the rows are read as of: a tracked form's rows inside a
+    // period carry the values they held at its end.
+    as_of: bounds && is_updatable(widget.tracking) ? bounds.end : null,
   };
 }
 

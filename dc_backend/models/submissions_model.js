@@ -1,7 +1,6 @@
 const { get_db } = require("../db_connection/db.js");
 const { to_object_id } = require("../utilities/object_id.js");
-const { tracking_stages } = require("../util-dashboard/tracking_stage.js");
-const { last_moved_expr, window_filter, date_window_filter } = require("../utilities/tracking_window.js");
+const { date_window_filter, as_of_stages, stage_prefilter, stage_rows_stages, time_expr } = require("../utilities/tracking_window.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 
@@ -396,28 +395,38 @@ async function list_records_in(collection_name, base_filter, version, page, limi
 
   // A pinned record answers for itself: the range, the version and the
   // column filters around it would only ever hide the one row that was
-  // explicitly asked for.
+  // explicitly asked for, and it is shown as it stands today.
   const tracking = options && options.tracking;
   const pinned = !!filter._id;
-  // One row per RECORD, carrying its current answers. On a tracked form
-  // the range keeps the records that were created or last updated inside
-  // it (see utilities/tracking_window.js); on any other form, what
-  // arrived inside it.
-  if (!pinned) {
-    Object.assign(filter, window_filter(date_bounds, tracking));
-    apply_value_filters(filter, options && options.filters);
-  }
+  // One row per RECORD. Inside a range a tracked form's rows are read AS
+  // THEY WERE at the range's end: the range keeps the records created or
+  // changed inside it and every updatable field is rewritten to the value
+  // it held then (see utilities/tracking_window.js); each row then says
+  // as_of. Any other form keeps what arrived inside the range, as stored.
+  if (!pinned) Object.assign(filter, date_window_filter(date_bounds, tracking));
+  const as_of = pinned ? [] : as_of_stages(tracking, date_bounds);
+  // Applied AFTER the rewrite, so a column filter matches the value the
+  // row actually shows ("status is alive" keeps who was alive then).
+  const value_filter = {};
+  if (!pinned) apply_value_filters(value_filter, options && options.filters);
+  const has_value_filter = Object.keys(value_filter).length > 0;
+  if (has_value_filter && as_of.length === 0) Object.assign(filter, value_filter);
 
   const sort_direction = options && options.sort === "oldest" ? 1 : -1;
   const skip = (page - 1) * limit;
   const collection = get_db().collection(collection_name);
   const search_term = options && options.search ? options.search.toString().trim() : "";
 
-  if (search_term) {
+  if (search_term || as_of.length > 0) {
+    const search_stages = search_term
+      ? [{ $addFields: { __search_text: SEARCH_TEXT_EXPRESSION } }, { $match: { __search_text: new RegExp(escape_regex(search_term), "i") } }]
+      : [];
     const pipeline = [
       { $match: filter },
-      { $addFields: { __search_text: SEARCH_TEXT_EXPRESSION } },
-      { $match: { __search_text: new RegExp(escape_regex(search_term), "i") } },
+      ...as_of,
+      ...(as_of.length > 0 ? [{ $addFields: { as_of: { $literal: date_bounds.end } } }] : []),
+      ...(has_value_filter && as_of.length > 0 ? [{ $match: value_filter }] : []),
+      ...search_stages,
       // _id breaks the tie so paging is stable when several records share
       // a moment (three imported rows a millisecond apart).
       { $sort: { submitted_at: sort_direction, _id: sort_direction } },
@@ -448,10 +457,10 @@ async function list_records_in(collection_name, base_filter, version, page, limi
 }
 
 /**
- * The export's own reading of a range: the records that were created or
- * changed at any moment inside it, ONE line each, carrying the value held
- * at the range's end (see utilities/tracking_window.js). Unlike the
- * table, which dates a record by its last move only.
+ * The export's reading of a range - the same as the table's: the records
+ * that were created or changed at any moment inside it, ONE line each,
+ * carrying the value held at the range's end (see
+ * utilities/tracking_window.js).
  */
 function range_filter(form_group_id, bounds, tracking) {
   return Object.assign({ form_group_id }, date_window_filter(bounds, tracking));
@@ -479,7 +488,7 @@ function stream_in_range(form_group_id, bounds, tracking, batch_size) {
     .aggregate(
       [
         { $match: range_filter(form_group_id, bounds, tracking) },
-        ...tracking_stages({ tracking }, bounds),
+        ...as_of_stages(tracking, bounds),
         { $sort: { submitted_at: 1, _id: 1 } },
         { $project: { data: 1, version: 1, submitted_at: 1, updated_at: 1, respondent: 1 } },
       ],
@@ -515,7 +524,7 @@ function stream_feed(form_group_id, filter, skip, limit, batch_size, tracking) {
   // window, never a mix of the window's records and today's answers.
   const pipeline = [
     { $match: feed_query(form_group_id, filter, tracking) },
-    ...tracking_stages({ tracking }, filter),
+    ...as_of_stages(tracking, filter),
     { $sort: { submitted_at: 1, _id: 1 } },
   ];
   if (skip) pipeline.push({ $skip: skip });
@@ -564,13 +573,13 @@ function utc_offset_string(offset_minutes) {
 
 async function count_submissions_over_time(form_group_id, start, end, granularity, offset_minutes, week_start_day, tracking) {
   const bounds = start && end ? { start, end } : null;
-  const match = Object.assign({ form_group_id }, window_filter(bounds, tracking));
+  const match = Object.assign({ form_group_id }, stage_prefilter(bounds, tracking));
 
-  // Bucketed on the moment each record last moved (its last update, or
-  // its arrival), the same moment the table windows on - so the chart's
-  // total and the table's total are the same number for the same range.
+  // An over-time reading: one row per stage moment inside the range, so a
+  // car recorded at 12:00 and driven out at 13:00 puts one count in the
+  // 12:00 column and one in the 13:00 column (see utilities/tracking_window.js).
   const truncate = {
-    date: last_moved_expr(tracking),
+    date: time_expr(tracking),
     unit: GRANULARITY_UNITS[granularity] || "day",
     timezone: utc_offset_string(offset_minutes),
   };
@@ -584,6 +593,7 @@ async function count_submissions_over_time(form_group_id, start, end, granularit
     .aggregate(
       [
         { $match: match },
+        ...stage_rows_stages(tracking, bounds),
         { $group: { _id: { $dateTrunc: truncate }, count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ],

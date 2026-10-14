@@ -4,19 +4,18 @@ const { MongoClient, ObjectId } = require("mongodb");
 const { set_db_handles } = require("../db_connection/db.js");
 
 /**
- * The dashboard side of the current-state reading, computed through the
- * real dashboard code (util-dashboard/widget_data.js) rather than
- * hand-built pipelines.
+ * The dashboard side of the as-of reading, computed through the real
+ * dashboard code (util-dashboard/widget_data.js) rather than hand-built
+ * pipelines.
  *
  * The scenario is the smart-parking one. A car is recorded on arrival
  * with status "in" and the SAME record is labelled "out" when it leaves.
- * A dashboard reads every record ONCE, with the status it holds now,
- * dated by the moment it last moved - so over 12:00-14:00:
- *
- *   KPI "cars in"   ->  the cars that last moved in the window and are in now
- *   KPI "cars out"  ->  the cars that last moved in the window and are out now
- *
- * and an OVER TIME chart puts each car in the hour of its last move.
+ * A dashboard period shows the register AS IT WAS at the period's end:
+ * the cars created or moved inside the period, each with the status it
+ * held at the end - so a period ending 12:30 says a car that left at
+ * 13:00 was in. The over-time chart alone reads the state DURING each
+ * hour: one row per movement, "in" in the 12:00 column and "out" in the
+ * 13:00 one for the same car.
  */
 
 const FORM = "dash-parking";
@@ -31,6 +30,7 @@ const YESTERDAY = new Date("2026-09-24T08:00:00Z");
 // 12:00 up to (not including) 14:00, stated to the millisecond.
 const WINDOW = { from: "2026-09-25T12:00:00.000Z", to: "2026-09-25T13:59:59.999Z" };
 const HOUR_13 = { from: "2026-09-25T13:00:00.000Z", to: "2026-09-25T13:59:59.999Z" };
+const HALF_PAST_12 = { from: "2026-09-25T12:00:00.000Z", to: "2026-09-25T12:30:00.000Z" };
 
 const FORM_VERSION = {
   form_group_id: FORM,
@@ -62,7 +62,7 @@ function periods(spec) {
 }
 
 const CARS = [
-  // Arrived 12:00, left 13:00 - last moved at 13:00, out now.
+  // Arrived 12:00, left 13:00.
   {
     _id: new ObjectId("00000000000000000000ab01"),
     form_group_id: FORM,
@@ -72,7 +72,7 @@ const CARS = [
     data: { [PLATE]: "RAB 001", [STATUS]: "out" },
     tracking_periods: periods({ [STATUS]: [["in", T12, T13], ["out", T13, null]] }),
   },
-  // Arrived 12:00, still parked - never updated, dated by its arrival.
+  // Arrived 12:00, still parked.
   {
     _id: new ObjectId("00000000000000000000ab02"),
     form_group_id: FORM,
@@ -81,8 +81,7 @@ const CARS = [
     data: { [PLATE]: "RAB 002", [STATUS]: "in" },
     tracking_periods: periods({ [STATUS]: [["in", T12, null]] }),
   },
-  // Arrived YESTERDAY, left 13:00 today. Its last move puts it in the
-  // window even though it arrived long before it began.
+  // Arrived YESTERDAY, left 13:00 today.
   {
     _id: new ObjectId("00000000000000000000ab03"),
     form_group_id: FORM,
@@ -94,16 +93,16 @@ const CARS = [
   },
 ];
 
-const period = { preset: "custom", from: WINDOW.from, to: WINDOW.to };
+const period_of = (window) => ({ preset: "custom", from: window.from, to: window.to });
 
 /** A KPI card counting the records whose status is one value. */
-function kpi_widget(status_value) {
+function kpi_widget(status_value, window) {
   return {
     form_group_id: FORM,
     chart_type: "kpi",
     metric: { aggregation: "count" },
     filters: [{ field_id: STATUS, operator: "eq", value: status_value }],
-    period,
+    period: period_of(window || WINDOW),
   };
 }
 
@@ -117,7 +116,7 @@ function over_time_widget() {
     over_time: { enabled: true, field_id: "submitted_at", granularity: "hour" },
     split_by: { field_id: STATUS },
     filters: [],
-    period,
+    period: period_of(WINDOW),
   };
 }
 
@@ -129,7 +128,7 @@ function table_widget() {
     metric: { aggregation: "count" },
     table: { mode: "records", fields: [PLATE, STATUS], page_size: 10 },
     filters: [],
-    period,
+    period: period_of(WINDOW),
   };
 }
 
@@ -149,11 +148,10 @@ async function run_all_tests() {
 
   try {
     await test_two_kpi_cards_read_the_same_hours();
-    await test_a_kpi_card_counts_each_record_once_by_its_last_move();
-    await test_the_previous_period_reads_its_own_window();
-    await test_over_time_puts_each_record_in_the_hour_of_its_last_move();
-    await test_kpi_totals_match_the_over_time_columns();
-    await test_the_records_table_lists_each_record_once();
+    await test_a_period_ending_before_a_departure_reads_the_car_as_in();
+    await test_the_previous_period_reads_its_own_state();
+    await test_over_time_splits_the_movements_across_hours();
+    await test_the_records_table_lists_each_record_as_of_the_end();
     await test_an_unbounded_period_reads_today();
   } finally {
     await client.close();
@@ -170,78 +168,57 @@ const kpi_of = async (widget) => {
   return data;
 };
 
-const kpi_value = async (status_value) => (await kpi_of(kpi_widget(status_value))).value;
+const kpi_value = async (status_value, window) => (await kpi_of(kpi_widget(status_value, window))).value;
 
-/** The two cards the whole scenario is about. */
+/** The two cards the whole scenario is about, as of 13:59. */
 async function test_two_kpi_cards_read_the_same_hours() {
-  const cars_in = await kpi_value("in");
-  const cars_out = await kpi_value("out");
-  assert.strictEqual(cars_in, 1, 'one car that last moved between 12:00 and 14:00 is in now ("cars in")');
-  assert.strictEqual(cars_out, 2, 'two cars that last moved between 12:00 and 14:00 are out now ("cars out")');
+  assert.strictEqual(await kpi_value("in"), 1, 'at 13:59 one car that arrived or moved between 12:00 and 14:00 is in ("cars in")');
+  assert.strictEqual(await kpi_value("out"), 2, 'and two are out ("cars out")');
+  assert.strictEqual((await kpi_value("in")) + (await kpi_value("out")), 3, "three records are in the window, each counted once");
+  assert.strictEqual(await kpi_value("out", HOUR_13), 2, "the 13:00 hour holds the two cars that left then, out at 13:59");
+  assert.strictEqual(await kpi_value("in", HOUR_13), 0, "and none of them was in at 13:59");
 }
 
-/**
- * RAB 001 both arrived and left inside the window, but it is ONE record
- * with one current status, so it is on exactly one of the two cards.
- */
-async function test_a_kpi_card_counts_each_record_once_by_its_last_move() {
-  const cars_in = await kpi_value("in");
-  const cars_out = await kpi_value("out");
-  assert.strictEqual(cars_in + cars_out, 3, "three records last moved in the window, and each is counted once");
-  const only_out = await kpi_of(Object.assign(kpi_widget("out"), { period: { preset: "custom", from: HOUR_13.from, to: HOUR_13.to } }));
-  assert.strictEqual(only_out.value, 2, "the 13:00 hour holds exactly the two cars whose last move was then");
-  const none_in = await kpi_of(Object.assign(kpi_widget("in"), { period: { preset: "custom", from: HOUR_13.from, to: HOUR_13.to } }));
-  assert.strictEqual(none_in.value, 0, "RAB 002 last moved at 12:00, so it is not in the 13:00 hour");
+/** The whole point: a period that ends before the car left still says it was in. */
+async function test_a_period_ending_before_a_departure_reads_the_car_as_in() {
+  assert.strictEqual(await kpi_value("in", HALF_PAST_12), 2, "at 12:30 both cars that arrived at 12:00 were in - RAB 001 had not left yet");
+  assert.strictEqual(await kpi_value("out", HALF_PAST_12), 0, "nobody had left by 12:30");
 }
 
-/** The comparison figure reads the previous window's own records. */
-async function test_the_previous_period_reads_its_own_window() {
-  const card = await kpi_of(Object.assign(kpi_widget("in"), { period: { preset: "custom", from: HOUR_13.from, to: HOUR_13.to } }));
-  assert.strictEqual(card.value, 0, "no car that last moved in the 13:00 hour is in");
-  assert.strictEqual(card.previous, 1, "the previous hour (12:00) holds RAB 002, which is in");
+/** The comparison figure reads the previous window as IT stood at its end. */
+async function test_the_previous_period_reads_its_own_state() {
+  const card = await kpi_of(kpi_widget("in", HOUR_13));
+  assert.strictEqual(card.value, 0, "no car in the 13:00 hour was in at 13:59");
+  assert.strictEqual(card.previous, 2, "in the previous hour (12:00) both arrivals were in at 12:59");
 }
 
-/** Each record lands in the hour of its last move. */
-async function test_over_time_puts_each_record_in_the_hour_of_its_last_move() {
+/** Each movement lands in the hour it happened, with the value it set. */
+async function test_over_time_splits_the_movements_across_hours() {
   const data = await compute_widget_data(over_time_widget(), FORM_VERSION, null);
-  assert.ok(Array.isArray(data.rows), "an over-time widget returns rows");
-  // Flatten to "<bucket label> <series>=<value>" so the shape is readable
-  // whatever the chart formatter wraps it in.
-  const flat = [];
-  data.rows.forEach((row) => {
-    Object.keys(row).forEach((key) => {
-      if (key === "label" || key === "key") return;
-      if (typeof row[key] === "number" && row[key] !== 0) flat.push(`${row.label} ${key}=${row[key]}`);
-    });
-  });
-  const joined = flat.join(" | ");
-  assert.strictEqual(flat.length > 0, true, `the chart produced no values: ${JSON.stringify(data.rows)}`);
-  assert.strictEqual(/in=1/.test(joined), true, `the 12:00 column must hold the one car that last moved then (in), got: ${joined}`);
-  assert.strictEqual(/out=2/.test(joined), true, `the 13:00 column must hold the two cars that last moved then (out), got: ${joined}`);
-  assert.strictEqual(/in=2/.test(joined), false, `RAB 001 must not be counted as an arrival any more, got: ${joined}`);
-}
-
-/** The cards and the chart are two readings of one set of records. */
-async function test_kpi_totals_match_the_over_time_columns() {
-  const cars_in = await kpi_value("in");
-  const cars_out = await kpi_value("out");
-  const data = await compute_widget_data(over_time_widget(), FORM_VERSION, null);
+  assert.ok(Array.isArray(data.rows) && data.rows.length === 2, `two hourly columns, got ${JSON.stringify(data.rows)}`);
+  assert.strictEqual(data.rows[0].in, 2, "the 12:00 column holds the two arrivals");
+  assert.strictEqual(data.rows[0].out || 0, 0, "and no departure");
+  assert.strictEqual(data.rows[1].out, 2, "the 13:00 column holds the two departures");
+  assert.strictEqual(data.rows[1].in || 0, 0, "and no arrival");
   let charted = 0;
   data.rows.forEach((row) => {
     Object.keys(row).forEach((key) => {
       if (key !== "label" && key !== "key" && typeof row[key] === "number") charted += row[key];
     });
   });
-  assert.strictEqual(charted, cars_in + cars_out, "the chart's columns add up to exactly what the two cards count between them");
+  assert.strictEqual(charted, 4, "four movements over three cars: the chart counts movements, the cards count cars");
 }
 
-/** The records table shows one row per record, with its current answers. */
-async function test_the_records_table_lists_each_record_once() {
+/** The records table shows one row per record, with the answers it held at the end. */
+async function test_the_records_table_lists_each_record_as_of_the_end() {
   const data = await compute_widget_data(table_widget(), FORM_VERSION, null);
   assert.strictEqual(data.kind, "table", "a table widget computes as a table");
-  assert.strictEqual(data.total, 3, "three records last moved in the window");
+  assert.strictEqual(data.total, 3, "three records were created or moved in the window");
   const rows = data.items.map((item) => `${item.data[PLATE]}=${item.data[STATUS]}`).sort();
-  assert.deepStrictEqual(rows, ["RAB 001=out", "RAB 002=in", "RAB 003=out"], "one row per car, each with the status it holds now");
+  assert.deepStrictEqual(rows, ["RAB 001=out", "RAB 002=in", "RAB 003=out"], "one row per car, as of 13:59");
+  assert.strictEqual(new Date(data.as_of).getTime(), new Date(WINDOW.to).getTime(), "the table says what moment it reads as of");
+  const earlier = await compute_widget_data(Object.assign(table_widget(), { period: period_of(HALF_PAST_12) }), FORM_VERSION, null);
+  assert.deepStrictEqual(earlier.items.map((item) => `${item.data[PLATE]}=${item.data[STATUS]}`).sort(), ["RAB 001=in", "RAB 002=in"], "as of 12:30 both arrivals were in");
 }
 
 /** With no period at all, a register reads as it stands right now. */

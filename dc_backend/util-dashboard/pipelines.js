@@ -1,8 +1,8 @@
 const { get_db } = require("../db_connection/db.js");
-const { build_match_stage, base_stages, numeric_expr } = require("./match_stage.js");
+const { build_match_stage, base_stages, stage_base_stages, numeric_expr } = require("./match_stage.js");
 const { is_multi_value } = require("./field_catalog.js");
 const { LIMITS, SUBMITTED_AT_FIELD, UPDATED_AT_FIELD } = require("./constants.js");
-const { last_moved_expr } = require("../utilities/tracking_window.js");
+const { time_expr, last_moved_expr } = require("../utilities/tracking_window.js");
 
 const SUBMISSIONS_COLLECTION = "dcs_submissions";
 
@@ -112,17 +112,22 @@ async function split_rows(widget, bounds, catalog) {
  * The date expression a time widget buckets on: the row's own moment, or a
  * date field of the record converted safely.
  *
- * On a tracked form the row's own moment is when it LAST MOVED - its last
- * update, or its arrival when it was never updated - the same moment its
- * window is read on (see utilities/tracking_window.js). On any other form
- * it is the arrival.
+ * On a tracked form the rows of a time widget are its STAGES (see
+ * stage_base_stages), so the row's own moment is the moment that stage
+ * opened - the arrival of a car in the 12:00 column and its departure in
+ * the 13:00 one. On any other form it is the arrival.
  */
 function time_source_expr(field_id, tracking) {
-  if (!field_id || field_id === SUBMITTED_AT_FIELD) return last_moved_expr(tracking);
+  if (!field_id || field_id === SUBMITTED_AT_FIELD) return time_expr(tracking);
   // A record that has never been changed has no updated_at of its own, so
   // the moment it arrived is when it last stood as it is.
   if (field_id === UPDATED_AT_FIELD) return { $ifNull: ["$updated_at", "$submitted_at"] };
   return { $convert: { input: `$data.${field_id}`, to: "date", onError: null, onNull: null } };
+}
+
+/** Whether a time widget reads its rows stage by stage: only when it buckets on the records' own moments. */
+function is_stage_bucketed(field_id) {
+  return !field_id || field_id === SUBMITTED_AT_FIELD;
 }
 
 /**
@@ -140,8 +145,12 @@ async function time_rows(widget, bounds, granularity, catalog, split_field) {
     : { $dateToString: { format: granularity === "month" ? "%Y-%m" : "%Y", date: source } };
 
   const group_id = split_field ? { b: bucket_expr, s: `$data.${split_field}` } : bucket_expr;
+  // Bucketed on the records' own moments: one row per stage inside the
+  // window, with the values of that moment. Bucketed on a date field or
+  // on updated_at: one row per record, as of the window's end.
+  const opening = is_stage_bucketed(widget.group_by.field_id) ? stage_base_stages(widget, bounds) : base_stages(widget, bounds);
   const pipeline = [
-    ...base_stages(widget, bounds),
+    ...opening,
     ...(split_field ? unwind_stages(catalog, [split_field]) : []),
     ...(split_field ? [{ $match: { [`data.${split_field}`]: { $nin: [null, ""] } } }] : []),
     { $group: { _id: group_id, value: metric_accumulator(widget.metric) } },
@@ -154,15 +163,14 @@ async function time_rows(widget, bounds, granularity, catalog, split_field) {
 }
 
 /**
- * The true min/max moment of the matched records (their last move on a
- * tracked form, their arrival otherwise) - used to derive bounds (and so
- * the bucket size) when the widget has no period at all.
+ * The true extent of the matched records' moments - from the first arrival
+ * to the last move on a tracked form, the arrivals otherwise - used to
+ * derive bounds (and so the bucket size) when the widget has no period.
  */
 async function time_extent(widget) {
-  const moment = last_moved_expr(widget.tracking);
   const pipeline = [
     ...base_stages(widget, null),
-    { $group: { _id: null, min: { $min: moment }, max: { $max: moment } } },
+    { $group: { _id: null, min: { $min: "$submitted_at" }, max: { $max: last_moved_expr(widget.tracking) } } },
   ];
   const rows = await run_pipeline(pipeline);
   if (rows.length === 0 || !rows[0].min || !rows[0].max) return null;

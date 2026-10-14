@@ -6,19 +6,12 @@ const { set_db_handles } = require("../db_connection/db.js");
 
 /**
  * The key index of a tracked form with SEVERAL key fields, over HTTP
- * against the real public router and a real MongoDB:
- *
- *   - a form keyed on two fields (a national id and a plot number), the
- *     COMBINATION unique: a second record with the same pair is refused
- *     with 409 and a field error on both key fields;
- *   - the public lookup by one key field (?field=&key=), paged, and by
- *     any key field when no field is named; a field that is not a key is
- *     refused;
- *   - the respondent update (PUT) still works, and once a record is
- *     updated it is dated by that update: it moves into the later period
- *     in the records table and in a KPI card;
- *   - a form saved with the old single key_field_id still reads, submits
- *     and looks up, and normalises to key_field_ids.
+ * against the real public router and a real MongoDB: the COMBINATION of
+ * the keys is unique (409 with a field error on every key), the public
+ * lookup is a search by any key field or one named field, paged; the
+ * respondent update (PUT) still works and a period reads the record as it
+ * was at the period's end; the old single key_field_id config still works
+ * and normalises to key_field_ids.
  */
 
 const FORM = "lookup-two-keys";
@@ -231,7 +224,8 @@ async function test_an_update_moves_the_record_into_the_later_period() {
 
   // The P-7 record is made to look ten days old; the others stay today.
   const record = await db.collection("dcs_submissions").findOne({ form_group_id: FORM, record_key: "id-001|p-7" });
-  await db.collection("dcs_submissions").updateOne({ _id: record._id }, { $set: { submitted_at: days_ago(10) } });
+  // Back-dated whole: its submission, the opening of its first period and its "created" entry are its creation moment.
+  await db.collection("dcs_submissions").updateOne({ _id: record._id }, { $set: { submitted_at: days_ago(10), [`tracking_periods.${NOTE}.0.from`]: days_ago(10), "history.0.at": days_ago(10) } });
 
   const old_window = { start: days_ago(15), end: days_ago(5) };
   const recent_window = { start: days_ago(2), end: new Date(Date.now() + DAY_MS) };
@@ -256,13 +250,17 @@ async function test_an_update_moves_the_record_into_the_later_period() {
   assert.strictEqual(locked.body.data.history.length, 2, "created, then updated");
 
   const rows = await list(recent_window);
-  assert.strictEqual(rows.total, 25, "after the update, the recent window lists the updated record too");
+  assert.strictEqual(rows.total, 25, "after the update, the recent window lists the updated record too: it changed inside it");
   const row = rows.items.find((item) => String(item._id) === String(record._id));
   assert.ok(row, "the updated record is in the recent window");
-  assert.strictEqual(row.data[NOTE], "revised", "with its current answers");
-  assert.strictEqual((await list(old_window)).total, 0, "and it has left the old window: it is dated by its last move");
+  assert.strictEqual(row.data[NOTE], "revised", "with its current answers - the window ends in the future, nothing to rewrite");
+  assert.strictEqual(row.as_of, undefined, "so the row carries no as_of");
+  const old_rows = await list(old_window);
+  assert.strictEqual(old_rows.total, 1, "it still belongs to the old window, where it was created");
+  assert.strictEqual(old_rows.items[0].data[NOTE], "first", "read as it was at the old window's end: the note before the update");
+  assert.strictEqual(old_rows.items[0].as_of.getTime(), old_window.end.getTime(), "and the row says what moment it reads as of");
   assert.strictEqual(await kpi(recent_window), 25, "the recent KPI counts it now");
-  assert.strictEqual(await kpi(old_window), 0, "the old KPI no longer does");
+  assert.strictEqual(await kpi(old_window), 1, "and the old KPI still counts it, as it was then");
   assert.strictEqual(rows.items.filter((item) => String(item._id) === String(record._id)).length, 1, "and it is one row, not one per change");
 
   const looked_up = await call("GET", `/forms/${FORM}/records?field=${PLOT}&key=P-7`);
