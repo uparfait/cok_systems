@@ -97,9 +97,39 @@ function fillable_schema_fields(version_doc) {
 }
 
 /**
+ * The record's own fields a file may carry back: when it was submitted,
+ * when it was last updated, and which version of the form it answers.
+ * Listed after the data fields, never required; labelled as the export
+ * labels them so an exported file maps by itself. Version offers the
+ * form's existing version numbers as its options.
+ */
+const SYSTEM_TARGETS = [
+  { id: "submitted_at", label_key: "TABLE_SUBMITTED_AT", type: "system_date_time" },
+  { id: "updated_at", label_key: "IMPORT_UPDATED_AT", type: "system_date_time" },
+  { id: "version", label_key: "TABLE_VERSION", type: "system_version" },
+];
+
+function system_targets(language, translate, versions) {
+  return SYSTEM_TARGETS.map((target) => {
+    const label = translate(target.label_key, language);
+    const names = new Set([label, target.id, target.id.replace("_", " ")]);
+    LANGUAGES.forEach((code) => names.add(translate(target.label_key, code)));
+    const view = { id: target.id, label, names: Array.from(names), type: target.type, required: false, system: target.id };
+    if (target.id === "version") view.options = (versions || []).map((version) => ({ value: Number(version), label: String(version) }));
+    return view;
+  });
+}
+
+/** Every target the mapping offers: the data fields, then the three record fields. */
+function import_targets(version_doc, language, translate, versions) {
+  return fillable_fields(version_doc, language, translate).concat(system_targets(language, translate, versions));
+}
+
+/**
  * One header per field; a location field spreads into "<label> latitude",
  * "<label> longitude", "<label> accuracy" - the very three columns the
- * export writes for it (utilities/export_columns.js).
+ * export writes for it (utilities/export_columns.js); the record fields
+ * come last.
  */
 function template_headers(fields) {
   const headers = [];
@@ -113,11 +143,14 @@ function template_headers(fields) {
 module.exports = {
   OPTION_TYPES,
   GEO_PARTS,
+  SYSTEM_TARGETS,
   is_fillable,
   import_label,
   all_options,
   is_api_sourced,
   fillable_fields,
   fillable_schema_fields,
+  system_targets,
+  import_targets,
   template_headers,
 };

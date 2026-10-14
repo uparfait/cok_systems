@@ -100,22 +100,37 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
   const notes = (status && status.notes) || [];
   const error_total = status ? status.error_count || errors.length : 0;
   const note_total = status ? status.note_count || notes.length : 0;
+  const media = (status && status.media_failures) || [];
+  const media_total = status ? status.media_failure_count || media.length : 0;
   const stage_text = () => {
     if (!status || (!status.stage && running)) return translate("DCS_IMPORT_STARTING");
     if (is_done) return status.message || translate("DCS_IMPORT_DONE", { count: status.created || 0 });
     if (is_failed) return translate("DCS_IMPORT_FAILED_TITLE");
     return translate(is_saving ? "DCS_IMPORT_SAVING" : "DCS_IMPORT_CHECKING", { done, total });
   };
-  const error_line = (entry) => translate(entry.column ? "DCS_IMPORT_ERROR_LINE" : "DCS_IMPORT_ERROR_LINE_NO_COLUMN", { row: entry.row, column: entry.column, field: entry.field, reason: entry.reason });
+  const error_line = (entry) => (!entry.field && !entry.column ? entry.reason : translate(entry.column ? "DCS_IMPORT_ERROR_LINE" : "DCS_IMPORT_ERROR_LINE_NO_COLUMN", { row: entry.row, column: entry.column, field: entry.field, reason: entry.reason }));
   const note_line = (entry) => translate("DCS_IMPORT_NOTE_LINE", { row: entry.row, column: entry.column, from: entry.from, to: entry.to });
-  const notes_block = note_total > 0 ? (
-    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-      <span className="text-xs" style={{ color: "#555555", ...FONT }}>
-        {translate("DCS_IMPORT_NOTES_COUNT", { count: note_total })}
-      </span>
-      <LinkButton onClick={() => setDialog("notes")}>{translate("DCS_IMPORT_VIEW_NOTES")}</LinkButton>
-    </div>
-  ) : null;
+  const media_line = (entry) => translate("DCS_IMPORT_MEDIA_LINE", { row: entry.row, column: entry.column, field: entry.field, link: entry.link, reason: entry.reason });
+  const notes_block = (
+    <>
+      {note_total > 0 ? (
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-xs" style={{ color: "#555555", ...FONT }}>
+            {translate("DCS_IMPORT_NOTES_COUNT", { count: note_total })}
+          </span>
+          <LinkButton onClick={() => setDialog("notes")}>{translate("DCS_IMPORT_VIEW_NOTES")}</LinkButton>
+        </div>
+      ) : null}
+      {media_total > 0 ? (
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-xs" style={{ color: "#555555", ...FONT }}>
+            {translate("DCS_IMPORT_MEDIA_COUNT", { count: media_total })}
+          </span>
+          <LinkButton onClick={() => setDialog("media")}>{translate("DCS_IMPORT_VIEW_MEDIA")}</LinkButton>
+        </div>
+      ) : null}
+    </>
+  );
 
   return (
     <div className="max-w-xl mx-auto w-full flex flex-col h-full min-h-0">
@@ -175,6 +190,7 @@ export default function DcsImportRunStep({ formGroupId, importId, mapping, onBus
 
       {dialog === "errors" && errors.length > 0 ? <DcsImportLinesDialog title={translate("DCS_IMPORT_ERRORS_TITLE", { count: error_total })} subtitle={status.message || translate("DCS_IMPORT_NOTHING_SAVED")} lines={errors.map(error_line)} more={error_total - errors.length} onClose={() => setDialog(null)} /> : null}
       {dialog === "notes" && notes.length > 0 ? <DcsImportLinesDialog title={translate("DCS_IMPORT_NOTES_TITLE", { count: note_total })} subtitle={translate("DCS_IMPORT_NOTES_COUNT", { count: note_total })} lines={notes.map(note_line)} more={note_total - notes.length} onClose={() => setDialog(null)} /> : null}
+      {dialog === "media" && media.length > 0 ? <DcsImportLinesDialog title={translate("DCS_IMPORT_MEDIA_TITLE", { count: media_total })} subtitle={translate("DCS_IMPORT_MEDIA_COUNT", { count: media_total })} lines={media.map(media_line)} more={media_total - media.length} onClose={() => setDialog(null)} /> : null}
     </div>
   );
 }

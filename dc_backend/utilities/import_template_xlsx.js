@@ -15,7 +15,7 @@ const { translate } = require("../i18n/index.js");
  * template is still produced.
  */
 const LAST_ROW = 2001;
-const SINGLE_CHOICE_TYPES = ["single_select", "select_group", "cascading_select", "likert_scale", "boolean", "yes_no"];
+const SINGLE_CHOICE_TYPES = ["single_select", "select_group", "cascading_select", "likert_scale", "boolean", "yes_no", "system_version"];
 const MULTI_CHOICE_TYPES = ["multi_select", "ranking"];
 const HEADER_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FF056DAA" } };
 

@@ -4,6 +4,7 @@ const form_approvers_model = require("../../models/form_approvers_model.js");
 const project_access = require("../../utilities/project_access.js");
 const test_jobs = require("../../utilities/test_jobs.js");
 const { generate_test_record } = require("../../utilities/test_data_generator.js");
+const { build_test_tracking } = require("../../utilities/test_data_history.js");
 const { build_test_data_plan } = require("../../utilities/test_data_plan.js");
 const { build_test_submission_approval, build_approval_without_pool } = require("../../utilities/generated_approvers.js");
 const { validate_submission_data } = require("../../jsonlogic/validate_submission.js");
@@ -82,12 +83,17 @@ function approval_for(form_group_id, routing_config, has_generated_pool, resolve
  * the long-poll job endpoint. Every record goes through the exact same
  * validate_submission_data gate as a real public submit; a record that
  * cannot pass after a few fresh attempts is counted failed and never saved.
+ * On a tracked form with updatable fields each record also gets a change
+ * history of a few updates after its submission (utilities/
+ * test_data_history.js), and its approval is routed on its final answers.
  */
 async function run_generation(job_id, form_version, routing_config, timestamps, plan, has_generated_pool) {
   let buffer = [];
   let saved = 0;
   let failed = 0;
   let processed = 0;
+  // Every generated change happens before the job started.
+  const now = new Date();
 
   const flush = async () => {
     if (buffer.length === 0) return;
@@ -112,16 +118,21 @@ async function run_generation(job_id, form_version, routing_config, timestamps, 
       }
 
       if (validation_result && validation_result.valid) {
-        buffer.push({
-          form_group_id: form_version.form_group_id,
-          version: Number(form_version.version),
-          project_id: form_version.project_id,
-          data: validation_result.resolved_data,
-          client_submission_id: null,
-          approval: await approval_for(form_version.form_group_id, routing_config, has_generated_pool, validation_result.resolved_data),
-          [submissions_model.TEST_DATA_FLAG]: true,
-          submitted_at,
-        });
+        const tracked = build_test_tracking(form_version, plan, validation_result.resolved_data, submitted_at, now);
+        buffer.push(
+          Object.assign(
+            {
+              form_group_id: form_version.form_group_id,
+              version: Number(form_version.version),
+              project_id: form_version.project_id,
+              client_submission_id: null,
+              approval: await approval_for(form_version.form_group_id, routing_config, has_generated_pool, tracked.data),
+              [submissions_model.TEST_DATA_FLAG]: true,
+              submitted_at,
+            },
+            tracked,
+          ),
+        );
         saved += 1;
       } else {
         failed += 1;

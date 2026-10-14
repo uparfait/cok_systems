@@ -164,13 +164,19 @@ export default function DcsImportMappingStep({ headers, preview, sheetName, rowC
             {translate("DCS_IMPORT_FIELDS")}
           </p>
           <div className="flex flex-col gap-2">
-            {targets.map((target) => {
+            {targets.map((target, index) => {
               const column = mapping[target.key];
               const color = column !== undefined ? color_of(targets, target.key) : null;
               const active = pending && pending.kind === "target" && pending.key === target.key;
+              const first_system = target.system && (index === 0 || !targets[index - 1].system);
               return (
+                <div key={target.key}>
+                {first_system ? (
+                  <p className="text-[10px] font-bold uppercase mb-2 mt-2" style={{ color: MUTED, letterSpacing: "0.6px", ...FONT }}>
+                    {translate("DCS_IMPORT_RECORD_FIELDS")}
+                  </p>
+                ) : null}
                 <div
-                  key={target.key}
                   data-import-target={target.key}
                   role="button"
                   tabIndex={0}
@@ -188,7 +194,7 @@ export default function DcsImportMappingStep({ headers, preview, sheetName, rowC
                     </span>
                     {!target.part ? (
                       <span className="text-[10px] uppercase flex-shrink-0 px-1.5 py-0.5" style={{ color: MUTED, backgroundColor: "#F7F9FB", ...FONT }}>
-                        {field_type_label(target.field.type)}
+                        {target.system ? translate("DCS_IMPORT_RECORD_FIELD") : field_type_label(target.field.type)}
                       </span>
                     ) : null}
                     {column !== undefined ? <UnmapButton onClick={() => unmap(target.key)} label={translate("DCS_IMPORT_UNMAP")} /> : null}
@@ -200,6 +206,7 @@ export default function DcsImportMappingStep({ headers, preview, sheetName, rowC
                         ? translate("DCS_IMPORT_WHOLE_LOCATION")
                         : translate("DCS_IMPORT_NOT_MAPPED")}
                   </p>
+                </div>
                 </div>
               );
             })}

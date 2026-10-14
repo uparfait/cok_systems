@@ -2,7 +2,7 @@ const fs = require("fs");
 const forms_model = require("../../models/forms_model.js");
 const imports_model = require("../../models/form_imports_model.js");
 const { manager_context } = require("../forms/translation_links.js");
-const { fillable_fields, fillable_schema_fields, template_headers } = require("../../utilities/import_fields.js");
+const { import_targets, fillable_schema_fields, template_headers } = require("../../utilities/import_fields.js");
 const { csv_line } = require("../../utilities/csv_parser.js");
 const { read_import_rows } = require("../../utilities/import_rows.js");
 const { upload_import_file, is_import_format_allowed } = require("../../utilities/upload.js");
@@ -17,6 +17,12 @@ const PREVIEW_ROWS = 5;
 
 function remove_file(file) {
   if (file && file.path) fs.unlink(file.path, () => {});
+}
+
+/** The form's existing version numbers, newest first - what the Version record field may hold. */
+async function version_numbers(form_group_id) {
+  const versions = await forms_model.get_versions_by_group(form_group_id);
+  return versions.map((entry) => Number(entry.version));
 }
 
 /**
@@ -63,7 +69,7 @@ async function import_template(req, res) {
     // goes to someone outside the app.
     const lang = (req.query && req.query.language) || "en";
     const as_xlsx = req.query && req.query.format === "xlsx";
-    const fields = fillable_fields(context.active_version, lang, translate);
+    const fields = import_targets(context.active_version, lang, translate, await version_numbers(req.params.form_group_id));
     const headers = template_headers(fields);
     const base_name = `${sanitize_filename(context.active_version.form_name || "form")}_template`;
     if (as_xlsx) {
@@ -132,7 +138,7 @@ async function import_upload(req, res) {
       row_count: parsed.rows.length,
       preview: parsed.rows.slice(0, PREVIEW_ROWS),
     });
-    const fields = fillable_fields(version, req.language, translate);
+    const fields = import_targets(version, req.language, translate, await version_numbers(req.params.form_group_id));
     return res.status(201).json(
       success_response(
         req,
@@ -171,10 +177,12 @@ async function import_run(req, res) {
     if (session.status !== "uploaded") return res.status(409).json(warning_response(req, "IMPORT_ALREADY_RUN", null, { data: imports_model.import_view(session) }));
 
     const version_doc = (await forms_model.get_version_document(form_group_id, session.version)) || context.active_version;
-    const field_views = fillable_fields(version_doc, req.language, translate);
+    const versions = await forms_model.get_versions_by_group(form_group_id);
+    const numbers = versions.map((entry) => Number(entry.version));
+    const field_views = import_targets(version_doc, req.language, translate, numbers);
     const schema_fields = fillable_schema_fields(version_doc);
     const { mapping, defaults } = req.body || {};
-    const plan = build_plan(field_views, schema_fields, mapping, defaults, session.headers);
+    const plan = build_plan(field_views, schema_fields, mapping, defaults, session.headers, numbers);
     if (plan.mapped_count === 0) return res.status(400).json(warning_response(req, "IMPORT_MAPPING_REQUIRED"));
     const missing = required_left_empty(plan);
     if (missing.length > 0) {
@@ -187,7 +195,7 @@ async function import_run(req, res) {
 
     const language = req.language;
     const user = req.user;
-    setImmediate(() => run_import_job(claimed, version_doc, plan, language, user));
+    setImmediate(() => run_import_job(claimed, version_doc, plan, language, user, versions));
     return res.status(202).json(success_response(req, "IMPORT_STARTED", Object.assign({ running: true }, imports_model.import_view(claimed))));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));

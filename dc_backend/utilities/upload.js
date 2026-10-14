@@ -99,4 +99,4 @@ const upload_import_file = multer({
   },
 });
 
-module.exports = { upload_submission_file, upload_design_file, upload_approval_file, upload_import_file, is_import_format_allowed, IMPORT_UPLOAD_DIR };
+module.exports = { upload_submission_file, upload_design_file, upload_approval_file, upload_import_file, is_import_format_allowed, IMPORT_UPLOAD_DIR, SUBMISSION_UPLOAD_DIR };

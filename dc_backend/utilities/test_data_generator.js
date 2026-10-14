@@ -431,8 +431,35 @@ function generate_test_record(schema_or_plan) {
   return data;
 }
 
+/**
+ * A fresh value for ONE field of an existing record - what a later update
+ * writes: a candidate drawn by the very rules the initial value was drawn
+ * by, DIFFERENT from the current answer and passing the field's own rules
+ * against the record as it stands. undefined when the field cannot be
+ * answered now (hidden, locked by its parents, no options) or no different
+ * valid value came up.
+ */
+function regenerate_field(field, data, plan) {
+  const trimmed = build_trimmed_evaluation_data(data);
+  const own_visible = new Map(plan.flat_fields.map((entry) => [entry.id, field_is_visible(entry, trimmed)]));
+  if (!own_visible.get(field.id) || !is_visible_through_ancestors(field.id, plan.parent_map, own_visible)) return undefined;
+  if (is_locked_by_parent_groups(field, data)) return undefined;
+  const previous = JSON.stringify(data[field.id] === undefined ? null : data[field.id]);
+  const record_paths = new Map();
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const candidate = generate_candidate(field, data, attempt, plan, record_paths);
+    if (candidate === undefined) return undefined;
+    if (JSON.stringify(candidate) === previous) continue;
+    const trial = Object.assign({}, data, { [field.id]: candidate });
+    const trial_trimmed = Object.assign({}, trimmed, { [field.id]: trim_value(candidate) });
+    if (passes_own_rules(field, trial, trial_trimmed)) return candidate;
+  }
+  return undefined;
+}
+
 module.exports = {
   generate_test_record,
+  regenerate_field,
   locations_at_level,
   find_location_match,
   LOCATION_LEVELS_ORDER,

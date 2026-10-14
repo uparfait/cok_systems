@@ -7,7 +7,7 @@ export const target_key = (field_id, part) => (part ? `${field_id}:${part}` : fi
 export function build_targets(fields, translate) {
   const targets = [];
   (fields || []).forEach((field) => {
-    targets.push({ key: target_key(field.id), field, part: null, label: field.label, required: field.required });
+    targets.push({ key: target_key(field.id), field, part: null, label: field.label, required: field.required, system: !!field.system });
     if (field.type === "geolocation") {
       GEO_PARTS.forEach((part) => {
         targets.push({ key: target_key(field.id, part), field, part, label: translate(`DCS_IMPORT_PART_${part.toUpperCase()}`), required: field.required && part !== "accuracy" });

@@ -310,7 +310,7 @@ Router.post("/:form_group_id/translation-links/:link_id/proposals/dismiss", dism
  *         description: Not an accepted format (IMPORT_FORMATS), unreadable workbook, no header row, a header appearing twice, no data rows, or more data rows than the cap (IMPORT_MAX_ROWS)
  * /dcs/api/forms/{form_group_id}/import/{import_id}/run:
  *   post:
- *     summary: "Start the import from { mapping: [{ column, field_id, part }] } (an optional defaults object is still accepted): every row is checked first with the public form's own validation and every problem collected as { row, column, field, reason }; anything found means nothing is written; a clean file is written in batches of 50 as submissions marked source=import, a failing batch removes what it wrote; answers at once with { running: true }"
+ *     summary: "Start the import from { mapping: [{ column, field_id, part }] } (field_id may also be submitted_at, updated_at or version - the record fields; an optional defaults object is still accepted): every row is checked first with the public form's own validation, against the version the row names, and every problem collected as { row, column, field, reason }; anything found means nothing is written; a clean file is written in batches of 50 as submissions marked source=import, media links downloaded into uploads/submissions on the way (a link that cannot be fetched is kept as typed and listed), a failing batch removes what it wrote; answers at once with { running: true }"
  *     tags: [Forms]
  *     security:
  *       - BearerAuth: []
@@ -323,7 +323,7 @@ Router.post("/:form_group_id/translation-links/:link_id/proposals/dismiss", dism
  *         description: A required field would stay empty (required_fields lists them)
  * /dcs/api/forms/{form_group_id}/import/{import_id}/status:
  *   get:
- *     summary: "Progress of the import run: status (uploaded, running, done, failed, cancelled), stage, checked_rows and done_rows of total_rows, created, failed_rows, error, errors [{ row, column, field, reason }] (first 200) with error_count, notes [{ row, column, field, from, to }] (values matched to an option by other than their exact text, first 500) with note_count, and message"
+ *     summary: "Progress of the import run: status (uploaded, running, done, failed, cancelled), stage, checked_rows and done_rows of total_rows, created, failed_rows, error, errors [{ row, column, field, reason }] (first 200) with error_count, notes [{ row, column, field, from, to }] (values matched to an option by other than their exact text, first 500) with note_count, media_failures [{ row, column, field, link, reason }] (media links that could not be downloaded and were kept as typed, first 500) with media_failure_count, and message"
  *     tags: [Forms]
  *     security:
  *       - BearerAuth: []

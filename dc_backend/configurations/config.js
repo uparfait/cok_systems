@@ -38,6 +38,12 @@ const DC_CONFIG = {
   // The upload size cap and the data-row cap of one responses import.
   import_max_mb: Number(process.env.IMPORT_MAX_MB) > 0 ? Number(process.env.IMPORT_MAX_MB) : 20,
   import_max_rows: Number(process.env.IMPORT_MAX_ROWS) > 0 ? Number(process.env.IMPORT_MAX_ROWS) : 20000,
+  // Media links in an imported file are downloaded into uploads/submissions:
+  // total time per file, how many at once, and the size cap used when the
+  // field itself sets none (a field's own max size always wins).
+  import_media_timeout_ms: Number(process.env.IMPORT_MEDIA_TIMEOUT_MS) > 0 ? Number(process.env.IMPORT_MEDIA_TIMEOUT_MS) : 20000,
+  import_media_parallel: Number(process.env.IMPORT_MEDIA_PARALLEL) > 0 ? Number(process.env.IMPORT_MEDIA_PARALLEL) : 5,
+  import_media_max_mb: Number(process.env.IMPORT_MEDIA_MAX_MB) > 0 ? Number(process.env.IMPORT_MEDIA_MAX_MB) : 50,
   email: {
     // The City's outgoing mail server: 197.243.27.181 on port 587 with
     // STARTTLS and SMTP authentication (see utilities/approval_email.js).

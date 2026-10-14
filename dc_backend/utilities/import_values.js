@@ -323,4 +323,34 @@ function convert_location(parts, whole, language) {
   };
 }
 
-module.exports = { GEO_PARTS, is_blank, convert_cell, convert_location, match_option, resolve_option, split_multi, read_date_parts, read_time };
+/**
+ * A moment for the record's own submitted_at / updated_at: a text with a
+ * time zone is taken as it is; otherwise the same readings as a date-time
+ * cell (ISO, Excel serial, dd/mm/yyyy hh:mm, a date alone = midnight),
+ * read as local time. { value: Date } or { error }.
+ */
+function convert_moment(raw, language) {
+  const text = clean_text(raw);
+  if (/(?:Z|[+-]\d{2}:?\d{2})$/i.test(text) && !Number.isNaN(new Date(text).getTime())) return { value: new Date(text) };
+  const serial = excel_serial_of(typeof raw === "number" ? raw : text);
+  if (serial !== null && serial >= 1) return { value: excel_serial_to_date(serial) };
+  const parts = read_date_parts(text);
+  if (!parts) return fail("IMPORT_VALUE_NOT_DATE_TIME", raw, language);
+  const time = read_time(text) || "00:00";
+  const value = new Date(parts.year, parts.month - 1, parts.day, Number(time.slice(0, 2)), Number(time.slice(3, 5)));
+  if (Number.isNaN(value.getTime()) || value.getMonth() !== parts.month - 1) return fail("IMPORT_VALUE_NOT_DATE_TIME", raw, language);
+  return { value };
+}
+
+/** A record field's cell: submitted_at / updated_at as a moment, version as one of the form's existing version numbers. */
+function convert_system(view, raw, language, versions) {
+  if (is_blank(raw)) return { value: undefined };
+  if (view.system === "version") {
+    const number = parse_number(raw);
+    if (!Number.isInteger(number) || !(versions || []).includes(number)) return fail("IMPORT_VERSION_UNKNOWN", raw, language);
+    return { value: number };
+  }
+  return convert_moment(raw, language);
+}
+
+module.exports = { GEO_PARTS, is_blank, convert_cell, convert_location, convert_moment, convert_system, match_option, resolve_option, split_multi, read_date_parts, read_time };
