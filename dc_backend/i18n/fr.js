@@ -126,6 +126,7 @@ module.exports = {
   SUBMISSIONS_FETCHED: "Réponses récupérées avec succès",
   FILE_UPLOADED: "Fichier téléversé avec succès",
   FILE_DELETED: "Fichier supprimé avec succès",
+  FILE_IN_USE: "Ce fichier appartient à un enregistrement sauvegardé et ne peut pas être supprimé",
   FILE_REQUIRED: "Aucun fichier n'a été reçu",
   FIELD_NOT_FOUND: "Ce champ n'existe pas dans la version soumise du formulaire",
   FILE_TYPE_NOT_ALLOWED: "Ce type de fichier n'est pas autorisé pour ce champ",

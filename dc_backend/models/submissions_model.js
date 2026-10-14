@@ -1,6 +1,7 @@
 const { get_db } = require("../db_connection/db.js");
 const { to_object_id } = require("../utilities/object_id.js");
 const { date_window_filter, as_of_stages, stage_prefilter, stage_rows_stages, time_expr } = require("../utilities/tracking_window.js");
+const { reference_filter } = require("../utilities/media_files.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 
@@ -664,6 +665,22 @@ async function delete_submissions_by_ids(submission_ids) {
   return result.deletedCount;
 }
 
+/** The parts of these records that can refer to uploaded files - read before they are deleted, so their files can go too. */
+async function find_media_bearing_by_ids(submission_ids) {
+  const object_ids = (submission_ids || []).map((id) => to_object_id(id)).filter(Boolean);
+  if (object_ids.length === 0) return [];
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .find({ _id: { $in: object_ids } }, { projection: { data: 1, tracking_periods: 1, history: 1 } })
+    .toArray();
+}
+
+/** How many records of the form refer to an uploaded file's url anywhere (answers, periods, history). */
+async function count_media_references(form_group_id, media_field_ids, url) {
+  if (!url) return 0;
+  return get_db().collection(COLLECTION_NAME).countDocuments(reference_filter(form_group_id, media_field_ids, url));
+}
+
 /**
  * The submissions a hand-picked set of ids resolves to, carrying only what
  * a permission check needs - so "delete selected" can verify every row in
@@ -815,4 +832,6 @@ module.exports = {
   delete_submission_by_id,
   delete_submissions_by_ids,
   find_submissions_by_ids,
+  find_media_bearing_by_ids,
+  count_media_references,
 };

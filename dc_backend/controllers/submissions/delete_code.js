@@ -4,6 +4,7 @@ const submissions_model = require("../../models/submissions_model.js");
 const { resolve_deletable_submissions } = require("./deletable_submissions.js");
 const { send_deletion_code_email, resolve_client_origin } = require("../../utilities/approval_email.js");
 const { mask_email } = require("../../utilities/batch_session.js");
+const { remove_record_files } = require("../../utilities/media_files.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 const { EXPIRES_MINUTES, MAX_ATTEMPTS, RESEND_WAIT_SECONDS } = deletion_requests_model;
@@ -107,9 +108,15 @@ async function confirm_delete_code(req, res) {
     }
     if (resolved.status) return res.status(resolved.status).json(warning_response(req, resolved.key));
 
-    const deleted = await submissions_model.delete_submissions_by_ids(resolved.submissions.map((submission) => submission._id));
+    // The records' uploaded files go with them - the only moment a file
+    // ever leaves the disk (see utilities/media_files.js): read before the
+    // delete, removed after it, in one pass, never fatal.
+    const ids = resolved.submissions.map((submission) => submission._id);
+    const media_bearing = await submissions_model.find_media_bearing_by_ids(ids);
+    const deleted = await submissions_model.delete_submissions_by_ids(ids);
+    const files_removed = deleted > 0 ? await remove_record_files(media_bearing) : 0;
     await deletion_requests_model.mark_used(request._id);
-    return res.status(200).json(success_response(req, "SUBMISSIONS_DELETED", { deleted }, { count: deleted }));
+    return res.status(200).json(success_response(req, "SUBMISSIONS_DELETED", { deleted, files_removed }, { count: deleted }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

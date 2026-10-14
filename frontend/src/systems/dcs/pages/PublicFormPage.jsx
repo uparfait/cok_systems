@@ -370,7 +370,7 @@ function PublicFormPageContent() {
           ) : (
             <>
               <div style={submitting ? { pointerEvents: "none", opacity: 0.6 } : undefined}>
-                <MediaUploadProvider formGroupId={form_group_id} version={form.version} isOnline={is_online}>
+                <MediaUploadProvider formGroupId={form_group_id} version={form.version} isOnline={is_online} keepFiles={!!tracking.loaded_record}>
                   <RendererEngine
                     key={render_reset_key}
                     schema={form.schema}

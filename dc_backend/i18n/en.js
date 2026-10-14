@@ -126,6 +126,7 @@ module.exports = {
   SUBMISSIONS_FETCHED: "Submissions fetched successfully",
   FILE_UPLOADED: "File uploaded successfully",
   FILE_DELETED: "File deleted successfully",
+  FILE_IN_USE: "This file belongs to a saved record and cannot be removed",
   FILE_REQUIRED: "No file was received",
   FIELD_NOT_FOUND: "This field does not exist on the submitted form version",
   FILE_TYPE_NOT_ALLOWED: "This file type is not allowed for this field",

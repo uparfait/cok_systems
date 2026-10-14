@@ -126,6 +126,7 @@ module.exports = {
   SUBMISSIONS_FETCHED: "Ibisubizo byabonetse neza",
   FILE_UPLOADED: "Idosiye yashyizweho neza",
   FILE_DELETED: "Idosiye yasibwe neza",
+  FILE_IN_USE: "Iyi dosiye iri mu nyandiko yabitswe ntishobora gusibwa",
   FILE_REQUIRED: "Nta dosiye yaboneste",
   FIELD_NOT_FOUND: "Iki kibazo ntikibaho muri iyi verisiyo y'ifishi yoherejwe",
   FILE_TYPE_NOT_ALLOWED: "Ubu bwoko bw'idosiye ntibwemewe kuri iki kibazo",
