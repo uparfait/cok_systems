@@ -113,8 +113,10 @@ function value_stages(aggregation, field_id, window, catalog, widget) {
       return stages;
     }
     // Statistical formulas describe the field's submissions PER DAY - the
-    // day each record reached the state the window shows.
-    stages.push({ $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: state_moment_expr(widget && widget.tracking, window) } }, n: { $sum: 1 } } });
+    // day (the viewer's) each record reached the state the window shows.
+    const day = { format: "%Y-%m-%d", date: state_moment_expr(widget && widget.tracking, window) };
+    if (widget && widget.tz) day.timezone = widget.tz;
+    stages.push({ $group: { _id: { $dateToString: day }, n: { $sum: 1 } } });
     if (aggregation === "median") {
       stages.push({ $sort: { n: 1 } }, { $group: { _id: null, values: { $push: "$n" } } });
       return stages;

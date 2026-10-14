@@ -3,6 +3,7 @@ const approval_requests_model = require("../../models/approval_requests_model.js
 const approval_schedules_model = require("../../models/approval_schedules_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
+const { viewer_zone } = require("../../utilities/time_zone.js");
 const forms_model = require("../../models/forms_model.js");
 const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
@@ -52,7 +53,8 @@ async function get_submissions(req, res) {
       return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     }
 
-    const bounds = resolve_period_bounds(period, from, to);
+    // The period is the viewer's: ?tz= names their zone (see utilities/time_zone.js).
+    const bounds = resolve_period_bounds(period, from, to, viewer_zone(req));
     if (bounds === undefined) {
       return res.status(400).json(warning_response(req, "VALIDATION_FAILED"));
     }

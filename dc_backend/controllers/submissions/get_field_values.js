@@ -3,6 +3,7 @@ const forms_model = require("../../models/forms_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { flatten_fields } = require("../../jsonlogic/dependency_graph.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
+const { viewer_zone } = require("../../utilities/time_zone.js");
 const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
@@ -71,7 +72,7 @@ async function get_field_values(req, res) {
     if (!access.found) return res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
     if (!access.allowed) return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
 
-    const bounds = resolve_period_bounds(period, from, to);
+    const bounds = resolve_period_bounds(period, from, to, viewer_zone(req));
     if (bounds === undefined) {
       return res.status(400).json(warning_response(req, "VALIDATION_FAILED"));
     }

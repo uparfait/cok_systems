@@ -5,6 +5,7 @@ const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { format_respondent } = require("../../utilities/respondent.js");
 const { build_diffed_columns, column_cell } = require("../../utilities/export_columns.js");
 const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
+const { zoned_to_utc, viewer_zone } = require("../../utilities/time_zone.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { translate } = require("../../i18n/index.js");
 
@@ -70,18 +71,19 @@ async function resolve_token(req, res) {
   return { token, versions };
 }
 
-const date_of = (value) => {
+/** A query date: a wall clock without a zone is the reader's (?tz=), one with an offset or Z is absolute. */
+const date_of = (value, zone) => {
   if (!value) return null;
-  const date = new Date(value);
+  const date = zone ? zoned_to_utc(value, zone) : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
 /** The query's window narrowed to the token's scope: a reader never widens what the token allows. */
-function feed_filter(token, query) {
+function feed_filter(token, query, zone) {
   const scope = token.scope || {};
-  const asked_from = date_of(query.from);
-  const asked_to = date_of(query.to);
-  const since = date_of(query.since);
+  const asked_from = date_of(query.from, zone);
+  const asked_to = date_of(query.to, zone);
+  const since = date_of(query.since, zone);
   let start = scope.from ? new Date(scope.from) : null;
   let end = scope.to ? new Date(scope.to) : null;
   if (asked_from && (!start || asked_from > start)) start = asked_from;
@@ -138,7 +140,7 @@ function prepare(context, req) {
   const keys = column_keys(columns, req.query && req.query.keys === "id" ? "id" : "label");
   const active_version = context.versions.find((entry) => entry.is_active) || context.versions[0];
   const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
-  return { columns, keys, field_type_by_id, tracking, origin: resolve_client_origin(req), filter: feed_filter(context.token, req.query || {}) };
+  return { columns, keys, field_type_by_id, tracking, origin: resolve_client_origin(req), filter: feed_filter(context.token, req.query || {}, viewer_zone(req)) };
 }
 
 async function get_data_feed(req, res) {

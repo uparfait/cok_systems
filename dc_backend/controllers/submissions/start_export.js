@@ -6,6 +6,7 @@ const project_access = require("../../utilities/project_access.js");
 const export_jobs = require("../../utilities/export_jobs.js");
 const { XlsxStreamWriter } = require("../../utilities/xlsx_stream_writer.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
+const { viewer_zone } = require("../../utilities/time_zone.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { format_respondent } = require("../../utilities/respondent.js");
 const { build_diffed_columns, column_cell, sanitize_filename } = require("../../utilities/export_columns.js");
@@ -112,7 +113,7 @@ async function start_export(req, res) {
     const access = await project_access.can_view_form_group(req.user, form_group_id);
     if (access.found && !access.allowed) return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
 
-    const bounds = resolve_period_bounds(period, from, to);
+    const bounds = resolve_period_bounds(period, from, to, viewer_zone(req));
     if (bounds === undefined) return res.status(400).json(warning_response(req, "VALIDATION_FAILED"));
 
     const versions = await forms_model.get_versions_by_group(form_group_id);

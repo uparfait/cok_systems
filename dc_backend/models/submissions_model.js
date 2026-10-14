@@ -555,10 +555,10 @@ async function count_by_form_group_id(form_group_id) {
  * records behind it would otherwise ship tens of thousands of documents
  * over the wire just to produce twelve numbers.
  *
- * granularity is one of hour/day/week/month/year. offset_minutes is the
- * reader's own distance from UTC, so a day ends where they are rather
- * than at UTC midnight; it is handed to $dateTrunc as a fixed offset,
- * which is exact for a zone without daylight saving.
+ * granularity is one of hour/day/week/month/year. timezone is the
+ * reader's own zone - an IANA name ("Africa/Kigali"), or the distance
+ * from UTC in minutes - so a day ends where they are rather than at UTC
+ * midnight; it is handed to $dateTrunc as is.
  */
 const GRANULARITY_UNITS = { hour: "hour", day: "day", week: "week", month: "month", year: "year" };
 
@@ -571,7 +571,7 @@ function utc_offset_string(offset_minutes) {
   return `${sign}${hours}:${minutes}`;
 }
 
-async function count_submissions_over_time(form_group_id, start, end, granularity, offset_minutes, week_start_day, tracking) {
+async function count_submissions_over_time(form_group_id, start, end, granularity, timezone, week_start_day, tracking) {
   const bounds = start && end ? { start, end } : null;
   const match = Object.assign({ form_group_id }, stage_prefilter(bounds, tracking));
 
@@ -581,7 +581,7 @@ async function count_submissions_over_time(form_group_id, start, end, granularit
   const truncate = {
     date: time_expr(tracking),
     unit: GRANULARITY_UNITS[granularity] || "day",
-    timezone: utc_offset_string(offset_minutes),
+    timezone: typeof timezone === "string" && timezone ? timezone : utc_offset_string(timezone),
   };
   // A week bucket has to begin on the same weekday the chosen range
   // begins on, so the first column is never a week that started before

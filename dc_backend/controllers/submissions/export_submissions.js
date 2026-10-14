@@ -3,6 +3,7 @@ const submissions_model = require("../../models/submissions_model.js");
 const forms_model = require("../../models/forms_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
+const { viewer_zone } = require("../../utilities/time_zone.js");
 const { warning_response, error_response } = require("../../utilities/response.js");
 const { translate } = require("../../i18n/index.js");
 const { format_respondent } = require("../../utilities/respondent.js");
@@ -38,7 +39,7 @@ async function export_submissions(req, res) {
       return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     }
 
-    const bounds = resolve_period_bounds(period, from, to);
+    const bounds = resolve_period_bounds(period, from, to, viewer_zone(req));
     if (bounds === undefined) {
       return res.status(400).json(warning_response(req, "VALIDATION_FAILED"));
     }

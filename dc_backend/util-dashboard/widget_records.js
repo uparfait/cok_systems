@@ -9,6 +9,7 @@ const { sanitize_applied_filters, merge_applied, apply_board_filters } = require
 const { time_bucket_range, ungrouped_widget } = require("./widget_data.js");
 const pipelines = require("./pipelines.js");
 const { SUBMITTED_AT_FIELD } = require("./constants.js");
+const { zone_of } = require("../utilities/time_zone.js");
 
 const COLLECTION = "dcs_submissions";
 const DEFAULT_PAGE_SIZE = 20;
@@ -175,6 +176,7 @@ async function records_query(body, form_group_id, form_version, project_id, forc
   const applied = merge_applied(sanitize_applied_filters(body.filters), forced_filters || []);
   const shaped = ungrouped_widget(apply_board_filters(widget, applied, catalog, (forced_filters || []).map((entry) => entry.field_id)).widget);
   shaped.tracking = form_version.tracking || null;
+  shaped.tz = zone_of(body.tz);
   const period_override = sanitize_period_override(body.period);
   const bounds = effective_bounds(shaped, period_override);
   const picked = await pick_conditions(shaped, body.pick, bounds, catalog);

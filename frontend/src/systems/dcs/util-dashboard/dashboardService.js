@@ -1,4 +1,5 @@
 import { dcs_request } from "../services/dcsApiClient.js";
+import { with_zone } from "../services/viewerZone.js";
 
 /**
  * Where a dashboard read or save goes. A form holds any number of NAMED
@@ -65,7 +66,7 @@ export function delete_dashboard(form_group_id, dashboard_id) {
  * optional period overrides every widget's own window.
  */
 export function get_dashboard_data(form_group_id, widgets, period, filters) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/data`, "POST", { widgets, period: period || null, filters: filters || [] });
+  return dcs_request(`/forms/${form_group_id}/dashboard/data`, "POST", with_zone({ widgets, period: period || null, filters: filters || [] }));
 }
 
 /**
@@ -82,7 +83,7 @@ export function get_map_shapes(form_group_id, names, parents, held) {
 }
 
 export function get_widget_records(form_group_id, body) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/records`, "POST", body);
+  return dcs_request(`/forms/${form_group_id}/dashboard/records`, "POST", with_zone(body));
 }
 
 /**
@@ -91,11 +92,11 @@ export function get_widget_records(form_group_id, body) {
  * the real download. Resolves { blob, filename }.
  */
 export function export_widget_records(form_group_id, body, on_progress) {
-  return download_records(`/dcs/api/forms/${form_group_id}/dashboard/records/export`, body, on_progress, true);
+  return download_records(`/dcs/api/forms/${form_group_id}/dashboard/records/export`, with_zone(body), on_progress, true);
 }
 
 export function export_public_widget_records(token, body, on_progress) {
-  return download_records(`/dcs/api/public/dashboard/${token}/records/export`, body, on_progress, false);
+  return download_records(`/dcs/api/public/dashboard/${token}/records/export`, with_zone(body), on_progress, false);
 }
 
 function download_records(url, body, on_progress, authenticated) {
@@ -143,7 +144,7 @@ function download_records(url, body, on_progress, authenticated) {
  * answers under the period and the other applied filters, with counts.
  */
 export function get_filter_values(form_group_id, field_id, filters, period) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/filter-values`, "POST", { field_id, filters: filters || [], period: period || null });
+  return dcs_request(`/forms/${form_group_id}/dashboard/filter-values`, "POST", with_zone({ field_id, filters: filters || [], period: period || null }));
 }
 
 /**
@@ -152,7 +153,7 @@ export function get_filter_values(form_group_id, field_id, filters, period) {
  * dashboard shows: { total, rows: [{submitted_at, raw}] }.
  */
 export function get_kpi_skipped(form_group_id, widget, period, offset, limit, filters) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20, filters: filters || [] });
+  return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", with_zone({ widget, period: period || null, offset: offset || 0, limit: limit || 20, filters: filters || [] }));
 }
 
 /** The public share links of ONE dashboard (form editors only); all of the form's when no dashboard id is given. */
@@ -188,8 +189,8 @@ export function public_dashboard_url(token) {
 const PUBLIC_CONFIG = { headers: { "X-Language": "en" } };
 
 // A link may open several dashboards; dashboard_id says which one a request
-// is about (left out: the link's own).
-const with_dashboard = (body, dashboard_id) => (dashboard_id ? Object.assign({}, body, { dashboard_id }) : body);
+// is about (left out: the link's own). The viewer's zone rides along too.
+const with_dashboard = (body, dashboard_id) => with_zone(dashboard_id ? Object.assign({}, body, { dashboard_id }) : body);
 
 export function get_public_dashboard(token, dashboard_id) {
   const query = dashboard_id ? `?dashboard_id=${encodeURIComponent(dashboard_id)}` : "";
@@ -205,7 +206,7 @@ export function get_public_kpi_skipped(token, widget, period, offset, limit, fil
 }
 
 export function get_public_widget_records(token, body) {
-  return dcs_request(`/public/dashboard/${token}/records`, "POST", body, PUBLIC_CONFIG);
+  return dcs_request(`/public/dashboard/${token}/records`, "POST", with_zone(body), PUBLIC_CONFIG);
 }
 
 export function get_public_map_shapes(token, names, parents, held) {

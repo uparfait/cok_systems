@@ -68,7 +68,9 @@ function effective_bounds(widget, period_override) {
   const own = (widget && widget.period) || null;
   const period = is_period_locked(widget) ? own : period_override || own;
   if (!period || !period.preset || period.preset === "all") return null;
-  const bounds = resolve_period_bounds(period.preset, period.from, period.to);
+  // Read in the viewer's zone (widget.tz, attached by whoever resolved the
+  // request): their "today", their wall-clock picks.
+  const bounds = resolve_period_bounds(period.preset, period.from, period.to, widget && widget.tz);
   return bounds || null;
 }
 

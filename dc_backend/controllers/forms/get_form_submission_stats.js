@@ -2,10 +2,12 @@ const submissions_model = require("../../models/submissions_model.js");
 const forms_model = require("../../models/forms_model.js");
 const project_access = require("../../utilities/project_access.js");
 const { resolve_period_bounds } = require("../../utilities/period_bounds.js");
+const { viewer_zone, zone_or_server, wall_clock, start_of_hour_in, start_of_day_in, add_days_in, start_of_month_in, start_of_year_in, format_in, year_key_in } = require("../../utilities/time_zone.js");
 const { is_enabled: is_tracking_enabled } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 const WEEK_START_DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Same dynamic idea as the reference file's generateTimeSlots() "range"
@@ -18,7 +20,7 @@ function resolve_granularity(period, bounds) {
   if (period === "this_month") return "day";
   if (period === "this_year") return "month";
 
-  const span_days = Math.max(1, Math.ceil((bounds.end - bounds.start) / (1000 * 60 * 60 * 24)));
+  const span_days = Math.max(1, Math.ceil((bounds.end - bounds.start) / DAY_MS));
   if (span_days <= 1) return "hour";
   if (span_days <= 31) return "day";
   if (span_days <= 180) return "week";
@@ -26,62 +28,48 @@ function resolve_granularity(period, bounds) {
   return "year";
 }
 
-function truncate_to_bucket_start(date, granularity, week_anchor) {
-  const result = new Date(date);
-  if (granularity === "hour") {
-    result.setMinutes(0, 0, 0);
-    return result;
-  }
-  if (granularity === "day") {
-    result.setHours(0, 0, 0, 0);
-    return result;
-  }
+/**
+ * The start of the bucket an instant falls in, in the viewer's zone (see
+ * utilities/time_zone.js) - the same boundaries $dateTrunc used with that
+ * zone, so a bucket the database returned always finds its column.
+ */
+function truncate_to_bucket_start(date, granularity, week_anchor, zone) {
+  if (granularity === "hour") return start_of_hour_in(zone, date);
+  if (granularity === "day") return start_of_day_in(zone, date);
   if (granularity === "week") {
     // Weekly buckets are anchored on the RANGE'S OWN first day, not ISO
     // Mondays - a custom "Aug 1 - Sep 15" must chart as Aug 1, Aug 8, ...,
     // never as a "Jul 27" week that starts before what was picked.
-    const day_ms = 24 * 60 * 60 * 1000;
-    const day_start = new Date(result);
-    day_start.setHours(0, 0, 0, 0);
-    const offset_days = Math.round((day_start - week_anchor) / day_ms);
-    const bucket_index = Math.floor(offset_days / 7);
-    const bucket_start = new Date(week_anchor);
-    bucket_start.setDate(bucket_start.getDate() + bucket_index * 7);
-    return bucket_start;
+    const day_start = start_of_day_in(zone, date);
+    const offset_days = Math.round((day_start - week_anchor) / DAY_MS);
+    return add_days_in(zone, week_anchor, Math.floor(offset_days / 7) * 7);
   }
-  if (granularity === "month") {
-    return new Date(result.getFullYear(), result.getMonth(), 1);
-  }
-  return new Date(result.getFullYear(), 0, 1);
+  if (granularity === "month") return start_of_month_in(zone, date, 0);
+  return start_of_year_in(zone, date, 0);
 }
 
-function advance_bucket(date, granularity) {
-  const result = new Date(date);
-  if (granularity === "hour") result.setHours(result.getHours() + 1);
-  else if (granularity === "day") result.setDate(result.getDate() + 1);
-  else if (granularity === "week") result.setDate(result.getDate() + 7);
-  else if (granularity === "month") result.setMonth(result.getMonth() + 1);
-  else result.setFullYear(result.getFullYear() + 1);
-  return result;
+function advance_bucket(date, granularity, zone) {
+  if (granularity === "hour") return new Date(date.getTime() + 60 * 60 * 1000);
+  if (granularity === "day") return add_days_in(zone, date, 1);
+  if (granularity === "week") return add_days_in(zone, date, 7);
+  if (granularity === "month") return start_of_month_in(zone, date, 1);
+  return start_of_year_in(zone, date, 1);
 }
 
-function format_bucket_label(date, granularity) {
+function format_bucket_label(date, granularity, zone) {
   if (granularity === "hour") {
-    const hour = date.getHours();
+    const hour = wall_clock(zone, date).hour;
     const suffix = hour >= 12 ? "PM" : "AM";
     const display_hour = hour % 12 || 12;
     return `${display_hour}:00 ${suffix}`;
   }
-  if (granularity === "day") {
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
-  if (granularity === "week") {
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (granularity === "day" || granularity === "week") {
+    return format_in(zone, date, { month: "short", day: "numeric" });
   }
   if (granularity === "month") {
-    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    return format_in(zone, date, { month: "short", year: "numeric" });
   }
-  return String(date.getFullYear());
+  return year_key_in(zone, date);
 }
 
 /**
@@ -91,7 +79,8 @@ function format_bucket_label(date, granularity) {
  * own "range" period - every bucket between the bounds is included even
  * when empty, so the chart's x-axis is continuous rather than skipping
  * gaps, and the total is the true count within the window (not just the
- * sum of plotted points, though they're the same number).
+ * sum of plotted points, though they're the same number). Days and hours
+ * are the viewer's (?tz=), the server's when none is given.
  */
 async function get_form_submission_stats(req, res) {
   try {
@@ -107,18 +96,17 @@ async function get_form_submission_stats(req, res) {
       return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     }
 
-    const bounds = resolve_period_bounds(period, from, to);
+    const zone = zone_or_server(viewer_zone(req));
+    const bounds = resolve_period_bounds(period, from, to, zone);
     if (!bounds) {
       return res.status(400).json(warning_response(req, "VALIDATION_FAILED"));
     }
 
     const granularity = resolve_granularity(period, bounds);
-    const week_anchor = new Date(bounds.start);
-    week_anchor.setHours(0, 0, 0, 0);
+    const week_anchor = start_of_day_in(zone, bounds.start);
 
-    // Counted over the same records the table lists (a tracked form's
-    // records by their last move), so the chart's total and the table's
-    // total are the same number for the same range.
+    // Counted over the same records the table lists, read the over-time
+    // way (one row per stage moment on a tracked form).
     const active_version = await forms_model.get_active_version(form_group_id);
     const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
 
@@ -130,28 +118,28 @@ async function get_form_submission_stats(req, res) {
       bounds.start,
       bounds.end,
       granularity,
-      -bounds.start.getTimezoneOffset(),
-      WEEK_START_DAYS[week_anchor.getDay()],
+      zone,
+      WEEK_START_DAYS[wall_clock(zone, week_anchor).weekday],
       tracking,
     );
 
-    // Re-keyed against the same local-time bucket starts the axis below
-    // walks, so a bucket the database returned always finds its column.
+    // Re-keyed against the same bucket starts the axis below walks, so a
+    // bucket the database returned always finds its column.
     const counts_by_bucket_key = new Map();
     buckets.forEach((bucket) => {
       const at = bucket.at instanceof Date ? bucket.at : new Date(bucket.at);
       if (Number.isNaN(at.getTime())) return;
-      const bucket_key = truncate_to_bucket_start(at, granularity, week_anchor).getTime();
+      const bucket_key = truncate_to_bucket_start(at, granularity, week_anchor, zone).getTime();
       counts_by_bucket_key.set(bucket_key, (counts_by_bucket_key.get(bucket_key) || 0) + bucket.count);
     });
 
     const data = [];
-    let cursor = truncate_to_bucket_start(bounds.start, granularity, week_anchor);
-    const end_cursor = truncate_to_bucket_start(bounds.end, granularity, week_anchor);
+    let cursor = truncate_to_bucket_start(bounds.start, granularity, week_anchor, zone);
+    const end_cursor = truncate_to_bucket_start(bounds.end, granularity, week_anchor, zone);
     while (cursor <= end_cursor) {
       const bucket_key = cursor.getTime();
-      data.push({ label: format_bucket_label(cursor, granularity), count: counts_by_bucket_key.get(bucket_key) || 0 });
-      cursor = advance_bucket(cursor, granularity);
+      data.push({ label: format_bucket_label(cursor, granularity, zone), count: counts_by_bucket_key.get(bucket_key) || 0 });
+      cursor = advance_bucket(cursor, granularity, zone);
     }
 
     return res.status(200).json(
@@ -160,6 +148,7 @@ async function get_form_submission_stats(req, res) {
         total,
         period,
         granularity,
+        timezone: zone,
         bounds: { start: bounds.start.toISOString(), end: bounds.end.toISOString() },
       }),
     );

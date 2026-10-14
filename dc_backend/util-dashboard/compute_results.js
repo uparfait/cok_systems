@@ -3,6 +3,7 @@ const { sanitize_widgets, sanitize_widget, sanitize_period_override } = require(
 const { validate_dashboard } = require("./widget_validation.js");
 const { compute_widget_data } = require("./widget_data.js");
 const { effective_bounds, base_stages } = require("./match_stage.js");
+const { zone_of } = require("../utilities/time_zone.js");
 const { build_field_catalog, is_multi_value } = require("./field_catalog.js");
 const { kpi_skipped_rows } = require("./kpi_metrics.js");
 const { sanitize_applied_filters, merge_applied, apply_board_filters, can_filter_field, MAX_FILTER_VALUES } = require("./board_filters.js");
@@ -34,9 +35,12 @@ function applied_filters(body, forced_filters) {
  * per-widget error so one bad chart never takes the whole board down.
  */
 async function compute_dashboard_results(body, form_group_id, form_version, project_id, forced_filters, records_policy) {
+  // The viewer's zone (body.tz) rides every widget: their periods, their
+  // day boundaries in the over-time buckets.
+  const tz = zone_of(body.tz);
   const widgets = sanitize_widgets(body.widgets)
     .slice(0, LIMITS.MAX_WIDGETS)
-    .map((widget) => Object.assign(widget, { form_group_id }));
+    .map((widget) => Object.assign(widget, { form_group_id, tz }));
   const period_override = sanitize_period_override(body.period);
   const filters = applied_filters(body, forced_filters);
   const forced_ids = (forced_filters || []).map((entry) => entry.field_id);
@@ -82,6 +86,7 @@ async function compute_skipped_page(body, form_group_id, form_version, project_i
   const catalog = build_field_catalog(form_version.schema);
   const shaped = apply_board_filters(widget, applied_filters(body, forced_filters), catalog, (forced_filters || []).map((entry) => entry.field_id)).widget;
   shaped.tracking = form_version.tracking || null;
+  shaped.tz = zone_of(body.tz);
   const bounds = effective_bounds(shaped, period_override);
   const offset = bounded_int(body.offset, 0, 0, Number.MAX_SAFE_INTEGER);
   const limit = bounded_int(body.limit, DEFAULT_PAGE, 1, MAX_PAGE);
@@ -103,7 +108,7 @@ async function compute_filter_values(body, form_group_id, form_version, forced_f
   if (!can_filter_field(field)) return { invalid: "not a filter field" };
   const period_override = sanitize_period_override(body.period);
   const others = applied_filters(body, forced_filters).filter((entry) => entry.field_id !== field_id);
-  const probe = { form_group_id, tracking: form_version.tracking || null, filters: others.map((entry) => ({ field_id: entry.field_id, operator: "eq", value: entry.value })) };
+  const probe = { form_group_id, tracking: form_version.tracking || null, tz: zone_of(body.tz), filters: others.map((entry) => ({ field_id: entry.field_id, operator: "eq", value: entry.value })) };
   const bounds = effective_bounds(probe, period_override);
   const pipeline = [
     ...base_stages(probe, bounds),

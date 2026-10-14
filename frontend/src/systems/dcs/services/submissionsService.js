@@ -1,4 +1,5 @@
 import { dcs_request } from "./dcsApiClient.js";
+import { viewer_zone, with_zone } from "./viewerZone.js";
 
 /**
  * Downloads an Excel export of all submissions for a form within an optional
@@ -18,6 +19,7 @@ export function export_submissions_excel(form_group_id, period, from, to, title,
     }
     if (title) params.append("title", title);
     if (language) params.append("language", language);
+    params.append("tz", viewer_zone());
 
     const query = params.toString();
     const url = `/dcs/api/submissions/export/${form_group_id}${query ? "?" + query : ""}`;
@@ -75,7 +77,7 @@ export function export_submissions_excel(form_group_id, period, from, to, title,
  * download the finished file, or stop it.
  */
 export function start_export_job(form_group_id, payload) {
-  return dcs_request(`/submissions/export/${form_group_id}/start`, "POST", payload);
+  return dcs_request(`/submissions/export/${form_group_id}/start`, "POST", with_zone(payload));
 }
 
 export function get_export_job(job_id, known_percent) {
@@ -122,6 +124,7 @@ export function export_submissions(form_group_id, period, from, to) {
       if (to) params.append("to", to);
     }
   }
+  params.append("tz", viewer_zone());
   const query = params.toString();
   return dcs_request(`/submissions/export/${form_group_id}${query ? "?" + query : ""}`, "GET");
 }
@@ -145,6 +148,7 @@ export function get_submissions(form_group_id, version, page, limit, options) {
       if (options.to) params.append("to", options.to);
     }
   }
+  params.append("tz", viewer_zone());
   if (options && options.search) params.append("search", options.search);
   if (options && options.sort) params.append("sort", options.sort);
   // Per-column value filters: { field_id: [value, ...] }, JSON in the query string.
@@ -206,6 +210,7 @@ export function get_submission_media(form_group_id, page, limit, options) {
       if (options.to) params.append("to", options.to);
     }
   }
+  params.append("tz", viewer_zone());
   if (options && options.filters && Object.keys(options.filters).length > 0) {
     params.append("filters", JSON.stringify(options.filters));
   }
@@ -225,6 +230,7 @@ export function get_field_values(form_group_id, field_id, options) {
       if (options.to) params.append("to", options.to);
     }
   }
+  params.append("tz", viewer_zone());
   // A cascade child only lists the values under the parent values picked above it.
   if (options && options.parent && options.parent.field_id && Array.isArray(options.parent.values) && options.parent.values.length > 0) {
     params.append("parent_field_id", options.parent.field_id);

@@ -1,4 +1,5 @@
 import { dcs_request } from "./dcsApiClient.js";
+import { viewer_zone } from "./viewerZone.js";
 
 /**
  * Lists the forms belonging to a project (one entry per form group).
@@ -93,6 +94,7 @@ export function get_form_submission_stats(form_group_id, params) {
   const search_params = new URLSearchParams(
     Object.fromEntries(Object.entries(params || {}).filter(([, value]) => value !== undefined && value !== null && value !== "")),
   );
+  search_params.append("tz", viewer_zone());
   return dcs_request(`/forms/${form_group_id}/stats?${search_params.toString()}`, "GET");
 }
 

@@ -3,6 +3,7 @@ const { kpi_metric_result } = require("./kpi_metrics.js");
 const { table_data } = require("./table_data.js");
 const { text_data } = require("./text_data.js");
 const { effective_bounds } = require("./match_stage.js");
+const { zone_or_server, wall_clock, wall_to_utc, start_of_month_in, start_of_year_in, month_key_in, year_key_in, format_in } = require("../utilities/time_zone.js");
 const { build_field_catalog, field_label_text, parent_field_id_of, is_categorical } = require("./field_catalog.js");
 const { CHART_TYPES, CHART_KINDS, LIMITS, OVER_TIME_TYPES, SUBMITTED_AT_FIELD } = require("./constants.js");
 
@@ -131,44 +132,42 @@ function resolve_granularity(widget, bounds) {
   return "year";
 }
 
-function bucket_label(date, granularity) {
+/** A bucket's label in the viewer's zone: "1:00 PM", "Oct 14", "Oct 2026", "2026". */
+function bucket_label(date, granularity, zone) {
   if (granularity === "hour") {
-    const hour = date.getHours();
+    const hour = wall_clock(zone, date).hour;
     const suffix = hour >= 12 ? "PM" : "AM";
     return `${hour % 12 || 12}:00 ${suffix}`;
   }
   if (granularity === "day" || granularity === "week") {
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return format_in(zone, date, { month: "short", day: "numeric" });
   }
   if (granularity === "month") {
-    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    return format_in(zone, date, { month: "short", year: "numeric" });
   }
-  return String(date.getFullYear());
+  return year_key_in(zone, date);
 }
 
 /**
  * Every bucket between the bounds, in order, keyed exactly like the
- * pipeline keys them: fixed windows by index, calendar buckets by string.
+ * pipeline keys them: fixed windows by index, calendar buckets by the
+ * viewer's "YYYY-MM" / "YYYY" strings, as $dateToString keys them.
  */
-function enumerate_buckets(bounds, granularity) {
+function enumerate_buckets(bounds, granularity, zone) {
   const buckets = [];
   const bucket_ms = { hour: 3600000, day: 86400000, week: 604800000 }[granularity];
   if (bucket_ms) {
     const count = Math.min(LIMITS.MAX_TIME_BUCKETS, Math.max(1, Math.ceil((bounds.end - bounds.start + 1) / bucket_ms)));
     for (let index = 0; index < count; index += 1) {
-      buckets.push({ key: index, label: bucket_label(new Date(bounds.start.getTime() + index * bucket_ms), granularity) });
+      buckets.push({ key: index, label: bucket_label(new Date(bounds.start.getTime() + index * bucket_ms), granularity, zone) });
     }
     return buckets;
   }
-  const cursor = new Date(bounds.start.getFullYear(), granularity === "month" ? bounds.start.getMonth() : 0, 1);
+  let cursor = granularity === "month" ? start_of_month_in(zone, bounds.start, 0) : start_of_year_in(zone, bounds.start, 0);
   while (cursor <= bounds.end && buckets.length < LIMITS.MAX_TIME_BUCKETS) {
-    const key =
-      granularity === "month"
-        ? `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`
-        : String(cursor.getFullYear());
-    buckets.push({ key, label: bucket_label(new Date(cursor), granularity) });
-    if (granularity === "month") cursor.setMonth(cursor.getMonth() + 1);
-    else cursor.setFullYear(cursor.getFullYear() + 1);
+    const key = granularity === "month" ? month_key_in(zone, cursor) : year_key_in(zone, cursor);
+    buckets.push({ key, label: bucket_label(cursor, granularity, zone) });
+    cursor = granularity === "month" ? start_of_month_in(zone, cursor, 1) : start_of_year_in(zone, cursor, 1);
   }
   return buckets;
 }
@@ -181,8 +180,9 @@ function enumerate_buckets(bounds, granularity) {
 async function time_bucket_range(widget, bounds, label) {
   const effective = bounds || (await pipelines.time_extent(widget));
   if (!effective) return null;
+  const zone = zone_or_server(widget.tz);
   const granularity = resolve_granularity(widget, effective);
-  const buckets = enumerate_buckets(effective, granularity);
+  const buckets = enumerate_buckets(effective, granularity, zone);
   const index = buckets.findIndex((bucket) => bucket.label === label);
   if (index < 0) return null;
   const bucket_ms = { hour: 3600000, day: 86400000, week: 604800000 }[granularity];
@@ -191,8 +191,8 @@ async function time_bucket_range(widget, bounds, label) {
     return { start, end: new Date(Math.min(effective.end.getTime(), start.getTime() + bucket_ms - 1)) };
   }
   const [year, month] = String(buckets[index].key).split("-").map(Number);
-  const start = granularity === "month" ? new Date(year, month - 1, 1) : new Date(year, 0, 1);
-  const next = granularity === "month" ? new Date(year, month, 1) : new Date(year + 1, 0, 1);
+  const start = granularity === "month" ? wall_to_utc(zone, { year, month, day: 1 }) : wall_to_utc(zone, { year, month: 1, day: 1 });
+  const next = granularity === "month" ? wall_to_utc(zone, { year, month: month + 1, day: 1 }) : wall_to_utc(zone, { year: year + 1, month: 1, day: 1 });
   return { start, end: new Date(next.getTime() - 1) };
 }
 
@@ -202,7 +202,7 @@ async function compute_time(widget, bounds, catalog) {
   const granularity = resolve_granularity(widget, effective);
   const split_field = widget.split_by ? widget.split_by.field_id : null;
   const raw = await pipelines.time_rows(widget, effective, granularity, catalog, split_field);
-  const buckets = enumerate_buckets(effective, granularity);
+  const buckets = enumerate_buckets(effective, granularity, zone_or_server(widget.tz));
 
   if (!split_field) {
     const by_key = new Map(raw.map((row) => [String(row._id), row.value || 0]));

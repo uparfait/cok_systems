@@ -140,9 +140,12 @@ function is_stage_bucketed(field_id) {
 async function time_rows(widget, bounds, granularity, catalog, split_field) {
   const source = time_source_expr(widget.group_by.field_id, widget.tracking);
   const bucket_ms = { hour: 3600000, day: 86400000, week: 604800000 }[granularity];
+  // Calendar buckets fall on the viewer's month and year boundaries.
+  const calendar = { format: granularity === "month" ? "%Y-%m" : "%Y", date: source };
+  if (widget.tz) calendar.timezone = widget.tz;
   const bucket_expr = bucket_ms
     ? { $floor: { $divide: [{ $subtract: [source, bounds.start] }, bucket_ms] } }
-    : { $dateToString: { format: granularity === "month" ? "%Y-%m" : "%Y", date: source } };
+    : { $dateToString: calendar };
 
   const group_id = split_field ? { b: bucket_expr, s: `$data.${split_field}` } : bucket_expr;
   // Bucketed on the records' own moments: one row per stage inside the
