@@ -1,19 +1,32 @@
 const forms_model = require("../../models/forms_model.js");
 const tracked_records_model = require("../../models/tracked_records_model.js");
-const { is_enabled, record_key_of } = require("../../utilities/tracking.js");
+const { is_enabled, key_ids_of, record_key_of } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = tracked_records_model.MAX_MATCHES;
+
 /**
- * Public, no-auth lookup of a tracked form's records by their key: the
- * respondent types the key next to the key field and every record holding
- * it comes back, newest first, each with its answers, its dates and its
- * whole change history. Anyone with the form link may search, exactly as
- * anyone may fill the form in.
+ * Public, no-auth lookup of a tracked form's records by ONE key field:
+ * the respondent types a value next to a key field (?field=<key field
+ * id>&key=<typed value>) and every record holding that value on that
+ * field comes back, newest first, a page at a time (?page, ?limit up to
+ * 50), each with its answers, its dates and its whole change history.
+ * Without ?field the value is matched against every key field. Anyone
+ * with the form link may search, exactly as anyone may fill the form in.
+ *
+ * 200 { key, field_id, key_field_ids, editable_field_ids, records, page,
+ * pages, total }; 400 TRACKING_KEY_REQUIRED when no value was typed or
+ * ?field is not one of the key fields; 400 TRACKING_NOT_ENABLED.
  */
 async function search_public_records(req, res) {
   try {
     const { form_group_id } = req.params;
-    const key = record_key_of((req.query || {}).key);
+    const query = req.query || {};
+    const key = record_key_of(query.key);
+    const field_id = typeof query.field === "string" && query.field.trim() ? query.field.trim() : null;
+    const page = Math.max(1, parseInt(query.page, 10) || 1);
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(query.limit, 10) || DEFAULT_PAGE_SIZE));
 
     if (!form_group_id) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
@@ -26,17 +39,32 @@ async function search_public_records(req, res) {
     if (!active_form) {
       return res.status(404).json(warning_response(req, "FORM_PUBLIC_NOT_FOUND"));
     }
-    if (!is_enabled(active_form.tracking)) {
+    const tracking = active_form.tracking;
+    if (!is_enabled(tracking)) {
       return res.status(400).json(warning_response(req, "TRACKING_NOT_ENABLED"));
     }
+    const key_field_ids = key_ids_of(tracking);
+    if (field_id && !key_field_ids.includes(field_id)) {
+      return res.status(400).json(
+        warning_response(req, "TRACKING_KEY_REQUIRED", null, {
+          detail: `field must be one of the key fields: ${key_field_ids.join(", ")}`,
+          key_field_ids,
+        }),
+      );
+    }
 
-    const records = await tracked_records_model.list_by_record_key(form_group_id, key);
+    const result = await tracked_records_model.list_by_key_pair(form_group_id, field_id || key_field_ids, key, page, limit);
+    const pages = Math.max(1, Math.ceil(result.total / limit));
     return res.status(200).json(
       success_response(req, "TRACKING_RECORDS_FETCHED", {
         key,
-        key_field_id: active_form.tracking.key_field_id,
-        editable_field_ids: active_form.tracking.editable_field_ids || [],
-        records: records.map((record) => tracked_records_model.to_public_record(record)),
+        field_id,
+        key_field_ids,
+        editable_field_ids: tracking.editable_field_ids || [],
+        records: result.items.map((record) => tracked_records_model.to_public_record(record)),
+        page,
+        pages,
+        total: result.total,
       }),
     );
   } catch (error) {

@@ -1,7 +1,9 @@
+const { get_db } = require("../db_connection/db.js");
 const { base_stages, filter_stages, numeric_expr } = require("./match_stage.js");
 const { is_multi_value } = require("./field_catalog.js");
 const { CHART_KINDS } = require("./constants.js");
-const { source_collection } = require("./data_source.js");
+
+const SUBMISSIONS_COLLECTION = "dcs_submissions";
 
 /**
  * LIVE FIGURES inside a text block.
@@ -144,7 +146,7 @@ async function text_data(widget, bounds, catalog) {
     facets[`v${index}`] = variable_stages(variable, catalog);
   });
   if (variables.some((variable) => variable.formula === "share")) facets.all = [{ $count: "value" }];
-  const [facet] = await source_collection(widget).aggregate([...base_stages(widget, bounds), { $facet: facets }], { allowDiskUse: true }).toArray();
+  const [facet] = await get_db().collection(SUBMISSIONS_COLLECTION).aggregate([...base_stages(widget, bounds), { $facet: facets }], { allowDiskUse: true }).toArray();
   const all = facet ? first_value(facet.all) || 0 : 0;
   const values = {};
   variables.forEach((variable, index) => {

@@ -47,7 +47,7 @@ export function upload_file_with_progress(form_group_id, { version, field_id, fi
     form_data.append("file", file, file.name);
 
     const xhr = new XMLHttpRequest();
-    // A follow-up form uploads to its own endpoint; everything else to the form's.
+    // A caller may name its own upload endpoint; by default the form's own.
     xhr.open("POST", endpoint || `${DCS_API_BASE_URL}/public/forms/${form_group_id}/upload`);
 
     xhr.upload.onprogress = (event) => {

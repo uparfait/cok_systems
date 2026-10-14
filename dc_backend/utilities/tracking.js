@@ -1,19 +1,27 @@
 const { flatten_fields } = require("../jsonlogic/dependency_graph.js");
 
 /**
- * Record tracking: a form whose records are found again by one KEY field
- * (a national id, a plot number) and then updated on a chosen set of
- * fields, every change kept with its date and time.
+ * Record tracking: a form whose records are found again by one to five KEY
+ * fields (a national id, a plot number) and then updated on a chosen set
+ * of fields, every change kept with its date and time.
  *
  * tracking: {
  *   enabled: boolean,
- *   key_field_id: <field id>,
- *   key_unique: boolean,            one record per key, or several
+ *   key_field_ids: [<field id>],    one to five, in order
+ *   key_field_id: <field id>,       the first key, kept for old readers
+ *   key_unique: boolean,            one record per key COMBINATION, or several
  *   editable_field_ids: [<field id>] the fields a later update may change
  * }
  *
+ * An older config carries key_field_id alone; it is read as key_field_ids
+ * of one entry everywhere, and normalised to the full shape when saved.
+ *
  * On every submission of a tracked form:
- *   record_key       the key answer, trimmed and lowercased, indexed
+ *   record_key       the normalised key values joined with "|" in key
+ *                    order (what uniqueness is judged on), indexed
+ *   record_key_pairs [{ f: field id, k: normalised value }] - one entry
+ *                    per answered key field, what the public lookup
+ *                    searches by, indexed
  *   tracking_periods { <field id>: [{ value, from, to }] } - the value each
  *                    editable field held from one moment to the next; the
  *                    first period starts at the record's own submission
@@ -24,12 +32,28 @@ const { flatten_fields } = require("../jsonlogic/dependency_graph.js");
 const KEY_FIELD_TYPES = ["text", "number", "email", "phone", "url", "single_select", "select_group", "cascading_select", "date", "hidden"];
 const NOT_EDITABLE_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "section", "group", "geolocation"];
 const MAX_EDITABLE_FIELDS = 200;
+const MAX_KEY_FIELDS = 5;
+const KEY_JOINER = "|";
 
-function is_enabled(tracking) {
-  return !!(tracking && tracking.enabled === true && tracking.key_field_id);
+/** The key field ids of a config in order, reading the old single key_field_id as a list of one. */
+function key_ids_of(tracking) {
+  if (!tracking || typeof tracking !== "object") return [];
+  if (Array.isArray(tracking.key_field_ids)) {
+    const seen = new Set();
+    return tracking.key_field_ids.filter((field_id) => {
+      if (typeof field_id !== "string" || !field_id || seen.has(field_id)) return false;
+      seen.add(field_id);
+      return true;
+    });
+  }
+  return typeof tracking.key_field_id === "string" && tracking.key_field_id ? [tracking.key_field_id] : [];
 }
 
-/** The key answer as it is stored and searched: a trimmed, lowercased string; "" when unanswered. */
+function is_enabled(tracking) {
+  return !!(tracking && tracking.enabled === true && key_ids_of(tracking).length > 0);
+}
+
+/** One key answer as it is stored and searched: a trimmed, lowercased string; "" when unanswered. */
 function record_key_of(value) {
   if (value === undefined || value === null) return "";
   if (Array.isArray(value)) return value.map((entry) => record_key_of(entry)).filter(Boolean).join(",");
@@ -38,8 +62,27 @@ function record_key_of(value) {
 }
 
 /**
+ * The record's whole key: every key answer normalised and joined with "|"
+ * in key order. One key field gives exactly record_key_of(its answer).
+ * "" when no key field was answered at all.
+ */
+function composite_record_key(tracking, data) {
+  const parts = key_ids_of(tracking).map((field_id) => record_key_of((data || {})[field_id]));
+  if (!parts.some(Boolean)) return "";
+  return parts.join(KEY_JOINER);
+}
+
+/** The searchable pairs of a record: [{ f, k }] for every key field that was answered. */
+function record_key_pairs(tracking, data) {
+  return key_ids_of(tracking)
+    .map((field_id) => ({ f: field_id, k: record_key_of((data || {})[field_id]) }))
+    .filter((pair) => pair.k);
+}
+
+/**
  * Validates an author's tracking config against the schema it belongs to.
- * An absent or disabled config is always valid.
+ * An absent or disabled config is always valid. Either key_field_ids (one
+ * to five) or the older key_field_id names the keys.
  */
 function validate_tracking_config(tracking, schema) {
   const errors = [];
@@ -48,12 +91,21 @@ function validate_tracking_config(tracking, schema) {
   if (tracking.enabled !== true) return { valid: true, errors };
 
   const fields_by_id = new Map(flatten_fields((schema && schema.fields) || []).map((field) => [field.id, field]));
-  const key_field = fields_by_id.get(tracking.key_field_id);
-  if (typeof tracking.key_field_id !== "string" || !key_field) {
-    errors.push("tracking.key_field_id must name a field of the form");
-  } else if (!KEY_FIELD_TYPES.includes(key_field.type)) {
-    errors.push(`tracking.key_field_id: a ${key_field.type} field cannot be the key`);
+  const has_list = tracking.key_field_ids !== undefined;
+  if (has_list && !Array.isArray(tracking.key_field_ids)) {
+    errors.push("tracking.key_field_ids must be a list of field ids");
   }
+  const key_ids = key_ids_of(tracking);
+  if (key_ids.length === 0) {
+    errors.push(has_list ? "tracking.key_field_ids must name at least one field of the form" : "tracking.key_field_id must name a field of the form");
+  } else if (key_ids.length > MAX_KEY_FIELDS) {
+    errors.push(`tracking.key_field_ids: at most ${MAX_KEY_FIELDS} key fields`);
+  }
+  key_ids.forEach((field_id) => {
+    const key_field = fields_by_id.get(field_id);
+    if (!key_field) errors.push(`tracking.key_field_ids: unknown field ${field_id}`);
+    else if (!KEY_FIELD_TYPES.includes(key_field.type)) errors.push(`tracking.key_field_ids: a ${key_field.type} field cannot be a key`);
+  });
   if (tracking.key_unique !== undefined && typeof tracking.key_unique !== "boolean") {
     errors.push("tracking.key_unique must be true or false");
   }
@@ -64,47 +116,65 @@ function validate_tracking_config(tracking, schema) {
     tracking.editable_field_ids.forEach((field_id) => {
       const field = fields_by_id.get(field_id);
       if (typeof field_id !== "string" || !field) errors.push(`tracking.editable_field_ids: unknown field ${field_id}`);
-      else if (field_id === tracking.key_field_id) errors.push("tracking.editable_field_ids: the key field itself cannot be changed");
+      else if (key_ids.includes(field_id)) errors.push("tracking.editable_field_ids: a key field itself cannot be changed");
       else if (NOT_EDITABLE_TYPES.includes(field.type)) errors.push(`tracking.editable_field_ids: a ${field.type} cannot be updated`);
     });
   }
   return { valid: errors.length === 0, errors };
 }
 
-/**
- * The key field's own name in the reader's language ("National ID"), for
- * messages to respondents - who know the field by its label, not as "the
- * key". Falls back through English to the field id.
- */
-function key_field_label(schema, tracking, language) {
-  if (!is_enabled(tracking)) return "";
-  const field = flatten_fields((schema && schema.fields) || []).find((entry) => entry.id === tracking.key_field_id);
-  if (!field) return tracking.key_field_id;
-  const label = field.label && typeof field.label === "object" ? field.label : {};
+function label_text(field, language) {
+  const label = field && field.label && typeof field.label === "object" ? field.label : {};
   const text = (language && label[language]) || label.en || label.kn || label.fr || "";
   return String(text).trim() || field.id;
 }
 
-/** The stored shape: null when off, otherwise exactly the four keys. */
+/**
+ * The key fields' own names in the reader's language (["National ID",
+ * "Plot number"]), in key order, for messages to respondents - who know a
+ * field by its label, not as "the key". Falls back through English to the
+ * field id.
+ */
+function key_field_labels(schema, tracking, language) {
+  if (!is_enabled(tracking)) return [];
+  const fields_by_id = new Map(flatten_fields((schema && schema.fields) || []).map((field) => [field.id, field]));
+  return key_ids_of(tracking).map((field_id) => {
+    const field = fields_by_id.get(field_id);
+    return field ? label_text(field, language) : field_id;
+  });
+}
+
+/** The label of one key field (the first one when none is named) - the old single-key reading. */
+function key_field_label(schema, tracking, language, field_id) {
+  const ids = key_ids_of(tracking);
+  const labels = key_field_labels(schema, tracking, language);
+  const index = field_id ? ids.indexOf(field_id) : 0;
+  return index >= 0 && labels[index] !== undefined ? labels[index] : "";
+}
+
+/** The stored shape: null when off, otherwise exactly the five keys, key_field_id being the first key. */
 function normalize_tracking_config(tracking) {
   if (!is_enabled(tracking)) return null;
+  const key_ids = key_ids_of(tracking);
   const seen = new Set();
   const editable = (tracking.editable_field_ids || []).filter((field_id) => {
-    if (typeof field_id !== "string" || !field_id || seen.has(field_id) || field_id === tracking.key_field_id) return false;
+    if (typeof field_id !== "string" || !field_id || seen.has(field_id) || key_ids.includes(field_id)) return false;
     seen.add(field_id);
     return true;
   });
   return {
     enabled: true,
-    key_field_id: tracking.key_field_id,
+    key_field_ids: key_ids,
+    key_field_id: key_ids[0],
     key_unique: tracking.key_unique === true,
     editable_field_ids: editable,
   };
 }
 
 /**
- * What a brand new submission of a tracked form carries: its key, the
- * opening period of every editable field and a "created" history entry.
+ * What a brand new submission of a tracked form carries: its key and its
+ * searchable pairs, the opening period of every editable field and a
+ * "created" history entry.
  */
 function tracking_fields_for_new(tracking, data, submitted_at, by) {
   if (!is_enabled(tracking)) return {};
@@ -113,7 +183,8 @@ function tracking_fields_for_new(tracking, data, submitted_at, by) {
     periods[field_id] = [{ value: value_or_null(data[field_id]), from: submitted_at, to: null }];
   });
   return {
-    record_key: record_key_of(data[tracking.key_field_id]),
+    record_key: composite_record_key(tracking, data),
+    record_key_pairs: record_key_pairs(tracking, data),
     tracking_periods: periods,
     updated_at: null,
     history: [{ at: submitted_at, kind: "created", by: by || null, changes: [] }],
@@ -161,11 +232,16 @@ function next_periods(existing_periods, changes, at, submitted_at) {
 module.exports = {
   KEY_FIELD_TYPES,
   NOT_EDITABLE_TYPES,
+  MAX_KEY_FIELDS,
   is_enabled,
+  key_ids_of,
   record_key_of,
+  composite_record_key,
+  record_key_pairs,
   validate_tracking_config,
   normalize_tracking_config,
   key_field_label,
+  key_field_labels,
   tracking_fields_for_new,
   diff_editable,
   next_periods,

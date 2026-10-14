@@ -1,9 +1,9 @@
+const { get_db } = require("../db_connection/db.js");
 const { base_stages, filter_stages, numeric_expr } = require("./match_stage.js");
 const { is_multi_value, field_label_text } = require("./field_catalog.js");
-const { time_field } = require("../utilities/tracking_window.js");
 const { CHART_KINDS, TABLE_LIMITS, SUBMITTED_AT_FIELD, NUMERIC_AGGREGATIONS } = require("./constants.js");
-const { source_collection } = require("./data_source.js");
 
+const SUBMISSIONS_COLLECTION = "dcs_submissions";
 // Formulas whose total is the sum of the parts: a total row or column can
 // be added up from the cells on show, and surplus columns folded into one.
 // Anything else (an average, an extreme) has to be computed again over the
@@ -35,8 +35,7 @@ const OTHER_KEY = "__other__";
  * computed again over the very same records when it does not.
  */
 
-// On the collection the widget's data source names (see data_source.js).
-const run = (widget, pipeline) => source_collection(widget).aggregate(pipeline, { allowDiskUse: true }).toArray();
+const run = (pipeline) => get_db().collection(SUBMISSIONS_COLLECTION).aggregate(pipeline, { allowDiskUse: true }).toArray();
 
 const round = (value) => (Number.isFinite(Number(value)) ? Math.round(Number(value) * 100) / 100 : 0);
 
@@ -65,18 +64,16 @@ async function table_records(widget, bounds, catalog, records_policy) {
   const fields = (settings.fields || []).filter((field_id) => catalog.fields_by_id.has(field_id) && (!allowed || allowed.has(field_id)));
   const sort = settings.sort || {};
   const direction = sort.direction === "asc" ? 1 : -1;
-  // On a tracked form a row is a STAGE, so the clock the rows are sorted
-  // by is the moment each stage opened, as on every other widget.
-  const clock = time_field(widget.tracking);
-  const order = sort.field_id && sort.field_id !== SUBMITTED_AT_FIELD && catalog.fields_by_id.has(sort.field_id) ? { [`data.${sort.field_id}`]: direction, _id: -1 } : { [clock]: direction, _id: -1 };
+  // One row per record, its current answers, newest arrival first unless
+  // the widget sorts on a field of its own.
+  const order = sort.field_id && sort.field_id !== SUBMITTED_AT_FIELD && catalog.fields_by_id.has(sort.field_id) ? { [`data.${sort.field_id}`]: direction, _id: -1 } : { [SUBMITTED_AT_FIELD]: direction, _id: -1 };
   const projection = { _id: 1, submitted_at: 1 };
-  if (clock !== SUBMITTED_AT_FIELD) projection[clock] = 1;
   fields.forEach((field_id) => {
     projection[`data.${field_id}`] = 1;
   });
   const opening = base_stages(widget, bounds);
   const read_page = async (page) => {
-    const [result] = await run(widget, [...opening, { $facet: { items: [{ $sort: order }, { $skip: (page - 1) * page_size }, { $limit: page_size }, { $project: projection }], total: [{ $count: "count" }] } }]);
+    const [result] = await run([...opening, { $facet: { items: [{ $sort: order }, { $skip: (page - 1) * page_size }, { $limit: page_size }, { $project: projection }], total: [{ $count: "count" }] } }]);
     return { items: (result && result.items) || [], total: result && result.total && result.total[0] ? result.total[0].count : 0 };
   };
   let page = Math.max(1, Math.round(Number(settings.page) || 1));
@@ -90,9 +87,7 @@ async function table_records(widget, bounds, catalog, records_policy) {
   }
   const items = read.items.map((item) => ({
     _id: item._id,
-    // The moment this row stands for: when it was submitted, or on a
-    // tracked form when its stage opened.
-    submitted_at: clock !== SUBMITTED_AT_FIELD && item[clock] ? item[clock] : item.submitted_at,
+    submitted_at: item.submitted_at,
     data: item.data || {},
   }));
   return {
@@ -134,8 +129,8 @@ function opening_stages(widget, bounds, catalog, group_id) {
 }
 
 /** The group values on show: the most frequent under the widget's selection, capped. */
-async function shown_groups(widget, opening, group_id, limit) {
-  const rows = await run(widget, [...opening, { $group: { _id: `$data.${group_id}`, n: { $sum: 1 } } }, { $sort: { n: -1, _id: 1 } }, { $limit: limit }]);
+async function shown_groups(opening, group_id, limit) {
+  const rows = await run([...opening, { $group: { _id: `$data.${group_id}`, n: { $sum: 1 } } }, { $sort: { n: -1, _id: 1 } }, { $limit: limit }]);
   return rows.map((row) => row._id);
 }
 
@@ -153,13 +148,13 @@ function measure_columns(widget) {
 }
 
 /** Every measure cell in one round trip: a facet per column, each grouped by the group value, over the shown groups only. */
-async function measure_cells(widget, opening, group_id, shown, columns, catalog) {
+async function measure_cells(opening, group_id, shown, columns, catalog) {
   const facets = {};
   columns.forEach((column, index) => {
     const accumulator = accumulate(column.aggregation, column.field_id);
     facets[`c${index}`] = [...formula_scope(column.aggregation, column.field_id, column.filters, catalog), { $group: { _id: `$data.${group_id}`, value: accumulator.group } }, ...accumulator.post, { $match: { value: { $ne: null } } }];
   });
-  const [facet] = await run(widget, [...opening, { $match: { [`data.${group_id}`]: { $in: shown } } }, { $facet: facets }]);
+  const [facet] = await run([...opening, { $match: { [`data.${group_id}`]: { $in: shown } } }, { $facet: facets }]);
   const cells = new Map();
   columns.forEach((column, index) => {
     ((facet && facet[`c${index}`]) || []).forEach((entry) => {
@@ -172,13 +167,13 @@ async function measure_cells(widget, opening, group_id, shown, columns, catalog)
 }
 
 /** The measure totals over the shown rows, computed again - for formulas that do not add up. */
-async function measure_totals(widget, opening, group_id, shown, columns, catalog) {
+async function measure_totals(opening, group_id, shown, columns, catalog) {
   const facets = {};
   columns.forEach((column, index) => {
     const accumulator = accumulate(column.aggregation, column.field_id);
     facets[`c${index}`] = [...formula_scope(column.aggregation, column.field_id, column.filters, catalog), { $group: { _id: null, value: accumulator.group } }, ...accumulator.post];
   });
-  const [facet] = await run(widget, [...opening, { $match: { [`data.${group_id}`]: { $in: shown } } }, { $facet: facets }]);
+  const [facet] = await run([...opening, { $match: { [`data.${group_id}`]: { $in: shown } } }, { $facet: facets }]);
   const cells = {};
   columns.forEach((column, index) => {
     const bucket = facet && facet[`c${index}`] && facet[`c${index}`][0];
@@ -193,10 +188,10 @@ async function measure_totals(widget, opening, group_id, shown, columns, catalog
  * totals; past the cap the rest are folded into Other when the formula
  * adds up, and simply left out when it does not (the table says so).
  */
-async function split_cells(widget, opening, group_id, split_id, shown, metric, catalog) {
+async function split_cells(opening, group_id, split_id, shown, metric, catalog) {
   const aggregation = metric.aggregation || "count";
   const accumulator = accumulate(aggregation, metric.field_id);
-  const raw = await run(widget, [
+  const raw = await run([
     ...opening,
     { $match: { [`data.${group_id}`]: { $in: shown } } },
     ...formula_scope(aggregation, metric.field_id, [], catalog),
@@ -230,14 +225,14 @@ async function split_cells(widget, opening, group_id, split_id, shown, metric, c
 }
 
 /** The split totals over the shown rows, computed again - for formulas that do not add up. */
-async function split_totals(widget, opening, group_id, split_id, shown, columns, metric, catalog) {
+async function split_totals(opening, group_id, split_id, shown, columns, metric, catalog) {
   const aggregation = metric.aggregation || "count";
   const facets = {};
   columns.forEach((column, index) => {
     const accumulator = accumulate(aggregation, metric.field_id);
     facets[`c${index}`] = [...unwind_if_multi(catalog, split_id), { $match: { [`data.${split_id}`]: { $in: [column.split_value] } } }, ...formula_scope(aggregation, metric.field_id, [], catalog), { $group: { _id: null, value: accumulator.group } }, ...accumulator.post];
   });
-  const [facet] = await run(widget, [...opening, { $match: { [`data.${group_id}`]: { $in: shown } } }, { $facet: facets }]);
+  const [facet] = await run([...opening, { $match: { [`data.${group_id}`]: { $in: shown } } }, { $facet: facets }]);
   const cells = {};
   columns.forEach((column, index) => {
     const bucket = facet && facet[`c${index}`] && facet[`c${index}`][0];
@@ -253,7 +248,7 @@ async function table_summary(widget, bounds, catalog) {
   const totals = settings.totals || { row: true, column: false };
   const opening = opening_stages(widget, bounds, catalog, group_id);
   const limit = Math.min(TABLE_LIMITS.MAX_SUMMARY_ROWS, Math.max(1, Number(widget.limit) || 12));
-  const shown = await shown_groups(widget, opening, group_id, limit);
+  const shown = await shown_groups(opening, group_id, limit);
   const empty = { kind: CHART_KINDS.TABLE, mode: "summary", group_field: describe_field(catalog, group_id), columns: [], rows: [], table_totals: null };
   if (shown.length === 0) return empty;
 
@@ -262,13 +257,13 @@ async function table_summary(widget, bounds, catalog) {
   let capped = false;
   const metric = widget.metric || { aggregation: "count", field_id: null };
   if (split_id) {
-    const split = await split_cells(widget, opening, group_id, split_id, shown, metric, catalog);
+    const split = await split_cells(opening, group_id, split_id, shown, metric, catalog);
     columns = split.columns;
     cells = split.cells;
     capped = split.capped;
   } else {
     columns = measure_columns(widget);
-    cells = await measure_cells(widget, opening, group_id, shown, columns, catalog);
+    cells = await measure_cells(opening, group_id, shown, columns, catalog);
   }
   if (columns.length === 0) return empty;
   const additive = columns.every((column) => ADDITIVE.includes(column.aggregation));
@@ -293,9 +288,9 @@ async function table_summary(widget, bounds, catalog) {
         total_cells[column.key] = round(rows.reduce((sum, row) => sum + (row.cells[column.key] || 0), 0));
       });
     } else if (split_id) {
-      total_cells = await split_totals(widget, opening, group_id, split_id, shown, columns, metric, catalog);
+      total_cells = await split_totals(opening, group_id, split_id, shown, columns, metric, catalog);
     } else {
-      total_cells = await measure_totals(widget, opening, group_id, shown, columns, catalog);
+      total_cells = await measure_totals(opening, group_id, shown, columns, catalog);
     }
     total_row = { cells: total_cells, total: totals.column && additive ? round(columns.reduce((sum, column) => sum + (total_cells[column.key] || 0), 0)) : null };
   }

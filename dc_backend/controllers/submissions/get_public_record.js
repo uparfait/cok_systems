@@ -46,7 +46,7 @@ async function get_public_record(req, res) {
       is_active: form_version.is_active,
       schema: Object.assign({}, form_version.schema, { fields: strip_lazy_options_from_fields(form_version.schema.fields) }),
       tracking: form_version.tracking || null,
-      ask_respondent: form_version.ask_respondent !== false,
+      ask_respondent: form_version.ask_respondent === true,
     };
 
     const record = tracked_records_model.to_public_record(submission);

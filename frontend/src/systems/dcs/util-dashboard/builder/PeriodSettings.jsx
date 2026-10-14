@@ -2,14 +2,15 @@ import React from "react";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { ChipGrid, Switch, Problem, TEXT_DARK, TEXT_MUTED, HEADING_FONT } from "./builderUi.jsx";
 import { PERIOD_PRESETS, PRESET_KEYS, default_period, period_problem } from "./widgetBehavior.js";
+import { period_moment, period_input_value } from "../boardFilters.js";
 
 /**
  * A widget's own TIME WINDOW: one of the presets, or a custom range with
- * its two dates - and the lock. Unlocked, the window is what the widget
- * opens on and the board's date filter replaces it while viewing; locked,
- * the widget always reads this window and the board's date filter passes
- * it by, which is what a "so far this year" card on a board of monthly
- * charts needs.
+ * its two moments, each a day and a time of day to the second - and the
+ * lock. Unlocked, the window is what the widget opens on and the board's
+ * date filter replaces it while viewing; locked, the widget always reads
+ * this window and the board's date filter passes it by, which is what a
+ * "so far this year" card on a board of monthly charts needs.
  */
 export default function PeriodSettings({ period, onChange, disabled }) {
   const { translate } = useDcsLanguage();
@@ -30,11 +31,11 @@ export default function PeriodSettings({ period, onChange, disabled }) {
         <div className="dcs-view-swap grid grid-cols-1 sm:grid-cols-2 gap-2">
           <label className="flex items-center gap-2">
             <span className="text-xs w-12" style={{ color: TEXT_DARK, ...HEADING_FONT }}>{translate("DCS_DB_PERIOD_FROM")}</span>
-            <input type="date" className="dcs-rename-input flex-1" style={input} value={current.from ? String(current.from).slice(0, 10) : ""} disabled={disabled} onChange={(event) => set({ from: event.target.value || null })} />
+            <input type="datetime-local" step="1" className="dcs-rename-input flex-1" style={input} value={period_input_value(current.from)} disabled={disabled} onChange={(event) => set({ from: period_moment(event.target.value) || null })} />
           </label>
           <label className="flex items-center gap-2">
             <span className="text-xs w-12" style={{ color: TEXT_DARK, ...HEADING_FONT }}>{translate("DCS_DB_PERIOD_TO")}</span>
-            <input type="date" className="dcs-rename-input flex-1" style={input} value={current.to ? String(current.to).slice(0, 10) : ""} disabled={disabled} onChange={(event) => set({ to: event.target.value || null })} />
+            <input type="datetime-local" step="1" className="dcs-rename-input flex-1" style={input} value={period_input_value(current.to)} disabled={disabled} onChange={(event) => set({ to: period_moment(event.target.value) || null })} />
           </label>
         </div>
       )}

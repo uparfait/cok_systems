@@ -1,7 +1,7 @@
 const { get_db } = require("../db_connection/db.js");
 const { to_object_id } = require("../utilities/object_id.js");
 const { tracking_stages } = require("../util-dashboard/tracking_stage.js");
-const { STAGE_AT, time_expr, stage_prefilter, stage_rows_stages, date_window_filter } = require("../utilities/tracking_window.js");
+const { last_moved_expr, window_filter, date_window_filter } = require("../utilities/tracking_window.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 
@@ -377,10 +377,9 @@ async function list_submissions(form_group_id, version, page, limit, date_bounds
 }
 
 /**
- * The listing itself, over any collection of records shaped like a
- * submission - a follow-up form's records live in their own collection
- * and are read with the very same search, column filters, paging and
- * sort. base_filter is what pins the rows to one form (or one follow-up).
+ * The listing itself, over a collection of records shaped like a
+ * submission: the same search, column filters, paging and sort whatever
+ * collection they sit in. base_filter is what pins the rows to one form.
  */
 async function list_records_in(collection_name, base_filter, version, page, limit, date_bounds, options) {
   const filter = Object.assign({}, base_filter);
@@ -397,44 +396,31 @@ async function list_records_in(collection_name, base_filter, version, page, limi
 
   // A pinned record answers for itself: the range, the version and the
   // column filters around it would only ever hide the one row that was
-  // explicitly asked for, and it is shown whole rather than stage by stage.
+  // explicitly asked for.
   const tracking = options && options.tracking;
   const pinned = !!filter._id;
-  // One row per STAGE of a tracked form - a car recorded "in" at 12:00 and
-  // labelled "out" at 13:00 is two rows, each carrying the value it held at
-  // that moment (see utilities/tracking_window.js). Empty for a form with
-  // no stages, whose opening match already describes the range in full.
-  const stage_stages = pinned ? [] : stage_rows_stages(tracking, date_bounds);
-  if (!pinned) Object.assign(filter, stage_prefilter(date_bounds, tracking));
-
-  // Applied AFTER the stage rewrite, so a column filter matches the value
-  // the row actually shows ("status is out" keeps the 13:00 stage, not the
-  // 12:00 one of the same car).
-  const value_filter = {};
-  apply_value_filters(value_filter, options && options.filters);
-  const has_value_filter = !pinned && Object.keys(value_filter).length > 0;
-  if (has_value_filter && stage_stages.length === 0) Object.assign(filter, value_filter);
+  // One row per RECORD, carrying its current answers. On a tracked form
+  // the range keeps the records that were created or last updated inside
+  // it (see utilities/tracking_window.js); on any other form, what
+  // arrived inside it.
+  if (!pinned) {
+    Object.assign(filter, window_filter(date_bounds, tracking));
+    apply_value_filters(filter, options && options.filters);
+  }
 
   const sort_direction = options && options.sort === "oldest" ? 1 : -1;
-  // Newest first means the newest STAGE first on a register: the car that
-  // just drove out belongs at the top, not where it first arrived.
-  const sort_field = stage_stages.length > 0 ? STAGE_AT : "submitted_at";
   const skip = (page - 1) * limit;
   const collection = get_db().collection(collection_name);
   const search_term = options && options.search ? options.search.toString().trim() : "";
 
-  if (search_term || stage_stages.length > 0) {
-    const search_stages = search_term
-      ? [{ $addFields: { __search_text: SEARCH_TEXT_EXPRESSION } }, { $match: { __search_text: new RegExp(escape_regex(search_term), "i") } }]
-      : [];
+  if (search_term) {
     const pipeline = [
       { $match: filter },
-      ...stage_stages,
-      ...(has_value_filter && stage_stages.length > 0 ? [{ $match: value_filter }] : []),
-      ...search_stages,
-      // _id breaks the tie so paging is stable when several stages share a
-      // moment (three cars leaving at 13:00).
-      { $sort: { [sort_field]: sort_direction, _id: sort_direction } },
+      { $addFields: { __search_text: SEARCH_TEXT_EXPRESSION } },
+      { $match: { __search_text: new RegExp(escape_regex(search_term), "i") } },
+      // _id breaks the tie so paging is stable when several records share
+      // a moment (three imported rows a millisecond apart).
+      { $sort: { submitted_at: sort_direction, _id: sort_direction } },
       {
         $facet: {
           items: [{ $skip: skip }, { $limit: limit }, { $project: { __search_text: 0 } }],
@@ -454,7 +440,7 @@ async function list_records_in(collection_name, base_filter, version, page, limi
     // above already keeps this off the in-memory sort path entirely; this
     // only matters for the brief window before that index finishes
     // building on an existing large collection.
-    collection.find(filter).sort({ submitted_at: sort_direction }).skip(skip).limit(limit).allowDiskUse(true).toArray(),
+    collection.find(filter).sort({ submitted_at: sort_direction, _id: sort_direction }).skip(skip).limit(limit).allowDiskUse(true).toArray(),
     collection.countDocuments(filter),
   ]);
 
@@ -462,11 +448,10 @@ async function list_records_in(collection_name, base_filter, version, page, limi
 }
 
 /**
- * The export's own reading of a range: the records that have a stage
- * inside it, ONE line each. Deliberately not stage by stage - a
- * spreadsheet of the same plate on several rows reads as duplicated data
- * to whoever opens it, so the export answers "which cars, and what did
- * each say" rather than "what happened".
+ * The export's own reading of a range: the records that were created or
+ * changed at any moment inside it, ONE line each, carrying the value held
+ * at the range's end (see utilities/tracking_window.js). Unlike the
+ * table, which dates a record by its last move only.
  */
 function range_filter(form_group_id, bounds, tracking) {
   return Object.assign({ form_group_id }, date_window_filter(bounds, tracking));
@@ -504,7 +489,7 @@ function stream_in_range(form_group_id, bounds, tracking, batch_size) {
 
 /**
  * The data feed's filter: a form, an optional version and an optional
- * window. On a tracked form the window is read over the record's stages,
+ * window. On a tracked form the window is read over the record's moments,
  * so ?since means "created or changed since" and a reader finally sees a
  * correction instead of keeping the first value it was given.
  */
@@ -579,14 +564,13 @@ function utc_offset_string(offset_minutes) {
 
 async function count_submissions_over_time(form_group_id, start, end, granularity, offset_minutes, week_start_day, tracking) {
   const bounds = start && end ? { start, end } : null;
-  const match = Object.assign({ form_group_id }, stage_prefilter(bounds, tracking));
+  const match = Object.assign({ form_group_id }, window_filter(bounds, tracking));
 
-  // Bucketed on the STAGE, which is what makes this chart read a register
-  // correctly: a car recorded at 12:00 and driven out at 13:00 puts one
-  // count in the 12:00 column and one in the 13:00 column, so the line
-  // shows both movements rather than only the arrival.
+  // Bucketed on the moment each record last moved (its last update, or
+  // its arrival), the same moment the table windows on - so the chart's
+  // total and the table's total are the same number for the same range.
   const truncate = {
-    date: time_expr(tracking),
+    date: last_moved_expr(tracking),
     unit: GRANULARITY_UNITS[granularity] || "day",
     timezone: utc_offset_string(offset_minutes),
   };
@@ -600,7 +584,6 @@ async function count_submissions_over_time(form_group_id, start, end, granularit
     .aggregate(
       [
         { $match: match },
-        ...stage_rows_stages(tracking, bounds),
         { $group: { _id: { $dateTrunc: truncate }, count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ],

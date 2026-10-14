@@ -22,7 +22,7 @@ export default function FormSettingsPage() {
   const [form_name, setFormName] = useState(form.form_name || "");
   const [approval_config, setApprovalConfig] = useState(form.approval_config || null);
   const [tracking, setTracking] = useState(() => normalize_tracking(form.tracking, form.schema.fields));
-  const [ask_respondent, setAskRespondent] = useState(form.ask_respondent !== false);
+  const [ask_respondent, setAskRespondent] = useState(form.ask_respondent === true);
   const [publishing, setPublishing] = useState(false);
   const [schema_errors, setSchemaErrors] = useState([]);
   const [translation_links_open, setTranslationLinksOpen] = useState(false);
@@ -43,7 +43,7 @@ export default function FormSettingsPage() {
     setFormName(form.form_name || "");
     setApprovalConfig(form.approval_config || null);
     setTracking(normalize_tracking(form.tracking, form.schema.fields));
-    setAskRespondent(form.ask_respondent !== false);
+    setAskRespondent(form.ask_respondent === true);
   }, [form]);
 
   const public_link = `${window.location.origin}/dcs-form/${form_group_id}`;

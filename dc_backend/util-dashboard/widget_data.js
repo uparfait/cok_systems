@@ -3,7 +3,6 @@ const { kpi_metric_result } = require("./kpi_metrics.js");
 const { table_data } = require("./table_data.js");
 const { text_data } = require("./text_data.js");
 const { effective_bounds } = require("./match_stage.js");
-const { bind_data_source } = require("./data_source.js");
 const { build_field_catalog, field_label_text, parent_field_id_of, is_categorical } = require("./field_catalog.js");
 const { CHART_TYPES, CHART_KINDS, LIMITS, OVER_TIME_TYPES, SUBMITTED_AT_FIELD } = require("./constants.js");
 
@@ -375,9 +374,10 @@ async function heat_data(widget, bounds) {
  */
 async function widget_data_of(raw_widget, form_version, period_override, records_policy) {
   const catalog = build_field_catalog(form_version.schema);
-  // A tracked form's pipelines read each updatable field as it stood at
-  // the period's end (see tracking_stage.js); the config rides the widget, and so do the records it reads (see data_source.js).
-  bind_data_source(raw_widget, form_version).tracking = form_version.tracking || null;
+  // A tracked form's pipelines read its records' current answers, windowed
+  // on the moment each last moved (see utilities/tracking_window.js); the
+  // config rides the widget.
+  raw_widget.tracking = form_version.tracking || null;
   const bounds = effective_bounds(raw_widget, period_override);
   let kind = (CHART_TYPES[raw_widget.chart_type] || {}).kind;
   // A canvas is a place, not a question: there is nothing to compute. A
@@ -407,9 +407,9 @@ async function widget_data_of(raw_widget, form_version, period_override, records
   // in years, and a custom range in whatever suits its own length.
   const over_time = raw_widget.over_time && raw_widget.over_time.enabled === true ? raw_widget.over_time : null;
   if (over_time && OVER_TIME_TYPES.includes(raw_widget.chart_type)) {
-    // A time line counts the STAGES that fall in each slice of the
-    // window, so a car recorded at 12:00 and driven out at 13:00 puts one
-    // count in each of those two columns (see match_stage.js).
+    // A time line puts each record in the slice of its own moment: on a
+    // tracked form the moment it last moved, otherwise its arrival (see
+    // pipelines.time_source_expr).
     const timed = Object.assign({}, raw_widget, {
       group_by: { field_id: over_time.field_id || SUBMITTED_AT_FIELD, granularity: over_time.granularity || "auto" },
     });

@@ -70,7 +70,7 @@ function build_page_window(current_page, total_pages, window_size) {
   return { start, end };
 }
 
-function PageArrowButton({ direction, disabled, onClick }) {
+export function PageArrowButton({ direction, disabled, onClick }) {
   return (
     <button
       type="button"

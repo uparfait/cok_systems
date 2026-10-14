@@ -31,7 +31,7 @@ export async function resolve_fan_out_values(form, field) {
       size: "medium",
       position: 0,
     };
-    const response = await get_dashboard_data(form.form_group_id, [probe], null, undefined, form.source);
+    const response = await get_dashboard_data(form.form_group_id, [probe], null);
     const result = ((response.data && response.data.results) || [])[0] || {};
     if (result.error) return known;
     const values = (result.rows || [])

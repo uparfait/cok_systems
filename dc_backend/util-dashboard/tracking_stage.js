@@ -1,18 +1,18 @@
 /**
- * Dashboards of a TRACKED form read every updatable field AS IT STOOD at
- * the end of the selected period, not as it stands today. A person alive
- * until the 56th and recorded dead after it counts as alive in any period
- * that ends before the 56th, and as dead in one that ends after.
+ * The EXPORT and the DATA FEED of a TRACKED form read every updatable
+ * field AS IT STOOD at the end of the selected window, not as it stands
+ * today: an export of "the 12:00 hour" says the car was in, even though it
+ * has since left. (The tables and the dashboards do not use this - they
+ * read the current state; see utilities/tracking_window.js.)
  *
  * Each record keeps, per updatable field, the periods its value held
  * (tracking_periods.<field>: [{ value, from, to }], the open one with
  * to: null - see utilities/tracking.js). This stage rewrites data.<field>
- * to the value of the period covering the period's end, so every pipeline
- * downstream - grouping, counting, filtering, the records table - simply
- * reads data.<field> as usual. A record with no periods for the field (it
- * was tracked before the field became updatable) keeps its stored answer.
- * Without an end date (period "all") nothing is rewritten: today's value
- * is the value.
+ * to the value of the period covering the window's end, so whatever
+ * follows simply reads data.<field> as usual. A record with no periods
+ * for the field (it was tracked before the field became updatable) keeps
+ * its stored answer. Without an end date (window "all", a feed's ?since)
+ * nothing is rewritten: today's value is the value.
  */
 
 function value_at(field_id, at) {
@@ -44,10 +44,9 @@ function value_at(field_id, at) {
 }
 
 /**
- * The stages to place right after a widget's base $match. Empty for an
- * untracked form, a period without an end, or a tracking config with no
- * updatable field. The widget carries the form's tracking config
- * (widget.tracking), attached by whoever resolved the form version.
+ * The stages to place right after the export's or the feed's $match.
+ * Empty for an untracked form, a window without an end, or a tracking
+ * config with no updatable field. The caller passes { tracking }.
  */
 function tracking_stages(widget, bounds) {
   const tracking = widget && widget.tracking;

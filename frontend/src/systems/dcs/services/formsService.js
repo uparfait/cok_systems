@@ -18,7 +18,7 @@ export function create_form(project_id, form_name, schema, approval_config, trac
     schema,
     approval_config,
     tracking: tracking === undefined ? null : tracking,
-    ask_respondent: ask_respondent !== false,
+    ask_respondent: ask_respondent === true,
   });
 }
 
@@ -38,7 +38,7 @@ export function update_form(form_group_id, form_name, schema, approval_config, t
   // Left out entirely, the stored record tracking config (and the
   // ask-respondent flag) are kept as they are.
   if (tracking !== undefined) body.tracking = tracking;
-  if (ask_respondent !== undefined) body.ask_respondent = ask_respondent !== false;
+  if (ask_respondent !== undefined) body.ask_respondent = ask_respondent === true;
   return dcs_request(`/forms/${form_group_id}`, "PUT", body);
 }
 

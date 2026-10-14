@@ -17,11 +17,22 @@ const requireFrom = createRequire(import.meta.url)
 // the server responded with a non-JavaScript MIME type of text/html".
 //
 // So the two files MapLibre expects to find beside its bundle are copied
-// there, unhashed and under the names it asks for - the worker, and the
-// shared chunk the worker itself imports. Copied from the installed package
-// at build time rather than kept in public/, so they can never drift out of
-// step with the version in package.json.
-const MAPLIBRE_RUNTIME_FILES = ['maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs']
+// there, unhashed - the worker, and the shared chunk the worker itself
+// imports. Copied from the installed package at build time rather than
+// kept in public/, so they can never drift out of step with the version in
+// package.json.
+//
+// They are written under .js NAMES, not the .mjs names the package uses:
+// a stock nginx (the hosted build's server) has no MIME type for .mjs and
+// sends it as application/octet-stream, which the browser refuses to run
+// as a module worker - silently, so the map simply never drew. A .js file
+// is served as JavaScript everywhere. The worker's own import of the
+// shared chunk is rewritten to the .js name with it, and the app points
+// MapLibre at the worker (setWorkerUrl in util-dashboard/charts/mapKeeper.js).
+const MAPLIBRE_RUNTIME_FILES: Array<[string, string]> = [
+  ['maplibre-gl-worker.mjs', 'maplibre-gl-worker.js'],
+  ['maplibre-gl-shared.mjs', 'maplibre-gl-shared.js'],
+]
 
 function maplibreWorkerAssets(): Plugin {
   let resolved: ResolvedConfig
@@ -33,17 +44,21 @@ function maplibreWorkerAssets(): Plugin {
     },
     generateBundle() {
       const dist = path.dirname(requireFrom.resolve('maplibre-gl/dist/maplibre-gl.mjs'))
-      for (const name of MAPLIBRE_RUNTIME_FILES) {
+      for (const [name, published] of MAPLIBRE_RUNTIME_FILES) {
         const from = path.join(dist, name)
         if (!fs.existsSync(from)) {
           // A MapLibre upgrade that renames these would silently break the
           // map on the server only, which is the worst place to find out.
           this.error(`maplibre-gl no longer ships ${name}; the map worker would 404 once deployed`)
         }
+        let source = fs.readFileSync(from, 'utf8')
+        for (const [other, renamed] of MAPLIBRE_RUNTIME_FILES) {
+          source = source.split(`./${other}`).join(`./${renamed}`)
+        }
         this.emitFile({
           type: 'asset',
-          fileName: path.posix.join(resolved.build.assetsDir, name),
-          source: fs.readFileSync(from),
+          fileName: path.posix.join(resolved.build.assetsDir, published),
+          source,
         })
       }
     },

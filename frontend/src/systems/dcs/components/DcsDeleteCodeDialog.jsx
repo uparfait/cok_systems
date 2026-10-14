@@ -110,7 +110,6 @@ export default function DcsDeleteCodeDialog({ submissionIds, onClose, onDeleted 
       onClose={handle_close}
       onBackdrop={handle_close}
       busy={busy}
-      accent={DANGER}
       maxWidth={420}
     >
       <form onSubmit={handle_confirm}>

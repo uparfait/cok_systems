@@ -1,6 +1,7 @@
 const forms_model = require("../../models/forms_model.js");
 const { strip_lazy_options_from_fields } = require("../../jsonlogic/lazy_options.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
+const { normalize_tracking_config } = require("../../utilities/tracking.js");
 
 /**
  * Public, no-auth endpoint behind /dcs-form/:id. Always resolves to the
@@ -32,10 +33,12 @@ async function get_public_form(req, res) {
       version: active_form.version,
       is_active: active_form.is_active,
       schema: Object.assign({}, active_form.schema, { fields: strip_lazy_options_from_fields(active_form.schema.fields) }),
-      // Record tracking drives the public page's search and update controls.
-      tracking: active_form.tracking || null,
+      // Record tracking drives the public page's search and update controls;
+      // normalised so a form saved with a single key_field_id still sends
+      // key_field_ids.
+      tracking: normalize_tracking_config(active_form.tracking),
       // Whether the page first asks who is filling the form in.
-      ask_respondent: active_form.ask_respondent !== false,
+      ask_respondent: active_form.ask_respondent === true,
     };
 
     return res.status(200).json(success_response(req, "FORM_FETCHED", stripped_form));

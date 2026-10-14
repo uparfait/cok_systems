@@ -32,8 +32,7 @@ const DEFAULT_PERIOD = "this_year";
  *
  * fetcher, when given, replaces get_submissions as the data source with
  * the same signature (form_group_id, version, page, limit, params) and
- * the same { data, total } answer - the follow-up table reads its own
- * collection through it.
+ * the same { data, total } answer, for a table over another collection.
  */
 export function useSubmissionsTable(form_group_id, version, column_filters, pinned_record_id, fetcher) {
   const fetch_page = fetcher || get_submissions;

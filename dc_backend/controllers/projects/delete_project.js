@@ -1,8 +1,6 @@
 const projects_model = require("../../models/projects_model.js");
 const forms_model = require("../../models/forms_model.js");
 const submissions_model = require("../../models/submissions_model.js");
-const follow_up_forms_model = require("../../models/follow_up_forms_model.js");
-const follow_up_submissions_model = require("../../models/follow_up_submissions_model.js");
 const project_access_model = require("../../models/project_access_model.js");
 const dashboards_model = require("../../util-dashboard/dashboards_model.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
@@ -35,9 +33,6 @@ async function delete_project(req, res) {
     const form_group_ids = await forms_model.get_form_group_ids_by_project(project_id);
     await submissions_model.delete_by_form_group_ids(form_group_ids);
     await forms_model.delete_forms_by_project(project_id);
-    // The follow-up forms of those forms, and what they collected, go too.
-    await follow_up_submissions_model.delete_by_project(project_id);
-    await follow_up_forms_model.delete_by_project(project_id);
     await project_access_model.delete_access_by_project(project_id);
     await dashboards_model.delete_dashboards_by_project(project_id);
     await projects_model.delete_project(project_id);

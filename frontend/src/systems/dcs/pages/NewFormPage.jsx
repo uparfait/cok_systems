@@ -22,7 +22,7 @@ export default function NewFormPage() {
   const [schema_errors, setSchemaErrors] = useState([]);
   const [validation_result, setValidationResult] = useState({ valid: true, errors: [] });
   const [tracking, setTracking] = useState(empty_tracking);
-  const [ask_respondent, setAskRespondent] = useState(true);
+  const [ask_respondent, setAskRespondent] = useState(false);
 
   // A deleted key or updatable field drops out of the tracking config too.
   const handle_fields_change = (next_fields) => {

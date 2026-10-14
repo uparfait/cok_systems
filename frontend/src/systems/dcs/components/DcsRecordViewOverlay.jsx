@@ -90,9 +90,9 @@ function AnswersTab({ entries, translate, editableIds }) {
 const when = (value) => (value ? new Date(value).toLocaleString() : "-");
 
 /**
- * noApproval drops the approval tab and meta (follow-up records have no
- * approval flow); title replaces the heading; footer replaces the Edit
- * footer with the caller's own buttons.
+ * noApproval drops the approval tab and meta (records without an approval
+ * flow); title replaces the heading; footer replaces the Edit footer with
+ * the caller's own buttons.
  */
 export default function DcsRecordViewOverlay({ record, fields, tracking, onClose, onEdit, noApproval, title, footer }) {
   const { language, translate } = useDcsLanguage();
@@ -138,7 +138,7 @@ export default function DcsRecordViewOverlay({ record, fields, tracking, onClose
           ))}
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 min-[560px]:px-6 py-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 min-[560px]:px-6 py-4" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
           {tab === "answers" && <AnswersTab entries={entries} translate={translate} editableIds={editable_ids} />}
           {tab === "approval" && !noApproval && <ApprovalDetailsBody submission_id={record._id} />}
           {tab === "history" && change_count > 0 && <RecordHistorySlides record={record} fields={fields} />}

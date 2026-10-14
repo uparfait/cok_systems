@@ -343,7 +343,7 @@ function PublicFormPageContent() {
 
   const progress_percent = compute_form_progress_percent(form.schema.fields, values);
   // The who-is-filling-in card only when the form asks for it and nobody answered it yet.
-  const gate_needed = form.ask_respondent !== false && !respondent;
+  const gate_needed = form.ask_respondent === true && !respondent;
   const is_success_screen = submit_state === "success_submitted" || submit_state === "success_offline" || submit_state === "success_updated";
   const queued_message = translate("DCS_PUBLIC_QUEUED_MESSAGE") + (storage_backend_name === "memory" ? "\n\n" + translate("DCS_STORAGE_MEMORY_ONLY") : "");
 

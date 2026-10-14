@@ -59,8 +59,8 @@ async function create_form(req, res) {
       return res.status(400).json(warning_response(req, "APPROVAL_CONFIG_INVALID", null, { errors: approval_validation.errors }));
     }
 
-    // Record tracking (one key field, a set of updatable fields) is checked
-    // against the very schema being published.
+    // Record tracking (one to five key fields, a set of updatable fields)
+    // is checked against the very schema being published.
     const tracking_validation = validate_tracking_config(tracking, resolved_schema);
     if (!tracking_validation.valid) {
       return res.status(400).json(warning_response(req, "TRACKING_CONFIG_INVALID", null, { errors: tracking_validation.errors }));
@@ -74,7 +74,7 @@ async function create_form(req, res) {
       approval_config: normalize_approval_config(approval_config),
       tracking: normalize_tracking_config(tracking),
       // Whether the public form first asks who is filling it in (on unless switched off).
-      ask_respondent: ask_respondent !== false,
+      ask_respondent: ask_respondent === true,
       created_by: req.user.user_id.toString(),
       created_by_name: req.user.full_name,
     });

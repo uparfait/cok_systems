@@ -209,9 +209,6 @@ export function get_submission_media(form_group_id, page, limit, options) {
   if (options && options.filters && Object.keys(options.filters).length > 0) {
     params.append("filters", JSON.stringify(options.filters));
   }
-  // scope=all adds the follow-up form's media; each item then carries
-  // source: "form" | "follow_up".
-  if (options && options.scope) params.append("scope", options.scope);
   return dcs_request(`/submissions/${form_group_id}/media?${params.toString()}`, "GET");
 }
 

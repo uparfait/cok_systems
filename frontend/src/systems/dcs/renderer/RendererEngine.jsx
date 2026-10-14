@@ -161,8 +161,8 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
 
     const is_cascading_location = field.type === "cascading_select" && field.data_source?.type === "api";
     const builder_preset = render_mode === "builder" ? resolve_preset_value(field, effective_values) : { has: false };
-    // A follow-up form: the fields a source record can be looked up by
-    // carry a Search control (searchable = { ids, onSearch(field, value) }).
+    // The fields a record can be looked up by carry a Search control
+    // (searchable = { ids, onSearch(field, value) }).
     const is_searchable = !!searchable && Array.isArray(searchable.ids) && searchable.ids.includes(field.id);
     const on_search = is_searchable ? () => searchable.onSearch(field, effective_values ? effective_values[field.id] : undefined) : undefined;
 

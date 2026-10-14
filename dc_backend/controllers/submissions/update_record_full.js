@@ -6,9 +6,10 @@ const { approval_for_record, notify_new_approval } = require("../../utilities/su
 const { check_count_triggers } = require("../../utilities/batch_approval.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { sanitize_respondent } = require("../../utilities/respondent.js");
-const { is_enabled, record_key_of, next_periods } = require("../../utilities/tracking.js");
+const { is_enabled, key_ids_of, composite_record_key, record_key_pairs, key_field_labels, next_periods } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
+const { translate } = require("../../i18n/index.js");
 
 /**
  * Public, no-auth full edit of ONE collected record - what the pen icon
@@ -80,12 +81,21 @@ async function update_record_full(req, res) {
 
     const tracking = form_version.tracking;
     const tracked = is_enabled(tracking);
-    // A tracked form's key must stay unique when the author asked for it.
+    // A tracked form's key combination must stay unique when the author
+    // asked for it: an edit that moves the record onto another record's
+    // key is refused, with every key field marked.
     if (tracked && tracking.key_unique) {
-      const next_key = record_key_of(next_data[tracking.key_field_id]);
+      const next_key = composite_record_key(tracking, next_data);
       if (next_key && next_key !== record.record_key) {
         const taken = await tracked_records_model.count_by_record_key(record.form_group_id, next_key);
-        if (taken > 0) return res.status(409).json(warning_response(req, "TRACKING_KEY_EXISTS", { field: tracking.key_field_id }));
+        if (taken > 0) {
+          const vars = { field: key_field_labels(form_version.schema, tracking, req.language).join(" / ") };
+          const field_errors = {};
+          key_ids_of(tracking).forEach((field_id) => {
+            field_errors[field_id] = [translate("TRACKING_KEY_EXISTS", req.language, vars)];
+          });
+          return res.status(409).json(warning_response(req, "TRACKING_KEY_EXISTS", vars, { field_errors, record_key: next_key }));
+        }
       }
     }
 
@@ -117,7 +127,7 @@ async function update_record_full(req, res) {
     });
 
     if (tracked) {
-      await tracked_records_model.apply_record_key(record._id, record_key_of(next_data[tracking.key_field_id]));
+      await tracked_records_model.apply_record_key(record._id, composite_record_key(tracking, next_data), record_key_pairs(tracking, next_data));
     }
 
     await check_count_triggers(record.form_group_id, resolve_client_origin(req));

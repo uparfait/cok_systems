@@ -9,7 +9,7 @@ const DANGER = "#E74C3C";
 
 /**
  * countSubmissions(version), when given, replaces the form's own record
- * count - the follow-up form counts its own collection.
+ * count with the caller's own counter.
  */
 export default function DcsDeleteVersionDialog({ formGroupId, version, onConfirm, onCancel, deleting, countSubmissions }) {
   const { translate } = useDcsLanguage();

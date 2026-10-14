@@ -60,9 +60,9 @@ async function get_submissions(req, res) {
     const page_number = Math.max(1, parseInt(page, 10) || 1);
     const page_size = Math.min(100, Math.max(1, parseInt(limit, 10) || DEFAULT_PAGE_SIZE));
 
-    // A tracked form is read stage by stage inside the range (see
-    // utilities/tracking_window.js): one row per moment a value opened,
-    // each carrying stage_at and the values that stage held.
+    // A tracked form is read in its current state: one row per record, the
+    // range keeping the records created or last updated inside it (see
+    // utilities/tracking_window.js).
     const active_version = await forms_model.get_active_version(form_group_id);
     const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
 

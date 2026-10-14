@@ -59,11 +59,16 @@ export function period_problem(period, translate) {
 
 const day_text = (value) => {
   if (!value) return "";
-  const date = new Date(/T\d{2}:\d{2}/.test(String(value)) ? value : `${String(value).slice(0, 10)}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  const timed = /T\d{2}:\d{2}/.test(String(value));
+  const date = new Date(timed ? value : `${String(value).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const day = { day: "numeric", month: "short", year: "numeric" };
+  const midnight = date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0;
+  if (!timed || midnight) return date.toLocaleDateString(undefined, day);
+  return date.toLocaleString(undefined, { ...day, hour: "2-digit", minute: "2-digit", second: date.getSeconds() === 0 ? undefined : "2-digit" });
 };
 
-/** The window in words: "This year", or "1 Jan 2026 - 31 Aug 2026". */
+/** The window in words: "This year", or "1 Jan 2026 - 31 Aug 2026" (with the time of day when one was picked). */
 export function period_label(period, translate) {
   const held = period || default_period();
   if (held.preset !== "custom") return translate(PRESET_KEYS[held.preset] || PRESET_KEYS.all);

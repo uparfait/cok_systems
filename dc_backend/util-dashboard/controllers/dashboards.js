@@ -5,7 +5,6 @@ const { sanitize_widgets, sanitize_board_layout, sanitize_board_appearance } = r
 const { validate_dashboard } = require("../widget_validation.js");
 const { build_field_catalog } = require("../field_catalog.js");
 const { sanitize_filter_defs, validate_filter_defs } = require("../board_filters.js");
-const { SOURCES, follow_up_schema_version } = require("../data_source.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 const MAX_NAME = 80;
@@ -19,14 +18,12 @@ const MAX_NAME = 80;
  */
 
 async function viewer_context(req, res) {
-  const { form_group_id, dashboard_id } = req.params;
+  const { form_group_id } = req.params;
   if (!form_group_id) {
     res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
     return null;
   }
-  // A request about ONE dashboard reads the records that board was
-  // created on (the form's own, or its follow-up's - see data_source.js).
-  const context = await load_form_dashboard_context(req.user, form_group_id, { dashboard_id });
+  const context = await load_form_dashboard_context(req.user, form_group_id);
   if (!context.found) {
     res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
     return null;
@@ -71,13 +68,8 @@ async function create_dashboard(req, res) {
     if (!context) return undefined;
     const name = read_name(req.body);
     if (!name) return res.status(400).json(warning_response(req, "DASHBOARD_NAME_REQUIRED"));
-    // Which records the new board reads - decided here, once. A board on
-    // the follow-up's data needs the form to have a follow-up.
-    const source = SOURCES.includes((req.body || {}).source) ? req.body.source : "form";
-    const follow_up = source === "follow_up" ? await follow_up_schema_version(req.params.form_group_id) : null;
-    if (source === "follow_up" && !follow_up) return res.status(422).json(warning_response(req, "FOLLOW_UP_REQUIRED"));
     if (await dashboards_model.is_name_taken(req.params.form_group_id, name)) return res.status(409).json(warning_response(req, "DASHBOARD_NAME_TAKEN"));
-    const dashboard = await dashboards_model.create_dashboard(req.params.form_group_id, context.project._id, name, source, follow_up ? follow_up.follow_up_group_id : null);
+    const dashboard = await dashboards_model.create_dashboard(req.params.form_group_id, context.project._id, name);
     return res.status(201).json(success_response(req, "DASHBOARD_CREATED", { dashboard: dashboards_model.strip_dashboard(dashboard) }));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
@@ -126,8 +118,6 @@ async function get_dashboard_by_id(req, res) {
     return res.status(200).json(
       success_response(req, "DASHBOARD_FETCHED", {
         dashboard: dashboards_model.strip_dashboard(dashboard),
-        source: context.source,
-        follow_up_group_id: context.follow_up_group_id,
         widgets: dashboard.widgets || [],
         filters: dashboard.filters || [],
         layout: dashboard.layout || null,

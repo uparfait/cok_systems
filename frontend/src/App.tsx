@@ -94,9 +94,6 @@ import NewTemplatePage from "./systems/dcs/pages/NewTemplatePage.jsx";
 import TemplateSettingsPage from "./systems/dcs/pages/TemplateSettingsPage.jsx";
 import PublicFormPage from "./systems/dcs/pages/PublicFormPage.jsx";
 import EditRecordPage from "./systems/dcs/pages/EditRecordPage.jsx";
-import FollowUpPage from "./systems/dcs/pages/FollowUpPage.jsx";
-import PublicFollowUpFormPage from "./systems/dcs/pages/PublicFollowUpFormPage.jsx";
-import EditFollowUpRecordPage from "./systems/dcs/pages/EditFollowUpRecordPage.jsx";
 import PublicDashboardPage from "./systems/dcs/pages/PublicDashboardPage.jsx";
 import PublicTranslationPage from "./systems/dcs/pages/PublicTranslationPage.jsx";
 import ApprovalPage from "./systems/dcs/pages/ApprovalPage.jsx";
@@ -711,7 +708,6 @@ const AuthenticatedRoutes: React.FC = () => {
                 <Route path="ownership" element={<FormOwnershipPage />} />
               </Route>
               <Route path="project/:project_id/forms/:form_group_id/dashboard" element={<FormDashboardPage />} />
-              <Route path="project/:project_id/forms/:form_group_id/follow-up" element={<FollowUpPage />} />
               <Route path="project/:project_id/forms/:form_group_id/data" element={<FormAllDataPage />} />
               <Route path="project/:project_id/forms/:form_group_id/data/gallery" element={<FormGalleryPage />} />
               <Route path="project/:project_id/forms/:form_group_id/data/downloads" element={<FormDownloadsPage />} />
@@ -769,8 +765,6 @@ const App: React.FC = () => {
 
 
 
-          <Route path="/dcs-form/follow-up/edit/:id" element={<EditFollowUpRecordPage />} />
-          <Route path="/dcs-form/follow-up/:id" element={<PublicFollowUpFormPage />} />
           <Route path="/dcs-form/:id" element={<PublicFormPage />} />
           <Route path="/dcs-form/edit/:id" element={<EditRecordPage />} />
           <Route path="/XdP/:token" element={<PublicDashboardPage />} />

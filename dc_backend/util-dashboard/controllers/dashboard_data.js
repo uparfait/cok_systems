@@ -1,6 +1,5 @@
 const { load_form_dashboard_context } = require("../form_context.js");
 const { compute_dashboard_results } = require("../compute_results.js");
-const { wanted_source } = require("../data_source.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -12,10 +11,6 @@ const { success_response, warning_response, error_response } = require("../../ut
  * back as a per-widget error so one bad chart never takes the whole
  * dashboard down. The computation itself lives in compute_results.js,
  * shared with the public share-link endpoint.
- *
- * The body may say which records to read - source ("form" | "follow_up")
- * or the dashboard_id of the board - for a board created on the form's
- * follow-up data; nothing means the form's own records.
  */
 async function dashboard_data(req, res) {
   try {
@@ -25,7 +20,7 @@ async function dashboard_data(req, res) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
     }
 
-    const context = await load_form_dashboard_context(req.user, form_group_id, wanted_source(req));
+    const context = await load_form_dashboard_context(req.user, form_group_id);
     if (!context.found) {
       return res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
     }

@@ -116,8 +116,9 @@ async function get_form_submission_stats(req, res) {
     const week_anchor = new Date(bounds.start);
     week_anchor.setHours(0, 0, 0, 0);
 
-    // Counted over the same stages the table lists, so the chart's total
-    // and the table's total are the same number for the same range.
+    // Counted over the same records the table lists (a tracked form's
+    // records by their last move), so the chart's total and the table's
+    // total are the same number for the same range.
     const active_version = await forms_model.get_active_version(form_group_id);
     const tracking = active_version && is_tracking_enabled(active_version.tracking) ? active_version.tracking : null;
 

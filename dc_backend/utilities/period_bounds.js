@@ -55,14 +55,18 @@ function resolve_period_bounds(period, from, to) {
     return { start, end };
   }
   if (period === "custom" && from) {
-    // A pick that carries a time ("2026-09-24T14:30") is used to the
-    // minute; a bare date still means the whole day.
+    // A pick that carries a time ("2026-09-24T14:30" or "2026-09-24T14:30:15")
+    // is used to the minute or to the second; a bare date still means the
+    // whole day.
     const has_time = (text) => /T\d{2}:\d{2}/.test(String(text));
-    // The pickers give minutes, so a "to" with a time means up to the END
-    // of that minute - a range from 10:00 to 10:00 covers the minute.
-    const end_of_minute = (date) => {
+    const has_seconds = (text) => /T\d{2}:\d{2}:\d{2}/.test(String(text));
+    // A "to" with a time means up to the END of what was picked: the end
+    // of that second when seconds were given, else the end of that minute
+    // - a range from 10:00 to 10:00 covers the minute.
+    const end_of_minute = (date, text) => {
       const result = new Date(date);
-      result.setSeconds(59, 999);
+      if (has_seconds(text)) result.setMilliseconds(999);
+      else result.setSeconds(59, 999);
       return result;
     };
     const from_date = new Date(from);
@@ -76,12 +80,12 @@ function resolve_period_bounds(period, from, to) {
       if (to_date.getTime() === from_date.getTime()) {
         return { start: start_of_day(from_date), end: end_of_day(from_date) };
       }
-      end = has_time(to) ? end_of_minute(to_date) : end_of_day(to_date);
+      end = has_time(to) ? end_of_minute(to_date, to) : end_of_day(to_date);
       // A reversed pick (from after to) still means the same window - swap
       // instead of returning an empty range that reads as "no data".
       if (end < start) {
         const swapped_start = has_time(to) ? to_date : start_of_day(to_date);
-        end = has_time(from) ? end_of_minute(from_date) : end_of_day(from_date);
+        end = has_time(from) ? end_of_minute(from_date, from) : end_of_day(from_date);
         start = swapped_start;
       }
     } else {

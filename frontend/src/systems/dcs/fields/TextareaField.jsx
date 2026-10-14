@@ -1,11 +1,11 @@
 import React from "react";
 import { get_field_text } from "./fieldText.js";
-import { FieldSearchButton } from "./base/BaseTextLikeField.jsx";
+import { SearchableInput } from "./base/BaseTextLikeField.jsx";
 
 /**
  * Multi-line free text answer ("Large text") - same label/help/error/valid
  * message chrome as BaseTextLikeField, but a resizable <textarea> instead
- * of a single-line <input>. onSearch adds the follow-up Search button.
+ * of a single-line <input>. onSearch adds the record lookup Search button.
  */
 export default function TextareaField({ field, language, mode, value, onChange, error, ruleValidMessage, onSearch }) {
   const is_builder = mode === "builder";
@@ -16,7 +16,7 @@ export default function TextareaField({ field, language, mode, value, onChange, 
 
   const input = (
     <textarea
-      className="cok-auth-input w-full py-3"
+      className={`cok-auth-input w-full py-3 ${onSearch ? "pl-12!" : ""}`}
       rows={field.rows || 5}
       placeholder={placeholder}
       value={value || ""}
@@ -33,10 +33,9 @@ export default function TextareaField({ field, language, mode, value, onChange, 
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
       {onSearch ? (
-        <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">{input}</div>
-          <FieldSearchButton value={value} onSearch={onSearch} language={language} />
-        </div>
+        <SearchableInput value={value} onSearch={onSearch} language={language} top>
+          {input}
+        </SearchableInput>
       ) : (
         input
       )}

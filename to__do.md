@@ -283,14 +283,51 @@ API contract (both agents follow it exactly):
 - Public link of the follow-up form: /dcs-form/follow-up/:follow_up_group_id ; edit: /dcs-form/follow-up/edit/:id
 - Pages: /dcs-system/project/:project_id/forms/:form_group_id/follow-up (tabs table | gallery | settings via ?tab=)
 
-- [x] F1 Backend: models follow_up_forms_model.js, follow_up_submissions_model.js; controllers under
+- [x] F1 (removed) Backend: models follow_up_forms_model.js, follow_up_submissions_model.js; controllers under
       controllers/follow_up/; routes added to routes/forms (authenticated) and routes/public; media scope=all; dashboards
       source; tests in dc_backend/tests/follow_up.test.js (mongodb-memory-server like the other tests)
-- [x] F2 Frontend: sidebar link "Follow up form" under Form overview; FollowUpPage with tabs Table / Gallery / Settings
+- [x] F2 (removed) Frontend: sidebar link "Follow up form" under Form overview; FollowUpPage with tabs Table / Gallery / Settings
       (create button when none exists); table = all-data table over follow-up submissions with view, edit, delete;
       gallery = follow-up media only; settings = name + builder + ask respondent + public link + versions (activate /
       delete); PublicFormPage follow-up mode: search control on text/number/textarea fields -> results overlay (20 per
       page, Next) -> record overlay -> "Load into the form" -> edit -> Save as follow-up record; edit page for follow-up
       records; sidebar Gallery shows all (source + follow-up) and a tile opens the right table; Add dashboard asks
       "Form data" or "Follow-up data" when a follow-up form exists
-- [x] F3 Lead: build, suites, independent review of P, D, F
+- [x] F3 (removed) Lead: build, suites, independent review of P, D, F
+
+### F. Follow-up form: DROPPED (2026-10-14, user decision) - all follow-up backend and frontend code removed; the key
+    index (record tracking) is the only mechanism. Kept from that work: the search icon inside inputs
+    (fields/base/BaseTextLikeField.jsx SearchableInput), DcsCenterOverlay large/scroll fixes, DcsDataTable
+    PageArrowButton export, DcsSubmitControl disabled, the data table free-text search bug fix ($$ variables).
+
+### K. Key index (record tracking) extension
+API contract (both agents follow it exactly):
+- tracking config (form version): { enabled, key_field_ids: [field ids, 1..5, order kept], key_field_id: first id
+  (kept for old readers), key_unique: boolean (the COMBINATION of all key values must be unique), editable_field_ids }.
+  validate/normalize accept the old single key_field_id and turn it into key_field_ids: [id].
+- tracked record: record_key = normalised key values joined with "|" in key order (uniqueness, old readers);
+  record_key_pairs: [{ f: field_id, k: normalised value }] for lookup (index { form_group_id, "record_key_pairs.f",
+  "record_key_pairs.k" }); tracking_periods, history, updated_at as today.
+- GET /dcs/api/public/forms/:fg/records?field=<key field id>&key=<typed value>&page=1&limit=20 -> 200
+  { key, field_id, key_field_ids, editable_field_ids, records: [to_public_record], page, pages, total };
+  without field: any key field matches; key normalised like record_key_of; 400 TRACKING_KEY_REQUIRED, 400
+  TRACKING_NOT_ENABLED; max limit 50.
+- PUT /dcs/api/public/forms/:fg/records/:id unchanged (editable fields only). Submit: 409 TRACKING_KEY_EXISTS when
+  key_unique and the combination exists (field_errors on every key field).
+- Tables and dashboards read the CURRENT state: one row per record with its current data; a period keeps a record
+  that was created OR last updated in the period (date_window_filter semantics); time buckets of over-time widgets
+  and KPI windows use last_moved_at = ifNull(updated_at, submitted_at) on tracked forms, submitted_at otherwise.
+  No stage expansion anywhere in tables or dashboards. Export and data feed keep their current behaviour.
+- [ ] K1 Backend: tracking.js multi-key config, record_key + record_key_pairs, tracking_fields_for_new,
+      apply_record_key, submit_response 409 on the combination, import runner unchanged in behaviour
+- [ ] K2 Backend: paged lookup by field, any-key lookup, index; update route untouched
+- [ ] K3 Backend: list_submissions / get_form_submission_stats / submission_values / media and every util-dashboard
+      pipeline read the current state (no stages), period = created or last updated; tests updated
+      (tracking_stages, dashboard_stages, tracking_window) + new tests/tracking_lookup.test.js
+- [ ] K4 Frontend setup wizard: choose several key fields (checkboxes, order kept), unique = the combination
+- [ ] K5 Frontend public form: search icon inside every key field input at the left; lookup overlay responsive
+      (scrolling body, full screen under 640px), results as a table with every field in form order, submitted and
+      updated dates first, sticky header, x and y scroll, the data table's pager icons, 20 per page, Load and
+      Show history per row; loaded record banner and update flow as today
+- [ ] K6 Frontend tables: one row per record (no stage rows), updated_at and history columns kept
+- [ ] K7 Lead: build, suites, review

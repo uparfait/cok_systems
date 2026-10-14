@@ -113,7 +113,7 @@ async function update_form(req, res) {
     }
     const next_tracking = tracking === undefined ? active_version.tracking || null : normalize_tracking_config(tracking);
     // An omitted flag keeps what the active version has; anything but an explicit false means on.
-    const next_ask_respondent = ask_respondent === undefined ? active_version.ask_respondent !== false : ask_respondent !== false;
+    const next_ask_respondent = ask_respondent === undefined ? active_version.ask_respondent === true : ask_respondent === true;
 
     const should_bump_version = has_data_field_set_changed(active_version.schema, resolved_schema);
 

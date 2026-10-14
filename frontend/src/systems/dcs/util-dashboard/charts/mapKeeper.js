@@ -1,6 +1,14 @@
-import { Map as GlMap } from "maplibre-gl";
+import { Map as GlMap, setWorkerUrl } from "maplibre-gl";
 import { blank_style } from "./mapDraw.js";
 import { cached_basemap, load_basemap, apply_basemap, retries_left, retry_delay } from "./basemap.js";
+
+// On a hosted build the worker is served from the assets folder under a
+// .js name (see maplibreWorkerAssets in vite.config.ts): the .mjs name
+// MapLibre asks for by itself is sent as application/octet-stream by a
+// stock nginx, the browser refuses to run that as a module worker, and
+// the map then never draws a thing. The dev server serves the package
+// itself, where the default name works.
+if (import.meta.env.PROD) setWorkerUrl(`${import.meta.env.BASE_URL}assets/maplibre-gl-worker.js`);
 
 /**
  * What a map widget keeps between mounts: the boundaries it has been given,
@@ -42,7 +50,7 @@ function new_entry(key) {
   // which would take the frame's height away from it, so the size is
   // written on the element itself where no stylesheet can reach.
   container.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
-  const entry = { key, container, map: null, loaded: false, failed: false, starting: false, dropped: false, waiters: [], held: false, heat: "", fitted: null, timer: null, watch: null, basemap: "loading", basemap_style: null, basemap_attempt: 0, basemap_timer: null, basemap_watchers: [] };
+  const entry = { key, container, map: null, loaded: false, failed: false, starting: false, dropped: false, waiters: [], held: false, heat: "", fitted: null, timer: null, watch: null, basemap: "loading", basemap_style: null, basemap_attempt: 0, basemap_timer: null, basemap_deadline: null, basemap_error: false, basemap_watchers: [], fallback: false };
   // However the element gets its size - mounted late, moved into a bigger
   // frame, the card resized - the map is told. A map built while its
   // element was off the page has no size at all until this fires.
@@ -133,6 +141,8 @@ export function start_map(entry, background, on_ready, on_failed) {
   }
   map.touchZoomRotate.disableRotation();
   entry.map = map;
+  map.on("error", (event) => note_map_error(entry, event));
+  arm_basemap_deadline(entry);
   // The card is told the moment the STYLE is in - when the widget's own
   // layers can be added - and never made to wait for the basemap's tiles,
   // sprite and fonts: those fill in behind the boundaries as they arrive.
@@ -153,9 +163,11 @@ export function start_map(entry, background, on_ready, on_failed) {
   } else seek_basemap(entry);
 }
 
-// How long a basemap that is in may take to fill its ground with tiles
-// before the card says it did not come.
-const GROUND_TIMEOUT = 90000;
+// How long the basemap - its style, then its tiles - may take to come in
+// from the moment the map is built before the card gives up on it and
+// draws the picture itself (see MapSvg).
+const BASEMAP_TIMEOUT = 8000;
+const OURS = /^dcs-/;
 
 function set_basemap(entry, state) {
   entry.basemap = state;
@@ -167,21 +179,46 @@ function clear_basemap_timer(entry) {
   entry.basemap_timer = null;
 }
 
-/** The basemap is in: its tiles are awaited, and a ground that never fills is reported. */
+function clear_basemap_deadline(entry) {
+  if (entry.basemap_deadline) window.clearTimeout(entry.basemap_deadline);
+  entry.basemap_deadline = null;
+}
+
+/** Starts the clock on the basemap: a ground still bare when it runs out is reported missing. */
+function arm_basemap_deadline(entry) {
+  clear_basemap_deadline(entry);
+  entry.basemap_deadline = window.setTimeout(() => {
+    entry.basemap_deadline = null;
+    if (!entry.dropped && entry.basemap !== "ready") set_basemap(entry, "missing");
+  }, BASEMAP_TIMEOUT);
+}
+
+/**
+ * A tile of the basemap that did not come (its server unreachable, or
+ * answering with an error): the ground will stay bare, so the card is told
+ * at once rather than when the clock runs out. Errors on the widget's own
+ * sources (dcs-...) are not the basemap's and are left alone, as is any
+ * error once the ground is in.
+ */
+function note_map_error(entry, event) {
+  if (entry.dropped || entry.basemap === "ready") return;
+  const source = event && event.sourceId ? String(event.sourceId) : "";
+  if (!source || OURS.test(source)) return;
+  entry.basemap_error = true;
+  clear_basemap_deadline(entry);
+  set_basemap(entry, "missing");
+}
+
+/** The basemap is in: its tiles are awaited, and the ground is reported ready once they are drawn. */
 function await_ground(entry) {
   const map = entry.map;
   if (!map) return;
-  clear_basemap_timer(entry);
   const done = () => {
-    if (entry.dropped) return;
-    clear_basemap_timer(entry);
+    if (entry.dropped || entry.basemap_error) return;
+    clear_basemap_deadline(entry);
     set_basemap(entry, "ready");
   };
   map.once("idle", done);
-  entry.basemap_timer = window.setTimeout(() => {
-    map.off("idle", done);
-    if (!entry.dropped && entry.basemap !== "ready") set_basemap(entry, "missing");
-  }, GROUND_TIMEOUT);
 }
 
 /**
@@ -220,11 +257,29 @@ export function watch_basemap(entry, watch) {
   };
 }
 
+/**
+ * The card has gone over to drawing the picture itself (see MapSvg) and
+ * stays there whatever comes later - a basemap that arrives after the
+ * switch is not slid under a viewer's feet. Kept on the entry, so a card
+ * that remounts (lifted to full screen) does not start over on the engine.
+ */
+export function mark_fallback(entry) {
+  if (entry) entry.fallback = true;
+}
+
+/** Whether the map kept under this key has already gone over to the picture drawn by hand. */
+export function is_fallback(key) {
+  const kept = MAPS.get(key);
+  return !!(kept && kept.fallback);
+}
+
 /** The viewer asks again for a basemap that did not come. */
 export function retry_basemap(entry) {
   if (!entry || entry.dropped || !entry.map || entry.basemap === "ready") return;
   clear_basemap_timer(entry);
   entry.basemap_attempt = 0;
+  entry.basemap_error = false;
+  arm_basemap_deadline(entry);
   if (entry.basemap_style) {
     set_basemap(entry, "loading");
     apply_basemap(entry.map, entry.basemap_style);
@@ -242,6 +297,7 @@ function destroy(entry) {
   entry.waiters = [];
   entry.basemap_watchers = [];
   clear_basemap_timer(entry);
+  clear_basemap_deadline(entry);
   if (entry.watch) entry.watch.disconnect();
   if (entry.map) entry.map.remove();
   if (MAPS.get(entry.key) === entry) MAPS.delete(entry.key);

@@ -1,5 +1,6 @@
+const { get_db } = require("../db_connection/db.js");
+const forms_model = require("../models/forms_model.js");
 const { flatten_fields } = require("../jsonlogic/dependency_graph.js");
-const { bind_data_source, source_collection, source_versions } = require("./data_source.js");
 const { sanitize_widget, sanitize_period_override } = require("./sanitize.js");
 const { validate_dashboard } = require("./widget_validation.js");
 const { base_stages, effective_bounds, value_candidates, numeric_expr } = require("./match_stage.js");
@@ -9,6 +10,7 @@ const { time_bucket_range, ungrouped_widget } = require("./widget_data.js");
 const pipelines = require("./pipelines.js");
 const { SUBMITTED_AT_FIELD } = require("./constants.js");
 
+const COLLECTION = "dcs_submissions";
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
 const MAX_EXPORT_ROWS = 20000;
@@ -123,8 +125,7 @@ async function pick_conditions(widget, pick, bounds, catalog) {
  */
 async function table_columns(form_group_id, form_version, language, allowed) {
   const text = (label) => (label && (label[language] || label.en || label.kn || label.fr)) || "";
-  // The versions of whatever the board reads: the form's, or its follow-up's.
-  const versions = await source_versions(form_version);
+  const versions = await forms_model.get_versions_by_group(form_group_id);
   const ordered = [form_version].concat((versions || []).filter((entry) => entry && entry.version !== form_version.version));
   const seen = new Set();
   const columns = [];
@@ -168,13 +169,13 @@ async function records_query(body, form_group_id, form_version, project_id, forc
   const applied = merge_applied(sanitize_applied_filters(body.filters), forced_filters || []);
   const shaped = ungrouped_widget(apply_board_filters(widget, applied, catalog, (forced_filters || []).map((entry) => entry.field_id)).widget);
   shaped.tracking = form_version.tracking || null;
-  bind_data_source(shaped, form_version);
   const period_override = sanitize_period_override(body.period);
   const bounds = effective_bounds(shaped, period_override);
   const picked = await pick_conditions(shaped, body.pick, bounds, catalog);
-  // The rows are read through the same opening stages as the widget itself
-  // (a tracked form's values as of the period's end included), so what was
-  // clicked is matched against exactly what was charted.
+  // The rows are read through the same opening match as the widget itself
+  // (the records' current answers, windowed on their last move for a
+  // tracked form), so what was clicked is matched against exactly what
+  // was charted.
   const stages = base_stages(shaped, bounds).concat(picked.conditions.length > 0 ? [{ $match: { $and: picked.conditions } }] : []);
 
   const label_of = (field_id) => field_label_text(catalog.fields_by_id.get(field_id)) || field_id;
@@ -183,7 +184,7 @@ async function records_query(body, form_group_id, form_version, project_id, forc
     .map((filter) => ({ field_id: filter.field_id, field_label: label_of(filter.field_id), value: filter.value }))
     .concat(picked.criteria);
   const columns = await table_columns(form_group_id, form_version, body.language || "en", allowed_fields);
-  return { stages, criteria, period: bounds ? { start: bounds.start, end: bounds.end } : null, columns, widget: shaped };
+  return { stages, criteria, period: bounds ? { start: bounds.start, end: bounds.end } : null, columns };
 }
 
 const ROW_PROJECTION = { $project: { data: 1, submitted_at: 1, version: 1 } };
@@ -201,7 +202,7 @@ async function compute_widget_records(body, form_group_id, form_version, project
       },
     },
   ]);
-  const [result] = await source_collection(query.widget).aggregate(pipeline, { allowDiskUse: true }).toArray();
+  const [result] = await get_db().collection(COLLECTION).aggregate(pipeline, { allowDiskUse: true }).toArray();
   const items = (result && result.items) || [];
   const total = result && result.total && result.total[0] ? result.total[0].count : 0;
   return { items: project_items(items, query.columns), total, page, limit, columns: query.columns, criteria: query.criteria, period: query.period };
@@ -211,7 +212,8 @@ async function compute_widget_records(body, form_group_id, form_version, project
 async function collect_widget_records(body, form_group_id, form_version, project_id, forced_filters, allowed_fields) {
   const query = await records_query(body, form_group_id, form_version, project_id, forced_filters, allowed_fields);
   if (query.invalid) return query;
-  const items = await source_collection(query.widget)
+  const items = await get_db()
+    .collection(COLLECTION)
     .aggregate(query.stages.concat([{ $sort: { submitted_at: 1, _id: 1 } }, { $limit: MAX_EXPORT_ROWS }, ROW_PROJECTION]), { allowDiskUse: true })
     .toArray();
   return { items: project_items(items, query.columns), columns: query.columns, criteria: query.criteria, period: query.period };

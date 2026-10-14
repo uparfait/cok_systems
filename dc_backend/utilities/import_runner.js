@@ -3,7 +3,7 @@ const submissions_model = require("../models/submissions_model.js");
 const tracked_records_model = require("../models/tracked_records_model.js");
 const imports_model = require("../models/form_imports_model.js");
 const { validate_submission_data } = require("../jsonlogic/validate_submission.js");
-const { is_enabled: is_tracking_enabled, tracking_fields_for_new, key_field_label } = require("./tracking.js");
+const { is_enabled: is_tracking_enabled, key_ids_of, tracking_fields_for_new, key_field_labels } = require("./tracking.js");
 const { read_import_rows } = require("./import_rows.js");
 const { GEO_PARTS } = require("./import_fields.js");
 const { convert_cell, convert_location, is_blank } = require("./import_values.js");
@@ -154,9 +154,12 @@ async function run_import_job(session, version_doc, plan, language, user) {
   const form_group_id = session.form_group_id;
   const labels = new Map(plan.entries.map((entry) => [entry.view.id, entry.view.label]));
   const label_of = (field_id) => labels.get(field_id) || field_id;
+  // A key problem is reported under the first key field's column, named
+  // with every key field's label ("National ID / Plot number").
   const tracking = is_tracking_enabled(version_doc.tracking) ? version_doc.tracking : null;
-  const key_label = tracking ? key_field_label(version_doc.schema, tracking, language) : "";
-  const key_column = tracking ? column_name(plan, plan.entries.find((entry) => entry.view.id === tracking.key_field_id) || { column: null, parts: {} }) : "";
+  const key_label = tracking ? key_field_labels(version_doc.schema, tracking, language).join(" / ") : "";
+  const first_key_id = tracking ? key_ids_of(tracking)[0] : null;
+  const key_column = tracking ? column_name(plan, plan.entries.find((entry) => entry.view.id === first_key_id) || { column: null, parts: {} }) : "";
   const started = Date.now();
   const by = { user_id: user ? String(user.user_id) : null, name: user ? user.full_name || "" : "" };
   let wrote_any = false;

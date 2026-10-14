@@ -10,12 +10,24 @@ const approval_schedules_model = require("../../models/approval_schedules_model.
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { sanitize_respondent } = require("../../utilities/respondent.js");
 const tracked_records_model = require("../../models/tracked_records_model.js");
-const { is_enabled: is_tracking_enabled, record_key_of, tracking_fields_for_new, key_field_label } = require("../../utilities/tracking.js");
+const { is_enabled: is_tracking_enabled, key_ids_of, composite_record_key, tracking_fields_for_new, key_field_labels } = require("../../utilities/tracking.js");
 
 const { translate } = require("../../i18n/index.js");
 
-function translate_key_exists(req, vars) {
-  return translate("TRACKING_KEY_EXISTS", req.language, vars);
+/**
+ * The 409 body of a key combination the form already holds: worded with
+ * the key fields' own names ("National ID / Plot number"), as the
+ * respondent knows them, and repeated as a field error on EVERY key field
+ * so each of them is marked on the page.
+ */
+function key_exists_body(req, schema, tracking, record_key) {
+  const vars = { field: key_field_labels(schema, tracking, req.language).join(" / ") };
+  const message = translate("TRACKING_KEY_EXISTS", req.language, vars);
+  const field_errors = {};
+  key_ids_of(tracking).forEach((field_id) => {
+    field_errors[field_id] = [message];
+  });
+  return warning_response(req, "TRACKING_KEY_EXISTS", vars, { field_errors, record_key });
 }
 
 /** Strips every step token; a failed email's link is only ever printed to the backend console, never handed to the browser. */
@@ -73,15 +85,14 @@ async function submit_response(req, res) {
     }
 
     // A tracked form whose key must be unique refuses a second record with
-    // the same key: the existing one is meant to be found and updated.
+    // the same key COMBINATION: the existing one is meant to be found and
+    // updated.
     const tracking = form_version.tracking;
     const respondent_clean = sanitize_respondent(respondent);
     if (is_tracking_enabled(tracking) && tracking.key_unique) {
-      const key = record_key_of(validation_result.resolved_data[tracking.key_field_id]);
+      const key = composite_record_key(tracking, validation_result.resolved_data);
       if (key && (await tracked_records_model.count_by_record_key(form_group_id, key)) > 0) {
-        // Worded with the field's own name ("National ID"), as the respondent knows it.
-        const vars = { field: key_field_label(form_version.schema, tracking, req.language) };
-        return res.status(409).json(warning_response(req, "TRACKING_KEY_EXISTS", vars, { field_errors: { [tracking.key_field_id]: [translate_key_exists(req, vars)] }, record_key: key }));
+        return res.status(409).json(key_exists_body(req, form_version.schema, tracking, key));
       }
     }
 

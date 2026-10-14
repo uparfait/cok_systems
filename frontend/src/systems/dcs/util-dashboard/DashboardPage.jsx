@@ -88,19 +88,16 @@ function DashboardBoard({ form }) {
   const [behavior_widget, setBehaviorWidget] = useState(null);
   // Whether the board's own colors are being set.
   const [colors_open, setColorsOpen] = useState(false);
-  // A follow-up board is built against the follow-up form's own schema.
-  const board_form = useMemo(() => (library.active && library.active.source === "follow_up" && library.follow_up ? { ...form, schema: library.follow_up.schema, tracking: null, form_name: library.follow_up.form_name || form.form_name } : form), [form, library.active, library.follow_up]);
-  const form_fields = useMemo(() => builder_fields(board_form.schema), [board_form.schema]);
+  const form_fields = useMemo(() => builder_fields(form.schema), [form.schema]);
   // Which fields name a place, so any widget grouped by one can become a map.
   const map_levels = useMemo(() => new Map(location_fields(form_fields).map((entry) => [entry.id, entry.level])), [form_fields]);
   // The field a heat map would be drawn from, when the form captures one.
   const heat_field = useMemo(() => (geo_fields(form_fields)[0] || {}).id || "", [form_fields]);
 
   // Every child that reads or saves widgets works on THIS dashboard.
-  const source = library.active && library.active.source === "follow_up" ? "follow_up" : "form";
   const scoped_form = useMemo(
-    () => ({ ...board_form, dashboard_id: active_id, dashboard_name: library.active ? library.active.name : "", source }),
-    [board_form, active_id, library.active, source],
+    () => ({ ...form, dashboard_id: active_id, dashboard_name: library.active ? library.active.name : "" }),
+    [form, active_id, library.active],
   );
 
   // The open board's widgets, filter fields and arrangement, and the one
@@ -115,7 +112,7 @@ function DashboardBoard({ form }) {
   const commit_widgets = contents.commit;
   const handle_change_filters = contents.change_filters;
 
-  const loading = library.list_loading || library.follow_up_pending || contents.loading;
+  const loading = library.list_loading || contents.loading;
   const frozen_ref = useRef(false);
   const [shot_open_flag, setShotOpenFlag] = useState(false);
   // The records overlay: { widget, pick } while open; and whether the
@@ -134,11 +131,11 @@ function DashboardBoard({ form }) {
     loading,
     blocked: review_widgets !== null,
     frozen_ref,
-    fetch_batch: (batch, period, applied) => get_dashboard_data(form.form_group_id, batch, period, applied, source),
+    fetch_batch: (batch, period, applied) => get_dashboard_data(form.form_group_id, batch, period, applied),
   });
   data_ref.current = data;
   // Going down a cascade from a card: the level below, as an overlay.
-  const drill = useDrillStack({ fields: form_fields, fetchBatch: (batch) => get_dashboard_data(form.form_group_id, batch, data.applied_period_ref.current, data.applied_filters_ref.current, source), onOpenRecords: (widget, pick) => setRecords({ widget, pick }) });
+  const drill = useDrillStack({ fields: form_fields, fetchBatch: (batch) => get_dashboard_data(form.form_group_id, batch, data.applied_period_ref.current, data.applied_filters_ref.current), onOpenRecords: (widget, pick) => setRecords({ widget, pick }) });
 
   // Browser-native full screen with two viewing modes ("fit" zooms the whole
   // board onto one screen, "scroll" keeps natural size), the self-fitting
@@ -178,12 +175,12 @@ function DashboardBoard({ form }) {
 
   // The values a filter offers follow the period and the other filters.
   const fetch_filter_values = (field_id, others) =>
-    get_filter_values(form.form_group_id, field_id, others || data.applied_filters_ref.current, data.applied_period_ref.current, source).then((response) => (response.data && response.data.values) || []);
+    get_filter_values(form.form_group_id, field_id, others || data.applied_filters_ref.current, data.applied_period_ref.current).then((response) => (response.data && response.data.values) || []);
 
-  const submit_name = async (name, chosen_source) => {
+  const submit_name = async (name) => {
     setNameSaving(true);
     try {
-      const created = await library.create(name, chosen_source);
+      const created = await library.create(name);
       setNaming(false);
       showSuccess(translate("DCS_DB_CREATED_TOAST", { name: created.name }));
     } catch (error) {
@@ -310,7 +307,7 @@ function DashboardBoard({ form }) {
     }
   };
 
-  if (library.list_loading || library.follow_up_pending) return <BoardSkeleton dark={board.is_dark} />;
+  if (library.list_loading) return <BoardSkeleton dark={board.is_dark} />;
 
   const has_board = !!active_id;
   const empty_state = (
@@ -461,11 +458,11 @@ function DashboardBoard({ form }) {
         shareOpen={share_open}
         share={{ form: scoped_form, filters, fields: form_fields, fetchFilterValues: fetch_filter_values, dashboards: library.dashboards, fetchDashboardFilters: (dashboard_id) => get_dashboard({ form_group_id: form.form_group_id, dashboard_id }).then((response) => (response.data && response.data.filters) || []) }}
         records={records}
-        view={{ form_group_id: form.form_group_id, schema: board_form.schema, board_name: library.active ? library.active.name : "", period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, language, source }}
+        view={{ form_group_id: form.form_group_id, schema: form.schema, board_name: library.active ? library.active.name : "", period: data.applied_period_ref.current, filters: data.applied_filters_ref.current, language }}
         shot={shot}
         shotProps={shot ? { form: scoped_form, widgets, dataByWidget: shot.data, rects: shot.rects, base: shot.base } : null}
         naming={naming}
-        namingProps={{ formName: form.form_name, saving: name_saving, hasFollowUp: library.has_follow_up, onSubmit: submit_name }}
+        namingProps={{ formName: form.form_name, saving: name_saving, onSubmit: submit_name }}
         onCloseShare={() => setShareOpen(false)}
         onCloseRecords={() => setRecords(null)}
         onCloseShot={() => setShot(null)}

@@ -113,9 +113,7 @@ function forced_filters(link, req) {
 const shares_requested = (link, req) => shared_entry_for(link, requested_dashboard_id(req)) !== null;
 
 async function resolve(req, res) {
-  // The context reads the records of the dashboard the request is about
-  // (the form's own, or its follow-up's - see data_source.js).
-  const context = await load_public_dashboard_context(req.params.token, requested_dashboard_id(req));
+  const context = await load_public_dashboard_context(req.params.token);
   if (!context.found) {
     res.status(404).json(warning_response(req, "DASHBOARD_LINK_NOT_FOUND"));
     return null;
@@ -146,7 +144,7 @@ async function get_public_dashboard(req, res) {
     const shared = [];
     for (const entry of shared_entries(context.link)) {
       const held = entry.dashboard_id ? await dashboards_model.get_dashboard_by_id(context.form_version.form_group_id, entry.dashboard_id) : dashboard;
-      if (held) shared.push({ id: held._id.toString(), name: held.name || dashboards_model.FIRST_NAME, source: held.source === "follow_up" ? "follow_up" : "form" });
+      if (held) shared.push({ id: held._id.toString(), name: held.name || dashboards_model.FIRST_NAME });
     }
     await dashboard_links_model.count_view(context.link._id);
     return res.status(200).json(
@@ -155,9 +153,6 @@ async function get_public_dashboard(req, res) {
         form_name: context.form_version.form_name,
         dashboard_id: dashboard._id.toString(),
         dashboard_name: dashboard.name || dashboards_model.FIRST_NAME,
-        // Which records the board reads: the form's own, or its follow-up's.
-        source: context.source,
-        follow_up_group_id: context.follow_up_group_id,
         shared_dashboards: shared,
         project_name: context.project.name || "",
         link: { title: context.link.title, description: context.link.description || "", expires_at: context.link.expires_at || null, config: link_config(context.link, dashboard._id.toString()) },

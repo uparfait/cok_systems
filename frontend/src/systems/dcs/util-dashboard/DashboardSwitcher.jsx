@@ -207,14 +207,7 @@ export default function DashboardSwitcher({ dashboards, activeId, canEdit, onSel
                     <span className="dcs-board-switcher-check">{is_active ? CHECK_SVG : null}</span>
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className="dcs-board-switcher-item-name">
-                      {entry.name}
-                      {entry.source === "follow_up" && (
-                        <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-bold uppercase align-middle" style={{ color: "#056daa", border: "1px solid #056daa", letterSpacing: "0.4px" }}>
-                          {translate("DCS_FU_TAG")}
-                        </span>
-                      )}
-                    </span>
+                    <span className="dcs-board-switcher-item-name">{entry.name}</span>
                     <span className="dcs-board-switcher-item-meta">
                       {Number.isFinite(entry.widgets_count) ? translate("DCS_DB_WIDGETS_COUNT", { count: entry.widgets_count }) : ""}
                       {is_active ? `${Number.isFinite(entry.widgets_count) ? " - " : ""}${translate("DCS_DB_SWITCH_ACTIVE")}` : ""}

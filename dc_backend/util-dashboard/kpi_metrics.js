@@ -1,9 +1,10 @@
+const { get_db } = require("../db_connection/db.js");
 const { build_match_stage, base_stages, numeric_expr } = require("./match_stage.js");
-const { time_field, time_expr } = require("../utilities/tracking_window.js");
+const { window_filter, last_moved_expr } = require("../utilities/tracking_window.js");
 const { is_multi_value } = require("./field_catalog.js");
 const { NUMERIC_AGGREGATIONS } = require("./constants.js");
-const { source_collection } = require("./data_source.js");
 
+const SUBMISSIONS_COLLECTION = "dcs_submissions";
 const MOVING_WINDOW_DAYS = 7;
 const DAY_MS = 86400000;
 
@@ -38,8 +39,8 @@ function is_count_based(aggregation, field_id, catalog) {
   return !!field && COUNT_BASED_TYPES.includes(field.type);
 }
 
-function run_pipeline(widget, pipeline) {
-  return source_collection(widget).aggregate(pipeline).toArray();
+function run_pipeline(pipeline) {
+  return get_db().collection(SUBMISSIONS_COLLECTION).aggregate(pipeline).toArray();
 }
 
 function answered_match(field_id) {
@@ -47,17 +48,14 @@ function answered_match(field_id) {
 }
 
 /**
- * One facet's own time window. Applied to the STAGE, so a card counting
- * "cars out" between 13:00 and 14:00 sees the departure stage and not the
- * arrival stage of the same car - and the previous-period facet reads its
- * own window's stages, with the values they held then.
+ * One facet's own time window: the records that last moved inside it (a
+ * tracked form's last update or arrival, an ordinary form's arrival - see
+ * utilities/tracking_window.js), each counted with the value it holds
+ * now. The previous-period facet reads its own window the same way.
  */
 function window_match(window, tracking) {
-  if (!window) return [];
-  const range = {};
-  if (window.start) range.$gte = window.start;
-  if (window.end) range.$lte = window.end;
-  return Object.keys(range).length > 0 ? [{ $match: { [time_field(tracking)]: range } }] : [];
+  const filter = window_filter(window, tracking);
+  return Object.keys(filter).length > 0 ? [{ $match: filter }] : [];
 }
 
 /**
@@ -116,7 +114,7 @@ function value_stages(aggregation, field_id, window, catalog, tracking) {
       return stages;
     }
     // Statistical formulas describe the field's submissions PER DAY.
-    stages.push({ $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: time_expr(tracking) } }, n: { $sum: 1 } } });
+    stages.push({ $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: last_moved_expr(tracking) } }, n: { $sum: 1 } } });
     if (aggregation === "median") {
       stages.push({ $sort: { n: 1 } }, { $group: { _id: null, values: { $push: "$n" } } });
       return stages;
@@ -193,12 +191,11 @@ async function kpi_metric_result(widget, bounds, catalog) {
     ];
   }
 
-  // Every stage is expanded here with no window of its own, and each facet
-  // then keeps the stages of ITS window. That is why the comparison figure
-  // is now honest on a tracked form: the previous facet reads the stages
-  // that happened in the previous window, carrying the values they held
-  // then, rather than the current window's values re-counted.
-  const rows = await run_pipeline(widget, [...base_stages(widget, null, null), { $facet: facets }]);
+  // The base match carries no window of its own; each facet then keeps
+  // the records of ITS window (current, previous, skipped), so the
+  // comparison figure reads the previous window's own records rather than
+  // the current window's re-counted.
+  const rows = await run_pipeline([...base_stages(widget, null), { $facet: facets }]);
   const facet = rows[0] || {};
   let current = facet_value(aggregation, facet.current);
   let previous = windows.previous ? facet_value(aggregation, facet.previous) : null;
@@ -226,11 +223,11 @@ async function kpi_skipped_rows(widget, bounds, limit, catalog, offset) {
   const skip = Number.isInteger(offset) && offset > 0 ? offset : 0;
   const windows = kpi_windows(aggregation, bounds);
   const tracking = widget && widget.tracking;
-  // The very same stages and window the card's own skipped COUNT uses
+  // The very same match and window the card's own skipped COUNT uses
   // (kpi_metric_result), so the list this opens can no longer total
   // something different from the number printed on the card.
   const pipeline = [
-    ...base_stages(widget, null, null),
+    ...base_stages(widget, null),
     ...window_match(windows.skipped, tracking),
     answered_match(field_id),
     { $project: { submitted_at: 1, raw: `$data.${field_id}`, n: numeric_expr(field_id) } },
@@ -242,7 +239,7 @@ async function kpi_skipped_rows(widget, bounds, limit, catalog, offset) {
       },
     },
   ];
-  const result = await run_pipeline(widget, pipeline);
+  const result = await run_pipeline(pipeline);
   const facet = result[0] || { total: [], rows: [] };
   return {
     total: facet.total.length > 0 ? facet.total[0].value || 0 : 0,

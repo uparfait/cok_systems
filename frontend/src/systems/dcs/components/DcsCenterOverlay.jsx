@@ -22,7 +22,7 @@ export default function DcsCenterOverlay({ title, subtitle, message, accent, chi
         aria-busy={!!busy}
       >
         {title ? <DcsOverlayHeader title={title} subtitle={subtitle} onClose={onClose} busy={busy} extra={headerExtra} /> : null}
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 min-[480px]:px-5 py-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 min-[480px]:px-5 py-4" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
           {message && (
             <p className="text-sm mb-4" style={{ color: "#333333", fontFamily: FONT, whiteSpace: "pre-line" }}>
               {message}

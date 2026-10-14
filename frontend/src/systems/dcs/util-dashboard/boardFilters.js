@@ -106,3 +106,29 @@ export function descendant_filters(defs, fields, field_id) {
 }
 
 export const same_filter_defs = (a, b) => JSON.stringify((a || []).map((def) => def.field_id)) === JSON.stringify((b || []).map((def) => def.field_id));
+
+/** Whether a picked period bound carries a time of day ("2026-09-24T14:30" or "...T14:30:15"). */
+export const period_has_time = (text) => /T\d{2}:\d{2}/.test(String(text || ""));
+
+/**
+ * A picked moment as every data request carries it and the server reads
+ * it (dc_backend/utilities/period_bounds.js): "YYYY-MM-DD" for a whole
+ * day - a time of exactly midnight means the day - else
+ * "YYYY-MM-DDTHH:MM:SS" to the second, on the viewer's own clock.
+ */
+export function period_moment(text) {
+  const raw = String(text || "");
+  if (!raw) return "";
+  const day = raw.slice(0, 10);
+  if (!period_has_time(raw)) return day;
+  const time = raw.slice(11, 19).padEnd(8, ":00");
+  return time === "00:00:00" ? day : `${day}T${time}`;
+}
+
+/** The value a datetime-local picker with seconds shows for a stored moment. */
+export function period_input_value(text) {
+  const raw = String(text || "");
+  if (!raw) return "";
+  const day = raw.slice(0, 10);
+  return period_has_time(raw) ? `${day}T${raw.slice(11, 19).padEnd(8, ":00")}` : `${day}T00:00:00`;
+}

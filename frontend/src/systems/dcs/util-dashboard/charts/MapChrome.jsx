@@ -139,6 +139,13 @@ export function MapVeil({ failed, message, colors, translate, onRetry }) {
  */
 export function MapBasemapNote({ state, colors, translate, onRetry }) {
   const style = { backgroundColor: with_alpha(colors.background, 0.88), color: colors.text, borderColor: colors.border };
+  if (state === "fallback") {
+    return (
+      <div className="dcs-map-basemap" style={style}>
+        {translate("DCS_DB_MAP_BASEMAP_UNAVAILABLE")}
+      </div>
+    );
+  }
   if (state === "loading") {
     return (
       <div className="dcs-map-basemap" style={style}>

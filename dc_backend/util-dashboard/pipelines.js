@@ -1,18 +1,19 @@
+const { get_db } = require("../db_connection/db.js");
 const { build_match_stage, base_stages, numeric_expr } = require("./match_stage.js");
 const { is_multi_value } = require("./field_catalog.js");
 const { LIMITS, SUBMITTED_AT_FIELD, UPDATED_AT_FIELD } = require("./constants.js");
-const { time_expr } = require("../utilities/tracking_window.js");
-const { source_collection } = require("./data_source.js");
+const { last_moved_expr } = require("../utilities/tracking_window.js");
+
+const SUBMISSIONS_COLLECTION = "dcs_submissions";
 
 /**
  * Native MongoDB aggregation pipelines for every widget kind. All grouping,
  * counting and summing happens inside the database; the callers only ever
- * reshape already-aggregated rows into chart series. Every pipeline runs
- * on the collection the widget's data source names (see data_source.js).
+ * reshape already-aggregated rows into chart series.
  */
 
-function run_pipeline(widget, pipeline) {
-  return source_collection(widget).aggregate(pipeline).toArray();
+function run_pipeline(pipeline) {
+  return get_db().collection(SUBMISSIONS_COLLECTION).aggregate(pipeline).toArray();
 }
 
 /**
@@ -73,7 +74,7 @@ async function category_rows(widget, bounds, catalog) {
     { $sort: sort },
     { $limit: category_cap(widget) + 1 },
   ];
-  return run_pipeline(widget, pipeline);
+  return run_pipeline(pipeline);
 }
 
 /**
@@ -104,20 +105,20 @@ async function split_rows(widget, bounds, catalog) {
     { $sort: { "_id.g": 1, "_id.s": 1, "_id.p": 1 } },
     { $limit: category_cap(widget) * LIMITS.MAX_CATEGORY_LIMIT * (pattern_field ? 8 : 1) },
   ];
-  return run_pipeline(widget, pipeline);
+  return run_pipeline(pipeline);
 }
 
 /**
  * The date expression a time widget buckets on: the row's own moment, or a
  * date field of the record converted safely.
  *
- * On a tracked form the row IS a stage, so "submitted_at" means the moment
- * that stage opened - which is what puts the arrival of a car in the 12:00
- * column and its departure in the 13:00 one, instead of both in the column
- * it first arrived in.
+ * On a tracked form the row's own moment is when it LAST MOVED - its last
+ * update, or its arrival when it was never updated - the same moment its
+ * window is read on (see utilities/tracking_window.js). On any other form
+ * it is the arrival.
  */
 function time_source_expr(field_id, tracking) {
-  if (!field_id || field_id === SUBMITTED_AT_FIELD) return time_expr(tracking);
+  if (!field_id || field_id === SUBMITTED_AT_FIELD) return last_moved_expr(tracking);
   // A record that has never been changed has no updated_at of its own, so
   // the moment it arrived is when it last stood as it is.
   if (field_id === UPDATED_AT_FIELD) return { $ifNull: ["$updated_at", "$submitted_at"] };
@@ -149,19 +150,21 @@ async function time_rows(widget, bounds, granularity, catalog, split_field) {
     { $sort: { _id: 1 } },
     { $limit: LIMITS.MAX_TIME_BUCKETS * 4 },
   ];
-  return run_pipeline(widget, pipeline);
+  return run_pipeline(pipeline);
 }
 
 /**
- * The true min/max submitted_at of the matched records - used to derive
- * bounds (and so the bucket size) when the widget has no period at all.
+ * The true min/max moment of the matched records (their last move on a
+ * tracked form, their arrival otherwise) - used to derive bounds (and so
+ * the bucket size) when the widget has no period at all.
  */
 async function time_extent(widget) {
+  const moment = last_moved_expr(widget.tracking);
   const pipeline = [
     ...base_stages(widget, null),
-    { $group: { _id: null, min: { $min: time_expr(widget.tracking) }, max: { $max: time_expr(widget.tracking) } } },
+    { $group: { _id: null, min: { $min: moment }, max: { $max: moment } } },
   ];
-  const rows = await run_pipeline(widget, pipeline);
+  const rows = await run_pipeline(pipeline);
   if (rows.length === 0 || !rows[0].min || !rows[0].max) return null;
   return { start: new Date(rows[0].min), end: new Date(rows[0].max) };
 }
@@ -183,7 +186,7 @@ async function point_rows(widget, bounds) {
     { $match: { x: { $ne: null }, y: { $ne: null } } },
     { $limit: LIMITS.MAX_POINTS },
   ];
-  return run_pipeline(widget, pipeline);
+  return run_pipeline(pipeline);
 }
 
 /**
@@ -214,7 +217,7 @@ async function heat_points(widget, bounds) {
     { $match: { lat: { $ne: null }, lng: { $ne: null } } },
     { $limit: LIMITS.MAX_HEAT_POINTS },
   ];
-  return run_pipeline(widget, pipeline);
+  return run_pipeline(pipeline);
 }
 
 /**
@@ -264,7 +267,7 @@ async function occurrence_rows(widget, bounds, catalog) {
     { $sort: sort },
     { $limit: LIMITS.MAX_CATEGORY_LIMIT * 4 },
   ];
-  const rows = await run_pipeline(widget, pipeline);
+  const rows = await run_pipeline(pipeline);
   return rows.map((row) => {
     const display = {};
     display_fields.forEach((field_id, index) => {
@@ -295,7 +298,7 @@ async function tree_rows(widget, bounds, catalog, parent_field_id) {
     { $sort: { value: -1 } },
     { $limit: LIMITS.MAX_CATEGORY_LIMIT * LIMITS.MAX_CATEGORY_LIMIT },
   ];
-  return run_pipeline(widget, pipeline);
+  return run_pipeline(pipeline);
 }
 
 /**
@@ -315,7 +318,7 @@ async function dimension_counts(widget, bounds, catalog, field_ids) {
       { $count: "value" },
     ];
   });
-  const rows = await run_pipeline(widget, [...base_stages(widget, bounds), { $facet: facets }]);
+  const rows = await run_pipeline([...base_stages(widget, bounds), { $facet: facets }]);
   const facet = rows[0] || {};
   return field_ids.map((field_id, index) => {
     const bucket = facet[`f${index}`];

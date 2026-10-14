@@ -47,20 +47,13 @@ async function is_name_taken(form_group_id, name, exclude_dashboard_id) {
   return !!(await collection().findOne(query));
 }
 
-/**
- * source says which records the board reads: the form's own ("form", the
- * default) or its follow-up's ("follow_up", with the follow-up's group
- * id); the choice is made once, when the board is created.
- */
-async function create_dashboard(form_group_id, project_id, name, source, follow_up_group_id) {
+async function create_dashboard(form_group_id, project_id, name) {
   const now = new Date();
   const document = {
     form_group_id: form_group_id.toString(),
     project_id: project_id.toString(),
     name: name.trim(),
     name_normalized: name.trim().toLowerCase(),
-    source: source === "follow_up" ? "follow_up" : "form",
-    follow_up_group_id: source === "follow_up" && follow_up_group_id ? follow_up_group_id : null,
     widgets: [],
     filters: [],
     // A new board is a grid until somebody arranges it by hand, and shows
@@ -145,21 +138,12 @@ async function delete_dashboards_by_project(project_id) {
   return result.deletedCount;
 }
 
-/** Removes every board that read one follow-up's data - when the follow-up itself is deleted. */
-async function delete_dashboards_by_follow_up(follow_up_group_id) {
-  const result = await collection().deleteMany({ source: "follow_up", follow_up_group_id: follow_up_group_id.toString() });
-  return result.deletedCount;
-}
-
 /** The dashboard as every route returns it. */
 function strip_dashboard(dashboard) {
   if (!dashboard) return null;
   return {
     id: dashboard._id.toString(),
     name: dashboard.name || FIRST_NAME,
-    // Which records it reads: the form's own, or its follow-up's.
-    source: dashboard.source === "follow_up" ? "follow_up" : "form",
-    follow_up_group_id: dashboard.source === "follow_up" ? dashboard.follow_up_group_id || null : null,
     widgets_count: Array.isArray(dashboard.widgets) ? dashboard.widgets.length : 0,
     // The colors it is painted in, so the switcher's list carries them too.
     appearance: dashboard.appearance || null,
@@ -181,7 +165,6 @@ module.exports = {
   save_appearance_for_form,
   save_dashboard,
   delete_dashboards_by_project,
-  delete_dashboards_by_follow_up,
   strip_dashboard,
   FIRST_NAME,
 };

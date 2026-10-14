@@ -46,8 +46,8 @@ export function list_dashboards(form_group_id) {
   return dcs_request(`/forms/${form_group_id}/dashboards`, "GET");
 }
 
-export function create_dashboard(form_group_id, name, source) {
-  return dcs_request(`/forms/${form_group_id}/dashboards`, "POST", { name, source: source === "follow_up" ? "follow_up" : "form" });
+export function create_dashboard(form_group_id, name) {
+  return dcs_request(`/forms/${form_group_id}/dashboards`, "POST", { name });
 }
 
 export function rename_dashboard(form_group_id, dashboard_id, name) {
@@ -64,15 +64,8 @@ export function delete_dashboard(form_group_id, dashboard_id) {
  * also used by the builder's preview with a single draft widget. The
  * optional period overrides every widget's own window.
  */
-/**
- * Which collection the authenticated data endpoints read: the form's own
- * records ("form", the default) or the follow-up form's ("follow_up").
- * Every board-scoped call carries the active dashboard's source.
- */
-export const board_source = (source) => (source === "follow_up" ? "follow_up" : "form");
-
-export function get_dashboard_data(form_group_id, widgets, period, filters, source) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/data`, "POST", { widgets, period: period || null, filters: filters || [], source: board_source(source) });
+export function get_dashboard_data(form_group_id, widgets, period, filters) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/data`, "POST", { widgets, period: period || null, filters: filters || [] });
 }
 
 /**
@@ -88,8 +81,8 @@ export function get_map_shapes(form_group_id, names, parents, held) {
   return dcs_request(`/forms/${form_group_id}/dashboard/map-shapes`, "POST", { names: names || [], parents: parents || [], have: known.have || [], have_level: known.have_level || "", have_context: known.have_context === true });
 }
 
-export function get_widget_records(form_group_id, body, source) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/records`, "POST", Object.assign({}, body, { source: board_source(source || (body && body.source)) }));
+export function get_widget_records(form_group_id, body) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/records`, "POST", body);
 }
 
 /**
@@ -97,8 +90,8 @@ export function get_widget_records(form_group_id, body, source) {
  * server and streamed back with its length, so on_progress (0-100) tracks
  * the real download. Resolves { blob, filename }.
  */
-export function export_widget_records(form_group_id, body, on_progress, source) {
-  return download_records(`/dcs/api/forms/${form_group_id}/dashboard/records/export`, Object.assign({}, body, { source: board_source(source || (body && body.source)) }), on_progress, true);
+export function export_widget_records(form_group_id, body, on_progress) {
+  return download_records(`/dcs/api/forms/${form_group_id}/dashboard/records/export`, body, on_progress, true);
 }
 
 export function export_public_widget_records(token, body, on_progress) {
@@ -149,8 +142,8 @@ function download_records(url, body, on_progress, authenticated) {
  * The values one board filter field can take right now: the distinct
  * answers under the period and the other applied filters, with counts.
  */
-export function get_filter_values(form_group_id, field_id, filters, period, source) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/filter-values`, "POST", { field_id, filters: filters || [], period: period || null, source: board_source(source) });
+export function get_filter_values(form_group_id, field_id, filters, period) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/filter-values`, "POST", { field_id, filters: filters || [], period: period || null });
 }
 
 /**
@@ -158,8 +151,8 @@ export function get_filter_values(form_group_id, field_id, filters, period, sour
  * numbers) inside its current window, honoring the same period the
  * dashboard shows: { total, rows: [{submitted_at, raw}] }.
  */
-export function get_kpi_skipped(form_group_id, widget, period, offset, limit, filters, source) {
-  return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20, filters: filters || [], source: board_source(source) });
+export function get_kpi_skipped(form_group_id, widget, period, offset, limit, filters) {
+  return dcs_request(`/forms/${form_group_id}/dashboard/kpi-skipped`, "POST", { widget, period: period || null, offset: offset || 0, limit: limit || 20, filters: filters || [] });
 }
 
 /** The public share links of ONE dashboard (form editors only); all of the form's when no dashboard id is given. */

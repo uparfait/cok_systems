@@ -1,47 +1,74 @@
-const { value_at } = require("../util-dashboard/tracking_stage.js");
-
 /**
  * What a picked date range means, for a tracked form and an ordinary one.
  *
  * An UNTRACKED form is answered once and never changed. Its record has a
- * single moment - it arrived - so a range keeps what arrived inside it.
+ * single moment - it arrived - so a range keeps what arrived inside it,
+ * and every surface buckets, sorts and windows on submitted_at.
  *
  * A TRACKED form is a register whose records go on being updated (see
- * utilities/tracking.js), and each update is a STAGE of the same record.
- * A parking form is the plain case: a car is recorded at 12:00 with
- * status "in", and the same record is labelled "out" at 13:00. That is one
- * record but two stages, and every reading of the data has to see both -
- * "cars in" and "cars out" are each counting one of them, over the very
- * same hours.
+ * utilities/tracking.js). The tables and the dashboards read its CURRENT
+ * state: one row per record, carrying the answers it holds today, and
+ * dated by the moment it LAST MOVED - the last update, or the arrival of
+ * a record never updated:
  *
- * So the unit of reading is the STAGE, not the record:
+ *   last_moved_at = ifNull(updated_at, submitted_at)
  *
- *   stage_at   the moment the stage opened - 12:00 for the arrival, 13:00
- *              for the change. For an untracked form it is submitted_at.
- *   data.<f>   every tracked field's value AS OF stage_at - "in" on the
- *              12:00 stage, "out" on the 13:00 one.
+ * A range keeps the records whose last move falls inside it (created or
+ * last updated in the window), an over-time chart puts each record in the
+ * bucket of its last move, and a KPI window counts the records that last
+ * moved inside it with the value they hold now. Because every surface
+ * reads the same moment, the table, the charts and the KPI cards cannot
+ * drift apart. A tracked form that declares no updatable field never
+ * moves after arrival, so it reads exactly like an untracked one.
  *
- * A range keeps the stages whose stage_at falls inside it, so the 12:00
- * range shows the car arriving and the 13:00 range shows it leaving.
- * Because stage_at is what every surface buckets, filters and counts on,
- * the table, the charts and the KPI cards cannot drift apart.
- *
- * Two shapes are built from this:
- *
- *   stage_rows_stages()  expands a record into one row per stage. Used
- *                        wherever each stage has to be seen on its own -
- *                        the data table, the gallery, every dashboard
- *                        widget, the KPI cards, the over-time charts.
- *
- *   date_window_filter() keeps one row per RECORD, namely the records
- *                        that have a stage inside the range. Used by the
- *                        export and the data feed, which deliberately
- *                        send no history: one line per car, carrying the
- *                        value it held at the end of the range.
+ * The export and the data feed keep their own reading (date_window_filter
+ * below): one line per record that was created OR changed at any moment
+ * inside the window, carrying the value it held at the window's end.
  */
 
-const STAGE_AT = "stage_at";
-const MOMENTS_FIELD = "dcs_stage_moments";
+/** The updatable fields of a tracking config, or [] when it tracks none. */
+function updatable_fields(tracking) {
+  if (!tracking || tracking.enabled !== true) return [];
+  return Array.isArray(tracking.editable_field_ids) ? tracking.editable_field_ids : [];
+}
+
+/** Whether a form's records can move after arrival at all. */
+function is_updatable(tracking) {
+  return updatable_fields(tracking).length > 0;
+}
+
+/**
+ * The moment a row stands for, as an aggregation expression: the last
+ * move on a register, the arrival on any other form.
+ */
+function last_moved_expr(tracking) {
+  return is_updatable(tracking) ? { $ifNull: ["$updated_at", "$submitted_at"] } : "$submitted_at";
+}
+
+function range_of(bounds) {
+  const range = {};
+  if (bounds && bounds.start) range.$gte = bounds.start;
+  if (bounds && bounds.end) range.$lte = bounds.end;
+  return range;
+}
+
+/**
+ * The record-level date condition of the tables and the dashboards: the
+ * records whose last move falls inside the window. A plain query (no
+ * $expr), so it serves find() and $match alike and the indexes on
+ * submitted_at and updated_at stay in play. Either bound may be absent;
+ * {} for a window with no bounds at all ("all"), so a caller can always
+ * merge it unconditionally.
+ *
+ * Untracked: submitted_at inside the window. Tracked: updated_at inside
+ * the window, or no updated_at yet and submitted_at inside it.
+ */
+function window_filter(bounds, tracking) {
+  const range = range_of(bounds);
+  if (Object.keys(range).length === 0) return {};
+  if (!is_updatable(tracking)) return { submitted_at: range };
+  return { $or: [{ updated_at: range }, { updated_at: null, submitted_at: range }] };
+}
 
 /**
  * Every moment at which one of a record's tracked values opened, across
@@ -51,11 +78,11 @@ const MOMENTS_FIELD = "dcs_stage_moments";
  * for each one after it.
  *
  * $setUnion drops duplicates, so a single change that moved two fields at
- * once is ONE stage rather than two identical ones.
+ * once is ONE moment rather than two identical ones.
  *
  * A record carrying no periods at all - collected before the form was
  * tracked - has only ever had one moment, so its arrival stands in as its
- * single stage instead of it dropping out of every dated reading.
+ * single moment instead of it dropping out of every dated reading.
  */
 function opened_moments(field_ids) {
   const per_field = field_ids.map((field_id) => ({
@@ -72,94 +99,9 @@ function opened_moments(field_ids) {
 }
 
 /**
- * A cheap equality/range condition to put in a pipeline's opening $match so
- * the { form_group_id: 1, submitted_at: -1 } index still narrows the scan
- * before any stage is built.
- *
- * Untracked: both bounds, since the record's only stage IS its arrival.
- * Tracked: the upper bound only. Every stage of a record happens at or
- * after its submission, so a record holding a stage inside the range
- * always satisfies submitted_at <= end and none is lost to it. The lower
- * bound cannot be used here - a car recorded last year and driven out
- * today has to survive to be expanded.
- */
-function stage_prefilter(bounds, tracking) {
-  if (!bounds || !bounds.start || !bounds.end) return {};
-  if (!is_staged(tracking)) {
-    return { submitted_at: { $gte: bounds.start, $lte: bounds.end } };
-  }
-  return { submitted_at: { $lte: bounds.end } };
-}
-
-/** The updatable fields of a tracking config, or [] when it tracks none. */
-function staged_fields(tracking) {
-  if (!tracking || tracking.enabled !== true) return [];
-  return Array.isArray(tracking.editable_field_ids) ? tracking.editable_field_ids : [];
-}
-
-/**
- * Whether a form's records have stages at all. False for an untracked
- * form, and for a tracked one that declares no updatable field: nothing
- * can ever open a second stage there, so its record IS its own single
- * stage and the plain submitted_at reading is already right.
- */
-function is_staged(tracking) {
-  return staged_fields(tracking).length > 0;
-}
-
-/**
- * The field carrying "when" for one form, which is what every surface must
- * bucket, sort and window on: the stage moment where there are stages, the
- * arrival otherwise. Having one answer to this is what keeps the table,
- * the charts and the KPI cards from drifting apart.
- */
-function time_field(tracking) {
-  return is_staged(tracking) ? STAGE_AT : "submitted_at";
-}
-
-/** The same thing as an aggregation expression. */
-function time_expr(tracking) {
-  return `$${time_field(tracking)}`;
-}
-
-/**
- * The stages to place directly after that opening $match, expanding each
- * record into one row per stage and rewriting every tracked field to its
- * value at that stage.
- *
- * Empty for a form with no stages - there the opening $match already
- * describes the range completely, so the caller keeps its plain find().
- */
-function stage_rows_stages(tracking, bounds) {
-  const field_ids = staged_fields(tracking);
-  if (field_ids.length === 0) return [];
-
-  const as_of_stage = {};
-  field_ids.forEach((field_id) => {
-    as_of_stage[`data.${field_id}`] = value_at(field_id, `$${STAGE_AT}`);
-  });
-
-  const in_range =
-    bounds && bounds.start && bounds.end
-      ? [{ $match: { [STAGE_AT]: { $gte: bounds.start, $lte: bounds.end } } }]
-      : [];
-
-  return [
-    { $addFields: { [MOMENTS_FIELD]: opened_moments(field_ids) } },
-    { $unwind: `$${MOMENTS_FIELD}` },
-    { $addFields: { [STAGE_AT]: `$${MOMENTS_FIELD}` } },
-    // Narrowed before the values are rewritten: the rewrite is the
-    // expensive part and only surviving stages need it.
-    ...in_range,
-    { $addFields: as_of_stage },
-    { $project: { [MOMENTS_FIELD]: 0 } },
-  ];
-}
-
-/**
- * The RECORD-level date condition, for the export and the data feed: keeps
- * a record when any of its stages falls inside the window, without
- * expanding it. One line per car, however many times it moved.
+ * The RECORD-level date condition of the export and the data feed: keeps
+ * a record when any of its moments falls inside the window. One line per
+ * car, however many times it moved.
  *
  * Either bound may be absent, which the feed relies on: its ?since is a
  * start with no end, and on a tracked form that then reads as "created or
@@ -178,8 +120,8 @@ function date_window_filter(bounds, tracking) {
   if (start) submitted_at.$gte = start;
   if (end) submitted_at.$lte = end;
 
-  // No stages means the arrival is the only moment there is to test.
-  const field_ids = staged_fields(tracking);
+  // No updatable field means the arrival is the only moment there is to test.
+  const field_ids = updatable_fields(tracking);
   if (field_ids.length === 0) return { submitted_at };
 
   const within = (moment) => {
@@ -197,8 +139,8 @@ function date_window_filter(bounds, tracking) {
       },
     },
   };
-  // Every stage happens at or after the record's submission, so an upper
-  // bound on submitted_at can never drop a record that has a stage inside
+  // Every moment happens at or after the record's submission, so an upper
+  // bound on submitted_at can never drop a record that has a moment inside
   // the window - and it keeps the index in play. A lower bound cannot be
   // used: a car recorded last year and driven out today has to survive.
   if (end) filter.submitted_at = { $lte: end };
@@ -206,11 +148,9 @@ function date_window_filter(bounds, tracking) {
 }
 
 module.exports = {
-  STAGE_AT,
-  is_staged,
-  time_field,
-  time_expr,
-  stage_prefilter,
-  stage_rows_stages,
+  updatable_fields,
+  is_updatable,
+  last_moved_expr,
+  window_filter,
   date_window_filter,
 };

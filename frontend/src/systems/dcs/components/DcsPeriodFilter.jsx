@@ -6,6 +6,7 @@ import { portal_root } from "../util-dashboard/portalRoot.js";
 import { useBoardTheme } from "../util-dashboard/boardTheme.jsx";
 import { useBoardColors, portal_tint } from "../util-dashboard/boardColors.jsx";
 import MenuPopover from "../util-dashboard/MenuPopover.jsx";
+import { period_has_time, period_moment, period_input_value } from "../util-dashboard/boardFilters.js";
 
 // Outside a dashboard the board theme context is light, so these resolve to the usual colors.
 const SURFACE = "var(--board-surface, #FFFFFF)";
@@ -29,17 +30,19 @@ const PERIOD_OPTIONS = [
   { value: "custom", labelKey: "DCS_STATS_PERIOD_CUSTOM" },
 ];
 
-const has_time = (text) => /T\d{2}:\d{2}/.test(String(text || ""));
+const has_time = period_has_time;
 const day_part = (text) => String(text || "").slice(0, 10);
 
-/** A picked moment as a short label: the day, and the time when one was picked. */
+/** A picked moment as a short label: the day, and the time of day when one was picked and it is not midnight (with its seconds when they are not zero). */
 function format_date(date_string) {
   if (!date_string) return "";
   const timed = has_time(date_string);
   const date = new Date(timed ? date_string : date_string + "T00:00:00");
   if (Number.isNaN(date.getTime())) return "";
-  if (!timed) return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  return date.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const day = { month: "short", day: "numeric", year: "numeric" };
+  const midnight = date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0;
+  if (!timed || midnight) return date.toLocaleDateString(undefined, day);
+  return date.toLocaleString(undefined, { ...day, hour: "2-digit", minute: "2-digit", second: date.getSeconds() === 0 ? undefined : "2-digit" });
 }
 
 function Segment({ options, value, onChange }) {
@@ -66,6 +69,7 @@ function PickerInput({ label, type, value, onChange }) {
       <label className="block text-xs mb-0.5" style={{ fontFamily: FONT, color: MUTED }}>{label}</label>
       <input
         type={type}
+        step={type === "datetime-local" ? 1 : undefined}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="w-full border rounded-none px-2 py-1.5 text-sm cursor-pointer"
@@ -112,13 +116,13 @@ function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange,
   // starts each moment at the beginning of its day.
   const change_with_time = (on) => {
     setWithTime(on);
-    setLocalFrom((current) => (current ? (on ? `${day_part(current)}T00:00` : day_part(current)) : current));
-    setLocalTo((current) => (current ? (on ? `${day_part(current)}T23:59` : day_part(current)) : current));
+    setLocalFrom((current) => (current ? (on ? `${day_part(current)}T00:00:00` : day_part(current)) : current));
+    setLocalTo((current) => (current ? (on ? `${day_part(current)}T23:59:59` : day_part(current)) : current));
   };
 
   const handle_apply = () => {
-    const next_from = mode === "day" ? day_part(local_from) : local_from;
-    const next_to = mode === "day" ? day_part(local_from) : local_to;
+    const next_from = mode === "day" ? day_part(local_from) : period_moment(local_from);
+    const next_to = mode === "day" ? day_part(local_from) : period_moment(local_to);
     onFromChange(next_from);
     onToChange(next_to);
     onApply(next_from, next_to);
@@ -126,8 +130,8 @@ function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange,
   };
 
   const input_type = mode === "range" && with_time ? "datetime-local" : "date";
-  const from_value = input_type === "date" ? day_part(local_from) : local_from;
-  const to_value = input_type === "date" ? day_part(local_to) : local_to;
+  const from_value = input_type === "date" ? day_part(local_from) : period_input_value(local_from);
+  const to_value = input_type === "date" ? day_part(local_to) : period_input_value(local_to);
 
   return (
     <Dialog.Root open={open} onOpenChange={handle_open_change}>

@@ -45,7 +45,7 @@ export default function SkippedDetailsModal({ form, widget, period, filters, onC
     setLoading(true);
     setFailed(false);
     // The public share-link page supplies its own token-based fetcher.
-    (fetchSkipped ? fetchSkipped(widget, period, offset, PAGE_SIZE) : get_kpi_skipped(form.form_group_id, widget, period, offset, PAGE_SIZE, filters || [], form.source))
+    (fetchSkipped ? fetchSkipped(widget, period, offset, PAGE_SIZE) : get_kpi_skipped(form.form_group_id, widget, period, offset, PAGE_SIZE, filters || []))
       .then((response) => {
         const data = response.data || {};
         setTotal(data.total || 0);

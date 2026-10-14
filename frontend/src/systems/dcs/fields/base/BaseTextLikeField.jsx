@@ -3,16 +3,39 @@ import { get_field_text } from "../fieldText.js";
 import { dcs_translate } from "../../i18n/index.js";
 
 /**
- * The text button beside a searchable field's input on a follow-up form:
- * looks the typed value up among the source form's records. Off while
- * there is nothing typed to look for.
+ * The search icon sitting inside a searchable field's input, at the left:
+ * looks the typed value up among the form's records. Off while there is
+ * nothing typed to look for. top aligns it for a textarea; a single-line
+ * input centres it.
  */
-export function FieldSearchButton({ value, onSearch, language }) {
+export function FieldSearchButton({ value, onSearch, language, top }) {
   const empty = value === undefined || value === null || String(value).trim() === "";
+  const label = dcs_translate("DCS_FIELD_SEARCH_BTN", language);
   return (
-    <button type="button" className="cok-btn-outlined flex-shrink-0 px-3! dcs-no-print" style={{ minHeight: 46 }} disabled={empty} onClick={onSearch}>
-      {dcs_translate("DCS_FU_SEARCH_BTN", language)}
+    <button
+      type="button"
+      className={`absolute left-2 ${top ? "top-2" : "top-1/2 -translate-y-1/2"} w-8 h-8 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-default dcs-no-print`}
+      style={{ color: "#056daa", background: "none", border: "none" }}
+      disabled={empty}
+      onClick={onSearch}
+      title={label}
+      aria-label={label}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <line x1="21" y1="21" x2="16.5" y2="16.5" />
+      </svg>
     </button>
+  );
+}
+
+/** The input of a searchable field with the search icon inside it at the left. */
+export function SearchableInput({ children, value, onSearch, language, top }) {
+  return (
+    <div className="relative">
+      {children}
+      <FieldSearchButton value={value} onSearch={onSearch} language={language} top={top} />
+    </div>
   );
 }
 
@@ -20,7 +43,7 @@ export function FieldSearchButton({ value, onSearch, language }) {
  * Shared rendering for every free-text style field (text, number, email,
  * url, phone) - the label, mandatory mark, single input and its
  * translated help text, error and valid messages. onSearch, when given,
- * puts a Search button beside the input (follow-up forms).
+ * puts the search icon inside the input (record lookups).
  */
 export default function BaseTextLikeField({ field, language, mode, value, onChange, error, ruleValidMessage, inputType, extraInputProps, onSearch }) {
   const is_builder = mode === "builder";
@@ -32,7 +55,7 @@ export default function BaseTextLikeField({ field, language, mode, value, onChan
   const input = (
     <input
       type={inputType}
-      className="cok-auth-input w-full py-3"
+      className={`cok-auth-input w-full py-3 ${onSearch ? "pl-12!" : ""}`}
       placeholder={placeholder}
       value={value || ""}
       onChange={(event) => onChange && onChange(event.target.value)}
@@ -49,10 +72,9 @@ export default function BaseTextLikeField({ field, language, mode, value, onChan
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
       {onSearch ? (
-        <div className="flex items-stretch gap-2">
-          <div className="min-w-0 flex-1">{input}</div>
-          <FieldSearchButton value={value} onSearch={onSearch} language={language} />
-        </div>
+        <SearchableInput value={value} onSearch={onSearch} language={language}>
+          {input}
+        </SearchableInput>
       ) : (
         input
       )}

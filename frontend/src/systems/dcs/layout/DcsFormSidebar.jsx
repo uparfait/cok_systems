@@ -29,7 +29,6 @@ const FORM_LINKS = [
   // here so the panel alone can reach every area of the form, which is
   // what a narrow screen (where the three header links may scroll) needs.
   { key: "overview", icon: "overview", labelKey: "DCS_FORM_NAV_OVERVIEW", to: "" },
-  { key: "follow-up", icon: "overview", labelKey: "DCS_FORM_NAV_FOLLOW_UP", to: "/follow-up" },
   { key: "settings", icon: "settings", labelKey: "DCS_FORM_NAV_SETTINGS", to: "/details" },
   { key: "test-data", icon: "test-data", labelKey: "DCS_TEST_DATA_LINK", to: "/test-data" },
   { key: "versions", icon: "versions", labelKey: "DCS_FORM_NAV_VERSIONS", to: "/versions" },
@@ -50,7 +49,6 @@ function active_key(pathname, base_path) {
   if (/\/data\/approvals$/.test(pathname)) return "approvals";
   if (/\/data$/.test(pathname)) return "table";
   if (/\/dashboard$/.test(pathname)) return "dashboard";
-  if (/\/follow-up$/.test(pathname)) return "follow-up";
   if (/\/test-data$/.test(pathname)) return "test-data";
   if (/\/versions$/.test(pathname)) return "versions";
   if (/\/ownership$/.test(pathname)) return "ownership";
