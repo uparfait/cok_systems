@@ -7,16 +7,21 @@ import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const DANGER = "#E74C3C";
 
-export default function DcsDeleteVersionDialog({ formGroupId, version, onConfirm, onCancel, deleting }) {
+/**
+ * countSubmissions(version), when given, replaces the form's own record
+ * count - the follow-up form counts its own collection.
+ */
+export default function DcsDeleteVersionDialog({ formGroupId, version, onConfirm, onCancel, deleting, countSubmissions }) {
   const { translate } = useDcsLanguage();
   const [submission_count, setSubmissionCount] = useState(null);
   const [delete_data, setDeleteData] = useState(false);
 
   useEffect(() => {
     let is_mounted = true;
-    get_submissions(formGroupId, version, 1, 1)
-      .then((response) => {
-        if (is_mounted) setSubmissionCount(response.total || 0);
+    const count = countSubmissions ? countSubmissions(version) : get_submissions(formGroupId, version, 1, 1).then((response) => response.total || 0);
+    count
+      .then((total) => {
+        if (is_mounted) setSubmissionCount(total || 0);
       })
       .catch(() => {
         if (is_mounted) setSubmissionCount(0);

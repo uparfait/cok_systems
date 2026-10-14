@@ -75,7 +75,10 @@ export default function StudioBoard({ form, fields, widgets, layout, editable, o
     else studio.enter(measure_board());
   };
   const arrangement = useRef(null);
-  arrangement.current = () => studio.set_layout(is_studio(studio.layout) ? { mode: "grid", width: board_width(studio.layout) } : studio_layout(window.innerWidth));
+  arrangement.current = () => {
+    const ordered = !!(studio.layout && studio.layout.ordered);
+    studio.set_layout(Object.assign(is_studio(studio.layout) ? { mode: "grid", width: board_width(studio.layout) } : studio_layout(window.innerWidth), { ordered }));
+  };
   const studio_now = useRef(false);
   studio_now.current = is_studio(studio.active ? studio.layout : layout);
   const api = useRef({

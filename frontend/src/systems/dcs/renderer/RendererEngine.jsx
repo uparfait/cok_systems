@@ -85,7 +85,7 @@ function useInViewFields() {
   return { visibleFields, registerField, unregisterField };
 }
 
-export default function RendererEngine({ schema, mode, values, onValueChange, fieldErrors, fieldValidMessages, onFieldChange, wrapField, revealAllErrors, resolveFieldOptions }) {
+export default function RendererEngine({ schema, mode, values, onValueChange, fieldErrors, fieldValidMessages, onFieldChange, wrapField, revealAllErrors, resolveFieldOptions, searchable }) {
   const render_mode = mode || "renderer";
   const { language: form_language, setLanguage: setFormLanguage, translate } = useDcsLanguage();
   const [touched_fields, setTouchedFields] = useState(() => new Set());
@@ -161,6 +161,10 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
 
     const is_cascading_location = field.type === "cascading_select" && field.data_source?.type === "api";
     const builder_preset = render_mode === "builder" ? resolve_preset_value(field, effective_values) : { has: false };
+    // A follow-up form: the fields a source record can be looked up by
+    // carry a Search control (searchable = { ids, onSearch(field, value) }).
+    const is_searchable = !!searchable && Array.isArray(searchable.ids) && searchable.ids.includes(field.id);
+    const on_search = is_searchable ? () => searchable.onSearch(field, effective_values ? effective_values[field.id] : undefined) : undefined;
 
     const element = (
       <FieldComponent
@@ -168,6 +172,7 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
         field={field}
         language={form_language}
         mode={render_mode}
+        onSearch={on_search}
         value={effective_values ? effective_values[field.id] : undefined}
         onChange={(next_value) => {
           if (is_cascading_location) {

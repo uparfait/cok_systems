@@ -1,19 +1,18 @@
-const { get_db } = require("../db_connection/db.js");
 const { build_match_stage, base_stages, numeric_expr } = require("./match_stage.js");
 const { is_multi_value } = require("./field_catalog.js");
 const { LIMITS, SUBMITTED_AT_FIELD, UPDATED_AT_FIELD } = require("./constants.js");
 const { time_expr } = require("../utilities/tracking_window.js");
-
-const SUBMISSIONS_COLLECTION = "dcs_submissions";
+const { source_collection } = require("./data_source.js");
 
 /**
  * Native MongoDB aggregation pipelines for every widget kind. All grouping,
  * counting and summing happens inside the database; the callers only ever
- * reshape already-aggregated rows into chart series.
+ * reshape already-aggregated rows into chart series. Every pipeline runs
+ * on the collection the widget's data source names (see data_source.js).
  */
 
-function run_pipeline(pipeline) {
-  return get_db().collection(SUBMISSIONS_COLLECTION).aggregate(pipeline).toArray();
+function run_pipeline(widget, pipeline) {
+  return source_collection(widget).aggregate(pipeline).toArray();
 }
 
 /**
@@ -74,7 +73,7 @@ async function category_rows(widget, bounds, catalog) {
     { $sort: sort },
     { $limit: category_cap(widget) + 1 },
   ];
-  return run_pipeline(pipeline);
+  return run_pipeline(widget, pipeline);
 }
 
 /**
@@ -105,7 +104,7 @@ async function split_rows(widget, bounds, catalog) {
     { $sort: { "_id.g": 1, "_id.s": 1, "_id.p": 1 } },
     { $limit: category_cap(widget) * LIMITS.MAX_CATEGORY_LIMIT * (pattern_field ? 8 : 1) },
   ];
-  return run_pipeline(pipeline);
+  return run_pipeline(widget, pipeline);
 }
 
 /**
@@ -150,7 +149,7 @@ async function time_rows(widget, bounds, granularity, catalog, split_field) {
     { $sort: { _id: 1 } },
     { $limit: LIMITS.MAX_TIME_BUCKETS * 4 },
   ];
-  return run_pipeline(pipeline);
+  return run_pipeline(widget, pipeline);
 }
 
 /**
@@ -162,7 +161,7 @@ async function time_extent(widget) {
     ...base_stages(widget, null),
     { $group: { _id: null, min: { $min: time_expr(widget.tracking) }, max: { $max: time_expr(widget.tracking) } } },
   ];
-  const rows = await run_pipeline(pipeline);
+  const rows = await run_pipeline(widget, pipeline);
   if (rows.length === 0 || !rows[0].min || !rows[0].max) return null;
   return { start: new Date(rows[0].min), end: new Date(rows[0].max) };
 }
@@ -184,7 +183,7 @@ async function point_rows(widget, bounds) {
     { $match: { x: { $ne: null }, y: { $ne: null } } },
     { $limit: LIMITS.MAX_POINTS },
   ];
-  return run_pipeline(pipeline);
+  return run_pipeline(widget, pipeline);
 }
 
 /**
@@ -215,7 +214,7 @@ async function heat_points(widget, bounds) {
     { $match: { lat: { $ne: null }, lng: { $ne: null } } },
     { $limit: LIMITS.MAX_HEAT_POINTS },
   ];
-  return run_pipeline(pipeline);
+  return run_pipeline(widget, pipeline);
 }
 
 /**
@@ -265,7 +264,7 @@ async function occurrence_rows(widget, bounds, catalog) {
     { $sort: sort },
     { $limit: LIMITS.MAX_CATEGORY_LIMIT * 4 },
   ];
-  const rows = await run_pipeline(pipeline);
+  const rows = await run_pipeline(widget, pipeline);
   return rows.map((row) => {
     const display = {};
     display_fields.forEach((field_id, index) => {
@@ -296,7 +295,7 @@ async function tree_rows(widget, bounds, catalog, parent_field_id) {
     { $sort: { value: -1 } },
     { $limit: LIMITS.MAX_CATEGORY_LIMIT * LIMITS.MAX_CATEGORY_LIMIT },
   ];
-  return run_pipeline(pipeline);
+  return run_pipeline(widget, pipeline);
 }
 
 /**
@@ -316,7 +315,7 @@ async function dimension_counts(widget, bounds, catalog, field_ids) {
       { $count: "value" },
     ];
   });
-  const rows = await run_pipeline([...base_stages(widget, bounds), { $facet: facets }]);
+  const rows = await run_pipeline(widget, [...base_stages(widget, bounds), { $facet: facets }]);
   const facet = rows[0] || {};
   return field_ids.map((field_id, index) => {
     const bucket = facet[`f${index}`];

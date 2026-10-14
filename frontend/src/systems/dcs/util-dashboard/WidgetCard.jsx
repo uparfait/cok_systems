@@ -186,7 +186,7 @@ function KpiIconSlot({ icon, color, size }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, sizeByWidth, onExpand, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, onBehavior, onTablePage, onDrill, drillChild, slot, onContextMenu }) {
+export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, sizeByWidth, onExpand, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, onPosition, onBehavior, onTablePage, onDrill, drillChild, slot, onContextMenu }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -425,6 +425,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           onMapMode={editable && is_map ? onMapMode : undefined}
           onOverTime={editable ? onOverTime : undefined}
           onReconfigure={editable ? onReconfigure : undefined}
+          onPosition={editable ? onPosition : undefined}
           onBehavior={editable ? onBehavior : undefined}
         />
       )}

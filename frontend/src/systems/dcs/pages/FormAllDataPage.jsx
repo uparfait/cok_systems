@@ -6,11 +6,10 @@ import { useSilentPolling } from "../hooks/useSilentPolling.js";
 import { useSubmissionsTable } from "../hooks/useSubmissionsTable.js";
 import { useTableColumnState } from "../hooks/useTableColumnState.js";
 import { get_form_versions } from "../services/formsService.js";
-import { delete_selected_submissions } from "../services/submissionsService.js";
 import DcsDataTable from "../components/DcsDataTable.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
-import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
+import DcsDeleteCodeDialog from "../components/DcsDeleteCodeDialog.jsx";
 import { TableSkeleton } from "../components/DcsSkeletons.jsx";
 import DcsRecordViewOverlay from "../components/DcsRecordViewOverlay.jsx";
 import DcsFormNav from "../components/DcsFormNav.jsx";
@@ -64,7 +63,6 @@ export default function FormAllDataPage() {
   const table = useSubmissionsTable(form_group_id, undefined, columns_state.column_filters, pinned_record_id);
 
   const [is_confirming_delete, setIsConfirmingDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [view_record, setViewRecord] = useState(null);
   const [history_record, setHistoryRecord] = useState(null);
 
@@ -108,20 +106,11 @@ export default function FormAllDataPage() {
   const selected_on_page = page_ids.filter((id) => selected_set.has(id));
   const all_on_page_selected = page_ids.length > 0 && selected_on_page.length === page_ids.length;
 
-  const handle_delete_selected = async () => {
-    setDeleting(true);
-    try {
-      const response = await delete_selected_submissions(columns_state.selected_ids);
-      const count = (response.data && response.data.deleted_count) || columns_state.selected_ids.length;
-      showSuccess(translate("DCS_TOAST_SUBMISSIONS_DELETED", { count }));
-      columns_state.clear_selection();
-      setIsConfirmingDelete(false);
-      table.refresh();
-    } catch (error) {
-      showError(error.message || translate("DCS_ERROR_GENERIC"));
-    } finally {
-      setDeleting(false);
-    }
+  const handle_deleted = (count) => {
+    showSuccess(translate("DCS_TOAST_SUBMISSIONS_DELETED", { count }));
+    columns_state.clear_selection();
+    setIsConfirmingDelete(false);
+    table.refresh();
   };
 
   // Shaped like the table that is coming rather than a bare spinner, so
@@ -333,12 +322,10 @@ export default function FormAllDataPage() {
       <ExpandFab expanded={columns_state.is_expanded} onToggle={() => columns_state.setIsExpanded(!columns_state.is_expanded)} />
 
       {is_confirming_delete && (
-        <DcsConfirmDialog
-          titleKey="DCS_TABLE_DELETE_SELECTED_TITLE"
-          messageKey="DCS_TABLE_DELETE_SELECTED_WARNING"
-          confirming={deleting}
-          onConfirm={handle_delete_selected}
-          onCancel={() => setIsConfirmingDelete(false)}
+        <DcsDeleteCodeDialog
+          submissionIds={columns_state.selected_ids}
+          onClose={() => setIsConfirmingDelete(false)}
+          onDeleted={handle_deleted}
         />
       )}
 

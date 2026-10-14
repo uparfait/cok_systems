@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { list_dashboards, create_dashboard, rename_dashboard, delete_dashboard } from "./dashboardService.js";
+import { get_follow_up } from "../services/followUpService.js";
 
 const storage_key = (form_group_id) => `dcs_dashboard_active:${form_group_id}`;
 
@@ -28,6 +29,10 @@ const write_saved = (form_group_id, dashboard_id) => {
  * active one, delete the active one (the first remaining takes over) and
  * keeping a widget count current after a save. Every server error is
  * rethrown so the caller can show it.
+ *
+ * follow_up is the form's active follow-up version (null without one):
+ * a dashboard may read follow-up data instead of the form's, and such a
+ * board is built against the follow-up's own schema.
  */
 export function useDashboards(form_group_id) {
   const [dashboards, setDashboards] = useState([]);
@@ -35,6 +40,20 @@ export function useDashboards(form_group_id) {
   const [can_edit, setCanEdit] = useState(false);
   const [list_loading, setListLoading] = useState(true);
   const [list_error, setListError] = useState(null);
+  const [follow_up, setFollowUp] = useState(null);
+  const [follow_up_loading, setFollowUpLoading] = useState(true);
+
+  useEffect(() => {
+    let is_mounted = true;
+    setFollowUpLoading(true);
+    get_follow_up(form_group_id)
+      .then((response) => is_mounted && setFollowUp((response.data && response.data.follow_up) || null))
+      .catch(() => is_mounted && setFollowUp(null))
+      .finally(() => is_mounted && setFollowUpLoading(false));
+    return () => {
+      is_mounted = false;
+    };
+  }, [form_group_id]);
 
   useEffect(() => {
     let is_mounted = true;
@@ -65,8 +84,8 @@ export function useDashboards(form_group_id) {
     [form_group_id],
   );
 
-  const create = async (name) => {
-    const response = await create_dashboard(form_group_id, name);
+  const create = async (name, source) => {
+    const response = await create_dashboard(form_group_id, name, source);
     const created = response.data && response.data.dashboard;
     setDashboards((current) => current.concat(created));
     select(created.id);
@@ -121,5 +140,7 @@ export function useDashboards(form_group_id) {
   }, []);
 
   const active = dashboards.find((entry) => entry.id === active_id) || null;
-  return { dashboards, active, active_id, can_edit, list_loading, list_error, select, create, rename, remove, uppercase_many, remove_many, set_count };
+  // A follow-up board must not be built against the form's schema while its follow-up is still being read.
+  const follow_up_pending = !!active && active.source === "follow_up" && follow_up_loading;
+  return { dashboards, active, active_id, can_edit, list_loading, list_error, follow_up, has_follow_up: !!follow_up, follow_up_pending, select, create, rename, remove, uppercase_many, remove_many, set_count };
 }

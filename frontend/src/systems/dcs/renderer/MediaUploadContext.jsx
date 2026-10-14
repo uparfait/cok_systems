@@ -16,17 +16,17 @@ const MediaUploadContext = createContext(null);
  * left on disk, since the record's history still points at it - only a
  * fresh response, which nothing else refers to, cleans up after itself.
  */
-export function MediaUploadProvider({ formGroupId, version, isOnline, keepFiles, children }) {
+export function MediaUploadProvider({ formGroupId, version, isOnline, keepFiles, uploadEndpoint, children }) {
   const value = useMemo(
     () => ({
       form_group_id: formGroupId,
       version,
       is_online: isOnline,
       upload_file: (field_id, file, onProgress) =>
-        upload_file_with_progress(formGroupId, { version, field_id, file, onProgress }),
+        upload_file_with_progress(formGroupId, { version, field_id, file, onProgress, endpoint: uploadEndpoint }),
       delete_file: (url) => (keepFiles ? Promise.resolve() : delete_uploaded_file(formGroupId, url)),
     }),
-    [formGroupId, version, isOnline, keepFiles],
+    [formGroupId, version, isOnline, keepFiles, uploadEndpoint],
   );
 
   return <MediaUploadContext.Provider value={value}>{children}</MediaUploadContext.Provider>;

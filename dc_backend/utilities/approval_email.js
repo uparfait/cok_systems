@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const config = require("../configurations/config.js");
+const { translate } = require("../i18n/index.js");
 
 const PRIMARY_COLOR = "#056daa";
 const TEXT_MUTED = "#555555";
@@ -212,4 +213,39 @@ async function notify_approval_steps(req, form_name, steps) {
   return notified;
 }
 
-module.exports = { send_approval_request_email, send_batch_approval_email, notify_approval_steps, resolve_client_origin };
+// Mails the signed-in user the 6-digit code that confirms deleting the records they ticked, in their language; never throws - returns {success}.
+async function send_deletion_code_email({ to, full_name, code, count, expires_minutes, language, origin }) {
+  const vars = { name: full_name || to, count, minutes: expires_minutes, code };
+  const t = (key) => translate(key, language, vars);
+  const subject = t("DELETE_CODE_MAIL_SUBJECT");
+  const html = html_wrapper(
+    `
+    <h2 style="color: ${PRIMARY_COLOR}; font-family: ${FONT}; font-size: 22px; margin: 0 0 16px;">${escape_html(t("DELETE_CODE_MAIL_TITLE"))}</h2>
+    <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">${escape_html(t("DELETE_CODE_MAIL_GREETING"))}</p>
+    <p style="font-size: 16px; color: ${TEXT_MUTED}; margin: 0 0 12px;">${escape_html(t("DELETE_CODE_MAIL_BODY"))}</p>
+    <div style="border-left: 3px solid ${PRIMARY_COLOR}; background-color: #F7F9FB; padding: 12px 16px; margin: 0 0 12px;">
+      <p style="font-size: 13px; color: ${TEXT_MUTED}; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.5px;"><strong>${escape_html(t("DELETE_CODE_MAIL_CODE_LABEL"))}</strong></p>
+      <p style="font-size: 26px; color: #333333; letter-spacing: 6px; font-weight: 700; margin: 0;">${escape_html(code)}</p>
+    </div>
+    <p style="font-size: 13px; color: ${TEXT_MUTED}; margin: 0;">${escape_html(t("DELETE_CODE_MAIL_EXPIRES"))}</p>
+  `,
+    origin,
+  );
+  const text = `${t("DELETE_CODE_MAIL_GREETING")} ${t("DELETE_CODE_MAIL_BODY")} ${t("DELETE_CODE_MAIL_CODE_LABEL")}: ${code}. ${t("DELETE_CODE_MAIL_EXPIRES")}`;
+
+  try {
+    await transporter.sendMail({ from: config.email.from, to, subject, text, html });
+    return { success: true };
+  } catch (error) {
+    console.error("Deletion code email error:", error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+module.exports = {
+  send_approval_request_email,
+  send_batch_approval_email,
+  send_deletion_code_email,
+  notify_approval_steps,
+  resolve_client_origin,
+};

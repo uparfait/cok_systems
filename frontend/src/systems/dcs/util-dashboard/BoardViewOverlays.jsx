@@ -25,8 +25,8 @@ export default function BoardViewOverlays({ shareOpen, share, records, view, sho
           title={records.widget.title}
           subtitle={view.board_name}
           schema={view.schema}
-          fetchPage={(page) => get_widget_records(view.form_group_id, request(records, page))}
-          exportRecords={(on_progress) => export_widget_records(view.form_group_id, { ...request(records), title: records.widget.title }, on_progress)}
+          fetchPage={(page) => get_widget_records(view.form_group_id, request(records, page), view.source)}
+          exportRecords={(on_progress) => export_widget_records(view.form_group_id, { ...request(records), title: records.widget.title }, on_progress, view.source)}
           onClose={onCloseRecords}
         />
       )}

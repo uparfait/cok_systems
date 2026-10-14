@@ -1,10 +1,9 @@
-const { get_db } = require("../db_connection/db.js");
 const { build_match_stage, base_stages, numeric_expr } = require("./match_stage.js");
 const { time_field, time_expr } = require("../utilities/tracking_window.js");
 const { is_multi_value } = require("./field_catalog.js");
 const { NUMERIC_AGGREGATIONS } = require("./constants.js");
+const { source_collection } = require("./data_source.js");
 
-const SUBMISSIONS_COLLECTION = "dcs_submissions";
 const MOVING_WINDOW_DAYS = 7;
 const DAY_MS = 86400000;
 
@@ -39,8 +38,8 @@ function is_count_based(aggregation, field_id, catalog) {
   return !!field && COUNT_BASED_TYPES.includes(field.type);
 }
 
-function run_pipeline(pipeline) {
-  return get_db().collection(SUBMISSIONS_COLLECTION).aggregate(pipeline).toArray();
+function run_pipeline(widget, pipeline) {
+  return source_collection(widget).aggregate(pipeline).toArray();
 }
 
 function answered_match(field_id) {
@@ -199,7 +198,7 @@ async function kpi_metric_result(widget, bounds, catalog) {
   // is now honest on a tracked form: the previous facet reads the stages
   // that happened in the previous window, carrying the values they held
   // then, rather than the current window's values re-counted.
-  const rows = await run_pipeline([...base_stages(widget, null, null), { $facet: facets }]);
+  const rows = await run_pipeline(widget, [...base_stages(widget, null, null), { $facet: facets }]);
   const facet = rows[0] || {};
   let current = facet_value(aggregation, facet.current);
   let previous = windows.previous ? facet_value(aggregation, facet.previous) : null;
@@ -243,7 +242,7 @@ async function kpi_skipped_rows(widget, bounds, limit, catalog, offset) {
       },
     },
   ];
-  const result = await run_pipeline(pipeline);
+  const result = await run_pipeline(widget, pipeline);
   const facet = result[0] || { total: [], rows: [] };
   return {
     total: facet.total.length > 0 ? facet.total[0].value || 0 : 0,

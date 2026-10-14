@@ -14,9 +14,16 @@ const MAX_NAME = 80;
  * opens with no dashboard yet, and from the switcher's "Add dashboard".
  * The close control is offered whenever the page has something else to show.
  */
-export default function DashboardNameDialog({ formName, saving, onSubmit, onCancel }) {
+const SOURCES = [
+  { key: "form", labelKey: "DCS_DB_SOURCE_FORM" },
+  { key: "follow_up", labelKey: "DCS_DB_SOURCE_FOLLOW_UP" },
+];
+
+/** hasFollowUp: the form has a follow-up form, so the board picks which data it reads. */
+export default function DashboardNameDialog({ formName, saving, hasFollowUp, onSubmit, onCancel }) {
   const { translate } = useDcsLanguage();
   const [name, setName] = useState("");
+  const [source, setSource] = useState("form");
   const [problem, setProblem] = useState("");
 
   useEffect(() => {
@@ -36,7 +43,7 @@ export default function DashboardNameDialog({ formName, saving, onSubmit, onCanc
       return;
     }
     setProblem("");
-    onSubmit(trimmed);
+    onSubmit(trimmed, hasFollowUp ? source : "form");
   };
 
   return createPortal(
@@ -52,6 +59,27 @@ export default function DashboardNameDialog({ formName, saving, onSubmit, onCanc
             <label className="cok-auth-label">{translate("DCS_DB_NAME_LABEL")}</label>
             <input className="cok-auth-input w-full py-2" value={name} maxLength={MAX_NAME} autoFocus disabled={saving} placeholder={translate("DCS_DB_NAME_PLACEHOLDER")} onChange={(event) => setName(event.target.value)} />
           </div>
+          {hasFollowUp && (
+            <div>
+              <label className="cok-auth-label">{translate("DCS_DB_SOURCE_LABEL")}</label>
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={translate("DCS_DB_SOURCE_LABEL")}>
+                {SOURCES.map((entry) => (
+                  <button
+                    key={entry.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={source === entry.key}
+                    disabled={saving}
+                    onClick={() => setSource(entry.key)}
+                    className={`dcs-dt-tool cursor-pointer ${source === entry.key ? "is-active" : ""}`}
+                    style={{ height: 36 }}
+                  >
+                    {translate(entry.labelKey)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {problem && (
             <p className="text-xs font-semibold" style={{ color: "#E74C3C" }}>
               {problem}

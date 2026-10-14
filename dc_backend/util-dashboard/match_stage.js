@@ -1,5 +1,6 @@
 const { resolve_period_bounds } = require("../utilities/period_bounds.js");
 const { tracking_stages } = require("./tracking_stage.js");
+const { source_match } = require("./data_source.js");
 const { STAGE_AT, time_field, time_expr, is_staged, stage_prefilter, stage_rows_stages } = require("../utilities/tracking_window.js");
 
 /**
@@ -80,9 +81,12 @@ function effective_bounds(widget, period_override) {
  * filters do NOT: on a tracked form they have to be judged against the
  * value of the stage being counted, which does not exist yet at this
  * point in the pipeline (see filter_stages).
+ *
+ * The equality itself comes from the widget's data source (the form's
+ * records, or its follow-up's - see data_source.js).
  */
 function build_match_stage(widget, bounds) {
-  return { $match: Object.assign({ form_group_id: widget.form_group_id }, stage_prefilter(bounds, widget && widget.tracking)) };
+  return { $match: Object.assign(source_match(widget), stage_prefilter(bounds, widget && widget.tracking)) };
 }
 
 /**

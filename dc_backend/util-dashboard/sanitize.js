@@ -47,6 +47,10 @@ function sanitize_mode(mode) {
  * only thing that makes pixel placement survive a different screen: a
  * narrower one scales the whole board down by the ratio between the two,
  * so the design arrives intact rather than reflowed into something else.
+ *
+ * ORDERED says the saved widget order IS the board order. Until a board
+ * has it, KPI cards are shown first and the charts after them; the first
+ * position change turns it on and it stays on.
  */
 function sanitize_board_layout(raw) {
   if (!raw || typeof raw !== "object") return null;
@@ -54,6 +58,7 @@ function sanitize_board_layout(raw) {
   return {
     mode: BOARD_MODES.includes(clean_string(raw.mode)) ? clean_string(raw.mode) : "grid",
     width: Number.isFinite(width) ? Math.min(Math.max(Math.round(width), BOARD_WIDTH.least), BOARD_WIDTH.most) : BOARD_WIDTH.usual,
+    ordered: raw.ordered === true,
   };
 }
 

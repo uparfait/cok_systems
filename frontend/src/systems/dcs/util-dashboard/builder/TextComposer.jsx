@@ -49,7 +49,7 @@ export default function TextComposer({ form, fields, onAdd, disabled, initialSpe
     setComputing(true);
     try {
       const draft = build_text_draft(form, spec)[0];
-      const response = await get_dashboard_data(form.form_group_id, [draft], null);
+      const response = await get_dashboard_data(form.form_group_id, [draft], null, undefined, form.source);
       const result = ((response.data && response.data.results) || [])[0];
       if (!result || result.error) throw new Error((result && result.messages && result.messages[0]) || translate("DCS_ERROR_GENERIC"));
       setLive(result);

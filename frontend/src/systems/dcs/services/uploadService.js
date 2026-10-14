@@ -39,7 +39,7 @@ export async function delete_uploaded_file(form_group_id, url) {
  * this one file-shaped request independent of the JSON-only interceptors
  * (Content-Type, auth header) wired onto dcs_api_client.
  */
-export function upload_file_with_progress(form_group_id, { version, field_id, file, onProgress }) {
+export function upload_file_with_progress(form_group_id, { version, field_id, file, onProgress, endpoint }) {
   return new Promise((resolve, reject) => {
     const form_data = new FormData();
     form_data.append("version", version);
@@ -47,7 +47,8 @@ export function upload_file_with_progress(form_group_id, { version, field_id, fi
     form_data.append("file", file, file.name);
 
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${DCS_API_BASE_URL}/public/forms/${form_group_id}/upload`);
+    // A follow-up form uploads to its own endpoint; everything else to the form's.
+    xhr.open("POST", endpoint || `${DCS_API_BASE_URL}/public/forms/${form_group_id}/upload`);
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {

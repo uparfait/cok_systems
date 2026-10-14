@@ -3,6 +3,7 @@ const { kpi_metric_result } = require("./kpi_metrics.js");
 const { table_data } = require("./table_data.js");
 const { text_data } = require("./text_data.js");
 const { effective_bounds } = require("./match_stage.js");
+const { bind_data_source } = require("./data_source.js");
 const { build_field_catalog, field_label_text, parent_field_id_of, is_categorical } = require("./field_catalog.js");
 const { CHART_TYPES, CHART_KINDS, LIMITS, OVER_TIME_TYPES, SUBMITTED_AT_FIELD } = require("./constants.js");
 
@@ -375,8 +376,8 @@ async function heat_data(widget, bounds) {
 async function widget_data_of(raw_widget, form_version, period_override, records_policy) {
   const catalog = build_field_catalog(form_version.schema);
   // A tracked form's pipelines read each updatable field as it stood at
-  // the period's end (see tracking_stage.js); the config rides the widget.
-  raw_widget.tracking = form_version.tracking || null;
+  // the period's end (see tracking_stage.js); the config rides the widget, and so do the records it reads (see data_source.js).
+  bind_data_source(raw_widget, form_version).tracking = form_version.tracking || null;
   const bounds = effective_bounds(raw_widget, period_override);
   let kind = (CHART_TYPES[raw_widget.chart_type] || {}).kind;
   // A canvas is a place, not a question: there is nothing to compute. A

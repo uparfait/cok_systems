@@ -310,7 +310,7 @@ function object_text(object_expression) {
     $reduce: {
       input: { $objectToArray: object_expression },
       initialValue: "",
-      in: { $concat: ["$value", " ", scalar_text("$this.v")] },
+      in: { $concat: ["$$value", " ", scalar_text("$$this.v")] },
     },
   };
 }
@@ -324,26 +324,26 @@ function answer_text(value_expression) {
         $switch: {
           branches: [
             {
-              case: { $isArray: "$entry" },
+              case: { $isArray: "$$entry" },
               then: {
                 $reduce: {
-                  input: "$entry",
+                  input: "$$entry",
                   initialValue: "",
                   in: {
                     $concat: [
-                      "$value",
+                      "$$value",
                       " ",
                       {
-                        $cond: [{ $eq: [{ $type: "$this" }, "object"] }, object_text("$this"), scalar_text("$this")],
+                        $cond: [{ $eq: [{ $type: "$$this" }, "object"] }, object_text("$$this"), scalar_text("$$this")],
                       },
                     ],
                   },
                 },
               },
             },
-            { case: { $eq: [{ $type: "$entry" }, "object"] }, then: object_text("$entry") },
+            { case: { $eq: [{ $type: "$$entry" }, "object"] }, then: object_text("$$entry") },
           ],
-          default: scalar_text("$entry"),
+          default: scalar_text("$$entry"),
         },
       },
     },
@@ -356,7 +356,7 @@ const SEARCH_TEXT_EXPRESSION = {
       $reduce: {
         input: { $objectToArray: { $ifNull: ["$data", {}] } },
         initialValue: "",
-        in: { $concat: ["$value", " ", answer_text("$this.v")] },
+        in: { $concat: ["$$value", " ", answer_text("$$this.v")] },
       },
     },
     " ",
@@ -373,7 +373,17 @@ const SEARCH_TEXT_EXPRESSION = {
 };
 
 async function list_submissions(form_group_id, version, page, limit, date_bounds, options) {
-  const filter = { form_group_id };
+  return list_records_in(COLLECTION_NAME, { form_group_id }, version, page, limit, date_bounds, options);
+}
+
+/**
+ * The listing itself, over any collection of records shaped like a
+ * submission - a follow-up form's records live in their own collection
+ * and are read with the very same search, column filters, paging and
+ * sort. base_filter is what pins the rows to one form (or one follow-up).
+ */
+async function list_records_in(collection_name, base_filter, version, page, limit, date_bounds, options) {
+  const filter = Object.assign({}, base_filter);
   // Opening ONE record in the table (what the gallery does when a
   // picture is followed back to the row it came from): the id narrows
   // the same query every other filter narrows, so the row still arrives
@@ -410,7 +420,7 @@ async function list_submissions(form_group_id, version, page, limit, date_bounds
   // just drove out belongs at the top, not where it first arrived.
   const sort_field = stage_stages.length > 0 ? STAGE_AT : "submitted_at";
   const skip = (page - 1) * limit;
-  const collection = get_db().collection(COLLECTION_NAME);
+  const collection = get_db().collection(collection_name);
   const search_term = options && options.search ? options.search.toString().trim() : "";
 
   if (search_term || stage_stages.length > 0) {
@@ -795,6 +805,7 @@ module.exports = {
   find_by_client_submission_id,
   find_submission_by_id,
   list_submissions,
+  list_records_in,
   apply_value_filters,
   count_by_form_group_id,
   list_submitted_at_within,

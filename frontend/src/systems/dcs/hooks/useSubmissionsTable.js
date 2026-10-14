@@ -29,8 +29,14 @@ const DEFAULT_PERIOD = "this_year";
  * dropdowns hold ({ field_id: [value, ...] }); they are applied on the
  * server, so a narrowed table is narrowed on every page and its total
  * counts only what is left.
+ *
+ * fetcher, when given, replaces get_submissions as the data source with
+ * the same signature (form_group_id, version, page, limit, params) and
+ * the same { data, total } answer - the follow-up table reads its own
+ * collection through it.
  */
-export function useSubmissionsTable(form_group_id, version, column_filters, pinned_record_id) {
+export function useSubmissionsTable(form_group_id, version, column_filters, pinned_record_id, fetcher) {
+  const fetch_page = fetcher || get_submissions;
   const [page, setPage] = useState(1);
   const [period, setPeriod] = useState(DEFAULT_PERIOD);
   const [from, setFrom] = useState("");
@@ -68,7 +74,7 @@ export function useSubmissionsTable(form_group_id, version, column_filters, pinn
         : { period: params.period, from: params.from || "", to: params.to || "" },
     );
     if (!silent) setLoading(true);
-    get_submissions(form_group_id, version, params.page, PAGE_SIZE, params)
+    fetch_page(form_group_id, version, params.page, PAGE_SIZE, params)
       .then((response) => setResult(response))
       .catch(() => {
         if (!silent) setResult(null);

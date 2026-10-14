@@ -1,5 +1,5 @@
-const { get_db } = require("../db_connection/db.js");
 const { sanitize_widgets, sanitize_widget, sanitize_period_override } = require("./sanitize.js");
+const { bind_data_source, source_collection } = require("./data_source.js");
 const { validate_dashboard } = require("./widget_validation.js");
 const { compute_widget_data } = require("./widget_data.js");
 const { effective_bounds, base_stages } = require("./match_stage.js");
@@ -82,6 +82,7 @@ async function compute_skipped_page(body, form_group_id, form_version, project_i
   const catalog = build_field_catalog(form_version.schema);
   const shaped = apply_board_filters(widget, applied_filters(body, forced_filters), catalog, (forced_filters || []).map((entry) => entry.field_id)).widget;
   shaped.tracking = form_version.tracking || null;
+  bind_data_source(shaped, form_version);
   const bounds = effective_bounds(shaped, period_override);
   const offset = bounded_int(body.offset, 0, 0, Number.MAX_SAFE_INTEGER);
   const limit = bounded_int(body.limit, DEFAULT_PAGE, 1, MAX_PAGE);
@@ -103,7 +104,7 @@ async function compute_filter_values(body, form_group_id, form_version, forced_f
   if (!can_filter_field(field)) return { invalid: "not a filter field" };
   const period_override = sanitize_period_override(body.period);
   const others = applied_filters(body, forced_filters).filter((entry) => entry.field_id !== field_id);
-  const probe = { form_group_id, tracking: form_version.tracking || null, filters: others.map((entry) => ({ field_id: entry.field_id, operator: "eq", value: entry.value })) };
+  const probe = bind_data_source({ form_group_id, tracking: form_version.tracking || null, filters: others.map((entry) => ({ field_id: entry.field_id, operator: "eq", value: entry.value })) }, form_version);
   const bounds = effective_bounds(probe, period_override);
   const pipeline = [
     ...base_stages(probe, bounds),
@@ -113,7 +114,7 @@ async function compute_filter_values(body, form_group_id, form_version, forced_f
     { $sort: { _id: 1 } },
     { $limit: MAX_FILTER_VALUES },
   ];
-  const rows = await get_db().collection("dcs_submissions").aggregate(pipeline).toArray();
+  const rows = await source_collection(probe).aggregate(pipeline).toArray();
   return { values: rows.map((row) => ({ value: row._id, count: row.count })) };
 }
 

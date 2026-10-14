@@ -173,12 +173,21 @@ export function delete_submission(submission_id) {
 }
 
 /**
- * Permanently deletes every record the data table currently has ticked.
- * Irreversible - the backend re-checks edit rights on each form behind
- * the selection before removing anything.
+ * Deleting the ticked records takes a code mailed to the signed-in user:
+ * ask for it (the backend checks edit rights on every form behind the
+ * selection before any mail goes out), confirm with it, or have the same
+ * code sent again. Irreversible once confirmed.
  */
-export function delete_selected_submissions(submission_ids) {
-  return dcs_request("/submissions/delete-selected", "POST", { submission_ids });
+export function request_delete_code(submission_ids) {
+  return dcs_request("/submissions/delete-selected/request", "POST", { submission_ids });
+}
+
+export function confirm_delete_code(request_id, code) {
+  return dcs_request("/submissions/delete-selected/confirm", "POST", { request_id, code });
+}
+
+export function resend_delete_code(request_id) {
+  return dcs_request("/submissions/delete-selected/resend", "POST", { request_id });
 }
 
 /**
@@ -200,6 +209,9 @@ export function get_submission_media(form_group_id, page, limit, options) {
   if (options && options.filters && Object.keys(options.filters).length > 0) {
     params.append("filters", JSON.stringify(options.filters));
   }
+  // scope=all adds the follow-up form's media; each item then carries
+  // source: "form" | "follow_up".
+  if (options && options.scope) params.append("scope", options.scope);
   return dcs_request(`/submissions/${form_group_id}/media?${params.toString()}`, "GET");
 }
 

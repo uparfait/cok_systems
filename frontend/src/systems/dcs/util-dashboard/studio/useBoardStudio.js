@@ -52,8 +52,9 @@ export function useBoardStudio(widgets, layout) {
   // was arranged at, so its placements still mean what they meant.
   // The width the board is arranged at is the width it was MEASURED at
   // on the way in, so what the studio shows is what the board showed.
+  // A board that is ORDERED (its array is its order) stays so in studio.
   const fresh_layout = useCallback(
-    (seed) => (is_studio(layout) ? layout : studio_layout((seed && seed.base && seed.base.w) || (layout && layout.width) || (typeof window === "undefined" ? undefined : window.innerWidth))),
+    (seed) => (is_studio(layout) ? layout : Object.assign(studio_layout((seed && seed.base && seed.base.w) || (layout && layout.width) || (typeof window === "undefined" ? undefined : window.innerWidth)), { ordered: !!(layout && layout.ordered) })),
     [layout],
   );
   const [last_seed, setLastSeed] = useState(null);

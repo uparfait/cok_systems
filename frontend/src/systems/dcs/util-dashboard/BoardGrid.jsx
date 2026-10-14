@@ -11,13 +11,15 @@ import { row_class, BoardRoomContext, useBoardRoomSize } from "./boardRows.js";
 import { drill_target, field_label } from "./cascade.js";
 import { useBoardTheme } from "./boardTheme.jsx";
 import { useBoardColors } from "./boardColors.jsx";
+import { board_order } from "./boardOrder.js";
 
 // A zero-height full-width item, which is how flex-wrap is made to break
 // a line where it is told rather than only where it runs out of room.
 const ROW_BREAK = { flexBasis: "100%", height: 0 };
 
 /**
- * The board itself: ONE flowing grid, KPI cards first and then the charts,
+ * The board itself: ONE flowing grid, KPI cards first and then the charts
+ * until the board is ORDERED (layout.ordered), when the saved order rules,
  * each widget claiming the share of a row its own size asks for (see
  * boardRows.js) and taking a new row only when it genuinely does not fit
  * in what is left of the current one. Whatever a row ends up holding
@@ -59,6 +61,7 @@ export default function BoardGrid({
   onWidgetMenu,
   // How the whole board is arranged: the grid, or studio.
   layout,
+  onPosition,
 }) {
   const [dragging_id, setDraggingId] = useState(null);
   const [over_id, setOverId] = useState(null);
@@ -135,8 +138,7 @@ export default function BoardGrid({
   const canvas_resize = (widget) =>
     studio && studio.onResize ? (changes) => studio.onResize(widget.id, Object.assign({}, widget.canvas || {}, changes)) : undefined;
   const canvas_item = (widget) => Object.assign({ flexGrow: 0, flexBasis: "auto", flexShrink: 1 }, canvas_box(widget), canvas_flex(widget.canvas));
-  const kpi_widgets = widgets.filter((widget) => on_board(widget) && widget.chart_type === "kpi" && !emptied_by_filters(widget));
-  const chart_widgets = widgets.filter((widget) => on_board(widget) && widget.chart_type !== "kpi" && !emptied_by_filters(widget));
+  const shown = board_order(widgets, layout).filter((widget) => on_board(widget) && !emptied_by_filters(widget));
   const arranging = !!studio;
   // A widget can become a map when the field it groups by names a place
   // the city has boundaries for; turning into one carries that level over,
@@ -213,6 +215,7 @@ export default function BoardGrid({
       fields={fields}
       onOverTime={editable ? (next) => onUpdateWidget(widget.id, { over_time: next }) : undefined}
       onReconfigure={editable && onReconfigure ? () => onReconfigure(widget) : undefined}
+      onPosition={editable && onPosition ? () => onPosition(widget) : undefined}
       onBehavior={editable && onBehavior ? () => onBehavior(widget) : undefined}
       onTablePage={onTablePage}
       onDrill={onDrill && drill_target(widget, fields || []) ? () => onDrill(widget) : undefined}
@@ -286,7 +289,7 @@ export default function BoardGrid({
   if (is_studio(layout)) {
     return (
       <BoardFreeSurface
-        list={kpi_widgets.concat(chart_widgets).map((widget) => ({ widget, node: render_card(widget) }))}
+        list={shown.map((widget) => ({ widget, node: render_card(widget) }))}
         layout={layout}
         placeable={!!(studio && studio.onPlace)}
         onPlace={studio && studio.onPlace ? studio.onPlace : undefined}
@@ -299,12 +302,12 @@ export default function BoardGrid({
   // drawing floating in empty space reads as broken. A card is a card -
   // it keeps the share its size asked for, and widens to fill its row
   // like every other.
-  const lone_chart = kpi_widgets.length === 0 && chart_widgets.length === 1 && !is_canvas(chart_widgets[0]) ? chart_widgets[0] : null;
+  const lone_chart = shown.length === 1 && shown[0].chart_type !== "kpi" && !is_canvas(shown[0]) ? shown[0] : null;
   return (
     <BoardRoomContext.Provider value={room}>
       <div ref={grid_ref}>
         <div className="flex flex-wrap items-stretch gap-3">
-          {kpi_widgets.concat(chart_widgets).map((widget) => {
+          {shown.map((widget) => {
             if (!is_canvas(widget)) {
               return (
                 <div

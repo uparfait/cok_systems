@@ -22,6 +22,10 @@ const {
     ensure_tracked_record_indexes
 } = require("./models/tracked_records_model.js");
 
+const {
+    ensure_follow_up_submission_indexes
+} = require("./models/follow_up_submissions_model.js");
+
 const { run_auth_check } = require("./utilities/auth_check.js");
 
 const { sweep_import_files } = require("./utilities/import_sweep.js");
@@ -549,6 +553,8 @@ connect_databases()
         await step("Submission indexes", ensure_submission_indexes);
 
         await step("Tracked record indexes", ensure_tracked_record_indexes);
+
+        await step("Follow-up submission indexes", ensure_follow_up_submission_indexes);
 
         await step("Location indexes", ensure_location_indexes);
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { save_dashboard, request_error_text } from "./dashboardService.js";
 import { fold_family } from "./chartCatalog.js";
+import { move_widget as reorder } from "./boardOrder.js";
 
 /**
  * The two edits a board makes to ONE widget at a time - changing it and
@@ -15,17 +16,43 @@ import { fold_family } from "./chartCatalog.js";
  *
  * Kept out of the page itself so the page is about what is on screen.
  */
-export function useWidgetEdits({ form, widgets, data, translate, showSuccess, showError, showInfo, onCommit }) {
+export function useWidgetEdits({ form, widgets, layout, data, translate, showSuccess, showError, showInfo, onCommit }) {
   const [saving_widget_id, setSavingWidgetId] = useState(null);
   const [removing, setRemoving] = useState(false);
   const [adding, setAdding] = useState(false);
 
-  const save = async (next_widgets) => {
-    const saved = await save_dashboard(form, next_widgets);
+  // The board's arrangement rides along only when the edit changed it.
+  const save = async (next_widgets, next_layout) => {
+    const saved = await save_dashboard(form, next_widgets, undefined, next_layout);
     const final_widgets = (saved.data && saved.data.widgets) || next_widgets;
+    const final_layout = next_layout ? (saved.data && saved.data.layout) || next_layout : undefined;
     data.settle(final_widgets);
-    onCommit(final_widgets);
+    onCommit(final_widgets, undefined, final_layout);
     return { final_widgets, message: saved && saved.message ? saved.message : "" };
+  };
+
+  /**
+   * Moves one widget to a numbered place among the widgets beside it (the
+   * board's top level, or the section it sits in), children following
+   * their parent. The first move freezes the shown order into the array
+   * and marks the board ORDERED, so from then on the array is the order.
+   */
+  const move_widget = async (target, position) => {
+    if (!target) return { ok: false, message: "" };
+    const next_widgets = reorder(widgets, layout, target.id, position);
+    const next_layout = Object.assign({}, layout || {}, { ordered: true });
+    setSavingWidgetId(target.id);
+    try {
+      await save(next_widgets, next_layout);
+      showSuccess(translate("DCS_DB_WIDGET_UPDATED"));
+      return { ok: true, message: "" };
+    } catch (error) {
+      const text = request_error_text(error, translate("DCS_ERROR_GENERIC"));
+      showError(text);
+      return { ok: false, message: text };
+    } finally {
+      setSavingWidgetId(null);
+    }
   };
 
   const update_widget = async (widget_id, changes) => {
@@ -112,5 +139,5 @@ export function useWidgetEdits({ form, widgets, data, translate, showSuccess, sh
     }
   };
 
-  return { saving_widget_id, removing, adding, update_widget, remove_widget, add_widget };
+  return { saving_widget_id, removing, adding, update_widget, remove_widget, add_widget, move_widget };
 }

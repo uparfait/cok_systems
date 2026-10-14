@@ -15,33 +15,28 @@ function delete_uploaded_file(file) {
 }
 
 /**
- * Public, no-auth upload endpoint for a single respondent-provided file
- * (image, video, audio, generic upload, or a signature exported as a PNG
- * blob). Saves straight to disk via the upload.js multer instance - this
- * controller only ever sees the already-written file - and returns a URL
- * the submission JSON references instead of ever embedding file bytes.
- * Re-validates the field's own allowed_file_type_groups/max size (in
- * whatever unit the designer picked, or unlimited if never set) against
- * the exact published version, exactly like submit_response re-validates
- * everything else, so a tampered client can never smuggle in a disallowed
- * file type just because the browser's own <input accept> was bypassed.
+ * The upload itself, against whichever version document load_version
+ * resolves (a form's, or a follow-up form's): the field named in the body
+ * has to exist on that exact version, and the file has to satisfy the
+ * field's own allowed_file_type_groups and max size. Saves nothing itself
+ * - multer already wrote the file - and answers the URL the submission
+ * JSON references instead of ever embedding file bytes.
  */
-async function upload_file(req, res) {
+async function upload_against(req, res, load_version) {
   const file = req.file;
   try {
-    const { form_group_id } = req.params;
     const { version, field_id } = req.body || {};
 
     if (!file) {
       return res.status(400).json(warning_response(req, "FILE_REQUIRED"));
     }
 
-    if (!form_group_id || version === undefined || version === null || !field_id) {
+    if (version === undefined || version === null || !field_id) {
       delete_uploaded_file(file);
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
     }
 
-    const form_version = await forms_model.get_version_document(form_group_id, version);
+    const form_version = await load_version(version);
     if (!form_version) {
       delete_uploaded_file(file);
       return res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
@@ -78,4 +73,26 @@ async function upload_file(req, res) {
   }
 }
 
+/**
+ * Public, no-auth upload endpoint for a single respondent-provided file
+ * (image, video, audio, generic upload, or a signature exported as a PNG
+ * blob). Saves straight to disk via the upload.js multer instance - this
+ * controller only ever sees the already-written file - and returns a URL
+ * the submission JSON references instead of ever embedding file bytes.
+ * Re-validates the field's own allowed_file_type_groups/max size (in
+ * whatever unit the designer picked, or unlimited if never set) against
+ * the exact published version, exactly like submit_response re-validates
+ * everything else, so a tampered client can never smuggle in a disallowed
+ * file type just because the browser's own <input accept> was bypassed.
+ */
+async function upload_file(req, res) {
+  const { form_group_id } = req.params;
+  if (!form_group_id) {
+    delete_uploaded_file(req.file);
+    return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
+  }
+  return upload_against(req, res, (version) => forms_model.get_version_document(form_group_id, version));
+}
+
 module.exports = upload_file;
+module.exports.upload_against = upload_against;

@@ -1,17 +1,30 @@
 import React from "react";
 import { get_field_text } from "./fieldText.js";
+import { FieldSearchButton } from "./base/BaseTextLikeField.jsx";
 
 /**
  * Multi-line free text answer ("Large text") - same label/help/error/valid
  * message chrome as BaseTextLikeField, but a resizable <textarea> instead
- * of a single-line <input>.
+ * of a single-line <input>. onSearch adds the follow-up Search button.
  */
-export default function TextareaField({ field, language, mode, value, onChange, error, ruleValidMessage }) {
+export default function TextareaField({ field, language, mode, value, onChange, error, ruleValidMessage, onSearch }) {
   const is_builder = mode === "builder";
   const label = get_field_text(field.label, language);
   const placeholder = get_field_text(field.placeholder, language);
   const help_text = get_field_text(field.help_text, language);
   const valid_message = ruleValidMessage || (field.mandatory && get_field_text(field.valid_message, language));
+
+  const input = (
+    <textarea
+      className="cok-auth-input w-full py-3"
+      rows={field.rows || 5}
+      placeholder={placeholder}
+      value={value || ""}
+      onChange={(event) => onChange && onChange(event.target.value)}
+      disabled={is_builder}
+      title={help_text || undefined}
+    />
+  );
 
   return (
     <div className="w-full">
@@ -19,15 +32,14 @@ export default function TextareaField({ field, language, mode, value, onChange, 
         {label}
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
-      <textarea
-        className="cok-auth-input w-full py-3"
-        rows={field.rows || 5}
-        placeholder={placeholder}
-        value={value || ""}
-        onChange={(event) => onChange && onChange(event.target.value)}
-        disabled={is_builder}
-        title={help_text || undefined}
-      />
+      {onSearch ? (
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">{input}</div>
+          <FieldSearchButton value={value} onSearch={onSearch} language={language} />
+        </div>
+      ) : (
+        input
+      )}
       {error && (
         <p className="mt-1 text-xs" style={{ color: "#E74C3C", fontFamily: "'Montserrat', sans-serif", whiteSpace: "pre-line" }}>
           {error}

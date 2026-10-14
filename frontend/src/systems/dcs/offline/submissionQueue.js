@@ -112,7 +112,7 @@ function is_pending_upload_value(value) {
  * leaving the remaining files - and the submission itself - untouched for
  * the next retry.
  */
-async function upload_pending_files_for_data(form_group_id, version, data, on_file_progress, on_data_change) {
+export async function upload_pending_files_for_data(form_group_id, version, data, on_file_progress, on_data_change, endpoint) {
   const pending_entries = Object.entries(data || {}).filter(([, value]) => is_pending_upload_value(value));
   if (pending_entries.length === 0) return data;
 
@@ -125,6 +125,7 @@ async function upload_pending_files_for_data(form_group_id, version, data, on_fi
       onProgress: (percent) => {
         if (on_file_progress) on_file_progress({ field_id, percent });
       },
+      endpoint,
     });
     next_data[field_id] = { name: uploaded.name, type: uploaded.type, size: uploaded.size, url: uploaded.url };
     if (on_data_change) await on_data_change(Object.assign({}, next_data));

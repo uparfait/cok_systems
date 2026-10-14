@@ -3,6 +3,7 @@ const Router = require("express").Router();
 const get_submissions = require("../../controllers/submissions/get_submissions.js");
 const delete_submission = require("../../controllers/submissions/delete_submission.js");
 const delete_submissions = require("../../controllers/submissions/delete_submissions.js");
+const { request_delete_code, confirm_delete_code, resend_delete_code } = require("../../controllers/submissions/delete_code.js");
 const get_submission_media = require("../../controllers/submissions/get_submission_media.js");
 const get_field_values = require("../../controllers/submissions/get_field_values.js");
 const export_submissions = require("../../controllers/submissions/export_submissions.js");
@@ -86,7 +87,30 @@ Router.get("/:form_group_id", get_submissions);
  *         description: Submission deleted successfully
  */
 Router.delete("/record/:submission_id", delete_submission);
-// "Delete selected" on the data table: every ticked record in one call.
+/**
+ * @swagger
+ * /dcs/api/submissions/delete-selected/request:
+ *   post:
+ *     summary: Start deleting the ticked records - checks edit rights on every form behind them, then mails the signed-in user a 6-digit code (valid 15 minutes, 5 attempts)
+ *     tags: [Submissions]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Code sent; answers request_id, email_masked and expires_at
+ * /dcs/api/submissions/delete-selected/confirm:
+ *   post:
+ *     summary: Delete exactly the records of a request with its code (401 wrong code, 410 expired or used, 429 too many attempts)
+ *     tags: [Submissions]
+ * /dcs/api/submissions/delete-selected/resend:
+ *   post:
+ *     summary: Mail the same code again, at most once every 30 seconds
+ *     tags: [Submissions]
+ */
+Router.post("/delete-selected/request", request_delete_code);
+Router.post("/delete-selected/confirm", confirm_delete_code);
+Router.post("/delete-selected/resend", resend_delete_code);
+// The code-less "Delete selected" of before: kept so it answers 410 instead of disappearing.
 Router.post("/delete-selected", delete_submissions);
 
 module.exports = Router;

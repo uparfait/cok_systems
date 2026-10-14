@@ -1,5 +1,6 @@
 const { load_form_dashboard_context } = require("../form_context.js");
 const { compute_filter_values } = require("../compute_results.js");
+const { wanted_source } = require("../data_source.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -12,7 +13,8 @@ async function filter_values(req, res) {
   try {
     const { form_group_id } = req.params;
     if (!form_group_id) return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
-    const context = await load_form_dashboard_context(req.user, form_group_id);
+    // Reads the records the body names (source or dashboard_id), the form's own by default.
+    const context = await load_form_dashboard_context(req.user, form_group_id, wanted_source(req));
     if (!context.found) return res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
     if (!context.allowed) return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     const result = await compute_filter_values(req.body || {}, form_group_id, context.form_version);

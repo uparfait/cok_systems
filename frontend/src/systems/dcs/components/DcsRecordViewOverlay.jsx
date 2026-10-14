@@ -89,7 +89,12 @@ function AnswersTab({ entries, translate, editableIds }) {
 
 const when = (value) => (value ? new Date(value).toLocaleString() : "-");
 
-export default function DcsRecordViewOverlay({ record, fields, tracking, onClose, onEdit }) {
+/**
+ * noApproval drops the approval tab and meta (follow-up records have no
+ * approval flow); title replaces the heading; footer replaces the Edit
+ * footer with the caller's own buttons.
+ */
+export default function DcsRecordViewOverlay({ record, fields, tracking, onClose, onEdit, noApproval, title, footer }) {
   const { language, translate } = useDcsLanguage();
   const tracked = is_tracking_enabled(tracking);
   const [tab, setTab] = useState("answers");
@@ -100,27 +105,28 @@ export default function DcsRecordViewOverlay({ record, fields, tracking, onClose
   const change_count = Math.max(0, (record.history || []).length - 1);
   const answered = flatten_fields(fields || []).filter((field) => !NON_DATA_TYPES.includes(field.type) && !is_empty((record.data || {})[field.id])).length;
 
-  const tabs = [
-    { key: "answers", label: `${translate("DCS_RECORD_VIEW_SECTION_ANSWERS")} (${answered})` },
-    { key: "approval", label: translate("DCS_TABLE_APPROVAL") },
-  ];
+  const tabs = [{ key: "answers", label: `${translate("DCS_RECORD_VIEW_SECTION_ANSWERS")} (${answered})` }];
+  if (!noApproval) tabs.push({ key: "approval", label: translate("DCS_TABLE_APPROVAL") });
   // The history only exists once something was changed after the record was made.
   if (change_count > 0) tabs.push({ key: "history", label: `${translate("DCS_TRACKING_TABLE_HISTORY")} (${change_count})` });
+  const heading = title || translate("DCS_RECORD_VIEW_TITLE");
 
   return createPortal(
-    <div className="dcs-tracking-overlay dcs-no-print" role="dialog" aria-modal="true" aria-label={translate("DCS_RECORD_VIEW_TITLE")}>
+    <div className="dcs-tracking-overlay dcs-no-print" role="dialog" aria-modal="true" aria-label={heading}>
       <div className="absolute inset-0 bg-black/45" onClick={onClose} />
       <div className="dcs-tracking-panel">
-        <DcsOverlayHeader title={translate("DCS_RECORD_VIEW_TITLE")} subtitle={when(record.submitted_at)} onClose={onClose} />
+        <DcsOverlayHeader title={heading} subtitle={when(record.submitted_at)} onClose={onClose} />
 
         <div className="dcs-record-meta flex-shrink-0">
           <MetaItem label={translate("DCS_TABLE_SUBMITTED_AT")}>{when(record.submitted_at)}</MetaItem>
           <MetaItem label={translate("DCS_TRACKING_TABLE_UPDATED_AT")}>{when(record.updated_at)}</MetaItem>
           <MetaItem label={translate("DCS_TABLE_SUBMITTED_BY")}>{format_respondent(record.respondent) || "-"}</MetaItem>
-          <MetaItem label={translate("DCS_TABLE_APPROVAL")}>
-            {approval_key ? translate(approval_key) : "-"}
-            {record.approval_progress && record.approval_progress.total > 0 ? ` (${record.approval_progress.approved}/${record.approval_progress.total})` : ""}
-          </MetaItem>
+          {!noApproval && (
+            <MetaItem label={translate("DCS_TABLE_APPROVAL")}>
+              {approval_key ? translate(approval_key) : "-"}
+              {record.approval_progress && record.approval_progress.total > 0 ? ` (${record.approval_progress.approved}/${record.approval_progress.total})` : ""}
+            </MetaItem>
+          )}
           <MetaItem label={translate("DCS_TABLE_VERSION")}>{String(record.version || "-")}</MetaItem>
         </div>
 
@@ -134,16 +140,18 @@ export default function DcsRecordViewOverlay({ record, fields, tracking, onClose
 
         <div className="flex-1 min-h-0 overflow-y-auto px-4 min-[560px]:px-6 py-4">
           {tab === "answers" && <AnswersTab entries={entries} translate={translate} editableIds={editable_ids} />}
-          {tab === "approval" && <ApprovalDetailsBody submission_id={record._id} />}
+          {tab === "approval" && !noApproval && <ApprovalDetailsBody submission_id={record._id} />}
           {tab === "history" && change_count > 0 && <RecordHistorySlides record={record} fields={fields} />}
         </div>
 
-        {onEdit && (
+        {footer ? (
+          <div className="dcs-tracking-footer">{footer}</div>
+        ) : onEdit ? (
           <div className="dcs-tracking-footer">
             <span className="flex-1" />
             <DcsButtonPrimary onClick={onEdit}>{translate("DCS_TABLE_EDIT_RECORD")}</DcsButtonPrimary>
           </div>
-        )}
+        ) : null}
       </div>
     </div>,
     document.body,

@@ -29,8 +29,17 @@ function media_entries_expression(field_ids) {
   return field_ids.map((field_id) => ({ field_id, value: `$data.${field_id}` }));
 }
 
-function build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking) {
-  const match = Object.assign({ form_group_id }, stage_prefilter(date_bounds, tracking));
+/**
+ * The rows of one SIDE of the gallery: { collection, match, field_ids,
+ * date_bounds, filters, tracking, source, follow_up_group_id }. A form's
+ * own records are one side; its follow-up's records are another, read
+ * from their own collection and tagged so a tile knows which table it
+ * opens. Every row carries sort_at and its position inside its record,
+ * so several sides can be ordered together after a $unionWith.
+ */
+function side_stages(side) {
+  const { field_ids, date_bounds, filters, tracking } = side;
+  const match = Object.assign({}, side.match, stage_prefilter(date_bounds, tracking));
   const value_filter = {};
   apply_value_filters(value_filter, filters);
   const has_value_filter = Object.keys(value_filter).length > 0;
@@ -46,7 +55,7 @@ function build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking
     ...(has_value_filter ? [{ $match: value_filter }] : []),
     { $sort: { [time_field(tracking)]: -1, _id: -1 } },
     { $project: { submitted_at: 1, [STAGE_AT]: 1, version: 1, respondent: 1, entries: media_entries_expression(field_ids) } },
-    { $unwind: "$entries" },
+    { $unwind: { path: "$entries", includeArrayIndex: "entry_index" } },
     // A field may hold one answer or a list of them; both continue as a list.
     {
       $addFields: {
@@ -55,7 +64,7 @@ function build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking
         },
       },
     },
-    { $unwind: "$entries.values" },
+    { $unwind: { path: "$entries.values", includeArrayIndex: "value_index" } },
     { $match: { "entries.values": { $ne: null } } },
     {
       $addFields: {
@@ -81,27 +90,63 @@ function build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking
       },
     },
     {
-      $facet: {
-        items: [
-          { $skip: 0 },
-          {
-            $project: {
-              _id: 0,
-              submission_id: "$_id",
-              field_id: "$entries.field_id",
-              url: "$media_url",
-              name: "$media_name",
-              type: "$media_type",
-              version: 1,
-              submitted_at: 1,
-              respondent: 1,
-            },
-          },
-        ],
-        total_count: [{ $count: "count" }],
+      $project: {
+        _id: 0,
+        submission_id: "$_id",
+        field_id: "$entries.field_id",
+        url: "$media_url",
+        name: "$media_name",
+        type: "$media_type",
+        version: 1,
+        submitted_at: 1,
+        respondent: 1,
+        source: { $literal: side.source || "form" },
+        // A missing path projects to nothing: a form's own row carries no
+        // follow_up_group_id at all, and the controller reads that as null.
+        follow_up_group_id: side.follow_up_group_id ? { $literal: side.follow_up_group_id } : "$follow_up_group_id",
+        sort_at: `$${time_field(tracking)}`,
+        entry_index: 1,
+        value_index: 1,
       },
     },
   ];
+}
+
+/**
+ * One page of media over one or several sides (see side_stages). The
+ * first side is read directly and every other one joins it through
+ * $unionWith; with more than one side the rows are ordered together
+ * (newest first, then by their place inside their record) before the
+ * page is cut, so a form's pictures and its follow-up's pictures
+ * interleave by date instead of one source coming before the other.
+ */
+async function list_media(sides, skip, limit) {
+  const live = (sides || []).filter((side) => side && Array.isArray(side.field_ids) && side.field_ids.length > 0);
+  if (live.length === 0) return { items: [], total: 0 };
+  const [first, ...others] = live;
+  const pipeline = side_stages(first).concat(
+    others.map((side) => ({ $unionWith: { coll: side.collection, pipeline: side_stages(side) } })),
+    others.length > 0 ? [{ $sort: { sort_at: -1, submission_id: -1, entry_index: 1, value_index: 1 } }] : [],
+    [
+      {
+        $facet: {
+          items: [{ $skip: skip }, { $limit: limit }, { $project: { sort_at: 0, entry_index: 0, value_index: 0 } }],
+          total_count: [{ $count: "count" }],
+        },
+      },
+    ],
+  );
+
+  const [result] = await get_db().collection(first.collection).aggregate(pipeline, { allowDiskUse: true }).toArray();
+  return {
+    items: (result && result.items) || [],
+    total: (result && result.total_count && result.total_count[0] && result.total_count[0].count) || 0,
+  };
+}
+
+/** The form's own side of the gallery, as list_media reads it. */
+function form_media_side(form_group_id, field_ids, date_bounds, filters, tracking) {
+  return { collection: COLLECTION_NAME, match: { form_group_id }, field_ids, date_bounds, filters, tracking, source: "form", follow_up_group_id: null };
 }
 
 /**
@@ -109,16 +154,7 @@ function build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking
  * resolved from its schemas by the caller.
  */
 async function list_media_answers(form_group_id, field_ids, skip, limit, date_bounds, filters, tracking) {
-  if (!field_ids || field_ids.length === 0) return { items: [], total: 0 };
-  const pipeline = build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking);
-  const facet = pipeline[pipeline.length - 1].$facet;
-  facet.items = [{ $skip: skip }, { $limit: limit }].concat(facet.items.slice(1));
-
-  const [result] = await get_db().collection(COLLECTION_NAME).aggregate(pipeline, { allowDiskUse: true }).toArray();
-  return {
-    items: (result && result.items) || [],
-    total: (result && result.total_count && result.total_count[0] && result.total_count[0].count) || 0,
-  };
+  return list_media([form_media_side(form_group_id, field_ids, date_bounds, filters, tracking)], skip, limit);
 }
 
-module.exports = { list_media_answers };
+module.exports = { list_media_answers, list_media, form_media_side };

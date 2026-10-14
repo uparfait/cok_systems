@@ -65,7 +65,7 @@ export function new_canvas_widget(form, title, parent_id) {
   };
 }
 
-export function useBoardCanvas({ form, editable, isDark, arranging, studio, onAdd, onSettings, onReconfigure, onAddWidget, onAddText, onRemove }) {
+export function useBoardCanvas({ form, editable, isDark, arranging, studio, onAdd, onSettings, onReconfigure, onPosition, onAddWidget, onAddText, onRemove }) {
   const { translate } = useDcsLanguage();
   const [menu, setMenu] = useState(null);
   const close = useCallback(() => setMenu(null), []);
@@ -126,6 +126,8 @@ export function useBoardCanvas({ form, editable, isDark, arranging, studio, onAd
         editable && onAddText && (!target || is_canvas) ? { key: "text", labelKey: "DCS_DB_CANVAS_ADD_TEXT", onPick: () => onAddText(is_canvas ? target : null) } : null,
         editable && target && onSettings ? { key: "settings", labelKey: "DCS_DB_COLOR_SETTINGS", onPick: () => onSettings(target) } : null,
         editable && target && !is_canvas && onReconfigure ? { key: "reconfigure", labelKey: "DCS_DB_RECONFIGURE", onPick: () => onReconfigure(target) } : null,
+        // Where the widget sits among the others, as a number.
+        editable && target && onPosition ? { key: "position", labelKey: "DCS_DB_CHANGE_POSITION", onPick: () => onPosition(target) } : null,
         // Last, because it is the one that cannot be taken back. A section
         // that still holds widgets is refused with a count of them.
         editable && target && onRemove ? { key: "remove", labelKey: "DCS_DB_REMOVE_WIDGET", onPick: () => onRemove(target) } : null,

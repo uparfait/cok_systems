@@ -211,3 +211,86 @@ Status legend: [ ] to do, [x] done.
 - [x] E7 Admin dashboard: every card figure comes from the backend as a real number, nothing counted in the browser
 - [x] E8 Visitors page order: in house and not yet sent to a department first (newest first), then in house and sent,
       then not in house
+
+## Round 3 (2026-10-14): widget positions, delete by email code, follow-up forms
+
+Decisions taken (tell me if any should change)
+- Widget order: a board keeps the "KPI cards first, then charts" look until someone changes a position; from then on
+  the saved array order is the order on the board (any widget anywhere). Marked by layout.ordered = true.
+- Deleting records on the form data page (/data): the Delete selected action sends a 6-digit code to the signed-in
+  user's email; the deletion runs only with that code. Codes expire after 15 minutes, 5 attempts.
+- Follow-up form: one per form, its own versions, its own public link, its own data collection
+  (dcs_follow_up_submissions). Records are found from the ACTUAL form's data, loaded into the follow-up form, edited and
+  saved as a NEW follow-up record; the actual record is never changed. Dashboards choose their source when created.
+
+### P. Widget position (dashboard)
+- [x] P1 Widget menu item "Change position" (editors only) in the card menu of every widget and in the canvas widget
+      menu: opens an overlay showing "This dashboard has N widgets", the widget's current position, an input 1..N and
+      Save; the widget moves to that position (any widget, KPI or chart, first to last or last to first)
+- [x] P2 Board order: the saved widgets array order is the board order once layout.ordered is true; boards without it
+      keep KPI-first; the first position change normalises the array to the shown order, moves, saves ordered = true
+- [x] P3 Backend sanitize_board_layout keeps ordered (boolean); public share boards follow the same rule
+
+### D. Delete with an email code (form data page)
+- [x] D1 POST /dcs/api/submissions/delete-selected/request {submission_ids} -> creates dcs_deletion_requests
+      {user_id, email, submission_ids, code, attempts, expires_at, used_at}, emails the code, answers
+      {request_id, email_masked, expires_at} (code echoed outside production only, like batch approval OTP)
+- [x] D2 POST /dcs/api/submissions/delete-selected/confirm {request_id, code} -> verifies (owner, expiry, attempts),
+      deletes with the existing permission check, marks used; POST .../resend re-sends the same code
+- [x] D3 Frontend: Delete selected opens a two-step overlay (DCS design, circled close, no Cancel): "A code was sent to
+      a***@x.rw", code input, Delete button, resend link, error texts; en/fr/kn
+
+### F. Follow-up form
+API contract (both agents follow it exactly):
+- Collection dcs_follow_up_forms: one document per version
+  { follow_up_group_id (uuid), source_form_group_id, project_id, version, is_active, form_name, form_name_normalized,
+    schema {fields}, ask_respondent, created_by, created_by_name, updated_by, updated_by_name, created_at, updated_at }
+- Collection dcs_follow_up_submissions:
+  { follow_up_group_id, version, source_form_group_id, source_submission_id (ObjectId|null), project_id, data,
+    submitted_at, updated_at, respondent, client_submission_id, media like dcs_submissions }
+- Authenticated routes (same auth as /forms, editors = resolve_form_management(source form).edit_forms, viewers = can_view_form_group):
+  GET    /dcs/api/forms/:form_group_id/follow-up                 -> { follow_up: active version | null, versions: [...] }
+  POST   /dcs/api/forms/:form_group_id/follow-up                 -> creates version 1 from the source's active version
+                                                                     (name "<form name> follow-up", same schema) ; 409 if exists
+  PUT    /dcs/api/forms/:form_group_id/follow-up                 {form_name, schema, ask_respondent}
+                                                                  -> new version when the data field set changed, else in place
+  PUT    /dcs/api/forms/:form_group_id/follow-up/active-version  {version}
+  DELETE /dcs/api/forms/:form_group_id/follow-up/versions/:version {delete_data}
+  GET    /dcs/api/forms/:form_group_id/follow-up/submissions     ?page&limit&period&from&to&search&sort&record
+                                                                  -> same shape as GET /submissions/:fg
+  GET    /dcs/api/forms/:form_group_id/follow-up/submissions/:id -> one record (with source_submission_id)
+  PUT    /dcs/api/forms/:form_group_id/follow-up/submissions/:id {data} -> validated like a submission, updated_at
+  POST   /dcs/api/forms/:form_group_id/follow-up/submissions/delete-selected {submission_ids}
+  GET    /dcs/api/forms/:form_group_id/follow-up/media           ?page&limit&period&from&to -> same shape as /submissions/:fg/media
+  GET    /dcs/api/submissions/:form_group_id/media?scope=all     -> source + follow-up media, each item carries
+                                                                     source: "form" | "follow_up" and follow_up_group_id
+- Public routes (no auth):
+  GET    /dcs/api/public/follow-up-forms/:follow_up_group_id     -> { follow_up_group_id, source_form_group_id, form_name,
+                                                                     version, schema, ask_respondent, searchable_field_ids }
+                                                                     searchable = text, number, large_text fields of the ACTIVE
+                                                                     source version that also exist in the follow-up schema
+  GET    /dcs/api/public/follow-up-forms/:id/search?field=&q=&page=  -> source form records whose data[field] contains q
+                                                                     (number: equals), 20 per page, { items:[{_id, submitted_at,
+                                                                     data}], page, pages, total }
+  GET    /dcs/api/public/follow-up-forms/:id/records/:submission_id -> one source record { _id, data, submitted_at }
+  POST   /dcs/api/public/follow-up-forms/:id/submit {version, data, source_submission_id, client_submission_id, respondent}
+                                                                  -> validate_submission_data with the follow-up schema; insert
+  GET/PUT /dcs/api/public/follow-up-records/:id                   -> edit page for one follow-up record (like /public/records/:id)
+- Dashboards: dashboard document gains source: "form" | "follow_up" (default "form") and follow_up_group_id.
+  POST /forms/:fg/dashboards {name, source}. A follow_up dashboard validates widgets against the follow-up's active schema
+  and every pipeline reads dcs_follow_up_submissions (match on follow_up_group_id). GET /forms/:fg/dashboards items carry
+  source. The public link context carries the same.
+- Public link of the follow-up form: /dcs-form/follow-up/:follow_up_group_id ; edit: /dcs-form/follow-up/edit/:id
+- Pages: /dcs-system/project/:project_id/forms/:form_group_id/follow-up (tabs table | gallery | settings via ?tab=)
+
+- [x] F1 Backend: models follow_up_forms_model.js, follow_up_submissions_model.js; controllers under
+      controllers/follow_up/; routes added to routes/forms (authenticated) and routes/public; media scope=all; dashboards
+      source; tests in dc_backend/tests/follow_up.test.js (mongodb-memory-server like the other tests)
+- [x] F2 Frontend: sidebar link "Follow up form" under Form overview; FollowUpPage with tabs Table / Gallery / Settings
+      (create button when none exists); table = all-data table over follow-up submissions with view, edit, delete;
+      gallery = follow-up media only; settings = name + builder + ask respondent + public link + versions (activate /
+      delete); PublicFormPage follow-up mode: search control on text/number/textarea fields -> results overlay (20 per
+      page, Next) -> record overlay -> "Load into the form" -> edit -> Save as follow-up record; edit page for follow-up
+      records; sidebar Gallery shows all (source + follow-up) and a tile opens the right table; Add dashboard asks
+      "Form data" or "Follow-up data" when a follow-up form exists
+- [x] F3 Lead: build, suites, independent review of P, D, F
