@@ -2,8 +2,6 @@ export const is_ordered = (layout) => !!(layout && layout.ordered === true);
 
 const parent_of = (widget) => widget.parent_id || null;
 
-const is_kpi = (widget) => widget.chart_type === "kpi";
-
 export function hidden_by_filters(entry) {
   if (!entry || entry.error || entry.locked || !Array.isArray(entry.board_context) || entry.board_context.length === 0) return false;
   if (entry.kind === "table") return false;
@@ -13,9 +11,12 @@ export function hidden_by_filters(entry) {
 }
 
 export function siblings_of(widgets, layout, parent_id) {
-  const list = widgets.filter((widget) => parent_of(widget) === (parent_id || null));
-  if (parent_id || is_ordered(layout)) return list;
-  return list.filter(is_kpi).concat(list.filter((widget) => !is_kpi(widget)));
+  const rank = (widget, index) => (Number.isInteger(widget.position) ? widget.position : index);
+  return widgets
+    .map((widget, index) => ({ widget, index }))
+    .filter(({ widget }) => parent_of(widget) === (parent_id || null))
+    .sort((a, b) => rank(a.widget, a.index) - rank(b.widget, b.index) || a.index - b.index)
+    .map(({ widget }) => widget);
 }
 
 export const board_order = (widgets, layout) => siblings_of(widgets, layout, null);

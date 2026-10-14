@@ -89,7 +89,6 @@ function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange,
   const board = useBoardTheme();
   const tint = portal_tint(useBoardColors());
   const [mode, setMode] = useState(from && to && from === to ? "day" : "range");
-  const [with_time, setWithTime] = useState(has_time(from) || has_time(to));
   const [local_from, setLocalFrom] = useState(from || "");
   const [local_to, setLocalTo] = useState(to || "");
 
@@ -100,7 +99,6 @@ function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange,
   useEffect(() => {
     if (!open) return;
     setMode(from && to && from === to ? "day" : "range");
-    setWithTime(has_time(from) || has_time(to));
     setLocalFrom(from || "");
     setLocalTo(to || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,14 +110,6 @@ function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange,
     if (!is_open) onCancel();
   };
 
-  // Turning the time off keeps the days that were picked; turning it on
-  // starts each moment at the beginning of its day.
-  const change_with_time = (on) => {
-    setWithTime(on);
-    setLocalFrom((current) => (current ? (on ? `${day_part(current)}T00:00:00` : day_part(current)) : current));
-    setLocalTo((current) => (current ? (on ? `${day_part(current)}T23:59:59` : day_part(current)) : current));
-  };
-
   const handle_apply = () => {
     const next_from = mode === "day" ? day_part(local_from) : period_moment(local_from);
     const next_to = mode === "day" ? day_part(local_from) : period_moment(local_to);
@@ -129,9 +119,11 @@ function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange,
     onOpenChange(false);
   };
 
-  const input_type = mode === "range" && with_time ? "datetime-local" : "date";
+  // A range always carries the time of day, to the second: a day picked
+  // without one starts at 00:00:00 and ends at 23:59:59.
+  const input_type = mode === "range" ? "datetime-local" : "date";
   const from_value = input_type === "date" ? day_part(local_from) : period_input_value(local_from);
-  const to_value = input_type === "date" ? day_part(local_to) : period_input_value(local_to);
+  const to_value = input_type === "date" ? day_part(local_to) : local_to && !has_time(local_to) ? `${day_part(local_to)}T23:59:59` : period_input_value(local_to);
 
   return (
     <Dialog.Root open={open} onOpenChange={handle_open_change}>
@@ -164,10 +156,6 @@ function CustomDatePopup({ open, onOpenChange, onCancel, from, to, onFromChange,
               <PickerInput label={translate("DCS_PERIOD_DAY_LABEL")} type="date" value={day_part(local_from)} onChange={setLocalFrom} />
             ) : (
               <>
-                <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ fontFamily: FONT, color: TEXT }}>
-                  <input type="checkbox" checked={with_time} onChange={(event) => change_with_time(event.target.checked)} style={{ accentColor: PRIMARY }} />
-                  {translate("DCS_PERIOD_WITH_TIME")}
-                </label>
                 <PickerInput label={translate("DCS_PERIOD_FROM")} type={input_type} value={from_value} onChange={setLocalFrom} />
                 <PickerInput label={translate("DCS_PERIOD_TO")} type={input_type} value={to_value} onChange={setLocalTo} />
               </>

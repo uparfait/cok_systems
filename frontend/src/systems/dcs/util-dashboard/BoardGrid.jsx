@@ -18,9 +18,9 @@ import { board_order, hidden_by_filters } from "./boardOrder.js";
 const ROW_BREAK = { flexBasis: "100%", height: 0 };
 
 /**
- * The board itself: ONE flowing grid, KPI cards first and then the charts
- * until the board is ORDERED (layout.ordered), when the saved order rules,
- * each widget claiming the share of a row its own size asks for (see
+ * The board itself: ONE flowing grid in the order of the widgets' saved
+ * positions (Change position in a widget's menu inserts it at the typed
+ * place and shifts the others; see boardOrder.js), each widget claiming the share of a row its own size asks for (see
  * boardRows.js) and taking a new row only when it genuinely does not fit
  * in what is left of the current one. Whatever a row ends up holding
  * widens evenly to fill it, so no gap is ever left at the end - and
