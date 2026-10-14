@@ -1,6 +1,6 @@
 const { get_db } = require("../db_connection/db.js");
 const { to_object_id } = require("../utilities/object_id.js");
-const { key_ids_of, key_fields_of, key_fields_version } = require("../utilities/tracking.js");
+const { key_ids_of, key_fields_of, key_fields_version, seed_baseline } = require("../utilities/tracking.js");
 
 const COLLECTION_NAME = "dcs_submissions";
 const FORMS_COLLECTION = "dcs_forms";
@@ -46,7 +46,7 @@ async function ensure_tracked_record_indexes() {
 async function stamp_keys_from_data(tracking, filter) {
   if (key_ids_of(tracking).length === 0) return 0;
   const collection = get_db().collection(COLLECTION_NAME);
-  const cursor = collection.find(filter, { projection: { data: 1 } }).batchSize(STAMP_BATCH);
+  const cursor = collection.find(filter, { projection: { data: 1, submitted_at: 1, history: 1, tracking_periods: 1 } }).batchSize(STAMP_BATCH);
   let stamped = 0;
   let operations = [];
   const flush = async () => {
@@ -56,7 +56,14 @@ async function stamp_keys_from_data(tracking, filter) {
     operations = [];
   };
   for await (const record of cursor) {
-    operations.push({ updateOne: { filter: { _id: record._id }, update: { $set: key_fields_of(tracking, record.data || {}) } } });
+    const set = key_fields_of(tracking, record.data || {});
+    // A record collected before the form tracked it also gets its initial
+    // state: the "created" entry and the first period of every updatable
+    // field, so its history starts where it really started.
+    const baseline = seed_baseline(tracking, record);
+    if (baseline.created_added) set.history = baseline.history;
+    if (baseline.periods_added) set.tracking_periods = baseline.tracking_periods;
+    operations.push({ updateOne: { filter: { _id: record._id }, update: { $set: set } } });
     if (operations.length >= STAMP_BATCH) await flush();
   }
   await flush();
@@ -264,7 +271,12 @@ async function apply_record_update(submission_id, patch) {
     version: patch.version,
   };
   if (patch.approval !== undefined) set.approval = patch.approval;
-  const update = { $set: set, $push: { history: patch.history_entry } };
+  const update = { $set: set };
+  // A record whose baseline was seeded on this very update (its "created"
+  // entry added before the new one) writes its whole history; any other
+  // appends the entry.
+  if (Array.isArray(patch.history)) set.history = patch.history;
+  else update.$push = { history: patch.history_entry };
   if (patch.clear_request) update.$unset = { approval_request_id: "" };
   const result = await get_db().collection(COLLECTION_NAME).updateOne({ _id: object_id }, update);
   return result.matchedCount > 0;
@@ -292,12 +304,17 @@ function to_public_record(record) {
     submitted_at: record.submitted_at,
     updated_at: record.updated_at || null,
     data: record.data || {},
-    history: history.map((entry) => ({
-      at: entry.at,
-      kind: entry.kind,
-      by: entry.by && entry.by.name ? { name: entry.by.name } : null,
-      changes: Array.isArray(entry.changes) ? entry.changes : [],
-    })),
+    history: history.map((entry) => {
+      const view = {
+        at: entry.at,
+        kind: entry.kind,
+        by: entry.by && entry.by.name ? { name: entry.by.name } : null,
+        changes: Array.isArray(entry.changes) ? entry.changes : [],
+      };
+      // A correction of the past says which moment it corrected.
+      if (entry.as_of) view.as_of = entry.as_of;
+      return view;
+    }),
     tracking_periods: record.tracking_periods || {},
   };
 }

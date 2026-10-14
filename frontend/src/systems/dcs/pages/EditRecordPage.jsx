@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
@@ -16,7 +16,7 @@ import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
-import { is_tracking_enabled } from "../tracking/trackingConfig.js";
+import { is_tracking_enabled, change_count } from "../tracking/trackingConfig.js";
 import { RecordHistorySlidesOverlay } from "../tracking/RecordHistorySlides.jsx";
 
 const FONT = "'Montserrat', sans-serif";
@@ -65,10 +65,8 @@ function EditRecordPageContent() {
   const [field_valid_messages, setFieldValidMessages] = useState({});
   const [reveal_all_errors, setRevealAllErrors] = useState(false);
   const [saving, setSaving] = useState(false);
-  // "" means the record as it stands now; any other value is one of its
-  // own history moments, shown read-only so a past state can be looked at
-  // without being mistaken for what saving would write.
-  const [as_of, setAsOf] = useState("");
+  const [search_params] = useSearchParams();
+  const [as_of, setAsOf] = useState(() => search_params.get("as_of") || "");
   const [edits_open, setEditsOpen] = useState(false);
 
   const { resolveFieldOptions } = useLazyFieldResolvers("public_form", form ? form.form_group_id : "", get_public_form_field_options);
@@ -91,15 +89,22 @@ function EditRecordPageContent() {
     };
   }, [id]);
 
-  const moments = useMemo(() => (record ? history_moments(record) : []), [record]);
-  const edit_count = record ? Math.max(0, (record.history || []).length - 1) : 0;
+  const moments = useMemo(() => {
+    const list = record ? history_moments(record) : [];
+    return as_of && !list.includes(as_of) ? [as_of].concat(list) : list;
+  }, [record, as_of]);
+  const edit_count = record ? change_count(record) : 0;
   const is_tracked = !!record && !!form && is_tracking_enabled(form.tracking);
   const is_past_view = as_of !== "";
+  const as_of_label = is_past_view ? new Date(as_of).toLocaleString() : "";
 
-  const shown_values = useMemo(() => {
-    if (!record || !is_past_view) return values;
-    return values_as_of(record, new Date(as_of));
-  }, [record, as_of, is_past_view, values]);
+  useEffect(() => {
+    if (!record || !form) return;
+    const base = is_past_view ? values_as_of(record, new Date(as_of)) : record.data || {};
+    setValues(compute_derived_values(form.schema, base));
+    setFieldErrors({});
+    setRevealAllErrors(false);
+  }, [record, form, as_of]);
 
   const handle_value_change = (field_id, next_value) => {
     setValues((previous_values) => {
@@ -135,15 +140,11 @@ function EditRecordPageContent() {
 
     setSaving(true);
     try {
-      const response = await update_public_record_full(id, { data: validation_result.resolved_data, respondent: record.respondent || null });
-      // The page stays open on the record as it now is - the new answers,
-      // the fresh history - rather than closing on the person mid-work.
+      const options = is_past_view ? { as_of: new Date(as_of).toISOString() } : undefined;
+      const response = await update_public_record_full(id, { data: validation_result.resolved_data, respondent: record.respondent || null }, options);
       const saved = response.data || {};
       const next_record = Object.assign({}, record, saved, { respondent: record.respondent || null });
       setRecord(next_record);
-      setValues(compute_derived_values(form.schema, next_record.data || {}));
-      setFieldErrors({});
-      setRevealAllErrors(false);
       showSuccess(response.message || translate("DCS_EDIT_RECORD_SAVED"));
     } catch (error) {
       if (error && error.field_errors) {
@@ -230,13 +231,19 @@ function EditRecordPageContent() {
             </div>
           )}
 
-          <div style={saving || is_past_view ? { pointerEvents: "none", opacity: is_past_view ? 0.75 : 0.6 } : undefined}>
+          {is_past_view && (
+            <p className="mb-3 text-xs px-3 py-2" style={{ color: PRIMARY, backgroundColor: "rgba(5,109,170,0.08)", fontFamily: FONT }}>
+              {translate("DCS_EDIT_RECORD_CORRECTING_NOTE", { when: as_of_label })}
+            </p>
+          )}
+
+          <div style={saving ? { pointerEvents: "none", opacity: 0.6 } : undefined}>
             <MediaUploadProvider formGroupId={form.form_group_id} version={form.version} isOnline keepFiles>
               <RendererEngine
                 key={as_of || "now"}
                 schema={form.schema}
                 mode="renderer"
-                values={shown_values}
+                values={values}
                 onValueChange={handle_value_change}
                 fieldErrors={field_errors}
                 fieldValidMessages={field_valid_messages}
@@ -255,18 +262,12 @@ function EditRecordPageContent() {
             ) : (
               <>
                 <DcsButtonOutline onClick={leave}>{translate("DCS_BTN_CANCEL")}</DcsButtonOutline>
-                <DcsButtonPrimary onClick={handle_save} disabled={is_past_view}>
-                  {translate("DCS_EDIT_RECORD_SAVE")}
+                <DcsButtonPrimary onClick={handle_save}>
+                  {is_past_view ? translate("DCS_EDIT_RECORD_SAVE_CORRECTION", { when: as_of_label }) : translate("DCS_EDIT_RECORD_SAVE")}
                 </DcsButtonPrimary>
               </>
             )}
           </div>
-
-          {is_past_view && (
-            <p className="mt-2 text-xs text-center" style={{ color: PRIMARY, fontFamily: FONT }}>
-              {translate("DCS_EDIT_RECORD_AS_OF")} {new Date(as_of).toLocaleString()}
-            </p>
-          )}
         </div>
       </div>
 

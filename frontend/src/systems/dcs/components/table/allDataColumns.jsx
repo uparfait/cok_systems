@@ -7,6 +7,7 @@ import DcsDataTableGeoCell, { GEO_CELL_TABLE_MIN_WIDTH_PX } from "../DcsDataTabl
 import { approval_status_label_key } from "../DcsApprovalStatusChip.jsx";
 import { format_respondent } from "../../offline/respondentStore.js";
 import { RecordHistoryButton } from "../../tracking/RecordHistoryDialog.jsx";
+import { change_count } from "../../tracking/trackingConfig.js";
 import DcsRowActionsCell from "./DcsRowActionsCell.jsx";
 
 const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group", "image_block", "horizontal_line"];
@@ -136,6 +137,13 @@ function approval_cell(submission, translate) {
   );
 }
 
+export function edit_record_url(submission) {
+  const base = `/dcs-form/edit/${submission._id}`;
+  if (!submission.as_of) return base;
+  const instant = new Date(submission.as_of);
+  return Number.isNaN(instant.getTime()) ? base : `${base}?as_of=${encodeURIComponent(instant.toISOString())}`;
+}
+
 export function build_rows({ submissions, field_type_by_id, translate, on_history_click, selected_set, on_select_change, on_view, on_edit }) {
   return (submissions || []).map((submission) => {
     const row = {
@@ -153,8 +161,8 @@ export function build_rows({ submissions, field_type_by_id, translate, on_histor
     );
 
     row.updated_at = submission.updated_at ? new Date(submission.updated_at).toLocaleString() : "-";
-    const change_count = Math.max(0, (submission.history || []).length - 1);
-    row.history = on_history_click && change_count > 0 ? <RecordHistoryButton onClick={() => on_history_click(submission)} count={change_count} /> : "-";
+    const changes = change_count(submission);
+    row.history = on_history_click && changes > 0 ? <RecordHistoryButton onClick={() => on_history_click(submission)} count={changes} /> : "-";
 
     field_type_by_id.forEach((field_type, field_id) => {
       row[field_id] = answer_cell(field_type, submission.data ? submission.data[field_id] : undefined);

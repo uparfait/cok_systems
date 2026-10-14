@@ -55,7 +55,7 @@ function parse_filters(raw) {
 async function get_submission_media(req, res) {
   try {
     const { form_group_id } = req.params;
-    const { page = 1, limit = DEFAULT_PAGE_SIZE, period = "all", from, to, filters } = req.query || {};
+    const { page = 1, limit = DEFAULT_PAGE_SIZE, period = "all", from, to, filters, search } = req.query || {};
 
     if (!form_group_id) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
@@ -88,6 +88,9 @@ async function get_submission_media(req, res) {
       bounds,
       parse_filters(filters),
       tracking,
+      // The gallery's free-text search: the same match over every answer
+      // the data table applies, so both show the same records.
+      typeof search === "string" ? search.trim() : "",
     );
 
     const label_by_field = new Map(media_fields.map((field) => [field.field_id, field.label]));

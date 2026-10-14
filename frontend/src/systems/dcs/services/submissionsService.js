@@ -214,6 +214,7 @@ export function get_submission_media(form_group_id, page, limit, options) {
   if (options && options.filters && Object.keys(options.filters).length > 0) {
     params.append("filters", JSON.stringify(options.filters));
   }
+  if (options && options.search && String(options.search).trim()) params.append("search", String(options.search).trim());
   return dcs_request(`/submissions/${form_group_id}/media?${params.toString()}`, "GET");
 }
 
@@ -252,6 +253,7 @@ export function get_public_record(submission_id) {
  * change, the answers are re-validated against the record's own version,
  * and the change is written into the record's history.
  */
-export function update_public_record_full(submission_id, payload) {
-  return dcs_request(`/public/records/${submission_id}`, "PUT", payload);
+export function update_public_record_full(submission_id, payload, options) {
+  const body = Object.assign({}, payload, options && options.as_of ? { as_of: options.as_of } : {});
+  return dcs_request(`/public/records/${submission_id}`, "PUT", body);
 }

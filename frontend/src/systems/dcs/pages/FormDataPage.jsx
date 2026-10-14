@@ -24,7 +24,7 @@ import DcsRecordViewOverlay from "../components/DcsRecordViewOverlay.jsx";
 import { format_respondent } from "../offline/respondentStore.js";
 import { RecordHistoryButton } from "../tracking/RecordHistoryDialog.jsx";
 import { RecordHistorySlidesOverlay } from "../tracking/RecordHistorySlides.jsx";
-import { is_tracking_enabled } from "../tracking/trackingConfig.js";
+import { is_tracking_enabled, change_count } from "../tracking/trackingConfig.js";
 
 function build_rows(submissions, data_fields, translate, on_history_click) {
   return (submissions || []).map((submission) => {
@@ -33,8 +33,8 @@ function build_rows(submissions, data_fields, translate, on_history_click) {
       dcs_record_id: submission._id,
     };
     row.updated_at = submission.updated_at ? new Date(submission.updated_at).toLocaleString() : "-";
-    const change_count = Math.max(0, (submission.history || []).length - 1);
-    row.history = on_history_click && change_count > 0 ? <RecordHistoryButton onClick={() => on_history_click(submission)} count={change_count} /> : "-";
+    const changes = change_count(submission);
+    row.history = on_history_click && changes > 0 ? <RecordHistoryButton onClick={() => on_history_click(submission)} count={changes} /> : "-";
     data_fields.forEach((field) => {
       const raw_value = submission.data ? submission.data[field.id] : undefined;
       if (MEDIA_ANSWER_TYPES.includes(field.type)) {

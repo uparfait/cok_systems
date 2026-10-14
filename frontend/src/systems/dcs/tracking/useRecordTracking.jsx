@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { is_tracking_enabled, key_ids_of, field_state, has_editable_changes, field_name, SEARCHABLE_INPUT_TYPES } from "./trackingConfig.js";
+import { is_tracking_enabled, key_ids_of, field_state, has_editable_changes, field_name, change_count, SEARCHABLE_INPUT_TYPES } from "./trackingConfig.js";
 import { KeyFieldWrap, disable_field } from "./RecordFieldWrap.jsx";
 
 const is_empty = (value) => value === undefined || value === null || String(value).trim() === "";
@@ -89,6 +89,6 @@ export function useRecordTracking({ form, values, applyValues, clearValues, acti
     record_updated,
     wrap_field: enabled ? wrap_field : undefined,
     searchable,
-    history_count: loaded_record ? Math.max(0, (loaded_record.history || []).length - 1) : 0,
+    history_count: loaded_record ? change_count(loaded_record) : 0,
   };
 }

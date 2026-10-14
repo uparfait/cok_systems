@@ -8,7 +8,7 @@ import { format_respondent } from "../offline/respondentStore.js";
 import { approval_status_label_key } from "./DcsApprovalStatusChip.jsx";
 import { ApprovalDetailsBody } from "./DcsApprovalDetailsDialog.jsx";
 import RecordHistorySlides from "../tracking/RecordHistorySlides.jsx";
-import { is_tracking_enabled } from "../tracking/trackingConfig.js";
+import { is_tracking_enabled, change_count } from "../tracking/trackingConfig.js";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
 import DcsOverlayHeader from "./DcsOverlayHeader.jsx";
 
@@ -102,13 +102,13 @@ export default function DcsRecordViewOverlay({ record, fields, tracking, onClose
   const entries = walk(fields || [], language, translate, record.data || {}, 0, []);
   const editable_ids = new Set(tracked ? tracking.editable_field_ids || [] : []);
   const approval_key = approval_status_label_key(record.approval_status);
-  const change_count = Math.max(0, (record.history || []).length - 1);
+  const changes = change_count(record);
   const answered = flatten_fields(fields || []).filter((field) => !NON_DATA_TYPES.includes(field.type) && !is_empty((record.data || {})[field.id])).length;
 
   const tabs = [{ key: "answers", label: `${translate("DCS_RECORD_VIEW_SECTION_ANSWERS")} (${answered})` }];
   if (!noApproval) tabs.push({ key: "approval", label: translate("DCS_TABLE_APPROVAL") });
   // The history only exists once something was changed after the record was made.
-  if (change_count > 0) tabs.push({ key: "history", label: `${translate("DCS_TRACKING_TABLE_HISTORY")} (${change_count})` });
+  if (changes > 0) tabs.push({ key: "history", label: `${translate("DCS_TRACKING_TABLE_HISTORY")} (${changes})` });
   const heading = title || translate("DCS_RECORD_VIEW_TITLE");
 
   return createPortal(
@@ -141,7 +141,7 @@ export default function DcsRecordViewOverlay({ record, fields, tracking, onClose
         <div className="flex-1 min-h-0 overflow-y-auto px-4 min-[560px]:px-6 py-4" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
           {tab === "answers" && <AnswersTab entries={entries} translate={translate} editableIds={editable_ids} />}
           {tab === "approval" && !noApproval && <ApprovalDetailsBody submission_id={record._id} />}
-          {tab === "history" && change_count > 0 && <RecordHistorySlides record={record} fields={fields} />}
+          {tab === "history" && changes > 0 && <RecordHistorySlides record={record} fields={fields} />}
         </div>
 
         {footer ? (

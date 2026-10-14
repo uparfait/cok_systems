@@ -34,6 +34,10 @@ const { flatten_fields } = require("../jsonlogic/dependency_graph.js");
  */
 
 const KEY_FIELD_TYPES = ["text", "large_text", "number", "email", "phone", "url", "single_select", "select_group", "cascading_select", "date", "hidden"];
+// Layout blocks ("file" is the static file block, not an upload field) and
+// the location capture cannot be updated; every answer field can - media
+// fields (image, video, audio, file_upload, signature) included, their
+// value being the list of files.
 const NOT_EDITABLE_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "section", "group", "geolocation"];
 const MAX_EDITABLE_FIELDS = 200;
 const KEY_JOINER = "|";
@@ -229,6 +233,31 @@ function same_value(a, b) {
 }
 
 /**
+ * The BASELINE of a record collected before the form tracked it, or
+ * before a field became updatable: a "created" history entry at its
+ * submission (when it has none) and, for every updatable field without
+ * periods, a first period open since the submission holding the value
+ * the record has now - so its first follow-up change already reads as a
+ * history, and the as-of reading shows the old value for any moment
+ * before that change. Returns { history, tracking_periods, created_added,
+ * periods_added }: the record's own when nothing was missing.
+ */
+function seed_baseline(tracking, record) {
+  const submitted_at = record.submitted_at;
+  const history = Array.isArray(record.history) ? record.history.slice() : [];
+  const created_added = !history.some((entry) => entry && entry.kind === "created");
+  if (created_added) history.unshift({ at: submitted_at, kind: "created", by: null, changes: [] });
+  const tracking_periods = Object.assign({}, record.tracking_periods || {});
+  let periods_added = false;
+  ((tracking && tracking.editable_field_ids) || []).forEach((field_id) => {
+    if (Array.isArray(tracking_periods[field_id]) && tracking_periods[field_id].length > 0) return;
+    tracking_periods[field_id] = [{ value: value_or_null((record.data || {})[field_id]), from: submitted_at, to: null }];
+    periods_added = true;
+  });
+  return { history, tracking_periods, created_added, periods_added };
+}
+
+/**
  * The changes an update makes on the editable fields only: the previous
  * and the new value of every field whose answer actually differs.
  */
@@ -273,6 +302,7 @@ module.exports = {
   key_field_label,
   key_field_labels,
   tracking_fields_for_new,
+  seed_baseline,
   diff_editable,
   next_periods,
 };

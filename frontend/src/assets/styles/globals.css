@@ -5163,7 +5163,6 @@ background-color: #056daa;
   font-weight: 600;
 }
 .dcs-slide-form {
-  pointer-events: none;
   padding: 4px 0;
 }
 .dcs-slide-form .dcs-no-print {

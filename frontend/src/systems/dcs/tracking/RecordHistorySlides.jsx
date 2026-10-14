@@ -4,6 +4,8 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import RendererEngine from "../renderer/RendererEngine.jsx";
 import { field_name, format_when } from "./trackingConfig.js";
+import { history_entry_label } from "./RecordHistory.jsx";
+import { read_only_field } from "./MediaAnswer.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
@@ -13,24 +15,13 @@ const MUTED = "#9E9E9E";
 const TEXT = "#333333";
 const FONT = "'Montserrat', sans-serif";
 
-const KIND_KEYS = {
-  created: "DCS_TRACKING_HISTORY_CREATED",
-  updated: "DCS_TRACKING_HISTORY_UPDATED",
-  edited: "DCS_TRACKING_HISTORY_EDITED",
-};
+function created_entry(record) {
+  return { at: record.submitted_at, kind: "created", by: record.respondent || null, changes: [] };
+}
 
-/**
- * The record at every moment it was written, oldest first. The latest
- * moment holds the answers as they are now; each earlier one is rebuilt
- * by putting back the "from" value of every change made after it, so a
- * slide shows exactly what the form held at that time - for every field,
- * tracked or not.
- */
 export function build_snapshots(record) {
-  const entries = (record.history || []).slice().sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
-  if (entries.length === 0) {
-    return [{ entry: { at: record.submitted_at, kind: "created", by: record.respondent || null, changes: [] }, data: record.data || {} }];
-  }
+  const sorted = (record.history || []).slice().sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  const entries = sorted.length > 0 && sorted[0].kind === "created" ? sorted : [created_entry(record)].concat(sorted);
   const snapshots = new Array(entries.length);
   let data = Object.assign({}, record.data || {});
   for (let index = entries.length - 1; index >= 0; index -= 1) {
@@ -46,32 +37,16 @@ export function build_snapshots(record) {
   return snapshots;
 }
 
-/**
- * Where a slide stands: the first slide is the original record, every
- * later one is "change N of M" - so the count matches the changes counted
- * on the table and the tab, which never count the original as a change.
- */
 export function slide_position(index, total_slides, translate) {
   if (index <= 0) return translate("DCS_HISTORY_SLIDE_ORIGINAL");
   return translate("DCS_HISTORY_SLIDE_POSITION", { index, total: Math.max(0, total_slides - 1) });
 }
 
-/** The moment's own line: when it was written, by whom, as a fresh record or a change. */
 export function slide_caption(entry, translate) {
-  const kind = translate(KIND_KEYS[entry.kind] || KIND_KEYS.updated);
+  const kind = history_entry_label(entry, translate);
   return entry.by && entry.by.name ? `${kind} - ${translate("DCS_TRACKING_HISTORY_BY", { name: entry.by.name })}` : kind;
 }
 
-/**
- * A record's history as slides of the form itself, exactly as the form
- * looks, read-only: one slide per moment the record was written. The
- * moment's date leads at the top, the fields that changed at that moment
- * are listed and drawn in blue in the form, and Back, "3 of 6" and Next
- * sit at the bottom. Opens on the latest slide; Back walks to the first
- * record, Next forward again. On the latest slide only, onLoadLatest
- * (when given) offers to load the record into the form. onSlideChange
- * reports the moment on show, for a host that titles itself with it.
- */
 export default function RecordHistorySlides({ record, fields, onLoadLatest, onSlideChange, hideDate }) {
   const { translate, language } = useDcsLanguage();
   const snapshots = useMemo(() => build_snapshots(record), [record]);
@@ -84,10 +59,12 @@ export default function RecordHistorySlides({ record, fields, onLoadLatest, onSl
 
   useEffect(() => {
     if (onSlideChange) onSlideChange(current.entry, index, snapshots.length);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, snapshots.length]);
 
-  const wrap_field = (element, field) => (changed.has(field.id) ? <div className="dcs-slide-changed">{element}</div> : element);
+  const wrap_field = (element, field) => {
+    const inner = read_only_field(element, field, (current.data || {})[field.id], language);
+    return changed.has(field.id) ? <div className="dcs-slide-changed">{inner}</div> : inner;
+  };
 
   return (
     <div className="dcs-history-slides">
@@ -116,7 +93,7 @@ export default function RecordHistorySlides({ record, fields, onLoadLatest, onSl
         </DcsButtonPrimary>
       )}
 
-      <div className="dcs-slide-form" inert={true} key={`${current.entry.at}_${index}`}>
+      <div className="dcs-slide-form" key={`${current.entry.at}_${index}`}>
         <RendererEngine schema={schema} mode="renderer" values={current.data} onValueChange={() => {}} fieldErrors={{}} fieldValidMessages={{}} wrapField={wrap_field} />
       </div>
 
@@ -135,11 +112,6 @@ export default function RecordHistorySlides({ record, fields, onLoadLatest, onSl
   );
 }
 
-/**
- * The slides on their own, over the whole screen - the public form's
- * history is read this way, and the tables' history button opens it too.
- * The title bar carries the date and time of the moment on show.
- */
 export function RecordHistorySlidesOverlay({ record, fields, onClose, onLoadLatest }) {
   const { translate } = useDcsLanguage();
   const [shown, setShown] = useState(null);

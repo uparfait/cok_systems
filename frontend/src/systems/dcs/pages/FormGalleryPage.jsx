@@ -8,6 +8,7 @@ import DcsFileViewerModal from "../components/DcsFileViewerModal.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import { GallerySkeleton } from "../components/DcsSkeletons.jsx";
+import { SearchableInput } from "../fields/base/BaseTextLikeField.jsx";
 
 const DEFAULT_PERIOD = "this_year";
 const FONT = "'Montserrat', sans-serif";
@@ -104,10 +105,12 @@ function MediaTile({ item, onOpen }) {
  */
 export default function FormGalleryPage() {
   const { project_id, form_group_id } = useParams();
-  const { translate } = useDcsLanguage();
+  const { translate, language } = useDcsLanguage();
   const navigate = useNavigate();
 
   const [items, setItems] = useState([]);
+  const [search, setSearch] = useState("");
+  const [applied_search, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [has_more, setHasMore] = useState(true);
@@ -130,7 +133,7 @@ export default function FormGalleryPage() {
   };
 
   const loading_ref = useRef(false);
-  const applied_ref = useRef({ period: DEFAULT_PERIOD, from: "", to: "" });
+  const applied_ref = useRef({ period: DEFAULT_PERIOD, from: "", to: "", search: "" });
   // The page size is read from the screen when a page is asked for, so
   // the same size is asked for again on the next one; the skeletons are
   // shaped to it too.
@@ -143,6 +146,7 @@ export default function FormGalleryPage() {
       loading_ref.current = true;
       setLoading(true);
       applied_ref.current = params;
+      setAppliedSearch(params.search || "");
       if (replace) page_size_ref.current = viewport_page_size();
       get_submission_media(form_group_id, next_page, page_size_ref.current, params)
         .then((response) => {
@@ -171,7 +175,7 @@ export default function FormGalleryPage() {
     setTo("");
     setItems([]);
     setHasMore(true);
-    fetch_page(1, { period, from: "", to: "" }, true);
+    fetch_page(1, { period, from: "", to: "", search: search.trim() }, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, form_group_id]);
 
@@ -181,7 +185,20 @@ export default function FormGalleryPage() {
     if (period === "custom" && !next_from) return;
     setItems([]);
     setHasMore(true);
-    fetch_page(1, { period, from: next_from, to: next_to }, true);
+    fetch_page(1, { period, from: next_from, to: next_to, search: search.trim() }, true);
+  };
+
+  const run_search = (next_search) => {
+    const wanted = typeof next_search === "string" ? next_search : search.trim();
+    if (period === "custom" && !from) return;
+    setItems([]);
+    setHasMore(true);
+    fetch_page(1, { period, from, to, search: wanted }, true);
+  };
+
+  const clear_search = () => {
+    setSearch("");
+    run_search("");
   };
 
   const open_in_table = (item) => {
@@ -196,12 +213,31 @@ export default function FormGalleryPage() {
       formGroupId={form_group_id}
       titleKey="DCS_WS_GALLERY"
       toolbar={
-        <>
+        <div className="flex flex-col min-[640px]:flex-row min-[640px]:items-center gap-2 w-full">
           <DcsPeriodFilter period={period} onPeriodChange={setPeriod} from={from} onFromChange={setFrom} to={to} onToChange={setTo} onApply={handle_apply} includeAll />
+          <div className="flex-1 min-w-0 min-[640px]:max-w-md">
+            <SearchableInput value={search} onSearch={() => run_search()} language={language}>
+              <input
+                type="text"
+                className="cok-auth-input w-full py-2 pr-12!"
+                placeholder={translate("DCS_GALLERY_SEARCH_PLACEHOLDER")}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") run_search();
+                }}
+              />
+            </SearchableInput>
+          </div>
+          {applied_search && (
+            <button type="button" onClick={clear_search} className="text-xs font-bold underline cursor-pointer bg-transparent border-0 p-0 self-start min-[640px]:self-auto" style={{ color: "#056daa", fontFamily: FONT }}>
+              {translate("DCS_BTN_CLEAR")}
+            </button>
+          )}
           <span className="text-xs font-semibold flex-shrink-0" style={{ color: "#056daa", fontFamily: FONT }}>
             {translate("DCS_GALLERY_COUNT", { count: total })}
           </span>
-        </>
+        </div>
       }
     >
       <div className="bg-white border-2 p-2 sm:p-3" style={{ borderColor: "#E0E0E0" }}>

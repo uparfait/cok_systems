@@ -20,7 +20,7 @@ import { RecordHistorySlidesOverlay } from "../tracking/RecordHistorySlides.jsx"
 import { is_tracking_enabled } from "../tracking/trackingConfig.js";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { parent_filter_of } from "../util-dashboard/boardFilters.js";
-import { build_diffed_columns, build_rows, FILTERABLE_TYPES } from "../components/table/allDataColumns.jsx";
+import { build_diffed_columns, build_rows, edit_record_url, FILTERABLE_TYPES } from "../components/table/allDataColumns.jsx";
 
 const ACTIONS_COLUMN_WIDTH_PX = 108;
 
@@ -198,7 +198,7 @@ export default function FormAllDataPage() {
     on_view: setViewRecord,
     // Editing opens in its own tab: the table, its filters and its scroll
     // position stay exactly where they were for when the edit is done.
-    on_edit: (submission) => window.open(`/dcs-form/edit/${submission._id}`, "_blank", "noopener"),
+    on_edit: (submission) => window.open(edit_record_url(submission), "_blank", "noopener"),
   });
 
   const legend_items = built.has_diff
@@ -331,7 +331,7 @@ export default function FormAllDataPage() {
           fields={view_record_fields}
           tracking={tracking}
           onClose={() => setViewRecord(null)}
-          onEdit={() => window.open(`/dcs-form/edit/${view_record._id}`, "_blank", "noopener")}
+          onEdit={() => window.open(edit_record_url(view_record), "_blank", "noopener")}
         />
       )}
 

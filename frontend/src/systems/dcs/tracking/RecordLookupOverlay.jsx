@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { search_public_records } from "./trackingService.js";
-import { field_name, format_when, key_fields_of } from "./trackingConfig.js";
+import { field_name, format_when, key_fields_of, change_count } from "./trackingConfig.js";
 import { RecordDates, RecordFieldsList } from "./RecordHistory.jsx";
 import { RecordHistorySlidesOverlay } from "./RecordHistorySlides.jsx";
 import { SearchableInput } from "../fields/base/BaseTextLikeField.jsx";
@@ -131,7 +131,7 @@ export default function RecordLookupOverlay({ formGroupId, fields, tracking, ini
                 <RecordFieldsList record={loadedRecord} fields={fields} editableIds={tracking.editable_field_ids} />
                 <DcsButtonOutline className="w-full" onClick={() => setSlidesRecord(loadedRecord)}>
                   {translate("DCS_TRACKING_SHOW_HISTORY")}
-                  {(loadedRecord.history || []).length > 1 ? ` (${(loadedRecord.history || []).length - 1})` : ""}
+                  {change_count(loadedRecord) > 0 ? ` (${change_count(loadedRecord)})` : ""}
                 </DcsButtonOutline>
               </div>
             )}

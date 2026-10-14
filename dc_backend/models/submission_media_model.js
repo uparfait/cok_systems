@@ -1,5 +1,5 @@
 const { get_db } = require("../db_connection/db.js");
-const { apply_value_filters } = require("./submissions_model.js");
+const { apply_value_filters, SEARCH_TEXT_EXPRESSION, escape_regex } = require("./submissions_model.js");
 const { date_window_filter, as_of_stages } = require("../utilities/tracking_window.js");
 
 const COLLECTION_NAME = "dcs_submissions";
@@ -29,19 +29,27 @@ function media_entries_expression(field_ids) {
   return field_ids.map((field_id) => ({ field_id, value: `$data.${field_id}` }));
 }
 
-function build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking) {
+function build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking, search) {
   // The same records the table lists, read the same way (see
   // utilities/tracking_window.js): an image field changed since the range
   // shows the picture it held at the range's end.
   const match = Object.assign({ form_group_id }, date_window_filter(date_bounds, tracking));
   const value_filter = {};
   apply_value_filters(value_filter, filters);
+  // The table's own free-text search over every answer, judged on the
+  // values the range shows, so the gallery holds the pictures of exactly
+  // the records the table would list for the same text.
+  const search_term = search ? String(search).trim() : "";
+  const search_stages = search_term
+    ? [{ $addFields: { __search_text: SEARCH_TEXT_EXPRESSION } }, { $match: { __search_text: new RegExp(escape_regex(search_term), "i") } }]
+    : [];
 
   return [
     { $match: match },
     ...as_of_stages(tracking, date_bounds),
     // After the rewrite, so a filter matches the values the range shows.
     ...(Object.keys(value_filter).length > 0 ? [{ $match: value_filter }] : []),
+    ...search_stages,
     { $sort: { submitted_at: -1, _id: -1 } },
     { $project: { submitted_at: 1, version: 1, respondent: 1, entries: media_entries_expression(field_ids) } },
     { $unwind: "$entries" },
@@ -106,9 +114,9 @@ function build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking
  * One page of the gallery. field_ids are the form's own media fields,
  * resolved from its schemas by the caller.
  */
-async function list_media_answers(form_group_id, field_ids, skip, limit, date_bounds, filters, tracking) {
+async function list_media_answers(form_group_id, field_ids, skip, limit, date_bounds, filters, tracking, search) {
   if (!field_ids || field_ids.length === 0) return { items: [], total: 0 };
-  const pipeline = build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking);
+  const pipeline = build_pipeline(form_group_id, field_ids, date_bounds, filters, tracking, search);
   const facet = pipeline[pipeline.length - 1].$facet;
   facet.items = [{ $skip: skip }, { $limit: limit }].concat(facet.items.slice(1));
 

@@ -6,7 +6,7 @@ const { approval_for_record, notify_new_approval } = require("../../utilities/su
 const { check_count_triggers } = require("../../utilities/batch_approval.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { sanitize_respondent } = require("../../utilities/respondent.js");
-const { is_enabled, diff_editable, next_periods } = require("../../utilities/tracking.js");
+const { is_enabled, diff_editable, next_periods, seed_baseline } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -86,18 +86,24 @@ async function update_public_record(req, res) {
     const routing = await approval_for_record(form_group_id, form_version, next_data);
     const notified_steps = await notify_new_approval(req, form_version.form_name, routing.approval);
 
+    // A record collected before the form tracked it gets its baseline
+    // first (the "created" entry, the first period of every updatable
+    // field since its submission), so this very change reads as a history.
+    const baseline = seed_baseline(tracking, record);
+    const history_entry = {
+      at: now,
+      kind: "updated",
+      by,
+      changes,
+      approval_before: record.approval ? record.approval.status : null,
+    };
     await tracked_records_model.apply_record_update(record._id, {
       data: next_data,
       version: form_version.version,
       updated_at: now,
-      tracking_periods: next_periods(record.tracking_periods, changes, now, record.submitted_at),
-      history_entry: {
-        at: now,
-        kind: "updated",
-        by,
-        changes,
-        approval_before: record.approval ? record.approval.status : null,
-      },
+      tracking_periods: next_periods(baseline.tracking_periods, changes, now, record.submitted_at),
+      history_entry,
+      history: baseline.created_added ? baseline.history.concat([history_entry]) : undefined,
       approval: routing.approval,
       clear_request: routing.scheduled,
     });

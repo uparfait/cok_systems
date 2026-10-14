@@ -6,7 +6,9 @@ const { approval_for_record, notify_new_approval } = require("../../utilities/su
 const { check_count_triggers } = require("../../utilities/batch_approval.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { sanitize_respondent } = require("../../utilities/respondent.js");
-const { is_enabled, key_ids_of, composite_record_key, key_field_labels, next_periods } = require("../../utilities/tracking.js");
+const { is_enabled, key_ids_of, composite_record_key, key_field_labels, next_periods, seed_baseline } = require("../../utilities/tracking.js");
+const { values_as_of, apply_correction } = require("../../utilities/record_correction.js");
+const { viewer_zone, server_zone, zoned_to_utc } = require("../../utilities/time_zone.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 const { translate } = require("../../i18n/index.js");
@@ -28,6 +30,15 @@ const { translate } = require("../../i18n/index.js");
  * A changed record goes through the form's approval flow again, exactly
  * as a fresh submission would: an edit that kept an old "approved" stamp
  * would be a signature on answers nobody signed off on.
+ *
+ * With `as_of` (an instant, or a wall clock read in the viewer's tz) on a
+ * TRACKED record the edit CORRECTS THE PAST instead (see
+ * utilities/record_correction.js): the answers are compared with what the
+ * record said at that moment, the period holding the moment takes the
+ * new value, the history around it is kept consistent and a "corrected"
+ * entry is appended; updated_at moves only when the open period changed,
+ * and the approval flow is left as it is. An untracked record has no
+ * past to correct and edits as always.
  */
 
 /** Every field whose answer actually differs, old and new value kept. */
@@ -45,7 +56,7 @@ function diff_all(previous_data, next_data) {
 async function update_record_full(req, res) {
   try {
     const { submission_id } = req.params;
-    const { data, respondent } = req.body || {};
+    const { data, respondent, as_of } = req.body || {};
 
     if (!is_valid_object_id(submission_id)) {
       return res.status(400).json(warning_response(req, "INVALID_ID"));
@@ -63,8 +74,23 @@ async function update_record_full(req, res) {
       return res.status(404).json(warning_response(req, "FORM_PUBLIC_NOT_FOUND"));
     }
 
+    const tracking = form_version.tracking;
+    const tracked = is_enabled(tracking);
+
+    // A correction of the past: the moment being corrected, read like
+    // every other pick (absolute, or the viewer's wall clock).
+    let moment = null;
+    if (tracked && as_of !== undefined && as_of !== null && as_of !== "") {
+      moment = zoned_to_utc(as_of, viewer_zone(req) || server_zone());
+      if (Number.isNaN(moment.getTime())) {
+        return res.status(400).json(warning_response(req, "VALIDATION_FAILED"));
+      }
+    }
+    const as_of_state = moment ? values_as_of(tracking, record, moment) : null;
+    const base_data = as_of_state ? as_of_state.data : record.data || {};
+
     const incoming = data && typeof data === "object" && !Array.isArray(data) ? data : {};
-    const merged = Object.assign({}, record.data || {}, incoming);
+    const merged = Object.assign({}, base_data, incoming);
 
     const validation_result = validate_submission_data(form_version.schema, merged, req.language);
     if (!validation_result.valid) {
@@ -74,13 +100,10 @@ async function update_record_full(req, res) {
     }
 
     const next_data = validation_result.resolved_data;
-    const changes = diff_all(record.data || {}, next_data);
+    const changes = diff_all(base_data, next_data);
     if (changes.length === 0) {
       return res.status(400).json(warning_response(req, "TRACKING_NO_CHANGES"));
     }
-
-    const tracking = form_version.tracking;
-    const tracked = is_enabled(tracking);
     // A tracked form's key combination must stay unique when the author
     // asked for it: an edit that moves the record onto another record's
     // key is refused, with every key field marked.
@@ -101,27 +124,51 @@ async function update_record_full(req, res) {
 
     const now = new Date();
     const by = sanitize_respondent(respondent) || record.respondent || null;
+
+    if (as_of_state) {
+      // The past corrected in place: periods and history rewritten, the
+      // data only when the open period was the one corrected.
+      const outcome = apply_correction(tracking, record, as_of_state.baseline, changes, moment, now, by);
+      await tracked_records_model.apply_record_update(record._id, {
+        data: outcome.data,
+        version: record.version,
+        updated_at: outcome.updated_at,
+        tracking_periods: outcome.tracking_periods,
+        history: outcome.history,
+      });
+      await tracked_records_model.apply_record_key(record._id, tracking, outcome.data);
+      const corrected = await submissions_model.find_submission_by_id(submission_id);
+      const corrected_view = tracked_records_model.to_public_record(corrected);
+      corrected_view.respondent = corrected.respondent || null;
+      corrected_view.is_tracked = true;
+      return res.status(200).json(success_response(req, "SUBMISSION_UPDATED", corrected_view));
+    }
+
     const routing = await approval_for_record(record.form_group_id, form_version, next_data);
     const notified_steps = await notify_new_approval(req, form_version.form_name, routing.approval);
 
     // Only the fields the author actually tracks carry value periods; the
-    // rest of an edit lives in the history entry alone.
+    // rest of an edit lives in the history entry alone. A tracked record
+    // collected before the form tracked it gets its baseline first.
     const tracked_changes = tracked ? changes.filter((change) => (tracking.editable_field_ids || []).includes(change.field_id)) : [];
+    const baseline = tracked ? seed_baseline(tracking, record) : null;
+    const history_entry = {
+      at: now,
+      kind: "edited",
+      by,
+      changes,
+      approval_before: record.approval ? record.approval.status : null,
+    };
 
     await tracked_records_model.apply_record_update(record._id, {
       data: next_data,
       version: form_version.version,
       updated_at: now,
       tracking_periods: tracked
-        ? next_periods(record.tracking_periods, tracked_changes, now, record.submitted_at)
+        ? next_periods(baseline.tracking_periods, tracked_changes, now, record.submitted_at)
         : record.tracking_periods || {},
-      history_entry: {
-        at: now,
-        kind: "edited",
-        by,
-        changes,
-        approval_before: record.approval ? record.approval.status : null,
-      },
+      history_entry,
+      history: baseline && baseline.created_added ? baseline.history.concat([history_entry]) : undefined,
       approval: routing.approval,
       clear_request: routing.scheduled,
     });
@@ -134,6 +181,8 @@ async function update_record_full(req, res) {
 
     const updated = await submissions_model.find_submission_by_id(submission_id);
     const view = tracked_records_model.to_public_record(updated);
+    view.respondent = updated.respondent || null;
+    view.is_tracked = tracked;
     if (routing.approval) {
       view.approval = {
         status: routing.approval.status,

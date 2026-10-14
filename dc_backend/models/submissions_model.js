@@ -800,6 +800,8 @@ module.exports = {
   list_submissions,
   list_records_in,
   apply_value_filters,
+  SEARCH_TEXT_EXPRESSION,
+  escape_regex,
   count_by_form_group_id,
   list_submitted_at_within,
   count_submissions_over_time,

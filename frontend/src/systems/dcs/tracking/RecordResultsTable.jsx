@@ -1,7 +1,7 @@
 import React from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { collect_data_fields, column_label, render_answer_cell } from "../fields/dataColumns.jsx";
-import { format_value, format_when } from "./trackingConfig.js";
+import { format_value, format_when, change_count } from "./trackingConfig.js";
 
 const PRIMARY = "#056daa";
 const MUTED = "#9E9E9E";
@@ -65,7 +65,7 @@ export default function RecordResultsTable({ records, fields, searchedFieldId, l
         <tbody>
           {records.map((record) => {
             const is_loaded = !!loadedRecord && loadedRecord._id === record._id;
-            const change_count = Math.max(0, (record.history || []).length - 1);
+            const changes = change_count(record);
             return (
               <tr key={record._id} style={{ backgroundColor: is_loaded ? "rgba(5, 109, 170, 0.05)" : "#FFFFFF" }}>
                 <td style={CELL_STYLE} className="dcs-lookup-sticky">
@@ -75,7 +75,7 @@ export default function RecordResultsTable({ records, fields, searchedFieldId, l
                     </button>
                     <button type="button" className="dcs-dt-tool dcs-lookup-action" onClick={() => onHistory(record)}>
                       {translate("DCS_TRACKING_SHOW_HISTORY")}
-                      {change_count > 0 ? ` (${change_count})` : ""}
+                      {changes > 0 ? ` (${changes})` : ""}
                     </button>
                   </span>
                 </td>

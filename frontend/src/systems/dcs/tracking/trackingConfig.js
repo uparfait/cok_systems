@@ -108,10 +108,21 @@ export function field_state(field, tracking, loaded) {
   return editable.includes(field.id) ? "enabled" : "disabled";
 }
 
+const is_media_value = (value) => !!value && typeof value === "object" && !!(value.url || value.data_url || value.pending_file);
+
 function answer_text(value) {
   if (value === undefined || value === null || value === "") return "";
+  if (Array.isArray(value)) return value.map((entry) => answer_text(entry)).join("|");
+  if (is_media_value(value)) return String(value.url || value.data_url || value.name || "");
   return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
+
+export function change_count(record) {
+  const entries = record && Array.isArray(record.history) ? record.history : [];
+  return entries.filter((entry) => entry && entry.kind !== "created").length;
+}
+
+export const has_history = (record) => change_count(record) > 0;
 
 export const same_answer = (a, b) => answer_text(a) === answer_text(b);
 
