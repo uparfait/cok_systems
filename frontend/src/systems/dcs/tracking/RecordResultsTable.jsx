@@ -70,10 +70,10 @@ export default function RecordResultsTable({ records, fields, searchedFieldId, l
               <tr key={record._id} style={{ backgroundColor: is_loaded ? "rgba(5, 109, 170, 0.05)" : "#FFFFFF" }}>
                 <td style={CELL_STYLE} className="dcs-lookup-sticky">
                   <span className="flex items-center gap-1.5">
-                    <button type="button" className="dcs-dt-tool is-active cursor-pointer disabled:opacity-50 disabled:cursor-default" onClick={() => onLoad(record)} disabled={is_loaded}>
+                    <button type="button" className={`dcs-dt-tool dcs-lookup-action ${is_loaded ? "is-loaded" : ""}`} onClick={() => onLoad(record)} disabled={is_loaded}>
                       {translate(is_loaded ? "DCS_TRACKING_LOADED" : "DCS_TRACKING_LOAD_ROW")}
                     </button>
-                    <button type="button" className="dcs-dt-tool cursor-pointer" onClick={() => onHistory(record)}>
+                    <button type="button" className="dcs-dt-tool dcs-lookup-action" onClick={() => onHistory(record)}>
                       {translate("DCS_TRACKING_SHOW_HISTORY")}
                       {change_count > 0 ? ` (${change_count})` : ""}
                     </button>

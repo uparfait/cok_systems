@@ -68,6 +68,43 @@ export function lightness(color) {
   return 0.2126 * part(0) + 0.7152 * part(2) + 0.0722 * part(4);
 }
 
+function inside_ring(ring, x, y) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * What the records of a heat map weigh inside each place: a Map from the
+ * shape itself to the total weight of the points that fall in one of its
+ * rings (the server sends outer rings only). Each point is given to the
+ * first place that holds it, after a cheap box check, so a few thousand
+ * points over a couple of hundred places cost nothing to speak of.
+ */
+export function heat_totals(shapes, points) {
+  const entries = (shapes || []).map((shape) => ({ shape, box: bounds_of([shape]), total: 0 }));
+  (points || []).forEach((point) => {
+    const x = Number(point.lng);
+    const y = Number(point.lat);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const weight = Number(point.weight) || 0;
+    for (let at = 0; at < entries.length; at += 1) {
+      const entry = entries[at];
+      const box = entry.box;
+      if (!box || x < box.min_x || x > box.max_x || y < box.min_y || y > box.max_y) continue;
+      if ((entry.shape.rings || []).some((ring) => inside_ring(ring, x, y))) {
+        entry.total += weight;
+        break;
+      }
+    }
+  });
+  return new Map(entries.map((entry) => [entry.shape, entry.total]));
+}
+
 /** A box MapLibre understands: [[west, south], [east, north]]. */
 export const map_bounds = (box) => (box ? [[box.min_x, box.min_y], [box.max_x, box.max_y]] : null);
 

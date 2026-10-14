@@ -1,9 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { SearchIcon, LockIcon, HistoryIcon } from "./TrackingIcons.jsx";
-
-const PRIMARY = "#056daa";
-const FONT = "'Montserrat', sans-serif";
+import { SearchIcon, HistoryIcon } from "./TrackingIcons.jsx";
 
 export function InputSearchIcon({ holderRef, onClick, disabled, fieldName }) {
   const { translate } = useDcsLanguage();
@@ -49,26 +46,10 @@ export function KeyFieldWrap({ children, onSearch, disabled, fieldName }) {
   );
 }
 
-export function DisabledFieldWrap({ children }) {
-  return (
-    <div className="dcs-disabled-field" aria-disabled="true">
-      <div inert={true}>{children}</div>
-    </div>
-  );
-}
-
-export function LockedFieldWrap({ children }) {
-  const { translate } = useDcsLanguage();
-  return (
-    <div className="dcs-locked-field" title={translate("DCS_TRACKING_LOCKED_HINT")}>
-      <div inert={true}>{children}</div>
-      <div className="dcs-locked-shield" aria-hidden="true" />
-      <span className="dcs-locked-badge dcs-no-print" style={{ color: PRIMARY, fontFamily: FONT }}>
-        <LockIcon size={11} />
-        {translate("DCS_TRACKING_LOCKED")}
-      </span>
-    </div>
-  );
+export function disable_field(element) {
+  if (!React.isValidElement(element)) return element;
+  const className = [element.props.className, "dcs-disabled-field"].filter(Boolean).join(" ");
+  return React.cloneElement(element, { inert: true, className, "aria-disabled": "true" });
 }
 
 export function RecordFloatingButton({ onClick, count, disabled }) {

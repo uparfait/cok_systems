@@ -18,8 +18,10 @@ import { bounds_of, map_key, grow_box } from "./mapGeometry.js";
  * is already held, and a widget with no rows at all still asks, and draws
  * the whole level it is looking at.
  *
- * A heat map asks for nothing at all: it is drawn from the records
- * themselves, not from named shapes.
+ * A heat map names nothing - it is drawn from the records themselves - but
+ * still asks, so the whole level under the board's filters comes back as
+ * context: its places are where the names and counts are written over the
+ * heat.
  */
 
 const chain_of = (shape) => (shape.path || []).concat(shape.name).join("/");
@@ -36,10 +38,6 @@ export function use_boundaries({ heat, names, names_key, scope_key, attempt, cac
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    if (heat) {
-      setStatus({ loading: false, error: "" });
-      return undefined;
-    }
     if (!fetch_shapes) {
       setStatus({ loading: false, error: translate("DCS_DB_MAP_NO_SOURCE") });
       return undefined;

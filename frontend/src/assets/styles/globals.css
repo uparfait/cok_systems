@@ -4367,11 +4367,22 @@ background-color: #056daa;
   background-color: rgba(243, 156, 18, 0.1);
 }
 
-/* A field switched off while follow-up mode waits for a record: only the
-   key fields take input until one is searched and loaded. */
+/* A data field switched off by follow-up mode: before a record is loaded
+   every field but the keys, after a load every field but the updatable
+   ones. The field's own box is made inert and greyed, nothing is drawn
+   over it; layout blocks (headers, paragraphs, sections, groups) are
+   never touched. */
 .dcs-disabled-field {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.dcs-disabled-field input,
+.dcs-disabled-field select,
+.dcs-disabled-field textarea,
+.dcs-disabled-field button,
+.dcs-disabled-field label {
+  pointer-events: none;
 }
 
 .dcs-follow-up-notice.is-error {
@@ -4379,35 +4390,23 @@ background-color: #056daa;
   background-color: rgba(231, 76, 60, 0.08);
 }
 
-/* A field the loaded record does not let this person change. */
-.dcs-locked-field {
-  position: relative;
-  opacity: 0.72;
+/* The Load and Show history actions of a found record. */
+.dcs-lookup-action {
+  cursor: pointer;
 }
 
-.dcs-locked-shield {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  cursor: not-allowed;
-  background-color: rgba(247, 249, 251, 0.35);
+.dcs-lookup-action:hover:not(:disabled) {
+  color: #056daa;
+  border-color: #056daa;
+  text-decoration: underline;
 }
 
-.dcs-locked-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+.dcs-lookup-action.is-loaded:disabled {
+  color: #056daa;
+  border-color: #056daa;
   background-color: rgba(5, 109, 170, 0.08);
-  border: 1px solid rgba(5, 109, 170, 0.35);
+  opacity: 1;
+  cursor: default;
 }
 
 /* One change in a history entry: field, previous value, current value.

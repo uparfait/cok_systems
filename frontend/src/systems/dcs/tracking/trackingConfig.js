@@ -4,6 +4,7 @@ import { get_field_text } from "../fields/fieldText.js";
 export const KEY_FIELD_TYPES = ["text", "large_text", "number", "email", "phone", "url", "single_select", "select_group", "cascading_select", "date", "hidden"];
 export const NOT_EDITABLE_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "section", "group", "geolocation"];
 export const SEARCHABLE_INPUT_TYPES = ["text", "large_text", "number", "email", "phone", "url", "date"];
+export const LAYOUT_FIELD_TYPES = ["section", "group", "paragraph", "header", "image_block", "horizontal_line", "file"];
 
 export function empty_tracking() {
   return { enabled: false, key_field_ids: [], key_field_id: "", key_unique: true, editable_field_ids: [] };
@@ -99,11 +100,26 @@ export function with_key_on_top(form) {
   return Object.assign({}, form, { schema: Object.assign({}, form.schema, { fields: top.concat(rest) }) });
 }
 
-export function locked_field_ids(tracking, fields) {
-  if (!is_tracking_enabled(tracking)) return new Set();
-  const editable = new Set(tracking.editable_field_ids || []);
-  const keys = new Set(key_ids_of(tracking));
-  return new Set(flatten_fields(fields || []).map((field) => field.id).filter((id) => keys.has(id) || !editable.has(id)));
+export function field_state(field, tracking, loaded) {
+  if (!field || LAYOUT_FIELD_TYPES.includes(field.type)) return "layout";
+  if (key_ids_of(tracking).includes(field.id)) return loaded ? "disabled" : "key";
+  if (!loaded) return "disabled";
+  const editable = tracking && Array.isArray(tracking.editable_field_ids) ? tracking.editable_field_ids : [];
+  return editable.includes(field.id) ? "enabled" : "disabled";
+}
+
+function answer_text(value) {
+  if (value === undefined || value === null || value === "") return "";
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+export const same_answer = (a, b) => answer_text(a) === answer_text(b);
+
+export function has_editable_changes(tracking, loaded_data, values) {
+  const editable = tracking && Array.isArray(tracking.editable_field_ids) ? tracking.editable_field_ids : [];
+  const data = loaded_data || {};
+  const current = values || {};
+  return editable.some((id) => !same_answer(current[id], data[id]));
 }
 
 export function format_value(value) {

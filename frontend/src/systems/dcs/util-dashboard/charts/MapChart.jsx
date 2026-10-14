@@ -4,7 +4,8 @@ import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import { useMapScope } from "../mapScope.jsx";
 import { build_palette, spread_color, with_alpha } from "../appearance.js";
 import { chart_density } from "./density.js";
-import { bounds_of, anchor_of, map_bounds, map_key, grow_box, points_box, lightness } from "./mapGeometry.js";
+import { bounds_of, map_bounds, map_key, grow_box, points_box, lightness, heat_totals } from "./mapGeometry.js";
+import { build_places } from "./mapPlaces.js";
 import { set_shapes, set_theme, set_heat, shape_geojson, point_geojson, heat_geojson, set_heat_map, clear_heat_map } from "./mapDraw.js";
 import { HEAT_LOW, HEAT_HIGH } from "./heatScale.js";
 import { take_cache, take_map, attach_map, start_map, release_map, drop_map, watch_basemap, retry_basemap, mark_fallback, is_fallback } from "./mapKeeper.js";
@@ -18,8 +19,6 @@ import MapSvg from "./MapSvg.jsx";
 import { LegendFrame } from "./SeriesLegend.jsx";
 import { MARKER_SET } from "./mapMarkers.js";
 
-// Roughly how wide one letter of a place name draws, per pixel of font size.
-const LETTER_WIDTH = 0.58;
 const LEVEL_ORDER = ["province", "district", "sector", "cell", "village"];
 // How long the map engine may take to come up before the picture is drawn without it.
 const ENGINE_TIMEOUT = 8000;
@@ -160,6 +159,10 @@ export default function MapChart({
   });
   const color_of = (shape) => colors.color_override(shape.name) || spread_color(name_index.has(key_of(shape)) ? name_index.get(key_of(shape)) : 0);
   const value_of = (shape) => {
+    if (is_heat) {
+      const total = heat_values ? heat_values.get(shape) : null;
+      return total ? total : null;
+    }
     const row = values.get(key_of(shape));
     return row ? row.value : null;
   };
@@ -175,7 +178,7 @@ export default function MapChart({
     const parts = parts_of(shape);
     if (parts.length > 0) return parts.map((part) => ({ key: part.value, color: value_color(part.value), count: part.count }));
     const total = value_of(shape);
-    return total === null ? [] : [{ key: shape.name, color: color_of(shape), count: total }];
+    return total === null ? [] : [{ key: shape.name, color: is_heat ? highColor || HEAT_HIGH : color_of(shape), count: total }];
   };
   const describe_land = (shape, index) => ({
     key: `${index}`,
@@ -205,7 +208,10 @@ export default function MapChart({
   const drawing = useMemo(() => {
     const shapes = [];
     const unknown = [];
-    if (!is_heat) {
+    // A heat map writes its names and counts over the whole level the
+    // board is looking at, which comes back as context when nothing is named.
+    if (is_heat) (cache.context || new Map()).forEach((shape) => shapes.push(shape));
+    else {
       (rows || []).forEach((row) => {
         const key = map_key(row.label);
         const entry = cache.places.get(key);
@@ -221,10 +227,12 @@ export default function MapChart({
     }
     const chains = new Set();
     shapes.forEach((shape) => (shape.path || []).forEach((step, depth) => chains.add(shape.path.slice(0, depth + 1).join("/"))));
-    const outlines = Array.from(cache.parents.values()).filter((shape) => chains.has(chain_of(shape)));
+    const outlines = is_heat ? [] : Array.from(cache.parents.values()).filter((shape) => chains.has(chain_of(shape)));
     return { shapes, outlines, unknown };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version, names_key, is_heat]);
+  // What the heat weighs inside each place: the number written beside its name.
+  const heat_values = useMemo(() => (is_heat ? heat_totals(drawing.shapes, points) : null), [is_heat, drawing, points]);
 
   // The heat layers: one per value of the split field, each in its own
   // color, or one scale from the widget's own low color to its high one.
@@ -365,26 +373,11 @@ export default function MapChart({
 
   // Which places may write their name and plant their markers, and what
   // room each of them needs to do it inside its own boundary.
-  const places = useMemo(() => {
-    if (is_heat) return [];
-    return drawing.shapes
-      .map((shape, index) => {
-        const marks = showMarkers ? marks_of(shape) : [];
-        const label = showLabels === false ? "" : label_text(shape);
-        const box = bounds_of([shape]);
-        const point = anchor_of(shape);
-        if ((!label && marks.length === 0) || !box || !point) return null;
-        const needed = [
-          // Only the NAME needs its boundary to have room: a marker is
-          // planted however small the place is on screen.
-          label ? label.length * label_font * LETTER_WIDTH + 6 : 0,
-          label ? label_font * 1.6 : 0,
-        ];
-        return { key: `${shape.name}-${index}`, point, box, needed, label, marks, font: label_font };
-      })
-      .filter(Boolean);
+  const places = useMemo(
+    () => build_places(drawing.shapes, { marks_of: showMarkers ? marks_of : () => [], label_text: showLabels === false ? () => "" : label_text, font: label_font }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawing, signature, is_heat]);
+    [drawing, signature, is_heat, heat_values],
+  );
   const shown = usePlaceMarkers(fallback ? null : map_of(), ready, places);
 
   // A click on a marker takes the viewer to that place.
@@ -418,7 +411,7 @@ export default function MapChart({
   };
   const tip_row = tip ? values.get(map_key(tip.asked || tip.name)) : null;
   const failed = !is_heat && !!status.error && drawing.shapes.length === 0;
-  const waiting = !failed && (status.loading || (!ready && !fallback));
+  const waiting = !failed && ((status.loading && !is_heat) || (!ready && !fallback));
 
   const legend_items = map_legend_items({ is_heat, groups, rows, split_values, value_color, colors, name_index, show_markers: showMarkers, marker_icon, low_color: lowColor, high_color: highColor, range, translate });
   const pick_legend = (item) => {
