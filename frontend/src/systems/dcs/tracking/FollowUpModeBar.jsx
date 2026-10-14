@@ -1,11 +1,12 @@
 import React from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 
 const PRIMARY = "#056daa";
 const MUTED = "#9E9E9E";
 const FONT = "'Montserrat', sans-serif";
 
-export function FollowUpModeToggle({ enabled, onChange, disabled }) {
+export function FollowUpModeToggle({ enabled, onChange, disabled, hint }) {
   const { translate } = useDcsLanguage();
   return (
     <div className="dcs-follow-up-bar dcs-no-print">
@@ -25,9 +26,20 @@ export function FollowUpModeToggle({ enabled, onChange, disabled }) {
         <p className="text-xs" style={{ color: MUTED, fontFamily: FONT }}>
           <span className="font-bold" style={{ color: enabled ? PRIMARY : "#333333" }}>{translate(enabled ? "DCS_FOLLOW_UP_ENABLED" : "DCS_FOLLOW_UP_DISABLED")}</span>
           {" - "}
-          {translate(enabled ? "DCS_FOLLOW_UP_ON_HINT" : "DCS_FOLLOW_UP_OFF_HINT")}
+          {hint || translate(enabled ? "DCS_FOLLOW_UP_ON_HINT" : "DCS_FOLLOW_UP_OFF_HINT")}
         </p>
       </div>
+    </div>
+  );
+}
+
+export function UpdateRetryNotice({ message, onRetry }) {
+  const { translate } = useDcsLanguage();
+  if (!message) return null;
+  return (
+    <div className="dcs-follow-up-notice is-error dcs-no-print" role="alert">
+      <p className="text-xs" style={{ color: "#E74C3C", fontFamily: FONT }}>{message}</p>
+      <DcsButtonOutline onClick={onRetry}>{translate("DCS_TRACKING_RETRY")}</DcsButtonOutline>
     </div>
   );
 }

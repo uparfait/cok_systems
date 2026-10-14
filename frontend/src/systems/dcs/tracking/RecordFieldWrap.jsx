@@ -49,6 +49,14 @@ export function KeyFieldWrap({ children, onSearch, disabled, fieldName }) {
   );
 }
 
+export function DisabledFieldWrap({ children }) {
+  return (
+    <div className="dcs-disabled-field" aria-disabled="true">
+      <div inert={true}>{children}</div>
+    </div>
+  );
+}
+
 export function LockedFieldWrap({ children }) {
   const { translate } = useDcsLanguage();
   return (

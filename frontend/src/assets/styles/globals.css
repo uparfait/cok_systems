@@ -4263,12 +4263,12 @@ background-color: #056daa;
 .dcs-key-field input:not([type="checkbox"]):not([type="radio"]),
 .dcs-key-field select,
 .dcs-key-field .dcs-choice-row {
-  padding-left: 48px;
+  padding-right: 48px;
 }
 
 .dcs-key-search-icon {
   position: absolute;
-  left: 8px;
+  right: 8px;
   transform: translateY(-50%);
   z-index: 2;
   width: 32px;
@@ -4281,6 +4281,10 @@ background-color: #056daa;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+.dcs-key-search-icon:hover:not(:disabled) {
+  background-color: rgba(5, 109, 170, 0.12);
 }
 
 .dcs-key-search-icon:disabled {
@@ -4361,6 +4365,18 @@ background-color: #056daa;
   margin-top: 12px;
   border: 1px solid #F39C12;
   background-color: rgba(243, 156, 18, 0.1);
+}
+
+/* A field switched off while follow-up mode waits for a record: only the
+   key fields take input until one is searched and loaded. */
+.dcs-disabled-field {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dcs-follow-up-notice.is-error {
+  border-color: #E74C3C;
+  background-color: rgba(231, 76, 60, 0.08);
 }
 
 /* A field the loaded record does not let this person change. */

@@ -36,6 +36,7 @@ export default function DcsQueuePanel({
   isSyncing,
   storageBackend,
   installSlot,
+  followUpSlot,
   respondent,
   onRespondentChange,
   onClose,
@@ -202,6 +203,7 @@ export default function DcsQueuePanel({
               </p>
             )}
             {installSlot}
+            {followUpSlot ? <div className="mt-3">{followUpSlot}</div> : null}
           </div>
         </div>
       </div>

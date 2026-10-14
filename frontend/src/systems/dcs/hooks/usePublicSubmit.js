@@ -27,7 +27,6 @@ export function usePublicSubmit(context) {
     reviewing_queue_id_ref,
     refresh_queue,
     refresh_draft,
-    draft_mode,
     showSuccess,
     showError,
     showWarning,
@@ -45,7 +44,7 @@ export function usePublicSubmit(context) {
       return;
     }
     if (!window.navigator.onLine) {
-      showError(translate("DCS_TRACKING_UPDATE_NEEDS_CONNECTION"));
+      set.update_error(translate("DCS_TRACKING_UPDATE_NEEDS_CONNECTION"));
       return;
     }
     set.is_syncing(true);
@@ -57,6 +56,7 @@ export function usePublicSubmit(context) {
         set.approval_notices((previous) => previous.concat([{ form_group_id, mode: record.approval.mode, links: record.approval.active_links }]));
       }
       if (record) tracking.record_updated(record);
+      set.update_error(null);
       set.reveal_all_errors(false);
       set.submit_state("success_updated");
       showSuccess(response.message || translate("DCS_TRACKING_UPDATED_TITLE"));
@@ -64,8 +64,9 @@ export function usePublicSubmit(context) {
       if (update_error && update_error.field_errors) {
         set.field_errors(update_error.field_errors);
         set.reveal_all_errors(true);
+        set.submit_state("error");
       }
-      set.submit_state("error");
+      set.update_error((update_error && update_error.message) || translate("DCS_ERROR_GENERIC"));
       showError((update_error && update_error.message) || translate("DCS_ERROR_GENERIC"));
     } finally {
       set.is_syncing(false);
@@ -80,9 +81,7 @@ export function usePublicSubmit(context) {
     set.reveal_all_errors(true);
     set.submit_state("idle");
     showWarning(direct_error.message || translate("DCS_TRACKING_KEY_EXISTS", { field: translate("DCS_TRACKING_KEY_LABEL") }));
-    if (tracking.enabled) {
-      tracking.open_lookup(first_key, failed_data[first_key]);
-    } else if (set.key_exists_notice) {
+    if (set.key_exists_notice) {
       set.key_exists_notice({ message: direct_error.message || "", field_id: first_key, value: failed_data[first_key] });
     }
   };
@@ -95,9 +94,8 @@ export function usePublicSubmit(context) {
       const resolved_values = validation_result.resolved_data;
       set.field_errors(validation_result.field_errors);
       set.field_valid_messages(validation_result.field_valid_messages);
-      const follow_up = !!(tracking && tracking.enabled);
-      if (follow_up && tracking.loaded_record) {
-        await handle_update(resolved_values, validation_result.field_errors);
+      if (tracking && tracking.enabled) {
+        if (tracking.loaded_record) await handle_update(resolved_values, validation_result.field_errors);
         return;
       }
       if (!validation_result.valid) {
@@ -106,15 +104,9 @@ export function usePublicSubmit(context) {
         const unanswered = Object.keys(validation_result.field_errors || {});
         window.requestAnimationFrame(() => scroll_to_first_error(unanswered));
         if (!reviewing_queue_id_ref.current && has_meaningful_answers(resolved_values, form.schema)) {
-          await save_form_draft(form_group_id, form.version, resolved_values, draft_mode);
+          await save_form_draft(form_group_id, form.version, resolved_values);
           await refresh_draft();
         }
-        return;
-      }
-
-      if (follow_up && !window.navigator.onLine) {
-        set.submit_state("error");
-        showError(translate("DCS_TRACKING_SUBMIT_NEEDS_CONNECTION"));
         return;
       }
 
@@ -138,7 +130,7 @@ export function usePublicSubmit(context) {
           });
         } else {
           await enqueue_submission(form_group_id, form.version, data_to_store, { client_submission_id, respondent });
-          await clear_form_draft(form_group_id, draft_mode);
+          await clear_form_draft(form_group_id);
           await refresh_draft();
         }
         await refresh_queue();
@@ -180,7 +172,7 @@ export function usePublicSubmit(context) {
         if (reviewing_record) {
           await remove_from_queue(reviewing_record.id);
         } else {
-          await clear_form_draft(form_group_id, draft_mode);
+          await clear_form_draft(form_group_id);
           await refresh_draft();
         }
         await refresh_queue();
@@ -195,12 +187,6 @@ export function usePublicSubmit(context) {
         const failed_data = (direct_error && direct_error.partial_data) || resolved_values;
 
         if (direct_error && direct_error.is_network_error) {
-          if (follow_up) {
-            set.values(failed_data);
-            set.submit_state("error");
-            showError(translate("DCS_TRACKING_SUBMIT_RETRY"));
-            return;
-          }
           await store_for_later(failed_data);
           reset_after_submit(false);
           return;
@@ -212,7 +198,7 @@ export function usePublicSubmit(context) {
         }
 
         const server_field_errors = (direct_error && direct_error.field_errors) || null;
-        if (!follow_up && reviewing_record) {
+        if (reviewing_record) {
           await update_queue_item(reviewing_record.id, {
             data: failed_data,
             version: form.version,
@@ -220,7 +206,7 @@ export function usePublicSubmit(context) {
             field_errors: server_field_errors,
             updated_at: new Date().toISOString(),
           });
-        } else if (!follow_up) {
+        } else {
           const error_item = await enqueue_submission(form_group_id, form.version, failed_data, {
             client_submission_id,
             respondent,
@@ -228,7 +214,7 @@ export function usePublicSubmit(context) {
             field_errors: server_field_errors,
           });
           reviewing_queue_id_ref.current = error_item.id;
-          await clear_form_draft(form_group_id, draft_mode);
+          await clear_form_draft(form_group_id);
           await refresh_draft();
         }
         await refresh_queue();

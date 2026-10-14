@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
-import { empty_tracking, key_candidates, editable_candidates, field_name, is_tracking_enabled, key_ids_of, MAX_KEY_FIELDS } from "./trackingConfig.js";
+import { empty_tracking, key_candidates, editable_candidates, field_name, is_tracking_enabled, key_ids_of } from "./trackingConfig.js";
 import DcsWizardSteps from "../components/DcsWizardSteps.jsx";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
@@ -86,12 +86,11 @@ export default function TrackingSetupOverlay({ fields, tracking, onSave, onClose
   const chosen = new Set(draft.editable_field_ids || []);
   const has_key = key_fields.length > 0;
   const max_reached = has_key ? 2 : 0;
-  const keys_full = key_ids.length >= MAX_KEY_FIELDS;
 
   const toggle_key = (field_id) =>
     setDraft((previous) => {
       const list = previous.key_field_ids || [];
-      const next = list.includes(field_id) ? list.filter((id) => id !== field_id) : list.length >= MAX_KEY_FIELDS ? list : list.concat([field_id]);
+      const next = list.includes(field_id) ? list.filter((id) => id !== field_id) : list.concat([field_id]);
       return Object.assign({}, previous, {
         key_field_ids: next,
         key_field_id: next[0] || "",
@@ -137,7 +136,7 @@ export default function TrackingSetupOverlay({ fields, tracking, onSave, onClose
           {step === 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold" style={{ color: PRIMARY, fontFamily: FONT }}>
-                {translate("DCS_TRACKING_KEY_COUNT", { count: key_ids.length, max: MAX_KEY_FIELDS })}
+                {translate("DCS_TRACKING_KEY_COUNT", { count: key_ids.length })}
               </p>
               {keys.length === 0 && (
                 <p className="text-xs py-6 text-center" style={{ color: MUTED }}>{translate("DCS_TRACKING_NO_KEY_CANDIDATES")}</p>
@@ -150,7 +149,6 @@ export default function TrackingSetupOverlay({ fields, tracking, onSave, onClose
                     field={field}
                     checked={index >= 0}
                     badge={index >= 0 ? index + 1 : 0}
-                    disabled={index < 0 && keys_full}
                     onToggle={() => toggle_key(field.id)}
                     language={language}
                     translate={translate}

@@ -1,10 +1,9 @@
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 
-export const KEY_FIELD_TYPES = ["text", "number", "email", "phone", "url", "single_select", "select_group", "cascading_select", "date", "hidden"];
+export const KEY_FIELD_TYPES = ["text", "large_text", "number", "email", "phone", "url", "single_select", "select_group", "cascading_select", "date", "hidden"];
 export const NOT_EDITABLE_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "section", "group", "geolocation"];
-export const SEARCHABLE_INPUT_TYPES = ["text", "number", "email", "phone", "url", "date"];
-export const MAX_KEY_FIELDS = 5;
+export const SEARCHABLE_INPUT_TYPES = ["text", "large_text", "number", "email", "phone", "url", "date"];
 
 export function empty_tracking() {
   return { enabled: false, key_field_ids: [], key_field_id: "", key_unique: true, editable_field_ids: [] };
@@ -23,7 +22,7 @@ export const is_tracking_enabled = (tracking) => !!(tracking && tracking.enabled
 export function normalize_tracking(raw, fields) {
   if (!raw || typeof raw !== "object" || raw.enabled !== true) return empty_tracking();
   const known = new Set(flatten_fields(fields || []).map((field) => field.id));
-  const key_field_ids = key_ids_of(raw).filter((id) => known.has(id)).slice(0, MAX_KEY_FIELDS);
+  const key_field_ids = key_ids_of(raw).filter((id) => known.has(id));
   const keys = new Set(key_field_ids);
   const editable = Array.isArray(raw.editable_field_ids) ? raw.editable_field_ids.filter((id) => typeof id === "string" && known.has(id) && !keys.has(id)) : [];
   return {
@@ -37,7 +36,7 @@ export function normalize_tracking(raw, fields) {
 
 export function tracking_payload(tracking) {
   if (!is_tracking_enabled(tracking)) return null;
-  const key_field_ids = key_ids_of(tracking).slice(0, MAX_KEY_FIELDS);
+  const key_field_ids = key_ids_of(tracking);
   return {
     enabled: true,
     key_field_ids,

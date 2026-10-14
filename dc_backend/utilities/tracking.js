@@ -1,13 +1,14 @@
 const { flatten_fields } = require("../jsonlogic/dependency_graph.js");
 
 /**
- * Record tracking: a form whose records are found again by one to five KEY
- * fields (a national id, a plot number) and then updated on a chosen set
- * of fields, every change kept with its date and time.
+ * Record tracking: a form whose records are found again by one or more KEY
+ * fields (a national id, a plot number, a name) and then updated on a
+ * chosen set of fields, every change kept with its date and time. A
+ * record is found when ANY of its key fields holds the typed value.
  *
  * tracking: {
  *   enabled: boolean,
- *   key_field_ids: [<field id>],    one to five, in order
+ *   key_field_ids: [<field id>],    one or more, in order, no upper limit
  *   key_field_id: <field id>,       the first key, kept for old readers
  *   key_unique: boolean,            one record per key COMBINATION, or several
  *   editable_field_ids: [<field id>] the fields a later update may change
@@ -29,11 +30,12 @@ const { flatten_fields } = require("../jsonlogic/dependency_graph.js");
  *   history          [{ at, kind, by, changes: [{ field_id, from, to }] }]
  */
 
-const KEY_FIELD_TYPES = ["text", "number", "email", "phone", "url", "single_select", "select_group", "cascading_select", "date", "hidden"];
+const KEY_FIELD_TYPES = ["text", "large_text", "number", "email", "phone", "url", "single_select", "select_group", "cascading_select", "date", "hidden"];
 const NOT_EDITABLE_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "section", "group", "geolocation"];
 const MAX_EDITABLE_FIELDS = 200;
-const MAX_KEY_FIELDS = 5;
 const KEY_JOINER = "|";
+// Digits (spaces allowed between them), an optional sign, an optional fraction.
+const NUMERIC_TEXT = /^[+-]?[\d\s]+(\.\d*)?$/;
 
 /** The key field ids of a config in order, reading the old single key_field_id as a list of one. */
 function key_ids_of(tracking) {
@@ -53,12 +55,26 @@ function is_enabled(tracking) {
   return !!(tracking && tracking.enabled === true && key_ids_of(tracking).length > 0);
 }
 
-/** One key answer as it is stored and searched: a trimmed, lowercased string; "" when unanswered. */
+/**
+ * One key answer as it is stored and searched: a trimmed, lowercased
+ * string; "" when unanswered. A number reads the same however it was
+ * typed or stored: spaces inside the digits are dropped ("0788 123 456"
+ * is "0788123456"), a leading plus goes, and so do trailing fractional
+ * zeros ("12.0" and "12.50" are "12" and "12.5"). Leading zeros are kept,
+ * so an id that starts with 0 stays itself.
+ */
 function record_key_of(value) {
   if (value === undefined || value === null) return "";
   if (Array.isArray(value)) return value.map((entry) => record_key_of(entry)).filter(Boolean).join(",");
   if (typeof value === "object") return "";
-  return String(value).trim().toLowerCase();
+  return canonical_number(String(value).trim().toLowerCase());
+}
+
+function canonical_number(text) {
+  if (!NUMERIC_TEXT.test(text)) return text;
+  const compact = text.replace(/\s+/g, "").replace(/^\+/, "");
+  if (!compact.includes(".")) return compact;
+  return compact.replace(/0+$/, "").replace(/\.$/, "");
 }
 
 /**
@@ -82,7 +98,7 @@ function record_key_pairs(tracking, data) {
 /**
  * Validates an author's tracking config against the schema it belongs to.
  * An absent or disabled config is always valid. Either key_field_ids (one
- * to five) or the older key_field_id names the keys.
+ * or more, any count) or the older key_field_id names the keys.
  */
 function validate_tracking_config(tracking, schema) {
   const errors = [];
@@ -98,8 +114,6 @@ function validate_tracking_config(tracking, schema) {
   const key_ids = key_ids_of(tracking);
   if (key_ids.length === 0) {
     errors.push(has_list ? "tracking.key_field_ids must name at least one field of the form" : "tracking.key_field_id must name a field of the form");
-  } else if (key_ids.length > MAX_KEY_FIELDS) {
-    errors.push(`tracking.key_field_ids: at most ${MAX_KEY_FIELDS} key fields`);
   }
   key_ids.forEach((field_id) => {
     const key_field = fields_by_id.get(field_id);
@@ -232,7 +246,6 @@ function next_periods(existing_periods, changes, at, submitted_at) {
 module.exports = {
   KEY_FIELD_TYPES,
   NOT_EDITABLE_TYPES,
-  MAX_KEY_FIELDS,
   is_enabled,
   key_ids_of,
   record_key_of,

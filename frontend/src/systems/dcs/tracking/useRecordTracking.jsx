@@ -1,9 +1,16 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { is_tracking_enabled, key_ids_of, locked_field_ids, field_name, SEARCHABLE_INPUT_TYPES } from "./trackingConfig.js";
-import { KeyFieldWrap, LockedFieldWrap } from "./RecordFieldWrap.jsx";
+import { KeyFieldWrap, LockedFieldWrap, DisabledFieldWrap } from "./RecordFieldWrap.jsx";
 
 const is_empty = (value) => value === undefined || value === null || String(value).trim() === "";
+
+function answer_text(value) {
+  if (value === undefined || value === null || value === "") return "";
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+export const same_answer = (a, b) => answer_text(a) === answer_text(b);
 
 export function useRecordTracking({ form, values, applyValues, clearValues, active }) {
   const { language } = useDcsLanguage();
@@ -18,10 +25,16 @@ export function useRecordTracking({ form, values, applyValues, clearValues, acti
 
   const locked = useMemo(() => (loaded_record ? locked_field_ids(tracking, fields) : new Set()), [loaded_record, tracking, fields]);
 
+  const has_changes = useMemo(() => {
+    if (!loaded_record) return false;
+    const data = loaded_record.data || {};
+    return (tracking.editable_field_ids || []).some((id) => !same_answer(values ? values[id] : undefined, data[id]));
+  }, [loaded_record, values, tracking]);
+
   const open_lookup = useCallback(
     (field_id, value) => {
-      const id = field_id && key_field_ids.includes(field_id) ? field_id : key_field_ids[0] || "";
-      const typed = value !== undefined ? value : values ? values[id] : "";
+      const id = field_id && key_field_ids.includes(field_id) ? field_id : "";
+      const typed = value !== undefined ? value : id && values ? values[id] : "";
       setLookup({ field_id: id, initial_key: typed === undefined || typed === null ? "" : String(typed) });
     },
     [values, key_field_ids],
@@ -61,7 +74,8 @@ export function useRecordTracking({ form, values, applyValues, clearValues, acti
           </KeyFieldWrap>
         );
       }
-      if (loaded_record && locked.has(field.id)) return <LockedFieldWrap>{element}</LockedFieldWrap>;
+      if (!loaded_record) return <DisabledFieldWrap>{element}</DisabledFieldWrap>;
+      if (locked.has(field.id)) return <LockedFieldWrap>{element}</LockedFieldWrap>;
       return element;
     },
     [key_field_ids, loaded_record, locked, open_lookup, values, language],
@@ -78,6 +92,7 @@ export function useRecordTracking({ form, values, applyValues, clearValues, acti
     key_field_ids,
     tracking: tracked ? tracking : null,
     loaded_record,
+    has_changes,
     lookup: enabled ? lookup : null,
     open_lookup,
     close_lookup,

@@ -11,6 +11,7 @@ import { cache_form, get_cached_form } from "../offline/formCache.js";
 import { process_queue_once, list_queue, start_auto_sync } from "../offline/submissionQueue.js";
 import { probe_storage } from "../offline/offlineStorage.js";
 import { read_respondent } from "../offline/respondentStore.js";
+import { has_meaningful_answers } from "../offline/draftStore.js";
 import { warm_offline_cache } from "../offline/warmCache.js";
 import { export_ready_records } from "../offline/exportReadyRecords.js";
 import { apply_form_manifest } from "../pwa/dynamicManifest.js";
@@ -35,7 +36,7 @@ import { useRecordTracking } from "../tracking/useRecordTracking.jsx";
 import { useFollowUpMode } from "../tracking/useFollowUpMode.js";
 import { is_tracking_enabled, with_key_on_top } from "../tracking/trackingConfig.js";
 import { RecordFloatingButton } from "../tracking/RecordFieldWrap.jsx";
-import { FollowUpModeToggle, KeyExistsNotice } from "../tracking/FollowUpModeBar.jsx";
+import { FollowUpModeToggle, KeyExistsNotice, UpdateRetryNotice } from "../tracking/FollowUpModeBar.jsx";
 import RecordLookupOverlay from "../tracking/RecordLookupOverlay.jsx";
 
 function extract_form_group_id(raw_id) {
@@ -68,6 +69,7 @@ function PublicFormPageContent() {
   const [queued_notice_visible, setQueuedNoticeVisible] = useState(false);
   const [storage_backend_name, setStorageBackendName] = useState(null);
   const [key_exists_notice, setKeyExistsNotice] = useState(null);
+  const [update_error, setUpdateError] = useState(null);
   const [respondent, setRespondent] = useState(null);
   const [saved_respondent] = useState(() => read_respondent());
   const reviewing_queue_id_ref = useRef(null);
@@ -181,6 +183,7 @@ function PublicFormPageContent() {
       setRevealAllErrors(false);
       setSubmitState("idle");
       setKeyExistsNotice(null);
+      setUpdateError(null);
     },
     [form],
   );
@@ -197,7 +200,7 @@ function PublicFormPageContent() {
   );
 
   const tracked = !!form && is_tracking_enabled(form.tracking);
-  const follow_up = useFollowUpMode({ form, form_group_id, tracked, values, applyValues: swap_mode_values });
+  const follow_up = useFollowUpMode({ tracked, values, applyValues: swap_mode_values });
   const tracking = useRecordTracking({ form, values, applyValues: put_record_values, clearValues: clear_record_values, active: follow_up.enabled });
 
   const load_values_for_review = (data) => {
@@ -214,8 +217,7 @@ function PublicFormPageContent() {
     form,
     form_group_id,
     values,
-    draft_mode: follow_up.draft_mode,
-    ready: follow_up.resolved,
+    ready: !follow_up.enabled,
     reviewing_queue_id_ref,
     loaded_record: tracking.loaded_record,
     language,
@@ -227,6 +229,7 @@ function PublicFormPageContent() {
   const handle_value_change = (field_id, next_value) => {
     setSubmitState("idle");
     setKeyExistsNotice(null);
+    setUpdateError(null);
     setValues((previous_values) => {
       const merged_values = Object.assign({}, previous_values, { [field_id]: next_value });
       const resolved_values = compute_derived_values(form.schema, merged_values);
@@ -294,7 +297,6 @@ function PublicFormPageContent() {
     reviewing_queue_id_ref,
     refresh_queue,
     refresh_draft: drafts.refresh_draft,
-    draft_mode: follow_up.draft_mode,
     showSuccess,
     showError,
     showWarning,
@@ -313,6 +315,7 @@ function PublicFormPageContent() {
       approval_notices: setApprovalNotices,
       queued_notice_visible: setQueuedNoticeVisible,
       key_exists_notice: setKeyExistsNotice,
+      update_error: setUpdateError,
     },
   });
 
@@ -324,6 +327,7 @@ function PublicFormPageContent() {
   const gate_needed = form.ask_respondent === true && !respondent;
   const is_success_screen = submit_state === "success_submitted" || submit_state === "success_offline" || submit_state === "success_updated";
   const queued_message = translate("DCS_PUBLIC_QUEUED_MESSAGE") + (storage_backend_name === "memory" ? "\n\n" + translate("DCS_STORAGE_MEMORY_ONLY") : "");
+  const holds_record = !follow_up.enabled && (!!reviewing_queue_id_ref.current || has_meaningful_answers(values, form.schema));
 
   return (
     <>
@@ -365,12 +369,6 @@ function PublicFormPageContent() {
             />
           ) : (
             <>
-              {tracked && (
-                <div className="flex justify-start">
-                  <FollowUpModeToggle enabled={follow_up.enabled} onChange={follow_up.set_mode} disabled={submitting || !follow_up.resolved} />
-                </div>
-              )}
-
               <div style={submitting ? { pointerEvents: "none", opacity: 0.6 } : undefined}>
                 <MediaUploadProvider formGroupId={form_group_id} version={form.version} isOnline={is_online}>
                   <RendererEngine
@@ -395,18 +393,21 @@ function PublicFormPageContent() {
                 onSubmit={handle_submit}
                 onIdle={() => setSubmitState("idle")}
                 submitLabelKey={tracking.loaded_record ? "DCS_TRACKING_BTN_UPDATE" : undefined}
+                disabled={tracking.enabled && (!tracking.loaded_record || !tracking.has_changes)}
                 secondary={
-                  tracking.loaded_record ? (
-                    <DcsButtonOutline onClick={tracking.clear_record} disabled={submitting}>
-                      {translate("DCS_TRACKING_CANCEL_UPDATE")}
+                  tracking.enabled ? (
+                    <DcsButtonOutline onClick={tracking.clear_record} disabled={submitting || !tracking.loaded_record}>
+                      {translate("DCS_BTN_CLEAR")}
                     </DcsButtonOutline>
                   ) : (
-                    <DcsButtonOutline onClick={drafts.handle_save_draft_click} disabled={submitting || !follow_up.resolved}>
+                    <DcsButtonOutline onClick={drafts.handle_save_draft_click} disabled={submitting}>
                       {translate("DCS_BTN_SAVE_DRAFT")}
                     </DcsButtonOutline>
                   )
                 }
               />
+
+              {tracking.enabled && !submitting && <UpdateRetryNotice message={update_error} onRetry={handle_submit} />}
 
               <KeyExistsNotice notice={key_exists_notice} onOpen={open_follow_up_from_notice} />
             </>
@@ -438,6 +439,16 @@ function PublicFormPageContent() {
             isSyncing={is_syncing}
             storageBackend={storage_backend_name}
             installSlot={<DcsInstallPrompt />}
+            followUpSlot={
+              tracked ? (
+                <FollowUpModeToggle
+                  enabled={follow_up.enabled}
+                  onChange={follow_up.set_mode}
+                  disabled={submitting || holds_record}
+                  hint={holds_record ? translate("DCS_FOLLOW_UP_HOLDS_RECORD") : undefined}
+                />
+              ) : null
+            }
             respondent={respondent}
             onRespondentChange={setRespondent}
             onClose={() => setIsQueueOpen(false)}
@@ -454,7 +465,7 @@ function PublicFormPageContent() {
 
         {gate_needed && <DcsRespondentGate saved={saved_respondent} onConfirm={setRespondent} />}
 
-        {!gate_needed && drafts.resume_prompt_visible && drafts.draft && (
+        {!gate_needed && !follow_up.enabled && drafts.resume_prompt_visible && drafts.draft && (
           <ResumeDraftDialog draft={drafts.draft} submitting={submitting} onResume={drafts.handle_resume_draft} onDiscard={drafts.handle_discard_draft} />
         )}
 

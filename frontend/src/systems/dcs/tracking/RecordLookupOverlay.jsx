@@ -5,9 +5,9 @@ import { search_public_records } from "./trackingService.js";
 import { field_name, format_when, key_fields_of } from "./trackingConfig.js";
 import { RecordDates, RecordFieldsList } from "./RecordHistory.jsx";
 import { RecordHistorySlidesOverlay } from "./RecordHistorySlides.jsx";
+import { SearchableInput } from "../fields/base/BaseTextLikeField.jsx";
 import RecordResultsTable from "./RecordResultsTable.jsx";
 import RecordLookupPager from "./RecordLookupPager.jsx";
-import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsOverlayHeader from "../components/DcsOverlayHeader.jsx";
 
@@ -21,29 +21,32 @@ const PAGE_SIZE = 20;
 export default function RecordLookupOverlay({ formGroupId, fields, tracking, initialField, initialKey, loadedRecord, onLoad, onClose }) {
   const { translate, language } = useDcsLanguage();
   const key_fields = key_fields_of(tracking, fields);
-  const first_id = key_fields.length > 0 ? key_fields[0].id : "";
-  const [field_id, setFieldId] = useState(initialField && key_fields.some((field) => field.id === initialField) ? initialField : first_id);
+  const [field_id, setFieldId] = useState(initialField && key_fields.some((field) => field.id === initialField) ? initialField : "");
   const [key, setKey] = useState(initialKey || "");
   const [results, setResults] = useState(null);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [slides_record, setSlidesRecord] = useState(null);
   const input_ref = useRef(null);
-  const searched_field = key_fields.find((field) => field.id === field_id) || null;
-  const searched_name = field_name(searched_field, language) || translate("DCS_TRACKING_KEY_LABEL");
+
+  const name_of = (wanted_field) => {
+    const found = key_fields.find((field) => field.id === wanted_field);
+    return found ? field_name(found, language) : translate("DCS_TRACKING_KEY_LABEL");
+  };
+  const searched_name = name_of(field_id);
 
   const run_search = async (options) => {
     const wanted = String(options && options.key !== undefined ? options.key : key).trim();
     const wanted_field = options && options.field !== undefined ? options.field : field_id;
     const page = (options && options.page) || 1;
     if (!wanted) {
-      setError(translate("DCS_TRACKING_KEY_REQUIRED", { field: searched_name }));
+      setError(translate("DCS_TRACKING_KEY_REQUIRED", { field: name_of(wanted_field) }));
       return;
     }
     setSearching(true);
     setError("");
     try {
-      const response = await search_public_records(formGroupId, { field: wanted_field, key: wanted, page, limit: PAGE_SIZE });
+      const response = await search_public_records(formGroupId, { field: wanted_field || undefined, key: wanted, page, limit: PAGE_SIZE });
       const data = response.data || {};
       const records = data.records || [];
       setResults({
@@ -51,7 +54,7 @@ export default function RecordLookupOverlay({ formGroupId, fields, tracking, ini
         page: data.page || page,
         pages: data.pages || 1,
         total: data.total !== undefined ? data.total : records.length,
-        field_id: wanted_field,
+        field_id: wanted_field || "",
         key: wanted,
       });
     } catch (search_error) {
@@ -72,8 +75,7 @@ export default function RecordLookupOverlay({ formGroupId, fields, tracking, ini
     onClose();
   };
 
-  const results_field = results ? key_fields.find((field) => field.id === results.field_id) : null;
-  const results_name = results_field ? field_name(results_field, language) : searched_name;
+  const results_name = results ? name_of(results.field_id) : searched_name;
   const slides_is_loaded = !!slides_record && !!loadedRecord && loadedRecord._id === slides_record._id;
 
   return createPortal(
@@ -84,32 +86,36 @@ export default function RecordLookupOverlay({ formGroupId, fields, tracking, ini
           <DcsOverlayHeader title={translate("DCS_TRACKING_LOOKUP_TITLE")} onClose={onClose} busy={searching} />
 
           <div className="flex-shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 space-y-2">
-            <div className="flex flex-col min-[560px]:flex-row min-[560px]:items-center gap-2">
-              <label className="cok-auth-label mb-0 flex-shrink-0">{translate("DCS_TRACKING_SEARCH_IN")}</label>
-              {key_fields.length > 1 ? (
-                <select className="cok-auth-input py-2 min-[560px]:w-56" value={field_id} onChange={(event) => setFieldId(event.target.value)} disabled={searching}>
-                  {key_fields.map((field) => (
-                    <option key={field.id} value={field.id}>{field_name(field, language)}</option>
-                  ))}
-                </select>
-              ) : (
-                <span className="text-sm font-semibold" style={{ color: PRIMARY, fontFamily: FONT }}>{searched_name}</span>
-              )}
-              <input
-                ref={input_ref}
-                type="text"
-                className="cok-auth-input py-2 flex-1 min-w-0"
-                placeholder={translate("DCS_TRACKING_KEY_PLACEHOLDER", { field: searched_name })}
-                value={key}
-                onChange={(event) => setKey(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") run_search();
-                }}
+            <div className="flex flex-col min-[640px]:flex-row min-[640px]:items-center gap-2">
+              <select
+                className="cok-auth-input py-2 w-full min-[640px]:w-44 flex-shrink-0"
+                aria-label={translate("DCS_TRACKING_SEARCH_IN")}
+                title={translate("DCS_TRACKING_SEARCH_IN")}
+                value={field_id}
+                onChange={(event) => setFieldId(event.target.value)}
                 disabled={searching}
-              />
-              <DcsButtonPrimary onClick={() => run_search()} disabled={searching}>
-                {translate("DCS_FIELD_SEARCH_BTN")}
-              </DcsButtonPrimary>
+              >
+                <option value="">{translate("DCS_TRACKING_ANY_KEY")}</option>
+                {key_fields.map((field) => (
+                  <option key={field.id} value={field.id}>{field_name(field, language)}</option>
+                ))}
+              </select>
+              <div className="flex-1 min-w-0">
+                <SearchableInput value={key} onSearch={() => run_search()} language={language}>
+                  <input
+                    ref={input_ref}
+                    type="text"
+                    className="cok-auth-input w-full py-2 pr-12!"
+                    placeholder={translate("DCS_TRACKING_KEY_PLACEHOLDER", { field: searched_name })}
+                    value={key}
+                    onChange={(event) => setKey(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") run_search();
+                    }}
+                    disabled={searching}
+                  />
+                </SearchableInput>
+              </div>
             </div>
             {error && <p className="text-xs" style={{ color: "#E74C3C" }}>{error}</p>}
           </div>

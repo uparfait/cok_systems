@@ -7,7 +7,9 @@ const FORMS_COLLECTION = "dcs_forms";
 const KEY_JOINER = "|";
 const MAX_MATCHES = 50;
 const TEST_DATA_FLAG = "is_test_data_generated_sss_ddd";
-const PUBLIC_PROJECTION = { data: 1, version: 1, submitted_at: 1, updated_at: 1, history: 1, tracking_periods: 1, respondent: 1 };
+// record_key_pairs rides along so a lookup can tell a legacy row (no pairs
+// yet) from a stamped one; to_public_record never sends it.
+const PUBLIC_PROJECTION = { data: 1, version: 1, submitted_at: 1, updated_at: 1, history: 1, tracking_periods: 1, respondent: 1, record_key_pairs: 1 };
 
 /**
  * The records of a TRACKED form (see utilities/tracking.js) live in the
@@ -31,35 +33,37 @@ async function ensure_tracked_record_indexes() {
 }
 
 /**
- * Stamps record_key_pairs on the records that predate them (they carry
- * record_key alone, so the public lookup could not find them): the whole
- * key read back into its fields in key order. One pipeline update per
- * tracked form, only over the records still missing their pairs, so it
- * is a no-op once every record carries them. Returns how many were
- * stamped. Runs at startup.
+ * Stamps record_key_pairs on ONE form's records that predate them (they
+ * carry record_key alone): the whole key read back into its fields in key
+ * order. A single pipeline update over the records still missing their
+ * pairs, so it is cheap and a no-op once every record carries them.
+ * Returns how many were stamped. Run at startup for every tracked form,
+ * and again by a lookup that meets a legacy row.
  */
+async function backfill_form_key_pairs(form_group_id, tracking) {
+  const key_ids = key_ids_of(tracking);
+  if (!form_group_id || key_ids.length === 0) return 0;
+  // One key: the whole key IS the value. Several: split on the joiner.
+  const split = { $split: ["$record_key", KEY_JOINER] };
+  const pairs = key_ids.map((field_id, index) => ({
+    f: field_id,
+    k: key_ids.length === 1 ? "$record_key" : { $ifNull: [{ $arrayElemAt: [split, index] }, ""] },
+  }));
+  const result = await get_db().collection(COLLECTION_NAME).updateMany(
+    { form_group_id, record_key: { $type: "string", $ne: "" }, record_key_pairs: { $exists: false } },
+    [{ $set: { record_key_pairs: { $filter: { input: pairs, as: "pair", cond: { $ne: ["$$pair.k", ""] } } } } }],
+  );
+  return result.modifiedCount;
+}
+
+/** The startup pass: every active tracked form, one update each. */
 async function backfill_record_key_pairs() {
-  const db = get_db();
-  const forms = await db
+  const forms = await get_db()
     .collection(FORMS_COLLECTION)
     .find({ is_active: true, "tracking.enabled": true }, { projection: { form_group_id: 1, tracking: 1 } })
     .toArray();
   let stamped = 0;
-  for (const form of forms) {
-    const key_ids = key_ids_of(form.tracking);
-    if (key_ids.length === 0) continue;
-    // One key: the whole key IS the value. Several: split on the joiner.
-    const split = { $split: ["$record_key", KEY_JOINER] };
-    const pairs = key_ids.map((field_id, index) => ({
-      f: field_id,
-      k: key_ids.length === 1 ? "$record_key" : { $ifNull: [{ $arrayElemAt: [split, index] }, ""] },
-    }));
-    const result = await db.collection(COLLECTION_NAME).updateMany(
-      { form_group_id: form.form_group_id, record_key: { $type: "string", $ne: "" }, record_key_pairs: { $exists: false } },
-      [{ $set: { record_key_pairs: { $filter: { input: pairs, as: "pair", cond: { $ne: ["$$pair.k", ""] } } } } }],
-    );
-    stamped += result.modifiedCount;
-  }
+  for (const form of forms) stamped += await backfill_form_key_pairs(form.form_group_id, form.tracking);
   return stamped;
 }
 
@@ -79,26 +83,39 @@ async function list_by_record_key(form_group_id, record_key) {
 }
 
 /**
- * The filter of a lookup by ONE key field (field_ids a string), by any of
- * a set of key fields (an array - what "no field given" means to the
- * public lookup, which still rides the pairs index), or by any pair at
- * all (null).
+ * The filter of a lookup: the records holding the value on ANY of the
+ * given key fields (field_ids an array - the normal call), on one key
+ * field (a string - the optional narrowing), or on any pair at all
+ * (null). Each form is its own answer; a record never has to match on
+ * every key field.
+ *
+ * with_record_key adds the records whose WHOLE key equals the value: the
+ * legacy rows that carry record_key alone, written before the pairs
+ * existed (or by a backend started without the backfill). For a
+ * single-key form that is exactly its key; for a form keyed on several
+ * fields it is a legacy row from its single-key days. Both branches ride
+ * their own index.
  */
-function key_pair_filter(form_group_id, field_ids, key) {
-  if (Array.isArray(field_ids)) return { form_group_id, record_key_pairs: { $elemMatch: { f: { $in: field_ids }, k: key } } };
-  if (field_ids) return { form_group_id, record_key_pairs: { $elemMatch: { f: field_ids, k: key } } };
-  return { form_group_id, "record_key_pairs.k": key };
+function key_pair_filter(form_group_id, field_ids, key, with_record_key) {
+  let pairs;
+  if (Array.isArray(field_ids)) pairs = { record_key_pairs: { $elemMatch: { f: { $in: field_ids }, k: key } } };
+  else if (field_ids) pairs = { record_key_pairs: { $elemMatch: { f: field_ids, k: key } } };
+  else pairs = { "record_key_pairs.k": key };
+  if (!with_record_key) return Object.assign({ form_group_id }, pairs);
+  return { form_group_id, $or: [pairs, { record_key: key }] };
 }
 
 /**
- * One page of the records whose key field holds this value, newest first:
- * { items, total }. page starts at 1; limit is capped at MAX_MATCHES.
+ * One page of the records holding this value on a key field, newest
+ * first: { items, total }. page starts at 1; limit is capped at
+ * MAX_MATCHES. Each item still carries record_key_pairs (absent on a
+ * legacy row) so the caller can stamp what it meets.
  */
-async function list_by_key_pair(form_group_id, field_ids, key, page, limit) {
+async function list_by_key_pair(form_group_id, field_ids, key, page, limit, with_record_key) {
   if (!key) return { items: [], total: 0 };
   const page_size = Math.min(MAX_MATCHES, Math.max(1, Number(limit) || MAX_MATCHES));
   const page_number = Math.max(1, Number(page) || 1);
-  const filter = key_pair_filter(form_group_id, field_ids, key);
+  const filter = key_pair_filter(form_group_id, field_ids, key, with_record_key);
   const collection = get_db().collection(COLLECTION_NAME);
   const [items, total] = await Promise.all([
     collection
@@ -113,9 +130,9 @@ async function list_by_key_pair(form_group_id, field_ids, key, page, limit) {
 }
 
 /** How many records of the form hold this value on this key field (or on any of these). */
-async function count_by_key_pair(form_group_id, field_ids, key) {
+async function count_by_key_pair(form_group_id, field_ids, key, with_record_key) {
   if (!key) return 0;
-  return get_db().collection(COLLECTION_NAME).countDocuments(key_pair_filter(form_group_id, field_ids, key));
+  return get_db().collection(COLLECTION_NAME).countDocuments(key_pair_filter(form_group_id, field_ids, key, with_record_key));
 }
 
 /** Which of these whole keys the form already holds - one query for a whole import batch. */
@@ -198,6 +215,7 @@ module.exports = {
   MAX_MATCHES,
   ensure_tracked_record_indexes,
   backfill_record_key_pairs,
+  backfill_form_key_pairs,
   list_by_record_key,
   list_by_key_pair,
   count_by_key_pair,

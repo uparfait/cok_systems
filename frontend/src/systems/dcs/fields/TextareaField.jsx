@@ -16,7 +16,7 @@ export default function TextareaField({ field, language, mode, value, onChange, 
 
   const input = (
     <textarea
-      className={`cok-auth-input w-full py-3 ${onSearch ? "pl-12!" : ""}`}
+      className={`cok-auth-input w-full py-3 ${onSearch ? "pr-12!" : ""}`}
       rows={field.rows || 5}
       placeholder={placeholder}
       value={value || ""}

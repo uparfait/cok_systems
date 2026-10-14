@@ -13,23 +13,23 @@ const AUTO_FILLED_TYPES = ["geolocation", "hidden", "section", "paragraph", "hea
  * submit" records - a draft is not yet a response and must never be
  * uploaded, so it can never end up mixed into that queue by accident.
  */
-function draft_key(form_group_id, mode) {
-  return mode ? `dcs_draft_${form_group_id}:${mode}` : `dcs_draft_${form_group_id}`;
+function draft_key(form_group_id) {
+  return `dcs_draft_${form_group_id}`;
 }
 
-export async function save_form_draft(form_group_id, version, data, mode) {
-  const draft = { form_group_id, version, data, mode: mode || null, updated_at: new Date().toISOString() };
-  await storage_set(draft_key(form_group_id, mode), draft);
+export async function save_form_draft(form_group_id, version, data) {
+  const draft = { form_group_id, version, data, updated_at: new Date().toISOString() };
+  await storage_set(draft_key(form_group_id), draft);
   return draft;
 }
 
-export async function get_form_draft(form_group_id, mode) {
-  const draft = await storage_get(draft_key(form_group_id, mode));
+export async function get_form_draft(form_group_id) {
+  const draft = await storage_get(draft_key(form_group_id));
   return draft || null;
 }
 
-export async function clear_form_draft(form_group_id, mode) {
-  await storage_del(draft_key(form_group_id, mode));
+export async function clear_form_draft(form_group_id) {
+  await storage_del(draft_key(form_group_id));
 }
 
 /** A geolocation answer, as GeolocationField stores it. */
