@@ -13,7 +13,8 @@ const {
   is_test_approver,
 } = require("../../utilities/approval.js");
 const { strip_creator } = require("../../utilities/owner.js");
-const { validate_tracking_config, normalize_tracking_config } = require("../../utilities/tracking.js");
+const { validate_tracking_config, normalize_tracking_config, is_enabled: is_tracking_enabled, key_fields_version } = require("../../utilities/tracking.js");
+const tracked_records_model = require("../../models/tracked_records_model.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -139,6 +140,13 @@ async function update_form(req, res) {
           updated_by: req.user.user_id.toString(),
           updated_by_name: req.user.full_name,
         });
+
+    // Changed key fields: every record's key and searchable pairs are
+    // rebuilt from its answers in the background, so the lookup finds the
+    // records by the new keys without waiting for a restart.
+    if (is_tracking_enabled(next_tracking) && key_fields_version(next_tracking) !== key_fields_version(active_version.tracking)) {
+      tracked_records_model.backfill_form_key_pairs(form_group_id, next_tracking).catch(() => {});
+    }
 
     const stripped_form = Object.assign({}, strip_creator(form), { approval_config: strip_approval_config_for_response(form.approval_config) });
 

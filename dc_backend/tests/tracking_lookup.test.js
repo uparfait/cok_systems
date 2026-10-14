@@ -24,6 +24,7 @@ const { set_db_handles } = require("../db_connection/db.js");
 const FORM = "lookup-two-keys";
 const OLD_FORM = "lookup-old-key";
 const NUM_FORM = "lookup-number-keys";
+const SEARCH_FORM = "lookup-search";
 const NID = "nid_f";
 const PLOT = "plot_f";
 const NOTE = "note_f";
@@ -52,6 +53,7 @@ const NUM_SCHEMA = {
   ],
 };
 const NUM_TRACKING = { enabled: true, key_field_ids: [NUM, BIG], key_field_id: NUM, key_unique: false, editable_field_ids: [NOTE] };
+const SEARCH_TRACKING = { enabled: true, key_field_ids: [NID], key_field_id: NID, key_unique: false, editable_field_ids: [NOTE] };
 
 const DAY_MS = 86400000;
 const days_ago = (days) => new Date(Date.now() - days * DAY_MS);
@@ -92,7 +94,7 @@ async function run_all_tests() {
     created_at: new Date(),
     updated_at: new Date(),
   });
-  await db.collection("dcs_forms").insertMany([form_doc(FORM, TRACKING), form_doc(OLD_FORM, OLD_TRACKING), form_doc(NUM_FORM, NUM_TRACKING, NUM_SCHEMA)]);
+  await db.collection("dcs_forms").insertMany([form_doc(FORM, TRACKING), form_doc(OLD_FORM, OLD_TRACKING), form_doc(NUM_FORM, NUM_TRACKING, NUM_SCHEMA), form_doc(SEARCH_FORM, SEARCH_TRACKING)]);
 
   const app = express();
   app.use(express.json());
@@ -117,6 +119,10 @@ async function run_all_tests() {
     await test_number_and_large_text_keys_are_searchable();
     await test_a_legacy_record_is_found_and_stamped_by_the_lookup();
     await test_any_number_of_key_fields_is_accepted();
+    await test_a_record_without_any_tracking_fields_is_found_by_its_answers();
+    await test_a_record_whose_pairs_are_wrong_is_found_by_its_answers();
+    await test_changing_the_key_fields_makes_records_findable_by_the_new_field();
+    await test_the_lookup_is_a_search_ordered_by_closeness();
   } finally {
     await new Promise((resolve) => http.close(resolve));
     await client.close();
@@ -131,6 +137,7 @@ async function test_submit_stamps_the_composite_key_and_its_pairs() {
   const stored = await db.collection("dcs_submissions").findOne({ form_group_id: FORM });
   assert.strictEqual(stored.record_key, "id-001|p-7", "the whole key is both values, normalised, joined with |");
   assert.deepStrictEqual(stored.record_key_pairs, [{ f: NID, k: "id-001" }, { f: PLOT, k: "p-7" }], "one searchable pair per key field, in key order");
+  assert.strictEqual(stored.record_key_fields, `${NID}|${PLOT}`, "and the marker of the key fields the pairs were built for");
   assert.strictEqual(stored.updated_at, null, "a new record has no update yet");
 }
 
@@ -298,28 +305,32 @@ async function test_the_old_single_key_config_still_works() {
 /** Records collected before the key index carry record_key alone; the startup backfill derives their pairs. */
 async function test_records_without_pairs_are_backfilled_at_startup() {
   const { backfill_record_key_pairs } = require("../models/tracked_records_model.js");
-  const legacy = (form_group_id, record_key, data) => ({ form_group_id, version: 1, record_key, data, submitted_at: days_ago(30), history: [] });
   await db.collection("dcs_submissions").insertMany([
     legacy(OLD_FORM, "legacy-9", { [NID]: "Legacy-9", [NOTE]: "old" }),
-    legacy(FORM, "id-777|p-1", { [NID]: "ID-777", [PLOT]: "P-1" }),
+    legacy(FORM, "id-777|p-q1", { [NID]: "ID-777", [PLOT]: "P-q1" }),
     legacy(FORM, "id-778|", { [NID]: "ID-778" }),
   ]);
-  // The lookup already sees a legacy row through its record_key, and
-  // stamps that form's rows on the way; the two-key form's rows are
-  // untouched until the startup pass below.
+  // The lookup sees a legacy row through its record_key and stamps that form; the other form waits for the startup pass.
   assert.strictEqual((await call("GET", `/forms/${OLD_FORM}/records?key=legacy-9`)).body.data.total, 1, "even without pairs the lookup finds the old record");
   assert.strictEqual(await backfill_record_key_pairs(), 2, "the startup pass stamps the two-key form's rows the lookup never touched");
   assert.strictEqual(await backfill_record_key_pairs(), 0, "and a second run has nothing left to do");
 
   assert.strictEqual((await call("GET", `/forms/${OLD_FORM}/records?key=legacy-9`)).body.data.total, 1, "a single-key record is found by its whole key");
-  const two_keys = await db.collection("dcs_submissions").findOne({ form_group_id: FORM, record_key: "id-777|p-1" });
-  assert.deepStrictEqual(two_keys.record_key_pairs, [{ f: NID, k: "id-777" }, { f: PLOT, k: "p-1" }], "a two-key record's key is split back into its fields");
-  assert.strictEqual((await call("GET", `/forms/${FORM}/records?field=${PLOT}&key=P-1`)).body.data.total, 1, "and it is found by its second key");
+  const two_keys = await db.collection("dcs_submissions").findOne({ form_group_id: FORM, record_key: "id-777|p-q1" });
+  assert.deepStrictEqual(two_keys.record_key_pairs, [{ f: NID, k: "id-777" }, { f: PLOT, k: "p-q1" }], "a two-key record's key is split back into its fields");
+  assert.strictEqual((await call("GET", `/forms/${FORM}/records?field=${PLOT}&key=P-q1`)).body.data.total, 1, "and it is found by its second key");
   const half = await db.collection("dcs_submissions").findOne({ form_group_id: FORM, record_key: "id-778|" });
   assert.deepStrictEqual(half.record_key_pairs, [{ f: NID, k: "id-778" }], "an unanswered key field makes no pair");
 }
 
-const lookup = async (form, key, field) => (await call("GET", `/forms/${form}/records?key=${encodeURIComponent(key)}${field ? `&field=${field}` : ""}`)).body.data;
+/** A row written before the pairs existed: record_key alone, no pairs, no marker. */
+const legacy = (form_group_id, record_key, data) => ({ form_group_id, version: 1, record_key, data, submitted_at: days_ago(30), history: [] });
+
+const lookup = async (form, key, field, paging) => {
+  const page = paging && paging.page ? `&page=${paging.page}` : "";
+  const limit = paging && paging.limit ? `&limit=${paging.limit}` : "";
+  return (await call("GET", `/forms/${form}/records?key=${encodeURIComponent(key)}${field ? `&field=${field}` : ""}${page}${limit}`)).body.data;
+};
 
 /** The normal call names no field: any key field holding the value matches, and a record comes back once. */
 async function test_any_key_field_matches_and_a_record_comes_back_once() {
@@ -351,18 +362,21 @@ async function test_number_and_large_text_keys_are_searchable() {
   assert.strictEqual((await lookup(NUM_FORM, "12")).total, 1, "12 finds the record");
   assert.strictEqual((await lookup(NUM_FORM, " 12.0 ")).total, 1, '"12.0" with spaces finds the stored 12');
   assert.strictEqual((await lookup(NUM_FORM, "12.00")).total, 1, '"12.00" finds it too');
-  assert.strictEqual((await lookup(NUM_FORM, "120")).total, 0, "120 does not: equality, not a prefix");
+  assert.strictEqual((await lookup(NUM_FORM, "120")).total, 0, "120 finds nothing: no key contains 120");
   assert.strictEqual((await lookup(NUM_FORM, "A LONG STORY ABOUT A PLOT")).total, 1, "the textarea key matches whatever the case");
-  assert.strictEqual((await lookup(NUM_FORM, "story")).total, 0, "a word of it does not: equality, not contains");
+  assert.strictEqual((await lookup(NUM_FORM, "story")).total, 1, "a word of it finds it too: the lookup is a search");
   const spaced = await submit(NUM_FORM, { [NUM]: 1234, [BIG]: "b", [NOTE]: "n" });
   assert.strictEqual(spaced.status, 201, "another household saves");
   assert.strictEqual((await lookup(NUM_FORM, "1 234")).total, 1, "a number typed with a space inside finds the stored 1234");
   assert.strictEqual((await lookup(NUM_FORM, "1234", BIG)).total, 0, "narrowed to the textarea the number is not there");
+  const twelve = await lookup(NUM_FORM, "12");
+  assert.strictEqual(twelve.total, 2, '"12" now also lists 1234, which contains it');
+  assert.strictEqual(twelve.records[0].data[NUM], 12, "the exact match is listed first");
+  assert.strictEqual(twelve.records[1].data[NUM], 1234, "the one that merely contains it after");
 }
 
 /** A row carrying record_key alone (no pairs) is found by the lookup, which stamps its pairs on the way. */
 async function test_a_legacy_record_is_found_and_stamped_by_the_lookup() {
-  const legacy = (form_group_id, record_key, data) => ({ form_group_id, version: 1, record_key, data, submitted_at: days_ago(40), history: [] });
   await db.collection("dcs_submissions").insertMany([
     legacy(OLD_FORM, "lazy-1", { [NID]: "Lazy-1", [NOTE]: "old" }),
     legacy(FORM, "id-900|p-900", { [NID]: "ID-900", [PLOT]: "P-900" }),
@@ -392,6 +406,86 @@ async function test_any_number_of_key_fields_is_accepted() {
   assert.strictEqual(KEY_FIELD_TYPES.includes("large_text"), true, "a textarea may be a key");
   const file_key = { enabled: true, key_field_ids: ["doc"], key_unique: false, editable_field_ids: [] };
   assert.strictEqual(validate_tracking_config(file_key, schema).valid, false, "a file cannot be a key");
+}
+
+/** The user's case: a record collected before tracking existed - answers only, no key, no pairs - found by its first name. */
+async function test_a_record_without_any_tracking_fields_is_found_by_its_answers() {
+  const { count_by_key_pair } = require("../models/tracked_records_model.js");
+  const plain = { form_group_id: FORM, version: 1, data: { [NID]: "center bridge health", [PLOT]: "P-cb", [NOTE]: "plain" }, submitted_at: days_ago(60) };
+  const inserted = await db.collection("dcs_submissions").insertOne(plain);
+  const found = await lookup(FORM, "  Center Bridge Health  ");
+  assert.strictEqual(found.total, 1, "the record is found by its first name, whatever the case and the spaces around");
+  assert.strictEqual(String(found.records[0]._id), String(inserted.insertedId), "and it is that record");
+  const stamped = await db.collection("dcs_submissions").findOne({ _id: inserted.insertedId });
+  assert.strictEqual(stamped.record_key, "center bridge health|p-cb", "the lookup stamped its whole key from its answers");
+  assert.deepStrictEqual(stamped.record_key_pairs, [{ f: NID, k: "center bridge health" }, { f: PLOT, k: "p-cb" }], "and its pairs");
+  assert.strictEqual(stamped.record_key_fields, `${NID}|${PLOT}`, "and the marker");
+  assert.strictEqual(await count_by_key_pair(FORM, [NID, PLOT], "center bridge health", false), 1, "so the pairs path alone finds it from now on");
+  assert.strictEqual((await lookup(FORM, "CENTER BRIDGE HEALTH")).total, 1, "upper case finds it again");
+  assert.strictEqual((await lookup(FORM, "p-cb", PLOT)).total, 1, "and so does its plot, narrowed to the plot field");
+  assert.strictEqual((await lookup(FORM, "center bridge")).total, 1, "a part of the name finds it too: the lookup is a search");
+}
+
+/** A record stamped for the current keys but with pairs that do not say what its answers say is still found, and corrected. */
+async function test_a_record_whose_pairs_are_wrong_is_found_by_its_answers() {
+  const { count_by_key_pair } = require("../models/tracked_records_model.js");
+  const wrong = Object.assign(legacy(FORM, "stale", { [NID]: "Regex-Only", [PLOT]: "P-ro", [NOTE]: "wrong pairs" }), {
+    record_key_pairs: [{ f: NID, k: "stale" }],
+    record_key_fields: `${NID}|${PLOT}`,
+  });
+  const inserted = await db.collection("dcs_submissions").insertOne(wrong);
+  assert.strictEqual(await count_by_key_pair(FORM, [NID, PLOT], "regex-only", true), 0, "neither the pairs nor the whole key hold the value");
+  const found = await lookup(FORM, "regex-only");
+  assert.strictEqual(found.total, 1, "the answers themselves are read as the last resort");
+  assert.strictEqual(String(found.records[0]._id), String(inserted.insertedId), "and the right record comes back");
+  assert.strictEqual(await count_by_key_pair(FORM, [NID, PLOT], "regex-only", false), 1, "and it was re-stamped from its answers on the way");
+  assert.strictEqual((await db.collection("dcs_submissions").findOne({ _id: inserted.insertedId })).record_key, "regex-only|p-ro", "whole key included");
+}
+
+/** Switching the form's key fields makes every record findable by the new field. */
+async function test_changing_the_key_fields_makes_records_findable_by_the_new_field() {
+  const { backfill_form_key_pairs } = require("../models/tracked_records_model.js");
+  const next = { enabled: true, key_field_ids: [NOTE], key_field_id: NOTE, key_unique: false, editable_field_ids: [OTHER] };
+  await db.collection("dcs_forms").updateOne({ form_group_id: FORM }, { $set: { tracking: next } });
+
+  // The lookup alone copes: the first miss re-stamps the form's records for the new key.
+  const found = await lookup(FORM, "Plain");
+  assert.strictEqual(found.total, 1, "a note value finds its record once the note is the key");
+  assert.deepStrictEqual(found.key_field_ids, [NOTE], "the lookup reports the new key field");
+  const stamped = await db.collection("dcs_submissions").findOne({ form_group_id: FORM, "data.note_f": "plain" });
+  assert.strictEqual(stamped.record_key, "plain", "the whole key is now the note");
+  assert.deepStrictEqual(stamped.record_key_pairs, [{ f: NOTE, k: "plain" }], "the pairs are built for the new key");
+  assert.strictEqual(stamped.record_key_fields, NOTE, "and the marker says so");
+  assert.strictEqual(await backfill_form_key_pairs(FORM, next), 0, "every record of the form is current: a repeat run changes nothing");
+  assert.strictEqual((await lookup(FORM, "center bridge health")).total, 0, "the old key field is no longer searched");
+  assert.strictEqual((await lookup(FORM, "revised")).total, 1, "a note set by an earlier update is found too");
+}
+
+/** Typing "a" lists every record with an a in a key value: exact matches first, then "starts with", then the rest, newest first in each group; paging holds. */
+async function test_the_lookup_is_a_search_ordered_by_closeness() {
+  // Collected before tracking (answers only); oldest first in this order.
+  const names = ["a", "Alpha", "banana", "Beta", "Gamma", "zoo"];
+  await db.collection("dcs_submissions").insertMany(
+    names.map((name, index) => ({ form_group_id: SEARCH_FORM, version: 1, data: { [NID]: name, [NOTE]: "n" }, submitted_at: days_ago(10 - index) })),
+  );
+  const page_of = async (page) => {
+    const data = await lookup(SEARCH_FORM, "A", null, { page, limit: 2 });
+    assert.strictEqual(data.total, 5, '"a" matches every record with an a in its key, and zoo is not one');
+    assert.strictEqual(data.pages, 3, "two per page makes three pages");
+    assert.strictEqual(data.page, page, "the asked page comes back");
+    return data.records.map((record) => record.data[NID]);
+  };
+  assert.deepStrictEqual(await page_of(1), ["a", "Alpha"], "the exact match first, then the value starting with a");
+  assert.deepStrictEqual(await page_of(2), ["Gamma", "Beta"], "then the rest, newest first");
+  assert.deepStrictEqual(await page_of(3), ["banana"], "the oldest of the rest closes the list");
+  const stamped = await db.collection("dcs_submissions").countDocuments({ form_group_id: SEARCH_FORM, record_key_fields: NID });
+  assert.strictEqual(stamped, 6, "the first search stamped every record of the form");
+  assert.strictEqual((await lookup(SEARCH_FORM, "an")).records.map((record) => record.data[NID]).join(","), "banana", '"an" is only in banana');
+  assert.strictEqual((await lookup(SEARCH_FORM, "ZO")).total, 1, "a prefix in another case finds zoo");
+  assert.strictEqual((await lookup(SEARCH_FORM, "q")).total, 0, "a letter no key holds finds nothing");
+  assert.strictEqual((await lookup(SEARCH_FORM, "a", NID)).total, 5, "narrowed to the key field the search is the same");
+  const all = await lookup(SEARCH_FORM, "a", null, { limit: 50 });
+  assert.deepStrictEqual(all.records.map((record) => record.data[NID]), ["a", "Alpha", "Gamma", "Beta", "banana"], "one page holds the whole order");
 }
 
 run_all_tests().then(

@@ -6,7 +6,7 @@ const { approval_for_record, notify_new_approval } = require("../../utilities/su
 const { check_count_triggers } = require("../../utilities/batch_approval.js");
 const { resolve_client_origin } = require("../../utilities/approval_email.js");
 const { sanitize_respondent } = require("../../utilities/respondent.js");
-const { is_enabled, key_ids_of, composite_record_key, record_key_pairs, key_field_labels, next_periods } = require("../../utilities/tracking.js");
+const { is_enabled, key_ids_of, composite_record_key, key_field_labels, next_periods } = require("../../utilities/tracking.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 const { translate } = require("../../i18n/index.js");
@@ -127,7 +127,7 @@ async function update_record_full(req, res) {
     });
 
     if (tracked) {
-      await tracked_records_model.apply_record_key(record._id, composite_record_key(tracking, next_data), record_key_pairs(tracking, next_data));
+      await tracked_records_model.apply_record_key(record._id, tracking, next_data);
     }
 
     await check_count_triggers(record.form_group_id, resolve_client_origin(req));

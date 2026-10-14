@@ -7,16 +7,18 @@ const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = tracked_records_model.MAX_MATCHES;
 
 /**
- * Public, no-auth lookup of a tracked form's records by key value: the
- * respondent types a value (?key=) and every record holding it on ANY of
- * the form's key fields comes back, newest first, a page at a time
- * (?page, ?limit up to 50), each with its answers, its dates and its
- * whole change history. Several key fields never mean a record must
- * match on all of them. ?field=<key field id> optionally narrows the
- * search to one key field. The value is normalised exactly like the
- * stored key (trimmed, lowercased, numbers canonical), so "Pio" finds
- * "pio" and "12.0" finds 12. Anyone with the form link may search,
- * exactly as anyone may fill the form in.
+ * Public, no-auth SEARCH of a tracked form's records by key value: the
+ * respondent types a value (?key=) and every record whose key value
+ * CONTAINS it on ANY of the form's key fields comes back, a page at a
+ * time (?page, ?limit up to 50), closest first - exact matches, then
+ * values starting with it, then the rest, newest first within each group
+ * - each with its answers, its dates and its whole change history.
+ * Several key fields never mean a record must match on all of them.
+ * ?field=<key field id> optionally narrows the search to one key field.
+ * The value is normalised exactly like the stored key (trimmed,
+ * lowercased, numbers canonical), so "Pio" finds "pio" and "12.0" finds
+ * 12 (and 120, which contains it). Anyone with the form link may
+ * search, exactly as anyone may fill the form in.
  *
  * 200 { key, field_id, key_field_ids, editable_field_ids, records, page,
  * pages, total }; 400 TRACKING_KEY_REQUIRED when no value was typed or
@@ -62,14 +64,24 @@ async function search_public_records(req, res) {
     const read = () => tracked_records_model.list_by_key_pair(form_group_id, field_id || key_field_ids, key, page, limit, with_record_key);
     let result = await read();
 
-    // A legacy row met here (or nothing found at all) gets the form's
-    // rows stamped with their pairs now - one cheap, idempotent update -
-    // so the pairs index answers from the next lookup on; when the first
-    // read came back empty, it is read again over the stamped rows.
+    // A legacy row met here (or nothing found at all) brings the form's
+    // records up to the current key fields now - their keys and pairs
+    // rebuilt from their answers, only the records not yet current - so
+    // the pairs index answers from the next lookup on; when the first
+    // read came back empty, it is read again over the stamped records.
     const met_legacy = result.items.some((record) => !Array.isArray(record.record_key_pairs));
     if (met_legacy || result.total === 0) {
       const stamped = await tracked_records_model.backfill_form_key_pairs(form_group_id, tracking);
       if (stamped > 0 && result.total === 0) result = await read();
+    }
+
+    // Still nothing: the lookup never answers empty for data that exists.
+    // The key fields' own answers are read directly (exact, whatever the
+    // letter case or surrounding spaces), and what that finds is
+    // re-stamped from its answers so the next lookup rides the index.
+    if (result.total === 0) {
+      result = await tracked_records_model.list_by_data_value(form_group_id, field_id || key_field_ids, key, page, limit);
+      if (result.items.length > 0) await tracked_records_model.stamp_records_from_data(tracking, result.items.map((record) => record._id));
     }
 
     const pages = Math.max(1, Math.ceil(result.total / limit));

@@ -23,6 +23,9 @@ const { flatten_fields } = require("../jsonlogic/dependency_graph.js");
  *   record_key_pairs [{ f: field id, k: normalised value }] - one entry
  *                    per answered key field, what the public lookup
  *                    searches by, indexed
+ *   record_key_fields the key field ids the pairs were built for, joined
+ *                    with "|" - a record whose marker differs from the
+ *                    form's current keys is re-stamped from its answers
  *   tracking_periods { <field id>: [{ value, from, to }] } - the value each
  *                    editable field held from one moment to the next; the
  *                    first period starts at the record's own submission
@@ -93,6 +96,20 @@ function record_key_pairs(tracking, data) {
   return key_ids_of(tracking)
     .map((field_id) => ({ f: field_id, k: record_key_of((data || {})[field_id]) }))
     .filter((pair) => pair.k);
+}
+
+/** The marker of a key config: its field ids joined, what a record's pairs were built for. */
+function key_fields_version(tracking) {
+  return key_ids_of(tracking).join(KEY_JOINER);
+}
+
+/** Everything a record carries for the key index, derived from its answers alone. */
+function key_fields_of(tracking, data) {
+  return {
+    record_key: composite_record_key(tracking, data),
+    record_key_pairs: record_key_pairs(tracking, data),
+    record_key_fields: key_fields_version(tracking),
+  };
 }
 
 /**
@@ -196,13 +213,11 @@ function tracking_fields_for_new(tracking, data, submitted_at, by) {
   (tracking.editable_field_ids || []).forEach((field_id) => {
     periods[field_id] = [{ value: value_or_null(data[field_id]), from: submitted_at, to: null }];
   });
-  return {
-    record_key: composite_record_key(tracking, data),
-    record_key_pairs: record_key_pairs(tracking, data),
+  return Object.assign(key_fields_of(tracking, data), {
     tracking_periods: periods,
     updated_at: null,
     history: [{ at: submitted_at, kind: "created", by: by || null, changes: [] }],
-  };
+  });
 }
 
 function value_or_null(value) {
@@ -251,6 +266,8 @@ module.exports = {
   record_key_of,
   composite_record_key,
   record_key_pairs,
+  key_fields_version,
+  key_fields_of,
   validate_tracking_config,
   normalize_tracking_config,
   key_field_label,

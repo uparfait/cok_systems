@@ -5,6 +5,7 @@ const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { resolve_template_placeholders } = require("../../jsonlogic/resolve_templates.js");
 const { validate_approval_config, normalize_approval_config } = require("../../utilities/approval.js");
 const { validate_tracking_config, normalize_tracking_config } = require("../../utilities/tracking.js");
+const tracked_records_model = require("../../models/tracked_records_model.js");
 const { strip_creator } = require("../../utilities/owner.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
@@ -59,7 +60,7 @@ async function create_form(req, res) {
       return res.status(400).json(warning_response(req, "APPROVAL_CONFIG_INVALID", null, { errors: approval_validation.errors }));
     }
 
-    // Record tracking (one to five key fields, a set of updatable fields)
+    // Record tracking (one or more key fields, a set of updatable fields)
     // is checked against the very schema being published.
     const tracking_validation = validate_tracking_config(tracking, resolved_schema);
     if (!tracking_validation.valid) {
@@ -78,6 +79,12 @@ async function create_form(req, res) {
       created_by: req.user.user_id.toString(),
       created_by_name: req.user.full_name,
     });
+
+    // A tracked form's records (none for a brand new group, any for a
+    // re-created one) get their keys and pairs built in the background.
+    if (form && form.tracking) {
+      tracked_records_model.backfill_form_key_pairs(form.form_group_id, form.tracking).catch(() => {});
+    }
 
     return res.status(201).json(success_response(req, "FORM_CREATED", strip_creator(form)));
   } catch (error) {

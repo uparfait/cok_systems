@@ -88,7 +88,7 @@ export default function RecordLookupOverlay({ formGroupId, fields, tracking, ini
           <div className="flex-shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 space-y-2">
             <div className="flex flex-col min-[640px]:flex-row min-[640px]:items-center gap-2">
               <select
-                className="cok-auth-input py-2 w-full min-[640px]:w-44 flex-shrink-0"
+                className="cok-auth-input py-2 w-full! min-[640px]:w-44! min-[640px]:max-w-44! min-[640px]:flex-none"
                 aria-label={translate("DCS_TRACKING_SEARCH_IN")}
                 title={translate("DCS_TRACKING_SEARCH_IN")}
                 value={field_id}
