@@ -1,20 +1,36 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FiUploadCloud, FiAlertTriangle, FiCheckCircle, FiXCircle, FiLoader } from 'react-icons/fi';
 import { useToast } from '../../../core/contexts/ToastContext';
-import deploymentManagementService, { type DeploymentTarget } from '../../../core/services/deploymentManagement';
+import deploymentManagementService, {
+  type DeploymentTarget,
+  type InstalledCertificate,
+} from '../../../core/services/deploymentManagement';
 import DeployConsole from './components/DeployConsole';
-
-const PRIMARY = '#056daa';
-const DANGER = '#E74C3C';
-const SUCCESS = '#4CAF50';
-const NEUTRAL_LIGHT = '#F7F9FB';
-const WHITE = '#FFFFFF';
-const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';
-const fontHeading = "'Montserrat', sans-serif";
+import DeployPasswordOverlay from './components/DeployPasswordOverlay';
+import CertificateStatusCard from './components/CertificateStatusCard';
+import CertificateUploadOverlay from './components/CertificateUploadOverlay';
+import CertificateRunOverlay from './components/CertificateRunOverlay';
+import {
+  Banner,
+  CARD_SHADOW,
+  DANGER,
+  INK,
+  MUTED,
+  NEUTRAL_LIGHT,
+  PRIMARY,
+  SUCCESS,
+  WHITE,
+  button_style,
+  fontHeading,
+  message_of,
+} from './components/DeployBits';
 
 const POLL_MS = 800;
+const CERTIFICATE_TARGET = 'certificate';
+const CERTIFICATE_LABEL = 'SSL certificate';
 
 type RunStatus = 'queued' | 'running' | 'succeeded' | 'failed';
+type CertificateStep = 'password' | 'file' | 'run' | null;
 
 const ANSI = /\u001B\[[0-9;?]*[ -/]*[@-~]/g;
 const strip_ansi = (text: string) => text.replace(ANSI, '');
@@ -27,9 +43,10 @@ const status_look = (status: RunStatus | null) => {
   return { color: '#9E9E9E', label: 'Idle', Icon: FiUploadCloud };
 };
 
-const message_of = (error: unknown, fallback: string) => {
-  const value = error as { message?: string; error?: string } | null;
-  return (value && (value.message || value.error)) || fallback;
+type RunIdError = { data?: { run_id?: string }; response_data?: { data?: { run_id?: string } }; http_status?: number } | null;
+const run_id_of = (error: unknown) => {
+  const value = error as RunIdError;
+  return (value && ((value.data && value.data.run_id) || (value.response_data && value.response_data.data && value.response_data.data.run_id))) || null;
 };
 
 const DeploymentManagement: React.FC = () => {
@@ -38,20 +55,42 @@ const DeploymentManagement: React.FC = () => {
   const [targets, setTargets] = useState<DeploymentTarget[]>([]);
   const [blocked_reason, setBlockedReason] = useState<string | null>(null);
   const [loading_targets, setLoadingTargets] = useState(true);
+  const [certificate, setCertificate] = useState<InstalledCertificate | null>(null);
+  const [certificate_available, setCertificateAvailable] = useState(true);
 
   const [run_id, setRunId] = useState<string | null>(null);
   const [status, setStatus] = useState<RunStatus | null>(null);
   const [output, setOutput] = useState('');
   const [run_label, setRunLabel] = useState('');
+  const [run_target, setRunTarget] = useState('');
   const [run_error, setRunError] = useState<string | null>(null);
   const [page_error, setPageError] = useState<string | null>(null);
-  const [starting, setStarting] = useState<string | null>(null);
-  const [asking, setAsking] = useState<string | null>(null);
-  const [password, setPassword] = useState('');
+
+  const [asking, setAsking] = useState<DeploymentTarget | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [overlay_error, setOverlayError] = useState<string | null>(null);
+
+  const [cert_step, setCertStep] = useState<CertificateStep>(null);
+  const [signing, setSigning] = useState(false);
+  const [signature, setSignature] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [upload_progress, setUploadProgress] = useState<number | null>(null);
 
   const offset_ref = useRef(0);
   const run_id_ref = useRef<string | null>(null);
   const stopped_ref = useRef(false);
+  const finished_ref = useRef<string | null>(null);
+
+  const refresh_certificate = useCallback(async () => {
+    try {
+      const response = await deploymentManagementService.getTargets();
+      const data = response?.data;
+      setCertificate(data?.certificate || null);
+      setCertificateAvailable(data?.certificate_upload_available !== false);
+    } catch (ignored) {
+      return;
+    }
+  }, []);
 
   const adopt_run = useCallback((next_run_id: string) => {
     run_id_ref.current = next_run_id;
@@ -59,6 +98,7 @@ const DeploymentManagement: React.FC = () => {
     setRunId(next_run_id);
     setOutput('');
     setRunError(null);
+    setRunTarget('');
   }, []);
 
   const poll_once = useCallback(async () => {
@@ -68,20 +108,21 @@ const DeploymentManagement: React.FC = () => {
       const response = await deploymentManagementService.getLog(id, offset_ref.current);
       const page = response?.data;
       if (!page || run_id_ref.current !== id) return;
-      if (page.chunk) {
-        offset_ref.current = page.offset;
-        setOutput((current) => current + strip_ansi(page.chunk));
-      } else {
-        offset_ref.current = page.offset;
-      }
+      offset_ref.current = page.offset;
+      if (page.chunk) setOutput((current) => current + strip_ansi(page.chunk));
       setStatus(page.status);
       setRunLabel(page.target_label || page.target || '');
+      setRunTarget(page.target || '');
       setRunError(page.error || null);
       setPageError(null);
+      if ((page.status === 'succeeded' || page.status === 'failed') && finished_ref.current !== id) {
+        finished_ref.current = id;
+        if (page.target === CERTIFICATE_TARGET) refresh_certificate();
+      }
     } catch (error) {
       setPageError(message_of(error, 'Lost contact with the server. Retrying...'));
     }
-  }, []);
+  }, [refresh_certificate]);
 
   useEffect(() => {
     stopped_ref.current = false;
@@ -103,6 +144,8 @@ const DeploymentManagement: React.FC = () => {
       const data = response?.data;
       setTargets(data?.targets || []);
       setBlockedReason(data?.blocked_reason || null);
+      setCertificate(data?.certificate || null);
+      setCertificateAvailable(data?.certificate_upload_available !== false);
       setPageError(null);
       const resume = data?.current || data?.latest;
       if (resume?.run_id && run_id_ref.current !== resume.run_id) {
@@ -120,42 +163,110 @@ const DeploymentManagement: React.FC = () => {
     load_targets();
   }, [load_targets]);
 
-  const start = async (target: DeploymentTarget) => {
-    if (!password) {
-      setPageError('Enter the deployment password to continue.');
-      return;
-    }
-    setStarting(target.key);
-    setPageError(null);
+  const start = async (target: DeploymentTarget, password: string) => {
+    setStarting(true);
+    setOverlayError(null);
     try {
       const response = await deploymentManagementService.run(target.key, password);
       const next_run_id = response?.data?.run_id;
       if (!next_run_id) throw new Error('The server did not say which run was started.');
       setAsking(null);
-      setPassword('');
       adopt_run(next_run_id);
       setStatus('running');
       setRunLabel(target.label);
+      setRunTarget(target.key);
       showSuccess(`Deployment of ${target.label} started.`);
       await poll_once();
     } catch (error) {
       const text = message_of(error, 'Could not start the deployment.');
-      setPageError(text);
-      showError(text);
-      const existing = (error as { data?: { run_id?: string } } | null)?.data?.run_id;
+      const existing = run_id_of(error);
       if (existing) {
+        setAsking(null);
+        setPageError(text);
+        showError(text);
         adopt_run(existing);
         await poll_once();
+      } else {
+        setOverlayError(text);
       }
     } finally {
-      setStarting(null);
+      setStarting(false);
     }
+  };
+
+  const sign = async (password: string) => {
+    setSigning(true);
+    setOverlayError(null);
+    try {
+      const response = await deploymentManagementService.sign_certificate_upload(password);
+      const token = response?.data?.signature;
+      if (!token) throw new Error('The server did not answer with a signature.');
+      setSignature(token);
+      setCertStep('file');
+    } catch (error) {
+      setOverlayError(message_of(error, 'Could not check the password.'));
+    } finally {
+      setSigning(false);
+    }
+  };
+
+  const upload = async (file: File) => {
+    if (!signature) {
+      setCertStep('password');
+      setOverlayError('Enter the deployment password first.');
+      return;
+    }
+    setUploading(true);
+    setUploadProgress(0);
+    setOverlayError(null);
+    try {
+      const response = await deploymentManagementService.upload_certificate(file, signature, setUploadProgress);
+      const next_run_id = response?.data?.run_id;
+      if (!next_run_id) throw new Error('The server did not say which run was started.');
+      setSignature(null);
+      adopt_run(next_run_id);
+      setStatus('queued');
+      setRunLabel(CERTIFICATE_LABEL);
+      setRunTarget(CERTIFICATE_TARGET);
+      setCertStep('run');
+      showSuccess('The certificate was handed to the server.');
+      await poll_once();
+    } catch (error) {
+      const text = message_of(error, 'Could not upload the certificate.');
+      const failure = error as RunIdError;
+      const existing = run_id_of(error);
+      if (failure && failure.http_status === 401) {
+        setSignature(null);
+        setCertStep('password');
+        setOverlayError(text);
+      } else if (existing) {
+        setCertStep(null);
+        setSignature(null);
+        setPageError(text);
+        showError(text);
+        adopt_run(existing);
+        await poll_once();
+      } else {
+        setOverlayError(text);
+      }
+    } finally {
+      setUploading(false);
+      setUploadProgress(null);
+    }
+  };
+
+  const close_certificate_flow = () => {
+    setCertStep(null);
+    setSignature(null);
+    setOverlayError(null);
+    if (status === 'succeeded' || status === 'failed') refresh_certificate();
   };
 
   const is_running = status === 'running' || status === 'queued';
   const look = status_look(status);
   const StatusIcon = look.Icon;
-  const busy = Boolean(starting) || is_running;
+  const busy = starting || signing || uploading || is_running;
+  const certificate_run = run_target === CERTIFICATE_TARGET;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: NEUTRAL_LIGHT, padding: '24px 16px' }}>
@@ -163,14 +274,25 @@ const DeploymentManagement: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
           <FiUploadCloud size={26} color={PRIMARY} />
           <div>
-            <h1 style={{ fontFamily: fontHeading, fontSize: 22, fontWeight: 700, color: '#333333', margin: 0 }}>
+            <h1 style={{ fontFamily: fontHeading, fontSize: 22, fontWeight: 700, color: INK, margin: 0 }}>
               Deployment Management
             </h1>
-            <p style={{ fontFamily: fontHeading, fontSize: 13, color: '#6B7280', margin: '2px 0 0' }}>
+            <p style={{ fontFamily: fontHeading, fontSize: 13, color: MUTED, margin: '2px 0 0' }}>
               Update a running stack from this server. The script's own output is shown below as it runs.
             </p>
           </div>
         </div>
+
+        <CertificateStatusCard
+          certificate={certificate}
+          available={certificate_available}
+          loading={loading_targets}
+          busy={busy}
+          onUpdate={() => {
+            setOverlayError(null);
+            setCertStep('password');
+          }}
+        />
 
         {blocked_reason && (
           <Banner tone="warning" icon={<FiAlertTriangle />} title="Deployment is not available on this server">
@@ -185,79 +307,37 @@ const DeploymentManagement: React.FC = () => {
         )}
 
         {run_error && status === 'failed' && (
-          <Banner tone="danger" icon={<FiXCircle />} title="The deployment failed">
+          <Banner tone="danger" icon={<FiXCircle />} title={certificate_run ? 'The certificate was not installed' : 'The deployment failed'}>
             {run_error}. Read the console below from the bottom up: the step that failed printed why.
+          </Banner>
+        )}
+
+        {status === 'succeeded' && certificate_run && run_id && (
+          <Banner tone="success" icon={<FiCheckCircle />} title="Certificate installed">
+            nginx now serves the new certificate. Its expiry is shown at the top of the page.
           </Banner>
         )}
 
         <div style={{ backgroundColor: WHITE, borderRadius: 0, boxShadow: CARD_SHADOW, padding: 20, marginBottom: 18 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
             {loading_targets && targets.length === 0 ? (
-              <span style={{ fontFamily: fontHeading, fontSize: 13, color: '#6B7280' }}>Loading...</span>
+              <span style={{ fontFamily: fontHeading, fontSize: 13, color: MUTED }}>Loading...</span>
             ) : (
               targets.map((target) => {
-                const is_asking = asking === target.key;
                 const disabled = busy || Boolean(blocked_reason);
-                if (is_asking && !busy) {
-                  return (
-                    <form
-                      key={target.key}
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        start(target);
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}
-                    >
-                      <span className="cok-req" style={{ fontFamily: fontHeading, fontSize: 13, color: '#333333' }}>
-                        Password to deploy {target.label}
-                      </span>
-                      <input
-                        type="password"
-                        value={password}
-                        autoFocus
-                        autoComplete="off"
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="Deployment password"
-                        style={{
-                          fontFamily: fontHeading,
-                          fontSize: 13,
-                          padding: '0.6rem 0.75rem',
-                          border: '1px solid #E0E0E0',
-                          borderRadius: 0,
-                          minWidth: 200,
-                        }}
-                      />
-                      <button type="submit" style={button_style(DANGER, false)}>
-                        Deploy now
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAsking(null);
-                          setPassword('');
-                          setPageError(null);
-                        }}
-                        style={button_style('#9E9E9E', true)}
-                      >
-                        Cancel
-                      </button>
-                    </form>
-                  );
-                }
                 return (
                   <button
                     key={target.key}
                     type="button"
                     onClick={() => {
-                      setAsking(target.key);
-                      setPassword('');
-                      setPageError(null);
+                      setOverlayError(null);
+                      setAsking(target);
                     }}
                     disabled={disabled}
                     title={blocked_reason || undefined}
                     style={button_style(PRIMARY, false, disabled)}
                   >
-                    {starting === target.key ? 'Starting...' : `Deploy ${target.label}`}
+                    {starting && asking?.key === target.key ? 'Starting...' : `Deploy ${target.label}`}
                   </button>
                 );
               })
@@ -288,10 +368,10 @@ const DeploymentManagement: React.FC = () => {
           </div>
 
           {is_running && (
-            <p style={{ fontFamily: fontHeading, fontSize: 12, color: '#6B7280', margin: '12px 0 0' }}>
-              A deployment cannot be stopped once it has started, so every button stays off until it finishes or
-              fails. It restarts the servers, including this one, so the page may lose contact for a moment - the
-              output carries on where it left off, and leaving or reloading this page does not stop the deployment.
+            <p style={{ fontFamily: fontHeading, fontSize: 12, color: MUTED, margin: '12px 0 0' }}>
+              {certificate_run
+                ? 'The certificate is being installed on the server, so every button stays off until it finishes or fails. Leaving or reloading this page does not stop it.'
+                : 'A deployment cannot be stopped once it has started, so every button stays off until it finishes or fails. It restarts the servers, including this one, so the page may lose contact for a moment - the output carries on where it left off, and leaving or reloading this page does not stop the deployment.'}
             </p>
           )}
         </div>
@@ -302,58 +382,47 @@ const DeploymentManagement: React.FC = () => {
           placeholder="No deployment has been run yet. Choose one above and its output will appear here."
         />
       </div>
+
+      <DeployPasswordOverlay
+        open={Boolean(asking)}
+        title={asking ? `Deploy ${asking.label}` : 'Deploy'}
+        subtitle="The deployment password is checked on the server before anything runs."
+        confirm_label="Deploy now"
+        busy={starting}
+        error={overlay_error}
+        onConfirm={(password) => {
+          if (asking) start(asking, password);
+        }}
+        onClose={() => {
+          setAsking(null);
+          setOverlayError(null);
+        }}
+      />
+
+      <DeployPasswordOverlay
+        open={cert_step === 'password'}
+        title="Update certificate"
+        subtitle="Step 1 of 3: the deployment password"
+        confirm_label="Continue"
+        busy={signing}
+        error={overlay_error}
+        note="The password is checked once and exchanged for a signature that is valid for 15 minutes. The certificate files are sent with that signature, never with the password."
+        onConfirm={sign}
+        onClose={close_certificate_flow}
+      />
+
+      <CertificateUploadOverlay
+        open={cert_step === 'file'}
+        busy={uploading}
+        progress={upload_progress}
+        error={overlay_error}
+        onUpload={upload}
+        onClose={close_certificate_flow}
+      />
+
+      <CertificateRunOverlay open={cert_step === 'run'} output={output} status={status} error={run_error} onClose={close_certificate_flow} />
+
       <style>{'@keyframes deploy-spin { to { transform: rotate(360deg); } }'}</style>
-    </div>
-  );
-};
-
-function button_style(color: string, ghost: boolean, disabled = false): React.CSSProperties {
-  return {
-    fontFamily: fontHeading,
-    fontSize: 12,
-    fontWeight: 600,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: ghost ? color : WHITE,
-    backgroundColor: ghost ? 'transparent' : color,
-    border: `1px solid ${color}`,
-    borderRadius: 0,
-    padding: '0.65rem 1.1rem',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.55 : 1,
-    transition: 'background-color 0.2s ease, opacity 0.2s ease',
-  };
-}
-
-interface BannerProps {
-  tone: 'warning' | 'danger';
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
-}
-
-const Banner: React.FC<BannerProps> = ({ tone, icon, title, children }) => {
-  const color = tone === 'danger' ? DANGER : '#F39C12';
-  return (
-    <div
-      role="alert"
-      style={{
-        display: 'flex',
-        gap: 10,
-        alignItems: 'flex-start',
-        backgroundColor: WHITE,
-        borderLeft: `4px solid ${color}`,
-        borderRadius: 0,
-        boxShadow: CARD_SHADOW,
-        padding: '12px 16px',
-        marginBottom: 14,
-      }}
-    >
-      <span style={{ color, display: 'flex', marginTop: 2 }}>{icon}</span>
-      <div>
-        <p style={{ fontFamily: fontHeading, fontSize: 13, fontWeight: 700, color: '#333333', margin: 0 }}>{title}</p>
-        <p style={{ fontFamily: fontHeading, fontSize: 12.5, color: '#6B7280', margin: '2px 0 0' }}>{children}</p>
-      </div>
     </div>
   );
 };

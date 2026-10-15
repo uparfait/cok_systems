@@ -54,7 +54,8 @@ async function sign_certificate_upload(req, res) {
 async function upload_certificate(req, res) {
     try {
         const who = who_is(req);
-        const signature_problem = certificates.consume_signature(req.get('x-deploy-signature'), req.user);
+        const signature = req.get('x-deploy-signature');
+        const signature_problem = certificates.check_signature(signature, req.user);
         if (signature_problem) {
             await logAuditEvent('DEPLOYMENT', `Refused a certificate upload: ${signature_problem} (by ${who})`, req);
             return res.status(401).json({ success: false, message: signature_problem });
@@ -68,6 +69,7 @@ async function upload_certificate(req, res) {
             await logAuditEvent('DEPLOYMENT', `Refused certificate zip ${file_name}: ${inspected.error} (by ${who})`, req);
             return res.status(400).json({ success: false, message: inspected.error });
         }
+        certificates.spend_signature(signature);
         const result = certificates.queue_certificate({
             buffer: req.file.buffer,
             file_name,

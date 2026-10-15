@@ -48,17 +48,25 @@ function issue_signature(user) {
     return { signature: token, expires_at: new Date(expires_at).toISOString() };
 }
 
-/** Why the signature is not accepted, or null; an accepted one is spent. */
-function consume_signature(token, user) {
+/** Why the signature is not accepted, or null. */
+function check_signature(token, user) {
     purge_signatures();
     if (typeof token !== 'string' || token.length === 0) {
         return 'This upload carries no signature. Enter the deployment password first.';
     }
     const entry = SIGNATURES.get(token);
-    if (!entry) return 'That upload signature is unknown or has expired. Enter the deployment password again.';
+    if (!entry) return 'That upload signature is unknown, has expired or was already used. Enter the deployment password again.';
     if (entry.user !== user_key(user)) return 'That upload signature belongs to another session. Enter the deployment password again.';
-    SIGNATURES.delete(token);
     return null;
+}
+
+/**
+ * A signature is spent by the upload it was checked for, once that upload
+ * is accepted - a zip refused for its content leaves it valid, so the
+ * administrator can pick the right file without typing the password again.
+ */
+function spend_signature(token) {
+    SIGNATURES.delete(token);
 }
 
 /** The status file deploy/certificate.sh keeps about the installed certificate, or null. */
@@ -128,7 +136,7 @@ async function reconcile_certificate() {
     return SslCertificate.findOneAndUpdate(
         { fingerprint: status.fingerprint },
         { $set: fields, $setOnInsert: { installed_at } },
-        { upsert: true, new: true, lean: true },
+        { upsert: true, returnDocument: 'after', lean: true },
     );
 }
 
@@ -254,7 +262,8 @@ module.exports = {
     TARGET,
     LABEL,
     issue_signature,
-    consume_signature,
+    check_signature,
+    spend_signature,
     read_certificate_status,
     upload_available,
     reconcile_certificate,

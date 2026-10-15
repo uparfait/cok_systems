@@ -417,7 +417,8 @@ function start_run(target_key, started_by, script_path = SCRIPT_PATH) {
 
     const running = current_run();
     if (running) {
-        return { error: `A deployment is already running (${TARGETS[running.target] ? TARGETS[running.target].label : running.target}). Wait for it to finish.`, run_id: running.run_id };
+        const label = running.target_label || (TARGETS[running.target] ? TARGETS[running.target].label : running.target);
+        return { error: `A deployment is already running (${label}). Wait for it to finish.`, run_id: running.run_id };
     }
 
     const reason = blocking_reason(script_path);
