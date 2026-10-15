@@ -16,6 +16,10 @@
 #   <run_id>.request   written by the backend: the target to deploy
 #   <run_id>.log       the console output, which the page reads by offset
 #   <run_id>.json      the run's state: queued -> running -> succeeded/failed
+#   <run_id>.zip       with target "certificate": the SSL certificate set
+#                      to install (see deploy/certificate.sh)
+#   certificate.json   what the host nginx serves right now, kept fresh by
+#                      certificate.sh so the page can show the expiry
 #   agent.heartbeat    touched on every pass, so the page can say when
 #                      nothing is listening
 #
@@ -35,6 +39,9 @@ ONCE=0
 
 [ "${1:-}" != "--once" ] || ONCE=1
 
+# The SSL certificate side: handle_certificate_request and the status file.
+. "$REPO_DIR/deploy/certificate.sh"
+
 log() { printf '[agent] %s\n' "$*"; }
 
 # The flag each target runs with. This is the ONLY place a target name
@@ -53,10 +60,16 @@ flag_for_target() {
 write_state() {
   local run_id="$1" status="$2" exit_code="$3" error="$4"
   local state="$RUNS_DIR/$run_id.json"
-  local target started_by started_at
+  local target started_by started_at key value extra=''
   target="$(sed -n 's/.*"target"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$state" 2>/dev/null | head -1)"
   started_by="$(sed -n 's/.*"started_by"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$state" 2>/dev/null | head -1)"
   started_at="$(sed -n 's/.*"started_at"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$state" 2>/dev/null | head -1)"
+  # Fields a certificate run carries (its label, kind, file and who started
+  # it, by id) are kept as they were written.
+  for key in target_label kind file_name started_by_id; do
+    value="$(sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$state" 2>/dev/null | head -1)"
+    [ -z "$value" ] || extra="$extra  \"$key\": \"$value\","$'\n'
+  done
   local finished_at='null'
   [ "$status" = running ] || finished_at="\"$(date -u '+%Y-%m-%dT%H:%M:%S.000Z')\""
   local code_json='null'
@@ -68,7 +81,7 @@ write_state() {
 {
   "run_id": "$run_id",
   "target": "$target",
-  "started_by": "$started_by",
+${extra}  "started_by": "$started_by",
   "started_at": "$started_at",
   "finished_at": $finished_at,
   "status": "$status",
@@ -89,6 +102,23 @@ run_one() {
   # Taken before anything else: a second pass must never pick it up again,
   # even if the deployment below restarts this machine's containers.
   rm -f "$request"
+
+  # An SSL certificate to install: no script flag, deploy/certificate.sh
+  # does it. Every other name still has to be in flag_for_target.
+  if [ "$target" = certificate ]; then
+    log "installing certificate $run_id"
+    write_state "$run_id" running '' ''
+    printf '\n[agent] running on %s as %s\n' "$(hostname)" "$(id -un)" >> "$log_file"
+    if handle_certificate_request "$run_id" >> "$log_file" 2>&1; then
+      write_state "$run_id" succeeded 0 ''
+      log "$run_id installed"
+    else
+      printf '\nThe certificate was not installed.\n' >> "$log_file"
+      write_state "$run_id" failed 1 "certificate not installed"
+      log "$run_id failed"
+    fi
+    return 0
+  fi
 
   if ! flag="$(flag_for_target "$target")"; then
     log "refusing unknown target '$target' for $run_id"
@@ -141,12 +171,14 @@ main() {
 
   if [ "$ONCE" = 1 ]; then
     : > "$HEARTBEAT"
+    cert_refresh_status_if_stale
     drain
     return 0
   fi
 
   while :; do
     : > "$HEARTBEAT"
+    cert_refresh_status_if_stale
     drain
     sleep "$POLL_SECONDS"
   done

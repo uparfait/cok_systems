@@ -331,3 +331,20 @@ API contract (both agents follow it exactly):
       Show history per row; loaded record banner and update flow as today
 - [x] K6 Frontend tables: one row per record (no stage rows), updated_at and history columns kept
 - [x] K7 Lead: build, suites, review
+
+## Round 4 (2026-10-15): SSL certificate upload from Deployment management
+
+- [ ] S1 Backend: POST /cok/api/deployment/certificate (zip with the private key, the certificate and the chain; deployment
+      password; same site check as a code run) queues a certificate request in deploy/runs; GET /targets reports the
+      installed certificate (expiry, hosts) from a status file the agent keeps
+- [ ] S2 Agent: a certificate request unzips the file, finds the key, the leaf and the chain, checks that the key matches
+      and the certificate is not expired, writes the full chain and the key into /etc/nginx/certs (backup kept, key 0600),
+      runs nginx -t and reloads nginx, restores the backup on failure, logs expiry before and after
+- [ ] S3 Frontend: an "SSL certificate" card on the Deployment management page: zip input, password, Update button,
+      the same console, the installed certificate expiry with a warning under 30 days
+- [ ] S5 Pop-ups: every password entry on the page is a pop-up; the top block below the page intro shows the installed
+      certificate with a live countdown to expiry and an Update certificate button
+- [ ] S6 Signed upload: POST /deployment/certificate/sign {password} answers a one-time signature valid 15 minutes; the zip
+      upload carries only the signature (X-Deploy-Signature), with a real upload progress bar, then the run pop-up shows
+      the phases Unzipping, Checking, Installing files, Reloading nginx from markers in the log plus the raw output
+- [ ] S4 Lead: tests, build, summary

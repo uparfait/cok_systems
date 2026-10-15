@@ -310,9 +310,11 @@ function current_run() {
 /** The most recent run of any status, for the page to open on. */
 function latest_run() {
     ensure_log_dir();
+    // Only files shaped like a run id: current.json and the agent's
+    // certificate.json live in the same folder and are not runs.
     const ids = fs
         .readdirSync(LOG_DIR)
-        .filter((name) => name.endsWith('.json') && name !== 'current.json')
+        .filter((name) => /^[0-9TZ:.\-]+-[a-z-]+\.json$/i.test(name))
         .map((name) => name.slice(0, -5))
         .sort();
     if (ids.length === 0) return null;
@@ -599,6 +601,7 @@ module.exports = {
     agent_is_listening,
     SCRIPT_PATH,
     LOG_DIR,
+    REPO_DIR,
     CANDIDATE_REPOS,
     find_repo_dir,
     REQUIRED_URL_FRAGMENT,
@@ -610,4 +613,15 @@ module.exports = {
     current_run,
     latest_run,
     blocking_reason,
+    // Shared with utilities/certificate_request.js, which queues a
+    // certificate install the same way a deployment is queued.
+    resolve_privilege,
+    new_run_id,
+    read_json,
+    write_json,
+    ensure_log_dir,
+    log_path,
+    state_path,
+    request_path,
+    current_path,
 };

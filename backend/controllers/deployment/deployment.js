@@ -1,4 +1,5 @@
 const runner = require('../../utilities/deployment_runner');
+const certificates = require('../../utilities/certificate_request');
 const { logAuditEvent } = require('../../middlewares/audit');
 
 /**
@@ -23,12 +24,17 @@ async function get_deployment_targets(req, res) {
         // page is simply told the outcome so it can say why the buttons
         // will not work, and start_deployment checks it again anyway.
         const url_problem = runner.check_request_url(req.headers);
+        // The installed SSL certificate: the model's latest document, or
+        // the agent's status file until the model has one.
+        const certificate = await certificates.installed_certificate();
         return res.status(200).json({
             success: true,
             data: {
                 targets,
                 script_path: runner.SCRIPT_PATH,
                 requires_password: true,
+                certificate,
+                certificate_upload_available: certificates.upload_available(),
                 // 'direct' when this service can run the script itself,
                 // 'agent' when it hands the work to the host (see
                 // utilities/deployment_runner.js).
@@ -78,10 +84,12 @@ async function start_deployment(req, res) {
             return res.status(403).json({ success: false, message: url_problem });
         }
 
+        // 403, not 401: the browser's API client treats a 401 as a lost
+        // session and sends the administrator back to the login page.
         const password_problem = runner.check_password(req.body && req.body.password);
         if (password_problem) {
             await logAuditEvent('DEPLOYMENT', `Refused ${target}: ${password_problem} (by ${who})`, req);
-            return res.status(401).json({ success: false, message: password_problem });
+            return res.status(403).json({ success: false, message: password_problem });
         }
         const result = runner.start_run(target, who);
 
@@ -119,6 +127,12 @@ async function get_deployment_log(req, res) {
         const result = runner.read_log(run_id, Number.isFinite(offset) ? offset : 0);
         if (result.error) {
             return res.status(404).json({ success: false, message: result.error });
+        }
+        // A finished certificate run is the moment the installed
+        // certificate changed: the model is brought up to date here, so the
+        // page's next read of /targets already shows the new expiry.
+        if (result.target === certificates.TARGET && result.status === runner.SUCCEEDED) {
+            await certificates.reconcile_certificate().catch(() => null);
         }
         return res.status(200).json({ success: true, data: result });
     } catch (error) {
