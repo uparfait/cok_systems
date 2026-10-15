@@ -339,7 +339,8 @@ API contract (both agents follow it exactly):
       installed certificate (expiry, hosts) from a status file the agent keeps
 - [x] S2 Agent: a certificate request unzips the file, finds the key, the leaf and the chain, checks that the key matches
       and the certificate is not expired, writes the full chain and the key into /etc/nginx/certs (backup kept, key 0600),
-      runs nginx -t and reloads nginx, restores the backup on failure, logs expiry before and after
+      runs nginx -t and reloads nginx, restores the backup on failure, logs expiry before and after; host layout
+      kept: .crt = leaf + chain (served), .key = key (0600), .pem = the CA chain alone (2026-10-15)
 - [x] S3 Frontend: an "SSL certificate" card on the Deployment management page: zip input, password, Update button,
       the same console, the installed certificate expiry with a warning under 30 days
 - [x] S5 Pop-ups: every password entry on the page is a pop-up; the top block below the page intro shows the installed
@@ -348,3 +349,16 @@ API contract (both agents follow it exactly):
       upload carries only the signature (X-Deploy-Signature), with a real upload progress bar, then the run pop-up shows
       the phases Unzipping, Checking, Installing files, Reloading nginx from markers in the log plus the raw output
 - [x] S4 Lead: tests, build, summary (2026-10-15: certificate-upload.test.js 52/52, certificate-agent.check.sh 37/37 + 3 mode checks skipped on NTFS, certificate-countdown.check.mjs 29/29, tsc clean, build passed)
+
+## Round 5 (2026-10-15): dashboard follow-ups
+
+- [x] T1 Text block title: the card title of a text block is centred and fitted like a KPI title (WidgetCard.jsx);
+      the block's own heading is always centred and fitted up to 1.6x its asked size, never shrunk to small print (TextWidget.jsx)
+- [x] H1 Heat map click: a click on a heat map point opens the records inside the box of ground under it (MapLibre:
+      14 px around the pointer, useMapPointer.js use_heat_pointer; SVG fallback: the dots within 10 px of the clicked
+      one, MapSvg.jsx pick_dot); pick { kind: "geo", box, lat, lng, count } handled by widget_records.js pick_conditions
+      with a criteria chip "<location field>: lat, lng"; scratchpad heat_pick.test.js 14/14; the heatmap chart cells
+      already opened their records (category + series)
+- [x] T2 Text sizes: a text block's right-click menu has "Text sizes" (TextSizesDialog.jsx): heading size and body size in
+      pixels (8 to 96, empty = automatic); kept in widget.text.heading_size / body_size (sanitize_extras.js font_size),
+      carried through reconfigure (textCompose.js), drawn exactly as set by TextWidget.jsx; scratchpad text_sizes.check.js 4/4

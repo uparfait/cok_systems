@@ -53,6 +53,8 @@ export default function BoardGrid({
   onReconfigure,
   // "Date & filters" of one widget, and another page of a table widget.
   onBehavior,
+  // The sizes of a text block's heading and body.
+  onTextSizes,
   onTablePage,
   // Going a level down a cascade.
   onDrill,
@@ -211,6 +213,7 @@ export default function BoardGrid({
       onReconfigure={editable && onReconfigure ? () => onReconfigure(widget) : undefined}
       onPosition={editable && onPosition ? () => onPosition(widget) : undefined}
       onBehavior={editable && onBehavior ? () => onBehavior(widget) : undefined}
+      onTextSizes={editable && onTextSizes && widget.chart_type === "text" ? () => onTextSizes(widget) : undefined}
       onTablePage={onTablePage}
       onDrill={onDrill && drill_target(widget, fields || []) ? () => onDrill(widget) : undefined}
       drillChild={(() => {

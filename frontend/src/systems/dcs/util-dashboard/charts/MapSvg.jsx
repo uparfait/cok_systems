@@ -10,6 +10,11 @@ const PLACE_PADDING = 40;
 const MAX_K = 64;
 const MAX_PLACES = 400;
 const DRAG_SLACK = 3;
+// How far around a clicked dot the other dots count as the same spot, in
+// pixels, and the hair of a degree a box is widened by so the dots
+// themselves lie inside it.
+const DOT_REACH = 10;
+const GEO_SLACK = 0.00001;
 const LETTER_WIDTH = 0.6;
 const FONT = "'Montserrat', sans-serif";
 
@@ -113,7 +118,7 @@ const MapSvg = forwardRef(function MapSvg({ shapes, outlines, describeLand, desc
       const share = Math.min(1, Math.max(0, (Number(point.weight) || 0) / top));
       const group = point.group === null || point.group === undefined ? "" : String(point.group);
       const layer = by_group.get(group);
-      return { key: index, x, y, r: 3 + share * 5, color: layer ? layer.high : mix(heat.low, heat.hot, share) };
+      return { key: index, x, y, lat: Number(point.lat), lng: Number(point.lng), r: 3 + share * 5, color: layer ? layer.high : mix(heat.low, heat.hot, share) };
     });
   }, [heat, project]);
 
@@ -145,6 +150,18 @@ const MapSvg = forwardRef(function MapSvg({ shapes, outlines, describeLand, desc
   const pick = (entry) => {
     if (moved_ref.current || !onPick) return;
     onPick({ label: entry.asked });
+  };
+  // A dot of the heat: with every other dot within reach of it on screen,
+  // the box of ground they stand on - the records of that point, or of the
+  // heat it is part of.
+  const pick_dot = (dot) => {
+    if (moved_ref.current || !onPick) return;
+    const near = dots.filter((other) => Math.abs(other.x - dot.x) <= DOT_REACH && Math.abs(other.y - dot.y) <= DOT_REACH);
+    const box = near.reduce(
+      (out, other) => ({ south: Math.min(out.south, other.lat), north: Math.max(out.north, other.lat), west: Math.min(out.west, other.lng), east: Math.max(out.east, other.lng) }),
+      { south: dot.lat, north: dot.lat, west: dot.lng, east: dot.lng },
+    );
+    onPick({ kind: "geo", box: { south: box.south - GEO_SLACK, north: box.north + GEO_SLACK, west: box.west - GEO_SLACK, east: box.east + GEO_SLACK }, lat: dot.lat, lng: dot.lng, count: near.length });
   };
   const active_entry = active === null ? null : land.find((entry) => entry.key === active);
 
@@ -190,7 +207,22 @@ const MapSvg = forwardRef(function MapSvg({ shapes, outlines, describeLand, desc
             ))}
             {active_entry && <path d={active_entry.d} fill="none" stroke={theme.active} strokeWidth={2.6} pointerEvents="none" />}
             {dots.map((dot) => (
-              <circle key={dot.key} cx={dot.x} cy={dot.y} r={dot.r} fill={dot.color} fillOpacity={0.7} stroke="#FFFFFF" strokeWidth={0.6} pointerEvents="none" />
+              <circle
+                key={dot.key}
+                cx={dot.x}
+                cy={dot.y}
+                r={dot.r}
+                fill={dot.color}
+                fillOpacity={0.7}
+                stroke="#FFFFFF"
+                strokeWidth={0.6}
+                pointerEvents={onPick ? "auto" : "none"}
+                style={{ cursor: onPick ? "pointer" : undefined }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  pick_dot(dot);
+                }}
+              />
             ))}
             {spots.map((spot) => (
               <g key={spot.key}>

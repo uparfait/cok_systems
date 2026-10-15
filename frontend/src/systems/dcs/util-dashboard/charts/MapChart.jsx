@@ -11,7 +11,7 @@ import { HEAT_LOW, HEAT_HIGH } from "./heatScale.js";
 import { take_cache, take_map, attach_map, start_map, release_map, drop_map, watch_basemap, retry_basemap, mark_fallback, is_fallback } from "./mapKeeper.js";
 import { usePlaceMarkers } from "./mapOverlay.jsx";
 import { use_boundaries } from "./useBoundaries.js";
-import { use_map_pointer } from "./useMapPointer.js";
+import { use_map_pointer, use_heat_pointer } from "./useMapPointer.js";
 import { map_legend_items } from "./mapLegendItems.js";
 import { MapKindToggle, MapTools, MapTip, MapVeil, MapBasemapNote, PlaceLabels } from "./MapChrome.jsx";
 import MapLegend from "./MapLegend.jsx";
@@ -110,6 +110,8 @@ export default function MapChart({
   // they can always see the newest one.
   const pick_ref = useRef(onItemClick);
   pick_ref.current = onItemClick;
+  const points_ref = useRef(points);
+  points_ref.current = points;
   // Everything the map paints with that is not read off a feature. A dark
   // board washes the basemap harder, so the widget's own colors keep their
   // contrast over it.
@@ -312,6 +314,7 @@ export default function MapChart({
   }, [attempt]);
 
   use_map_pointer(fallback ? null : map_of(), ready, is_heat, theme_ref, pick_ref, setTip);
+  use_heat_pointer(fallback ? null : map_of(), ready, is_heat, points_ref, pick_ref);
 
   // New data for those layers - no rebuilding, no remounting.
   useEffect(() => {

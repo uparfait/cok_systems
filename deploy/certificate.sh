@@ -18,8 +18,9 @@
 # apart by CONTENT: one private key, the site certificate and the CA
 # chain. The leaf is the certificate whose public key matches the key;
 # every other certificate is the chain. Leaf + chain become
-# CERT_DIR/CERT_NAME.crt and the key CERT_DIR/CERT_NAME.key (0600), after
-# a backup, "nginx -t" and a reload. On any failure the backups go back
+# CERT_DIR/CERT_NAME.crt (what nginx serves), the key CERT_DIR/CERT_NAME.key
+# (0600) and the chain alone CERT_DIR/CERT_NAME.pem, the three files the
+# host keeps, after a backup, "nginx -t" and a reload. On any failure the backups go back
 # and nginx is reloaded with them again. The zip is deleted either way: it
 # holds the private key.
 #
@@ -143,7 +144,7 @@ cert_put() {
 # Puts the backups of one run back; a file that had no backup is removed.
 cert_restore() {
   local stamp="$1" ext src bak
-  for ext in crt key; do
+  for ext in crt key pem; do
     src="$CERT_DIR/$CERT_NAME.$ext"
     bak="$src.bak.$stamp"
     if [ -f "$bak" ]; then
@@ -292,18 +293,18 @@ cert_install_run() {
 
   cert_phase "Installing files"
   mkdir -p "$CERT_DIR" || cert_abort "cannot create $CERT_DIR"
-  for ext in crt key; do
+  for ext in crt key pem; do
     src="$CERT_DIR/$CERT_NAME.$ext"
     [ -f "$src" ] || continue
     cp -p "$src" "$src.bak.$stamp" || cert_abort "could not back up $src"
     had_backup=1
     printf '   backup %s\n' "$src.bak.$stamp"
   done
-  if ! cert_put "$tmp/fullchain.pem" "$CERT_DIR/$CERT_NAME.crt" 0644 || ! cert_put "$key_file" "$CERT_DIR/$CERT_NAME.key" 0600; then
+  if ! cert_put "$tmp/fullchain.pem" "$CERT_DIR/$CERT_NAME.crt" 0644 || ! cert_put "$key_file" "$CERT_DIR/$CERT_NAME.key" 0600 || ! cert_put "$tmp/chain.pem" "$CERT_DIR/$CERT_NAME.pem" 0644; then
     cert_restore "$stamp"
     cert_abort "could not write the files into $CERT_DIR"
   fi
-  printf '   wrote %s (0644, leaf + %s chain certificate(s)) and %s (0600)\n' "$CERT_DIR/$CERT_NAME.crt" "${#chain[@]}" "$CERT_DIR/$CERT_NAME.key"
+  printf '   wrote %s (0644, leaf + %s chain certificate(s)), %s (0600) and %s (0644, the CA chain alone)\n' "$CERT_DIR/$CERT_NAME.crt" "${#chain[@]}" "$CERT_DIR/$CERT_NAME.key" "$CERT_DIR/$CERT_NAME.pem"
   [ "$had_backup" = 1 ] || printf '   (there was no previous certificate to back up)\n'
 
   cert_phase "Reloading nginx"

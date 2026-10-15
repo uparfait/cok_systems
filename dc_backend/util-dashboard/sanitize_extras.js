@@ -56,7 +56,20 @@ function sanitize_text(widget) {
     size: TEXT_SIZES.includes(clean_string(raw.size)) ? clean_string(raw.size) : "md",
   };
   if (HEX_COLOR.test(clean_string(raw.accent))) out.accent = clean_string(raw.accent).toLowerCase();
+  // Exact sizes set from the card's menu, in pixels; absent means the
+  // block sizes its words itself.
+  const heading_size = font_size(raw.heading_size);
+  const body_size = font_size(raw.body_size);
+  if (heading_size) out.heading_size = heading_size;
+  if (body_size) out.body_size = body_size;
   return out;
+}
+
+/** A font size in pixels inside the allowed range, or null. */
+function font_size(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const size = Math.round(Number(value));
+  return Number.isFinite(size) && size >= TEXT_LIMITS.MIN_FONT && size <= TEXT_LIMITS.MAX_FONT ? size : null;
 }
 
 /** One measure column of a summary table: what it computes, on what, under which filters. */

@@ -40,6 +40,31 @@ export const grow_box = (box, other) => {
 };
 
 /** The box a scatter of points covers; a single point is given room to be seen in. */
+/**
+ * The points inside a box of degrees: how many, and the one nearest its
+ * middle - what a click on a heat map picks.
+ */
+export function points_within(points, box) {
+  const mid_lat = (box.south + box.north) / 2;
+  const mid_lng = (box.west + box.east) / 2;
+  let count = 0;
+  let nearest = null;
+  let best = Infinity;
+  (points || []).forEach((point) => {
+    const lat = Number(point.lat);
+    const lng = Number(point.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (lat < box.south || lat > box.north || lng < box.west || lng > box.east) return;
+    count += 1;
+    const gap = (lat - mid_lat) * (lat - mid_lat) + (lng - mid_lng) * (lng - mid_lng);
+    if (gap < best) {
+      best = gap;
+      nearest = { lat, lng };
+    }
+  });
+  return { count, nearest };
+}
+
 export function points_box(points) {
   let box = null;
   (points || []).forEach((point) => {

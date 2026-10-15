@@ -224,6 +224,9 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
   if (widget.chart_type === "map") {
     const settings = widget.map || {};
     const heat = settings.mode === "heat";
+    // A click on the heat itself names a small box of ground rather than a
+    // category: it goes straight to the records inside it.
+    const map_pick = handle_item_click ? (item) => (item && item.kind === "geo" ? (onPick ? onPick(item) : undefined) : handle_item_click(item)) : undefined;
     return (
       <div>
         <MapChart
@@ -248,7 +251,7 @@ export default function WidgetChart({ widget, data, fitMode, animate, cardWidth,
           palette={palette}
           density={density}
           animate={animate}
-          onItemClick={handle_item_click}
+          onItemClick={map_pick}
           onLegendClick={legend_pick}
         />
         {!heat && <DimensionTotals totals={data.totals} palette={palette} />}

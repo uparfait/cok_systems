@@ -149,7 +149,7 @@ const SORT_DIRECTIONS = ["asc", "desc"];
  */
 const TEXT_ALIGNS = ["left", "center", "right"];
 const TEXT_SIZES = ["sm", "md", "lg"];
-const TEXT_LIMITS = { MAX_HEADING: 200, MAX_BODY: 4000 };
+const TEXT_LIMITS = { MAX_HEADING: 200, MAX_BODY: 4000, MIN_FONT: 8, MAX_FONT: 96 };
 
 /**
  * How many board filter fields one widget may refuse to follow. A widget

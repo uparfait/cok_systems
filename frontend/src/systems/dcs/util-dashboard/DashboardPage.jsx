@@ -86,6 +86,7 @@ function DashboardBoard({ form }) {
   const [appearance_widget, setAppearanceWidget] = useState(null);
   // The widget whose "Date & filters" are being edited.
   const [behavior_widget, setBehaviorWidget] = useState(null);
+  const [text_sizes_widget, setTextSizesWidget] = useState(null);
   // Whether the board's own colors are being set.
   const [colors_open, setColorsOpen] = useState(false);
   const form_fields = useMemo(() => builder_fields(form.schema), [form.schema]);
@@ -413,6 +414,7 @@ function DashboardBoard({ form }) {
             onAddToCanvas={open_builder_in}
             onPosition={position.open}
             onBehavior={(target) => setBehaviorWidget(target)}
+            onTextSizes={(target) => setTextSizesWidget(target)}
             onTablePage={(target, page, page_size) => data.page_widget(target, page, page_size)}
             onDrill={drill.open}
             onWidgetMenu={canvas_menu.open_widget_menu}
@@ -475,6 +477,7 @@ function DashboardBoard({ form }) {
         savingWidgetId={saving_widget_id}
         appearanceWidget={appearance_widget}
         behaviorWidget={behavior_widget}
+        textSizesWidget={text_sizes_widget} onCloseTextSizes={() => setTextSizesWidget(null)}
         filterDefs={filters}
         iconWidget={icon_widget}
         skippedWidget={skipped_widget}

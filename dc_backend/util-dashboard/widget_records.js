@@ -24,7 +24,8 @@ const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group", "imag
  * filters and the period - narrowed further by what the viewer clicked:
  * a bar or slice = one category value, a segment or legend entry = one
  * split value, a point of a line = one time bucket, a scatter point = its
- * two numbers, a treemap tile = its value (or its parent's), and on a
+ * two numbers, a treemap tile = its value (or its parent's), a point of a
+ * heat map = the records inside the small box of ground around it, and on a
  * "count occurrences" widget one counted value with whatever "same" values
  * it shares. A whole occurrence widget with a rule opens only the records
  * of the values that met the rule - exactly what the widget counted.
@@ -35,6 +36,24 @@ const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group", "imag
 const clean = (value) => (typeof value === "string" ? value.trim() : value);
 const eq = (field_id, value) => ({ [`data.${field_id}`]: { $in: value_candidates(value) } });
 const is_occurrences = (widget) => ((widget.metric && widget.metric.aggregation) || "count") === "occurrences";
+const geo_part = (field_id, part) => ({ $convert: { input: `$data.${field_id}.${part}`, to: "double", onError: null, onNull: null } });
+
+/** The ground a heat-map click covers: four finite degrees, south under north and west under east, or null. */
+function geo_box(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const box = { south: Number(raw.south), north: Number(raw.north), west: Number(raw.west), east: Number(raw.east) };
+  if (!Object.values(box).every(Number.isFinite)) return null;
+  if (box.south > box.north) [box.south, box.north] = [box.north, box.south];
+  if (box.west > box.east) [box.west, box.east] = [box.east, box.west];
+  return { south: Math.max(-90, box.south), north: Math.min(90, box.north), west: Math.max(-180, box.west), east: Math.min(180, box.east) };
+}
+
+/** What the criteria chip of a heat click says: the point clicked, or the middle of the box. */
+function geo_label(picked, box) {
+  const lat = Number.isFinite(Number(picked.lat)) ? Number(picked.lat) : (box.south + box.north) / 2;
+  const lng = Number.isFinite(Number(picked.lng)) ? Number(picked.lng) : (box.west + box.east) / 2;
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
 
 /**
  * The extra conditions of one click, plus the criteria they add. Async
@@ -99,6 +118,15 @@ async function pick_conditions(widget, pick, bounds, catalog) {
       conditions.push({ $expr: { $eq: [numeric_expr(field_id), Number(value)] } });
       criteria.push({ field_id, field_label: label_of(field_id), value: Number(value) });
     });
+  } else if (picked.kind === "geo") {
+    const point_field = widget.map && widget.map.point_field_id;
+    const box = geo_box(picked.box);
+    if (point_field && catalog.fields_by_id.has(point_field) && box) {
+      const lat = geo_part(point_field, "latitude");
+      const lng = geo_part(point_field, "longitude");
+      conditions.push({ $expr: { $and: [{ $gte: [lat, box.south] }, { $lte: [lat, box.north] }, { $gte: [lng, box.west] }, { $lte: [lng, box.east] }] } });
+      criteria.push({ field_id: point_field, field_label: label_of(point_field), value: geo_label(picked, box), is_point: true });
+    }
   } else if (picked.kind === "time" && typeof picked.label === "string") {
     const range = await time_bucket_range(widget, bounds, picked.label);
     if (range) {

@@ -4,6 +4,7 @@ import { appearance_values_field } from "./builder/composeWidgets.js";
 import IconPickerPanel from "./icons/IconPickerPanel.jsx";
 import SkippedDetailsModal from "./SkippedDetailsModal.jsx";
 import WidgetBehaviorDialog from "./WidgetBehaviorDialog.jsx";
+import TextSizesDialog from "./TextSizesDialog.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import BoardColorsDialog from "./BoardColorsDialog.jsx";
 
@@ -20,7 +21,7 @@ const icon_of = (widget) => (is_map(widget) ? { ...widget, icon: (widget.map && 
 // Picking one for a map also plants it; removing it takes the markers off.
 const icon_change = (widget, name) => (is_map(widget) ? { map: Object.assign({}, widget.map, { marker: name, show_markers: !!name }) } : { icon: name });
 
-export default function BoardWidgetDialogs({ form, fields, widgets, savingWidgetId, appearanceWidget, behaviorWidget, filterDefs, iconWidget, skippedWidget, period, appliedFilters, boardColors, onUpdate, onCloseAppearance, onCloseBehavior, onCloseIcon, onCloseSkipped, confirmDelete, confirmRemove }) {
+export default function BoardWidgetDialogs({ form, fields, widgets, savingWidgetId, appearanceWidget, behaviorWidget, textSizesWidget, filterDefs, iconWidget, skippedWidget, period, appliedFilters, boardColors, onUpdate, onCloseAppearance, onCloseBehavior, onCloseTextSizes, onCloseIcon, onCloseSkipped, confirmDelete, confirmRemove }) {
   const current_widget = () => (iconWidget ? widgets.find((widget) => widget.id === iconWidget.id) || iconWidget : null);
 
   return (
@@ -66,6 +67,25 @@ export default function BoardWidgetDialogs({ form, fields, widgets, savingWidget
           filterDefs={filterDefs}
           onClose={onCloseBehavior}
           onApply={(changes) => onUpdate(behaviorWidget.id, changes)}
+        />
+      )}
+      {textSizesWidget && (
+        // The sizes of a text block's heading and body; the whole text
+        // object travels, since the server reads it as one thing.
+        <TextSizesDialog
+          widget={widgets.find((widget) => widget.id === textSizesWidget.id) || textSizesWidget}
+          saving={savingWidgetId === textSizesWidget.id}
+          onSave={async (sizes) => {
+            const current = widgets.find((widget) => widget.id === textSizesWidget.id) || textSizesWidget;
+            const text = Object.assign({}, current.text || {});
+            if (sizes.heading_size) text.heading_size = sizes.heading_size;
+            else delete text.heading_size;
+            if (sizes.body_size) text.body_size = sizes.body_size;
+            else delete text.body_size;
+            const result = await onUpdate(textSizesWidget.id, { text });
+            if (!result || result.ok !== false) onCloseTextSizes();
+          }}
+          onClose={onCloseTextSizes}
         />
       )}
       {iconWidget && (

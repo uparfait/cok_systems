@@ -1,6 +1,7 @@
 import React from "react";
 import { build_palette } from "../appearance.js";
 import { substitute_variables, has_text_variables } from "../textVariables.js";
+import { fit_text_font } from "./labelDensity.jsx";
 
 /**
  * A TEXT block: words on the board. A title band across a section, an
@@ -8,7 +9,8 @@ import { substitute_variables, has_text_variables } from "../textVariables.js";
  * things a printed report carries between its figures.
  *
  * It reads no data. What it shows is its heading and its body, set the
- * way the author asked (left, centred or right; small, medium or large)
+ * way the author asked (left, centred or right; small, medium or large;
+ * the heading itself is always centred, being the block's title)
  * and painted from the widget's own colours, so a band on a dark section
  * is white on blue without any more saying so. The body is written in a
  * light markup: a blank line starts a new paragraph, **these words** are
@@ -25,7 +27,9 @@ import { substitute_variables, has_text_variables } from "../textVariables.js";
  * rather than spilling over the card or being cut off by it - down to 8px,
  * past which the card's own area scrolls instead. So a title band in a
  * twelfth of a row still reads as a title band, and a page of text in a
- * small card is a small page of text.
+ * small card is a small page of text. A size SET BY HAND from the card's
+ * menu (text.heading_size, text.body_size, in pixels) is drawn exactly as
+ * asked, whatever the card's width.
  */
 
 const SIZES = {
@@ -79,15 +83,23 @@ export default function TextWidget({ widget, palette, data, width }) {
   const accent = text.accent || colors.number;
   const align = ["left", "center", "right"].includes(text.align) ? text.align : "left";
   const paragraphs = paragraphs_of(body);
+  // THE HEADING IS THE BLOCK'S TITLE: centred, and as large as two lines
+  // of the card allow, up to well above its asked-for size, so a small
+  // block still reads as a titled band rather than a line of small print.
+  const heading = String(text.heading || "");
+  const set_heading = Number(text.heading_size) > 0 ? Number(text.heading_size) : 0;
+  const set_body = Number(text.body_size) > 0 ? Number(text.body_size) : 0;
+  const heading_font = !heading ? 0 : set_heading || fit_text_font(heading, Math.max(40, room - 16) * 1.5, Math.round(size.heading * 1.6), 10);
+  const body_font = set_body || font(size.body);
   return (
     <div className="dcs-text-widget" style={{ textAlign: align, color: colors.text }}>
       {text.heading ? (
-        <p className="dcs-text-heading" style={{ fontSize: font(size.heading), color: colors.text }}>
-          {text.heading}
+        <p className="dcs-text-heading" style={{ fontSize: heading_font, color: colors.text, textAlign: "center" }}>
+          {heading}
         </p>
       ) : null}
       {paragraphs.map((paragraph, index) => (
-        <p key={index} className="dcs-text-paragraph" style={{ fontSize: font(size.body) }}>
+        <p key={index} className="dcs-text-paragraph" style={{ fontSize: body_font }}>
           {render_marked(paragraph, accent, `p${index}`)}
         </p>
       ))}

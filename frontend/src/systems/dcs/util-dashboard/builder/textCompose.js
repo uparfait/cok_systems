@@ -10,12 +10,25 @@ export const TEXT_ALIGNS = ["left", "center", "right"];
 export const TEXT_SIZES = ["sm", "md", "lg"];
 export const MAX_HEADING = 200;
 export const MAX_BODY = 4000;
+// The exact sizes a block's words may be given, in pixels.
+export const FONT_MIN = 8;
+export const FONT_MAX = 96;
+
+/** A font size inside the allowed range, or null for "automatic". */
+export function clean_font_size(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const size = Math.round(Number(value));
+  if (!Number.isFinite(size)) return null;
+  return Math.min(FONT_MAX, Math.max(FONT_MIN, size));
+}
 
 export const EMPTY_TEXT_SPEC = {
   heading: "",
   body: "",
   align: "left",
   size: "md",
+  heading_size: null,
+  body_size: null,
   accent: "",
   // The card's own title is optional on a text block: a title band needs
   // only its heading, and a second line above it would say it twice.
@@ -46,6 +59,8 @@ export function build_text_draft(form, spec) {
     size: TEXT_SIZES.includes(spec.size) ? spec.size : "md",
   };
   if (/^#[0-9a-f]{6}$/i.test(String(spec.accent || "").trim())) text.accent = String(spec.accent).trim().toLowerCase();
+  if (clean_font_size(spec.heading_size)) text.heading_size = clean_font_size(spec.heading_size);
+  if (clean_font_size(spec.body_size)) text.body_size = clean_font_size(spec.body_size);
   const widget = {
     id: `t_${form.form_group_id}_${Date.now()}_${sequence}`,
     form_group_id: form.form_group_id,
@@ -82,6 +97,8 @@ export function text_widget_to_spec(widget) {
     body: text.body || "",
     align: TEXT_ALIGNS.includes(text.align) ? text.align : "left",
     size: TEXT_SIZES.includes(text.size) ? text.size : "md",
+    heading_size: clean_font_size(text.heading_size),
+    body_size: clean_font_size(text.body_size),
     accent: text.accent || "",
     title: widget.title || "",
     description: widget.description || "",

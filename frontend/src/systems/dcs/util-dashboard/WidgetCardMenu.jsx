@@ -88,7 +88,7 @@ function OverTimeSection({ widget, fields, translate, onOverTime, sectionTitle, 
   );
 }
 
-export default function CardMenu({ widget, palette, canMap, canHeat, fields, at, onClose, onOpenRecords, onDrill, drillChild, onExpand, expanded, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onMapMode, onOverTime, onReconfigure, onPosition, onBehavior }) {
+export default function CardMenu({ widget, palette, canMap, canHeat, fields, at, onClose, onOpenRecords, onDrill, drillChild, onExpand, expanded, onChangeType, onChangeSize, onRemove, onAppearance, onPickIcon, onMapMode, onOverTime, onReconfigure, onPosition, onBehavior, onTextSizes }) {
   // A canvas draws no data, so there is nothing in it to reconfigure and
   // no other look to turn it into: its menu is about size and colors.
   const is_canvas = widget.chart_type === "canvas";
@@ -125,7 +125,7 @@ export default function CardMenu({ widget, palette, canMap, canHeat, fields, at,
   };
   // A strong row: what the menu is mostly opened for.
   const lead_style = () => Object.assign(item_style(false), { color: PRIMARY, fontWeight: 600 });
-  const has_settings = !!(onChangeSize || onChangeType || onPickIcon || onMapMode || onOverTime || onReconfigure || onPosition || onBehavior || onAppearance || onRemove);
+  const has_settings = !!(onChangeSize || onChangeType || onPickIcon || onMapMode || onOverTime || onReconfigure || onPosition || onBehavior || onTextSizes || onAppearance || onRemove);
 
   if (!at) return null;
   return (
@@ -219,6 +219,12 @@ export default function CardMenu({ widget, palette, canMap, canHeat, fields, at,
           {onReconfigure && !is_canvas && (
             <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onReconfigure)}>
               {translate("DCS_DB_RECONFIGURE")}
+            </button>
+          )}
+          {/* A text block's words: how large its heading and its body are drawn. */}
+          {onTextSizes && widget.chart_type === "text" && (
+            <button type="button" role="menuitem" className="dcs-db-menu-item" style={{ ...item_style(false), borderTop: `1px solid ${SURFACE_BORDER}`, color: PRIMARY, fontWeight: 600 }} onClick={() => pick(onTextSizes)}>
+              {translate("DCS_DB_TEXT_SIZES")}
             </button>
           )}
           {onPosition && (

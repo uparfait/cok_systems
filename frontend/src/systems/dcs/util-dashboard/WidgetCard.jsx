@@ -187,7 +187,7 @@ function KpiIconSlot({ icon, color, size }) {
  * A KPI card also carries an optional icon; editors click the card's number
  * area (or the icon slot) to set or change it.
  */
-export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, sizeByWidth, onExpand, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, onPosition, onBehavior, onTablePage, onDrill, drillChild, slot, onContextMenu }) {
+export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMode, editable, savingText, onUpdateText, onRemove, onChangeType, onChangeSize, onShowSkipped, onPickIcon, onAppearance, expanded, sizeByWidth, onExpand, onOpenRecords, canMap, canHeat, onMapMode, fields, onOverTime, onReconfigure, onPosition, onBehavior, onTextSizes, onTablePage, onDrill, drillChild, slot, onContextMenu }) {
   const { translate } = useDcsLanguage();
   const board = useBoardTheme();
   const definition = chart_definition(widget.chart_type);
@@ -263,12 +263,15 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
   // and description follow. A long title is shrunk until it fits in about
   // two lines, so one wordy card never makes its whole row tall. A chart's
   // title grows more modestly, from 14px on a narrow card to 22px on a
-  // wide one.
+  // wide one. A TEXT BLOCK's title is centred and fitted the way a KPI's
+  // is, so a small block with a title reads as a band, not small print.
   const title_text = String(title_shown || type_label || "").toUpperCase();
   const kpi_title_cap = Math.max(kpi.title, Math.min(48, Math.round(chart_size.width / 12)));
   const kpi_icon_size = kpi.icon ? Math.max(kpi.icon, Math.round(kpi_title_cap * 1.1)) : 0;
   const kpi_title_room = Math.max(60, chart_size.width - 24 - (kpi_icon_size ? kpi_icon_size + 14 : 0));
-  const kpi_title_font = is_kpi ? fit_text_font(title_text, kpi_title_room * 1.5, kpi_title_cap, kpi.title) : Math.max(14, Math.min(22, Math.round(chart_size.width / 40)));
+  const centred_title = is_kpi || is_text;
+  const title_room = is_text ? Math.max(60, chart_size.width - 24) : kpi_title_room;
+  const kpi_title_font = centred_title ? fit_text_font(title_text, title_room * 1.5, kpi_title_cap, kpi.title) : Math.max(14, Math.min(22, Math.round(chart_size.width / 40)));
   // A KPI card FILLS whatever room it is given - its number grows to the
   // card - so its drawn height says nothing about what it needs: it asks
   // only for the least a KPI card may be, and keeps its designed height.
@@ -326,10 +329,10 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           added and where the card's own menu lives: its size, its colour
           settings, its words and the way to remove it. */}
       {(!wordless || editable || !!widget.title || !!widget.description) && (
-      <div className={`${is_kpi ? `${kpi.pad} pt-2 pb-1 items-center justify-center text-center` : "px-3 pt-3 pb-2 items-start"} flex gap-2`}>
+      <div className={`${is_kpi ? `${kpi.pad} pt-2 pb-1 items-center justify-center text-center` : is_text ? "px-3 pt-3 pb-1 items-center justify-center text-center" : "px-3 pt-3 pb-2 items-start"} flex gap-2`}>
         {is_kpi && <KpiIconSlot icon={widget.icon} color={palette.number} size={kpi_icon_size} />}
         <div className={`min-w-0 relative ${is_kpi ? "" : "flex-1"}`}>
-          <div className={`flex flex-wrap items-baseline gap-x-1.5 ${is_kpi ? "justify-center" : ""}`}>
+          <div className={`flex flex-wrap items-baseline gap-x-1.5 ${centred_title ? "justify-center" : ""}`}>
           {/* The name and the description are SHOWN here and set in the
               settings dialog. They used to be typed in place, which made
               every heading on a board a control and renamed a chart on a
@@ -340,7 +343,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
             hideWhenEmpty={wordless}
             editable={false}
             maxLength={120}
-            textStyle={{ color: palette.text, fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: kpi_title_font, lineHeight: is_kpi ? 1.15 : 1.25, textTransform: "uppercase", letterSpacing: "0.3px" }}
+            textStyle={{ color: palette.text, fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: kpi_title_font, lineHeight: centred_title ? 1.15 : 1.25, textTransform: "uppercase", letterSpacing: "0.3px" }}
           />
           </div>
           <EditableText
@@ -441,6 +444,7 @@ export default function WidgetCard({ widget, data, loading, busy, onRetry, fitMo
           onReconfigure={editable ? onReconfigure : undefined}
           onPosition={editable ? onPosition : undefined}
           onBehavior={editable ? onBehavior : undefined}
+          onTextSizes={editable && is_text ? onTextSizes : undefined}
         />
       )}
       {skipped_count > 0 && (
